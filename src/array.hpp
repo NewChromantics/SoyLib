@@ -234,17 +234,19 @@
 			return Soy::IsComplexType<T>();
 		}
 
-		T& operator [] (int index)
+		T& GetAt(int index)
 		{
 			assert( index >= 0 && index < moffset );
 			return mdata[index];
 		}
 
-		const T& operator [] (int index) const
+		const T& GetAtConst(int index) const
 		{
 			assert( index >= 0 && index < moffset );
 			return mdata[index];
 		}
+		T&			operator [] (int index)				{	return GetAt(index);	}
+		const T&	operator [] (int index) const		{	return GetAtConst(index);	}
 
 		T&			GetBack()		{	return (*this)[GetSize()-1];	}
 		const T&	GetBack() const	{	return (*this)[GetSize()-1];	}
@@ -445,6 +447,13 @@
 			return mdata[--moffset];
 		}
 
+		T PopAt(int Index)
+		{
+			T Item = GetAt(Index);
+			RemoveBlock( Index, 1 );
+			return Item;
+		}
+
 		void Remove(const T& item)
 		{
 			int count = GetSize();
@@ -620,6 +629,56 @@
 
 
 //} // namespace Soy
+
+
+
+//----------------------------------------
+//----------------------------------------
+template<typename T,bool AUTODEALLOC=false>
+class PtrArray : public Array<T*>
+{
+public:
+	~PtrArray()
+	{
+		if ( AUTODEALLOC )
+			DeleteAll();
+	}
+
+	void		DeleteAll()
+	{
+		for ( int i=0;	i<GetSize();	i++ )
+		{
+			T*& pElement = GetAt(i);
+			if ( !pElement )
+				continue;
+			delete pElement;
+			pElement = NULL;
+		}
+		Clear();
+	}
+
+	template<typename MATCHTYPE>
+	int			FindIndex(const MATCHTYPE& Match) const
+	{
+		for ( int i=0;	i<GetSize();	i++ )
+		{
+			T*const& pElement = GetAtConst(i);
+			if ( !pElement )
+				continue;
+			const T& Element = *pElement;
+			if ( Element == Match )
+				return i;
+		}
+		return -1;
+	}
+
+	//	find an element - returns first matching element or NULL
+	template<typename MATCH> T*			Find(const MATCH& Match)		{	int Index = FindIndex( Match );		return (Index < 0) ? NULL : GetAt(Index);	}
+	template<typename MATCH> const T*	Find(const MATCH& Match) const	{	int Index = FindIndex( Match );		return (Index < 0) ? NULL : GetAtConst(Index);	}
+	
+	T& operator [] (int index)				{	return *GetAt(index);	}
+	const T& operator [] (int index) const	{	return *GetAtConst(index);	}
+};
 
 
 #endif
