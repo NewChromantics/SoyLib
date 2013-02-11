@@ -13,7 +13,6 @@
 
 
 
-
 namespace Soy
 {
 	//	speed up large array usage with non-complex types (structs, floats, etc) by overriding this template function (or use the macro)
