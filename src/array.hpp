@@ -364,6 +364,9 @@
 			}
 
 			moffset = endoff;
+			//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
+			for ( int i=curoff;	i<curoff+count;	i++ )
+				mdata[i] = T();
 			return mdata + curoff;
 		}
 		
@@ -418,7 +421,10 @@
 					moffset = offset;
 				}
 			}
-			return mdata[moffset++];
+			//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
+			T& ref = mdata[moffset++];
+			ref = T();
+			return ref;
 		}
 
 		template<class ARRAYTYPE>
@@ -438,6 +444,27 @@
 				pNewData = &((*this)[NewDataIndex]);
 				//	note: lack of bounds check for all elements here
 				memcpy( pNewData, v.GetArray(), v.GetSize() * sizeof(T) );
+			}
+		}
+
+		//	pushback a c-array
+		template<size_t CARRAYSIZE>
+		void PushBackArray(const T(&CArray)[CARRAYSIZE])
+		{
+			int NewDataIndex = GetSize();
+			T* pNewData = PushBlock( CARRAYSIZE );
+
+			if ( IsComplexType<T>() )
+			{
+				for ( int i=0; i<CARRAYSIZE; ++i )
+					(*this)[i+NewDataIndex] = CArray[i];	//	use [] operator for bounds check
+			}
+			else if ( GetSize() > 0 )
+			{
+				//	re-fetch address for bounds check. technically unncessary
+				pNewData = &((*this)[NewDataIndex]);
+				//	note: lack of bounds check for all elements here
+				memcpy( pNewData, CArray, CARRAYSIZE * sizeof(T) );
 			}
 		}
 
