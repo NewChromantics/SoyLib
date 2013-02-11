@@ -250,6 +250,27 @@
 			}
 		}
 
+		//	pushback a c-array
+		template<size_t CARRAYSIZE>
+		void PushBackArray(const T(&CArray)[CARRAYSIZE])
+		{
+			int NewDataIndex = GetSize();
+			T* pNewData = PushBlock( CARRAYSIZE );
+
+			if ( Soy::IsComplexType<T>() )
+			{
+				for ( int i=0; i<CARRAYSIZE; ++i )
+					(*this)[i+NewDataIndex] = CArray[i];	//	use [] operator for bounds check
+			}
+			else if ( GetSize() > 0 )
+			{
+				//	re-fetch address for bounds check. technically unncessary
+				pNewData = &((*this)[NewDataIndex]);
+				//	note: lack of bounds check for all elements here
+				memcpy( pNewData, CArray, CARRAYSIZE * sizeof(T) );
+			}
+		}
+
 		T& PopBack()
 		{
 			assert( GetSize() > 0 );
