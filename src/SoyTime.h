@@ -20,12 +20,12 @@ public:
 
 	uint32			GetTime() const							{	return mTime;	}
 
-	inline bool		operator==(const SoyTime& Time) const	{	return Time.mTime == mTime;	}
-	inline bool		operator!=(const SoyTime& Time) const	{	return Time.mTime != mTime;	}
-	inline bool		operator<(const SoyTime& Time) const	{	return Time.mTime < mTime;	}
-	inline bool		operator<=(const SoyTime& Time) const	{	return Time.mTime <= mTime;	}
-	inline bool		operator>(const SoyTime& Time) const	{	return Time.mTime > mTime;	}
-	inline bool		operator>=(const SoyTime& Time) const	{	return Time.mTime >= mTime;	}
+	inline bool		operator==(const SoyTime& Time) const	{	return mTime == Time.mTime;	}
+	inline bool		operator!=(const SoyTime& Time) const	{	return mTime != Time.mTime;	}
+	inline bool		operator<(const SoyTime& Time) const	{	return mTime < Time.mTime;	}
+	inline bool		operator<=(const SoyTime& Time) const	{	return mTime <= Time.mTime;	}
+	inline bool		operator>(const SoyTime& Time) const	{	return mTime > Time.mTime;	}
+	inline bool		operator>=(const SoyTime& Time) const	{	return mTime >= Time.mTime;	}
 
 private:
 	uint32	mTime;
