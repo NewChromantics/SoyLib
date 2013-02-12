@@ -12,8 +12,14 @@ public:
 		mRef	( 0 )
 	{
 	}
+	explicit SoyRef(uint32 Ref) :
+		mRef	( Ref )
+	{
+	}
 
-	bool		IsValid() const	{	return mRef != 0;	}
+	bool		IsValid() const							{	return (*this) != SoyRef();	}
+	inline bool	operator==(const SoyRef& That) const	{	return mRef == That.mRef;	}
+	inline bool	operator!=(const SoyRef& That) const	{	return mRef != That.mRef;	}
 
 public:
 	uint32		mRef;
