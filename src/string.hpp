@@ -871,7 +871,7 @@ public:
 	operator const S* () const		{	return mdata.GetArray();	}
 };
 	
-typedef Soy::String2<char,Array<char> >		String;
+typedef Soy::String2<char,Array<char> >		TString;
 
 
 template <typename S,class ARRAYTYPE>
