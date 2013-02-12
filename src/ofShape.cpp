@@ -12,4 +12,18 @@ bool ofShapeBox3::IsOutside(const vec2f& Pos) const
 	return false;
 }
 
+TIntersection2 ofShapeCircle2::GetIntersection(const ofShapeCircle2& ShapeB) const
+{
+	auto& ShapeA = *this;
+	TIntersection2 Intersection;
+
+	Intersection.mDelta = ShapeB.mPosition - ShapeA.mPosition;
+	Intersection.mDistanceSq = Intersection.mDelta.lengthSquared();
+	float Distance = Intersection.mDelta.length();
+
+	float RadTotal = ShapeA.mRadius + ShapeB.mRadius;
+
+	Intersection.mIntersected = ( Intersection.mDistanceSq <= RadTotal*RadTotal );
+	return Intersection;
+}
 

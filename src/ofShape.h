@@ -31,6 +31,46 @@ inline float ofGetMathTime(float z,float Min,float Max)
 	return (z-Min) / (Max-Min);	
 }
 
+//-----------------------------------------------
+//	different kind of intersection... for physics
+//-----------------------------------------------
+class TIntersection
+{
+public:
+	TIntersection() :
+		mIsValid		( false )
+	{
+	}
+
+	bool		IsValid() const			{	return mIsValid;	}
+
+public:
+	bool		mIsValid;
+	vec2f		mMidIntersection;
+	vec2f		mCollisionPointA;
+	vec2f		mCollisionPointB;
+};
+
+
+//-----------------------------------------------
+//	shape intersection
+//-----------------------------------------------
+class TIntersection2
+{
+public:
+	TIntersection2() :
+		mIntersected	( false )
+	{
+	}
+
+	operator	bool() const	{	return mIntersected;	}
+
+public:
+	bool		mIntersected;	//	did intersect
+	vec2f		mDelta;
+	float		mDistanceSq;
+};
+
 
 class ofShapeCircle2
 {
@@ -46,7 +86,9 @@ public:
 	{
 	}
 
-	bool		IsValid() const	{	return mRadius > 0.f;	}
+	bool			IsValid() const	{	return mRadius > 0.f;	}
+	
+	TIntersection2	GetIntersection(const ofShapeCircle2& Shape) const;
 
 public:
 	vec2f		mPosition;
@@ -74,11 +116,11 @@ public:
 };
 
 
-class ofShapeLine2
+class ofLine2
 {
 public:
-	ofShapeLine2()	{}
-	ofShapeLine2(const vec2f& Start,const vec2f& End) :
+	ofLine2()	{}
+	ofLine2(const vec2f& Start,const vec2f& End) :
 		mStart	( Start ),
 		mEnd	( End )
 	{
