@@ -1,6 +1,8 @@
 #pragma once
 
 
+#include "..\..\..\addons\ofxSoylent\src\ofxSoylent.h"
+
 
 template<typename T>
 const T& ofMin(const T& a,const T& b)
@@ -64,6 +66,7 @@ public:
 	vec3f	GetRandomPosInside() const		{	return vec3f( ofRandom(mMin.x,mMax.x), ofRandom(mMin.y,mMax.y), ofRandom(mMin.z,mMax.z) );	}
 	vec3f	GetCenter() const				{	return vec3f( ofLerp(mMin.x,mMax.x,0.5f), ofLerp(mMin.y,mMax.y,0.5f), ofLerp(mMin.z,mMax.z,0.5f) );	}
 	float	GetTimeZ(float z) const			{	return ofGetMathTime( z, mMin.z, mMax.z );	}
+	bool	IsOutside(const vec2f& Pos) const;
 
 public:
 	vec3f	mMin;
@@ -80,6 +83,8 @@ public:
 		mEnd	( End )
 	{
 	}
+
+	float	GetLength() const	{	return (mEnd-mStart).length();	}
 
 public:
 	vec2f	mStart;
