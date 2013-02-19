@@ -3,6 +3,7 @@
 
 #include "..\..\..\addons\ofxSoylent\src\ofxSoylent.h"
 
+#define SCREEN_UP2	vec2f(0,-1)
 
 template<typename T>
 const T& ofMin(const T& a,const T& b)
@@ -30,6 +31,66 @@ inline float ofGetMathTime(float z,float Min,float Max)
 {
 	return (z-Min) / (Max-Min);	
 }
+
+
+inline vec2f ofNormalFromAngle(float AngleDegrees)
+{
+	float AngleRad = ofDegToRad( AngleDegrees );
+	vec2f Normal = SCREEN_UP2;
+	return Normal.rotated( AngleDegrees );
+}
+
+inline float ofAngleFromNormal(const vec2f& Normal)
+{
+	static bool usenormalised = false;
+	vec2f n = usenormalised ? Normal.normalized() : Normal;
+	return SCREEN_UP2.angle( n );
+}
+
+
+class TTransform
+{
+public:
+	TTransform(const vec2f& Position=vec2f()) :
+		mPosition			( Position ),
+		mRotationDegrees	( 0.f )
+	{
+	}
+
+	void		Transform(vec2f& Position) const
+	{
+		float s = sinf( GetRotationRad() );
+		float c = cosf( GetRotationRad() );
+		vec2f OldPosition( Position );
+
+		// rotate point around center (0,0)
+		float xnew = OldPosition.x * c - OldPosition.y * s;
+		float ynew = OldPosition.x * s + OldPosition.y * c;
+
+		//	do transform
+		Position.x = mPosition.x + xnew;
+		Position.y = mPosition.y + ynew;
+	}
+
+	void		Transform(TTransform& Child) const
+	{
+		//	re-position child transform
+		Transform( Child.mPosition );
+
+		//	rotate it some more
+		Child.SetRotationDeg( Child.mRotationDegrees + this->mRotationDegrees );
+	}
+
+	float		GetRotationDeg() const			{	return mRotationDegrees;	}
+	float		GetRotationRad() const			{	return ofDegToRad( GetRotationDeg() );	}
+	void		SetRotationDeg(float Angle)		{	mRotationDegrees = ofWrapDegrees( Angle );	}
+
+public:
+	vec2f		mPosition;
+
+private:
+	float		mRotationDegrees;	//	rotate around Z (2D)
+};
 
 //-----------------------------------------------
 //	different kind of intersection... for physics
@@ -90,9 +151,21 @@ public:
 	
 	TIntersection2	GetIntersection(const ofShapeCircle2& Shape) const;
 
+	void			Transform(const TTransform& Trans)	{	Trans.Transform( mPosition );	}
+
 public:
 	vec2f		mPosition;
 	float		mRadius;
+};
+
+
+class ofShapePolygon2
+{
+public:
+	bool			IsValid() const		{	return mContour.size() >= 3;	}
+
+public:
+	ofPolyline		mContour;
 };
 
 
@@ -126,10 +199,26 @@ public:
 	{
 	}
 
-	float	GetLength() const	{	return (mEnd-mStart).length();	}
+	float	GetLength() const		{	return GetDirection().length();	}
+	vec2f	GetDirection() const	{	return mEnd-mStart;	}
+	vec2f	GetNormal() const		{	return GetDirection().getNormalized();	}
 
 public:
 	vec2f	mStart;
 	vec2f	mEnd;
 };
+
+
+class TCollisionShape
+{
+public:
+	bool			IsValid() const		{	return mCircle.IsValid();	}
+	vec2f			GetCenter() const	{	return mCircle.mPosition;	}
+
+	void			Transform(const TTransform& Trans)	{	mCircle.Transform( Trans );	}
+
+public:
+	ofShapeCircle2		mCircle;
+};
+
 

@@ -6,6 +6,15 @@
 
 
 
+inline BufferString<MAX_PATH> SoyGetFileExt(const char* Filename)
+{
+	string ExtStr = ofFilePath::getFileExt( Filename );
+	BufferString<MAX_PATH> Ext = ExtStr.c_str();
+	Ext.ToLower();
+	return Ext;
+}
+
+
 
 //------------------------------------
 //	lock which still applies when single threaded
