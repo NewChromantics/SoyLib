@@ -27,3 +27,17 @@ TIntersection2 ofShapeCircle2::GetIntersection(const ofShapeCircle2& ShapeB) con
 	return Intersection;
 }
 
+
+ofShapeCircle2 ofShapePolygon2::GetBounds() const
+{
+	ofShapeCircle2 Circle;
+	Circle.mPosition = GetCenter();
+
+	//	find longest point from center
+	for ( int i=0;	i<mTriangle.GetSize();	i++ )
+	{
+		vec2f Delta = mTriangle[i] - Circle.mPosition;
+		Circle.mRadius = ofMax( Circle.mRadius, Delta.length() );
+	}
+	return Circle;
+}
