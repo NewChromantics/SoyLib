@@ -247,6 +247,30 @@ public:
 };
 
 
+//	gr: replace this with openframeworks path which does more clever stuff
+//	maybe? ofPath is very rendering orientated....
+class ofShapePath2
+{
+public:
+	ofShapePath2(float MinSegmentLength=2.f) :
+		mMinSegmentLength	( MinSegmentLength )
+	{
+	}
+
+	bool					IsValid() const		{	return mPath.GetSize() >= 2;	}
+	float					GetLength() const;
+	void					PushTail(const vec2f& Pos);						//	extend the path
+	vec2f					GetPosition(float PathPos) const;				//	get a pos along the path between two distances along path (time, but not normalised)
+	SoyPair<vec2f,vec2f>	GetPosition(float PathPos,float NextPos) const;	//	get a pos along the path between two distances along path (time, but not normalised)
+	vec2f					GetDelta(float PathPos,float NextPos) const;	//	get a delta along the path between two distances along path (time, but not normalised)
+	vec2f					GetTailNormal(float TailDistance) const;		//	get the last delta (normalised)
+
+public:
+	Array<vec2f>	mPath;
+	float			mMinSegmentLength;
+};
+
+
 class TCollisionShape
 {
 public:

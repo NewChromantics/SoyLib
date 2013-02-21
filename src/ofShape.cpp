@@ -312,3 +312,171 @@ void ofShapeCircle2::Accumulate(const ofShapeCircle2& that)
 	//	new radius is half length from furthest point to furthest point
 	mRadius = (FurthestPointOnSphere - FurthestPointOnThis).length() * 0.5f;
 }
+
+
+
+void ofShapePath2::PushTail(const vec2f& Pos)
+{
+	//	empty path? initialise it
+	if ( mPath.IsEmpty() )
+		mPath.PushBack( Pos );
+
+	//	get length of last segment...
+	bool ReplaceTail = false;
+	if ( mPath.GetSize() >= 2 )
+	{
+		vec2f TailSegment = mPath[mPath.GetSize()-2] - mPath[mPath.GetSize()-1];
+		if ( TailSegment.lengthSquared() < mMinSegmentLength*mMinSegmentLength )
+			ReplaceTail = true;
+	}
+
+	if ( ReplaceTail )
+	{
+		mPath.GetBack() = Pos;
+	}
+	else
+	{
+		mPath.PushBack( Pos );
+	}		
+}
+
+float ofShapePath2::GetLength() const
+{
+	float LengthSq = 0.f;
+
+	for ( int i=0;	i<mPath.GetSize()-1;	i++ )
+	{
+		auto& Start = mPath[i];
+		auto& End = mPath[i+1];
+		float DeltaLengthSq = (End-Start).lengthSquared();
+		LengthSq += DeltaLengthSq;
+	}
+
+	return sqrtf( LengthSq );
+}
+
+SoyPair<vec2f,vec2f> ofShapePath2::GetPosition(float PathPos,float NextPos) const
+{
+	SoyPair<vec2f,vec2f> Positions;
+	if ( mPath.IsEmpty() )
+		return Positions;
+
+	//	check incase reverse
+	bool Swap = false;
+	if ( PathPos > NextPos )
+	{
+		ofSwap( PathPos, NextPos );
+		Swap = true;
+	}
+
+	//	walk along path to find points
+	float Walk = 0.f;
+	vec2f& PathPosPoint = Positions.mFirst;
+	vec2f& NextPosPoint = Positions.mSecond;
+
+	for ( int i=0;	i<mPath.GetSize()-1;	i++ )
+	{
+		vec2f Segment = mPath[i+1] - mPath[i];
+		float SegmentLength = Segment.length();
+
+		//	not at first point yet, step over
+		if ( Walk + SegmentLength < PathPos )
+		{
+			Walk += SegmentLength;
+			continue;
+		}
+
+		//	gone past last point
+		if ( Walk > NextPos )
+			break;
+
+		//	first point is in this segment...
+		if ( Walk <= PathPos && PathPos < Walk+SegmentLength )
+		{
+			float PathPosTime = ofGetMathTime( PathPos, Walk, Walk+SegmentLength );
+			PathPosPoint = mPath[i] + (Segment * PathPosTime);
+		}
+
+		//	second point is in this segment...
+		if ( Walk <= NextPos && NextPos < Walk+SegmentLength )
+		{
+			float NextPosTime = ofGetMathTime( NextPos, Walk, Walk+SegmentLength );
+			NextPosPoint = mPath[i] + (Segment * NextPosTime);
+		}
+
+		//	move along
+		Walk += SegmentLength;
+	}
+
+	//	in case we never reached the desired points...
+	if ( PathPos >= Walk )
+		PathPosPoint = mPath.GetBack();
+	if ( NextPos >= Walk )
+		NextPosPoint = mPath.GetBack();
+
+	if ( Swap )
+		ofSwap( PathPosPoint, NextPosPoint );
+
+	return Positions;
+}
+
+vec2f ofShapePath2::GetPosition(float PathPos) const
+{
+	SoyPair<vec2f,vec2f> PosA = GetPosition( PathPos, PathPos );
+	return PosA.mFirst;
+}
+
+
+
+vec2f ofShapePath2::GetDelta(float PathPos,float NextPos) const
+{
+	SoyPair<vec2f,vec2f> Positions = GetPosition( PathPos, NextPos );
+	return (Positions.mSecond - Positions.mFirst);
+}
+
+
+vec2f ofShapePath2::GetTailNormal(float TailDistance) const
+{
+	//	get the last delta (normalised)
+	if ( mPath.GetSize() < 2 )
+		return vec2f( 0, 1 );
+
+	//	make a list of points back to the specified distance...
+	//	todo: turn into spline and get a more clever normal..
+	Array<vec2f> Tail;
+	for ( int i=mPath.GetSize()-1;	(TailDistance>0.f) && (i>=0);	i-- )
+	{
+		Tail.PushBack( mPath[i] );
+
+		//	see if we need to cut off
+		if ( i == 0 )
+			continue;
+		
+		vec2f Delta = mPath[i-1] - mPath[i];
+		float DeltaLen = Delta.length();
+		if ( DeltaLen < TailDistance )
+		{
+			TailDistance -= DeltaLen;
+			continue;
+		}
+
+		//	break half way through this delta.
+		float Time = ofGetMathTime( 0, TailDistance-DeltaLen, TailDistance );
+		Delta *= 1.f - Time;
+		Tail.PushBack( mPath[i] + Delta );
+		break;
+	}
+
+	//	unexpected...
+	assert( Tail.GetSize() >= 2 );
+	if ( Tail.GetSize() < 2 )
+	{
+		Tail.PushBack( mPath[mPath.GetSize()-2] );
+	}
+
+	//	get this tail normal
+	vec2f Delta = Tail[0] - Tail.GetBack();
+	return Delta.normalized();
+}
+
+
