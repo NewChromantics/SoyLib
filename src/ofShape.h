@@ -3,6 +3,10 @@
 
 #include "..\..\..\addons\ofxSoylent\src\ofxSoylent.h"
 
+
+class ofShapeCircle2;
+class ofShapePolygon2;
+
 #define SCREEN_UP2	vec2f(0,-1)
 
 template<typename T>
@@ -26,6 +30,13 @@ void ofLimit(T& v,const T& Min,const T& Max)
 		v = Max;
 }
 
+template<typename T>
+void ofSwap(T& a,T& b)
+{
+	T Temp = a;
+	a = b;
+	b = Temp;
+}
 	
 inline float ofGetMathTime(float z,float Min,float Max) 
 {
@@ -59,17 +70,12 @@ public:
 
 	void		Transform(vec2f& Position) const
 	{
-		float s = sinf( GetRotationRad() );
-		float c = cosf( GetRotationRad() );
-		vec2f OldPosition( Position );
+		//	rotate around 0,0
+		Position.rotate( GetRotationDeg() );
 
-		// rotate point around center (0,0)
-		float xnew = OldPosition.x * c - OldPosition.y * s;
-		float ynew = OldPosition.x * s + OldPosition.y * c;
-
-		//	do transform
-		Position.x = mPosition.x + xnew;
-		Position.y = mPosition.y + ynew;
+		//	do translate
+		Position.x += mPosition.x;
+		Position.y += mPosition.y;
 	}
 
 	void		Transform(TTransform& Child) const
@@ -98,38 +104,38 @@ private:
 class TIntersection
 {
 public:
-	TIntersection() :
-		mIsValid		( false )
+	TIntersection(bool Valid=false) :
+		mIsValid		( Valid ),
+		mDistanceSq		( 0.f )
 	{
 	}
 
 	bool		IsValid() const			{	return mIsValid;	}
+	void		Flip()
+	{
+		ofSwap( mCollisionPointA, mCollisionPointB );
+		mDelta *= -1.f;
+	}
+	
+	operator	bool() const	{	return IsValid();	}
 
 public:
-	bool		mIsValid;
+	bool		mIsValid;			//	did intersect
 	vec2f		mMidIntersection;
 	vec2f		mCollisionPointA;
 	vec2f		mCollisionPointB;
+	vec2f		mDelta;
+	float		mDistanceSq;
 };
 
 
-//-----------------------------------------------
-//	shape intersection
-//-----------------------------------------------
-class TIntersection2
+
+namespace ofShape
 {
-public:
-	TIntersection2() :
-		mIntersected	( false )
-	{
-	}
-
-	operator	bool() const	{	return mIntersected;	}
-
-public:
-	bool		mIntersected;	//	did intersect
-	vec2f		mDelta;
-	float		mDistanceSq;
+	TIntersection			GetIntersection(const ofShapeCircle2& a,const ofShapeCircle2& b);
+	TIntersection			GetIntersection(const ofShapePolygon2& a,const ofShapeCircle2& b);
+	inline TIntersection	GetIntersection(const ofShapeCircle2& a,const ofShapePolygon2& b)		{	TIntersection Int = GetIntersection( b, a );	Int.Flip();	return Int;	}
+	TIntersection			GetIntersection(const ofShapePolygon2& a,const ofShapePolygon2& b);
 };
 
 
@@ -147,9 +153,10 @@ public:
 	{
 	}
 
-	bool			IsValid() const	{	return mRadius > 0.f;	}
-	
-	TIntersection2	GetIntersection(const ofShapeCircle2& Shape) const;
+	bool			IsValid() const											{	return mRadius > 0.f;	}
+	vec2f			GetCenter() const										{	return mPosition;	}
+	TIntersection	GetIntersection(const ofShapeCircle2& Shape) const		{	return ofShape::GetIntersection( *this, Shape );	}
+	TIntersection	GetIntersection(const ofShapePolygon2& Shape) const		{	return ofShape::GetIntersection( *this, Shape );	}
 
 	void			Transform(const TTransform& Trans)	{	Trans.Transform( mPosition );	}
 
@@ -162,10 +169,30 @@ public:
 class ofShapePolygon2
 {
 public:
-	bool			IsValid() const		{	return mContour.size() >= 3;	}
+	bool			IsValid() const		{	return mTriangle.GetSize() >= 3;	}
+	vec2f			GetCenter() const
+	{
+		vec2f Center;
+		for ( int i=0;	i<mTriangle.GetSize();	i++ )
+			Center += mTriangle[i];
+		Center /= mTriangle.IsEmpty() ? 1.f : static_cast<float>(mTriangle.GetSize());
+		return Center;
+	}
+	ofShapeCircle2	GetBounds() const;
+	TIntersection	GetIntersection(const ofShapeCircle2& Shape) const		{	return ofShape::GetIntersection( *this, Shape );	}
+	TIntersection	GetIntersection(const ofShapePolygon2& Shape) const		{	return ofShape::GetIntersection( *this, Shape );	}
+	bool			IsInside(const vec2f& Pos) const;
+
+	void			Transform(const TTransform& Trans)	
+	{	
+		for ( int i=0;	i<mTriangle.GetSize();	i++ )
+			Trans.Transform( mTriangle[i] );
+	}
+
 
 public:
-	ofPolyline		mContour;
+	//ofPolyline		mContour;
+	BufferArray<vec2f,3>	mTriangle;
 };
 
 
@@ -199,9 +226,14 @@ public:
 	{
 	}
 
-	float	GetLength() const		{	return GetDirection().length();	}
-	vec2f	GetDirection() const	{	return mEnd-mStart;	}
-	vec2f	GetNormal() const		{	return GetDirection().getNormalized();	}
+	float	GetLength() const			{	return GetDirection().length();	}
+	vec2f	GetDirection() const		{	return mEnd-mStart;	}
+	vec2f	GetNormal() const			{	return GetDirection().getNormalized();	}
+	vec2f	GetPoint(float Time) const	{	return ofLerp( mStart, mEnd, Time );	}
+	vec2f	GetNearestPoint(const vec2f& Position) const				{	float Time;	return GetNearestPoint( Position, Time );	}
+	vec2f	GetNearestPoint(const vec2f& Position,float& Time) const;	//	get nearest point on line
+	bool	GetIntersection(const ofLine2& Line,float& IntersectionAlongThis,float& IntersectionAlongLine) const;
+	bool	GetIntersection(const ofLine2& Line,vec2f& Intersection) const;
 
 public:
 	vec2f	mStart;
@@ -215,10 +247,18 @@ public:
 	bool			IsValid() const		{	return mCircle.IsValid();	}
 	vec2f			GetCenter() const	{	return mCircle.mPosition;	}
 
-	void			Transform(const TTransform& Trans)	{	mCircle.Transform( Trans );	}
+	void			Transform(const TTransform& Trans)	
+	{
+		mCircle.Transform( Trans );	
+		mPolygon.Transform( Trans );	
+	}
+
+	void			SetPolygon(const ofShapePolygon2& Polygon)	{	mPolygon = Polygon;	OnPolygonChanged();	}
+	void			OnPolygonChanged()							{	mCircle = mPolygon.GetBounds();	}
 
 public:
 	ofShapeCircle2		mCircle;
+	ofShapePolygon2		mPolygon;
 };
 
 
