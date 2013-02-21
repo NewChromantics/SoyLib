@@ -7,6 +7,8 @@
 class ofShapeCircle2;
 class ofShapePolygon2;
 
+#define ofNearZero				0.0001f
+
 #define SCREEN_UP2	vec2f(0,-1)
 
 template<typename T>
@@ -155,10 +157,14 @@ public:
 
 	bool			IsValid() const											{	return mRadius > 0.f;	}
 	vec2f			GetCenter() const										{	return mPosition;	}
+	bool			IsInside(const vec2f& Point) const;
+	bool			IsInside(const ofShapeCircle2& Shape) const;
 	TIntersection	GetIntersection(const ofShapeCircle2& Shape) const		{	return ofShape::GetIntersection( *this, Shape );	}
 	TIntersection	GetIntersection(const ofShapePolygon2& Shape) const		{	return ofShape::GetIntersection( *this, Shape );	}
 
 	void			Transform(const TTransform& Trans)	{	Trans.Transform( mPosition );	}
+	void			Scale(float Trans)					{	mRadius *= Trans;	}
+	void			Accumulate(const ofShapeCircle2& That);
 
 public:
 	vec2f		mPosition;

@@ -251,3 +251,64 @@ ofShapeCircle2 ofShapePolygon2::GetBounds() const
 	}
 	return Circle;
 }
+	
+bool ofShapeCircle2::IsInside(const vec2f& Point) const
+{
+	vec2f Delta = Point - mPosition;
+	float DeltaLenSq = Delta.lengthSquared();
+	return ( DeltaLenSq <= mRadius*mRadius );
+}
+
+
+bool ofShapeCircle2::IsInside(const ofShapeCircle2& Shape) const
+{
+	vec2f Delta = Shape.mPosition - mPosition;
+	float DeltaLenSq = Delta.lengthSquared();
+	float Rad = mRadius + Shape.mRadius;
+	return ( DeltaLenSq <= Rad*Rad );
+}
+
+
+void ofShapeCircle2::Accumulate(const ofShapeCircle2& that)
+{
+	//	make no change
+	if ( !that.IsValid() )
+		return;
+
+	//	just use argument
+	if ( !IsValid() )
+	{
+		*this = that;
+		return;
+	}
+
+	//	get furthest point on both spheres from each other
+	vec2f DirToSphere( that.GetCenter() - this->GetCenter() );
+	float LengthSq = DirToSphere.lengthSquared();
+	
+	//	overlapping, so just get a new larger radius
+	if ( LengthSq < ofNearZero )
+	{
+		mRadius = ofMax( that.mRadius, this->mRadius );
+		return;
+	}
+
+	//	normalise dir
+	DirToSphere.normalize();
+
+	//	get the furthest point away on the sphere
+	vec2f FurthestPointOnSphere = that.GetCenter() + ( DirToSphere * that.mRadius );
+
+	//	if its already inside this sphere then we dont need to change anything
+	if ( IsInside( FurthestPointOnSphere ) )
+		return;
+
+	//	get furthest point away on the existing sphere
+	vec2f FurthestPointOnThis = this->GetCenter() - ( DirToSphere * this->mRadius );
+
+	//	new sphere center is midpoint between furthest points
+	mPosition = (FurthestPointOnSphere + FurthestPointOnThis) * 0.5f;
+
+	//	new radius is half length from furthest point to furthest point
+	mRadius = (FurthestPointOnSphere - FurthestPointOnThis).length() * 0.5f;
+}
