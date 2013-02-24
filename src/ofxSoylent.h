@@ -21,6 +21,7 @@
 #include "SoyApp.h"
 
 #include "ofShape.h"
+#include "SoyNet.h"
 
 
 //	gr: these are annoying names...
