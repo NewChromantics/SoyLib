@@ -141,7 +141,7 @@ public:
 	void				PopUnlock();
 
 protected:
-	SoyGesture&			PushGesture(const SoyGesture& NewGesture);
+	void				PushGesture(const SoyGesture& NewGesture);
 	SoyGesture*			GetLastGesture(SoyButton::Type Button);		//	get last gesture for this button
 
 protected:
@@ -161,7 +161,7 @@ public:
 	virtual void mousePressed( int x, int y, int button );
 	virtual void mouseReleased(int x, int y, int button );
 
-protected:
+public:
 	SoyInput	mInput;		//	cross platform gesture interface
 };
 

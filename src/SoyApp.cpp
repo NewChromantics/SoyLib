@@ -42,8 +42,9 @@ void SoyInput::OnMouseDown(const vec2f& Pos2,SoyButton::Type Button)
 	}
 
 	//	create new gesture
-	auto& NewGesture = PushGesture( Button );
+	SoyGesture NewGesture( Button );
 	NewGesture.mPath.PushBack( Pos2 );
+	PushGesture( NewGesture );
 }
 
 
@@ -81,8 +82,9 @@ void SoyInput::OnMouseUp(const vec2f& Pos2,SoyButton::Type Button)
 	}
 
 	//	create a release gesture
-	auto& Gesture = PushGesture( Button );
+	SoyGesture Gesture( Button );
 	assert( Gesture.IsUp() );
+	PushGesture( Gesture );
 }
 
 
@@ -114,9 +116,10 @@ SoyGesture SoyInput::PopGesture()
 	//	place at the BACK so other buttons can get through
 	if ( !pNextGesture )
 	{
-		SoyGesture& ContinuedIdleGesture = PushGesture( Result.GetButton() );
+		SoyGesture ContinuedIdleGesture( Result.GetButton() );
 		ContinuedIdleGesture.mPath.PushBack( Result.mPath.GetBack() );
 		assert( ContinuedIdleGesture.IsIdle() );
+		PushGesture( ContinuedIdleGesture );
 		return Result;
 	}
 
@@ -163,18 +166,18 @@ void SoyInput::PopUnlock()
 	mPendingGestures.Clear();
 }
 
-SoyGesture& SoyInput::PushGesture(const SoyGesture& Gesture)
+void SoyInput::PushGesture(const SoyGesture& Gesture)
 {
 	//	if locked, put it in the pending list
 	if ( PopTryLock() )
 	{
 		SoyGesture& NewGesture = mGestures.PushBack( Gesture );
-		PopUnlock();
-		return NewGesture;
+		PopUnlock();	//	can invalidate NewGesture
+		return;
 	}
 	else
 	{
-		return mPendingGestures.PushBack( Gesture );
+		mPendingGestures.PushBack( Gesture );
 	}
 }
 
