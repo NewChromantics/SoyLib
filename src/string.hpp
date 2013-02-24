@@ -20,8 +20,7 @@
 		Jan/13/2003 - Jukka Liimatta - fixed operator == for case when both strings are empty
 		Jan/14/2003 - Jukka Liimatta - case conversion templates, made Soy::StringCompare() a template
 */
-#ifndef Soy_STRING_HPP
-#define Soy_STRING_HPP
+#pragma once
 
 
 #include <cassert>
@@ -1334,4 +1333,3 @@ inline int Soy::StrCaseCmp( const char* a, const char* b )
 }
 
 
-#endif
