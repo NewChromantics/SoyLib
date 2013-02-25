@@ -55,7 +55,7 @@ public:
 class SoyNet::TManager
 {
 public:
-	void				FindMatches();								//	start match-finding
+	void						FindMatches();								//	start match-finding
 
 public:
 	Array<TMatchMeta>			mMatches;
