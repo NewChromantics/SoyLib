@@ -285,25 +285,16 @@
 			return mdata[--moffset];
 		}
 
-		void Remove(const T& item)
+		template<typename MATCHTYPE>
+		bool	Remove(const MATCHTYPE& Match)
 		{
-			int count = GetSize();
-			T* src = mdata;
-			T* dest = mdata;
-
-			for ( int i=0; i<count; ++i )
-			{
-				if ( *src != item )
-				{
-					if ( src != dest )
-						*dest = *src;
-
-					++dest;
-				}
-				++src;
-			}
-			moffset = static_cast<int>(dest - mdata);
+			int Index = FindIndex( Match );
+			if ( Index < 0 )
+				return false;
+			RemoveBlock( Index, 1 );
+			return true;
 		}
+
 
 		T* InsertBlock(int index, int count)
 		{
