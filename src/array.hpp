@@ -187,6 +187,14 @@
 			Copy( v );
 		}
 
+		//	construct from a C-array like int Hello[2]={0,1}; this automatically sets the size
+		template<size_t CARRAYSIZE>
+		explicit Array(const T(&CArray)[CARRAYSIZE])
+		: mdata(NULL),mmaxsize(0),moffset(0)
+		{
+			PushBackArray( CArray );
+		}
+
 		~Array()
 		{
 			delete[] mdata;

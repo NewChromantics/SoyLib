@@ -51,6 +51,14 @@
 			Copy( v );
 		}
 
+		//	construct from a C-array like int Hello[2]={0,1}; this automatically sets the size
+		template<size_t CARRAYSIZE>
+		explicit BufferArray(const T(&CArray)[CARRAYSIZE])
+		: moffset(0)
+		{
+			PushBackArray( CArray );
+		}
+
 		~BufferArray()
 		{
 		}
