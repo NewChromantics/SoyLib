@@ -12,75 +12,27 @@ SoyModule::SoyModule(const char* Name) :
 void SoyModule::Update(float TimeStep)
 {
 	UpdateStates( TimeStep );
+
+	//	look out for packets
 }
 
 
 
-SoyModuleState_DiscoveryBind::SoyModuleState_DiscoveryBind(SoyModule& Parent,uint16 Port) :
-	SoyModuleState	( Parent, "Discovery Bind" ),
+
+SoyModuleState_ServerBind::SoyModuleState_ServerBind(SoyModule& Parent,uint16 Port) :
+	SoyModuleState	( Parent, "Server Bind" ),
 	mPort			( Port )
 {
-	auto& Server = GetParent().mDiscoveryServer;
-	if ( mPort == 0 )
-		mPort = GetParent().GetDiscoveryPortRange()[0];
-
-}
-
-void SoyModuleState_DiscoveryBind::Update(float TimeStep)
-{
-	auto& Server = GetParent().mDiscoveryServer;
-	bool Success = false;
-
-	if ( Server.Create() )
-	{
-		if ( Server.Bind(mPort) )
-		{
-			Server.SetEnableBroadcast(true);
-			Server.SetNonBlocking(true);
-			Success = true;
-		}
-	}
-
-	//	failed to bind
-	if ( !Success )
-	{
-		Server.Close();
-
-		//	try next port
-		auto Ports = GetParent().GetDiscoveryPortRange();
-		int PortIndex = Ports.FindIndex( mPort );
-		PortIndex++;
-		if ( PortIndex < Ports.GetSize() )
-			GetParent().ChangeState<SoyModuleState_DiscoveryBind>( Ports[PortIndex] );
-		else
-			GetParent().ChangeState<SoyModuleState_DiscoveryBindFailed>();
-		return;
-	}
-	
-	//	discovery bound okay...
-	//	send out hello world packet
-	//Server.Send()
-	
-	//	start binding main server	
-	GetParent().ChangeState<SoyModuleState_TryBind>( GetParent().GetClusterPortRange()[0] );
-}
-
-
-
-SoyModuleState_TryBind::SoyModuleState_TryBind(SoyModule& Parent,uint16 Port) :
-	SoyModuleState	( Parent, "Try Bind" ),
-	mPort			( Port )
-{
-	auto& Server = GetParent().mClusterServer;
+	auto& Server = GetParent().GetClusterServer();
 	if ( mPort == 0 )
 		mPort = GetParent().GetClusterPortRange()[0];
 	Server.setup( mPort, false );
 }
 
-void SoyModuleState_TryBind::Update(float TimeStep)
+void SoyModuleState_ServerBind::Update(float TimeStep)
 {
 	//	failed to bind
-	auto& Server = GetParent().mClusterServer;
+	auto& Server = GetParent().GetClusterServer();
 	if ( !Server.isConnected() )
 	{
 		Server.close();
@@ -90,7 +42,7 @@ void SoyModuleState_TryBind::Update(float TimeStep)
 		int PortIndex = Ports.FindIndex( mPort );
 		PortIndex++;
 		if ( PortIndex < Ports.GetSize() )
-			GetParent().ChangeState<SoyModuleState_TryBind>( Ports[PortIndex] );
+			GetParent().ChangeState<SoyModuleState_ServerBind>( Ports[PortIndex] );
 		else
 			GetParent().ChangeState<SoyModuleState_BindFailed>();
 		return;
@@ -99,6 +51,41 @@ void SoyModuleState_TryBind::Update(float TimeStep)
 	//	bound okay, listen
 	GetParent().ChangeState<SoyModuleState_Listening>();
 }
+
+
+SoyModuleState_ClientConnect::SoyModuleState_ClientConnect(SoyModule& Parent,const SoyRef& Peer) :
+	SoyModuleState	( Parent, "Client Connect" ),
+	mPeer			( Peer )
+{
+	//	find server we're trying to connect to...
+	const SoyModulePeer* pPeer = GetParent().GetPeer( mPeer );
+
+	//	try to connect if it's valid
+	if ( pPeer )
+	{
+		auto& Client = GetParent().GetClusterClient();
+		Client.setup( static_cast<const char*>(pPeer->mAddress), pPeer->mPort, false );
+	}
+}
+
+void SoyModuleState_ClientConnect::Update(float TimeStep)
+{
+	//	failed to connect
+	auto& Client = GetParent().GetClusterClient();
+	if ( !Client.isConnected() )
+	{
+		Client.close();
+		GetParent().ChangeState<SoyModuleState_Listening>();
+		return;
+	}
+	
+	//	all connected okay..
+	GetParent().OnConnectedToServer( mPeer );
+	GetParent().ChangeState<SoyModuleState_Connected>();
+}
+
+
+
 
 
 BufferString<300> SoyModule::GetNetworkStatus() const
@@ -113,16 +100,49 @@ BufferString<300> SoyModule::GetNetworkStatus() const
 		Status << "No state";
 	Status << "; ";
 
-
-	//	discovery info
-	Status << "Discovery Port: " << GetDiscoveryServer().getPort() << ". ";
-
-
 	//	cluster info
 	if ( GetClusterServer().isConnected() )
-		Status << "Cluster Connected. ";
-	Status << "Cluster Port: " << GetClusterServer().getPort() << ". ";
-	Status << "Clients: " << GetClusterServer().getNumClients() << ". ";
+	{
+		Status << "Server Port: " << GetClusterServer().getPort() << ". ";
+		Status << "Clients: " << GetClusterServer().getNumClients() << ". ";
+	}
+
+	if ( GetClusterClient().isConnected() )
+	{
+		Status << "Client Connected to " << mServerPeer << ". ";
+	}
 
 	return Status;
 }
+
+
+void SoyModule::OnFoundPeer(const SoyModulePeer& Peer)
+{
+	bool Changed = true;
+
+	//	remove existing peer
+	mPeers.Remove( Peer.mRef );
+	mPeers.PushBack( Peer );
+
+	//	send notification
+	if ( Changed )
+	{
+		Array<SoyRef> PeerRefs;
+		for ( int i=0;	i<mPeers.GetSize();	i++ )
+			PeerRefs.PushBack( mPeers[i].mRef );
+		ofNotifyEvent( mOnPeersChanged, PeerRefs );
+	}
+}
+
+
+bool SoyModuleMemberBase::OnDataChanged()
+{
+	return mParent.OnMemberChanged( *this );
+}
+
+
+bool SoyModule::OnMemberChanged(const SoyModuleMemberBase& Member)
+{
+	return false;
+}
+
