@@ -61,10 +61,10 @@ inline float ofAngleFromNormal(const vec2f& Normal)
 }
 
 
-class TTransform
+class TTransform2
 {
 public:
-	TTransform(const vec2f& Position=vec2f()) :
+	TTransform2(const vec2f& Position=vec2f()) :
 		mPosition			( Position ),
 		mRotationDegrees	( 0.f )
 	{
@@ -80,7 +80,7 @@ public:
 		Position.y += mPosition.y;
 	}
 
-	void		Transform(TTransform& Child) const
+	void		Transform(TTransform2& Child) const
 	{
 		//	re-position child transform
 		Transform( Child.mPosition );
@@ -162,7 +162,7 @@ public:
 	TIntersection	GetIntersection(const ofShapeCircle2& Shape) const		{	return ofShape::GetIntersection( *this, Shape );	}
 	TIntersection	GetIntersection(const ofShapePolygon2& Shape) const		{	return ofShape::GetIntersection( *this, Shape );	}
 
-	void			Transform(const TTransform& Trans)	{	Trans.Transform( mPosition );	}
+	void			Transform(const TTransform2& Trans)	{	Trans.Transform( mPosition );	}
 	void			Scale(float Trans)					{	mRadius *= Trans;	}
 	void			Accumulate(const ofShapeCircle2& That);
 
@@ -189,7 +189,7 @@ public:
 	TIntersection	GetIntersection(const ofShapePolygon2& Shape) const		{	return ofShape::GetIntersection( *this, Shape );	}
 	bool			IsInside(const vec2f& Pos) const;
 
-	void			Transform(const TTransform& Trans)	
+	void			Transform(const TTransform2& Trans)	
 	{	
 		for ( int i=0;	i<mTriangle.GetSize();	i++ )
 			Trans.Transform( mTriangle[i] );
@@ -277,7 +277,7 @@ public:
 	bool			IsValid() const		{	return mCircle.IsValid();	}
 	vec2f			GetCenter() const	{	return mCircle.mPosition;	}
 
-	void			Transform(const TTransform& Trans)	
+	void			Transform(const TTransform2& Trans)	
 	{
 		mCircle.Transform( Trans );	
 		mPolygon.Transform( Trans );	
