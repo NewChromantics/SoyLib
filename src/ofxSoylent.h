@@ -18,10 +18,12 @@
 #include "SoyEnum.h"
 #include "SoyTime.h"
 #include "SoyRef.h"
+#include "SoyState.h"
 #include "SoyApp.h"
 
 #include "ofShape.h"
 #include "SoyNet.h"
+#include "SoyModule.h"
 
 
 //	gr: these are annoying names...
