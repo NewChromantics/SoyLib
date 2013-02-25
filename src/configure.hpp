@@ -4,8 +4,7 @@
 
 	Copyright (C) 1997-2003 Twilight 3D Finland Oy Ltd.
 */
-#ifndef Soy_CONFIGURE_HPP
-#define Soy_CONFIGURE_HPP
+#pragma once
 
 
 #define sizeofarray(ARRAY)	( sizeof(ARRAY)/sizeof((ARRAY)[0]) )
@@ -23,5 +22,3 @@ typedef signed __int64		int64;
 typedef unsigned __int64	uint64;
 
 
-
-#endif

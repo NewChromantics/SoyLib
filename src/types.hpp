@@ -1,11 +1,4 @@
-/*
-	
-
-
-*/
-#ifndef Soy_TYPES_HPP
-#define Soy_TYPES_HPP
-
+#pragma once
 
 //	ensure this is included first so types are defined
 #include "configure.hpp"
@@ -79,4 +72,3 @@ DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint32 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int64 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint64 );
 
-#endif
