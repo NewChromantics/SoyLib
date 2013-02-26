@@ -27,7 +27,8 @@ public:
 	bool			IsValid() const							{	return (*this) != SoyRef();	}
 	SoyRefString	ToString() const;
 	void			Increment();
-	SoyRef&			operator++()							{	Increment();	return *this;	}
+	SoyRef&			operator++()							{	Increment();	return *this;	}	//	++prefix
+	SoyRef			operator++(int)							{	SoyRef Copy( *this );	this->Increment();	return Copy;	}	//	postfix++
 	inline bool		operator==(const SoyRef& That) const	{	return mRef == That.mRef;	}
 	inline bool		operator!=(const SoyRef& That) const	{	return mRef != That.mRef;	}
 
@@ -35,7 +36,14 @@ private:
 	static uint64	FromString(const SoyRefString& String);
 
 public:
-	uint64			mRef;
+	struct
+	{
+		union
+		{
+			uint64	mRef;
+			char	mRefChars[SoyRef::MaxStringLength];
+		};
+	};
 };
 
 template<class STRING>
