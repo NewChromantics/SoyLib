@@ -5,11 +5,11 @@
 class SoyTime
 {
 public:
-	explicit SoyTime() : 
-		mTime	( 0 )
+	explicit SoyTime(bool InitToNow=false) : 
+		mTime	( InitToNow ? Now().GetTime() : 0 )
 	{
 	}
-	explicit SoyTime(uint32 Time) :
+	explicit SoyTime(uint64 Time) :
 		mTime	( Time )
 	{
 	}
@@ -18,7 +18,9 @@ public:
 	{
 	}
 
-	uint32			GetTime() const							{	return mTime;	}
+	uint64			GetTime() const							{	return mTime;	}
+	bool			IsValid() const							{	return mTime!=0;	}
+	static SoyTime	Now()									{	return SoyTime( ofGetElapsedTimeMillis() );	}
 
 	inline bool		operator==(const SoyTime& Time) const	{	return mTime == Time.mTime;	}
 	inline bool		operator!=(const SoyTime& Time) const	{	return mTime != Time.mTime;	}
@@ -28,7 +30,7 @@ public:
 	inline bool		operator>=(const SoyTime& Time) const	{	return mTime >= Time.mTime;	}
 
 private:
-	uint32	mTime;
+	uint64	mTime;
 };
 
 
