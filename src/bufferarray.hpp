@@ -179,6 +179,20 @@
 			}
 		}
 
+		//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
+		template<typename THATTYPE>
+		T* PushReinterpretBlock(const THATTYPE& OtherData)
+		{
+			int ThatDataSize = sizeof(OtherData);
+			T* pData = PushBlock( ThatDataSize / sizeof(T) );
+			if ( !pData )
+				return NULL;
+
+			//	memcpy over the block
+			memcpy( pData, &OtherData, ThatDataSize );
+			return pData;
+		}
+
 		T* PushBlock(int count)
 		{
 			assert( count >= 0 );
