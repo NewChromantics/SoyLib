@@ -1,9 +1,52 @@
 #pragma once
 
 #include <ofxNetwork.h>
+#include "SoyPacket.h"
 
 
 class SoyModule;
+
+
+namespace SoyModulePackets
+{
+	enum Type
+	{
+		MemberChanged,
+	};
+};
+
+
+class SoyModulePacket : public SoyPacket<SoyModulePackets::Type>
+{
+public:
+};
+
+class SoyModulePacketManager : public SoyPacketManager<SoyModulePackets::Type>
+{
+public:
+};
+
+template<SoyModulePackets::Type PACKETTYPE>
+class SoyModulePacketDerivitive : public SoyModulePacket
+{
+public:
+	static const SoyModulePackets::Type TYPE = PACKETTYPE;
+
+public:
+	virtual SoyModulePackets::Type	GetType() const	{	return PACKETTYPE;	}
+};
+
+class SoyModulePacket_MemberChanged : public SoyModulePacketDerivitive<SoyModulePackets::MemberChanged>
+{
+public:
+	SoyRef				mMemberRef;
+	SoyTime				mModifiedTime;
+	BufferString<100>	mData;			//	this will need to change...
+};
+
+
+
+
 
 
 
@@ -28,17 +71,13 @@ public:
 class SoyModuleMemberBase : public SoyModuleMemberMeta
 {
 public:
-	SoyModuleMemberBase(SoyModule& Parent,const char* Name) :
-		mParent				( Parent ),
-		SoyModuleMemberMeta	( Name )
-	{
-	}
+	SoyModuleMemberBase(SoyModule& Parent,const char* Name);
 
 	virtual void		GetData(BufferString<100>& String) const=0;
-	virtual bool		SetData(const BufferString<100>& String)=0;
+	virtual bool		SetData(const BufferString<100>& String,const SoyTime& ModifiedTime=SoyTime())=0;
 
 protected:
-	bool				OnDataChanged();
+	bool				OnDataChanged(const SoyTime& ModifiedTime);
 
 protected:
 	SoyModule&			mParent;
@@ -62,16 +101,16 @@ public:
 	virtual void		GetData(BufferString<100>& String) const	{	String << GetData();	}
 	TDATA&				GetData()									{	return *this;	}
 	const TDATA&		GetData() const								{	return *this;	}
-	virtual bool		SetData(const BufferString<100>& String)	{	GetData() = String;	return OnDataChanged();	}
-	bool				SetData(const TDATA& Data)					{	GetData() = Data;	return OnDataChanged();	}
+	virtual bool		SetData(const BufferString<100>& String,const SoyTime& ModifiedTime=SoyTime())	{	GetData() = String;	return OnDataChanged(ModifiedTime);	}
+	bool				SetData(const TDATA& Data,const SoyTime& ModifiedTime=SoyTime())				{	GetData() = Data;	return OnDataChanged(ModifiedTime);	}
 };
 
 
 class SoyModuleMeta
 {
 public:
-	SoyModuleMeta(const char* Name) :
-		mRef	( Name )
+	SoyModuleMeta(const SoyRef& Ref) :
+		mRef	( Ref )
 	{
 	}
 
@@ -82,20 +121,54 @@ public:
 	SoyRef		mRef;
 };
 
+class SoyModulePeerAddress
+{
+private:
+	static SoyRef	gUniqueRef;
 
+public:
+	SoyModulePeerAddress() :
+		mPort		( 0 ),
+		mClientId	( -1 )
+	{
+	}
+	SoyModulePeerAddress(const char* Address,uint16 Port) :
+		mPort		( Port ),
+		mAddress	( Address ),
+		mClientId	( -1 ),
+		mRef		( ++gUniqueRef )
+	{
+	}
 
+	const SoyRef&		GetRef() const	{	return mRef;	}
+	inline bool			operator==(const SoyModulePeerAddress& That) const;		//	gr: test client id or not? address AND port should be unique enough...)
+
+public:
+	BufferString<100>	mAddress;
+	uint16				mPort;
+	int					mClientId;	//	clientid of ofxTCPServer's client. -1 if it's not a client (ie. ofxTCPClient's server or self)
+
+private:
+	SoyRef				mRef;		//	unique address reference
+};
 
 class SoyModulePeer : public SoyModuleMeta
 {
 public:
-	SoyModulePeer() :
-		SoyModuleMeta	( NULL )
+	SoyModulePeer(const SoyRef& Ref=SoyRef()) :
+		SoyModuleMeta	( Ref )
 	{
 	}
+	SoyModulePeer(const SoyRef& Ref,const SoyModulePeerAddress& Address) :
+		SoyModuleMeta	( Ref )
+	{
+		AddAddress( Address );
+	}
+
+	bool		AddAddress(const SoyModulePeerAddress& Address);
 
 public:
-	BufferString<100>	mAddress;
-	int					mPort;
+	BufferArray<SoyModulePeerAddress,10>	mAddresses;	//	ways we are/were connected to this peer
 };
 
 
@@ -121,22 +194,37 @@ public:
 	virtual BufferArray<uint16,100>	GetClusterPortRange() const=0;
 	BufferString<300>				GetNetworkStatus() const;	//	debug
 	virtual void					Update(float TimeStep);
+	SoyTime							GetTime() const;			//	synchronised time
 
-	ofxTCPServer& 					GetClusterServer() const	{	return const_cast<ofxTCPServer&>( mClusterServer );	}
-	ofxTCPClient& 					GetClusterClient() const	{	return const_cast<ofxTCPClient&>( mClusterClient );	}
+	ofxTCPClient& 					GetClusterClient() const				{	return const_cast<ofxTCPClient&>( mClusterClient );	}
+	SoyModulePeerAddress			GetClientServerPeerAddress() const;
 	void							OnConnectedToServer(const SoyRef& Peer)	{	mServerPeer = Peer;	}
-	void							OnFoundPeer(const SoyModulePeer& Peer);	//	add to peer list
-	const SoyModulePeer*			GetPeer(const SoyRef& Peer) const	{	return mPeers.Find( Peer );	}
 
+	ofxTCPServer& 					GetClusterServer() const				{	return const_cast<ofxTCPServer&>( mClusterServer );	}
+	SoyModulePeerAddress			GetServerClientPeerAddress(int ClientId) const;
+	SoyRef							GetServerClientPeer(int ClientId) const;
+
+	void							OnFoundPeer(const SoyRef& Peer,const SoyModulePeerAddress& Address);	//	add to peer list
+	SoyModulePeer*					GetPeer(const SoyRef& Peer)				{	return mPeers.Find( Peer );	}
+	const SoyModulePeer*			GetPeer(const SoyRef& Peer) const		{	return mPeers.Find( Peer );	}
+
+	void							RegisterMember(SoyModuleMemberBase& Member)			{	mMembers.PushBack( &Member );	}
+	SoyModuleMemberBase*			GetMember(const SoyRef& MemberRef);
 	bool							OnMemberChanged(const SoyModuleMemberBase& Member);
+
+	virtual bool					OnPacket(const SoyModulePacket& Packet);	//	return true if handled
+	bool							OnPacket(const SoyModulePacket_MemberChanged& Packet);
 
 protected:
 	virtual SoyModule&				GetStateParent()			{	return *this;	}
 
 public:
 	ofEvent<const Array<SoyRef>>	mOnPeersChanged;
+	SoyModulePacketManager			mPacketsIn;
+	SoyModulePacketManager			mPacketsOut;
 	
 private:
+	Array<SoyModuleMemberBase*>		mMembers;			//	auto-registered members
 	Array<SoyModulePeer>			mPeers;
 	ofxTCPServer 					mClusterServer;
 	ofxTCPClient 					mClusterClient;
