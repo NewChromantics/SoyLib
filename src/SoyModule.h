@@ -182,6 +182,7 @@ public:
 };
 
 
+
 //-------------------------------------------------
 //	base cluster module
 //-------------------------------------------------
@@ -212,7 +213,7 @@ public:
 	SoyModuleMemberBase*			GetMember(const SoyRef& MemberRef);
 	bool							OnMemberChanged(const SoyModuleMemberBase& Member);
 
-	virtual bool					OnPacket(const SoyModulePacket& Packet);	//	return true if handled
+	virtual bool					OnPacket(const SoyPacketContainer& Packet);	//	return true if handled
 	bool							OnPacket(const SoyModulePacket_MemberChanged& Packet);
 
 protected:
@@ -220,6 +221,7 @@ protected:
 
 public:
 	ofEvent<const Array<SoyRef>>	mOnPeersChanged;
+	ofEvent<const SoyRef>			mOnMemberChanged;
 	SoyModulePacketManager			mPacketsIn;
 	SoyModulePacketManager			mPacketsOut;
 	

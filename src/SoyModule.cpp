@@ -36,6 +36,8 @@ public:
 	BufferString<100>	GetName()										{	BufferString<100> Str;	Str << "server (" << mClientId << ")";	return Str;	}
 	template<typename DATATYPE>
 	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mServer.receiveRawBytes( mClientId, reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
+	template<typename DATATYPE>
+	int					peekReceiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mServer.peekReceiveRawBytes( mClientId, reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
 
 public:
 	SoyRef			mSender;
@@ -54,6 +56,8 @@ public:
 	BufferString<100>	GetName()										{	return "client";	}
 	template<typename DATATYPE>
 	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mClient.receiveRawBytes( reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
+	template<typename DATATYPE>
+	int					peekReceiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mClient.peekReceiveRawBytes( reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
 
 public:
 	SoyRef			mSender;
@@ -64,7 +68,7 @@ template<class READWRAPPER,typename DATATYPE>
 TPacketReadResult::Type ReadChunk(ArrayBridge<DATATYPE>& Array,READWRAPPER& ReadWrapper)
 {
 	//	got enough recv data for this buffer?
-	if ( ReadWrapper.getNumReceivedBytes() < Array.GetDataSize() )
+	if ( ReadWrapper.peekReceiveRawBytes( Array ) < Array.GetDataSize() )
 		return TPacketReadResult::NotEnoughData;
 
 	//	read the data
@@ -86,21 +90,23 @@ template<class READWRAPPER>
 bool RecvPackets(SoyModulePacketManager& PacketManager,READWRAPPER& ReadWrapper)
 {
 	//	have we got a pending packet to finish?
-	SoyPacketMeta PendingPacketMeta;
-	if ( PacketManager.PeekPendingPacket( PendingPacketMeta, ReadWrapper.mSender ) )
 	{
-		//	read the rest of the packet
-		Array<char> PacketData( PendingPacketMeta.mDataSize );
-		auto Result = ReadChunk( GetArrayBridge( PacketData ), ReadWrapper );
-		if ( Result == TPacketReadResult::Error )
-			return false;
+		SoyPacketMeta PendingPacketMeta;
+		if ( PacketManager.PeekPendingPacket( PendingPacketMeta, ReadWrapper.mSender ) )
+		{
+			//	read the rest of the packet
+			Array<char> PacketData( PendingPacketMeta.mDataSize );
+			auto Result = ReadChunk( GetArrayBridge( PacketData ), ReadWrapper );
+			if ( Result == TPacketReadResult::Error )
+				return false;
 
-		//	still waiting for data
-		if ( Result == TPacketReadResult::NotEnoughData )
-			return true;
+			//	still waiting for data
+			if ( Result == TPacketReadResult::NotEnoughData )
+				return true;
 
-		//	finish this pending packet
-		PacketManager.FinishPendingPacket( PacketData, ReadWrapper.mSender );
+			//	finish this pending packet
+			PacketManager.FinishPendingPacket( PacketData, ReadWrapper.mSender );
+		}
 	}
 
 	//	look for next packet header
@@ -119,7 +125,7 @@ bool RecvPackets(SoyModulePacketManager& PacketManager,READWRAPPER& ReadWrapper)
 			return false;
 
 		//	read the rest of the packet data
-		Array<char> PacketData( PendingPacketMeta.mDataSize );
+		Array<char> PacketData( PacketHeader.mDataSize );
 		auto DataResult = ReadChunk( GetArrayBridge( PacketData ), ReadWrapper );
 		if ( DataResult == TPacketReadResult::Error )
 			return false;
@@ -202,7 +208,7 @@ void SoyModule::Update(float TimeStep)
 	}
 	
 	//	process the incoming packets
-	while ( true )
+	while ( !mPacketsIn.IsEmpty() )
 	{
 		SoyPacketContainer Packet;
 		if ( !mPacketsIn.PopPacket( Packet ) )
@@ -212,9 +218,7 @@ void SoyModule::Update(float TimeStep)
 		if ( Packet.mMeta.mSender == mRef )
 			continue;
 
-		//	gr: I think this might be a bit dirty....
-		SoyModulePacket& ModulePacket = Packet.GetAs<SoyModulePacket>();
-		OnPacket( ModulePacket );
+		OnPacket( Packet );
 	}
 }
 
@@ -370,15 +374,16 @@ bool SoyModuleMemberBase::OnDataChanged(const SoyTime& ModifiedTime)
 
 bool SoyModule::OnMemberChanged(const SoyModuleMemberBase& Member)
 {
-	//	make up new packet...
+	//	send packet to clients
 	SoyModulePacket_MemberChanged Packet;
 	Packet.mMemberRef = Member.mRef;
 	Packet.mModifiedTime = Member.mLastModified;
 	Member.GetData( Packet.mData );
+	mPacketsOut.PushPacket( SoyPacketMeta(mRef), Packet );
 
-	SoyPacketMeta Meta( mRef );
+	//	notify listeners
+	ofNotifyEvent( mOnMemberChanged, Member.mRef );
 
-	mPacketsOut.PushPacket( Meta, Packet );
 	return true;
 }
 
@@ -466,9 +471,10 @@ bool SoyModulePeerAddress::operator==(const SoyModulePeerAddress& That) const
 //------------------------------------------------------
 //	return true if handled
 //------------------------------------------------------
-bool SoyModule::OnPacket(const SoyModulePacket& Packet)
+bool SoyModule::OnPacket(const SoyPacketContainer& Packet)
 {
-	switch ( Packet.GetType() )
+	auto SoyType = static_cast<SoyModulePackets::Type>( Packet.mMeta.mType );
+	switch ( SoyType )
 	{
 		case_OnSoyPacket( SoyModulePacket_MemberChanged );
 	}
@@ -485,7 +491,7 @@ bool SoyModule::OnPacket(const SoyModulePacket_MemberChanged& Packet)
 	auto& Member = *pMember;
 
 	//	dont update if modified time is older than our last change
-	if ( Packet.mModifiedTime >= Member.mLastModified )
+	if ( Member.mLastModified >= Packet.mModifiedTime )
 		return true;
 
 	Member.SetData( Packet.mData, Packet.mModifiedTime );

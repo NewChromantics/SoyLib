@@ -4,7 +4,7 @@
 #define SOYPACKET_SIZE_MAX	(1*1024*1024)	//	1mb - used to catch corrupt packets and stop us allocating silly memory
 
 
-#define case_OnSoyPacket(PACKETTYPE)	case PACKETTYPE::TYPE:	return OnPacket( static_cast<const PACKETTYPE&>( Packet ) );
+#define case_OnSoyPacket(PACKETTYPE)	case PACKETTYPE::TYPE:	return OnPacket( Packet.GetAs<PACKETTYPE>() );
 
 
 //-------------------------------------------
@@ -53,7 +53,7 @@ public:
 		mMeta.mDataSize = mData.GetDataSize();
 	
 		//	type needs to have already been set if we're using raw packet data
-		assert( mMeta.mType != 0 );
+		assert( mMeta.IsValidType() );
 	}
 
 	template<class TYPE>
@@ -73,6 +73,12 @@ public:
 	{
 		assert( sizeof(TYPE) == mData.GetDataSize() );
 		return *reinterpret_cast<TYPE*>( mData.GetArray() );
+	}
+	template<class TYPE>
+	const TYPE&			GetAs() const
+	{
+		assert( sizeof(TYPE) == mData.GetDataSize() );
+		return *reinterpret_cast<const TYPE*>( mData.GetArray() );
 	}
 
 	void			GetPacketRaw(Array<char>& RawData)
@@ -101,6 +107,8 @@ public:
 	typedef SoyPacket<PACKETENUM> TPacket;
 
 public:
+	bool					IsEmpty() const	{	return mPackets.IsEmpty();	}	//	read is so minute we don't need a lock
+
 	template<class PACKET>
 	void					PushPacket(const SoyPacketMeta& Meta,const PACKET& Packet);
 	void					PushPacket(const SoyPacketMeta& Meta,const Array<char>& Data);	//	push a raw packet onto the stack
