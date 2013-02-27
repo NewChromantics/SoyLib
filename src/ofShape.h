@@ -39,7 +39,14 @@ void ofSwap(T& a,T& b)
 	a = b;
 	b = Temp;
 }
-	
+
+template<typename T>
+T ofLerp(const T& start,const T& stop, float amt)
+{
+	return start + ((stop-start) * amt);
+}
+
+
 inline float ofGetMathTime(float z,float Min,float Max) 
 {
 	return (z-Min) / (Max-Min);	
