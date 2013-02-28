@@ -7,15 +7,15 @@ template<class PACKET>
 void SoyPacketManager<PACKETENUM>::PushPacket(const SoyPacketMeta& Meta,const PACKET& Packet)
 {
 	ofMutex::ScopedLock Lock(*this);
-	SoyPacketContainer Container( Packet, Meta );
+	SoyPacketContainer Container( Packet, Meta, SoyNet::TAddress() );
 	mPackets.PushBack( Container );
 }	
 
 template<typename PACKETENUM>
-void SoyPacketManager<PACKETENUM>::PushPacket(const SoyPacketMeta& Meta,const Array<char>& Data)
+void SoyPacketManager<PACKETENUM>::PushPacket(const SoyPacketMeta& Meta,const Array<char>& Data,const SoyNet::TAddress& Sender)
 {
 	ofMutex::ScopedLock Lock(*this);
-	SoyPacketContainer Container( Data, Meta );
+	SoyPacketContainer Container( Data, Meta, Sender );
 	mPackets.PushBack( Container );
 }
 
@@ -51,7 +51,7 @@ bool SoyPacketManager<PACKETENUM>::PopPacketRawData(Array<char>& PacketData)
 
 
 template<typename PACKETENUM>
-inline bool SoyPacketManager<PACKETENUM>::PeekPendingPacket(SoyPacketMeta& Meta,const SoyRef& Sender)
+inline bool SoyPacketManager<PACKETENUM>::PeekPendingPacket(SoyPacketMeta& Meta,const SoyNet::TAddress& Sender)
 {
 	auto* pPending = mPendingPackets.Find( Sender );
 	if ( !pPending )
@@ -63,7 +63,7 @@ inline bool SoyPacketManager<PACKETENUM>::PeekPendingPacket(SoyPacketMeta& Meta,
 
 
 template<typename PACKETENUM>
-inline bool SoyPacketManager<PACKETENUM>::FinishPendingPacket(const Array<char>& PacketData,const SoyRef& Sender)
+inline bool SoyPacketManager<PACKETENUM>::FinishPendingPacket(const Array<char>& PacketData,const SoyNet::TAddress& Sender)
 {
 	int PendingIndex = mPendingPackets.FindIndex( Sender );
 	//	expecting a pending packet!
@@ -73,7 +73,7 @@ inline bool SoyPacketManager<PACKETENUM>::FinishPendingPacket(const Array<char>&
 
 	//	push the complete packet
 	auto& PendingPacket = mPendingPackets[PendingIndex];
-	PushPacket( PendingPacket.mSecond, PacketData );
+	PushPacket( PendingPacket.mSecond, PacketData, Sender );
 
 	//	no longer pending
 	mPendingPackets.RemoveBlock( PendingIndex, 1 );
@@ -81,7 +81,7 @@ inline bool SoyPacketManager<PACKETENUM>::FinishPendingPacket(const Array<char>&
 }
 
 template<typename PACKETENUM>
-inline bool SoyPacketManager<PACKETENUM>::PushPendingPacket(const SoyPacketMeta& Meta,const SoyRef& Sender)
+inline bool SoyPacketManager<PACKETENUM>::PushPendingPacket(const SoyPacketMeta& Meta,const SoyNet::TAddress& Sender)
 {
 	//	check there isn't one already!
 	if ( mPendingPackets.Find( Sender ) )
@@ -91,7 +91,7 @@ inline bool SoyPacketManager<PACKETENUM>::PushPendingPacket(const SoyPacketMeta&
 	}
 
 	//	make a new pair and add to the list
-	SoyPair<SoyRef,SoyPacketMeta> PendingPacket( Sender, Meta );
+	SoyPair<SoyNet::TAddress,SoyPacketMeta> PendingPacket( Sender, Meta );
 	mPendingPackets.PushBack( PendingPacket );
 	return true;
 }

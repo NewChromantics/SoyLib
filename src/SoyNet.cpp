@@ -1,3 +1,4 @@
+#include "ofxSoylent.h"
 #include "SoyNet.h"
 
 

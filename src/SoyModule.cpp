@@ -2,7 +2,6 @@
 
 
 
-SoyRef SoyModulePeerAddress::gUniqueRef("Addr");
 
 
 SoyModule::SoyModule(const char* Name) :
@@ -26,7 +25,7 @@ namespace TPacketReadResult
 class TServerReadWrapper
 {
 public:
-	TServerReadWrapper(ofxTCPServer& Server,int ClientId,const SoyRef& Sender) :
+	TServerReadWrapper(ofxTCPServer& Server,int ClientId,const SoyNet::TAddress& Sender) :
 		mServer		( Server ),
 		mClientId	( ClientId ),
 		mSender		( Sender )
@@ -40,14 +39,14 @@ public:
 	int					peekReceiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mServer.peekReceiveRawBytes( mClientId, reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
 
 public:
-	SoyRef			mSender;
-	ofxTCPServer&	mServer;
-	int				mClientId;
+	SoyNet::TAddress	mSender;
+	ofxTCPServer&		mServer;
+	int					mClientId;
 };
 class TClientReadWrapper
 {
 public:
-	TClientReadWrapper(ofxTCPClient& Client,const SoyRef& Sender) :
+	TClientReadWrapper(ofxTCPClient& Client,const SoyNet::TAddress& Sender) :
 		mClient		( Client ),
 		mSender		( Sender )
 	{
@@ -60,8 +59,8 @@ public:
 	int					peekReceiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mClient.peekReceiveRawBytes( reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
 
 public:
-	SoyRef			mSender;
-	ofxTCPClient&	mClient;
+	SoyNet::TAddress	mSender;
+	ofxTCPClient&		mClient;
 };
 
 template<class READWRAPPER,typename DATATYPE>
@@ -138,7 +137,7 @@ bool RecvPackets(SoyModulePacketManager& PacketManager,READWRAPPER& ReadWrapper)
 		}
 
 		//	push new packet
-		PacketManager.PushPacket( PacketHeader, PacketData );
+		PacketManager.PushPacket( PacketHeader, PacketData, ReadWrapper.mSender );
 	}
 	
 }
@@ -180,7 +179,7 @@ void SoyModule::Update(float TimeStep)
 	//	read in packets from server
 	if ( mClusterClient.isConnected() )
 	{
-		TClientReadWrapper Client( mClusterClient, GetClientServerPeerAddress().GetRef() );
+		TClientReadWrapper Client( mClusterClient, GetClientServerPeerAddress() );
 		if ( !RecvPackets( mPacketsIn, Client ) )
 		{
 			//	fatal error
@@ -190,6 +189,16 @@ void SoyModule::Update(float TimeStep)
 		}
 	}
 	
+	//	check for new/closed clients
+	for ( int i=0;	i<mClusterServer.getLastID();	i++ )
+	{
+		int ClientId = i;
+		if ( mClusterServer.isClientConnected(ClientId) )
+			OnServerClientConnected( ClientId );
+		else
+			OnServerClientDisconnected( ClientId );
+	}
+
 	//	read in packets from each client
 	for ( int i=0;	i<mClusterServer.getLastID();	i++ )
 	{
@@ -197,7 +206,7 @@ void SoyModule::Update(float TimeStep)
 		if ( !mClusterServer.isClientConnected(ClientId) )
 			continue;
 		
-		TServerReadWrapper Client( mClusterServer, ClientId, GetServerClientPeerAddress(ClientId).GetRef() );
+		TServerReadWrapper Client( mClusterServer, ClientId, GetServerClientPeerAddress(ClientId) );
 		if ( !RecvPackets( mPacketsIn, Client ) )
 		{
 			//	fatal error
@@ -223,6 +232,68 @@ void SoyModule::Update(float TimeStep)
 }
 
 
+bool SoyModule::OnServerClientConnected(SoyNet::TClientRef ClientRef)
+{
+	//	already an active peer...
+	if ( mPeers.Find( ClientRef ) )
+		return false;
+
+	//	already pending...
+	if ( mPendingPeers.Find( ClientRef ) )
+		return false;
+
+	//	add to pending list
+	auto ClientAddress = GetServerClientPeerAddress( ClientRef );
+	mPendingPeers.PushBack( ClientAddress );
+	return true;
+}
+
+
+bool SoyModule::OnServerClientDisconnected(SoyNet::TClientRef ClientRef)
+{
+	bool Changed = false;
+
+	//	if in the pending list, remove it
+	Changed |= mPendingPeers.Remove( ClientRef );
+
+	//	if we have an active peer, move it to the dead peers
+	int ActivePeerIndex = mPeers.FindIndex( ClientRef );
+	if ( ActivePeerIndex != -1 )
+	{
+		//	move to dead peers
+		assert( !mDeadPeers.Find( ClientRef ) );
+		mDeadPeers.PushBack( mPeers[ActivePeerIndex] );
+		mPeers.RemoveBlock( ActivePeerIndex, 1 );
+		OnPeersChanged();
+		return true;
+	}
+
+	return Changed;
+}
+
+
+void SoyModule::RegisterPeer(const SoyModuleMeta& PeerMeta,const SoyNet::TAddress& Address)
+{
+	//	do we alreayd have a peer with this name?
+	auto* Peer = mPeers.Find( PeerMeta.mRef );
+	if ( !Peer )
+	{
+		Peer = &mPeers.PushBack( SoyModulePeer(PeerMeta) );
+	}
+
+	//	register address with peer
+	Peer->AddAddress( Address );
+
+	//	if peer was dead, remove (now alive!)
+	//	todo: merge with new peer
+	mDeadPeers.Remove( PeerMeta.mRef );
+
+	//	remove from pending list
+	mPendingPeers.Remove( Address );
+
+	//	notify changes
+	OnPeersChanged();
+}
 
 
 SoyModuleState_ServerBind::SoyModuleState_ServerBind(SoyModule& Parent,uint16 Port) :
@@ -292,6 +363,14 @@ void SoyModuleState_ClientConnect::Update(float TimeStep)
 }
 
 
+SoyModuleState_Connected::SoyModuleState_Connected(SoyModule& Parent) :
+	SoyModuleState	( Parent, "Connected" )
+{
+	//	send registration packet
+	SoyModulePacket_RegisterPeer Packet;
+	Packet.mPeerMeta = GetParent().GetMeta();
+	GetParent().SendPacketToPeers( Packet );
+}
 
 
 
@@ -324,31 +403,13 @@ BufferString<300> SoyModule::GetNetworkStatus() const
 
 
 
-void SoyModule::OnFoundPeer(const SoyRef& Peer,const SoyModulePeerAddress& Address)
+void SoyModule::OnPeersChanged()
 {
-	bool Changed = false;
-
-	//	look for existing peer
-	auto* pPeer = GetPeer( Peer );
-
-	//	doesn't exist, add
-	if ( !pPeer )
-	{
-		pPeer = &mPeers.PushBack( Peer );
-		Changed = true;
-	}
-
-	//	add address (returns if changed)
-	Changed |= pPeer->AddAddress( Address );
-
 	//	send notification
-	if ( Changed )
-	{
-		Array<SoyRef> PeerRefs;
-		for ( int i=0;	i<mPeers.GetSize();	i++ )
-			PeerRefs.PushBack( mPeers[i].mRef );
-		ofNotifyEvent( mOnPeersChanged, PeerRefs );
-	}
+	Array<SoyRef> PeerRefs;
+	for ( int i=0;	i<mPeers.GetSize();	i++ )
+		PeerRefs.PushBack( mPeers[i].mRef );
+	ofNotifyEvent( mOnPeersChanged, PeerRefs );
 }
 
 
@@ -379,7 +440,7 @@ bool SoyModule::OnMemberChanged(const SoyModuleMemberBase& Member)
 	Packet.mMemberRef = Member.mRef;
 	Packet.mModifiedTime = Member.mLastModified;
 	Member.GetData( Packet.mData );
-	mPacketsOut.PushPacket( SoyPacketMeta(mRef), Packet );
+	SendPacketToPeers( Packet );
 
 	//	notify listeners
 	ofNotifyEvent( mOnMemberChanged, Member.mRef );
@@ -396,13 +457,13 @@ SoyTime SoyModule::GetTime() const
 	return SoyTime::Now();
 }
 
-SoyModulePeerAddress SoyModule::GetClientServerPeerAddress() const
+SoyNet::TAddress SoyModule::GetClientServerPeerAddress() const
 {
 	auto* pPeer = GetPeer( mServerPeer );
 	if ( !pPeer )
 	{
 		assert( pPeer );
-		return SoyModulePeerAddress();
+		return SoyNet::TAddress();
 	}
 
 	//	what to do with multiple addresses??
@@ -410,24 +471,16 @@ SoyModulePeerAddress SoyModule::GetClientServerPeerAddress() const
 	return pPeer->mAddresses[0];
 }
 
-SoyModulePeerAddress SoyModule::GetServerClientPeerAddress(int ClientId) const
+SoyNet::TAddress SoyModule::GetServerClientPeerAddress(SoyNet::TClientRef ClientRef) const
 {
-	for ( int p=0;	p<mPeers.GetSize();	p++ )
-	{
-		auto& Peer = mPeers[p];
-		for ( int a=0;	a<Peer.mAddresses.GetSize();	a++ )
-		{
-			auto& Address = Peer.mAddresses[a];
-			if ( Address.mClientId != ClientId )
-				continue;
+	auto& Server = GetClusterServer();
+	BufferString<100> Address = Server.getClientIP( ClientRef.mClientId ).c_str();
+	uint16 Port = Server.getClientPort( ClientRef.mClientId );
 
-			return Address;
-		}
-	}
-	return SoyModulePeerAddress();
+	return SoyNet::TAddress( Address, Port, ClientRef );
 }
 
-SoyRef SoyModule::GetServerClientPeer(int ClientId) const
+SoyRef SoyModule::GetServerClientPeer(SoyNet::TClientRef ClientRef) const
 {
 	for ( int p=0;	p<mPeers.GetSize();	p++ )
 	{
@@ -435,7 +488,7 @@ SoyRef SoyModule::GetServerClientPeer(int ClientId) const
 		for ( int a=0;	a<Peer.mAddresses.GetSize();	a++ )
 		{
 			auto& Address = Peer.mAddresses[a];
-			if ( Address.mClientId != ClientId )
+			if ( Address.mClientRef != ClientRef )
 				continue;
 
 			return Peer.mRef;
@@ -446,7 +499,7 @@ SoyRef SoyModule::GetServerClientPeer(int ClientId) const
 
 
 
-bool SoyModulePeer::AddAddress(const SoyModulePeerAddress& Address)	
+bool SoyModulePeer::AddAddress(const SoyNet::TAddress& Address)	
 {
 	//	already exists
 	if ( mAddresses.Find( Address ) )
@@ -457,14 +510,6 @@ bool SoyModulePeer::AddAddress(const SoyModulePeerAddress& Address)
 	return true;
 }
 	
-
-//------------------------------------------------------
-//	gr: test client id or not? address AND port should be unique enough...)
-//------------------------------------------------------
-bool SoyModulePeerAddress::operator==(const SoyModulePeerAddress& That) const
-{
-	return (mAddress == That.mAddress) && (this->mPort == That.mPort);
-}
 
 
 
@@ -477,6 +522,8 @@ bool SoyModule::OnPacket(const SoyPacketContainer& Packet)
 	switch ( SoyType )
 	{
 		case_OnSoyPacket( SoyModulePacket_MemberChanged );
+		case SoyModulePacket_RegisterPeer::TYPE:	return OnPacket( Packet.GetAs<SoyModulePacket_RegisterPeer>(), Packet.mSender );
+
 	}
 
 	return false;
@@ -498,6 +545,13 @@ bool SoyModule::OnPacket(const SoyModulePacket_MemberChanged& Packet)
 	return true;
 }
 
+
+bool SoyModule::OnPacket(const SoyModulePacket_RegisterPeer& Packet,const SoyNet::TAddress& Sender)
+{
+	//	turn into peer
+	RegisterPeer( Packet.mPeerMeta, Sender );
+	return true;
+}
 
 SoyModuleMemberBase* SoyModule::GetMember(const SoyRef& MemberRef)
 {

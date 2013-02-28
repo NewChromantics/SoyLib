@@ -7,13 +7,37 @@
 class SoyModule;
 
 
+
+class SoyModuleMeta
+{
+public:
+	SoyModuleMeta()
+	{
+	}
+	SoyModuleMeta(const SoyRef& Ref) :
+		mRef	( Ref )
+	{
+	}
+
+	SoyModuleMeta&			GetMeta()			{	return *this;	}
+	const SoyModuleMeta&	GetMeta() const		{	return *this;	}
+
+	inline bool				operator==(const SoyRef& Ref) const	{	return mRef == Ref;	}
+	inline bool				operator!=(const SoyRef& Ref) const	{	return !(*this == Ref);	}
+
+public:
+	SoyRef		mRef;
+};
+
 namespace SoyModulePackets
 {
 	enum Type
 	{
+		RegisterPeer,
 		MemberChanged,
 	};
 };
+
 
 
 class SoyModulePacket : public SoyPacket<SoyModulePackets::Type>
@@ -42,6 +66,12 @@ public:
 	SoyRef				mMemberRef;
 	SoyTime				mModifiedTime;
 	BufferString<100>	mData;			//	this will need to change...
+};
+
+class SoyModulePacket_RegisterPeer : public SoyModulePacketDerivitive<SoyModulePackets::RegisterPeer>
+{
+public:
+	SoyModuleMeta		mPeerMeta;		//	peer's info
 };
 
 
@@ -106,69 +136,34 @@ public:
 };
 
 
-class SoyModuleMeta
-{
-public:
-	SoyModuleMeta(const SoyRef& Ref) :
-		mRef	( Ref )
-	{
-	}
 
-	inline bool	operator==(const SoyRef& Ref) const	{	return mRef == Ref;	}
-	inline bool	operator!=(const SoyRef& Ref) const	{	return !(*this == Ref);	}
-
-public:
-	SoyRef		mRef;
-};
-
-class SoyModulePeerAddress
-{
-private:
-	static SoyRef	gUniqueRef;
-
-public:
-	SoyModulePeerAddress() :
-		mPort		( 0 ),
-		mClientId	( -1 )
-	{
-	}
-	SoyModulePeerAddress(const char* Address,uint16 Port) :
-		mPort		( Port ),
-		mAddress	( Address ),
-		mClientId	( -1 ),
-		mRef		( ++gUniqueRef )
-	{
-	}
-
-	const SoyRef&		GetRef() const	{	return mRef;	}
-	inline bool			operator==(const SoyModulePeerAddress& That) const;		//	gr: test client id or not? address AND port should be unique enough...)
-
-public:
-	BufferString<100>	mAddress;
-	uint16				mPort;
-	int					mClientId;	//	clientid of ofxTCPServer's client. -1 if it's not a client (ie. ofxTCPClient's server or self)
-
-private:
-	SoyRef				mRef;		//	unique address reference
-};
 
 class SoyModulePeer : public SoyModuleMeta
 {
 public:
-	SoyModulePeer(const SoyRef& Ref=SoyRef()) :
+	SoyModulePeer()
+	{
+	}
+	explicit SoyModulePeer(const SoyRef& Ref) :
 		SoyModuleMeta	( Ref )
 	{
 	}
-	SoyModulePeer(const SoyRef& Ref,const SoyModulePeerAddress& Address) :
+	explicit SoyModulePeer(const SoyModuleMeta& Meta) :
+		SoyModuleMeta	( Meta )
+	{
+	}
+	explicit SoyModulePeer(const SoyRef& Ref,const SoyNet::TAddress& Address) :
 		SoyModuleMeta	( Ref )
 	{
 		AddAddress( Address );
 	}
 
-	bool		AddAddress(const SoyModulePeerAddress& Address);
+	bool		AddAddress(const SoyNet::TAddress& Address);
+	inline bool	operator==(const SoyRef& PeerRef)const			{	return GetMeta() == PeerRef;	}
+	inline bool	operator==(const SoyNet::TClientRef& ClientRef)const	{	return mAddresses.Find(ClientRef)!=NULL;	}
 
 public:
-	BufferArray<SoyModulePeerAddress,10>	mAddresses;	//	ways we are/were connected to this peer
+	BufferArray<SoyNet::TAddress,10>	mAddresses;		//	ways we are/were connected to this peer
 };
 
 
@@ -198,14 +193,14 @@ public:
 	SoyTime							GetTime() const;			//	synchronised time
 
 	ofxTCPClient& 					GetClusterClient() const				{	return const_cast<ofxTCPClient&>( mClusterClient );	}
-	SoyModulePeerAddress			GetClientServerPeerAddress() const;
+	SoyNet::TAddress				GetClientServerPeerAddress() const;
 	void							OnConnectedToServer(const SoyRef& Peer)	{	mServerPeer = Peer;	}
 
 	ofxTCPServer& 					GetClusterServer() const				{	return const_cast<ofxTCPServer&>( mClusterServer );	}
-	SoyModulePeerAddress			GetServerClientPeerAddress(int ClientId) const;
-	SoyRef							GetServerClientPeer(int ClientId) const;
+	SoyNet::TAddress				GetServerClientPeerAddress(SoyNet::TClientRef ClientRef) const;
+	SoyRef							GetServerClientPeer(SoyNet::TClientRef ClientRef) const;
 
-	void							OnFoundPeer(const SoyRef& Peer,const SoyModulePeerAddress& Address);	//	add to peer list
+	void							RegisterPeer(const SoyModuleMeta& PeerMeta,const SoyNet::TAddress& Address);
 	SoyModulePeer*					GetPeer(const SoyRef& Peer)				{	return mPeers.Find( Peer );	}
 	const SoyModulePeer*			GetPeer(const SoyRef& Peer) const		{	return mPeers.Find( Peer );	}
 
@@ -213,11 +208,20 @@ public:
 	SoyModuleMemberBase*			GetMember(const SoyRef& MemberRef);
 	bool							OnMemberChanged(const SoyModuleMemberBase& Member);
 
+	template<class PACKET>
+	bool							SendPacketToPeers(const PACKET& Packet);
+
 	virtual bool					OnPacket(const SoyPacketContainer& Packet);	//	return true if handled
 	bool							OnPacket(const SoyModulePacket_MemberChanged& Packet);
+	bool							OnPacket(const SoyModulePacket_RegisterPeer& Packet,const SoyNet::TAddress& Sender);
 
 protected:
 	virtual SoyModule&				GetStateParent()			{	return *this;	}
+
+private:
+	bool							OnServerClientConnected(SoyNet::TClientRef ClientRef);		//	returns if changed
+	bool							OnServerClientDisconnected(SoyNet::TClientRef ClientRef);	//	returns if changed
+	void							OnPeersChanged();
 
 public:
 	ofEvent<const Array<SoyRef>>	mOnPeersChanged;
@@ -227,7 +231,9 @@ public:
 	
 private:
 	Array<SoyModuleMemberBase*>		mMembers;			//	auto-registered members
-	Array<SoyModulePeer>			mPeers;
+	Array<SoyModulePeer>			mPeers;				//	connected peers
+	Array<SoyNet::TAddress>			mPendingPeers;		//	connected peers which havent registered
+	Array<SoyModulePeer>			mDeadPeers;			//	peers that have disconnected
 	ofxTCPServer 					mClusterServer;
 	ofxTCPClient 					mClusterClient;
 	SoyRef							mServerPeer;		//	who we're connected to (master)
@@ -299,10 +305,7 @@ protected:
 class SoyModuleState_Connected : public SoyModuleState
 {
 public:
-	SoyModuleState_Connected(SoyModule& Parent) :
-		SoyModuleState	( Parent, "Connected" )
-	{
-	}
+	SoyModuleState_Connected(SoyModule& Parent);
 };
 
 
@@ -317,3 +320,13 @@ public:
 	{
 	}
 };
+
+
+template<class PACKET>
+bool SoyModule::SendPacketToPeers(const PACKET& Packet)
+{
+	SoyPacketMeta Meta( mRef );
+	mPacketsOut.PushPacket( Meta, Packet );
+	return true;
+}
+

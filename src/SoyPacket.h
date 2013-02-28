@@ -1,5 +1,7 @@
 #pragma once
 
+#include "SoyNet.h"
+
 #define SOYPACKET_PROOF	SoyRef("Soylent")
 #define SOYPACKET_SIZE_MAX	(1*1024*1024)	//	1mb - used to catch corrupt packets and stop us allocating silly memory
 
@@ -43,7 +45,8 @@ public:
 	SoyPacketContainer()
 	{
 	}
-	explicit SoyPacketContainer(const Array<char>& PacketData,const SoyPacketMeta& Meta) :
+	explicit SoyPacketContainer(const Array<char>& PacketData,const SoyPacketMeta& Meta,const SoyNet::TAddress& Sender) :
+		mSender	( Sender ),
 		mMeta	( Meta )
 	{
 		//	copy raw data
@@ -57,7 +60,8 @@ public:
 	}
 
 	template<class TYPE>
-	explicit SoyPacketContainer(const TYPE& Packet,const SoyPacketMeta& Meta) :
+	explicit SoyPacketContainer(const TYPE& Packet,const SoyPacketMeta& Meta,const SoyNet::TAddress& Sender) :
+		mSender	( Sender ),
 		mMeta	( Meta )
 	{
 		//	copy raw data
@@ -88,8 +92,9 @@ public:
 	}
 
 public:
-	SoyPacketMeta	mMeta;
-	Array<char>		mData;
+	SoyPacketMeta			mMeta;
+	Array<char>				mData;
+	SoyNet::TAddress		mSender;	//	for incoming data, this is where the data came from
 };
 
 template<typename PACKETENUM>
@@ -111,19 +116,19 @@ public:
 
 	template<class PACKET>
 	void					PushPacket(const SoyPacketMeta& Meta,const PACKET& Packet);
-	void					PushPacket(const SoyPacketMeta& Meta,const Array<char>& Data);	//	push a raw packet onto the stack
+	void					PushPacket(const SoyPacketMeta& Meta,const Array<char>& Data,const SoyNet::TAddress& Sender);	//	push a raw packet onto the stack
 
 	bool					PopPacket(SoyPacketContainer& Container);	//	pops the next packet. caller takes ownership of data
 	bool					PopPacketRawData(Array<char>& PacketData);	//	pops the next packet into raw data.
 	
 	//	incomplete packets where we've read a header, but not the data [yet]
-	bool					PeekPendingPacket(SoyPacketMeta& Meta,const SoyRef& SenderAddress);				//	see if there is a pending packet for this sender
-	bool					FinishPendingPacket(const Array<char>& PacketData,const SoyRef& SenderAddress);	//	complete & push a pending packet
-	bool					PushPendingPacket(const SoyPacketMeta& Meta,const SoyRef& SenderAddress);			//	start a pending packet
+	bool					PeekPendingPacket(SoyPacketMeta& Meta,const SoyNet::TAddress& SenderAddress);				//	see if there is a pending packet for this sender
+	bool					FinishPendingPacket(const Array<char>& PacketData,const SoyNet::TAddress& SenderAddress);	//	complete & push a pending packet
+	bool					PushPendingPacket(const SoyPacketMeta& Meta,const SoyNet::TAddress& SenderAddress);			//	start a pending packet
 
 protected:
-	Array<SoyPair<SoyRef,SoyPacketMeta> >	mPendingPackets;
-	Array<SoyPacketContainer>				mPackets;
+	Array<SoyPair<SoyNet::TAddress,SoyPacketMeta> >	mPendingPackets;
+	Array<SoyPacketContainer>						mPackets;
 };
 
 
