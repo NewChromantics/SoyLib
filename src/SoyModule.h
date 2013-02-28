@@ -1,7 +1,7 @@
 #pragma once
 
-#include <ofxNetwork.h>
 #include "SoyPacket.h"
+#include "SoySocket.h"
 
 
 class SoyModule;
@@ -45,10 +45,6 @@ class SoyModulePacket : public SoyPacket<SoyModulePackets::Type>
 public:
 };
 
-class SoyModulePacketManager : public SoyPacketManager<SoyModulePackets::Type>
-{
-public:
-};
 
 template<SoyModulePackets::Type PACKETTYPE>
 class SoyModulePacketDerivitive : public SoyModulePacket
@@ -68,12 +64,14 @@ public:
 	BufferString<100>	mData;			//	this will need to change...
 };
 
+//--------------------------------------------
+//	packet to send after connecting to verify self
+//--------------------------------------------
 class SoyModulePacket_RegisterPeer : public SoyModulePacketDerivitive<SoyModulePackets::RegisterPeer>
 {
 public:
-	SoyModuleMeta		mPeerMeta;		//	peer's info
+	SoyModuleMeta		mPeerMeta;
 };
-
 
 
 
@@ -159,7 +157,8 @@ public:
 	}
 
 	bool		AddAddress(const SoyNet::TAddress& Address);
-	inline bool	operator==(const SoyRef& PeerRef)const			{	return GetMeta() == PeerRef;	}
+	inline bool	operator==(const SoyNet::TAddress& Address)const		{	return mAddresses.Find(Address)!=NULL;	}
+	inline bool	operator==(const SoyRef& PeerRef)const					{	return GetMeta() == PeerRef;	}
 	inline bool	operator==(const SoyNet::TClientRef& ClientRef)const	{	return mAddresses.Find(ClientRef)!=NULL;	}
 
 public:
@@ -168,23 +167,16 @@ public:
 
 
 //-------------------------------------------------
-//	packet from a server identifying itself
-//-------------------------------------------------
-class SoyModulePacket_Hello
-{
-public:
-	SoyModulePeer	mPeer;
-};
-
-
-
-//-------------------------------------------------
 //	base cluster module
 //-------------------------------------------------
-class SoyModule : public SoyModuleMeta, public TStateManager<SoyModule>
+class SoyModule : public SoyModuleMeta
 {
 public:
 	SoyModule(const char* Name);
+
+	void							OpenClusterServer();
+	bool							ConnectToClusterServer(const SoyRef& Peer);	//	returns false if immediate fail
+	void							DisconnectCluster();		//	disconnect and cancel any listen/connect attempts
 
 	virtual BufferArray<uint16,100>	GetDiscoveryPortRange() const=0;
 	virtual BufferArray<uint16,100>	GetClusterPortRange() const=0;
@@ -192,12 +184,6 @@ public:
 	virtual void					Update(float TimeStep);
 	SoyTime							GetTime() const;			//	synchronised time
 
-	ofxTCPClient& 					GetClusterClient() const				{	return const_cast<ofxTCPClient&>( mClusterClient );	}
-	SoyNet::TAddress				GetClientServerPeerAddress() const;
-	void							OnConnectedToServer(const SoyRef& Peer)	{	mServerPeer = Peer;	}
-
-	ofxTCPServer& 					GetClusterServer() const				{	return const_cast<ofxTCPServer&>( mClusterServer );	}
-	SoyNet::TAddress				GetServerClientPeerAddress(SoyNet::TClientRef ClientRef) const;
 	SoyRef							GetServerClientPeer(SoyNet::TClientRef ClientRef) const;
 
 	void							RegisterPeer(const SoyModuleMeta& PeerMeta,const SoyNet::TAddress& Address);
@@ -218,6 +204,12 @@ public:
 protected:
 	virtual SoyModule&				GetStateParent()			{	return *this;	}
 
+	void							OnClusterSocketClosed(bool& Event);
+	void							OnClusterSocketClientConnected(bool& Event);
+	void							OnClusterSocketServerListening(bool& Event);
+	void							OnClusterSocketClientJoin(const SoyNet::TAddress& Client);
+	void							OnClusterSocketClientLeft(const SoyNet::TAddress& Client);
+
 private:
 	bool							OnServerClientConnected(SoyNet::TClientRef ClientRef);		//	returns if changed
 	bool							OnServerClientDisconnected(SoyNet::TClientRef ClientRef);	//	returns if changed
@@ -226,107 +218,23 @@ private:
 public:
 	ofEvent<const Array<SoyRef>>	mOnPeersChanged;
 	ofEvent<const SoyRef>			mOnMemberChanged;
-	SoyModulePacketManager			mPacketsIn;
-	SoyModulePacketManager			mPacketsOut;
 	
 private:
+	Array<uint16>					mTryListenPorts;		//	trying to setup a server...
+	SoyNet::TAddress				mTryConnectToServer;	//	trying to connect to this server....
+
 	Array<SoyModuleMemberBase*>		mMembers;			//	auto-registered members
 	Array<SoyModulePeer>			mPeers;				//	connected peers
-	Array<SoyNet::TAddress>			mPendingPeers;		//	connected peers which havent registered
-	Array<SoyModulePeer>			mDeadPeers;			//	peers that have disconnected
-	ofxTCPServer 					mClusterServer;
-	ofxTCPClient 					mClusterClient;
-	SoyRef							mServerPeer;		//	who we're connected to (master)
+	SoyNet::TSocketTCP				mClusterSocket;
 };
 
-class SoyModuleState : public TState<SoyModule>
-{
-public:
-	SoyModuleState(SoyModule& Parent,const char* Name) :
-		TState	( Parent ),
-		mName	( Name )
-	{
-	}
-
-	const BufferString<100>&	GetStateName() const	{	return mName;	}
-
-private:
-	BufferString<100>	mName;
-};
-
-
-
-//------------------------------------------------
-//	bind our module's server
-//------------------------------------------------
-class SoyModuleState_ServerBind : public SoyModuleState
-{
-public:
-	SoyModuleState_ServerBind(SoyModule& Parent,uint16 Port=0);
-
-	virtual void		Update(float TimeStep);
-
-protected:
-	uint16				mPort;
-};
-
-
-
-
-//------------------------------------------------
-//	module is now listening (waiting to connect, if we're a client)
-//------------------------------------------------
-class SoyModuleState_Listening : public SoyModuleState
-{
-public:
-	SoyModuleState_Listening(SoyModule& Parent) :
-		SoyModuleState	( Parent, "Listening" )
-	{
-	}
-};
-
-//------------------------------------------------
-//	connect to a server
-//------------------------------------------------
-class SoyModuleState_ClientConnect : public SoyModuleState
-{
-public:
-	SoyModuleState_ClientConnect(SoyModule& Parent,const SoyRef& Peer);
-
-	virtual void		Update(float TimeStep);
-
-protected:
-	SoyRef				mPeer;
-};
-
-//------------------------------------------------
-//	module is connected
-//------------------------------------------------
-class SoyModuleState_Connected : public SoyModuleState
-{
-public:
-	SoyModuleState_Connected(SoyModule& Parent);
-};
-
-
-//------------------------------------------------
-//	couldn't bind
-//------------------------------------------------
-class SoyModuleState_BindFailed : public SoyModuleState
-{
-public:
-	SoyModuleState_BindFailed(SoyModule& Parent) :
-		SoyModuleState	( Parent, "Bind Failed" )
-	{
-	}
-};
 
 
 template<class PACKET>
 bool SoyModule::SendPacketToPeers(const PACKET& Packet)
 {
 	SoyPacketMeta Meta( mRef );
-	mPacketsOut.PushPacket( Meta, Packet );
+	mClusterSocket.mPacketsOut.PushPacket( Meta, Packet );
 	return true;
 }
 

@@ -9,218 +9,110 @@ SoyModule::SoyModule(const char* Name) :
 {
 	//	gr: you must do this in your overloaded module. (vtable not ready here)
 	//ChangeState<SoyModuleState_DiscoveryBind>();
+
+	ofAddListener( mClusterSocket.mOnClosed, this, &SoyModule::OnClusterSocketClosed );
+	ofAddListener( mClusterSocket.mOnClientConnected, this, &SoyModule::OnClusterSocketClientConnected );
+	ofAddListener( mClusterSocket.mOnServerListening, this, &SoyModule::OnClusterSocketServerListening );
+	ofAddListener( mClusterSocket.mOnClientJoin, this, &SoyModule::OnClusterSocketClientJoin );
+	ofAddListener( mClusterSocket.mOnClientLeft, this, &SoyModule::OnClusterSocketClientLeft );
 }
 
-
-namespace TPacketReadResult
+void SoyModule::OnClusterSocketServerListening(bool& Event)
 {
-	enum Type
-	{
-		Error,
-		Okay,
-		NotEnoughData,
-	};
-};
-
-class TServerReadWrapper
-{
-public:
-	TServerReadWrapper(ofxTCPServer& Server,int ClientId,const SoyNet::TAddress& Sender) :
-		mServer		( Server ),
-		mClientId	( ClientId ),
-		mSender		( Sender )
-	{
-	}
-
-	BufferString<100>	GetName()										{	BufferString<100> Str;	Str << "server (" << mClientId << ")";	return Str;	}
-	template<typename DATATYPE>
-	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mServer.receiveRawBytes( mClientId, reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
-	template<typename DATATYPE>
-	int					peekReceiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mServer.peekReceiveRawBytes( mClientId, reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
-
-public:
-	SoyNet::TAddress	mSender;
-	ofxTCPServer&		mServer;
-	int					mClientId;
-};
-class TClientReadWrapper
-{
-public:
-	TClientReadWrapper(ofxTCPClient& Client,const SoyNet::TAddress& Sender) :
-		mClient		( Client ),
-		mSender		( Sender )
-	{
-	}
-
-	BufferString<100>	GetName()										{	return "client";	}
-	template<typename DATATYPE>
-	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mClient.receiveRawBytes( reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
-	template<typename DATATYPE>
-	int					peekReceiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mClient.peekReceiveRawBytes( reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
-
-public:
-	SoyNet::TAddress	mSender;
-	ofxTCPClient&		mClient;
-};
-
-template<class READWRAPPER,typename DATATYPE>
-TPacketReadResult::Type ReadChunk(ArrayBridge<DATATYPE>& Array,READWRAPPER& ReadWrapper)
-{
-	//	got enough recv data for this buffer?
-	if ( ReadWrapper.peekReceiveRawBytes( Array ) < Array.GetDataSize() )
-		return TPacketReadResult::NotEnoughData;
-
-	//	read the data
-	int BytesRecieved = ReadWrapper.receiveRawBytes( Array );
-
-	//	socket error
-	if ( BytesRecieved != Array.GetDataSize() )
-		return TPacketReadResult::Error;
-
-	BufferString<1000> Debug;
-	Debug << ReadWrapper.GetName() << "read " << BytesRecieved << " bytes\n";
-	printf( Debug );
-
-
-	return TPacketReadResult::Okay;
+	//	can stop trying to listen
+	mTryListenPorts.Clear();
 }
 
-template<class READWRAPPER>
-bool RecvPackets(SoyModulePacketManager& PacketManager,READWRAPPER& ReadWrapper)
+void SoyModule::OnClusterSocketClientConnected(bool& Event)
 {
-	//	have we got a pending packet to finish?
-	{
-		SoyPacketMeta PendingPacketMeta;
-		if ( PacketManager.PeekPendingPacket( PendingPacketMeta, ReadWrapper.mSender ) )
-		{
-			//	read the rest of the packet
-			Array<char> PacketData( PendingPacketMeta.mDataSize );
-			auto Result = ReadChunk( GetArrayBridge( PacketData ), ReadWrapper );
-			if ( Result == TPacketReadResult::Error )
-				return false;
+	//	can stop trying to connect
+	mTryConnectToServer = SoyNet::TAddress();
 
-			//	still waiting for data
-			if ( Result == TPacketReadResult::NotEnoughData )
-				return true;
+	//	send register packet
+	SoyModulePacket_RegisterPeer Packet;
+	Packet.mPeerMeta = GetMeta();
+	SendPacketToPeers( Packet );
+}
 
-			//	finish this pending packet
-			PacketManager.FinishPendingPacket( PacketData, ReadWrapper.mSender );
-		}
-	}
+void SoyModule::OnClusterSocketClosed(bool& Event)
+{
+	//	clear connection attempts
+	DisconnectCluster();
+}
 
-	//	look for next packet header
-	while ( true )
-	{
-		BufferArray<SoyPacketMeta,1> PacketHeaderData(1);
-		auto& PacketHeader = PacketHeaderData[0];
-		auto HeaderResult = ReadChunk( GetArrayBridge( PacketHeaderData ), ReadWrapper );
-		if ( HeaderResult == TPacketReadResult::Error )
-			return false;
-		if ( HeaderResult == TPacketReadResult::NotEnoughData )
-			return true;
+void SoyModule::DisconnectCluster()
+{
+	//	disconnect and cancel any listen/connect attempts
+	mClusterSocket.Close();
+	mTryListenPorts.Clear();
+	mTryConnectToServer = SoyNet::TAddress();
+}
 
-		//	check the packet header is okay
-		if ( !PacketHeader.IsValid() )
-			return false;
+void SoyModule::OpenClusterServer()
+{
+	DisconnectCluster();
 
-		//	read the rest of the packet data
-		Array<char> PacketData( PacketHeader.mDataSize );
-		auto DataResult = ReadChunk( GetArrayBridge( PacketData ), ReadWrapper );
-		if ( DataResult == TPacketReadResult::Error )
-			return false;
+	auto ClusterPorts = GetClusterPortRange();
 
-		//	still waiting for data (but we've read the header)
-		if ( DataResult == TPacketReadResult::NotEnoughData )
-		{
-			PacketManager.PushPendingPacket( PacketHeader, ReadWrapper.mSender );
-			return true;
-		}
+	for ( int i=0;	i<ClusterPorts.GetSize();	i++ )
+		mTryListenPorts.PushBackUnique( ClusterPorts[i] );
+}
 
-		//	push new packet
-		PacketManager.PushPacket( PacketHeader, PacketData, ReadWrapper.mSender );
-	}
-	
+bool SoyModule::ConnectToClusterServer(const SoyRef& Peer)
+{
+	//	grab address
+	auto* pPeer = GetPeer( Peer );
+	if ( !pPeer )
+		return false;
+	if ( pPeer->mAddresses.IsEmpty() )
+		return false;
+	auto ServerAddress = pPeer->mAddresses[0];
+
+	//	already trying to connect to this...
+	if ( mTryConnectToServer == ServerAddress )
+		return true;
+
+	//	close current socket
+	DisconnectCluster();
+
+	//	set new connection attempt
+	mTryConnectToServer = ServerAddress;
+
+	return true;
 }
 
 
 void SoyModule::Update(float TimeStep)
 {
-	UpdateStates( TimeStep );
-
-	//	send out packets
-	while ( true )
+	//	trying to open a server...
+	if ( !mTryListenPorts.IsEmpty() )
 	{
-		Array<char> PacketRaw;
-		if ( !mPacketsOut.PopPacketRawData( PacketRaw ) )
-			break;
-
-		//	send packet out
-		if ( mClusterServer.isConnected() )
+		if ( mClusterSocket.GetState() != SoyNet::TSocketState::ServerListening )
 		{
-			if ( mClusterServer.sendRawBytesToAll( PacketRaw.GetArray(), PacketRaw.GetDataSize() ) )
-			{
-				BufferString<1000> Debug;
-				Debug << "Server Sent " << PacketRaw.GetDataSize() << " bytes\n";
-				printf( Debug );
-			}
-		}
-
-		if(  mClusterClient.isConnected() )
-		{
-			if ( mClusterClient.sendRawBytes( PacketRaw.GetArray(), PacketRaw.GetDataSize() ) )
-			{
-				BufferString<1000> Debug;
-				Debug << "Client Sent " << PacketRaw.GetDataSize() << " bytes\n";
-				printf( Debug );
-			}
+			auto Port = mTryListenPorts.PopAt(0);
+			mClusterSocket.Listen( Port );
 		}
 	}
 
-	//	read in packets from server
-	if ( mClusterClient.isConnected() )
+	//	trying to connect to server...
+	if ( mTryConnectToServer.IsValid() )
 	{
-		TClientReadWrapper Client( mClusterClient, GetClientServerPeerAddress() );
-		if ( !RecvPackets( mPacketsIn, Client ) )
+		if ( mClusterSocket.GetState() != SoyNet::TSocketState::ClientConnected )
 		{
-			//	fatal error
-			//	disconnect client
-			assert( false );
-			mClusterClient.close();
+			if ( !mClusterSocket.Connect( mTryConnectToServer ) )
+				mTryConnectToServer = SoyNet::TAddress();
 		}
-	}
-	
-	//	check for new/closed clients
-	for ( int i=0;	i<mClusterServer.getLastID();	i++ )
-	{
-		int ClientId = i;
-		if ( mClusterServer.isClientConnected(ClientId) )
-			OnServerClientConnected( ClientId );
-		else
-			OnServerClientDisconnected( ClientId );
 	}
 
-	//	read in packets from each client
-	for ( int i=0;	i<mClusterServer.getLastID();	i++ )
-	{
-		int ClientId = i;
-		if ( !mClusterServer.isClientConnected(ClientId) )
-			continue;
-		
-		TServerReadWrapper Client( mClusterServer, ClientId, GetServerClientPeerAddress(ClientId) );
-		if ( !RecvPackets( mPacketsIn, Client ) )
-		{
-			//	fatal error
-			//	disconnect client
-			assert( false );
-			mClusterServer.disconnectClient( ClientId );
-		}
-	}
+	//	update socket
+	mClusterSocket.Update();
 	
 	//	process the incoming packets
-	while ( !mPacketsIn.IsEmpty() )
+	auto& Packets = mClusterSocket.mPacketsIn;
+	while ( !Packets.IsEmpty() )
 	{
 		SoyPacketContainer Packet;
-		if ( !mPacketsIn.PopPacket( Packet ) )
+		if ( !Packets.PopPacket( Packet ) )
 			break;
 
 		//	packet is from ourselves... ignore it
@@ -232,146 +124,42 @@ void SoyModule::Update(float TimeStep)
 }
 
 
-bool SoyModule::OnServerClientConnected(SoyNet::TClientRef ClientRef)
+void SoyModule::OnClusterSocketClientJoin(const SoyNet::TAddress& Client)
 {
-	//	already an active peer...
-	if ( mPeers.Find( ClientRef ) )
-		return false;
-
-	//	already pending...
-	if ( mPendingPeers.Find( ClientRef ) )
-		return false;
-
-	//	add to pending list
-	auto ClientAddress = GetServerClientPeerAddress( ClientRef );
-	mPendingPeers.PushBack( ClientAddress );
-	return true;
 }
 
 
-bool SoyModule::OnServerClientDisconnected(SoyNet::TClientRef ClientRef)
+void SoyModule::OnClusterSocketClientLeft(const SoyNet::TAddress& Client)
 {
-	bool Changed = false;
-
-	//	if in the pending list, remove it
-	Changed |= mPendingPeers.Remove( ClientRef );
-
-	//	if we have an active peer, move it to the dead peers
-	int ActivePeerIndex = mPeers.FindIndex( ClientRef );
+	//	if this client managed to become a peer, kill it
+	int ActivePeerIndex = mPeers.FindIndex( Client );
 	if ( ActivePeerIndex != -1 )
 	{
-		//	move to dead peers
-		assert( !mDeadPeers.Find( ClientRef ) );
-		mDeadPeers.PushBack( mPeers[ActivePeerIndex] );
 		mPeers.RemoveBlock( ActivePeerIndex, 1 );
 		OnPeersChanged();
-		return true;
 	}
-
-	return Changed;
 }
 
 
 void SoyModule::RegisterPeer(const SoyModuleMeta& PeerMeta,const SoyNet::TAddress& Address)
 {
+	bool Changed = false;
+
 	//	do we alreayd have a peer with this name?
 	auto* Peer = mPeers.Find( PeerMeta.mRef );
 	if ( !Peer )
 	{
 		Peer = &mPeers.PushBack( SoyModulePeer(PeerMeta) );
+		Changed = true;
 	}
 
 	//	register address with peer
-	Peer->AddAddress( Address );
-
-	//	if peer was dead, remove (now alive!)
-	//	todo: merge with new peer
-	mDeadPeers.Remove( PeerMeta.mRef );
-
-	//	remove from pending list
-	mPendingPeers.Remove( Address );
+	Changed |= Peer->AddAddress( Address );
 
 	//	notify changes
-	OnPeersChanged();
+	if ( Changed )
+		OnPeersChanged();
 }
-
-
-SoyModuleState_ServerBind::SoyModuleState_ServerBind(SoyModule& Parent,uint16 Port) :
-	SoyModuleState	( Parent, "Server Bind" ),
-	mPort			( Port )
-{
-	auto& Server = GetParent().GetClusterServer();
-	if ( mPort == 0 )
-		mPort = GetParent().GetClusterPortRange()[0];
-	Server.setup( mPort, false );
-}
-
-void SoyModuleState_ServerBind::Update(float TimeStep)
-{
-	//	failed to bind
-	auto& Server = GetParent().GetClusterServer();
-	if ( !Server.isConnected() )
-	{
-		Server.close();
-
-		//	try next port
-		auto Ports = GetParent().GetClusterPortRange();
-		int PortIndex = Ports.FindIndex( mPort );
-		PortIndex++;
-		if ( PortIndex < Ports.GetSize() )
-			GetParent().ChangeState<SoyModuleState_ServerBind>( Ports[PortIndex] );
-		else
-			GetParent().ChangeState<SoyModuleState_BindFailed>();
-		return;
-	}
-	
-	//	bound okay, listen
-	GetParent().ChangeState<SoyModuleState_Listening>();
-}
-
-
-SoyModuleState_ClientConnect::SoyModuleState_ClientConnect(SoyModule& Parent,const SoyRef& Peer) :
-	SoyModuleState	( Parent, "Client Connect" ),
-	mPeer			( Peer )
-{
-	//	find server we're trying to connect to...
-	const SoyModulePeer* pPeer = GetParent().GetPeer( mPeer );
-
-	//	try to connect if it's valid
-	if ( pPeer )
-	{
-		auto& Client = GetParent().GetClusterClient();
-		auto& PeerAddress = pPeer->mAddresses[0];
-		Client.setup( static_cast<const char*>(PeerAddress.mAddress), PeerAddress.mPort, false );
-	}
-}
-
-void SoyModuleState_ClientConnect::Update(float TimeStep)
-{
-	//	failed to connect
-	auto& Client = GetParent().GetClusterClient();
-	if ( !Client.isConnected() )
-	{
-		Client.close();
-		GetParent().ChangeState<SoyModuleState_Listening>();
-		return;
-	}
-	
-	//	all connected okay..
-	GetParent().OnConnectedToServer( mPeer );
-	GetParent().ChangeState<SoyModuleState_Connected>();
-}
-
-
-SoyModuleState_Connected::SoyModuleState_Connected(SoyModule& Parent) :
-	SoyModuleState	( Parent, "Connected" )
-{
-	//	send registration packet
-	SoyModulePacket_RegisterPeer Packet;
-	Packet.mPeerMeta = GetParent().GetMeta();
-	GetParent().SendPacketToPeers( Packet );
-}
-
 
 
 BufferString<300> SoyModule::GetNetworkStatus() const
@@ -379,23 +167,25 @@ BufferString<300> SoyModule::GetNetworkStatus() const
 	BufferString<300> Status;
 
 	//	show our current state
-	SoyModuleState* pState = static_cast<SoyModuleState*>( mState );
-	if ( pState )
-		Status << pState->GetStateName();
-	else
-		Status << "No state";
-	Status << "; ";
+	Status << SoyEnum::ToString( mClusterSocket.GetState() ) << "; ";
 
 	//	cluster info
-	if ( GetClusterServer().isConnected() )
+	if ( mClusterSocket.GetState() == SoyNet::TSocketState::ServerListening )
 	{
-		Status << "Server Port: " << GetClusterServer().getPort() << ". ";
-		Status << "Clients: " << GetClusterServer().getNumClients() << ". ";
+		Status << "Server: " << mClusterSocket.GetMyAddress() << "; ";
 	}
 
-	if ( GetClusterClient().isConnected() )
+	if ( mClusterSocket.GetState() == SoyNet::TSocketState::ClientConnected )
 	{
-		Status << "Client Connected to " << mServerPeer << ". ";
+		Status << "Client (" << mClusterSocket.GetMyAddress() << ") Connected to: " << mClusterSocket.GetServerAddress() << "; ";
+	}
+
+	//	show connections
+	Array<SoyNet::TAddress> Connections;
+	mClusterSocket.GetConnections( Connections );
+	for( int i=0;	i<Connections.GetSize();	i++ )
+	{
+		Status << Connections[i] << ", ";
 	}
 
 	return Status;
@@ -457,28 +247,6 @@ SoyTime SoyModule::GetTime() const
 	return SoyTime::Now();
 }
 
-SoyNet::TAddress SoyModule::GetClientServerPeerAddress() const
-{
-	auto* pPeer = GetPeer( mServerPeer );
-	if ( !pPeer )
-	{
-		assert( pPeer );
-		return SoyNet::TAddress();
-	}
-
-	//	what to do with multiple addresses??
-	assert( pPeer->mAddresses.GetSize() == 1 );
-	return pPeer->mAddresses[0];
-}
-
-SoyNet::TAddress SoyModule::GetServerClientPeerAddress(SoyNet::TClientRef ClientRef) const
-{
-	auto& Server = GetClusterServer();
-	BufferString<100> Address = Server.getClientIP( ClientRef.mClientId ).c_str();
-	uint16 Port = Server.getClientPort( ClientRef.mClientId );
-
-	return SoyNet::TAddress( Address, Port, ClientRef );
-}
 
 SoyRef SoyModule::GetServerClientPeer(SoyNet::TClientRef ClientRef) const
 {

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "SoyRef.h"
+#include <ofxNetwork.h>
+
 
 namespace SoyNet
 {
@@ -33,10 +35,16 @@ namespace SoyNet
 class SoyNet::TClientRef
 {
 public:
-	TClientRef(int ClientId=-1) :
+	TClientRef() :
+		mClientId	( -1 )
+	{
+	}
+	explicit TClientRef(int ClientId) :
 		mClientId	( ClientId )
 	{
 	}
+
+	bool		IsValid() const								{	return mClientId >= 0;	} 
 
 	inline bool	operator==(const TClientRef& That) const	{	return this->mClientId == That.mClientId;	}
 	inline bool	operator!=(const TClientRef& That) const	{	return !( *this == That );	}
@@ -45,20 +53,31 @@ public:
 	int			mClientId;
 };
 
+template<class STRING>
+inline STRING& operator<<(STRING& str,const SoyNet::TClientRef& Value)
+{
+	str << Value.mClientId;
+	return str;
+}
+
+
 class SoyNet::TAddress
 {
 public:
 	TAddress() :
 		mPort		( 0 )
 	{
+		assert(!IsValid());
 	}
 	TAddress(const char* Address,uint16 Port,TClientRef ClientRef=TClientRef()) :
 		mPort		( Port ),
 		mAddress	( Address ),
 		mClientRef	( ClientRef )
 	{
+		assert(IsValid());
 	}
 
+	bool				IsValid() const									{	return (mPort != 0) && !mAddress.IsEmpty();	}
 	inline bool			operator==(const TAddress& That) const			{	return (mAddress == That.mAddress) && (this->mPort == That.mPort);	}
 	inline bool			operator==(const TClientRef& ClientRef)const	{	return mClientRef == ClientRef;	}
 
@@ -68,14 +87,16 @@ public:
 	TClientRef			mClientRef;	//	clientid of ofxTCPServer's client. -1 if it's not a client (ie. ofxTCPClient's server or self)
 };
 
+template<class STRING>
+inline STRING& operator<<(STRING& str,const SoyNet::TAddress& Value)
+{
+	const char* Address = Value.mAddress.IsEmpty() ? "null" : Value.mAddress;
+	str << Address << ":" << Value.mPort;
+	if ( Value.mClientRef.IsValid() )
+		str << "[" << Value.mClientRef << "]";
 
-
-
-
-
-
-
-
+	return str;
+}
 
 
 

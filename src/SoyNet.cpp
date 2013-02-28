@@ -16,8 +16,13 @@ namespace SoyNet
 using namespace SoyNet;
 
 
+
+
+
+
 TPeer::TPeer()
 {
 	mRef = AllocPeerRef();
 }
+
 
