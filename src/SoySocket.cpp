@@ -306,9 +306,14 @@ void TSocketTCP::CheckForClients()
 bool TSocketTCP::CheckForClient(int ClientId)
 {
 	TAddress ClientAddress = GetClientAddress( ClientId );
+	bool Connected = mServer.isClientConnected( ClientId );
 	int CachedClientIndex = mClientCache.FindIndex( ClientAddress );
+
+	//	probbaly lost address. check for client id instead of address
+	if ( !Connected && CachedClientIndex==-1 )
+		CachedClientIndex = mClientCache.FindIndex( TClientRef(ClientId) );
+
 	bool ExistingClient = (CachedClientIndex!=-1);
-	bool Connected = mServer.isClientConnected(ClientId);
 
 	if ( Connected && !ExistingClient )
 	{
@@ -415,3 +420,10 @@ SoyNet::TAddress SoyNet::TSocketTCP::GetServerAddress() const
 	return Address;
 }
 
+
+void TSocketTCP::OnClosed()
+{
+	//	clear client cache
+	mClientCache.Clear();
+	TSocket::OnClosed();
+}

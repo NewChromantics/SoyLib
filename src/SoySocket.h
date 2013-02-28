@@ -43,7 +43,7 @@ public:
 	
 protected:
 	//	callbacks which instigate events and update state
-	void				OnClosed();				//	will callback if listen or connect fail
+	virtual void		OnClosed();				//	will callback if listen or connect fail
 	void				OnClientConnected();
 	void				OnServerListening();
 	void				OnClientJoin(const SoyNet::TAddress& Address);
@@ -83,6 +83,8 @@ public:
 	TAddress			GetMyAddress() const;
 
 protected:
+	virtual void		OnClosed();
+
 	virtual void		CheckState();
 	virtual void		CheckForClients();
 	virtual void		RecievePackets();	
