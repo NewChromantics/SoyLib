@@ -8,6 +8,10 @@
 
 #define case_OnSoyPacket(PACKETTYPE)	case PACKETTYPE::TYPE:	return OnPacket( Packet.GetAs<PACKETTYPE>() );
 
+namespace SoyNet
+{
+	class TAddress;
+};
 
 //-------------------------------------------
 //	every packet should start with this
@@ -105,12 +109,8 @@ public:
 };
 
 
-template<typename PACKETENUM>
 class SoyPacketManager : public ofMutex
 {
-public:
-	typedef SoyPacket<PACKETENUM> TPacket;
-
 public:
 	bool					IsEmpty() const	{	return mPackets.IsEmpty();	}	//	read is so minute we don't need a lock
 
@@ -132,4 +132,13 @@ protected:
 };
 
 
-#include "SoyPacket.hpp"
+
+	
+template<class PACKET>
+void SoyPacketManager::PushPacket(const SoyPacketMeta& Meta,const PACKET& Packet)
+{
+	ofMutex::ScopedLock Lock(*this);
+	SoyPacketContainer Container( Packet, Meta, SoyNet::TAddress() );
+	mPackets.PushBack( Container );
+}	
+
