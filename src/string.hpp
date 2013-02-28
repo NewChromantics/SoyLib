@@ -31,6 +31,7 @@
 #include "configure.hpp"
 #include "chartype.hpp"
 #include "array.hpp"
+//#include "heaparray.hpp"
 #include "bufferarray.hpp"
 
 
@@ -634,8 +635,10 @@ namespace Soy
 		}
 
 		bool	GetBool(bool& Boolean) const;					//	extract boolean value from a string
-		void	GetFloatArray(Array<float>& Values) const;		//	read multiple floats from this string
-		void	GetIntArray(Array<int>& Values) const;			//	read multiple ints from this string
+		template<class FLOATARRAY>
+		void	GetFloatArray(FLOATARRAY& Values) const;		//	read multiple floats from this string
+		template<class INTARRAY>
+		void	GetIntArray(INTARRAY& Values) const;			//	read multiple ints from this string
 
 		//	extract all "chunks" of a string, split by a character
 		template<class CHUNKARRAY>
@@ -726,89 +729,6 @@ namespace Soy
 	};
 
 
-	// std::ostream operators
-
-	template <typename S,class SARRAY>
-	inline std::ostream& operator << (std::ostream& out, String2<S,SARRAY>& s)
-	{
-		out << static_cast<S*>(s);
-		return out;
-	}
-
-	template <typename S,class SARRAY>
-	inline std::ostream& operator << (std::ostream& out, const String2<S,SARRAY>& s)
-	{
-		out << static_cast<const S*>(s);
-		return out;
-	}
-
-	template <typename S, typename L, typename R>
-	inline std::ostream& operator << (std::ostream& out, const StringExp<S,L,R> exp)
-	{
-		String2<S> s = exp;
-		out << static_cast<const S*>(s);
-		return out;
-	}
-
-
-	// expression template + operator(s)
-
-	// exp + exp
-	template <typename S, typename L0, typename R0, typename L1, typename R1>
-	inline const StringExp<S,StringExp<S,L0,R0>,StringExp<S,L1,R1> > operator + (const StringExp<S,L0,R0>& exp0, const StringExp<S,L1,R1>& exp1)
-	{
-		return StringExp<S,StringExp<S,L0,R0>,StringExp<S,L1,R1> >(exp0,exp1);
-	}
-
-	// exp + string
-	template <typename S, typename L, typename R>
-	inline const StringExp<S,StringExp<S,L,R>,MetaString<S> > operator + (const StringExp<S,L,R>& exp, const String2<S,Array<S>>& s)
-	{
-		return StringExp<S,StringExp<S,L,R>,MetaString<S> >(exp,MetaString<S>(s,s.GetLength()));
-	}
-
-	// exp + ansi
-	template <typename S, typename L, typename R>
-	inline const StringExp<S,StringExp<S,L,R>,MetaString<S> > operator + (const StringExp<S,L,R>& exp, const S* text)
-	{
-		return StringExp<S,StringExp<S,L,R>,MetaString<S> >(exp,MetaString<S>(text));
-	}
-
-	// string + exp
-	template <typename S, typename L, typename R>
-	inline const StringExp<S,MetaString<S>,StringExp<S,L,R> > operator + (const String2<S,Array<S>>& s, const StringExp<S,L,R>& exp)
-	{
-		return StringExp<S,MetaString<S>,StringExp<S,L,R> >(MetaString<S>(s,s.GetLength()),exp);
-	}
-
-	// string + string
-	template <typename S>
-	inline const StringExp<S,MetaString<S>,MetaString<S> > operator + (const String2<S,Array<S>>& s0, const String2<S,Array<S>>& s1)
-	{
-		return StringExp<S,MetaString<S>,MetaString<S> >(MetaString<S>(s0,s0.GetLength()),MetaString<S>(s1,s1.GetLength()));
-	}
-
-	// string + ansi
-	template <typename S>
-	inline const StringExp<S,MetaString<S>,MetaString<S> > operator + (const String2<S,Array<S>>& s, const S* text)
-	{
-		return StringExp<S,MetaString<S>,MetaString<S> >(MetaString<S>(s,s.GetLength()),MetaString<S>(text));
-	}
-
-	// ansi + exp
-	template <typename S, typename L, typename R>
-	inline const StringExp<S,MetaString<S>,StringExp<S,L,R> > operator + (const S* text, const StringExp<S,L,R>& exp)
-	{
-		return StringExp<S,MetaString<S>,StringExp<S,L,R> >(MetaString<S>(text),exp);
-	}
-
-	// ansi + string
-	template <typename S>
-	inline const StringExp<S,MetaString<S>,MetaString<S> > operator + (const S* text, const String2<S,Array<S>>& s)
-	{
-		return StringExp<S,MetaString<S>,MetaString<S> >(MetaString<S>(text),MetaString<S>(s,s.GetLength()));
-	}
-
 
 	// global case sensitive string compare
 
@@ -854,7 +774,7 @@ private:
 	//	re-implement functions lost with inheritance
 public:
 	BufferString()	{}
-	BufferString(int size) : Soy::String2(size)	{}
+	//BufferString(int size) : Soy::String2(size)	{}
 	template<typename THATARRAYTYPE>
 	BufferString(const Soy::String2<S,THATARRAYTYPE>& s) :	Soy::String2	( s )	{}
 	BufferString(const S* text) : String2( text )	{}
@@ -870,7 +790,6 @@ public:
 	operator const S* () const		{	return mdata.GetArray();	}
 };
 	
-typedef Soy::String2<char,Array<char> >		TString;
 
 
 template <typename S,class ARRAYTYPE>
@@ -971,7 +890,8 @@ bool Soy::String2<S,ARRAYTYPE>::ExtractInt(int& Value,const char* Start,const ch
 //	read multiple floats from this string
 //------------------------------------------------
 template <typename S,class ARRAYTYPE>
-void Soy::String2<S,ARRAYTYPE>::GetFloatArray(Array<float>& Values) const
+template<class FLOATARRAY>
+void Soy::String2<S,ARRAYTYPE>::GetFloatArray(FLOATARRAY& Values) const
 {
 	const S* Start = mdata.GetArray();
 	const S* End = Start;
@@ -1198,7 +1118,8 @@ bool Soy::String2<S,ARRAYTYPE>::GetBool(bool& Boolean) const
 //	read multiple integers from this string
 //------------------------------------------------
 template <typename S,class ARRAYTYPE>
-void Soy::String2<S,ARRAYTYPE>::GetIntArray(Array<int>& Values) const
+template<class INTARRAY>
+void Soy::String2<S,ARRAYTYPE>::GetIntArray(INTARRAY& Values) const
 {
 	//	move to first non-whitespace char, strtol only walks over spaces, not commas etc
 	int Index = GetNextNonWhitespaceCharacterIndex(0);

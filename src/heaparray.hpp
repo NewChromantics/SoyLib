@@ -1,201 +1,85 @@
-/*
-	Twilight Prophecy SDK
-	A multi-platform development system for virtual reality and multimedia.
-
-	Copyright (C) 1997-2003 Twilight 3D Finland Oy Ltd.
-*/
 #pragma once
+
 
 #include <cassert>
 #include <cstddef>
 #include "types.hpp"	//	gr: not sure why I have to include this, when it's included earlier in Soy.hpp...
-
-//namespace Soy
-//{
-	//	ArrayTest object forces .cpp to be built and not throw away the unittest symbols
-	class ArrayTestDummy
-	{
-	public:
-		// nothing class
-		ArrayTestDummy();
-	};
-
-
-	//	An ArrayBridge<T> is an interface to an array object, without needing to specialise the array type (buffer, heap, etc)
-	//	Why do we need this when we could template our function? because this allows us to put the definition somewhere away from
-	//	the header! Although there is a (minor) overhead of using a vtable, it's much more useful for having more flexible functions
-	//	in source (obviously not everything can go in headers) and reduces code-size (if we ever require that)
-	//		usage;
-	//	bool	MyFunc(ArrayBridge<int>& Array);	//	source NOT in header
-	//	....
-	//	HeapArray<int> h;
-	//	Array<int> a;
-	//	MyFunc( GetArrayBridge(h) );
-	//	MyFunc( GetArrayBridge(a) );
-	//	MyFunc( GetArrayBridge(s) );
-	//	
-	//	or for even more transparency (eg. no need to change lots of calls....)
-	//	template<class ARRAY> MyFunc(ARRAY& Array)	{	MyFunc( GetArrayBridge(Array) );	}
-	//	MyFunc( h );
-	//	MyFunc( a );
-	//	MyFunc( s );
-	//	
-	//	gr: can't currently use SortArray's because of the hidden/missing PushBack/PushBlock functions, which ideally we require here..
-	template<typename T>
-	class ArrayBridge
-	{
-	public:
-		ArrayBridge()	{}
-
-		virtual T&			operator [] (int index)=0;
-		virtual const T&	operator [] (int index) const=0;
-		virtual bool		IsEmpty() const=0;
-		virtual int			GetSize() const=0;
-		virtual int			GetDataSize() const=0;
-		virtual const T*	GetArray() const=0;
-		virtual T*			GetArray()=0;
-		virtual void		SetSize(int size,bool preserve=false,bool AllowLess=false)=0;
-		virtual void		Reserve(int size,bool clear=true)=0;
-		virtual T*			PushBlock(int count)=0;
-		virtual T&			PushBack(const T& item)=0;
-		virtual T&			PushBack()=0;
-		virtual void		RemoveBlock(int index, int count)=0;
-		virtual void		Clear(bool Dealloc=true)=0;
-		virtual int			MaxSize() const=0;
-
-		//	compare two arrays of the same type
-		//	gr: COULD turn this into a compare for sorting, but that would invoke a < and > operator call for each type.
-		//		this is also why we don't use the != operator, only ==
-		//		if we want that, make a seperate func!
-		inline bool			Matches(const ArrayBridge<T>& That) const
-		{
-			if ( this->GetSize() != That.GetSize() )	
-				return false;
-
-			//	both empty
-			if ( this->IsEmpty() )
-				return true;
-
-			//	do quick compare (memcmp) when possible
-			auto* ThisData = this->GetArray();
-			auto* ThatData = That.GetArray();
-			if ( Soy::IsComplexType<T>() )
-			{
-				for ( int i=0;	i<GetSize();	i++ )
-				{
-					if ( ThisData[i] == ThatData[i] )
-						continue;
-					//	elements differ
-					return false;
-				}
-				return true;
-			}
-			else
-			{
-				//	memory differs
-				if ( memcmp( ThisData, ThatData, this->GetDataSize() ) != 0 )
-					return false;
-				return true;
-			}
-		}
-	};
-
-	//	actual BridgeObject, templated to your array.
-	template<class ARRAY>
-	class ArrayBridgeDef : public ArrayBridge<typename ARRAY::TYPE>
-	{
-	public:
-		typedef typename ARRAY::TYPE T;
-	public:
-		//	const cast :( but only way to avoid it is to duplicate both ArrayBridge 
-		//	types for a const and non-const version...
-		//	...not worth it.
-		ArrayBridgeDef(const ARRAY& Array) :
-			mArray	( const_cast<ARRAY&>(Array) )
-		{
-		}
-
-		virtual T&			operator [] (int index)			{	return mArray[index];	}
-		virtual const T&	operator [] (int index) const	{	return mArray[index];	}
-		virtual bool		IsEmpty() const					{	return mArray.IsEmpty();	}
-		virtual int			GetSize() const					{	return mArray.GetSize();	}
-		virtual int			GetDataSize() const				{	return mArray.GetDataSize();	}
-		virtual const T*	GetArray() const				{	return mArray.GetArray();	}
-		virtual T*			GetArray()						{	return mArray.GetArray();	}
-		virtual void		SetSize(int size,bool preserve,bool AllowLess)	{	return mArray.SetSize(size,preserve,AllowLess);	}
-		virtual void		Reserve(int size,bool clear)	{	return mArray.Reserve(size,clear);	}
-		virtual T*			PushBlock(int count)			{	return mArray.PushBlock(count);	}
-		virtual T&			PushBack(const T& item)			{	return mArray.PushBack(item);	}
-		virtual T&			PushBack()						{	return mArray.PushBack();	}
-		virtual void		RemoveBlock(int index, int count)	{	return mArray.RemoveBlock(index,count);	}
-		virtual void		Clear(bool Dealloc)				{	return mArray.Clear(Dealloc);	}
-		virtual int			MaxSize() const					{	return mArray.MaxSize();	}
+#include "array.hpp"
+#include "memheap.hpp"
 	
-	private:
-		ARRAY&				mArray;
-	};
 
-	//	helper function to make syntax nicer;
-	//		auto Bridge = GetArrayBridge( MyArray );
-	//	instead of
-	//		auto Bridge = ArrayBridgeDef<BufferArray<int,100>>( MyArray );
-	template<class ARRAY>
-	inline ArrayBridgeDef<ARRAY> GetArrayBridge(const ARRAY& Array)	
-	{	
-		return ArrayBridgeDef<ARRAY>( Array );
-	};
 
-	/*
-template <typename T>
+//	gr: this is exactly the same as an Array type, but uses a prmem::Heap to allocate from.
+//		As long as it doesn't have any repurcussions, the original Array type should
+//		be able to be replaced by this, but with a default Heap
+//	gr: This should always allocate from a heap now, by default the "pr-global heap"
+//		with the exception of heaparrays that are allocated globally before the prcore::Heap
+template <typename T,prmem::Heap& HEAP=prcore::Heap>
 class Array
 {
 public:
 	typedef T TYPE;	//	in case you ever need to get to T in a template function/class, you can use ARRAYPARAM::TYPE (sometimes need typename ARRAYPARAM::TYPE)
 
 public:
+
 	Array()
-	: mdata(NULL),mmaxsize(0),moffset(0)
+	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
 	{
+		SetHeap( HEAP );
+	}
+
+	explicit Array(prmem::Heap& Heap)
+	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
+	{
+		SetHeap( Heap );
 	}
 
 	Array(const int size)
-	: mdata(NULL),mmaxsize(0),moffset(0)
+	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
 	{
+		SetHeap( HEAP );
 		SetSize(size);
 	}
 
 	Array(const unsigned int size)
-	: mdata(NULL),mmaxsize(0),moffset(0)
+	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
 	{
+		SetHeap( HEAP );
 		SetSize(size);
 	}
 
 	//	need an explicit constructor of self-type
 	Array(const Array& v)
-	: mdata(NULL),mmaxsize(0),moffset(0)
+	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
 	{
+		SetHeap( HEAP );
 		Copy( v );
 	}
 
-	//	explicit to avoid accidental implicit array-conversions (eg. when passing BufferArray to HeapArray param)
+	//	explicit to avoid accidental implicit array-conversions (eg. when passing BufferArray to Array param)
 	template<typename ARRAYTYPE>
 	explicit Array(const ARRAYTYPE& v)
-	: mdata(NULL),mmaxsize(0),moffset(0)
+	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
 	{
+		SetHeap( &HEAP );
 		Copy( v );
 	}
 
 	//	construct from a C-array like int Hello[2]={0,1}; this automatically sets the size
 	template<size_t CARRAYSIZE>
 	explicit Array(const T(&CArray)[CARRAYSIZE])
-	: mdata(NULL),mmaxsize(0),moffset(0)
+	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
 	{
 		PushBackArray( CArray );
 	}
 
 	~Array()
 	{
-		delete[] mdata;
+		//	gr; for safety, if there is no heap, we use normal new
+		if ( mdata && mHeap )
+			mHeap->FreeArray( mdata, mmaxsize );
+		else if ( mdata )
+			delete[] mdata;
 	}
 
 	template<typename ARRAYTYPE>
@@ -283,7 +167,7 @@ public:
 		return mdata;
 	}
 
-	void SetSize(int size,bool preserve=false,bool AllowLess=false)
+	void SetSize(int size, bool preserve = false,bool AllowLess=false)
 	{
 		assert( size >= 0 );
 		if ( size < 0 )	
@@ -305,7 +189,11 @@ public:
 
 		if ( size )
 		{
-			array = new T[size];
+			//	gr; for safety, if there is no heap, we use normal new
+			if ( mHeap )
+				array = mHeap->AllocArray<T>(size);
+			else
+				array = new T[size];
 
 			if ( mdata && preserve )
 			{
@@ -324,9 +212,13 @@ public:
 			}
 		}
 
-		if ( mdata ) 
+		if ( mdata )
 		{
-			delete[] mdata;
+			//	gr; for safety, if there is no heap, we use normal new
+			if ( mHeap )
+				mHeap->FreeArray( mdata, mmaxsize );
+			else
+				delete[] mdata;
 		}
 		mdata    = array;
 		mmaxsize = size;
@@ -376,7 +268,13 @@ public:
 			if ( !mmaxsize )
 			{
 				int size = count * 2;
-				mdata = new T[size];
+
+				//	gr; for safety, if there is no heap, we use normal new
+				if ( mHeap )
+					mdata = mHeap->AllocArray<T>( size );
+				else
+					mdata = new T[size];
+
 				mmaxsize = size;
 			}
 			else
@@ -401,14 +299,18 @@ public:
 
 		return PushBack( item );
 	}
-
+		
 	T& PushBack(const T& item)
 	{
 		if ( moffset >= mmaxsize )
 		{
 			if ( !mmaxsize )
 			{
-				mdata = new T[4];
+				//	gr; for safety, if there is no heap, we use normal new
+				if ( mHeap )
+					mdata = mHeap->AllocArray<T>( 4 );
+				else
+					mdata = new T[4];
 				mmaxsize = 4;
 				moffset = 0;
 			}
@@ -432,7 +334,11 @@ public:
 		{
 			if ( !mmaxsize )
 			{
-				mdata = new T[4];
+				//	gr; for safety, if there is no heap, we use normal new
+				if ( mHeap )
+					mdata = mHeap->AllocArray<T>( 4 );
+				else
+					mdata = new T[4];
 				mmaxsize = 4;
 				moffset = 0;
 			}
@@ -658,67 +564,27 @@ public:
 		return ThisBridge.Matches( ThatBridge )==false;
 	}
 		
-	private:
+	prmem::Heap&	GetHeap() const	{	return *mHeap;	}
+	void			SetHeap(prmem::Heap& Heap)
+	{
+		//	if heap isn't valid yet (eg. if this has been allocated before the global heap)
+		//	we'll use NULL (and revert to new/delete)
+		prmem::Heap* pNewHeap = &Heap;
+		if ( !Heap.IsHeapValid() )
+			pNewHeap = NULL;
 
-	T*		mdata;
-	int		mmaxsize;
-	int		moffset;
+		//	if heap changes and we have allocated data we should re-allocate the data...
+		bool ReAlloc = mdata && (pNewHeap!=mHeap);
+
+		//	currently we don't support re-allocating to another heap. 
+		//	It's quite trivial, but usually indicates an unexpected situation so leaving it for now
+		assert( !ReAlloc );
+		mHeap = pNewHeap;
+	}
+
+private:
+	prmem::Heap*	mHeap;		//	where to alloc/free from
+	T*				mdata;
+	int				mmaxsize;
+	int				moffset;
 };
-
-*/
-
-
-//} // namespace Soy
-
-
-/*
-//----------------------------------------
-//----------------------------------------
-template<typename T,bool AUTODEALLOC=false>
-class PtrArray : public Array<T*>
-{
-public:
-	~PtrArray()
-	{
-		if ( AUTODEALLOC )
-			DeleteAll();
-	}
-
-	void		DeleteAll()
-	{
-		for ( int i=0;	i<GetSize();	i++ )
-		{
-			T*& pElement = GetAt(i);
-			if ( !pElement )
-				continue;
-			delete pElement;
-			pElement = NULL;
-		}
-		Clear();
-	}
-
-	template<typename MATCHTYPE>
-	int			FindIndex(const MATCHTYPE& Match) const
-	{
-		for ( int i=0;	i<GetSize();	i++ )
-		{
-			T*const& pElement = GetAtConst(i);
-			if ( !pElement )
-				continue;
-			const T& Element = *pElement;
-			if ( Element == Match )
-				return i;
-		}
-		return -1;
-	}
-
-	//	find an element - returns first matching element or NULL
-	template<typename MATCH> T*			Find(const MATCH& Match)		{	int Index = FindIndex( Match );		return (Index < 0) ? NULL : GetAt(Index);	}
-	template<typename MATCH> const T*	Find(const MATCH& Match) const	{	int Index = FindIndex( Match );		return (Index < 0) ? NULL : GetAtConst(Index);	}
-	
-	T& operator [] (int index)				{	return *GetAt(index);	}
-	const T& operator [] (int index) const	{	return *GetAtConst(index);	}
-};
-
-
-*/

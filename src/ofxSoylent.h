@@ -10,9 +10,12 @@
 //	gr: this include list is NOT required, just easier to include.
 
 #include "types.hpp"
+#include "memheap.hpp"
 #include "array.hpp"
+#include "heaparray.hpp"
 #include "bufferarray.hpp"
 #include "string.hpp"
+typedef Soy::String2<char,Array<char> >		TString;
 
 #include "SoyPair.h"
 #include "SoyEnum.h"
