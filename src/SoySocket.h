@@ -8,6 +8,8 @@ namespace SoyNet
 {
 	class TSocket;
 	class TSocketTCP;	
+	class TSocketUDP;
+	class TSocketUDPMultiCast;	
 };
 
 
@@ -102,3 +104,49 @@ private:
 	ofxTCPClient 		mClient;
 };
 
+
+
+class SoyNet::TSocketUDP : public SoyNet::TSocket
+{
+public:
+	virtual void		GetConnections(Array<SoyNet::TAddress>& Addresses) const;
+	virtual bool		Listen(uint16 Port);
+	virtual bool		Connect(const SoyNet::TAddress& ServerAddress);
+	virtual void		Close();
+	
+	TAddress			GetMyAddress() const;
+
+protected:
+	virtual void		OnClosed();
+
+	virtual void		CheckState();
+	virtual void		CheckForClients();
+	virtual void		RecievePackets();	
+	virtual void		SendPackets();	
+	bool				CheckForClient(int ClientId);	//	check an individual client is newly connected/disconnected. Done individually as we cannot lock the connections. returns if client is connected
+
+protected:
+	virtual bool		BindUDP(uint16 Port);
+	virtual bool		ConnectUDP(const SoyNet::TAddress& ServerAddress);
+
+protected:
+	Array<SoyPair<SoyNet::TAddress,Array<char>>>	mPacketData;	//	data we've recieved from various sources but not yet processed
+	ofxUDPManager 		mSocket;
+};
+
+
+class SoyNet::TSocketUDPMultiCast : public SoyNet::TSocketUDP
+{
+public:
+	TSocketUDPMultiCast(const char* MultiCastAddress="255.255.255.255") :
+		mMultiCastAddress	( MultiCastAddress )
+	{
+	}
+
+protected:
+	virtual bool		BindUDP(uint16 Port);
+	virtual bool		ConnectUDP(const SoyNet::TAddress& ServerAddress);
+
+private:
+	BufferString<100>	mMultiCastAddress;
+};

@@ -174,13 +174,16 @@ class SoyModule : public SoyModuleMeta
 public:
 	SoyModule(const char* Name);
 
+	void							OpenDiscoveryServer();
+	void							DisconnectDiscovery();
 	void							OpenClusterServer();
 	bool							ConnectToClusterServer(const SoyRef& Peer);	//	returns false if immediate fail
 	void							DisconnectCluster();		//	disconnect and cancel any listen/connect attempts
 
 	virtual BufferArray<uint16,100>	GetDiscoveryPortRange() const=0;
 	virtual BufferArray<uint16,100>	GetClusterPortRange() const=0;
-	BufferString<300>				GetNetworkStatus() const;	//	debug
+	BufferString<300>				GetClusterNetworkStatus() const;	//	debug
+	BufferString<300>				GetDiscoveryNetworkStatus() const;	//	debug
 	virtual void					Update(float TimeStep);
 	SoyTime							GetTime() const;			//	synchronised time
 
@@ -211,6 +214,8 @@ protected:
 	void							OnClusterSocketClientLeft(const SoyNet::TAddress& Client);
 
 private:
+	bool							OnDiscoveryPacket(const SoyPacketContainer& Packet);
+
 	bool							OnServerClientConnected(SoyNet::TClientRef ClientRef);		//	returns if changed
 	bool							OnServerClientDisconnected(SoyNet::TClientRef ClientRef);	//	returns if changed
 	void							OnPeersChanged();
@@ -220,12 +225,14 @@ public:
 	ofEvent<const SoyRef>			mOnMemberChanged;
 	
 private:
-	Array<uint16>					mTryListenPorts;		//	trying to setup a server...
-	SoyNet::TAddress				mTryConnectToServer;	//	trying to connect to this server....
+	Array<uint16>					mTryListenDiscoveryPorts;	//	trying to setup a discovery server...
+	Array<uint16>					mTryListenClusterPorts;		//	trying to setup a server...
+	SoyNet::TAddress				mTryConnectToClusterServer;	//	trying to connect to this server....
 
 	Array<SoyModuleMemberBase*>		mMembers;			//	auto-registered members
 	Array<SoyModulePeer>			mPeers;				//	connected peers
 	SoyNet::TSocketTCP				mClusterSocket;
+	SoyNet::TSocketUDPMultiCast		mDiscoverySocket;
 };
 
 

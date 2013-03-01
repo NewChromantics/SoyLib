@@ -20,13 +20,13 @@ SoyModule::SoyModule(const char* Name) :
 void SoyModule::OnClusterSocketServerListening(bool& Event)
 {
 	//	can stop trying to listen
-	mTryListenPorts.Clear();
+	mTryListenClusterPorts.Clear();
 }
 
 void SoyModule::OnClusterSocketClientConnected(bool& Event)
 {
 	//	can stop trying to connect
-	mTryConnectToServer = SoyNet::TAddress();
+	mTryConnectToClusterServer = SoyNet::TAddress();
 
 	//	send register packet
 	SoyModulePacket_RegisterPeer Packet;
@@ -40,12 +40,30 @@ void SoyModule::OnClusterSocketClosed(bool& Event)
 	DisconnectCluster();
 }
 
+
+
+void SoyModule::OpenDiscoveryServer()
+{
+	DisconnectDiscovery();
+	
+	auto Ports = GetDiscoveryPortRange();
+	for ( int i=0;	i<Ports.GetSize();	i++ )
+		mTryListenDiscoveryPorts.PushBackUnique( Ports[i] );
+}
+
+
+void SoyModule::DisconnectDiscovery()
+{
+	mDiscoverySocket.Close();
+}
+
+
 void SoyModule::DisconnectCluster()
 {
 	//	disconnect and cancel any listen/connect attempts
 	mClusterSocket.Close();
-	mTryListenPorts.Clear();
-	mTryConnectToServer = SoyNet::TAddress();
+	mTryListenClusterPorts.Clear();
+	mTryConnectToClusterServer = SoyNet::TAddress();
 }
 
 void SoyModule::OpenClusterServer()
@@ -55,7 +73,7 @@ void SoyModule::OpenClusterServer()
 	auto ClusterPorts = GetClusterPortRange();
 
 	for ( int i=0;	i<ClusterPorts.GetSize();	i++ )
-		mTryListenPorts.PushBackUnique( ClusterPorts[i] );
+		mTryListenClusterPorts.PushBackUnique( ClusterPorts[i] );
 }
 
 bool SoyModule::ConnectToClusterServer(const SoyRef& Peer)
@@ -69,14 +87,14 @@ bool SoyModule::ConnectToClusterServer(const SoyRef& Peer)
 	auto ServerAddress = pPeer->mAddresses[0];
 
 	//	already trying to connect to this...
-	if ( mTryConnectToServer == ServerAddress )
+	if ( mTryConnectToClusterServer == ServerAddress )
 		return true;
 
 	//	close current socket
 	DisconnectCluster();
 
 	//	set new connection attempt
-	mTryConnectToServer = ServerAddress;
+	mTryConnectToClusterServer = ServerAddress;
 
 	return true;
 }
@@ -85,23 +103,50 @@ bool SoyModule::ConnectToClusterServer(const SoyRef& Peer)
 void SoyModule::Update(float TimeStep)
 {
 	//	trying to open a server...
-	if ( !mTryListenPorts.IsEmpty() )
+	if ( !mTryListenDiscoveryPorts.IsEmpty() )
+	{
+		if ( mDiscoverySocket.GetState() != SoyNet::TSocketState::ServerListening )
+		{
+			auto Port = mTryListenDiscoveryPorts.PopAt(0);
+			mDiscoverySocket.Listen( Port );
+		}
+	}
+
+	//	trying to open a server...
+	if ( !mTryListenClusterPorts.IsEmpty() )
 	{
 		if ( mClusterSocket.GetState() != SoyNet::TSocketState::ServerListening )
 		{
-			auto Port = mTryListenPorts.PopAt(0);
+			auto Port = mTryListenClusterPorts.PopAt(0);
 			mClusterSocket.Listen( Port );
 		}
 	}
 
 	//	trying to connect to server...
-	if ( mTryConnectToServer.IsValid() )
+	if ( mTryConnectToClusterServer.IsValid() )
 	{
 		if ( mClusterSocket.GetState() != SoyNet::TSocketState::ClientConnected )
 		{
-			if ( !mClusterSocket.Connect( mTryConnectToServer ) )
-				mTryConnectToServer = SoyNet::TAddress();
+			if ( !mClusterSocket.Connect( mTryConnectToClusterServer ) )
+				mTryConnectToClusterServer = SoyNet::TAddress();
 		}
+	}
+
+	//	update discovery socket
+	mDiscoverySocket.Update();
+
+	auto& DiscoveryPackets = mDiscoverySocket.mPacketsIn;
+	while ( !DiscoveryPackets.IsEmpty() )
+	{
+		SoyPacketContainer Packet;
+		if ( !DiscoveryPackets.PopPacket( Packet ) )
+			break;
+
+		//	packet is from ourselves... ignore it
+		if ( Packet.mMeta.mSender == mRef )
+			continue;
+
+		OnDiscoveryPacket( Packet );
 	}
 
 	//	update socket
@@ -162,27 +207,28 @@ void SoyModule::RegisterPeer(const SoyModuleMeta& PeerMeta,const SoyNet::TAddres
 }
 
 
-BufferString<300> SoyModule::GetNetworkStatus() const
+BufferString<300> SoyModule::GetClusterNetworkStatus() const
 {
-	BufferString<300> Status;
+	BufferString<300> Status = "Cluster: ";
+	auto& Socket = mClusterSocket;
 
 	//	show our current state
-	Status << SoyEnum::ToString( mClusterSocket.GetState() ) << "; ";
+	Status << SoyEnum::ToString( Socket.GetState() ) << "; ";
 
 	//	cluster info
-	if ( mClusterSocket.GetState() == SoyNet::TSocketState::ServerListening )
+	if ( Socket.GetState() == SoyNet::TSocketState::ServerListening )
 	{
-		Status << "Server: " << mClusterSocket.GetMyAddress() << "; ";
+		Status << "Server: " << Socket.GetMyAddress() << "; ";
 	}
 
-	if ( mClusterSocket.GetState() == SoyNet::TSocketState::ClientConnected )
+	if ( Socket.GetState() == SoyNet::TSocketState::ClientConnected )
 	{
-		Status << "Client (" << mClusterSocket.GetMyAddress() << ") Connected to: " << mClusterSocket.GetServerAddress() << "; ";
+		Status << "Client (" << Socket.GetMyAddress() << ") Connected to: " << mClusterSocket.GetServerAddress() << "; ";
 	}
 
 	//	show connections
 	Array<SoyNet::TAddress> Connections;
-	mClusterSocket.GetConnections( Connections );
+	Socket.GetConnections( Connections );
 	for( int i=0;	i<Connections.GetSize();	i++ )
 	{
 		Status << Connections[i] << ", ";
@@ -191,6 +237,36 @@ BufferString<300> SoyModule::GetNetworkStatus() const
 	return Status;
 }
 
+
+BufferString<300> SoyModule::GetDiscoveryNetworkStatus() const
+{
+	BufferString<300> Status = "Discovery: ";
+	auto& Socket = mDiscoverySocket;
+
+	//	show our current state
+	Status << SoyEnum::ToString( Socket.GetState() ) << "; ";
+
+	//	cluster info
+	if ( Socket.GetState() == SoyNet::TSocketState::ServerListening )
+	{
+		Status << "Server: " << Socket.GetMyAddress() << "; ";
+	}
+
+	if ( Socket.GetState() == SoyNet::TSocketState::ClientConnected )
+	{
+		Status << "Client (" << Socket.GetMyAddress() << ") Connected to: " << mClusterSocket.GetServerAddress() << "; ";
+	}
+
+	//	show connections
+	Array<SoyNet::TAddress> Connections;
+	Socket.GetConnections( Connections );
+	for( int i=0;	i<Connections.GetSize();	i++ )
+	{
+		Status << Connections[i] << ", ";
+	}
+
+	return Status;
+}
 
 
 void SoyModule::OnPeersChanged()
@@ -297,6 +373,14 @@ bool SoyModule::OnPacket(const SoyPacketContainer& Packet)
 	return false;
 }
 
+//------------------------------------------------------
+//	return true if handled
+//------------------------------------------------------
+bool SoyModule::OnDiscoveryPacket(const SoyPacketContainer& Packet)
+{
+	return false;
+}
+
 bool SoyModule::OnPacket(const SoyModulePacket_MemberChanged& Packet)
 {
 	//	get member
@@ -334,4 +418,6 @@ SoyModuleMemberBase* SoyModule::GetMember(const SoyRef& MemberRef)
 
 	return NULL;
 }
+
+
 

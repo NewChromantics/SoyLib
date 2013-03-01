@@ -44,17 +44,24 @@ public:
 	{
 	}
 
-	BufferString<100>	GetName()										{	BufferString<100> Str;	Str << "server (" << mClientId << ")";	return Str;	}
 	template<typename DATATYPE>
-	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mServer.receiveRawBytes( mClientId, reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
+	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	
+	{
+		return mServer.receiveRawBytes( mClientId, reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	
+	}
 	template<typename DATATYPE>
-	int					peekReceiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mServer.peekReceiveRawBytes( mClientId, reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
+	int					peekReceiveRawBytes(ArrayBridge<DATATYPE>& Array)	
+	{
+		return mServer.peekReceiveRawBytes( mClientId, reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	
+	}
 
 public:
 	SoyNet::TAddress	mSender;
 	ofxTCPServer&		mServer;
 	int					mClientId;
 };
+
+
 class TClientReadWrapper
 {
 public:
@@ -64,15 +71,58 @@ public:
 	{
 	}
 
-	BufferString<100>	GetName()										{	return "client";	}
 	template<typename DATATYPE>
-	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mClient.receiveRawBytes( reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
+	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	
+	{
+		return mClient.receiveRawBytes( reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	
+	}
 	template<typename DATATYPE>
-	int					peekReceiveRawBytes(ArrayBridge<DATATYPE>& Array)	{	return mClient.peekReceiveRawBytes( reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	}
+	int					peekReceiveRawBytes(ArrayBridge<DATATYPE>& Array)	
+	{
+		return mClient.peekReceiveRawBytes( reinterpret_cast<char*>( Array.GetArray() ), Array.GetDataSize() );	
+	}
 
 public:
 	SoyNet::TAddress	mSender;
 	ofxTCPClient&		mClient;
+};
+
+
+class TDataReadWrapper
+{
+public:
+	TDataReadWrapper(Array<char>& Data,const SoyNet::TAddress& Sender) :
+		mData		( Data ),
+		mSender		( Sender )
+	{
+	}
+
+	template<typename DATATYPE>
+	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	
+	{
+		//	should be enough space...
+		if ( Array.GetDataSize() > mData.GetDataSize() )
+		{
+			assert( Array.GetDataSize() <= mData.GetDataSize() );
+			return 0;
+		}
+
+		//	pop data from mData into Array
+		char* pDestData = reinterpret_cast<char*>( Array.GetArray() );
+		int CopySize = Array.GetDataSize();
+		memcpy( pDestData, mData.GetArray(), Array.GetDataSize() );
+		mData.RemoveBlock( 0, CopySize );
+		return CopySize;
+	}
+	template<typename DATATYPE>
+	int					peekReceiveRawBytes(ArrayBridge<DATATYPE>& Array)
+	{
+		return mData.GetDataSize();
+	}
+
+public:
+	SoyNet::TAddress	mSender;
+	Array<char>&		mData;
 };
 
 template<class READWRAPPER,typename DATATYPE>
@@ -91,11 +141,6 @@ TPacketReadResult::Type ReadChunk(ArrayBridge<DATATYPE>& Array,READWRAPPER& Read
 	//	socket error
 	if ( BytesRecieved != Array.GetDataSize() )
 		return TPacketReadResult::Error;
-
-	BufferString<1000> Debug;
-	Debug << ReadWrapper.GetName() << "read " << BytesRecieved << " bytes\n";
-	printf( Debug );
-
 
 	return TPacketReadResult::Okay;
 }
@@ -426,4 +471,216 @@ void TSocketTCP::OnClosed()
 	//	clear client cache
 	mClientCache.Clear();
 	TSocket::OnClosed();
+}
+
+
+
+
+
+
+
+void TSocketUDP::GetConnections(Array<SoyNet::TAddress>& Addresses) const
+{
+	//	look in our cache of addresses. Some of these might be dangling, but haven't given us an error
+	for ( int i=0;	i<mPacketData.GetSize();	i++ )
+	{
+		auto& Address = mPacketData[i].mFirst;
+		Addresses.PushBack( Address );
+	}
+}
+
+bool TSocketUDP::Listen(uint16 Port)
+{
+	//	close old server if it's open
+	Close();
+
+	if ( !mSocket.Create() )
+		return false;
+
+	if ( !BindUDP( Port ) )
+	{
+		Close();
+		return false;
+	}
+
+	if ( !mSocket.SetNonBlocking( true ) )
+	{
+		Close();
+		return false;
+	}
+
+	OnServerListening();
+	return true;
+}
+
+bool TSocketUDP::Connect(const SoyNet::TAddress& ServerAddress)
+{
+	if ( !mSocket.Create() )
+		return false;
+
+	if ( !ConnectUDP( ServerAddress ) )
+	{
+		Close();
+		return false;
+	}
+	if ( !mSocket.SetNonBlocking( true ) )
+	{
+		Close();
+		return false;
+	}
+
+	OnClientConnected();
+	return true;
+}
+
+bool TSocketUDP::BindUDP(uint16 Port)
+{
+	return mSocket.Bind( Port );
+}
+
+bool TSocketUDP::ConnectUDP(const SoyNet::TAddress& ServerAddress)
+{
+	const char* Address = static_cast<const char*>(ServerAddress.mAddress);
+	return mSocket.Connect( Address, ServerAddress.mPort );
+}
+
+
+void TSocketUDP::Close()
+{
+	if ( mSocket.Close() )
+	{
+		OnClosed();
+	}
+}
+
+
+void TSocketUDP::CheckState()
+{
+	if ( GetState() == TSocketState::ClientConnected && !mSocket.HasSocket() )
+	{
+		OnClosed();
+	}
+
+	if ( GetState() == TSocketState::ServerListening && !mSocket.HasSocket() )
+	{
+		OnClosed();
+	}
+}
+
+void TSocketUDP::CheckForClients()
+{
+}
+
+void TSocketUDP::RecievePackets()
+{
+	//	recieve latest chunk into our buffer
+	while ( mSocket.HasSocket() )
+	{
+		//	do a recv into our pending buffer and grab the source of the data
+		int MaxBufferSize = mSocket.GetReceiveBufferSize();
+		Array<char> Buffer( MaxBufferSize );
+		int BufferSize = mSocket.Receive( Buffer.GetArray(), Buffer.GetDataSize() );
+
+		//	socket error
+		if ( BufferSize == SOCKET_ERROR )
+		{
+			Close();
+			break;
+		}
+
+		//	nothing to do
+		if ( BufferSize == 0 )
+			break;
+
+		//	fix buffer size according to how much data we recieved
+		Buffer.SetSize( BufferSize, true, true );
+
+		//	grab source of data
+		string AddressString;
+		int Port;
+		if ( !mSocket.GetRemoteAddr( AddressString, Port ) )
+			continue;	//	discard
+
+		//	get the existing data array (or add a new one if it's a new client)
+		TAddress Address( AddressString.c_str(), Port );
+		auto* pDataContainer = mPacketData.Find( Address );
+		if ( !pDataContainer )
+		{
+			//	new connection!
+			OnClientJoin( Address );
+			pDataContainer = &mPacketData.PushBack( Address );
+		}
+
+		//	append new data
+		pDataContainer->mSecond.PushBackArray( Buffer );
+	}
+
+	for ( int i=mPacketData.GetSize()-1;	i>=0;	i-- )
+	{
+		auto& Address = mPacketData[i].mFirst;
+		auto& Data = mPacketData[i].mSecond;
+
+		TDataReadWrapper Client( Data, Address );
+		if ( RecvPackets( mPacketsIn, Client ) )
+			continue;
+
+		//	fatal error, "disconnect client" by removing the data stored for the address
+		//	copy address before we delete it
+		TAddress AddressCopy = Address;
+		mPacketData.RemoveBlock( i, 1 );
+		OnClientLeft( AddressCopy );
+	}
+}
+
+
+void TSocketUDP::SendPackets()
+{
+	while ( !mPacketsOut.IsEmpty() )
+	{
+		Array<char> PacketRaw;
+		if ( !mPacketsOut.PopPacketRawData( PacketRaw ) )
+			break;
+
+		if ( !mSocket.HasSocket() )
+			continue;
+
+		int SendResult = mSocket.SendAll( PacketRaw.GetArray(), PacketRaw.GetDataSize() );
+
+	}
+}
+
+
+SoyNet::TAddress SoyNet::TSocketUDP::GetMyAddress() const
+{
+	if ( mSocket.HasSocket() )
+	{
+		string Address;
+		int Port;
+		if ( mSocket.GetListenAddr( Address, Port ) )
+			return TAddress( Address.c_str(), Port );
+	}
+
+	return SoyNet::TAddress();
+}
+
+
+void TSocketUDP::OnClosed()
+{
+	//	clear client cache
+	//mClientCache.Clear();
+	TSocket::OnClosed();
+}
+
+
+
+bool TSocketUDPMultiCast::BindUDP(uint16 Port)
+{
+	mSocket.SetEnableBroadcast( true );
+	//return mSocket.BindMcast( mMultiCastAddress, Port );
+	return mSocket.ConnectMcast( mMultiCastAddress, Port );
+}
+
+bool TSocketUDPMultiCast::ConnectUDP(const SoyNet::TAddress& ServerAddress)
+{
+	return mSocket.ConnectMcast( mMultiCastAddress, ServerAddress.mPort );
 }
