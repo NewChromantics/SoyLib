@@ -15,12 +15,27 @@ SoyModule::SoyModule(const char* Name) :
 	ofAddListener( mClusterSocket.mOnServerListening, this, &SoyModule::OnClusterSocketServerListening );
 	ofAddListener( mClusterSocket.mOnClientJoin, this, &SoyModule::OnClusterSocketClientJoin );
 	ofAddListener( mClusterSocket.mOnClientLeft, this, &SoyModule::OnClusterSocketClientLeft );
+
+	ofAddListener( mDiscoverySocket.mOnServerListening, this, &SoyModule::OnDiscoverySocketServerListening );
+}
+
+void SoyModule::OnDiscoverySocketServerListening(bool& Event)
+{
+	//	can stop trying to listen
+	mTryListenDiscoveryPorts.Clear();
+
+	//	send out discover-me packet
+	SendPacketBroadcastHelloWorld();
+	SendPacketBroadcastSearchWorld();
 }
 
 void SoyModule::OnClusterSocketServerListening(bool& Event)
 {
 	//	can stop trying to listen
 	mTryListenClusterPorts.Clear();
+
+	//	send out change of details
+	SendPacketBroadcastHelloWorld();
 }
 
 void SoyModule::OnClusterSocketClientConnected(bool& Event)
@@ -38,8 +53,43 @@ void SoyModule::OnClusterSocketClosed(bool& Event)
 {
 	//	clear connection attempts
 	DisconnectCluster();
+
+	//	send out change of details
+	SendPacketBroadcastHelloWorld();
 }
 
+
+void SoyModule::SendPacketBroadcastHelloWorld()
+{
+	SoyNet::TAddress ListenAddress = mClusterSocket.GetMyAddress();
+
+	SoyModulePacket_HelloWorld Packet;
+	Packet.mPeerMeta = GetMeta();
+	Packet.mServerPort = ListenAddress.mPort;
+
+	SoyPacketMeta Meta( mRef );
+	Meta.mType = Packet.GetType();	//	only needed for debug
+	mDiscoverySocket.mPacketsOut.PushPacket( Meta, Packet );
+
+	BufferString<100> Debug;
+	Debug << "SENT Discovery packet " << Meta;
+	ofLogNotice( static_cast<const char*>( Debug ) );
+
+
+}
+
+void SoyModule::SendPacketBroadcastSearchWorld()
+{
+	SoyModulePacket_SearchWorld Packet;
+	
+	SoyPacketMeta Meta( mRef );
+	Meta.mType = Packet.GetType();	//	only needed for debug
+	mDiscoverySocket.mPacketsOut.PushPacket( Meta, Packet );
+
+	BufferString<100> Debug;
+	Debug << "SENT Discovery packet " << Meta;
+	ofLogNotice( static_cast<const char*>( Debug ) );
+}
 
 
 void SoyModule::OpenDiscoveryServer()
@@ -99,8 +149,7 @@ bool SoyModule::ConnectToClusterServer(const SoyRef& Peer)
 	return true;
 }
 
-
-void SoyModule::Update(float TimeStep)
+void SoyModule::UpdateDiscoverySocket()
 {
 	//	trying to open a server...
 	if ( !mTryListenDiscoveryPorts.IsEmpty() )
@@ -112,6 +161,31 @@ void SoyModule::Update(float TimeStep)
 		}
 	}
 
+	//	update discovery socket
+	mDiscoverySocket.Update();
+
+	auto& DiscoveryPackets = mDiscoverySocket.mPacketsIn;
+	while ( !DiscoveryPackets.IsEmpty() )
+	{
+		SoyPacketContainer Packet;
+		if ( !DiscoveryPackets.PopPacket( Packet ) )
+			break;
+
+		//	packet is from ourselves... ignore it
+		if ( Packet.mMeta.mSender == mRef )
+		{
+			BufferString<100> Debug;
+			Debug << __FUNCTION__ << ": Skipping packet from self (" << Packet.mMeta << " bytes)";
+			ofLogNotice( static_cast<const char*>(Debug) );
+			continue;
+		}
+
+		OnDiscoveryPacket( Packet );
+	}
+}
+
+void SoyModule::UpdateClusterSocket()
+{
 	//	trying to open a server...
 	if ( !mTryListenClusterPorts.IsEmpty() )
 	{
@@ -131,24 +205,7 @@ void SoyModule::Update(float TimeStep)
 				mTryConnectToClusterServer = SoyNet::TAddress();
 		}
 	}
-
-	//	update discovery socket
-	mDiscoverySocket.Update();
-
-	auto& DiscoveryPackets = mDiscoverySocket.mPacketsIn;
-	while ( !DiscoveryPackets.IsEmpty() )
-	{
-		SoyPacketContainer Packet;
-		if ( !DiscoveryPackets.PopPacket( Packet ) )
-			break;
-
-		//	packet is from ourselves... ignore it
-		if ( Packet.mMeta.mSender == mRef )
-			continue;
-
-		OnDiscoveryPacket( Packet );
-	}
-
+	
 	//	update socket
 	mClusterSocket.Update();
 	
@@ -162,10 +219,21 @@ void SoyModule::Update(float TimeStep)
 
 		//	packet is from ourselves... ignore it
 		if ( Packet.mMeta.mSender == mRef )
+		{
+			BufferString<100> Debug;
+			Debug << __FUNCTION__ << ": Skipping packet from self (" << Packet.mMeta << " bytes)";
+			ofLogNotice( static_cast<const char*>(Debug) );
 			continue;
+		}
 
 		OnPacket( Packet );
 	}
+}
+
+void SoyModule::Update(float TimeStep)
+{
+	UpdateDiscoverySocket();
+	UpdateClusterSocket();
 }
 
 
@@ -351,6 +419,14 @@ bool SoyModulePeer::AddAddress(const SoyNet::TAddress& Address)
 
 	mAddresses.PushBack( Address );
 
+	//	if we've now got an address which is valid, and we have an old unidentified one (port 0)
+	//	remove the unidentified one
+	if ( Address.mPort != 0 )
+	{
+		SoyNet::TAddress NoPortAddress( Address.mAddress, 0 );
+		mAddresses.Remove( NoPortAddress );
+	}
+
 	return true;
 }
 	
@@ -378,6 +454,17 @@ bool SoyModule::OnPacket(const SoyPacketContainer& Packet)
 //------------------------------------------------------
 bool SoyModule::OnDiscoveryPacket(const SoyPacketContainer& Packet)
 {
+	BufferString<100> Debug;
+	Debug << "RECV Discovery packet " << Packet.mMeta;
+	ofLogNotice( static_cast<const char*>( Debug ) );
+
+	auto SoyType = static_cast<SoyModulePackets::Type>( Packet.mMeta.mType );
+	switch ( SoyType )
+	{
+		case SoyModulePacket_HelloWorld::TYPE:	return OnPacket( Packet.GetAs<SoyModulePacket_HelloWorld>(), Packet.mSender );
+		case SoyModulePacket_SearchWorld::TYPE:	return OnPacket( Packet.GetAs<SoyModulePacket_SearchWorld>(), Packet.mSender );
+	}
+
 	return false;
 }
 
@@ -397,6 +484,23 @@ bool SoyModule::OnPacket(const SoyModulePacket_MemberChanged& Packet)
 	return true;
 }
 
+
+bool SoyModule::OnPacket(const SoyModulePacket_HelloWorld& Packet,const SoyNet::TAddress& Sender)
+{
+	//	if they are listening, then we can make up their address with the port in the packet
+	SoyNet::TAddress ClusterAddress( Sender.mAddress, Packet.mServerPort );
+
+	//	turn into peer
+	RegisterPeer( Packet.mPeerMeta, ClusterAddress );
+	return true;
+}
+
+bool SoyModule::OnPacket(const SoyModulePacket_SearchWorld& Packet,const SoyNet::TAddress& Sender)
+{
+	//	someone's requested hello's from everyone
+	SendPacketBroadcastHelloWorld();
+	return true;
+}
 
 bool SoyModule::OnPacket(const SoyModulePacket_RegisterPeer& Packet,const SoyNet::TAddress& Sender)
 {

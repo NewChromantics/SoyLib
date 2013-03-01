@@ -33,6 +33,8 @@ namespace SoyModulePackets
 {
 	enum Type
 	{
+		HelloWorld,			//	discovery hello-world
+		SearchWorld,		//	request everyone to send out a hello world
 		RegisterPeer,
 		MemberChanged,
 	};
@@ -71,6 +73,26 @@ class SoyModulePacket_RegisterPeer : public SoyModulePacketDerivitive<SoyModuleP
 {
 public:
 	SoyModuleMeta		mPeerMeta;
+};
+
+
+//--------------------------------------------
+//	discovery packet to encourage others to connect to us
+//--------------------------------------------
+class SoyModulePacket_HelloWorld : public SoyModulePacketDerivitive<SoyModulePackets::HelloWorld>
+{
+public:
+	SoyModuleMeta		mPeerMeta;		//	sender
+	uint16				mServerPort;	//	if we're listening on a server, it's this one
+};
+
+//--------------------------------------------
+//	discovery packet to encourage others to connect to us
+//--------------------------------------------
+class SoyModulePacket_SearchWorld : public SoyModulePacketDerivitive<SoyModulePackets::SearchWorld>
+{
+public:
+	//	gr: MIGHT require a varaible...
 };
 
 
@@ -174,6 +196,8 @@ class SoyModule : public SoyModuleMeta
 public:
 	SoyModule(const char* Name);
 
+	bool							IsServer() const			{	return mClusterSocket.GetState() == SoyNet::TSocketState::ServerListening;	}
+	bool							IsClient() const			{	return mClusterSocket.GetState() == SoyNet::TSocketState::ClientConnected;	}
 	void							OpenDiscoveryServer();
 	void							DisconnectDiscovery();
 	void							OpenClusterServer();
@@ -199,13 +223,16 @@ public:
 
 	template<class PACKET>
 	bool							SendPacketToPeers(const PACKET& Packet);
+	void							SendPacketBroadcastSearchWorld();	//	request info from all clients
+
+protected:
+	virtual SoyModule&				GetStateParent()			{	return *this;	}
 
 	virtual bool					OnPacket(const SoyPacketContainer& Packet);	//	return true if handled
 	bool							OnPacket(const SoyModulePacket_MemberChanged& Packet);
 	bool							OnPacket(const SoyModulePacket_RegisterPeer& Packet,const SoyNet::TAddress& Sender);
-
-protected:
-	virtual SoyModule&				GetStateParent()			{	return *this;	}
+	bool							OnPacket(const SoyModulePacket_HelloWorld& Packet,const SoyNet::TAddress& Sender);
+	bool							OnPacket(const SoyModulePacket_SearchWorld& Packet,const SoyNet::TAddress& Sender);
 
 	void							OnClusterSocketClosed(bool& Event);
 	void							OnClusterSocketClientConnected(bool& Event);
@@ -214,11 +241,16 @@ protected:
 	void							OnClusterSocketClientLeft(const SoyNet::TAddress& Client);
 
 private:
+	void							OnDiscoverySocketServerListening(bool& Event);
 	bool							OnDiscoveryPacket(const SoyPacketContainer& Packet);
+	void							SendPacketBroadcastHelloWorld();	//	send out my info to clients when it changes
 
 	bool							OnServerClientConnected(SoyNet::TClientRef ClientRef);		//	returns if changed
 	bool							OnServerClientDisconnected(SoyNet::TClientRef ClientRef);	//	returns if changed
 	void							OnPeersChanged();
+	
+	void							UpdateDiscoverySocket();
+	void							UpdateClusterSocket();
 
 public:
 	ofEvent<const Array<SoyRef>>	mOnPeersChanged;

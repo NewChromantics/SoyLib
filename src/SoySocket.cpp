@@ -497,6 +497,16 @@ bool TSocketUDP::Listen(uint16 Port)
 	if ( !mSocket.Create() )
 		return false;
 
+	//	gr: we need multiplexing some how... if UDP is on different ports, we can't find each other
+	//		if we share a port, only the first/earlier sockets recieve a broadcast packet (C sends to A&B, A doesn't send to B or C)
+	/*
+	if ( !mSocket.SetReuseAddress(false) )
+	{
+		Close();
+		return false;
+	}
+	*/
+
 	if ( !BindUDP( Port ) )
 	{
 		Close();
@@ -598,8 +608,14 @@ void TSocketUDP::RecievePackets()
 		//	grab source of data
 		string AddressString;
 		int Port;
+		//	discard if we can't find address
 		if ( !mSocket.GetRemoteAddr( AddressString, Port ) )
-			continue;	//	discard
+		{
+			BufferString<100> Debug;
+			Debug << __FUNCTION__ << ": Couldn't get remote address for packet (" << Buffer.GetDataSize() << " bytes)";
+			ofLogNotice( static_cast<const char*>(Debug) );
+			continue;	
+		}
 
 		//	get the existing data array (or add a new one if it's a new client)
 		TAddress Address( AddressString.c_str(), Port );

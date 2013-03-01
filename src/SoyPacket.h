@@ -42,6 +42,13 @@ public:
 	uint32		mDataSize;		//	following data is N bytes long (does not include header)
 };
 
+template<class STRING>
+inline STRING& operator<<(STRING& str,const SoyPacketMeta& Value)
+{
+	str << "Packet_" << Value.mType << "[" << Value.mSender << "](" << Value.mDataSize << ")";
+	return str;
+}
+
 
 class SoyPacketContainer
 {

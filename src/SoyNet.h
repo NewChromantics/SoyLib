@@ -77,7 +77,7 @@ public:
 		assert(IsValid());
 	}
 
-	bool				IsValid() const									{	return (mPort != 0) && !mAddress.IsEmpty();	}
+	bool				IsValid() const									{	return (mPort != 0) || !mAddress.IsEmpty();	}	//	gr: though I want this, for peers we've found, but don't have a listening port for, we have their address and no port... so zero.
 	inline bool			operator==(const TAddress& That) const			{	return (mAddress == That.mAddress) && (this->mPort == That.mPort);	}
 	inline bool			operator==(const TClientRef& ClientRef)const	{	return mClientRef == ClientRef;	}
 
