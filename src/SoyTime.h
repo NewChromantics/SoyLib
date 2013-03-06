@@ -1,6 +1,8 @@
 #pragma once
 
 
+#include "string.hpp"
+
 
 class SoyTime
 {
@@ -17,6 +19,25 @@ public:
 		mTime	( Time.GetTime() )
 	{
 	}
+	template <typename S,class ARRAYTYPE>
+	explicit SoyTime(const Soy::String2<S,ARRAYTYPE>& String) :
+		mTime	( 0 )
+	{
+		//	format T012345678
+		//	check length
+		if ( String.GetLength() == 9+1 )
+		{
+			if ( String[0] == 'T' )
+			{
+				//	get int from the numbers
+				BufferString<10> IntString( &String[1] );
+				int32 Value;
+				if ( IntString.GetInteger( Value ) )
+					mTime = Value;
+			}
+		}
+	}
+
 
 	uint64			GetTime() const							{	return mTime;	}
 	bool			IsValid() const							{	return mTime!=0;	}
