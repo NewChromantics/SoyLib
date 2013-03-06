@@ -41,15 +41,8 @@ namespace SoyModulePackets
 };
 
 
-
-class SoyModulePacket : public SoyPacket<SoyModulePackets::Type>
-{
-public:
-};
-
-
 template<SoyModulePackets::Type PACKETTYPE>
-class SoyModulePacketDerivitive : public SoyModulePacket
+class SoyModulePacket : public SoyPacket<SoyModulePackets::Type>
 {
 public:
 	static const SoyModulePackets::Type TYPE = PACKETTYPE;
@@ -58,7 +51,8 @@ public:
 	virtual SoyModulePackets::Type	GetType() const	{	return PACKETTYPE;	}
 };
 
-class SoyModulePacket_MemberChanged : public SoyModulePacketDerivitive<SoyModulePackets::MemberChanged>
+
+class SoyModulePacket_MemberChanged : public SoyModulePacket<SoyModulePackets::MemberChanged>
 {
 public:
 	SoyRef				mMemberRef;
@@ -69,7 +63,7 @@ public:
 //--------------------------------------------
 //	packet to send after connecting to verify self
 //--------------------------------------------
-class SoyModulePacket_RegisterPeer : public SoyModulePacketDerivitive<SoyModulePackets::RegisterPeer>
+class SoyModulePacket_RegisterPeer : public SoyModulePacket<SoyModulePackets::RegisterPeer>
 {
 public:
 	SoyModuleMeta		mPeerMeta;
@@ -79,7 +73,7 @@ public:
 //--------------------------------------------
 //	discovery packet to encourage others to connect to us
 //--------------------------------------------
-class SoyModulePacket_HelloWorld : public SoyModulePacketDerivitive<SoyModulePackets::HelloWorld>
+class SoyModulePacket_HelloWorld : public SoyModulePacket<SoyModulePackets::HelloWorld>
 {
 public:
 	SoyModuleMeta		mPeerMeta;		//	sender
@@ -89,7 +83,7 @@ public:
 //--------------------------------------------
 //	discovery packet to encourage others to connect to us
 //--------------------------------------------
-class SoyModulePacket_SearchWorld : public SoyModulePacketDerivitive<SoyModulePackets::SearchWorld>
+class SoyModulePacket_SearchWorld : public SoyModulePacket<SoyModulePackets::SearchWorld>
 {
 public:
 	//	gr: MIGHT require a varaible...
@@ -151,8 +145,8 @@ public:
 	virtual void		GetData(BufferString<100>& String) const	{	String << GetData();	}
 	TDATA&				GetData()									{	return *this;	}
 	const TDATA&		GetData() const								{	return *this;	}
-	virtual bool		SetData(const BufferString<100>& String,const SoyTime& ModifiedTime=SoyTime())	{	GetData() = String;	return OnDataChanged(ModifiedTime);	}
-	bool				SetData(const TDATA& Data,const SoyTime& ModifiedTime=SoyTime())				{	GetData() = Data;	return OnDataChanged(ModifiedTime);	}
+	virtual bool		SetData(const BufferString<100>& String,const SoyTime& ModifiedTime=SoyTime())	{	GetData() = TDATA(String);	return OnDataChanged(ModifiedTime);	}
+	bool				SetData(const TDATA& Data,const SoyTime& ModifiedTime=SoyTime())				{	GetData() = Data;			return OnDataChanged(ModifiedTime);	}
 };
 
 
@@ -239,6 +233,9 @@ protected:
 	void							OnClusterSocketServerListening(bool& Event);
 	void							OnClusterSocketClientJoin(const SoyNet::TAddress& Client);
 	void							OnClusterSocketClientLeft(const SoyNet::TAddress& Client);
+	void							OnDiscoverySocketClientJoin(const SoyNet::TAddress& Client);
+	void							OnDiscoverySocketClientLeft(const SoyNet::TAddress& Client);
+	void							OnDiscoverySocketClosed(bool& Event);
 
 private:
 	void							OnDiscoverySocketServerListening(bool& Event);
@@ -255,6 +252,8 @@ private:
 public:
 	ofEvent<const Array<SoyRef>>	mOnPeersChanged;
 	ofEvent<const SoyRef>			mOnMemberChanged;
+	ofEvent<const SoyNet::TSocketState::Type>	mOnClusterSocketChanged;
+	ofEvent<const SoyNet::TSocketState::Type>	mOnDiscoverySocketChanged;
 	
 private:
 	Array<uint16>					mTryListenDiscoveryPorts;	//	trying to setup a discovery server...

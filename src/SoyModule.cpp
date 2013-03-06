@@ -17,6 +17,9 @@ SoyModule::SoyModule(const char* Name) :
 	ofAddListener( mClusterSocket.mOnClientLeft, this, &SoyModule::OnClusterSocketClientLeft );
 
 	ofAddListener( mDiscoverySocket.mOnServerListening, this, &SoyModule::OnDiscoverySocketServerListening );
+	ofAddListener( mDiscoverySocket.mOnClosed, this, &SoyModule::OnDiscoverySocketClosed );
+	ofAddListener( mDiscoverySocket.mOnClientJoin, this, &SoyModule::OnDiscoverySocketClientJoin );
+	ofAddListener( mDiscoverySocket.mOnClientLeft, this, &SoyModule::OnDiscoverySocketClientLeft );
 }
 
 void SoyModule::OnDiscoverySocketServerListening(bool& Event)
@@ -27,7 +30,25 @@ void SoyModule::OnDiscoverySocketServerListening(bool& Event)
 	//	send out discover-me packet
 	SendPacketBroadcastHelloWorld();
 	SendPacketBroadcastSearchWorld();
+
+	ofNotifyEvent( mOnDiscoverySocketChanged, mDiscoverySocket.GetState() );
 }
+
+void SoyModule::OnDiscoverySocketClientJoin(const SoyNet::TAddress& Client)
+{
+	ofNotifyEvent( mOnDiscoverySocketChanged, mDiscoverySocket.GetState() );
+}
+
+void SoyModule::OnDiscoverySocketClientLeft(const SoyNet::TAddress& Client)
+{
+	ofNotifyEvent( mOnDiscoverySocketChanged, mDiscoverySocket.GetState() );
+}
+
+void SoyModule::OnDiscoverySocketClosed(bool& Event)
+{
+	ofNotifyEvent( mOnDiscoverySocketChanged, mDiscoverySocket.GetState() );
+}
+
 
 void SoyModule::OnClusterSocketServerListening(bool& Event)
 {
@@ -36,6 +57,8 @@ void SoyModule::OnClusterSocketServerListening(bool& Event)
 
 	//	send out change of details
 	SendPacketBroadcastHelloWorld();
+
+	ofNotifyEvent( mOnClusterSocketChanged, mClusterSocket.GetState() );
 }
 
 void SoyModule::OnClusterSocketClientConnected(bool& Event)
@@ -47,6 +70,8 @@ void SoyModule::OnClusterSocketClientConnected(bool& Event)
 	SoyModulePacket_RegisterPeer Packet;
 	Packet.mPeerMeta = GetMeta();
 	SendPacketToPeers( Packet );
+
+	ofNotifyEvent( mOnClusterSocketChanged, mClusterSocket.GetState() );
 }
 
 void SoyModule::OnClusterSocketClosed(bool& Event)
@@ -56,6 +81,8 @@ void SoyModule::OnClusterSocketClosed(bool& Event)
 
 	//	send out change of details
 	SendPacketBroadcastHelloWorld();
+
+	ofNotifyEvent( mOnClusterSocketChanged, mClusterSocket.GetState() );
 }
 
 
@@ -239,6 +266,7 @@ void SoyModule::Update(float TimeStep)
 
 void SoyModule::OnClusterSocketClientJoin(const SoyNet::TAddress& Client)
 {
+	ofNotifyEvent( mOnClusterSocketChanged, mClusterSocket.GetState() );
 }
 
 
@@ -251,6 +279,8 @@ void SoyModule::OnClusterSocketClientLeft(const SoyNet::TAddress& Client)
 		mPeers.RemoveBlock( ActivePeerIndex, 1 );
 		OnPeersChanged();
 	}
+
+	ofNotifyEvent( mOnClusterSocketChanged, mClusterSocket.GetState() );
 }
 
 
@@ -442,7 +472,7 @@ bool SoyModule::OnPacket(const SoyPacketContainer& Packet)
 	switch ( SoyType )
 	{
 		case_OnSoyPacket( SoyModulePacket_MemberChanged );
-		case SoyModulePacket_RegisterPeer::TYPE:	return OnPacket( Packet.GetAs<SoyModulePacket_RegisterPeer>(), Packet.mSender );
+		case SoyModulePacket_RegisterPeer::TYPE:	return OnPacket( Packet.GetPacketAs<SoyModulePacket_RegisterPeer>(), Packet.mSender );
 
 	}
 
@@ -461,8 +491,8 @@ bool SoyModule::OnDiscoveryPacket(const SoyPacketContainer& Packet)
 	auto SoyType = static_cast<SoyModulePackets::Type>( Packet.mMeta.mType );
 	switch ( SoyType )
 	{
-		case SoyModulePacket_HelloWorld::TYPE:	return OnPacket( Packet.GetAs<SoyModulePacket_HelloWorld>(), Packet.mSender );
-		case SoyModulePacket_SearchWorld::TYPE:	return OnPacket( Packet.GetAs<SoyModulePacket_SearchWorld>(), Packet.mSender );
+		case SoyModulePacket_HelloWorld::TYPE:	return OnPacket( Packet.GetPacketAs<SoyModulePacket_HelloWorld>(), Packet.mSender );
+		case SoyModulePacket_SearchWorld::TYPE:	return OnPacket( Packet.GetPacketAs<SoyModulePacket_SearchWorld>(), Packet.mSender );
 	}
 
 	return false;

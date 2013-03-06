@@ -1,8 +1,17 @@
 #pragma once
 
 
+namespace Soy
+{
+	template<class TPARENT>
+	class TState;
+
+	template<class TPARENT>
+	class TStateManager;
+};
+
 template<class TPARENT>
-class TState
+class Soy::TState
 {
 public:
 	TState(TPARENT& Parent) :	
@@ -24,7 +33,7 @@ private:
 
 
 template<class TPARENT>
-class TStateManager
+class Soy::TStateManager
 {
 public:
 	TStateManager() :

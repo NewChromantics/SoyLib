@@ -6,7 +6,14 @@
 #define SOYPACKET_SIZE_MAX	(1*1024*1024)	//	1mb - used to catch corrupt packets and stop us allocating silly memory
 
 
-#define case_OnSoyPacket(PACKETTYPE)	case PACKETTYPE::TYPE:	return OnPacket( Packet.GetAs<PACKETTYPE>() );
+#define case_OnSoyPacket(PACKETTYPE)				\
+	case PACKETTYPE::TYPE:							\
+	{												\
+		PACKETTYPE PacketObject;					\
+		if ( !Packet.GetPacketAs( PacketObject ) )	\
+			return false;							\
+		return OnPacket( PacketObject );			\
+	}									
 
 namespace SoyNet
 {
@@ -49,6 +56,29 @@ inline STRING& operator<<(STRING& str,const SoyPacketMeta& Value)
 	return str;
 }
 
+namespace Soy
+{
+	template<class PACKETTYPE>
+	inline bool	ToRawData(Array<char>& Data,const PACKETTYPE& Packet)
+	{
+		Data.PushReinterpretBlock( Packet );
+		return true;
+	}
+
+	template<class PACKETTYPE>
+	inline bool	FromRawData(PACKETTYPE& Packet,const Array<char>& Data)
+	{
+		if ( !sizeof(PACKETTYPE) == Data.GetDataSize() )
+		{
+			assert( false );
+			return false;
+		}
+		Packet = *reinterpret_cast<const PACKETTYPE*>( Data.GetArray() );
+		return true;
+	}
+};
+
+
 
 class SoyPacketContainer
 {
@@ -75,8 +105,12 @@ public:
 		mSender	( Sender ),
 		mMeta	( Meta )
 	{
-		//	copy raw data
-		mData.PushReinterpretBlock( Packet );
+		//	turn into raw data
+		assert( mData.GetDataSize() == 0 );
+		if ( !Soy::ToRawData( mData, Packet ) )
+		{
+			assert(false);
+		}
 
 		//	init meta
 		mMeta.mDataSize = mData.GetDataSize();
@@ -84,16 +118,17 @@ public:
 	}
 
 	template<class TYPE>
-	TYPE&			GetAs()
+	bool			GetPacketAs(TYPE& Packet) const
 	{
-		assert( sizeof(TYPE) == mData.GetDataSize() );
-		return *reinterpret_cast<TYPE*>( mData.GetArray() );
+		return Soy::FromRawData( Packet, mData );
 	}
 	template<class TYPE>
-	const TYPE&			GetAs() const
+	TYPE			GetPacketAs() const
 	{
-		assert( sizeof(TYPE) == mData.GetDataSize() );
-		return *reinterpret_cast<const TYPE*>( mData.GetArray() );
+		TYPE Packet;
+		if ( !Soy::FromRawData( Packet, mData ) )
+			return Packet;
+		return Packet;
 	}
 
 	void			GetPacketRaw(Array<char>& RawData)
