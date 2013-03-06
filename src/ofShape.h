@@ -209,6 +209,29 @@ public:
 };
 
 
+
+class ofShapeTriangle3
+{
+public:
+	ofShapeTriangle3() :
+		mTriangle	( 3 )
+	{
+	}
+	bool			IsValid() const		{	return mTriangle.GetSize() >= 3;	}
+	vec2f			GetCenter() const
+	{
+		vec2f Center;
+		for ( int i=0;	i<mTriangle.GetSize();	i++ )
+			Center += mTriangle[i];
+		Center /= mTriangle.IsEmpty() ? 1.f : static_cast<float>(mTriangle.GetSize());
+		return Center;
+	}
+
+public:
+	BufferArray<vec2f,3>	mTriangle;
+};
+
+
 class ofShapeBox3
 {
 public:
@@ -251,6 +274,26 @@ public:
 public:
 	vec2f	mStart;
 	vec2f	mEnd;
+};
+
+class ofLine3
+{
+public:
+	ofLine3()	{}
+	ofLine3(const vec3f& Start,const vec3f& End) :
+		mStart	( Start ),
+		mEnd	( End )
+	{
+	}
+
+	float	GetLength() const			{	return GetDirection().length();	}
+	vec3f	GetDirection() const		{	return mEnd-mStart;	}
+	vec3f	GetNormal() const			{	return GetDirection().getNormalized();	}
+	vec3f	GetPoint(float Time) const	{	return ofLerp( mStart, mEnd, Time );	}
+	
+public:
+	vec3f	mStart;
+	vec3f	mEnd;
 };
 
 
