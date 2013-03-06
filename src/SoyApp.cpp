@@ -2,6 +2,16 @@
 
 
 
+SoyApp::SoyApp()
+{
+	//	best timing setup
+	ofSetVerticalSync( false );
+	ofSetFrameRate( 60 );
+	
+	//	various stuff we should setup
+	ofSeedRandom();
+}
+
 void SoyApp::mouseDragged( int x, int y, int button )
 {
 	mInput.OnMouseMove( vec2f( x,y ), SoyButton::FromMouseButton( button ) );
@@ -60,7 +70,8 @@ void SoyInput::OnMouseMove(const vec2f& Pos2,SoyButton::Type Button)
 	//	new gesture... bit unexpected... but lets correct it
 	if ( !pLastGesture )
 	{
-		assert( pLastGesture );
+		//	double-click to maximise causes this assert...
+		//assert( pLastGesture );
 		OnMouseDown( Pos2, Button );
 		return;
 	}

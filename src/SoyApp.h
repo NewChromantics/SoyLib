@@ -197,6 +197,8 @@ protected:
 class SoyApp : public ofBaseApp
 {
 public:
+	SoyApp();
+
 	virtual void mouseDragged( int x, int y, int button );
 	virtual void mousePressed( int x, int y, int button );
 	virtual void mouseReleased(int x, int y, int button );
