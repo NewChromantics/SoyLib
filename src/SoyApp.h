@@ -135,18 +135,21 @@ class SoyGesture
 {
 public:
 	SoyGesture(SoyButton::Type Button) :
-		mButton	( Button ),
-		mValid	( true )
+		mButton		( Button ),
+		mValid		( true ),
+		mFirstDown	( false )
 	{
 	}
 	SoyGesture() :
-		mValid	( false )
+		mValid		( false ),
+		mFirstDown	( false )
 	{
 	}
 
 	SoyButton::Type			GetButton() const	{	return mButton;	}
 	bool					IsValid() const		{	return mValid;	}
 	bool					IsDragging() const	{	return mPath.GetSize() > 1;	}
+	bool					IsFirstDown() const	{	return mFirstDown;	}
 	bool					IsIdle() const		{	return mPath.GetSize() == 1;	}
 	bool					IsDown() const		{	return !IsUp();	}
 	bool					IsUp() const		{	return mPath.IsEmpty();	}
@@ -155,6 +158,7 @@ public:
 
 public:
 	Array<vec2f>			mPath;		//	path since last pop, if one point then button is down, but not moving. If none then the mouse is released
+	bool					mFirstDown;
 
 private:
 	SoyButton::Type			mButton;

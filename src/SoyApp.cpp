@@ -54,6 +54,7 @@ void SoyInput::OnMouseDown(const vec2f& Pos2,SoyButton::Type Button)
 	//	create new gesture
 	SoyGesture NewGesture( Button );
 	NewGesture.mPath.PushBack( Pos2 );
+	NewGesture.mFirstDown = true;
 	PushGesture( NewGesture );
 }
 
@@ -129,6 +130,7 @@ SoyGesture SoyInput::PopGesture()
 	{
 		SoyGesture ContinuedIdleGesture( Result.GetButton() );
 		ContinuedIdleGesture.mPath.PushBack( Result.mPath.GetBack() );
+		assert( !ContinuedIdleGesture.IsFirstDown() );
 		assert( ContinuedIdleGesture.IsIdle() );
 		PushGesture( ContinuedIdleGesture );
 		return Result;
