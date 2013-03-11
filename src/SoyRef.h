@@ -1,5 +1,7 @@
 #pragma once
 
+#include "string.hpp"
+
 namespace Private
 {
 	static const int SoyRef_MaxStringLength = sizeof(uint64)/sizeof(char);

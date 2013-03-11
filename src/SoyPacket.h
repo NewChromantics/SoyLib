@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SoyNet.h"
+#include "SoyPair.h"
 
 #define SOYPACKET_PROOF	SoyRef("Soylent")
 #define SOYPACKET_SIZE_MAX	(1*1024*1024)	//	1mb - used to catch corrupt packets and stop us allocating silly memory

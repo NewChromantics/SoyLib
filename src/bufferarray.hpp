@@ -391,6 +391,11 @@
 			SetSize(0,false,AllowLess);
 		}
 
+		int	MaxAllocSize() const
+		{
+			return MaxSize();
+		}
+
 		int	MaxSize() const
 		{
 			return mmaxsize;

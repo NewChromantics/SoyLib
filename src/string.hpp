@@ -41,10 +41,10 @@ namespace Soy
 
 	//	type independent version of strlen()
 	template<typename S>
-	int			StringLen(const S* a,int Max=-1)		
+	int			StringLen(const S* a,int Max,int AllocMax)		
 	{
 		if ( Max < 0 )
-			Max = 9999999;	//	gr: could be more clever?
+			Max = AllocMax;	//	gr: could be more clever?
 		int i=0;	
 		while ( a && *a && i<Max )	
 		{	
@@ -197,7 +197,7 @@ namespace Soy
 			}
 
 			//	calc how much to copy
-			int len = StringLen( text, MaxLength );
+			int len = StringLen( text, MaxLength, mdata.MaxAllocSize()-1 );
 
 			//	alloc block
 			mdata.Clear(false);
@@ -250,7 +250,7 @@ namespace Soy
 			mdata.PopBack();
 
 			//	pre-alloc
-			int len = StringLen( text );
+			int len = StringLen( text, -1, mdata.MaxAllocSize() );
 			mdata.Reserve( len + 1, false );
 
 			for ( ; *text; ++text )

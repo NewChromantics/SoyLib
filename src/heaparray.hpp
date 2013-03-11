@@ -507,6 +507,11 @@ public:
 		return mmaxsize;
 	}
 
+	int	MaxAllocSize() const
+	{
+		return numeric_limits<int>::max();
+	}
+
 	int	MaxDataSize() const
 	{
 		return MaxSize() * sizeof(T);

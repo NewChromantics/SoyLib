@@ -1,5 +1,6 @@
 #pragma once
 
+#include "SoyEnum.h"
 #include "SoyPacket.h"
 #include "SoyNet.h"
 

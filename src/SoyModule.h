@@ -2,6 +2,7 @@
 
 #include "SoyPacket.h"
 #include "SoySocket.h"
+#include "SoyTime.h"
 
 
 class SoyModule;

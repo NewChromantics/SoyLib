@@ -2,6 +2,7 @@
 
 #include "SoyRef.h"
 #include <ofxNetwork.h>
+#include "heaparray.hpp"
 
 
 namespace SoyNet

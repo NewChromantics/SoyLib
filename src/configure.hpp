@@ -6,6 +6,7 @@
 */
 #pragma once
 
+#include <ofMain.h>
 
 #define sizeofarray(ARRAY)	( sizeof(ARRAY)/sizeof((ARRAY)[0]) )
 
