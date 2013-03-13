@@ -22,6 +22,21 @@ SoyModule::SoyModule(const char* Name) :
 	ofAddListener( mDiscoverySocket.mOnClientLeft, this, &SoyModule::OnDiscoverySocketClientLeft );
 }
 
+	
+SoyModule::~SoyModule()
+{
+	ofRemoveListener( mClusterSocket.mOnClosed, this, &SoyModule::OnClusterSocketClosed );
+	ofRemoveListener( mClusterSocket.mOnClientConnected, this, &SoyModule::OnClusterSocketClientConnected );
+	ofRemoveListener( mClusterSocket.mOnServerListening, this, &SoyModule::OnClusterSocketServerListening );
+	ofRemoveListener( mClusterSocket.mOnClientJoin, this, &SoyModule::OnClusterSocketClientJoin );
+	ofRemoveListener( mClusterSocket.mOnClientLeft, this, &SoyModule::OnClusterSocketClientLeft );
+
+	ofRemoveListener( mDiscoverySocket.mOnServerListening, this, &SoyModule::OnDiscoverySocketServerListening );
+	ofRemoveListener( mDiscoverySocket.mOnClosed, this, &SoyModule::OnDiscoverySocketClosed );
+	ofRemoveListener( mDiscoverySocket.mOnClientJoin, this, &SoyModule::OnDiscoverySocketClientJoin );
+	ofRemoveListener( mDiscoverySocket.mOnClientLeft, this, &SoyModule::OnDiscoverySocketClientLeft );
+}
+
 void SoyModule::OnDiscoverySocketServerListening(bool& Event)
 {
 	//	can stop trying to listen

@@ -191,6 +191,7 @@ class SoyModule : public SoyModuleMeta
 {
 public:
 	SoyModule(const char* Name);
+	~SoyModule();
 
 	bool							IsServer() const			{	return mClusterSocket.GetState() == SoyNet::TSocketState::ServerListening;	}
 	bool							IsClient() const			{	return mClusterSocket.GetState() == SoyNet::TSocketState::ClientConnected;	}
