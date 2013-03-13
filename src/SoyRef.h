@@ -55,3 +55,10 @@ inline STRING& operator<<(STRING& str,const SoyRef& Value)
 	return str;
 }
 
+template<class STRING>
+inline const STRING& operator>>(const STRING& str,SoyRef& Value)
+{
+	Value = SoyRef( str );
+	return str;
+}
+

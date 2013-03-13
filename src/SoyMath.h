@@ -138,3 +138,62 @@ inline bool ofIsValidFloat(const ofMatrix4x4& Value)
 			ofIsValidFloat( Value.getRowAsVec4f(2) ) && 
 			ofIsValidFloat( Value.getRowAsVec4f(3) );
 }
+
+
+template<class STRING>
+inline STRING& operator<<(STRING& str,const ofVec2f& Value)
+{
+	str << Value.x << ' ' << Value.y;
+	return str;
+}
+
+template<class STRING>
+inline const STRING& operator>>(const STRING& str,ofVec2f& Value)
+{
+	BufferArray<float,2> Floats;
+	str.GetFloatArray( Floats );
+	
+	for ( int i=0;	i<Floats.GetSize();	i++ )
+		Value[i] = Floats[i];
+
+	return str;
+}
+
+template<class STRING>
+inline const STRING& operator>>(const STRING& str,float& Value)
+{
+	str.GetFloat( Value );
+	return str;
+}
+
+
+
+template<class STRING>
+inline STRING& operator<<(STRING& str,const ofMatrix4x4& Value)
+{
+	for ( int r=0;	r<4;	r++ )
+	for ( int c=0;	c<4;	c++ )
+	{
+		str << Value( r, c ) << ' ';
+	}
+	str.TrimRight(' ');
+	return str;
+}
+
+
+template<class STRING>
+inline const STRING& operator>>(const STRING& str,ofMatrix4x4& Value)
+{
+	BufferArray<float,16> Floats;
+	str.GetFloatArray( Floats );
+	
+	int i=0;
+	for ( int r=0;	r<4;	r++ )
+	for ( int c=0;	c<4;	c++,i++ )
+	{
+		Value( r, c ) = Floats[i];
+	}
+
+	return str;
+}
+
