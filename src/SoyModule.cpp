@@ -94,7 +94,7 @@ void SoyModule::SendPacketBroadcastHelloWorld()
 	Packet.mPeerMeta = GetMeta();
 	Packet.mServerPort = ListenAddress.mPort;
 
-	SoyPacketMeta Meta( mRef );
+	SoyPacketMeta Meta( GetRef() );
 	Meta.mType = Packet.GetType();	//	only needed for debug
 	mDiscoverySocket.mPacketsOut.PushPacket( Meta, Packet );
 
@@ -109,7 +109,7 @@ void SoyModule::SendPacketBroadcastSearchWorld()
 {
 	SoyModulePacket_SearchWorld Packet;
 	
-	SoyPacketMeta Meta( mRef );
+	SoyPacketMeta Meta( GetRef() );
 	Meta.mType = Packet.GetType();	//	only needed for debug
 	mDiscoverySocket.mPacketsOut.PushPacket( Meta, Packet );
 
@@ -199,7 +199,7 @@ void SoyModule::UpdateDiscoverySocket()
 			break;
 
 		//	packet is from ourselves... ignore it
-		if ( Packet.mMeta.mSender == mRef )
+		if ( Packet.mMeta.mSender == GetRef() )
 		{
 			BufferString<100> Debug;
 			Debug << __FUNCTION__ << ": Skipping packet from self (" << Packet.mMeta << " bytes)";
@@ -245,7 +245,7 @@ void SoyModule::UpdateClusterSocket()
 			break;
 
 		//	packet is from ourselves... ignore it
-		if ( Packet.mMeta.mSender == mRef )
+		if ( Packet.mMeta.mSender == GetRef() )
 		{
 			BufferString<100> Debug;
 			Debug << __FUNCTION__ << ": Skipping packet from self (" << Packet.mMeta << " bytes)";
@@ -289,7 +289,7 @@ void SoyModule::RegisterPeer(const SoyModuleMeta& PeerMeta,const SoyNet::TAddres
 	bool Changed = false;
 
 	//	do we alreayd have a peer with this name?
-	auto* Peer = mPeers.Find( PeerMeta.mRef );
+	auto* Peer = mPeers.Find( PeerMeta.GetRef() );
 	if ( !Peer )
 	{
 		Peer = &mPeers.PushBack( SoyModulePeer(PeerMeta) );
@@ -372,7 +372,7 @@ void SoyModule::OnPeersChanged()
 	//	send notification
 	Array<SoyRef> PeerRefs;
 	for ( int i=0;	i<mPeers.GetSize();	i++ )
-		PeerRefs.PushBack( mPeers[i].mRef );
+		PeerRefs.PushBack( mPeers[i].GetRef() );
 	ofNotifyEvent( mOnPeersChanged, PeerRefs );
 }
 
@@ -433,7 +433,7 @@ SoyRef SoyModule::GetServerClientPeer(SoyNet::TClientRef ClientRef) const
 			if ( Address.mClientRef != ClientRef )
 				continue;
 
-			return Peer.mRef;
+			return Peer.GetRef();
 		}
 	}
 	return SoyRef();

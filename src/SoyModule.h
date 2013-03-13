@@ -20,13 +20,14 @@ public:
 	{
 	}
 
+	const SoyRef&			GetRef() const		{	return mRef;	}
 	SoyModuleMeta&			GetMeta()			{	return *this;	}
 	const SoyModuleMeta&	GetMeta() const		{	return *this;	}
 
 	inline bool				operator==(const SoyRef& Ref) const	{	return mRef == Ref;	}
 	inline bool				operator!=(const SoyRef& Ref) const	{	return !(*this == Ref);	}
 
-public:
+private:
 	SoyRef		mRef;
 };
 
@@ -272,7 +273,7 @@ private:
 template<class PACKET>
 bool SoyModule::SendPacketToPeers(const PACKET& Packet)
 {
-	SoyPacketMeta Meta( mRef );
+	SoyPacketMeta Meta( GetRef() );
 	mClusterSocket.mPacketsOut.PushPacket( Meta, Packet );
 	return true;
 }
