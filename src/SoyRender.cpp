@@ -29,6 +29,7 @@ TRenderSceneScope::TRenderSceneScope(const char* SceneName)
 	glDisable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc( GL_LEQUAL );	//	handy!
+	glEnable(GL_DEPTH_CLAMP);	//	never clip
 }
 
 
