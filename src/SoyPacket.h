@@ -57,18 +57,114 @@ inline STRING& operator<<(STRING& str,const SoyPacketMeta& Value)
 	return str;
 }
 
+
+class TArrayWriter
+{
+public:
+	TArrayWriter(Array<char>& Data) :
+		mData	( Data )
+	{
+	}
+
+	template<typename TYPE>
+	bool	Write(const TYPE& Value)	
+	{
+		mData.PushReinterpretBlock( Value );
+		return true;
+	}
+
+	template<class ARRAY>
+	bool WriteArray(const ARRAY& Array)
+	{
+		//	write element count
+		int ArrayLength = Array.GetSize();
+		mData.PushReinterpretBlock( ArrayLength );
+
+		//	alloc and copy raw data
+		char* pData = mData.PushBlock( Array.GetDataSize() );
+		memcpy( pData, Array.GetArray(), Array.GetDataSize() );
+		return true;
+	}
+
+public:
+	Array<char>&	mData;
+};
+
+class TArrayReader
+{
+public:
+	TArrayReader(const Array<char>& Data) :
+		mData			( Data ),
+		mDataPosition	( 0 )
+	{
+	}
+
+	template<typename TYPE>
+	bool	Read(TYPE& Value)					
+	{	
+		return Read( reinterpret_cast<char*>(&Value), sizeof(TYPE) );	
+	}
+	bool	Read(char* pDest,int Size)		
+	{
+		//	check we can keep reading
+		if ( mDataPosition + Size > mData.GetDataSize() )
+			return false;
+
+		//	grab data
+		const char* pSrc = &mData[mDataPosition];
+		memcpy( pDest, pSrc, Size );
+
+		//	move along
+		mDataPosition += Size;
+		return true;
+	}
+	template<class ARRAY>
+	bool	ReadArray(ARRAY& ValueArray)
+	{
+		//	read array length
+		int ArrayLength;
+		if ( !Read( ArrayLength ) )
+			return false;
+
+		//	sensible check here please!
+		if ( ArrayLength < 0 || ArrayLength > SOYPACKET_SIZE_MAX )
+		{
+			assert( false );
+			return false;
+		}
+			
+		//	alloc
+		ValueArray.SetSize( ArrayLength );
+
+		//	copy
+		if ( !Read( reinterpret_cast<char*>( ValueArray.GetArray() ), ValueArray.GetDataSize() ) )
+			return false;
+
+		return true;
+	}
+
+public:
+	const Array<char>&	mData;
+	int					mDataPosition;
+};
+
+
 namespace Soy
 {
 	template<class PACKETTYPE>
 	inline bool	ToRawData(Array<char>& Data,const PACKETTYPE& Packet)
 	{
-		Data.PushReinterpretBlock( Packet );
+		TArrayWriter Writer( Data );
+		Writer.Write( Packet );
 		return true;
 	}
 
 	template<class PACKETTYPE>
 	inline bool	FromRawData(PACKETTYPE& Packet,const Array<char>& Data)
 	{
+		TArrayReader Reader( Data );
+		return Reader.Read( Packet );
+		/*
 		if ( !sizeof(PACKETTYPE) == Data.GetDataSize() )
 		{
 			assert( false );
@@ -76,6 +172,7 @@ namespace Soy
 		}
 		Packet = *reinterpret_cast<const PACKETTYPE*>( Data.GetArray() );
 		return true;
+		*/
 	}
 };
 
