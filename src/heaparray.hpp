@@ -61,7 +61,7 @@ public:
 	explicit Array(const ARRAYTYPE& v)
 	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
 	{
-		SetHeap( &HEAP );
+		SetHeap( HEAP );
 		Copy( v );
 	}
 
