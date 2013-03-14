@@ -43,7 +43,9 @@ public:
 	vec3f	GetDirection() const		{	return mEnd-mStart;	}
 	vec3f	GetNormal() const			{	return GetDirection().getNormalized();	}
 	vec3f	GetPoint(float Time) const	{	return ofLerp( mStart, mEnd, Time );	}
-	
+	bool	GetIntersection(const ofLine3& Line,float& IntersectionAlongThis,float& IntersectionAlongLine) const;
+	bool	GetIntersection(const ofLine3& Line,vec3f& Intersection) const;
+
 public:
 	vec3f	mStart;
 	vec3f	mEnd;

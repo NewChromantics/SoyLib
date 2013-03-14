@@ -77,3 +77,38 @@ vec2f ofLine2::GetNearestPoint(const vec2f& Position,float& Time) const
 
 	return mStart + (LineDir * Time);
 }
+
+
+
+
+
+bool ofLine3::GetIntersection(const ofLine3& Line,vec3f& Intersection) const
+{
+	float IntersectionAlongThis,IntersectionAlongLine;
+	if ( !GetIntersection( Line, IntersectionAlongThis, IntersectionAlongLine ) )
+		return false;
+
+	Intersection = GetPoint( IntersectionAlongThis );
+	return true;
+}
+
+
+bool ofLine3::GetIntersection(const ofLine3& Line,float& IntersectionAlongThis,float& IntersectionAlongLine) const
+{
+	vec3f da = this->mEnd - this->mStart; 
+	vec3f db = Line.mEnd - Line.mStart;
+    vec3f dc = Line.mStart - this->mStart;
+
+	vec3f acrossb = da.cross(db);
+	// lines are not coplanar
+	if ( dc.dot( acrossb ) != 0.0 ) 
+		return false;
+
+	vec3f ccrossb = dc.cross(db);
+	IntersectionAlongLine = ccrossb.dot(acrossb) / acrossb.lengthSquared();
+	if ( IntersectionAlongLine < 0.f || IntersectionAlongLine > 1.f )
+		return false;
+
+	return true;
+}
+
