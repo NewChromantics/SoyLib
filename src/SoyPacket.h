@@ -4,7 +4,7 @@
 #include "SoyPair.h"
 
 #define SOYPACKET_PROOF	SoyRef("Soylent")
-#define SOYPACKET_SIZE_MAX	(1*1024*1024)	//	1mb - used to catch corrupt packets and stop us allocating silly memory
+#define SOYPACKET_SIZE_MAX	(10*1024*1024)	//	10mb - used to catch corrupt packets and stop us allocating silly memory
 
 
 #define case_OnSoyPacket(PACKETTYPE)				\
@@ -78,6 +78,14 @@ public:
 	{
 		//	write element count
 		int ArrayLength = Array.GetSize();
+	
+		//	sensible check here please!
+		if ( ArrayLength < 0 || ArrayLength > SOYPACKET_SIZE_MAX )
+		{
+			assert( false );
+			return false;
+		}
+
 		mData.PushReinterpretBlock( ArrayLength );
 
 		//	alloc and copy raw data
