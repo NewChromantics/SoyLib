@@ -5,6 +5,8 @@
 #include "SoyMath.h"
 
 
+class TTransform2;
+
 class ofLine2
 {
 public:
@@ -15,7 +17,9 @@ public:
 	{
 	}
 
+	bool	IsZeroLength() const		{	return GetDirection().lengthSquared() <= 0.f;	}
 	float	GetLength() const			{	return GetDirection().length();	}
+	void	SetLength(float Length)		{	mEnd = mStart + (GetNormal() * Length);	}
 	vec2f	GetDirection() const		{	return mEnd-mStart;	}
 	vec2f	GetNormal() const			{	return GetDirection().getNormalized();	}
 	vec2f	GetPoint(float Time) const	{	return ofLerp( mStart, mEnd, Time );	}
@@ -23,6 +27,8 @@ public:
 	vec2f	GetNearestPoint(const vec2f& Position,float& Time) const;	//	get nearest point on line
 	bool	GetIntersection(const ofLine2& Line,float& IntersectionAlongThis,float& IntersectionAlongLine) const;
 	bool	GetIntersection(const ofLine2& Line,vec2f& Intersection) const;
+	void	Transform(const TTransform2& Trans);
+	
 
 public:
 	vec2f	mStart;

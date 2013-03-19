@@ -1,4 +1,5 @@
 #include "ofLine.h"
+#include "ofShape.h"
 
 
 bool ofLine2::GetIntersection(const ofLine2& Line,vec2f& Intersection) const
@@ -28,7 +29,9 @@ bool ofLine2::GetIntersection(const ofLine2& Line,float& IntersectionAlongThis,f
 
     if ( denom == 0.0f )
     {
-        if ( numerator == 0.0f && numerator2 == 0.0f )
+ 		IntersectionAlongThis = 0.f;
+		IntersectionAlongLine = 0.f;
+       if ( numerator == 0.0f && numerator2 == 0.0f )
         {
             return false;//COINCIDENT;
         }
@@ -42,8 +45,18 @@ bool ofLine2::GetIntersection(const ofLine2& Line,float& IntersectionAlongThis,f
     ub = numerator2/ denom;
 
 	//	intersection will be past the ends of these lines
-	if ( ua < 0.f || ua > 1.f )	return false;
-	if ( ub < 0.f || ub > 1.f )	return false;
+	if ( ua < 0.f || ua > 1.f )
+	{
+		ofLimit( ua, 0.f, 1.f );
+		ofLimit( ub, 0.f, 1.f );
+		return false;
+	}
+	if ( ub < 0.f || ub > 1.f )
+	{
+		ofLimit( ua, 0.f, 1.f );
+		ofLimit( ub, 0.f, 1.f );
+		return false;
+	}
 
 	return true;
 }
@@ -112,3 +125,9 @@ bool ofLine3::GetIntersection(const ofLine3& Line,float& IntersectionAlongThis,f
 	return true;
 }
 
+
+void ofLine2::Transform(const TTransform2& Trans)
+{
+	Trans.Transform( mStart );
+	Trans.Transform( mEnd );
+}
