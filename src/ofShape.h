@@ -7,6 +7,7 @@
 #include "ofLine.h"
 
 class ofShapeCircle2;
+class ofShapeCapsule2;
 class ofShapePolygon2;
 
 
@@ -86,8 +87,14 @@ namespace ofShape
 {
 	TIntersection			GetIntersection(const ofShapeCircle2& a,const ofShapeCircle2& b);
 	TIntersection			GetIntersection(const ofShapePolygon2& a,const ofShapeCircle2& b);
-	inline TIntersection	GetIntersection(const ofShapeCircle2& a,const ofShapePolygon2& b)		{	TIntersection Int = GetIntersection( b, a );	Int.Flip();	return Int;	}
 	TIntersection			GetIntersection(const ofShapePolygon2& a,const ofShapePolygon2& b);
+	TIntersection			GetIntersection(const ofShapeCapsule2& a,const ofShapeCapsule2& b);
+	TIntersection			GetIntersection(const ofShapeCapsule2& a,const ofShapePolygon2& b);
+	TIntersection			GetIntersection(const ofShapeCapsule2& a,const ofShapeCircle2& b);
+
+	inline TIntersection	GetIntersection(const ofShapeCircle2& a,const ofShapePolygon2& b)		{	TIntersection Int = GetIntersection( b, a );	Int.Flip();	return Int;	}
+	inline TIntersection	GetIntersection(const ofShapePolygon2& a,const ofShapeCapsule2& b)		{	TIntersection Int = GetIntersection( b, a );	Int.Flip();	return Int;	}
+	inline TIntersection	GetIntersection(const ofShapeCircle2& a,const ofShapeCapsule2& b)		{	TIntersection Int = GetIntersection( b, a );	Int.Flip();	return Int;	}
 };
 
 
@@ -122,9 +129,37 @@ public:
 };
 
 
+class ofShapeCapsule2
+{
+public:
+	ofShapeCapsule2(float Radius=0.f,const ofLine2& Line=ofLine2()) :
+		mRadius		( Radius ),
+		mLine		( Line )
+	{
+	}
+	ofShapeCapsule2(const ofLine2& Line,float Radius) :
+		mRadius		( Radius ),
+		mLine		( Line )
+	{
+	}
+
+	bool			IsValid() const				{	return !mLine.IsZeroLength() && (mRadius > 0.f);	}
+	vec2f			GetCenter() const			{	return mLine.GetPoint(0.5f);	}
+	ofShapeCircle2	GetBounds() const			{	return ofShapeCircle2( GetCenter(), mRadius );	}
+	void			Transform(const TTransform2& Trans)	{	mLine.Transform( Trans );	}
+
+public:
+	ofLine2		mLine;
+	float		mRadius;
+};
+
 class ofShapePolygon2
 {
 public:
+	ofShapePolygon2()
+	{
+		assert( !IsValid() );
+	}
 	bool			IsValid() const		{	return mTriangle.GetSize() >= 3;	}
 	vec2f			GetCenter() const
 	{
@@ -224,21 +259,51 @@ public:
 class TCollisionShape
 {
 public:
-	bool			IsValid() const		{	return mCircle.IsValid();	}
+	bool			IsValid() const		{	return mCircle.IsValid();	}	//	this should always be valid when a shape is set
 	vec2f			GetCenter() const	{	return mCircle.mPosition;	}
+
+	const ofShapeCircle2&	GetCircle() const	{	return mCircle;	}
+	const ofShapePolygon2&	GetPolygon() const	{	return mPolygon;	}
+	const ofShapeCapsule2&	GetCapsule() const	{	return mCapsule;	}
 
 	void			Transform(const TTransform2& Trans)	
 	{
 		mCircle.Transform( Trans );	
+		mCapsule.Transform( Trans );	
 		mPolygon.Transform( Trans );	
 	}
 
-	void			SetPolygon(const ofShapePolygon2& Polygon)	{	mPolygon = Polygon;	OnPolygonChanged();	}
-	void			OnPolygonChanged()							{	mCircle = mPolygon.GetBounds();	}
+	void			SetPolygon(const ofShapePolygon2& Polygon)	
+	{
+		mPolygon = Polygon;	
+		mCapsule = ofShapeCapsule2();	
+		OnShapeChanged();	
+	}
+	void			SetCapsule(const ofShapeCapsule2& Capsule)	
+	{
+		mPolygon = ofShapePolygon2();	
+		mCapsule = Capsule;	
+		OnShapeChanged();	
+	}
+	void			SetCircle(const ofShapeCircle2& Circle)	
+	{
+		mPolygon = ofShapePolygon2();	
+		mCapsule = ofShapeCapsule2();	
+		mCircle = Circle;
+		OnShapeChanged();
+	}
+	void			OnShapeChanged()		
+	{
+		if ( mPolygon.IsValid() )
+			mCircle = mPolygon.GetBounds();	
+		else if ( mCapsule.IsValid() )
+			mCircle = mCapsule.GetBounds();	
+	}
 
-public:
+private:
 	ofShapeCircle2		mCircle;
 	ofShapePolygon2		mPolygon;
+	ofShapeCapsule2		mCapsule;
 };
 
 

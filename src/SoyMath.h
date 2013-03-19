@@ -174,7 +174,8 @@ inline STRING& operator<<(STRING& str,const ofMatrix4x4& Value)
 	for ( int r=0;	r<4;	r++ )
 	for ( int c=0;	c<4;	c++ )
 	{
-		str << Value( r, c ) << ' ';
+		auto f = Value( r, c );
+		str << f << ' ';
 	}
 	str.TrimRight(' ');
 	return str;

@@ -403,3 +403,42 @@ vec2f ofShapePath2::GetTailNormal(float TailDistance) const
 }
 
 
+
+TIntersection ofShape::GetIntersection(const ofShapeCapsule2& a,const ofShapeCircle2& b)
+{
+	if ( !a.IsValid() || !b.IsValid() )
+		return TIntersection(false);
+
+	//	turn the capsule into a circle at the nearest point
+	vec2f NearestPointOnA = a.mLine.GetNearestPoint( b.mPosition );
+	ofShapeCircle2 aCircle( NearestPointOnA, a.mRadius );
+
+	return GetIntersection( aCircle, b );
+}
+
+TIntersection ofShape::GetIntersection(const ofShapeCapsule2& a,const ofShapeCapsule2& b)
+{
+	if ( !a.IsValid() || !b.IsValid() )
+		return TIntersection(false);
+
+	//	find the nearest points on the two lines (doesn't matter if there's an intersection or not)
+	float Timea,Timeb;
+	a.mLine.GetIntersection( b.mLine, Timea, Timeb );
+
+	//	turn the capsule into a circle at the nearest points
+	vec2f NearestPointOnA = a.mLine.GetPoint( Timea );
+	vec2f NearestPointOnB = b.mLine.GetPoint( Timeb );
+	ofShapeCircle2 aCircle( NearestPointOnA, a.mRadius );
+	ofShapeCircle2 bCircle( NearestPointOnB, b.mRadius );
+
+	return GetIntersection( aCircle, bCircle );
+}
+
+TIntersection ofShape::GetIntersection(const ofShapeCapsule2& a,const ofShapePolygon2& b)
+{
+	if ( !a.IsValid() || !b.IsValid() )
+		return TIntersection(false);
+
+	//	todo!
+	return TIntersection(false);
+}
