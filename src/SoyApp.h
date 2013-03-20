@@ -126,6 +126,15 @@ namespace SoyButton
 	};
 
 	inline Type		FromMouseButton(int ButtonIndex)		{	return static_cast<Type>(ButtonIndex);	}
+	inline int		ToMouseButton(Type Button)				{	return static_cast<int>(Button);	}
+	inline void		GetArray(ArrayBridge<SoyButton::Type>& Array)
+	{
+		Array.PushBack( Left );
+		Array.PushBack( Middle );
+		Array.PushBack( Right );
+		Array.PushBack( Four );
+		Array.PushBack( Five );
+	};
 };
 
 
@@ -183,6 +192,8 @@ public:
 	bool				PopTryLock();
 	SoyGesture			PopGesture();
 	void				PopUnlock();
+	void				CullGestures();		//	for when another UI is active and using inputs... obviously it would be better to manually distribute input to the other UI
+	bool				PeekButtonDown(SoyButton::Type Button);	//	check if a button is currently down in the gesture queue. Used to get around lost-mouse-up issues
 
 protected:
 	void				PushGesture(const SoyGesture& NewGesture);
@@ -206,6 +217,8 @@ public:
 	virtual void mouseDragged( int x, int y, int button );
 	virtual void mousePressed( int x, int y, int button );
 	virtual void mouseReleased(int x, int y, int button );
+	virtual void mouseReleased();
+	virtual void mouseMoved( int x, int y );
 
 public:
 	SoyInput	mInput;		//	cross platform gesture interface

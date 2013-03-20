@@ -29,6 +29,35 @@ void SoyApp::mouseReleased(int x, int y, int button )
 	mInput.OnMouseUp( vec2f( x,y ), SoyButton::FromMouseButton( button ) );
 }
 
+	
+void SoyApp::mouseReleased()
+{
+	//	check for lost-focus-mouse-ups
+	BufferArray<SoyButton::Type,10> Buttons;
+	SoyButton::GetArray( GetArrayBridge(Buttons) );
+
+	for ( int i=0;	i<Buttons.GetSize();	i++ )
+	{
+		SoyButton::Type Button = Buttons[i];
+		int ButtonIndex = SoyButton::ToMouseButton( Button );
+		if ( ofGetMousePressed( ButtonIndex ) )
+			continue;
+		
+		//	button is not currently down
+		if ( !mInput.PeekButtonDown( Button ) )
+			continue;
+		
+		//	push a mouse-up
+		//	gr: we could grab pos from last gesture, but pos is unused in an up anyway
+		mouseReleased( -1, -1, ButtonIndex );
+	}
+}
+
+void SoyApp::mouseMoved( int x, int y )
+{
+	//	check for lost-focus-mouse-ups
+	mouseReleased();
+}
 
 
 
@@ -192,5 +221,46 @@ void SoyInput::PushGesture(const SoyGesture& Gesture)
 	{
 		mPendingGestures.PushBack( Gesture );
 	}
+}
+
+void SoyInput::CullGestures()
+{
+	if ( !PopTryLock() )
+		return;
+
+	while ( true )
+	{
+		SoyGesture Gesture = PopGesture();
+		if ( !Gesture.IsValid() )
+			break;
+	}
+
+	PopUnlock();
+}
+
+
+bool SoyInput::PeekButtonDown(SoyButton::Type Button)
+{
+	PopLock();
+
+	//	button is not currently registered as being in a state
+	SoyGesture* pLastGesture = GetLastGesture( Button );
+	if ( !pLastGesture )
+	{
+		PopUnlock();
+		return false;
+	}
+	
+	//	last gesture is a release
+	if ( pLastGesture->IsUp() )
+	{
+		PopUnlock();
+		return false;
+	}
+
+	//	last gesture must be down
+	assert( pLastGesture->IsDown() );
+	PopUnlock();
+	return true;
 }
 
