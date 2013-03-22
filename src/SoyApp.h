@@ -102,6 +102,24 @@ private:
 
 
 
+template<class OBJECT>
+class ofMutexT : public OBJECT, public ofMutex
+{
+public:
+	ofMutexT()
+	{
+	}
+	template<typename PARAM>
+	explicit ofMutexT(const PARAM& Param) :
+		OBJECT	( Param )
+	{
+	}
+
+	OBJECT&			Get()		{	return *this;	}
+	const OBJECT&	Get() const	{	return *this;	}
+};
+
+
 //	flow-
 //	mouse down - start gesture
 //	app pops new gesture
