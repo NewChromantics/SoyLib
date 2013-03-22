@@ -112,18 +112,64 @@ bool ofLine3::GetIntersection(const ofLine3& Line,float& IntersectionAlongThis,f
 	vec3f db = Line.mEnd - Line.mStart;
     vec3f dc = Line.mStart - this->mStart;
 
+	/*
 	vec3f acrossb = da.cross(db);
 	// lines are not coplanar
-	if ( dc.dot( acrossb ) != 0.0 ) 
+	if ( dc.dot( acrossb ) != 0.0 )
+	{
+		IntersectionAlongThis = 0.f;
+		IntersectionAlongLine = 0.f;
 		return false;
+	}
 
 	vec3f ccrossb = dc.cross(db);
 	IntersectionAlongLine = ccrossb.dot(acrossb) / acrossb.lengthSquared();
 	if ( IntersectionAlongLine < 0.f || IntersectionAlongLine > 1.f )
+	{
+		ofLimit( IntersectionAlongLine, 0.f, 1.f );
+		ofLimit( IntersectionAlongLine, 0.f, 1.f );
 		return false;
+	}
+	*/
 
+    float    a = da.dot(da);         // always >= 0
+    float    b = da.dot(db);
+    float    c = db.dot(db);         // always >= 0
+    float    d = da.dot(dc);
+    float    e = db.dot(dc);
+    float    D = a*c - b*b;        // always >= 0
+	auto& sc = IntersectionAlongThis;
+	auto& tc = IntersectionAlongLine;
+    
+    // compute the line parameters of the two closest points
+	// the lines are almost parallel
+    if (D < ofNearZero)
+	{          
+        sc = 0.0;
+        tc = (b>c ? d/b : e/c);    // use the largest denominator
+		return false;
+    }
+    else 
+	{
+        sc = (b*e - c*d) / D;
+        tc = (a*e - b*d) / D;
+
+		//	nearest points are out of bounds of line
+		if ( sc < 0.f || sc > 1.f || tc < 0.f || tc > 1.f )
+		{
+			ofLimit( sc, 0.f, 1.f );
+			ofLimit( tc, 0.f, 1.f );
+			return false;
+		}
+    }
+
+	//	gr: to get nearest distance
+    // get the difference of the two closest points
+    //vec3f dP = dc + (sc * da) - (tc * db);  // =  L1(sc) - L2(tc)
+    //return dP.length();   // return the closest distance
 	return true;
 }
+
 
 
 void ofLine2::Transform(const TTransform2& Trans)
@@ -131,3 +177,57 @@ void ofLine2::Transform(const TTransform2& Trans)
 	Trans.Transform( mStart );
 	Trans.Transform( mEnd );
 }
+
+
+//-----------------------------------------------------------
+//	get nearest point on line
+//-----------------------------------------------------------
+vec3f ofLine3::GetNearestPoint(const vec3f& Position,float& Time) const
+{
+	vec3f LineDir = GetDirection();
+	float LineDirDotProduct = LineDir.dot(LineDir);
+	
+	//	avoid div by zero
+	if ( LineDirDotProduct == 0.f )
+	{
+		Time = 0.f;
+		return mStart;
+	}
+
+	vec3f Dist = Position - mStart;
+
+	float LineDirDotProductDist = LineDir.dot(Dist);
+
+	Time = LineDirDotProductDist / LineDirDotProduct;
+
+	if ( Time <= 0.f )
+		return mStart;
+
+	if ( Time >= 1.f )
+		return mEnd;
+
+	return mStart + (LineDir * Time);
+}
+
+
+void ofLine3::GetNearestPoints(const ofLine3& That,vec3f& ThisIntersection,vec3f& ThatIntersection) const
+{
+	float Timea,Timeb;
+	this->GetIntersection( That, Timea, Timeb );
+
+	//	turn the capsule into a circle at the nearest points
+	ThisIntersection = this->GetPoint( Timea );
+	ThatIntersection = That.GetPoint( Timeb );
+}
+
+void ofLine2::GetNearestPoints(const ofLine2& That,vec2f& ThisIntersection,vec2f& ThatIntersection) const
+{
+	float Timea,Timeb;
+	this->GetIntersection( That, Timea, Timeb );
+
+	//	turn the capsule into a circle at the nearest points
+	ThisIntersection = this->GetPoint( Timea );
+	ThatIntersection = That.GetPoint( Timeb );
+}
+
+

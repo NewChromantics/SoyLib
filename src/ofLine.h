@@ -25,6 +25,7 @@ public:
 	vec2f	GetPoint(float Time) const	{	return ofLerp( mStart, mEnd, Time );	}
 	vec2f	GetNearestPoint(const vec2f& Position) const				{	float Time;	return GetNearestPoint( Position, Time );	}
 	vec2f	GetNearestPoint(const vec2f& Position,float& Time) const;	//	get nearest point on line
+	void	GetNearestPoints(const ofLine2& That,vec2f& ThisIntersection,vec2f& ThatIntersection) const;	//	get nearest points on each line to each other
 	bool	GetIntersection(const ofLine2& Line,float& IntersectionAlongThis,float& IntersectionAlongLine) const;
 	bool	GetIntersection(const ofLine2& Line,vec2f& Intersection) const;
 	void	Transform(const TTransform2& Trans);
@@ -49,8 +50,11 @@ public:
 	vec3f	GetDirection() const		{	return mEnd-mStart;	}
 	vec3f	GetNormal() const			{	return GetDirection().getNormalized();	}
 	vec3f	GetPoint(float Time) const	{	return ofLerp( mStart, mEnd, Time );	}
+	vec3f	GetNearestPoint(const vec3f& Position) const				{	float Time;	return GetNearestPoint( Position, Time );	}
+	vec3f	GetNearestPoint(const vec3f& Position,float& Time) const;	//	get nearest point on line
 	bool	GetIntersection(const ofLine3& Line,float& IntersectionAlongThis,float& IntersectionAlongLine) const;
 	bool	GetIntersection(const ofLine3& Line,vec3f& Intersection) const;
+	void	GetNearestPoints(const ofLine3& That,vec3f& ThisIntersection,vec3f& ThatIntersection) const;	//	get nearest points on each line to each other
 
 public:
 	vec3f	mStart;

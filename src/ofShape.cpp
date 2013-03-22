@@ -422,12 +422,10 @@ TIntersection ofShape::GetIntersection(const ofShapeCapsule2& a,const ofShapeCap
 		return TIntersection(false);
 
 	//	find the nearest points on the two lines (doesn't matter if there's an intersection or not)
-	float Timea,Timeb;
-	a.mLine.GetIntersection( b.mLine, Timea, Timeb );
+	vec2f NearestPointOnA, NearestPointOnB;
+	a.mLine.GetNearestPoints( b.mLine, NearestPointOnA, NearestPointOnB );
 
 	//	turn the capsule into a circle at the nearest points
-	vec2f NearestPointOnA = a.mLine.GetPoint( Timea );
-	vec2f NearestPointOnB = b.mLine.GetPoint( Timeb );
 	ofShapeCircle2 aCircle( NearestPointOnA, a.mRadius );
 	ofShapeCircle2 bCircle( NearestPointOnB, b.mRadius );
 
