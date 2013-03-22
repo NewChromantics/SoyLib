@@ -42,6 +42,8 @@ public:
 	const SoyPacketMeta&	GetMeta() const		{	return *this;	}
 	bool					IsValid() const		{	return (mSoylentProof == SOYPACKET_PROOF) && (mDataSize<=SOYPACKET_SIZE_MAX) && IsValidType();	}
 	bool					IsValidType() const	{	return mType != InvalidType;	}
+	template<typename TYPETYPE>
+	TYPETYPE				GetType() const		{	return static_cast<TYPETYPE>( mType );	}
 
 public:
 	SoyRef		mSoylentProof;	//	all packets should start with this
@@ -242,6 +244,9 @@ public:
 		RawData.PushReinterpretBlock( mMeta );
 		RawData.PushBackArray( mData );
 	}
+
+	template<typename TYPETYPE>
+	TYPETYPE				GetType() const		{	return mMeta.GetType<TYPETYPE>();	}
 
 public:
 	SoyPacketMeta			mMeta;
