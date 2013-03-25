@@ -32,6 +32,18 @@ namespace prmem
 	const BufferArray<prmem::HeapInfo*,100>&	GetHeaps();
 	prmem::CRTHeap&										GetCRTHeap();
 
+	//	functor for STD deallocation (eg, with shared_ptr)
+	template<class T>
+	class HeapFreeFunctor
+	{
+	public:
+		HeapFreeFunctor(Heap& x) : _x( x ) {}
+		void operator()(T* pObject) const { _x.Free(pObject); }
+
+	public:
+		Heap& _x;
+	};
+
 	//-----------------------------------------------------------------------
 	//	base heap interface so we can mix our allocated heaps and the default CRT heap (which is also a heap, but hidden away)
 	//-----------------------------------------------------------------------
@@ -58,11 +70,15 @@ namespace prmem
 
 		//	validate the heap. Checks for corruption (out-of-bounds writes). If an object is passed, just that one allocation is checked. 
 		//	"On a system set up for debugging, the HeapValidate function then displays debugging messages that describe the part of the heap or memory block that is invalid, and stops at a hard-coded breakpoint so that you can examine the system to determine the source of the invalidity"
+		//	returns true if heap is OK
 		//	http://msdn.microsoft.com/en-us/library/windows/desktop/aa366708(v=vs.85).aspx
 		bool					Debug_Validate(const void* Object=NULL) const
 		{
 			if ( !IsValid() )	return true;
-			return HeapValidate( GetHandle(), 0x0, Object )!=FALSE;
+			if ( HeapValidate( GetHandle(), 0x0, Object ) )
+				return true;
+			assert( false );
+			return false;
 		}
 
 	protected:
@@ -192,7 +208,7 @@ namespace prmem
 		
 		//	alloc with 1 argument to constructor
 		template<typename TYPE,typename ARG1>
-		TYPE*	Alloc(const ARG1& Arg1)	
+		TYPE*	Alloc(ARG1& Arg1)	
 		{
 			TYPE* pAlloc = RealAlloc<TYPE>( 1 );
 			if ( !pAlloc )
@@ -204,7 +220,7 @@ namespace prmem
 		
 		//	alloc with 2 arguments to constructor
 		template<typename TYPE,typename ARG1,typename ARG2>
-		TYPE*	Alloc(const ARG1& Arg1,const ARG2& Arg2)	
+		TYPE*	Alloc(ARG1& Arg1,ARG2& Arg2)	
 		{
 			TYPE* pAlloc = RealAlloc<TYPE>( 1 );
 			if ( !pAlloc )
@@ -250,6 +266,22 @@ namespace prmem
 			return pAlloc;
 		}
 		
+		//	alloc into a smart pointer
+		template<typename TYPE,typename ARG1>
+		ofPtr<TYPE>	AllocPtr(ARG1& Arg1)	
+		{
+			TYPE* pAlloc = Alloc<TYPE>( Arg1 );
+			return ofPtr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
+		}
+
+		//	alloc into a smart pointer
+		template<typename TYPE,typename ARG1,typename ARG2>
+		ofPtr<TYPE>	AllocPtr(ARG1& Arg1,ARG2& Arg2)	
+		{
+			TYPE* pAlloc = Alloc<TYPE>( Arg1, Arg2 );
+			return ofPtr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
+		}
+
 		template<typename TYPE>
 		bool	Free(TYPE* pObject)
 		{
@@ -278,6 +310,7 @@ namespace prmem
 		template<typename TYPE>
 		inline TYPE*	RealAlloc(const uint32 Elements)	
 		{
+			Debug_Validate();
 			TYPE* pData = static_cast<TYPE*>( HeapAlloc( mHandle, 0x0, Elements*sizeof(TYPE) ) );
 			if ( mHeapDebug )
 				mHeapDebug->OnAlloc( pData, Elements );
