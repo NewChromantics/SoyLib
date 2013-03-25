@@ -5,8 +5,8 @@
 void SoyPacketManager::PushPacket(const SoyPacketMeta& Meta,const Array<char>& Data,const SoyNet::TAddress& Sender)
 {
 	ofMutex::ScopedLock Lock(*this);
-	SoyPacketContainer Container( Data, Meta, Sender );
-	mPackets.PushBack( Container );
+	SoyPacketContainer& Container = mPackets.PushBack( SoyPacketContainer(mHeap) );
+	Container.Set( Data, Meta, Sender );
 }
 
 

@@ -191,13 +191,31 @@ namespace Soy
 class SoyPacketContainer
 {
 public:
-	SoyPacketContainer()
+	SoyPacketContainer(prmem::Heap& Heap=prcore::Heap) :
+		mData	( Heap )
 	{
 	}
-	explicit SoyPacketContainer(const Array<char>& PacketData,const SoyPacketMeta& Meta,const SoyNet::TAddress& Sender) :
-		mSender	( Sender ),
-		mMeta	( Meta )
+	explicit SoyPacketContainer(const Array<char>& PacketData,const SoyPacketMeta& Meta,const SoyNet::TAddress& Sender,prmem::Heap& Heap=prcore::Heap) :
+		mData	( Heap )
 	{
+		Set( PacketData, Meta, Sender );
+	}
+
+	template<class TYPE>
+	explicit SoyPacketContainer(const TYPE& Packet,const SoyPacketMeta& Meta,const SoyNet::TAddress& Sender,prmem::Heap& Heap=prcore::Heap) :
+		mData	( Heap )
+	{
+		if ( !Set( Packet, Meta, Sender ) )
+		{
+			assert( false );
+		}
+	}
+
+	bool Set(const Array<char>& PacketData,const SoyPacketMeta& Meta,const SoyNet::TAddress& Sender)
+	{
+		mSender = Sender;
+		mMeta = Meta;
+
 		//	copy raw data
 		mData.PushBackArray( PacketData );
 
@@ -206,23 +224,25 @@ public:
 	
 		//	type needs to have already been set if we're using raw packet data
 		assert( mMeta.IsValidType() );
+
+		return true;
 	}
 
 	template<class TYPE>
-	explicit SoyPacketContainer(const TYPE& Packet,const SoyPacketMeta& Meta,const SoyNet::TAddress& Sender) :
-		mSender	( Sender ),
-		mMeta	( Meta )
+	bool	Set(const TYPE& Packet,const SoyPacketMeta& Meta,const SoyNet::TAddress& Sender)
 	{
+		mSender = Sender;
+		mMeta = Meta;
+	
 		//	turn into raw data
 		assert( mData.GetDataSize() == 0 );
 		if ( !Soy::ToRawData( mData, Packet ) )
-		{
-			assert(false);
-		}
+			return false;
 
 		//	init meta
 		mMeta.mDataSize = mData.GetDataSize();
 		mMeta.mType = Packet.GetType();
+		return true;
 	}
 
 	template<class TYPE>
@@ -265,6 +285,13 @@ public:
 class SoyPacketManager : public ofMutex
 {
 public:
+	SoyPacketManager(prmem::Heap& Heap=prcore::Heap) :
+		mHeap				( Heap ),
+		mPendingPackets		( mHeap ),
+		mPackets			( mHeap )
+	{
+	}
+
 	bool					IsEmpty() const	{	return mPackets.IsEmpty();	}	//	read is so minute we don't need a lock
 
 	template<class PACKET>
@@ -280,6 +307,8 @@ public:
 	bool					PushPendingPacket(const SoyPacketMeta& Meta,const SoyNet::TAddress& SenderAddress);			//	start a pending packet
 
 protected:
+	prmem::Heap&			mHeap;
+
 	Array<SoyPair<SoyNet::TAddress,SoyPacketMeta> >	mPendingPackets;
 	Array<SoyPacketContainer>						mPackets;
 };
@@ -291,7 +320,7 @@ template<class PACKET>
 void SoyPacketManager::PushPacket(const SoyPacketMeta& Meta,const PACKET& Packet)
 {
 	ofMutex::ScopedLock Lock(*this);
-	SoyPacketContainer Container( Packet, Meta, SoyNet::TAddress() );
-	mPackets.PushBack( Container );
+	SoyPacketContainer& Container = mPackets.PushBack( SoyPacketContainer(mHeap) );
+	Container.Set( Packet, Meta, SoyNet::TAddress() );
 }	
 
