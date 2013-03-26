@@ -114,13 +114,15 @@ public:
 //-------------------------------------------------
 //	base [enumeratable] member-of-cluster 
 //-------------------------------------------------
-class SoyModuleMemberBase : public SoyModuleMemberMeta
+class SoyModuleMemberBase : public SoyModuleMemberMeta, public ofMutex
 {
 public:
 	SoyModuleMemberBase(SoyModule& Parent,const char* Name);
 
 	virtual void		GetData(BufferString<100>& String) const=0;
 	virtual bool		SetData(const BufferString<100>& String,const SoyTime& ModifiedTime=SoyTime())=0;
+
+	ofMutex&			GetMutex() const 	{	return const_cast<ofMutex&>( static_cast<const ofMutex&>(*this) );	}
 
 protected:
 	bool				OnDataChanged(const SoyTime& ModifiedTime);
@@ -144,11 +146,12 @@ public:
 	{
 	}
 
-	virtual void		GetData(BufferString<100>& String) const	{	String << GetData();	}
+	virtual void		GetData(BufferString<100>& String) const	{	ofMutex::ScopedLock Lock(GetMutex());	String << GetData();	}
 	TDATA&				GetData()									{	return *this;	}
 	const TDATA&		GetData() const								{	return *this;	}
-	virtual bool		SetData(const BufferString<100>& String,const SoyTime& ModifiedTime=SoyTime())	{	GetData() = TDATA(String);	return OnDataChanged(ModifiedTime);	}
-	bool				SetData(const TDATA& Data,const SoyTime& ModifiedTime=SoyTime())				{	GetData() = Data;			return OnDataChanged(ModifiedTime);	}
+	TDATA				GetDataCopy() const							{	ofMutex::ScopedLock Lock(GetMutex());	return *this;	}
+	virtual bool		SetData(const BufferString<100>& String,const SoyTime& ModifiedTime=SoyTime())	{	ofMutex::ScopedLock Lock(GetMutex());	GetData() = TDATA(String);	return OnDataChanged(ModifiedTime);	}
+	bool				SetData(const TDATA& Data,const SoyTime& ModifiedTime=SoyTime())				{	ofMutex::ScopedLock Lock(GetMutex());	GetData() = Data;			return OnDataChanged(ModifiedTime);	}
 };
 
 
