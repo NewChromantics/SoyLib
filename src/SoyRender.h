@@ -33,8 +33,11 @@ inline void ofClearViewport(const ofRectangle& Viewport,const ofColor& ClearColo
 {
 	ofClearDepth();
 	ofPushStyle();
-	ofSetColor( ClearColour );
-	ofRect( Viewport );
+	if ( ClearColour.a > 0 )
+	{
+		ofSetColor( ClearColour );
+		ofRect( Viewport );
+	}
 	ofPopStyle();
 }
 
