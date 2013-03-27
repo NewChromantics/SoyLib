@@ -41,3 +41,14 @@ inline void ofClearViewport(const ofRectangle& Viewport,const ofColor& ClearColo
 	ofPopStyle();
 }
 
+template<class ARRAY>
+void ofDrawPathClosed(const ARRAY& PathPoints)
+{
+	for ( int a=0;	a<PathPoints.GetSize();	a++ )
+	{
+		const auto& va = PathPoints[a];
+		int b = (a+1) % PathPoints.GetSize();
+		const auto& vb = PathPoints[b];
+		ofLine( va, vb );
+	}
+}
