@@ -12,6 +12,11 @@
 #include "types.hpp"
 typedef ofColor ofColour;
 
+inline bool operator==(const ofColor& a,const ofColor& b)
+{
+	return (a.r==b.r) && (a.g==b.g) && (a.b==b.b) && (a.a==b.a);
+}
+
 #include "memheap.hpp"
 #include "array.hpp"
 #include "heaparray.hpp"
