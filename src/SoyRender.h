@@ -52,3 +52,6 @@ void ofDrawPathClosed(const ARRAY& PathPoints)
 		ofLine( va, vb );
 	}
 }
+
+class ofShapeCapsule2;
+void ofCapsule(const ofShapeCapsule2& Capsule,float z=0.f);

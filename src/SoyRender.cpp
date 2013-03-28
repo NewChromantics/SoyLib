@@ -1,4 +1,5 @@
 #include "SoyRender.h"
+#include "ofShape.h"
 
 
 
@@ -82,3 +83,45 @@ void ofCube(const vec3f& Center,float WidthHeightDepth)
 
 	ofPopMatrix();
 }
+
+
+void ofCapsule(const ofShapeCapsule2& Capsule,float z)
+{
+	//	generate triangle points
+	float mRadius = Capsule.mRadius;
+	ofLine2 Line = Capsule.mLine;
+	vec2f Normal = Line.GetNormal();
+	vec2f Right = Normal.getPerpendicular();
+
+	//	BL TL TR BR (bottom = start)
+	vec3f Quad_BL( Line.mStart - (Right*mRadius), z );
+	vec3f Quad_TL( Line.mEnd - (Right*mRadius), z );
+	vec3f Quad_TR( Line.mEnd + (Right*mRadius), z );
+	vec3f Quad_BR( Line.mStart + (Right*mRadius), z );
+
+	if ( ofGetFill() == OF_FILLED )
+	{
+		ofTriangle( Quad_BL, Quad_TL, Quad_TR );
+		ofTriangle( Quad_TR, Quad_BR, Quad_BL );
+	}
+	else if ( ofGetFill() == OF_OUTLINE )
+	{
+		ofLine( Quad_BL, Quad_TL );
+		ofLine( Quad_BR, Quad_TR );
+		//ofLine( Line.mStart, Line.mEnd );
+		//ofRect( Line.mStart, mRadius/4.f, mRadius/4.f );
+	}
+
+	//	http://digerati-illuminatus.blogspot.co.uk/2008/05/approximating-semicircle-with-cubic.html
+	vec3f BLControl = Quad_BL - (Normal * mRadius * 4.f/3.f) + (Right * mRadius * 0.10f );
+	vec3f BRControl = Quad_BR - (Normal * mRadius * 4.f/3.f) - (Right * mRadius * 0.10f );
+	vec3f TLControl = Quad_TL + (Normal * mRadius * 4.f/3.f) + (Right * mRadius * 0.10f );
+	vec3f TRControl = Quad_TR + (Normal * mRadius * 4.f/3.f) - (Right * mRadius * 0.10f );
+	BLControl.z = 
+	BRControl.z =
+	TLControl.z = 
+	TRControl.z = z;
+	ofBezier( Quad_BL, BLControl, BRControl, Quad_BR );
+	ofBezier( Quad_TL, TLControl, TRControl, Quad_TR );
+}
+
