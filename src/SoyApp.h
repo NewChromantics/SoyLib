@@ -110,13 +110,20 @@ public:
 	{
 	}
 	template<typename PARAM>
+	explicit ofMutexT(PARAM& Param) :
+		OBJECT	( Param )
+	{
+	}
+	template<typename PARAM>
 	explicit ofMutexT(const PARAM& Param) :
 		OBJECT	( Param )
 	{
 	}
 
-	OBJECT&			Get()		{	return *this;	}
-	const OBJECT&	Get() const	{	return *this;	}
+	OBJECT&			Get()				{	return *this;	}
+	const OBJECT&	Get() const			{	return *this;	}
+	ofMutex&		GetMutex()			{	return *this;	}
+	ofMutex&		GetMutex() const	{	return const_cast<ofMutex&>( static_cast<const ofMutex&>(*this) );	}
 };
 
 

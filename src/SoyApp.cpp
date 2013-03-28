@@ -263,4 +263,3 @@ bool SoyInput::PeekButtonDown(SoyButton::Type Button)
 	PopUnlock();
 	return true;
 }
-
