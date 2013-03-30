@@ -9,7 +9,10 @@
 class ofShapeCircle2;
 class ofShapeCapsule2;
 class ofShapePolygon2;
+class ofShapeTriangle2;
 
+void Tesselate(ArrayBridge<ofShapeTriangle2>& Triangles,const ofPolyline& Polygon);
+void Tesselate(ArrayBridge<ofShapeTriangle2>& Triangles,const ArrayBridge<vec2f>& Polygon);
 
 
 class TTransform2
@@ -188,6 +191,27 @@ public:
 	BufferArray<vec2f,3>	mTriangle;
 };
 
+
+class ofShapeTriangle2
+{
+public:
+	bool			IsInside(const vec2f& Point) const;
+	bool			IsValid() const		{	return mTriangle[0]!=mTriangle[1] && mTriangle[1]!=mTriangle[2];	}
+	float			GetArea() const;
+	vec2f			GetCenter() const
+	{
+		vec2f Center = mTriangle[0];
+		Center += mTriangle[1];
+		Center += mTriangle[2];
+		Center /= 3.f;
+		return Center;
+	}
+	inline ofShapeTriangle2&	operator+=(const vec2f& Offset)	{	mTriangle[0] += Offset;	mTriangle[1] += Offset;	mTriangle[2] += Offset;	return *this;	}
+	inline ofShapeTriangle2&	operator-=(const vec2f& Offset)	{	*this += -Offset;	return *this;	}
+	
+public:
+	vec2f	mTriangle[3];
+};
 
 
 class ofShapeTriangle3

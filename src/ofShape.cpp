@@ -1,4 +1,5 @@
 #include "ofShape.h"
+#include <ofxDelaunay.h>
 
 
 bool ofShapeBox3::IsOutside(const vec2f& Pos) const
@@ -439,4 +440,72 @@ TIntersection ofShape::GetIntersection(const ofShapeCapsule2& a,const ofShapePol
 
 	//	todo!
 	return TIntersection(false);
+}
+
+
+float sign(const vec2f& p1, const vec2f& p2, const vec2f& p3)
+{
+  return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+}
+
+bool ofShapeTriangle2::IsInside(const vec2f& Point) const
+{
+	bool b1 = sign( Point, mTriangle[0], mTriangle[1] ) < 0.0f;
+	bool b2 = sign( Point, mTriangle[1], mTriangle[2] ) < 0.0f;
+	bool b3 = sign( Point, mTriangle[2], mTriangle[0] ) < 0.0f;
+
+	return ((b1 == b2) && (b2 == b3));
+}
+
+float ofShapeTriangle2::GetArea() const
+{
+	ofPolyline PolyA;
+	PolyA.addVertex( mTriangle[2] );
+	PolyA.addVertex( mTriangle[1] );
+	PolyA.addVertex( mTriangle[0] );
+	float AreaA = PolyA.getArea();
+	ofPolyline PolyB;
+	PolyB.addVertex( mTriangle[0] );
+	PolyB.addVertex( mTriangle[1] );
+	PolyB.addVertex( mTriangle[2] );
+	float AreaB = PolyB.getArea();
+	return AreaA;
+}
+
+
+template<class POINTARRAY>
+void TesselatePoints(ArrayBridge<ofShapeTriangle2>& Triangles,const POINTARRAY& Points,int PointCount)
+{
+	ofxDelaunay Mesh;
+	for ( int i=0;	i<PointCount;	i++ )
+	{
+		Mesh.addPoint( Points[i] );
+	}
+	Mesh.triangulate();
+
+	//	extract triangles
+	auto& Vertexes = Mesh.triangleMesh.getVertices();
+	auto& TriangleIndexes = Mesh.triangleMesh.getIndices();
+	for ( int i=0;	i<TriangleIndexes.size();	i+=3 )
+	{
+		auto& v0 = Vertexes[TriangleIndexes[i+0]];
+		auto& v1 = Vertexes[TriangleIndexes[i+1]];
+		auto& v2 = Vertexes[TriangleIndexes[i+2]];
+		auto& Triangle = Triangles.PushBack();
+		Triangle.mTriangle[0] = v0.xy();
+		Triangle.mTriangle[1] = v1.xy();
+		Triangle.mTriangle[2] = v2.xy();
+	}
+	
+}
+
+void Tesselate(ArrayBridge<ofShapeTriangle2>& Triangles,const ArrayBridge<vec2f>& Polygon)
+{
+	TesselatePoints( Triangles, Polygon, Polygon.GetSize() );
+}
+
+void Tesselate(ArrayBridge<ofShapeTriangle2>& Triangles,const ofPolyline& Polygon)
+{
+	TesselatePoints( Triangles, Polygon, Polygon.size() );
+
 }
