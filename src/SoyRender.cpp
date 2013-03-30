@@ -125,3 +125,16 @@ void ofCapsule(const ofShapeCapsule2& Capsule,float z)
 	ofBezier( Quad_TL, TLControl, TRControl, Quad_TR );
 }
 
+
+
+void ofDrawTriangles(const ArrayBridge<ofShapeTriangle2>& Triangles)
+{
+	for ( int t=0;	t<Triangles.GetSize();	t++ )
+	{
+		auto& Triangle = Triangles[t];
+		auto& v0 = Triangle.mTriangle[0];
+		auto& v1 = Triangle.mTriangle[1];
+		auto& v2 = Triangle.mTriangle[2];
+		ofTriangle( v0.x, v0.y, v1.x, v1.y, v2.x, v2.y );
+	}
+}

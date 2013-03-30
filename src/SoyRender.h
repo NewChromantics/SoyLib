@@ -4,7 +4,7 @@
 #include <ofxSoylent.h>
 
 class ofTrueTypeFont;
-
+class ofShapeTriangle2;
 
 
 
@@ -52,6 +52,8 @@ void ofDrawPathClosed(const ARRAY& PathPoints)
 		ofLine( va, vb );
 	}
 }
+
+void ofDrawTriangles(const ArrayBridge<ofShapeTriangle2>& Triangles);
 
 class ofShapeCapsule2;
 void ofCapsule(const ofShapeCapsule2& Capsule,float z=0.f);
