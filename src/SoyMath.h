@@ -7,7 +7,7 @@
 class ofShapeCircle2;
 class ofShapePolygon2;
 
-#define ofNearZero				0.0001f
+#define ofNearZero				0.00001f
 #define SCREEN_UP2	vec2f(0,-1)
 
 
@@ -198,3 +198,99 @@ inline const STRING& operator>>(const STRING& str,ofMatrix4x4& Value)
 	return str;
 }
 
+
+inline ofRectangle GetOverlap(const ofRectangle& ra,const ofRectangle& rb,bool AllowNegativeSize)
+{
+	ofRectangle overlap;
+	overlap.x = ofMax( ra.getLeft(), rb.getLeft() );
+	overlap.y = ofMax( ra.getTop(), rb.getTop() );
+	overlap.setWidth( ofMin( ra.getRight(), rb.getRight() ) - overlap.x );
+	overlap.setHeight( ofMin( ra.getBottom(), rb.getBottom() ) - overlap.y );
+
+	if ( !AllowNegativeSize )
+	{
+		overlap.width = ofMax( overlap.width, 0.f );
+		overlap.height = ofMax( overlap.height, 0.f );
+	}
+
+	return overlap;
+}
+
+inline bool GetOverlapCoverage(vec2f& CoverageA,vec2f& CoverageB,const ofRectangle& ra,const ofRectangle& rb)
+{
+	ofRectangle overlap = GetOverlap( ra, rb, true );
+
+	//	if we have a negative width or height, the boxes do not overlap
+	if ( overlap.getWidth() <= 0 || overlap.getHeight() <= 0 )
+		return false;
+
+	CoverageA = vec2f( overlap.getWidth()/ra.getWidth(), overlap.getHeight()/ra.getHeight() );
+	CoverageB = vec2f( overlap.getWidth()/rb.getWidth(), overlap.getHeight()/rb.getHeight() );
+	return true;
+}
+
+
+
+inline ofRectangle GetMerged(const ofRectangle& ra,const ofRectangle& rb)
+{
+	if ( ra == ofRectangle() )
+		return rb;
+	if ( rb == ofRectangle() )
+		return ra;
+
+	ofRectangle merged;
+	merged.x = ofMin( ra.getLeft(), rb.getLeft() );
+	merged.y = ofMin( ra.getTop(), rb.getTop() );
+	merged.setWidth( ofMax( ra.getRight(), rb.getRight() ) - merged.x );
+	merged.setHeight( ofMax( ra.getBottom(), rb.getBottom() ) - merged.y );
+	return merged;
+}
+
+inline void FitInsideRectagle(ofRectangle& Child,const ofRectangle& Parent)
+{
+	//	move to top left edge
+	Child.x = ofMax( Child.x, Parent.x );
+	Child.y = ofMax( Child.y, Parent.y );
+
+	//	crop width
+	if ( Child.getRight() > Parent.getRight() )
+		Child.setWidth( Parent.getRight() - Child.getLeft() );
+	if ( Child.getBottom() > Parent.getBottom() )
+		Child.setHeight( Parent.getBottom() - Child.getTop() );
+	
+}
+
+inline void AccumulateRectangle(ofRectangle& Rectangle,const vec2f& Point)
+{
+	//	rect is invalid...
+	if ( Rectangle == ofRectangle() )
+	{
+		Rectangle = ofRectangle( Point, 0, 0 );
+		return;
+	}
+
+	//	accumulate...
+	if ( Point.x < Rectangle.x )
+	{
+		float Diff = Rectangle.x - Point.x;
+		Rectangle.x -= Diff;
+		Rectangle.width += Diff;
+	}
+	else if ( Point.x > Rectangle.getRight() )
+	{
+		float Diff = Point.x - Rectangle.getRight();
+		Rectangle.width += Diff;
+	}
+
+	if ( Point.y < Rectangle.y )
+	{
+		float Diff = Rectangle.y - Point.y;
+		Rectangle.y -= Diff;
+		Rectangle.height += Diff;
+	}
+	else if ( Point.x > Rectangle.getBottom() )
+	{
+		float Diff = Point.y - Rectangle.getBottom();
+		Rectangle.height += Diff;
+	}
+}
