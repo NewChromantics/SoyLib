@@ -310,6 +310,16 @@ Improvement summary
 #include "ofxSoylent.h"
 
 
+//	for stack tracing
+#include <windows.h>
+#include <tlhelp32.h>
+#include <dbghelp.h>
+#include <errorrep.h>
+//#include <time.h>
+//#pragma comment(lib,"version.lib")	//for VerQueryValue, GetFileVersionInfo and GetFileVersioInfoSize
+
+
+
 
 namespace prmem
 {
@@ -321,19 +331,19 @@ namespace prmem
 namespace prcore
 {
 	//	"default" heap for prnew and prdelete which we'd prefer to use rather than the [unmonitorable] crt default heap
-	prmem::Heap		Heap( true, true, "prcore::Heap" );
+	prmem::Heap		Heap( true, true, "prcore::Heap", 0, true );
 };
 
 namespace prmem
 {
 	//	heap for unit tests
-	prmem::Heap		gTestHeap( true, true, "Test Heap" );
+	//prmem::Heap		gTestHeap( true, true, "Test Heap" );
 
 	//	crt heap interface
 	prmem::CRTHeap	gCRTHeap;
 
 	//	real debug tracker class. Cannot be declared in header!
-	class HeapDebug : public HeapDebugBase
+	class HeapDebug : public HeapDebugBase, public ofMutex
 	{
 	public:
 		HeapDebug(const Heap& OwnerHeap);
@@ -357,55 +367,84 @@ prmem::CRTHeap& prmem::GetCRTHeap()
 }
 
 
+bool prmem::HeapInfo::Debug_Validate(const void* Object) const
+{
+	if ( !IsValid() )	
+		return true;
+
+	//	if we have debug info, catch the corruption and print out all our allocs
+	const prmem::HeapDebugBase* pDebug = GetDebug();
+	if ( pDebug )
+	{
+		try
+		{
+			if ( HeapValidate( GetHandle(), 0x0, Object ) )
+				return true;
+		}
+		catch(...)
+		{
+			pDebug->DumpToOutput( *this );
+			assert( false );
+		}
+	}
+	else
+	{
+		//	let normal exceptions throw
+		if ( HeapValidate( GetHandle(), 0x0, Object ) )
+			return true;
+		assert( false );
+	}
+	return false;
+}
+
 prmem::HeapDebug::HeapDebug(const Heap& OwnerHeap) :
 	mHeap	( true, true, BufferString<100>() << "DEBUG " << OwnerHeap.GetName() , 0, false ),
 	mItems	( mHeap )
 {
+	//	probably not needed this early...
+	ofMutex::ScopedLock Lock( *this );	
+
 	//	prealloc items so we don't slow down
 	mItems.Reserve( 10000 );
 }
 
 
-//	in prgen/timeservices.hpp
-namespace prgen
-{
-	extern uint32 GetTick32();
-}
-
-
 void prmem::HeapDebug::OnAlloc(const void* Object,const char* Typename,uint32 ElementCount,uint32 TypeSize)
 {
+	ofMutex::ScopedLock Lock( *this );
 	//	do some prealloc when we get to the edge
 	if ( mItems.MaxSize() - mItems.GetSize() < 10 )
 	{
 		mItems.Reserve( 10000, false );
 	}
 
-#if defined(ENABLE_STACKTRACE)
 	//	get the callstack
-	BufferArray<PRExceptionHandler::PRStackEntry,HeapDebugItem::CallStackSize> Stack;
+	BufferArray<ofStackEntry,HeapDebugItem::CallStackSize> Stack;
 	int StackSkip = 0;
 	StackSkip ++;	//	HeapDebug::OnAlloc
 	StackSkip ++;	//	Heap::RealAlloc
 	StackSkip ++;	//	Heap::Alloc*
-	GetCallStack( GetArrayBridge(Stack), StackSkip );
-	
+#if defined(ENABLE_STACKTRACE)
+	SoyDebug::GetCallStack( GetArrayBridge(Stack), StackSkip );
+#endif
+
 	HeapDebugItem& AllocItem = mItems.PushBack();
-	AllocItem = HeapDebugItem();	//	make sure buffer arays are initialised
 	AllocItem.mObject = Object;
 	AllocItem.mElements = ElementCount;
 	AllocItem.mTypeSize = TypeSize;
 	AllocItem.mTypename = Typename;
-	AllocItem.mAllocTick = prgen::GetTick32();
+	AllocItem.mAllocTick = ofGetElapsedTimeMillis();
 
 	//	save callstack address
-	for ( int i=0;	i<prmin(AllocItem.mCallStack.MaxSize(),Stack.GetSize());	i++ )
+#if defined(ENABLE_STACKTRACE)
+	for ( int i=0;	i<ofMin(AllocItem.mCallStack.MaxSize(),Stack.GetSize());	i++ )
 		AllocItem.mCallStack.PushBack( Stack[i].mProcessAddress );		
 #endif
 }
 
 void prmem::HeapDebug::OnFree(const void* Object)
 {
+	ofMutex::ScopedLock Lock( *this );
 	int Index = mItems.FindIndex( Object );
 
 	//	not found?
@@ -455,6 +494,13 @@ prmem::Heap::Heap(bool EnableLocks,bool EnableExceptions,const char* Name,uint32
 	DWORD Flags = 0x0;
 	Flags |= EnableLocks ? 0x0 : HEAP_NO_SERIALIZE;
 	Flags |= EnableExceptions ? HEAP_GENERATE_EXCEPTIONS : 0x0;
+
+	//	check for dodgy params, eg, "true" instead of a byte-limit
+	if ( MaxSize != 0 && MaxSize < 1024*1024 )
+	{
+		assert( false );
+	}
+
 	mHandle = HeapCreate( Flags, 0, MaxSize );
 
 	EnableDebug( DebugTrackAllocs );
@@ -520,7 +566,6 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 		ofLog( OF_LOG_VERBOSE, Debug );
 	}
 
-#if defined(ENABLE_STACKTRACE)
 	for ( int i=0;	i<AllocItems.GetSize();	i++ )
 	{
 		//	gr: big string, but if we break out OutputDebugString, other threads will interrupt it
@@ -531,10 +576,11 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 		Debug << AllocInfo.ToString();
 		
 		//	show age
-		int AgeSecs = (prgen::GetTick32() - AllocInfo.mAllocTick) / 1000;
+		int AgeSecs = (ofGetElapsedTimeMillis() - AllocInfo.mAllocTick) / 1000;
 		Debug << " " << AgeSecs << " secs ago.";
 
 		//	show callstack
+#if defined(ENABLE_STACKTRACE)
 		if ( !AllocInfo.mCallStack.IsEmpty() )
 		{
 			Debug << " Allocated from...\n";
@@ -542,12 +588,12 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 			for ( int i=0;	i<AllocInfo.mCallStack.GetSize();	i++ )
 			{
 				Debug << "\t";
-				CodeLocation Location;
-				PRExceptionHandler::GetSymbolLocation( Location, AllocInfo.mCallStack[i] );
+				ofCodeLocation Location;
+				SoyDebug::GetSymbolLocation( Location, AllocInfo.mCallStack[i] );
 				Debug << static_cast<const char*>(Location) << ": ";
 
 				BufferString<200> FunctionName;
-				PRExceptionHandler::GetSymbolName( FunctionName, AllocInfo.mCallStack[i] );
+				SoyDebug::GetSymbolName( FunctionName, AllocInfo.mCallStack[i] );
 				Debug << FunctionName << "\n";
 			}
 		}
@@ -555,10 +601,10 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 		{
 			Debug << " No callstack.\n";
 		}
+#endif
 
 		ofLog( OF_LOG_VERBOSE, Debug );
 	}
-#endif
 }
 
 void GetProcessHeapUsage(uint32& AllocCount,uint32& AllocBytes)
@@ -617,6 +663,21 @@ void GetCRTHeapUsage(uint32& AllocCount,uint32& AllocBytes)
 	//AllocBytes += CrtAllocBytes;
 }
 
+
+class ofTimer
+{
+public:
+	ofTimer() :
+		mStartTime	( ofGetElapsedTimef() )
+	{
+	}
+
+	float		GetTimeSeconds() const	{	return ofGetElapsedTimef() - mStartTime;	}
+
+public:
+	float		mStartTime;	//	ofGetElapsedTimef
+};
+
 //----------------------------------------------
 //	update tracking information
 //----------------------------------------------
@@ -632,16 +693,11 @@ void prmem::CRTHeap::Update()
 
 	//	gr: I've added a throttle to this, _CrtMemCheckpoint() actually takes between 
 	//		0 and 1 ticks to execute, but it may be locking the heap which might intefere with other threads.
-	/*
-	//	throttle this call to 30fps
-	//static VTPollTimer UpdateHeapStatsTimer( 1000/30 );
-	//if ( !UpdateHeapStatsTimer.Trigger() )
-	static Timer UpdateHeapStatsTimer;
-	if ( UpdateHeapStatsTimer.GetTick() < (1000/30) )
+	static ofTimer UpdateHeapStatsTimer;
+	if ( UpdateHeapStatsTimer.GetTimeSeconds() < (1.f/30.f) )
 		return;
-	UpdateHeapStatsTimer.Reset();
-		*/
-	return;
+	UpdateHeapStatsTimer = ofTimer();
+	
 	
 	uint32 CrtAllocCount=0,CrtAllocBytes=0,ProcessHeapAllocCount=0,ProcessHeapAllocBytes=0;
 	GetProcessHeapUsage( ProcessHeapAllocCount, ProcessHeapAllocBytes );
@@ -660,13 +716,13 @@ void prmem::CRTHeap::Update()
 	if ( AllocCount > mAllocCount )
 		AllocatedBlocks = AllocCount - mAllocCount;
 	else
-		FreedBlocks = AllocCount - mAllocCount;
+		FreedBlocks = mAllocCount - AllocCount;
 
 	//	more bytes have been allocated (may not match block increase/decrease)
 	if ( AllocBytes > mAllocBytes )
 		AllocatedBytes = AllocBytes - mAllocBytes;
 	else
-		FreedBytes = AllocBytes - mAllocBytes;
+		FreedBytes = mAllocBytes - AllocBytes;
 
 	//	call normal heap alloc/free tracker funcs
 	OnAlloc( AllocatedBytes, AllocatedBlocks );
@@ -772,3 +828,309 @@ TEST(HeapAllocTest, StdHeapVectorUsage)
 }
 
 */
+
+
+
+namespace SoyDebug
+{
+	bool	IsEndOfStackAddress(DWORD64 Address);
+	bool	Init(BufferString<100>& Error);
+	
+//#define ENABLE_STACKTRACE64
+//#define ENABLE_STACKTRACE32
+
+#define USE_EXTERNAL_DBGHELP
+
+	typedef BOOL (__stdcall *TpfStackWalk64)(DWORD,HANDLE,HANDLE,LPSTACKFRAME64,PVOID,PREAD_PROCESS_MEMORY_ROUTINE64,PFUNCTION_TABLE_ACCESS_ROUTINE64,PGET_MODULE_BASE_ROUTINE64,PTRANSLATE_ADDRESS_ROUTINE64);
+	typedef PVOID (__stdcall *TpfSymFunctionTableAccess64) ( HANDLE hProcess, DWORD64 AddrBase );
+	typedef DWORD64 (__stdcall *TpfSymGetModuleBase64) ( HANDLE hProcess, DWORD64 dwAddr );
+	typedef BOOL (__stdcall* TpfSymInitialize)( HANDLE hProcess, PCTSTR UserSearchPath, BOOL fInvadeProcess );
+	typedef BOOL (__stdcall* TpfSymCleanup)( HANDLE hProcess );
+	typedef BOOL (__stdcall* TpfSymGetSymFromAddr64) ( HANDLE hProcess, DWORD64 Address, PDWORD64 Displacement, PIMAGEHLP_SYMBOL64 Symbol );
+	typedef BOOL (__stdcall* TpfSymGetLineFromAddr64) ( HANDLE hProcess, DWORD64 dwAddr, PDWORD pdwDisplacement, PIMAGEHLP_LINE64 Line );
+
+#if defined(USE_EXTERNAL_DBGHELP)
+	HMODULE						hDbgHelp = NULL;
+	TpfStackWalk64				pfStackWalk64 = NULL;
+	TpfSymFunctionTableAccess64	pfSymFunctionTableAccess64 = NULL;
+	TpfSymGetModuleBase64		pfSymGetModuleBase64 = NULL;
+	TpfSymInitialize			pfSymInitialize = NULL;
+	TpfSymCleanup				pfSymCleanup = NULL;
+	TpfSymGetSymFromAddr64		pfSymGetSymFromAddr64 = NULL;
+	TpfSymGetLineFromAddr64		pfSymGetLineFromAddr64 = NULL;
+#else
+	TpfStackWalk64				pfStackWalk64 = StackWalk64;
+	TpfSymFunctionTableAccess64	pfSymFunctionTableAccess64 = SymFunctionTableAccess64;
+	TpfSymGetModuleBase64		pfSymGetModuleBase64 = SymGetModuleBase64;
+	TpfSymInitialize			pfSymInitialize = SymInitialize;
+	TpfSymCleanup				pfSymCleanup = SymCleanup;
+	TpfSymGetSymFromAddr64		pfSymGetSymFromAddr64 = SymGetSymFromAddr64;
+	TpfSymGetLineFromAddr64		pfSymGetLineFromAddr64 = SymGetLineFromAddr64;
+#endif
+
+	bool						gSymInitialised = false;	//	only want to initialise symbols once
+	DWORD64						gMainAddress = 0;			//	if we find main, this is it's address. This is to stop the stack-walker doing excessing walking but at the same time not having to resolve the name
+	bool						s_Initialised = false;		//	exception handler initialised
+};
+
+bool SoyDebug::GetSymbolLocation(ofCodeLocation& Location,const ofStackEntry& Address)
+{
+	//	address wasn't resovled when walking stack earlier
+	if ( Address.mProcessAddress == 0 )
+	{
+		Location = ofCodeLocation();
+		return false;
+	}
+	
+#if defined(ENABLE_STACKTRACE64)
+	HANDLE Process = GetCurrentProcess();
+	
+	//	get filename and line number
+	IMAGEHLP_LINE64 Line;
+	memset ( &Line, 0, sizeof(Line) );
+	Line.SizeOfStruct = sizeof(Line);
+	DWORD dwLineOffset;
+	if ( !pfSymGetLineFromAddr64 ( Process, Address.mProcessAddress, &dwLineOffset, &Line ) )
+		return false;
+	
+	Location = ofCodeLocation( Line.FileName, Line.LineNumber );
+	return true;
+#endif
+
+	return false;
+}
+
+bool SoyDebug::IsEndOfStackAddress(DWORD64 Address)
+{
+	//	not cached address yet, try and find it
+	if ( gMainAddress == 0 )
+	{
+		BufferString<200> SymbolName;
+		DWORD64 OffsetFromSymbol;
+		if ( !GetSymbolName( SymbolName, Address, &OffsetFromSymbol ) )
+			return false;
+
+		//	is it main?
+		if ( !SymbolName.StartsWith("main+") && !SymbolName.StartsWith("WinMain+") )
+			return false;
+
+		//	persistent address is Address-offset?
+		//	entry up the stack is probably always the same offset though so I expect Address to always match...
+		gMainAddress = Address /*- OffsetFromSymbol*/;
+	}
+
+	return ( Address == gMainAddress );
+}
+
+
+bool SoyDebug::GetSymbolName(BufferString<200>& SymbolName,const ofStackEntry& Address,DWORD64* pSymbolOffset)
+{
+	//	address wasn't resovled when walking stack earlier
+	if ( Address.mProcessAddress == 0 )
+	{
+		SymbolName << "Unknown address(0)";
+		return false;
+	}
+
+#if defined(ENABLE_STACKTRACE64)
+	HANDLE Process = GetCurrentProcess();
+
+
+	static const uint32 MAX_SYMBOL_LENGTH ( 256 );
+
+	//the IMAGEHLP_SYMBOL64 structure definition only includes a single character array at the end
+	//for the symbol name. we have to allocate a larger buffer and set the available size of this
+	//string field.
+	//NOTE: MAX_SYMBOL_LENGTH doesn't include space for a nul terminator. however, the 
+	//      IMAGEHLP_SYMBOL64 structure includes one byte of space for the name, so is OK
+	uint8 SymbolBuf[sizeof(IMAGEHLP_SYMBOL64) + MAX_SYMBOL_LENGTH];
+	memset ( SymbolBuf, 0, sizeof(SymbolBuf) );
+	IMAGEHLP_SYMBOL64& Symbol ( *reinterpret_cast<IMAGEHLP_SYMBOL64*>(SymbolBuf) );
+	Symbol.Size = sizeof(IMAGEHLP_SYMBOL64);
+	Symbol.MaxNameLength = MAX_SYMBOL_LENGTH;
+
+	//	get symbol/function name
+	DWORD64 DummyOffset;
+	DWORD64& OffsetFromSymbol = pSymbolOffset ? *pSymbolOffset : DummyOffset;
+	if ( !pfSymGetSymFromAddr64 ( Process, Address.mProcessAddress, &OffsetFromSymbol, &Symbol ) )
+		return false;
+
+	//sometimes symbols have spaces in them (template parameter lists) - strip these out
+	char* pSpace ( Symbol.Name );
+	while ( (pSpace = strchr ( pSpace, ' ' )) != NULL )
+	{
+		memmove ( pSpace, pSpace+1, strlen(pSpace) );
+	}
+				 
+	SymbolName << Symbol.Name << "+" << OffsetFromSymbol;
+
+	return true;
+#endif
+
+	return false;
+}
+
+
+bool SoyDebug::Init(BufferString<100>& Error)
+{
+#if defined(USE_EXTERNAL_DBGHELP)
+#if defined(ENABLE_STACKTRACE64)
+	//	load library
+	if ( hDbgHelp == NULL )
+		hDbgHelp = LoadLibrary ( "dbghelp.dll" );
+
+	if ( hDbgHelp == NULL )	
+	{
+		Error << "Failed to load dbghelp.dll";
+		return false;
+	}
+
+	//	load functions
+	if ( !pfStackWalk64 )
+		pfStackWalk64 = (TpfStackWalk64)GetProcAddress ( hDbgHelp, "StackWalk64" );
+
+	if ( !pfSymFunctionTableAccess64 )
+		pfSymFunctionTableAccess64 = (TpfSymFunctionTableAccess64)GetProcAddress ( hDbgHelp, "SymFunctionTableAccess64" );
+
+	if ( !pfSymGetModuleBase64 )
+		pfSymGetModuleBase64 = (TpfSymGetModuleBase64)GetProcAddress ( hDbgHelp, "SymGetModuleBase64" );
+
+	if ( !pfSymInitialize )
+		pfSymInitialize = (TpfSymInitialize)GetProcAddress ( hDbgHelp, "SymInitialize" );
+
+	if ( !pfSymGetSymFromAddr64 )
+		pfSymGetSymFromAddr64 = (TpfSymGetSymFromAddr64)GetProcAddress ( hDbgHelp, "SymGetSymFromAddr64" );
+
+	if ( !pfSymGetLineFromAddr64 )
+		pfSymGetLineFromAddr64 = (TpfSymGetLineFromAddr64)GetProcAddress ( hDbgHelp, "SymGetLineFromAddr64" );
+
+
+
+	//	in non-external mode these should all be initialised
+	if ( !pfStackWalk64 ||
+		!pfSymFunctionTableAccess64 ||
+		!pfSymGetModuleBase64 ||
+		!pfSymInitialize ||
+		!pfSymGetSymFromAddr64 ||
+		!pfSymGetLineFromAddr64 )
+	{
+		Error << "Failed to load symbol function[s]";
+		return false;
+	}
+	
+	//	initialise symbol system (only do this once)
+	if ( !gSymInitialised )
+	{
+		HANDLE hProcess = GetCurrentProcess();
+		if ( !SoyDebug::pfSymInitialize( hProcess, NULL, true ) )
+		{
+			uint32 ErrorCode;
+			auto WinError = prcore::PRSystem::GetWinLastError( ErrorCode );
+
+			//	some extended information WE know
+			if ( ErrorCode == ERROR_INVALID_PARAMETER )
+				WinError << " Outdated/incompatible version of dbghlp.dll";
+		
+			Error << "Failed to initialise symbols (SymInitialize) " << WinError;
+			return false;
+		}
+		
+		gSymInitialised = true;
+	}
+
+	return true;
+#endif
+#endif
+
+	return false;
+}
+
+
+bool DumpX64CallStack(ArrayBridge<ofStackEntry>& Stack, const CONTEXT& SourceContext,BufferString<100>& Error,int StackSkip)
+{
+	if ( !SoyDebug::Init(Error) )
+		return false;
+
+#if defined(ENABLE_STACKTRACE64)
+
+	//	need a local copy of the context
+	CONTEXT Context( SourceContext );
+
+	STACKFRAME64 StackFrame;
+	memset( &StackFrame, 0, sizeof(StackFrame) );
+	StackFrame.AddrPC.Offset = Context.Rip;
+	StackFrame.AddrPC.Mode = AddrModeFlat;
+	StackFrame.AddrFrame.Offset = Context.Rbp;
+	StackFrame.AddrFrame.Mode = AddrModeFlat;
+	StackFrame.AddrStack.Offset = Context.Rdi;
+	StackFrame.AddrStack.Mode = AddrModeFlat;
+
+	HANDLE hProcess = GetCurrentProcess();
+	HANDLE hThread = GetCurrentThread();
+
+
+	for ( int uStackFrameNum=0;	Stack.GetSize()<Stack.MaxSize();	uStackFrameNum++ )
+	{
+		//strangely, the 1st call to this doesn't actually walk up the stack one level, so this needs
+		//to be at the start of the loop, not the end
+		if ( !pfStackWalk64 ( IMAGE_FILE_MACHINE_AMD64, hProcess, hThread, &StackFrame, &Context, NULL, PRExceptionHandler::pfSymFunctionTableAccess64, PRExceptionHandler::pfSymGetModuleBase64, NULL ) )
+		{
+			//	this returns false when we've run out of stack. 
+			//	Though if it's the first case, that seems more like an error... (documentation doesn't say and there is no GetLastError)
+			if ( uStackFrameNum == 0 )
+			{
+				Error << "Failed to resolve first stack entry";
+				return false;
+			}
+			break;
+		}
+
+		//	skipping this one
+		if ( uStackFrameNum < StackSkip )
+			continue;
+
+		PRStackEntry& StackEntry = Stack.PushBack();
+
+		//	if this address is zero, it means we can't resolve it.
+		StackEntry.mProcessAddress = StackFrame.AddrPC.Offset;
+
+		//	break out when we reach the top of the stack. this prevents us from dumping out CRT startup
+		//symbols, which are pretty pointless and also sometimes give inconsistent results
+		//(e.g. sometimes WinMainCRTStartup, sometimes __tmainCRTStartup, for the function above WinMain)
+
+		//	if we don't know the address of main, resolve the name and that'll find it
+		//	gr: no real need for this, we'll probably bail out earlier anyway
+		//if ( IsEndOfStackAddress( StackEntry.mProcessAddress ) )
+		//	break;
+	}
+
+	return true;
+#endif
+
+	return false;
+}
+
+
+bool SoyDebug::GetCallStack(ArrayBridge<ofStackEntry>& Stack,int StackSkip)
+{
+#if defined(ENABLE_STACKTRACE64)
+
+	CONTEXT Context;
+	ZeroMemory( &Context, sizeof(CONTEXT) );
+	RtlCaptureContext( &Context );
+	prcore::BufferString<100> Error;
+
+	StackSkip += 1;	//	skip this func GetCallStack()
+
+	if( !DumpX64CallStack( Stack, Context, Error, StackSkip ) )
+	{
+		OutputDebugString("failed to dump callstack: ");
+		OutputDebugString( Error );
+		OutputDebugString("\n");
+		return false;
+	}
+	return true;
+#endif
+
+	return false;
+}

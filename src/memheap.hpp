@@ -8,7 +8,57 @@
 #include <map>
 #include <queue>
 
-//#define ENABLE_STACKTRACE
+#define ENABLE_STACKTRACE
+#define ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION	true
+
+
+//	helpful class for tracking allocations or similar in a simple wrapped-up class
+#define __LOCATION__	prcore::ofCodeLocation( __FILE__, __LINE__ )
+
+
+
+class ofCodeLocation
+{
+public:
+	ofCodeLocation()
+	{
+		mLocation << "Unknown(??)";
+	}
+	ofCodeLocation(const char* Filename,int LineNo)
+	{
+		mLocation << Filename << "(" << LineNo << ")";
+	}
+
+	operator const char*() const	{	return mLocation;	}
+
+public:
+	BufferString<256>	mLocation;
+};
+DECLARE_NONCOMPLEX_TYPE( ofCodeLocation );
+
+class ofStackEntry
+{
+public:
+	ofStackEntry(uint64 Address=0) :
+		mProcessAddress	( Address )
+	{
+	}
+	
+	uint64		mProcessAddress;
+};
+DECLARE_NONCOMPLEX_TYPE( ofStackEntry );
+
+namespace SoyDebug
+{
+	bool	GetCallStack(ArrayBridge<ofStackEntry>& Stack,int StackSkip);
+	bool	GetSymbolName(BufferString<200>& SymbolName,const ofStackEntry& Address,uint64* pSymbolOffset=NULL);
+	bool	GetSymbolLocation(ofCodeLocation& Location,const ofStackEntry& Address);
+};
+
+
+
+
+
 
 namespace prmem
 {
@@ -72,14 +122,7 @@ namespace prmem
 		//	"On a system set up for debugging, the HeapValidate function then displays debugging messages that describe the part of the heap or memory block that is invalid, and stops at a hard-coded breakpoint so that you can examine the system to determine the source of the invalidity"
 		//	returns true if heap is OK
 		//	http://msdn.microsoft.com/en-us/library/windows/desktop/aa366708(v=vs.85).aspx
-		bool					Debug_Validate(const void* Object=NULL) const
-		{
-			if ( !IsValid() )	return true;
-			if ( HeapValidate( GetHandle(), 0x0, Object ) )
-				return true;
-			assert( false );
-			return false;
-		}
+		bool					Debug_Validate(const void* Object=NULL) const;
 
 	protected:
 		//	update tracking information. BlockCount=Allocation count, usually 1 (an Array = 1)
@@ -126,10 +169,9 @@ namespace prmem
 		uint32							mElements;		//	number of elements
 		uint32							mTypeSize;		//	sizeof(T)
 		const char*						mTypename;		//	gr: this SHOULD be safe, all strings from GetTypeName are either compile-time generated or static.
-		uint32							mAllocTick;		//	time of allocation
+		uint64							mAllocTick;		//	time of allocation (ofGetElapsedTimeMillis())
 		BufferArray<uint64,CallStackSize>	mCallStack;		//	each is an address in the process' symbol data
 	};
-
 
 	//-----------------------------------------------------------------
 	//	debug information for a heap, interface. 
@@ -137,7 +179,7 @@ namespace prmem
 	class HeapDebugBase
 	{
 	public:
-		virtual ~HeapDebugBase()=0;
+		virtual ~HeapDebugBase()	{}
 
 		template<typename T>
 		void			OnAlloc(const T* Object,uint32 Elements)
@@ -152,7 +194,6 @@ namespace prmem
 		virtual void	OnAlloc(const void* Object,const char* TypeName,uint32 ElementCount,uint32 TypeSize)=0;
 		void			DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBridge<HeapDebugItem>& AllocItems) const;	//	debug-print out all our allocations and their age
 	};
-	inline HeapDebugBase::~HeapDebugBase()	{}
 
 	//-----------------------------------------------------------------------
 	//	heap - allocates a windows memory heap and provides allocation/free functions
@@ -168,6 +209,13 @@ namespace prmem
 		virtual const HeapDebugBase*	GetDebug() const			{	return mHeapDebug;	}
 		inline bool						IsHeapValid() const			{	return mHandle!=NULL;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
 
+		//	prob the system for the allocation size
+		uint32	GetAllocSize(void* pData) const
+		{
+			DWORD Flags = 0;
+			SIZE_T AllocSize = HeapSize( GetHandle(), Flags, pData );
+			return AllocSize;
+		};
 
 		template<typename TYPE>
 		TYPE*	Alloc()	
@@ -180,6 +228,9 @@ namespace prmem
 			if ( Soy::DoConstructType<TYPE>() )
 			{
 				pAlloc = new( pAlloc ) TYPE();
+			
+				if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
+					Debug_Validate();
 			}
 			return pAlloc;
 		}
@@ -202,6 +253,9 @@ namespace prmem
 					//		lack of parenthesis still means the default constructor is called on classes.
 					pAlloci = new( pAlloci ) TYPE;	
 				}
+		
+				if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
+					Debug_Validate();
 			}
 			return pAlloc;
 		}
@@ -215,6 +269,8 @@ namespace prmem
 				return NULL;
 			//	construct with placement New
 			pAlloc = new( pAlloc ) TYPE(Arg1);
+			if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
+				Debug_Validate();
 			return pAlloc;
 		}
 		
@@ -227,6 +283,8 @@ namespace prmem
 				return NULL;
 			//	construct with placement New
 			pAlloc = new( pAlloc ) TYPE(Arg1,Arg2);
+			if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
+				Debug_Validate();
 			return pAlloc;
 		}
 		
@@ -239,6 +297,8 @@ namespace prmem
 				return NULL;
 			//	construct with placement New
 			pAlloc = new( pAlloc ) TYPE(Arg1,Arg2,Arg3);
+			if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
+				Debug_Validate();
 			return pAlloc;
 		}
 		
@@ -251,6 +311,8 @@ namespace prmem
 				return NULL;
 			//	construct with placement New
 			pAlloc = new( pAlloc ) TYPE(Arg1,Arg2,Arg3,Arg4);
+			if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
+				Debug_Validate();
 			return pAlloc;
 		}
 		
@@ -263,9 +325,19 @@ namespace prmem
 				return NULL;
 			//	construct with placement New
 			pAlloc = new( pAlloc ) TYPE(Arg1,Arg2,Arg3,Arg4,Arg5);
+			if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
+				Debug_Validate();
 			return pAlloc;
 		}
 		
+		//	alloc into a smart pointer
+		template<typename TYPE>
+		ofPtr<TYPE>	AllocPtr()	
+		{
+			TYPE* pAlloc = Alloc<TYPE>( );
+			return ofPtr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
+		}
+
 		//	alloc into a smart pointer
 		template<typename TYPE,typename ARG1>
 		ofPtr<TYPE>	AllocPtr(ARG1& Arg1)	
@@ -287,6 +359,8 @@ namespace prmem
 		{
 			//	destruct
 			pObject->~TYPE();
+			if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
+				Debug_Validate();
 
 			return RealFree( pObject, 1 );
 		}			
@@ -301,6 +375,9 @@ namespace prmem
 				uint32 e = Elements;
 				while ( e )
 					pObject[--e].~TYPE();
+		
+				if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
+					Debug_Validate();
 			}
 
 			return RealFree( pObject, Elements );
