@@ -1,5 +1,4 @@
 #include "ofShape.h"
-#include <ofxDelaunay.h>
 
 
 bool ofShapeBox3::IsOutside(const vec2f& Pos) const
@@ -459,23 +458,43 @@ bool ofShapeTriangle2::IsInside(const vec2f& Point) const
 
 float ofShapeTriangle2::GetArea() const
 {
+	auto& p0 = mTriangle[0];
+	auto& p1 = mTriangle[1];
+	auto& p2 = mTriangle[2];
+	
 	ofPolyline PolyA;
-	PolyA.addVertex( mTriangle[2] );
-	PolyA.addVertex( mTriangle[1] );
-	PolyA.addVertex( mTriangle[0] );
+	PolyA.addVertex( p2 );
+	PolyA.addVertex( p1 );
+	PolyA.addVertex( p0 );
 	float AreaA = PolyA.getArea();
-	ofPolyline PolyB;
-	PolyB.addVertex( mTriangle[0] );
-	PolyB.addVertex( mTriangle[1] );
-	PolyB.addVertex( mTriangle[2] );
-	float AreaB = PolyB.getArea();
-	return AreaA;
+
+	float AreaC = ( (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y) );
+	AreaC /= 2.f;
+	return (AreaC < 0.f) ? -AreaC : AreaC;
 }
 
+
+void GetTriangles(ArrayBridge<ofShapeTriangle2>& Triangles,const ofMesh& Mesh)
+{
+	//	extract triangles
+	auto& Vertexes = Mesh.getVertices();
+	auto& TriangleIndexes = Mesh.getIndices();
+	for ( int i=0;	i<TriangleIndexes.size();	i+=3 )
+	{
+		auto& v0 = Vertexes[TriangleIndexes[i+0]];
+		auto& v1 = Vertexes[TriangleIndexes[i+1]];
+		auto& v2 = Vertexes[TriangleIndexes[i+2]];
+		auto& Triangle = Triangles.PushBack();
+		Triangle.mTriangle[0] = v0.xy();
+		Triangle.mTriangle[1] = v1.xy();
+		Triangle.mTriangle[2] = v2.xy();
+	}
+}
 
 template<class POINTARRAY>
 void TesselatePoints(ArrayBridge<ofShapeTriangle2>& Triangles,const POINTARRAY& Points,int PointCount)
 {
+
 	ofxDelaunay Mesh;
 	for ( int i=0;	i<PointCount;	i++ )
 	{
@@ -499,13 +518,64 @@ void TesselatePoints(ArrayBridge<ofShapeTriangle2>& Triangles,const POINTARRAY& 
 	
 }
 
-void Tesselate(ArrayBridge<ofShapeTriangle2>& Triangles,const ArrayBridge<vec2f>& Polygon)
+void Tesselate(ArrayBridge<ofShapeTriangle2>& Triangles,const ArrayBridge<vec2f>& PolygonPoints)
 {
-	TesselatePoints( Triangles, Polygon, Polygon.GetSize() );
+	ofPolyline Polygon;
+	for ( int i=0;	i<PolygonPoints.GetSize();	i++ )
+	{
+		Polygon.addVertex( PolygonPoints[i] );
+	}
+	Tesselate( Triangles, Polygon );
 }
 
 void Tesselate(ArrayBridge<ofShapeTriangle2>& Triangles,const ofPolyline& Polygon)
 {
-	TesselatePoints( Triangles, Polygon, Polygon.size() );
+	//	quicker than tesselating...
+	if ( Polygon.size() < 3 )
+		return;
 
+	if ( Polygon.size() == 3 )
+	{
+		auto& Triangle = Triangles.PushBack();
+		Triangle.mTriangle[0] = Polygon[0];
+		Triangle.mTriangle[1] = Polygon[1];
+		Triangle.mTriangle[2] = Polygon[2];
+		return;
+	}
+
+	ofTessellator Tessellator;
+	//	non-zero fills all holes
+	static int WindMode = 1;
+	BufferArray<ofPolyWindingMode,10> WindingModes;
+	WindingModes.PushBack( OF_POLY_WINDING_ODD );
+	WindingModes.PushBack( OF_POLY_WINDING_NONZERO );
+	WindingModes.PushBack( OF_POLY_WINDING_POSITIVE );
+	WindingModes.PushBack( OF_POLY_WINDING_NEGATIVE );
+	WindingModes.PushBack( OF_POLY_WINDING_ABS_GEQ_TWO );
+	ofPolyWindingMode WindingMode = WindingModes[WindMode];
+
+	ofMesh Mesh;
+	Tessellator.tessellateToMesh( Polygon, WindingMode, Mesh, true );
+	GetTriangles( Triangles, Mesh );
 }
+
+
+float GetArea(const ofPolyline& Polygon)
+{
+	//	tesselate it incase it's concave
+	Array<ofShapeTriangle2> Triangles;
+	Tesselate( GetArrayBridge(Triangles), Polygon );
+	return GetArea( GetArrayBridge(Triangles) );
+}
+
+float GetArea(ArrayBridge<ofShapeTriangle2>& Triangles)
+{
+	float Area = 0.f;
+	for ( int t=0;	t<Triangles.GetSize();	t++ )
+	{
+		auto& Triangle = Triangles[t];
+		Area += Triangle.GetArea();
+	}
+	return Area;
+}
+

@@ -13,6 +13,8 @@ class ofShapeTriangle2;
 
 void Tesselate(ArrayBridge<ofShapeTriangle2>& Triangles,const ofPolyline& Polygon);
 void Tesselate(ArrayBridge<ofShapeTriangle2>& Triangles,const ArrayBridge<vec2f>& Polygon);
+float GetArea(ArrayBridge<ofShapeTriangle2>& Triangles);
+float GetArea(const ofPolyline& Polygon);
 
 
 class TTransform2
