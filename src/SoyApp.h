@@ -198,7 +198,7 @@ private:
 	SoyButton::Type			mButton;
 	bool					mValid;
 };
-
+DECLARE_TYPE_NAME( SoyGesture );
 
 class SoyInput
 {

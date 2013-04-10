@@ -53,6 +53,7 @@ public:
 private:
 	uint64	mTime;
 };
+DECLARE_TYPE_NAME( SoyTime );
 
 
 
