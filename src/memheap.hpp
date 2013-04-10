@@ -290,7 +290,7 @@ namespace prmem
 		
 		//	alloc with 3 arguments to constructor
 		template<typename TYPE,typename ARG1,typename ARG2,typename ARG3>
-		TYPE*	Alloc(const ARG1& Arg1,const ARG2& Arg2,const ARG3& Arg3)	
+		TYPE*	Alloc(ARG1& Arg1,ARG2& Arg2,ARG3& Arg3)	
 		{
 			TYPE* pAlloc = RealAlloc<TYPE>( 1 );
 			if ( !pAlloc )
@@ -304,7 +304,7 @@ namespace prmem
 		
 		//	alloc with 4 arguments to constructor
 		template<typename TYPE,typename ARG1,typename ARG2,typename ARG3,typename ARG4>
-		TYPE*	Alloc(const ARG1& Arg1,const ARG2& Arg2,const ARG3& Arg3,const ARG4& Arg4)	
+		TYPE*	Alloc(ARG1& Arg1,ARG2& Arg2,ARG3& Arg3,ARG4& Arg4)	
 		{
 			TYPE* pAlloc = RealAlloc<TYPE>( 1 );
 			if ( !pAlloc )
@@ -318,7 +318,7 @@ namespace prmem
 		
 		//	alloc with 5 arguments to constructor
 		template<typename TYPE,typename ARG1,typename ARG2,typename ARG3,typename ARG4,typename ARG5>
-		TYPE*	Alloc(const ARG1& Arg1,const ARG2& Arg2,const ARG3& Arg3,const ARG4& Arg4,const ARG5& Arg5)	
+		TYPE*	Alloc(ARG1& Arg1,ARG2& Arg2,ARG3& Arg3,ARG4& Arg4,ARG5& Arg5)	
 		{
 			TYPE* pAlloc = RealAlloc<TYPE>( 1 );
 			if ( !pAlloc )
@@ -351,6 +351,22 @@ namespace prmem
 		ofPtr<TYPE>	AllocPtr(ARG1& Arg1,ARG2& Arg2)	
 		{
 			TYPE* pAlloc = Alloc<TYPE>( Arg1, Arg2 );
+			return ofPtr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
+		}
+
+		//	alloc into a smart pointer
+		template<typename TYPE,typename ARG1,typename ARG2,typename ARG3,typename ARG4>
+		ofPtr<TYPE>	AllocPtr(ARG1& Arg1,ARG2& Arg2,ARG3& Arg3,ARG4& Arg4)	
+		{
+			TYPE* pAlloc = Alloc<TYPE>( Arg1, Arg2, Arg3, Arg4 );
+			return ofPtr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
+		}
+
+		//	alloc into a smart pointer
+		template<typename TYPE,typename ARG1,typename ARG2,typename ARG3,typename ARG4,typename ARG5>
+		ofPtr<TYPE>	AllocPtr(ARG1& Arg1,ARG2& Arg2,ARG3& Arg3,ARG4& Arg4,ARG5& Arg5)	
+		{
+			TYPE* pAlloc = Alloc<TYPE>( Arg1, Arg2, Arg3, Arg4, Arg5 );
 			return ofPtr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
 		}
 
