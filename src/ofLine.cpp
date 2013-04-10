@@ -231,3 +231,10 @@ void ofLine2::GetNearestPoints(const ofLine2& That,vec2f& ThisIntersection,vec2f
 }
 
 
+float ofLine2::GetDistance(const vec2f& Position) const
+{
+	//	get nearest point on line and return distance to it
+	vec2f Near = GetNearestPoint( Position );
+	return Near.distance( Position );
+}
+

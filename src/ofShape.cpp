@@ -579,3 +579,63 @@ float GetArea(ArrayBridge<ofShapeTriangle2>& Triangles)
 	return Area;
 }
 
+
+void ofShapeCapsule2::Accumulate(const ArrayBridge<vec2f>& Points)
+{
+	//	note: this currently overrides an existing capsule, need to work out how to merge!
+	//		maybe... add furthest end points and 2 center-crossproduct points
+	assert( !IsValid() );
+	*this = ofShapeCapsule2();
+	assert( !IsValid() );
+
+	//	nothing to accumulate from!
+	if ( Points.IsEmpty() )
+		return;
+
+	//	find furthest points to make the axis
+	auto& Axis = mLine;
+	for ( int a=0;	a<Points.GetSize();	a++ )
+	{
+		for ( int b=a+1;	b<Points.GetSize();	b++ )
+		{
+			ofLine2 abaxis( Points[a], Points[b] );
+
+			//	reject ab if it's further apart from current best
+			if ( abaxis.GetLength() < Axis.GetLength() )
+				continue;
+
+			Axis = abaxis;
+		}
+	}
+
+
+	//	gr: there may be a proper way of doing this, but iterate for now...
+	//		if we shrink the axis by radius, then suddenly, this far-point which we've
+	//		based radius on, might be outside! (if say, near the end of the polygon has two points)
+	auto& Radius = mRadius;
+	Radius = 0.f;
+	for ( int i=0;	i<1;	i++ )
+	{
+		//	now find furthest distance from the axis to form the radius
+		for ( int a=0;	a<Points.GetSize();	a++ )
+		{
+			float DistanceFromAxis = Axis.GetDistance( Points[a] );
+			if ( DistanceFromAxis < Radius )
+				continue;
+			Radius = DistanceFromAxis;
+		}
+
+		//	shrink line so axis+rad hits the far points
+		float AxisLength = Axis.GetLength();
+		float RadiusTime = AxisLength > 0.f ? (Radius / AxisLength) : 0.f;
+		//	dont invert. This forces a capsule larger than the convex, but stops it turning into a pure circle. Which doesn't really matter, but easier to dismiss valid ones
+		if ( RadiusTime > 0.5f )
+			RadiusTime = 0.499f;
+		vec2f NewAxisStart = Axis.GetPoint( RadiusTime );
+		vec2f NewAxisEnd = Axis.GetPoint( 1.f - RadiusTime );
+		Axis.mStart = NewAxisStart;
+		Axis.mEnd = NewAxisEnd;
+	}
+}
+
+

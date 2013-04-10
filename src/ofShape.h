@@ -148,12 +148,13 @@ public:
 	{
 	}
 
-	bool			IsValid() const				{	return !mLine.IsZeroLength() && (mRadius > 0.f);	}
+	bool			IsValid() const				{	return /*!mLine.IsZeroLength() && */(mRadius > 0.f);	}	//	gr: zero length capsule is fine. Just a sphere!
 	vec2f			GetCenter() const			{	return mLine.GetPoint(0.5f);	}
 	ofShapeCircle2	GetBounds() const			{	return ofShapeCircle2( GetCenter(), mRadius );	}
 	void			Transform(const TTransform2& Trans)	{	mLine.Transform( Trans );	}
 	vec2f			GetNearestPoint(const vec2f& Position) const				{	return mLine.GetNearestPoint( Position );	}
 	vec2f			GetNearestPoint(const vec2f& Position,float& Time) const	{	return mLine.GetNearestPoint( Position, Time );	}
+	void			Accumulate(const ArrayBridge<vec2f>& Points);
 
 public:
 	ofLine2		mLine;
