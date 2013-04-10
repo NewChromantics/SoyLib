@@ -87,6 +87,9 @@ void ofCube(const vec3f& Center,float WidthHeightDepth)
 
 void ofCapsule(const ofShapeCapsule2& Capsule,float z)
 {
+	if ( !Capsule.IsValid() )
+		return;
+
 	//	generate triangle points
 	float mRadius = Capsule.mRadius;
 	ofLine2 Line = Capsule.mLine;
