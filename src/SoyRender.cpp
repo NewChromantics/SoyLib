@@ -141,3 +141,24 @@ void ofDrawTriangles(const ArrayBridge<ofShapeTriangle2>& Triangles)
 		ofTriangle( v0.x, v0.y, v1.x, v1.y, v2.x, v2.y );
 	}
 }
+
+void ofDrawTriangles(const ArrayBridge<ofShapeTriangle2>& Triangles,ofTexture& Texture,const ArrayBridge<ofShapeTriangle2>& TexCoords)
+{
+	Texture.bind();
+
+	for ( int t=0;	t<Triangles.GetSize();	t++ )
+	{
+		auto& Triangle = Triangles[t];
+		auto& TexCoord = TexCoords[t];
+		auto& v0 = Triangle.mTriangle[0];
+		auto& v1 = Triangle.mTriangle[1];
+		auto& v2 = Triangle.mTriangle[2];
+		
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		glTexCoordPointer( 2, GL_FLOAT, sizeof(ofVec2f), &TexCoord );
+		ofTriangle( v0.x, v0.y, v1.x, v1.y, v2.x, v2.y );
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	}
+
+	Texture.unbind();
+}
