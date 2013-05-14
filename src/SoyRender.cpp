@@ -85,7 +85,7 @@ void ofCube(const vec3f& Center,float WidthHeightDepth)
 }
 
 
-void ofCapsule(const ofShapeCapsule2& Capsule,float z)
+void ofCapsule(const ofShapeCapsule2& Capsule,float z,bool DrawCenterLine)
 {
 	if ( !Capsule.IsValid() )
 		return;
@@ -113,6 +113,11 @@ void ofCapsule(const ofShapeCapsule2& Capsule,float z)
 		ofLine( Quad_BR, Quad_TR );
 		//ofLine( Line.mStart, Line.mEnd );
 		//ofRect( Line.mStart, mRadius/4.f, mRadius/4.f );
+	}
+
+	if ( ofGetFill() == OF_OUTLINE && DrawCenterLine )
+	{
+		ofLine( Line.mStart, Line.mEnd );
 	}
 
 	//	http://digerati-illuminatus.blogspot.co.uk/2008/05/approximating-semicircle-with-cubic.html

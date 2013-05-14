@@ -64,4 +64,4 @@ void ofDrawTriangles(const ArrayBridge<ofShapeTriangle2>& Triangles);
 void ofDrawTriangles(const ArrayBridge<ofShapeTriangle2>& Triangles,ofTexture& Texture,const ArrayBridge<ofShapeTriangle2>& TexCoords);
 
 class ofShapeCapsule2;
-void ofCapsule(const ofShapeCapsule2& Capsule,float z=0.f);
+void ofCapsule(const ofShapeCapsule2& Capsule,float z=0.f,bool DrawCenterLine=false);
