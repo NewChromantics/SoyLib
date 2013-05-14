@@ -231,10 +231,46 @@ void ofLine2::GetNearestPoints(const ofLine2& That,vec2f& ThisIntersection,vec2f
 }
 
 
-float ofLine2::GetDistance(const vec2f& Position) const
+float ofLine2::GetDistance(const vec2f& Position,float& Time) const
 {
 	//	get nearest point on line and return distance to it
-	vec2f Near = GetNearestPoint( Position );
+	vec2f Near = GetNearestPoint( Position, Time );
 	return Near.distance( Position );
+}
+
+float ofLine2::GetDistance(const ofLine2& b,float& ThisTime,float& ThatTime) const
+{
+	auto& a = *this;
+	float& ta = ThisTime;
+	float& tb = ThatTime;
+
+	//	if there's an intersection, distance is zero
+	if ( a.GetIntersection( b, ta, tb ) )
+		return 0.f;
+
+	//	get the distances for each point to the other line and return shortest distance
+	BufferArray<float,4> Distances(4);
+	BufferArray<float,4> DistanceTa(4);
+	BufferArray<float,4> DistanceTb(4);
+
+	Distances[0] = a.GetDistance( b.mStart, DistanceTa[0] );	DistanceTb[0] = 0.f;
+	Distances[1] = a.GetDistance( b.mEnd, DistanceTa[1] );		DistanceTb[1] = 1.f;
+	Distances[2] = b.GetDistance( a.mStart, DistanceTb[2] );	DistanceTa[2] = 0.f;
+	Distances[3] = b.GetDistance( a.mEnd, DistanceTb[3] );		DistanceTa[3] = 1.f;
+	
+	//	find shortest case
+	int ShortestIndex = 0;
+	for ( int i=1;	i<Distances.GetSize();	i++ )
+	{
+		if ( Distances[i] < Distances[ShortestIndex] )
+			ShortestIndex = i;
+	}
+
+	//	cap time, the GetDistance function returns an accurate time when nearest point is passed the ends
+	ta = DistanceTa[ShortestIndex];
+	tb = DistanceTb[ShortestIndex];
+	ofLimit( ta, 0.f, 1.f );
+	ofLimit( tb, 0.f, 1.f );
+	return Distances[ShortestIndex];
 }
 

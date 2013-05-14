@@ -23,7 +23,10 @@ public:
 	vec2f	GetDirection() const		{	return mEnd-mStart;	}
 	vec2f	GetNormal() const			{	return GetDirection().getNormalized();	}
 	vec2f	GetPoint(float Time) const	{	return ofLerp( mStart, mEnd, Time );	}
-	float	GetDistance(const vec2f& Position) const;
+	float	GetDistance(const vec2f& Position) const	{	float ta;	return GetDistance( Position, ta );	}
+	float	GetDistance(const ofLine2& Line) const		{	float ta,tb;	return GetDistance( Line, ta, tb );	}
+	float	GetDistance(const vec2f& Position,float& ThisTime) const;
+	float	GetDistance(const ofLine2& Line,float& ThisTime,float& ThatTime) const;
 	vec2f	GetNearestPoint(const vec2f& Position) const				{	float Time;	return GetNearestPoint( Position, Time );	}
 	vec2f	GetNearestPoint(const vec2f& Position,float& Time) const;	//	get nearest point on line
 	void	GetNearestPoints(const ofLine2& That,vec2f& ThisIntersection,vec2f& ThatIntersection) const;	//	get nearest points on each line to each other
