@@ -4,7 +4,16 @@
 //#include "..\..\..\addons\ofxiPhone\src\ofxiPhone.h"
 //ofxiPhoneApp
 
+class ofxXmlSettings;
 
+namespace Soy
+{
+	template<typename TYPE>
+	inline bool		ReadXmlData(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag=true);
+	
+	template<typename TYPE>
+	inline void		WriteXmlData(ofxXmlSettings& xml,const char* Name,const TYPE& Value,bool Tag=true);
+};
 
 inline BufferString<MAX_PATH> SoyGetFileExt(const char* Filename)
 {
@@ -248,4 +257,96 @@ public:
 public:
 	SoyInput	mInput;		//	cross platform gesture interface
 };
+/*
+class ofxXmlSettings_Protected : public ofxXmlSettings
+{
+public:
+	const char*	GetPushedTag()	{	ofxXmlSettings::storedHandle.
+	*/
+//	if not tag, then data is stored as an attribute
+template<typename TYPE>
+inline void Soy::WriteXmlData(ofxXmlSettings& xml,const char* Name,const TYPE& Value,bool Tag)
+{
+	TString Buffer;
+	Buffer << Value;
 
+	if ( Tag )
+		xml.addValue( Name, static_cast<const char*>( Buffer ) );
+	else
+		xml.addAttribute( ":", Name, static_cast<const char*>( Buffer ), -1 );
+
+}
+
+//	if not tag, then data is stored as an attribute
+template<typename TYPE>
+inline bool Soy::ReadXmlData(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag)
+{
+	string data;
+	if ( Tag )
+		data = xml.getValue( Name, data );
+	//else
+	//	data = xml.getAttribute( Name, data );
+
+	if ( data.empty() )
+		return false;
+
+	//	convert
+	TString Buffer = data.c_str();
+	Buffer >> Value;
+	return true;
+}
+
+
+
+template<typename OBJECT>
+class TXmlArrayMeta
+{
+public:
+	TXmlArrayMeta(const char* TagName,const Array<OBJECT>& Objects) :
+		mTagName	( TagName ),
+		mObjects	( Objects )
+	{
+	}
+
+	//	todo: find a way to do this without having a const and non-const TXmlArrayMeta
+	const Array<OBJECT>&	GetObjectsConst() const		{	return mObjects;	}
+	Array<OBJECT>&			GetObjectsMutable() const	{	return const_cast<Array<OBJECT>&>( mObjects );	}
+
+public:
+	const char*				mTagName;
+
+private:
+	const Array<OBJECT>&	mObjects;
+};
+
+template<typename OBJECT>
+inline ofxXmlSettings& operator<<(ofxXmlSettings& xml,const TXmlArrayMeta<OBJECT>& Array)
+{
+	auto& Objects = Array.GetObjectsConst();
+	for ( int i=0;	i<Objects.GetSize();	i++ )
+	{
+		xml.addTag( Array.mTagName );
+		if ( !xml.pushTag( Array.mTagName, i ) )
+			continue;
+		auto& Object = Objects[i];
+		xml << Object;
+		xml.popTag();
+	}
+	return xml;
+}
+
+template<typename OBJECT>
+inline ofxXmlSettings& operator>>(ofxXmlSettings& xml,const TXmlArrayMeta<OBJECT>& Array)
+{
+	auto& Objects = Array.GetObjectsMutable();
+	int TagCount = xml.getNumTags( Array.mTagName );
+	for ( int i=0;	i<TagCount;	i++ )
+	{
+		if ( !xml.pushTag( Array.mTagName, i ) )
+			continue;
+		auto& NewObject = Objects.PushBack();
+		xml >> NewObject;
+		xml.popTag();
+	}
+	return xml;
+}
