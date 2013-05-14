@@ -608,6 +608,13 @@ void ofShapeCapsule2::Accumulate(const ArrayBridge<vec2f>& Points)
 		}
 	}
 
+	//	always place largest Y as the start
+	//	gr: note, the opposite produces a lot of horizontal average capsules...
+	if ( Axis.mStart.y < Axis.mEnd.y )
+	{
+		ofSwap( Axis.mStart, Axis.mEnd );
+	}
+
 
 	//	gr: there may be a proper way of doing this, but iterate for now...
 	//		if we shrink the axis by radius, then suddenly, this far-point which we've
@@ -638,4 +645,15 @@ void ofShapeCapsule2::Accumulate(const ArrayBridge<vec2f>& Points)
 	}
 }
 
+
+float ofShapeCapsule2::GetArea() const
+{
+	//	circle area
+	float CircleArea = PI * (mRadius*mRadius);
+
+	//	+ rectangle area (length * width)
+	float RectArea = mLine.GetLength() * (mRadius*2.f);
+
+	return RectArea + CircleArea;
+}
 
