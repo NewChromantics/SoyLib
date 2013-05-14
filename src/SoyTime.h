@@ -58,14 +58,83 @@ DECLARE_TYPE_NAME( SoyTime );
 
 
 template<class STRING>
-inline STRING& operator<<(STRING& str,const SoyTime& timecode)
+inline STRING& operator<<(STRING& str,const SoyTime& Time)
 {
 	BufferString<100> Buffer;
-	Buffer.PrintText("T%09Iu", timecode.GetTime() );
+	Buffer.PrintText("T%09Iu", Time.GetTime() );
 	str << Buffer;
 	return str;
 }
 
 
 
+
+
+class ofScopeTimerWarning
+{
+public:
+	ofScopeTimerWarning(const char* Name,uint64 WarningTimeMs,bool AutoStart=true) :
+		mName				( Name ),
+		mWarningTimeMs		( WarningTimeMs ),
+		mStopped			( true ),
+		mReportedOnLastStop	( false ),
+		mAccumulatedTime	( 0 )
+	{
+		if ( AutoStart )
+			Start( true );
+	}
+	~ofScopeTimerWarning()
+	{
+		if ( mStopped && !mReportedOnLastStop )
+			Report();
+		else
+			Stop();
+	}
+	void				Stop(bool DoReport=true)
+	{
+		if ( mStopped )
+		{
+			mReportedOnLastStop = false;
+			return;
+		}
+
+		SoyTime Now(true);
+		int Delta = Now.GetTime() - mStartTime.GetTime();
+		mAccumulatedTime += Delta;
+
+		mReportedOnLastStop = DoReport;
+		if ( DoReport )
+			Report();
+		
+		mStopped = true;
+	}
+	void				Report(bool Force=false)
+	{
+		if ( mAccumulatedTime >= mWarningTimeMs || Force )
+		{
+			BufferString<200> Debug;
+			Debug << mName << " took " << mAccumulatedTime << "ms to execute";
+			ofLogNotice( static_cast<const char*>( Debug ) );
+		}
+	}
+
+	void				Start(bool Reset=false)
+	{
+		assert( mStopped );
+
+		if ( Reset )
+			mAccumulatedTime = 0;
+			
+		SoyTime Now(true);
+		mStartTime = Now;
+		mStopped = false;
+	}
+
+	SoyTime				mStartTime;
+	uint64				mWarningTimeMs;
+	BufferString<200>	mName;
+	bool				mStopped;
+	bool				mReportedOnLastStop;
+	uint64				mAccumulatedTime;
+};
 
