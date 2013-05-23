@@ -1,7 +1,7 @@
 #pragma once
 
 
-template<typename FIRST,typename SECOND>
+template<typename FIRST,typename SECOND=FIRST>
 class SoyPair
 {
 public:
