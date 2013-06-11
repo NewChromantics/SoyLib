@@ -284,8 +284,8 @@ inline bool Soy::ReadXmlData(ofxXmlSettings& xml,const char* Name,TYPE& Value,bo
 	string data;
 	if ( Tag )
 		data = xml.getValue( Name, data );
-	//else
-	//	data = xml.getAttribute( Name, data );
+	else
+		data = xml.getAttribute( ":", Name, data );
 
 	if ( data.empty() )
 		return false;

@@ -67,6 +67,37 @@ inline STRING& operator<<(STRING& str,const SoyTime& Time)
 }
 
 
+template<class STRING>
+inline const STRING& operator>>(const STRING& str,SoyTime& Time)
+{
+	if ( str.GetLength() != 10 )
+	{
+		assert(false);
+		Time = SoyTime();
+		return str;
+	}
+
+	if ( str[0] != 'T' )
+	{
+		assert(false);
+		Time = SoyTime();
+		return str;
+	}
+
+	BufferString<100> Buffer = static_cast<const char*>( &str[1] );
+	int TimeValue = 0;
+	if ( !Buffer.GetInteger( TimeValue ) )
+	{
+		assert(false);
+		Time = SoyTime();
+		return str;
+	}
+
+	Time = SoyTime( static_cast<uint64>( TimeValue ) );
+	return str;
+}
+
+
 
 
 

@@ -610,11 +610,8 @@ void ofShapeCapsule2::Accumulate(const ArrayBridge<vec2f>& Points)
 
 	//	always place largest Y as the start
 	//	gr: note, the opposite produces a lot of horizontal average capsules...
-	if ( Axis.mStart.y < Axis.mEnd.y )
-	{
-		ofSwap( Axis.mStart, Axis.mEnd );
-	}
-
+	Axis.MakeYDescending();
+	
 
 	//	gr: there may be a proper way of doing this, but iterate for now...
 	//		if we shrink the axis by radius, then suddenly, this far-point which we've
@@ -645,6 +642,36 @@ void ofShapeCapsule2::Accumulate(const ArrayBridge<vec2f>& Points)
 	}
 }
 
+	
+void GetExtents(BufferArray<vec2f,10>& Extents,const ofShapeCapsule2& Capsule)
+{
+	vec2f NormalExtent = Capsule.mLine.GetNormal() * Capsule.mRadius;
+	vec2f CrossExtent( NormalExtent.y, NormalExtent.x );
+	Extents.PushBack( Capsule.mLine.mStart - NormalExtent );
+	Extents.PushBack( Capsule.mLine.mEnd + NormalExtent );
+	Extents.PushBack( Capsule.mLine.GetPoint(0.5f) + CrossExtent );
+	Extents.PushBack( Capsule.mLine.GetPoint(0.5f) - CrossExtent );
+}
+
+void ofShapeCapsule2::Accumulate(const ofShapeCapsule2& Capsule)
+{
+	if ( !Capsule.IsValid() )
+		return;
+	if ( !this->IsValid() )
+	{
+		*this = Capsule;
+		return;
+	}
+
+	//	get far extents of capsule and accumulate them
+	BufferArray<vec2f,10> Extents;
+	GetExtents( Extents, *this );
+	GetExtents( Extents, Capsule );
+
+	ofShapeCapsule2 NewThis;
+	NewThis.Accumulate( GetArrayBridge( Extents ) );
+	*this = NewThis;
+}
 
 float ofShapeCapsule2::GetArea() const
 {
@@ -657,3 +684,13 @@ float ofShapeCapsule2::GetArea() const
 	return RectArea + CircleArea;
 }
 
+
+ofRectangle ofShapeCapsule2::GetBoundsRect() const
+{
+	float Left = ofMin( mLine.mStart.x - mRadius, mLine.mEnd.x - mRadius );
+	float Right = ofMax( mLine.mStart.x + mRadius, mLine.mEnd.x + mRadius );
+	float Top = ofMin( mLine.mStart.y - mRadius, mLine.mEnd.y - mRadius );
+	float Bottom = ofMax( mLine.mStart.y + mRadius, mLine.mEnd.y + mRadius );
+
+	return ofRectangle( Left, Top, Right-Left, Bottom-Top );
+}

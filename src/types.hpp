@@ -46,7 +46,7 @@ namespace Soy
 	#define DECLARE_NONCOMPLEX_TYPE(TYPE)								\
 		DECLARE_TYPE_NAME(TYPE)												\
 		template<>															\
-		inline bool Soy::IsComplexType<TYPE>()	{	return false;	}	\
+		inline bool Soy::IsComplexType<TYPE>()	{	return false;	}		
 	
 	//	speed up allocation of this type in our heaps...
 	//	declare a non-complex type that also requires NO construction (ie, will be memcpy'd over or fully initialised when required)

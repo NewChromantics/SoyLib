@@ -34,6 +34,7 @@ public:
 	bool	GetIntersection(const ofLine2& Line,vec2f& Intersection) const;
 	void	Transform(const TTransform2& Trans);
 	
+	void	MakeYDescending()		{	if ( mStart.y < mEnd.y )	ofSwap( mStart, mEnd );	}
 
 public:
 	vec2f	mStart;

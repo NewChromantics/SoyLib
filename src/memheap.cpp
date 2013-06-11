@@ -331,7 +331,7 @@ namespace prmem
 namespace prcore
 {
 	//	"default" heap for prnew and prdelete which we'd prefer to use rather than the [unmonitorable] crt default heap
-	prmem::Heap		Heap( true, true, "prcore::Heap", 0, true );
+	prmem::Heap		Heap( true, true, "prcore::Heap", 0, false );
 };
 
 namespace prmem

@@ -32,7 +32,5 @@ typedef Soy::String2<char,Array<char> >		TString;
 #include "SoyApp.h"
 #include "SoyMath.h"
 
-//	gr: these are annoying names...
-typedef SoyRef TRef;
 
 

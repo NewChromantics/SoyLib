@@ -193,7 +193,7 @@ public:
 class SoyModule : public SoyModuleMeta
 {
 public:
-	SoyModule(const char* Name);
+	SoyModule(SoyRef ModuleRef);
 	~SoyModule();
 
 	bool							IsServer() const			{	return mClusterSocket.GetState() == SoyNet::TSocketState::ServerListening;	}

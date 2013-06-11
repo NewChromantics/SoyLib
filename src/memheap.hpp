@@ -403,8 +403,9 @@ namespace prmem
 		template<typename TYPE>
 		inline TYPE*	RealAlloc(const uint32 Elements)	
 		{
-			Debug_Validate();
 			TYPE* pData = static_cast<TYPE*>( HeapAlloc( mHandle, 0x0, Elements*sizeof(TYPE) ) );
+			if ( !pData )
+				return NULL;
 			if ( mHeapDebug )
 				mHeapDebug->OnAlloc( pData, Elements );
 			OnAlloc( pData ? Elements*sizeof(TYPE) : 0, 1 );

@@ -4,8 +4,8 @@
 
 
 
-SoyModule::SoyModule(const char* Name) :
-	SoyModuleMeta	( SoyRef(Name) )
+SoyModule::SoyModule(SoyRef ModuleRef) :
+	SoyModuleMeta	( ModuleRef )
 {
 	//	gr: you must do this in your overloaded module. (vtable not ready here)
 	//ChangeState<SoyModuleState_DiscoveryBind>();

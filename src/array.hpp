@@ -45,6 +45,8 @@
 	class ArrayBridge
 	{
 	public:
+		typedef T TYPE;	//	in case you ever need to get to T in a template function/class, you can use ARRAYPARAM::TYPE (sometimes need typename ARRAYPARAM::TYPE)
+	public:
 		ArrayBridge()	{}
 
 		virtual T&			operator [] (int index)=0;
