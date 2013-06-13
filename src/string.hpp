@@ -366,6 +366,8 @@ namespace Soy
 			return mdata[index];
 		}
 
+		const S*	c_str() const	{	return mdata.GetArray();	}
+
 		operator S* ()
 		{
 			return mdata.GetArray();
