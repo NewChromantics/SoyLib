@@ -411,6 +411,12 @@ namespace Soy
 			return operator += (s);
 		}
 
+		const String2& operator >> (String2& s)
+		{
+			s << *this;
+			return *this;
+		}
+
 		template <typename S2>
 		String2& operator << (const S2* text)
 		{
@@ -778,7 +784,7 @@ public:
 	BufferString()	{}
 	//BufferString(int size) : Soy::String2(size)	{}
 	template<typename THATARRAYTYPE>
-	BufferString(const Soy::String2<S,THATARRAYTYPE>& s) :	Soy::String2	( s )	{}
+	BufferString(const Soy::String2<S,THATARRAYTYPE>& s) :	Soy::String2<char,BufferArray<char,SIZE> >	( s )	{}
 	BufferString(const S* text) : String2( text )	{}
 
 	template<class THATARRAYTYPE>
