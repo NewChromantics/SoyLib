@@ -16,6 +16,17 @@ void Tesselate(ArrayBridge<ofShapeTriangle2>& Triangles,const ArrayBridge<vec2f>
 float GetArea(ArrayBridge<ofShapeTriangle2>& Triangles);
 float GetArea(const ofPolyline& Polygon);
 
+class ofxSoyRectangle : public ofRectangle
+{
+public:
+	ofxSoyRectangle()	{}
+	
+	void		setLeft(float x)	{	setX(x);	}
+	void		setTop(float y)		{	setY(y);	}
+	void		setRight(float x)	{	setWidth( x - getLeft() );	}
+	void		setBottom(float y)	{	setHeight( y - getTop() );	}
+};
+
 
 class TTransform2
 {
