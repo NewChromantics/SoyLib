@@ -156,6 +156,7 @@ public:
 	ofRectangle		GetBoundsRect() const;
 	float			GetArea() const;
 	void			Transform(const TTransform2& Trans)	{	mLine.Transform( Trans );	}
+	bool			IsInside(const vec2f& Point) const;
 	vec2f			GetNearestPoint(const vec2f& Position) const				{	return mLine.GetNearestPoint( Position );	}
 	vec2f			GetNearestPoint(const vec2f& Position,float& Time) const	{	return mLine.GetNearestPoint( Position, Time );	}
 	void			Accumulate(const ArrayBridge<vec2f>& Points);
@@ -165,6 +166,17 @@ public:
 	ofLine2		mLine;
 	float		mRadius;
 };
+
+template<>
+inline ofShapeCapsule2 ofLerp(const ofShapeCapsule2& start,const ofShapeCapsule2& stop, float amt)
+{
+	ofShapeCapsule2 LerpCapsule;
+	LerpCapsule.mRadius = ofLerp( start.mRadius, stop.mRadius, amt );
+	LerpCapsule.mLine.mStart = ofLerp( start.mLine.mStart, stop.mLine.mStart, amt );
+	LerpCapsule.mLine.mEnd = ofLerp( start.mLine.mEnd, stop.mLine.mEnd, amt );
+	return LerpCapsule;
+}
+
 
 class ofShapePolygon2
 {

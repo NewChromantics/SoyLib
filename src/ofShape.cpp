@@ -694,3 +694,13 @@ ofRectangle ofShapeCapsule2::GetBoundsRect() const
 
 	return ofRectangle( Left, Top, Right-Left, Bottom-Top );
 }
+
+bool ofShapeCapsule2::IsInside(const vec2f& Point) const
+{
+	//	get distance from line
+	float Distance = mLine.GetDistance( Point );
+	if ( Distance > mRadius )
+		return false;
+
+	return true;
+}
