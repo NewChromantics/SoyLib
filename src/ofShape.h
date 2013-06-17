@@ -188,6 +188,13 @@ inline ofShapeCapsule2 ofLerp(const ofShapeCapsule2& start,const ofShapeCapsule2
 	return LerpCapsule;
 }
 
+inline bool ofIsValidFloat(const ofShapeCapsule2& Capsule)
+{
+	return ofIsValidFloat( Capsule.mLine.mStart ) &&
+			ofIsValidFloat( Capsule.mLine.mEnd ) &&
+			ofIsValidFloat( Capsule.mRadius );
+}
+
 
 class ofShapePolygon2
 {
