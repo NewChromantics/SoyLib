@@ -31,6 +31,7 @@ typedef Soy::String2<char,Array<char> >		TString;
 #include "SoyState.h"
 #include "SoyApp.h"
 #include "SoyMath.h"
+#include "SoyOpenCl.h"
 
 
 
