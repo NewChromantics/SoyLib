@@ -29,9 +29,9 @@ typedef Soy::String2<char,Array<char> >		TString;
 #include "SoyTime.h"
 #include "SoyRef.h"
 #include "SoyState.h"
-#include "SoyApp.h"
+//#include "SoyApp.h"
 #include "SoyMath.h"
-#include "SoyOpenCl.h"
+//#include "SoyOpenCl.h"
 
 
 

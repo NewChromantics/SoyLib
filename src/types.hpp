@@ -72,3 +72,27 @@ DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint32 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int64 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint64 );
 
+
+template<class OBJECT>
+class ofMutexT : public OBJECT, public ofMutex
+{
+public:
+	ofMutexT()
+	{
+	}
+	template<typename PARAM>
+	explicit ofMutexT(PARAM& Param) :
+		OBJECT	( Param )
+	{
+	}
+	template<typename PARAM>
+	explicit ofMutexT(const PARAM& Param) :
+		OBJECT	( Param )
+	{
+	}
+
+	OBJECT&			Get()				{	return *this;	}
+	const OBJECT&	Get() const			{	return *this;	}
+	ofMutex&		GetMutex()			{	return *this;	}
+	ofMutex&		GetMutex() const	{	return const_cast<ofMutex&>( static_cast<const ofMutex&>(*this) );	}
+};

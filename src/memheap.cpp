@@ -317,6 +317,7 @@ Improvement summary
 #include <errorrep.h>
 //#include <time.h>
 //#pragma comment(lib,"version.lib")	//for VerQueryValue, GetFileVersionInfo and GetFileVersioInfoSize
+#include "SoyApp.h"
 
 
 

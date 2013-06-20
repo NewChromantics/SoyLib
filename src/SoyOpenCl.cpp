@@ -1,13 +1,93 @@
 #include "ofxSoylent.h"
+#include "SoyOpenCl.h"
+
+
+Poco::Timestamp ofFileLastModified(const char* Path)
+{
+	string FullPath = ofToDataPath( Path );
+	Poco::File File( FullPath );
+	if ( !File.exists() )
+		return Poco::Timestamp(0);
+
+	return File.getLastModified();
+}
+
+bool ofFileExists(const char* Path)
+{
+	Poco::Timestamp LastModified = ofFileLastModified( Path );
+	if ( LastModified == 0 )
+		return false;
+	return true;
+}
+
+
+SoyFileChangeDetector::SoyFileChangeDetector(const char* Filename) :
+	mFilename		( Filename ),
+	mLastModified	( 0 )
+{
+}
+
+
+bool SoyFileChangeDetector::HasChanged()
+{
+	Poco::Timestamp CurrentTimestamp = GetCurrentTimestamp();
+	return mLastModified != CurrentTimestamp;
+}
+
+Poco::Timestamp SoyFileChangeDetector::GetCurrentTimestamp()
+{
+	return ofFileLastModified( mFilename );
+}
+
+void SoyFileChangeDetector::SetLastModified(Poco::Timestamp Timestamp)
+{
+	mLastModified = Timestamp;
+}
+
 
 
 SoyOpenClManager::SoyOpenClManager(prmem::Heap& Heap) :
+	SoyThread	( "SoyOpenClManager" ),
 	mHeap		( Heap ),
 	mShaders	( mHeap )
 {
 	//	init opencl
 	mOpencl.setup( CL_DEVICE_TYPE_ALL, 10 );
+
+	startThread( true, false );
 }
+
+SoyOpenClManager::~SoyOpenClManager()
+{
+	waitForThread();
+}
+
+	
+void SoyOpenClManager::threadedFunction()
+{
+	while ( isThreadRunning() )
+	{
+		//	check if any shader's files have changed
+		Array<SoyOpenClShader*> Shaders;
+		mShaderLock.lock();
+		Shaders = mShaders;
+		mShaderLock.unlock();
+		
+		for ( int i=0;	i<Shaders.GetSize();	i++ )
+		{
+			auto& Shader = *Shaders[i];
+
+			if ( !Shader.HasChanged() )
+				continue;
+
+			//	reload shader
+			Shader.LoadShader();
+		}
+
+		sleep(1000);
+	}
+}
+
 
 bool SoyOpenClManager::IsValid()
 {
@@ -17,29 +97,27 @@ bool SoyOpenClManager::IsValid()
 	return true;
 }
 
-SoyRef SoyOpenClManager::LoadShader(const char* Filename)
+SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename)
 {
 	if ( !IsValid() )
-		return SoyRef();
+		return NULL;
 
 	//	generate a ref
 	BufferString<100> BaseFilename = ofFilePath::getFileName(Filename).c_str();
 	SoyRef ShaderRef = GetUniqueRef( SoyRef(BaseFilename) );
 	if ( !ShaderRef.IsValid() )
-		return SoyRef();
-
-	auto* pProgram = mOpencl.loadProgramFromFile( Filename );
-	if ( !pProgram )
-		return SoyRef();
+		return false;
 
 	//	make new shader
 	ofMutex::ScopedLock Lock( mShaderLock );
-	SoyOpenClShader* pShader = mHeap.Alloc<SoyOpenClShader>( ShaderRef, Filename, *pProgram, *this );
+	SoyOpenClShader* pShader = mHeap.Alloc<SoyOpenClShader>( ShaderRef, Filename, *this );
 	if ( !pShader )
-		return SoyRef();
+		return NULL;
 
 	mShaders.PushBack( pShader );
-	return pShader->GetRef();
+	pShader->LoadShader();
+
+	return pShader;
 }
 
 SoyRef SoyOpenClManager::GetUniqueRef(SoyRef BaseRef)
@@ -79,24 +157,76 @@ SoyOpenClShader* SoyOpenClManager::GetShader(SoyRef ShaderRef)
 }
 
 
-//	load and return kernel
+void SoyOpenClShader::UnloadShader()
+{
+	ofMutex::ScopedLock Lock(mLock);
+
+	//	delete kernels (keep references to the functions for restoring)
+	for ( int k=0;	k<mKernels.GetSize();	k++ )
+	{
+		auto& Kernel = mKernels[k];
+		auto*& pKernel = Kernel.mSecond;
+		if( !pKernel )
+			continue;
+
+		delete pKernel;
+		pKernel = NULL;
+	}
+
+	//	delete program
+	if ( mProgram )
+	{
+		delete mProgram;
+		mProgram = NULL;
+	}
+}
+
+
+bool SoyOpenClShader::LoadShader()
+{
+	ofMutex::ScopedLock Lock(mLock);
+	UnloadShader();
+
+	//	
+	Poco::Timestamp CurrentTimestamp = GetCurrentTimestamp();
+	auto* pProgram = mManager.mOpencl.loadProgramFromFile( mFilename.c_str() );
+	if ( !pProgram )
+		return false;
+	SetLastModified( CurrentTimestamp );
+
+	//	reload kernels
+	for ( int k=0;	k<mKernels.GetSize();	k++ )
+	{
+		auto& Kernel = mKernels[k];
+		GetKernel( Kernel.mFirst );
+	}
+
+	return true;
+}
+
+
 msa::OpenCLKernel* SoyOpenClShader::GetKernel(const char* Name)
 {
-	//	see if it already exists
+	ofMutex::ScopedLock Lock(mLock);
+
+	//	get entry (create if it doesnt exist)
 	auto* pKernelPair = mKernels.Find( Name );
-	if ( pKernelPair )
-		return pKernelPair->mSecond;
+	if ( !pKernelPair )
+	{
+		pKernelPair = &mKernels.PushBack();
+		pKernelPair->mFirst = Name;
+		pKernelPair->mSecond = NULL;
+	}
 
-	//	load
-	auto* pKernel = mManager.mOpencl.loadKernel( Name, mProgram );
-	if ( !pKernel )
-		return NULL;
+	auto*& pKernel = pKernelPair->mSecond;
 
-	//	store
-	auto& KernelPair = mKernels.PushBack();
-	KernelPair.mFirst = Name;
-	assert( KernelPair == Name );
-	KernelPair.mSecond = pKernel;
+	//	program exists/loaded
+	if ( pKernel )
+		return pKernel;
+
+	//	try to load
+	pKernel = mManager.mOpencl.loadKernel( Name, mProgram );
+	
 	return pKernel;
 }
 
