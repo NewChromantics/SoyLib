@@ -327,3 +327,21 @@ inline ofxXmlSettings& operator>>(ofxXmlSettings& xml,const TXmlArrayMeta<OBJECT
 	return xml;
 }
 
+
+inline Poco::Timestamp ofFileLastModified(const char* Path)
+{
+	string FullPath = ofToDataPath( Path );
+	Poco::File File( FullPath );
+	if ( !File.exists() )
+		return Poco::Timestamp(0);
+
+	return File.getLastModified();
+}
+
+inline bool ofFileExists(const char* Path)
+{
+	Poco::Timestamp LastModified = ofFileLastModified( Path );
+	if ( LastModified == 0 )
+		return false;
+	return true;
+}
