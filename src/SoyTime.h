@@ -121,12 +121,13 @@ public:
 		else
 			Stop();
 	}
-	void				Stop(bool DoReport=true)
+	//	returns if a report was output
+	bool				Stop(bool DoReport=true)
 	{
 		if ( mStopped )
 		{
 			mReportedOnLastStop = false;
-			return;
+			return false;
 		}
 
 		SoyTime Now(true);
@@ -134,19 +135,23 @@ public:
 		mAccumulatedTime += Delta;
 
 		mReportedOnLastStop = DoReport;
+		bool DidReport = false;
 		if ( DoReport )
-			Report();
+			DidReport = Report();
 		
 		mStopped = true;
+		return DidReport;
 	}
-	void				Report(bool Force=false)
+	bool				Report(bool Force=false)
 	{
 		if ( mAccumulatedTime >= mWarningTimeMs || Force )
 		{
 			BufferString<200> Debug;
 			Debug << mName << " took " << mAccumulatedTime << "ms to execute";
 			ofLogNotice( static_cast<const char*>( Debug ) );
+			return true;
 		}
+		return false;
 	}
 
 	void				Start(bool Reset=false)
