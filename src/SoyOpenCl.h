@@ -21,6 +21,25 @@ public:
 	BufferString<200>		mFilename;
 };
 
+
+class SoyOpenClKernelRef
+{
+public:
+	SoyOpenClKernelRef()
+	{
+	}
+	SoyOpenClKernelRef(SoyRef Shader,const char* Kernel) :
+		mShader	( Shader ),
+		mKernel	( Kernel )
+	{
+	}
+public:
+	SoyRef				mShader;
+	BufferString<100>	mKernel;
+};
+
+
+
 //	soy-cl-program which auto-reloads if the file changes
 class SoyOpenClShader : public SoyFileChangeDetector
 {
@@ -56,9 +75,11 @@ public:
 
 	virtual void			threadedFunction();
 
+	msa::OpenCLKernel*		GetKernel(SoyOpenClKernelRef KernelRef);
 	bool					IsValid();			//	if not, cannot use opencl
 	SoyOpenClShader*		LoadShader(const char* Filename);	//	returns invalid ref if it couldn't be created
 	SoyOpenClShader*		GetShader(SoyRef ShaderRef);
+	SoyOpenClShader*		GetShader(const char* Filename);
 	SoyRef					GetUniqueRef(SoyRef BaseRef=SoyRef("Shader"));
 
 private:
@@ -70,4 +91,18 @@ public:
 	msa::OpenCL				mOpencl;
 };
 
+
+
+class SoyClShaderRunner
+{
+public:
+	SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager);
+
+	bool					IsValid()		{	return GetKernel();	}
+	msa::OpenCLKernel*		GetKernel()		{	return mManager.GetKernel( mKernelRef );	}
+
+public:
+	SoyOpenClKernelRef	mKernelRef;
+	SoyOpenClManager&	mManager;
+};
 

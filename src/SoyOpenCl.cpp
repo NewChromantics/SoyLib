@@ -1,24 +1,8 @@
 #include "ofxSoylent.h"
 #include "SoyOpenCl.h"
+#include "SoyApp.h"
 
 
-Poco::Timestamp ofFileLastModified(const char* Path)
-{
-	string FullPath = ofToDataPath( Path );
-	Poco::File File( FullPath );
-	if ( !File.exists() )
-		return Poco::Timestamp(0);
-
-	return File.getLastModified();
-}
-
-bool ofFileExists(const char* Path)
-{
-	Poco::Timestamp LastModified = ofFileLastModified( Path );
-	if ( LastModified == 0 )
-		return false;
-	return true;
-}
 
 
 SoyFileChangeDetector::SoyFileChangeDetector(const char* Filename) :
@@ -97,25 +81,45 @@ bool SoyOpenClManager::IsValid()
 	return true;
 }
 
+msa::OpenCLKernel* SoyOpenClManager::GetKernel(SoyOpenClKernelRef KernelRef)
+{
+	auto* pShader = GetShader( KernelRef.mShader );
+	if ( !pShader )
+		return NULL;
+
+	return pShader->GetKernel( KernelRef.mKernel );
+}
+
+
 SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename)
 {
 	if ( !IsValid() )
 		return NULL;
 
-	//	generate a ref
-	BufferString<100> BaseFilename = ofFilePath::getFileName(Filename).c_str();
-	SoyRef ShaderRef = GetUniqueRef( SoyRef(BaseFilename) );
-	if ( !ShaderRef.IsValid() )
-		return false;
+	//	see if it already exists
+	auto* pShader = GetShader( Filename );
 
-	//	make new shader
-	ofMutex::ScopedLock Lock( mShaderLock );
-	SoyOpenClShader* pShader = mHeap.Alloc<SoyOpenClShader>( ShaderRef, Filename, *this );
+	//	make new one if it doesnt exist
 	if ( !pShader )
-		return NULL;
+	{
+		//	generate a ref
+		BufferString<100> BaseFilename = ofFilePath::getFileName(Filename).c_str();
+		SoyRef ShaderRef = GetUniqueRef( SoyRef(BaseFilename) );
+		if ( !ShaderRef.IsValid() )
+			return NULL;
 
-	mShaders.PushBack( pShader );
-	pShader->LoadShader();
+		//	make new shader
+		ofMutex::ScopedLock Lock( mShaderLock );
+		pShader = mHeap.Alloc<SoyOpenClShader>( ShaderRef, Filename, *this );
+		if ( !pShader )
+			return NULL;
+
+		mShaders.PushBack( pShader );
+	}
+
+	//	load (in case it needs it)
+	if ( pShader->HasChanged() )
+		pShader->LoadShader();
 
 	return pShader;
 }
@@ -151,6 +155,19 @@ SoyOpenClShader* SoyOpenClManager::GetShader(SoyRef ShaderRef)
 	{
 		auto& Shader = *mShaders[s];
 		if ( Shader == ShaderRef )
+			return &Shader;
+	}
+	return NULL;
+}
+
+
+SoyOpenClShader* SoyOpenClManager::GetShader(const char* Filename)
+{
+	ofMutex::ScopedLock Lock( mShaderLock );
+	for ( int s=0;	s<mShaders.GetSize();	s++ )
+	{
+		auto& Shader = *mShaders[s];
+		if ( Shader.mFilename.StartsWith(Filename,false) )
 			return &Shader;
 	}
 	return NULL;
@@ -232,4 +249,18 @@ msa::OpenCLKernel* SoyOpenClShader::GetKernel(const char* Name)
 
 
 
+
+
+
+
+SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager) :
+	mManager	( Manager )
+{
+	//	load shader
+	auto* pShader = mManager.LoadShader( Shader );
+	if ( pShader )
+		mKernelRef.mShader = pShader->GetRef();
+
+	mKernelRef.mKernel = Kernel;
+}
 
