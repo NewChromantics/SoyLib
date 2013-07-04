@@ -157,6 +157,11 @@ public:
 		return GetSize() * sizeof(T);
 	}
 
+	static int GetElementSize()
+	{
+		return sizeof(T);
+	}
+
 	const T* GetArray() const
 	{
 		return mdata;
@@ -167,7 +172,7 @@ public:
 		return mdata;
 	}
 
-	void SetSize(int size, bool preserve = false,bool AllowLess=false)
+	void SetSize(int size, bool preserve=true,bool AllowLess=true)
 	{
 		assert( size >= 0 );
 		if ( size < 0 )	

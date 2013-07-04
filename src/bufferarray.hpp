@@ -148,7 +148,7 @@
 		}
 
 		//	gr: AllowLess does nothing here, but the parameter is kept to match other Array types (in case it's used in template funcs for example)
-		void SetSize(int size, bool preserve = false,bool AllowLess=false)
+		void SetSize(int size, bool preserve=true,bool AllowLess=true)
 		{
 			assert( size >= 0 );
 			if ( size < 0 )	

@@ -58,7 +58,7 @@
 		virtual int			GetDataSize() const=0;
 		virtual const T*	GetArray() const=0;
 		virtual T*			GetArray()=0;
-		virtual void		SetSize(int size,bool preserve=false,bool AllowLess=false)=0;
+		virtual void		SetSize(int size,bool preserve=true,bool AllowLess=false)=0;
 		virtual void		Reserve(int size,bool clear=true)=0;
 		virtual T*			PushBlock(int count)=0;
 		virtual T&			PushBack(const T& item)=0;
@@ -289,7 +289,7 @@ public:
 		return mdata;
 	}
 
-	void SetSize(int size,bool preserve=false,bool AllowLess=false)
+	void SetSize(int size,bool preserve=true,bool AllowLess=true)
 	{
 		assert( size >= 0 );
 		if ( size < 0 )	
