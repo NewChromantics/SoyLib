@@ -81,7 +81,7 @@ bool SoyOpenClManager::IsValid()
 	return true;
 }
 
-msa::OpenCLKernel* SoyOpenClManager::GetKernel(SoyOpenClKernelRef KernelRef)
+SoyOpenClKernel* SoyOpenClManager::GetKernel(SoyOpenClKernelRef KernelRef)
 {
 	auto* pShader = GetShader( KernelRef.mShader );
 	if ( !pShader )
@@ -178,16 +178,13 @@ void SoyOpenClShader::UnloadShader()
 {
 	ofMutex::ScopedLock Lock(mLock);
 
-	//	delete kernels (keep references to the functions for restoring)
+	//	delete kernel programs, but keep entries so we have the function names to reload
 	for ( int k=0;	k<mKernels.GetSize();	k++ )
 	{
-		auto& Kernel = mKernels[k];
-		auto*& pKernel = Kernel.mSecond;
-		if( !pKernel )
-			continue;
+		auto& Kernel = *mKernels[k];
 
-		delete pKernel;
-		pKernel = NULL;
+		Kernel.DeleteKernel();
+
 	}
 
 	//	delete program
@@ -206,8 +203,14 @@ bool SoyOpenClShader::LoadShader()
 
 	//	
 	Poco::Timestamp CurrentTimestamp = GetCurrentTimestamp();
-	auto* pProgram = mManager.mOpencl.loadProgramFromFile( mFilename.c_str() );
-	if ( !pProgram )
+
+	//	file gone missing
+	if ( CurrentTimestamp == Poco::Timestamp(0) )
+		return false;
+
+	//	let this continue if we have build errors? so it doesnt keep trying to reload...
+	mProgram = mManager.mOpencl.loadProgramFromFile( mFilename.c_str() );
+	if ( !mProgram )
 		return false;
 	SetLastModified( CurrentTimestamp );
 
@@ -215,34 +218,43 @@ bool SoyOpenClShader::LoadShader()
 	for ( int k=0;	k<mKernels.GetSize();	k++ )
 	{
 		auto& Kernel = mKernels[k];
-		GetKernel( Kernel.mFirst );
+		GetKernel( Kernel->mName );
 	}
 
 	return true;
 }
 
+SoyOpenClKernel* SoyOpenClShader::FindKernel(const char* Name)
+{
+	for ( int k=0;	k<mKernels.GetSize();	k++ )
+	{
+		auto& Kernel = *mKernels[k];
+		if ( Kernel == Name )
+			return &Kernel;
+	}
+	return NULL;
+}
 
-msa::OpenCLKernel* SoyOpenClShader::GetKernel(const char* Name)
+SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name)
 {
 	ofMutex::ScopedLock Lock(mLock);
 
 	//	get entry (create if it doesnt exist)
-	auto* pKernelPair = mKernels.Find( Name );
-	if ( !pKernelPair )
+	auto* pKernel = FindKernel( Name );
+	if ( !pKernel )
 	{
-		pKernelPair = &mKernels.PushBack();
-		pKernelPair->mFirst = Name;
-		pKernelPair->mSecond = NULL;
+		pKernel = new SoyOpenClKernel( Name );
+		mKernels.PushBack( pKernel );
 	}
 
-	auto*& pKernel = pKernelPair->mSecond;
-
 	//	program exists/loaded
-	if ( pKernel )
+	if ( pKernel->mKernel )
 		return pKernel;
 
 	//	try to load
-	pKernel = mManager.mOpencl.loadKernel( Name, mProgram );
+	//	gr: check the program, the MSAopencl implementation allows NULL 
+	if ( mProgram )
+		pKernel->mKernel = mManager.mOpencl.loadKernel( pKernel->mName.c_str(), mProgram );
 	
 	return pKernel;
 }
@@ -264,3 +276,15 @@ SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOp
 	mKernelRef.mKernel = Kernel;
 }
 
+
+void SoyOpenClKernel::DeleteKernel()
+{
+	//	lock so we dont delete mid-use
+	ofMutex::ScopedLock Lock( mArgLock );
+
+	if ( !mKernel )
+		return;
+
+	delete mKernel;
+	mKernel = NULL;
+}

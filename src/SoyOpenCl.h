@@ -39,6 +39,28 @@ public:
 };
 
 
+class SoyOpenClKernel
+{
+public:
+	SoyOpenClKernel(const char* Name) :
+		mName	( Name ),
+		mKernel	( NULL )
+	{
+	}
+	~SoyOpenClKernel()
+	{
+		DeleteKernel();
+	}
+
+	bool				IsValid() const			{	return mKernel!=NULL;	}
+	void				DeleteKernel();
+	inline bool			operator==(const char* Name) const	{	return mName == Name;	}
+
+public:
+	BufferString<100>	mName;
+	msa::OpenCLKernel*	mKernel;
+	ofMutex				mArgLock;	//	http://www.khronos.org/message_boards/showthread.php/6788-Multiple-host-threads-with-single-command-queue-and-device
+};
 
 //	soy-cl-program which auto-reloads if the file changes
 class SoyOpenClShader : public SoyFileChangeDetector
@@ -55,16 +77,19 @@ public:
 
 	bool				LoadShader();
 	void				UnloadShader();
-	msa::OpenCLKernel*	GetKernel(const char* Name);		//	load and return kernel
+	SoyOpenClKernel*	GetKernel(const char* Name);		//	load and return kernel
 	SoyRef				GetRef() const						{	return mRef;	}
 	inline bool			operator==(const SoyRef& Ref) const	{	return GetRef() == Ref;	}
+
+private:
+	SoyOpenClKernel*		FindKernel(const char* Name);
 
 private:
 	ofMutex					mLock;			//	lock whilst in use so we don't reload whilst loading new file
 	msa::OpenCLProgram*		mProgram;		//	shader/file
 	SoyOpenClManager&		mManager;
 	SoyRef					mRef;
-	Array<SoyPair<BufferString<100>,msa::OpenCLKernel*>>	mKernels;
+	Array<SoyOpenClKernel*>	mKernels;
 };
 
 class SoyOpenClManager : public SoyThread
@@ -75,7 +100,7 @@ public:
 
 	virtual void			threadedFunction();
 
-	msa::OpenCLKernel*		GetKernel(SoyOpenClKernelRef KernelRef);
+	SoyOpenClKernel*		GetKernel(SoyOpenClKernelRef KernelRef);
 	bool					IsValid();			//	if not, cannot use opencl
 	SoyOpenClShader*		LoadShader(const char* Filename);	//	returns invalid ref if it couldn't be created
 	SoyOpenClShader*		GetShader(SoyRef ShaderRef);
@@ -98,8 +123,8 @@ class SoyClShaderRunner
 public:
 	SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager);
 
-	bool					IsValid()		{	return GetKernel();	}
-	msa::OpenCLKernel*		GetKernel()		{	return mManager.GetKernel( mKernelRef );	}
+	bool				IsValid()		{	return GetKernel();	}
+	SoyOpenClKernel*	GetKernel()		{	return mManager.GetKernel( mKernelRef );	}
 
 public:
 	SoyOpenClKernelRef	mKernelRef;
