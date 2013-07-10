@@ -65,7 +65,11 @@ void SoyOpenClManager::threadedFunction()
 				continue;
 
 			//	reload shader
-			Shader.LoadShader();
+			if ( Shader.LoadShader() )
+			{
+				auto* pShader = &Shader;
+				ofNotifyEvent( mOnShaderLoaded, pShader );
+			}
 		}
 
 		sleep(1000);
@@ -119,7 +123,12 @@ SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename)
 
 	//	load (in case it needs it)
 	if ( pShader->HasChanged() )
-		pShader->LoadShader();
+	{
+		if ( pShader->LoadShader() )
+		{
+			ofNotifyEvent( mOnShaderLoaded, pShader );
+		}
+	}
 
 	return pShader;
 }
