@@ -59,7 +59,7 @@
 		virtual const T*	GetArray() const=0;
 		virtual T*			GetArray()=0;
 		virtual void		SetSize(int size,bool preserve=true,bool AllowLess=false)=0;
-		virtual void		Reserve(int size,bool clear=true)=0;
+		virtual void		Reserve(int size,bool clear=false)=0;
 		virtual T*			PushBlock(int count)=0;
 		virtual T&			PushBack(const T& item)=0;
 		virtual T&			PushBack()=0;
@@ -339,7 +339,7 @@ public:
 		moffset  = size;
 	}
 
-	void Reserve(int size,bool clear=true)
+	void Reserve(int size,bool clear=false)
 	{
 		assert( size >= 0 );
 		if ( clear )

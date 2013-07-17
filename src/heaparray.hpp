@@ -230,7 +230,7 @@ public:
 		moffset  = size;
 	}
 
-	void Reserve(int size,bool clear=true)
+	void Reserve(int size,bool clear=false)
 	{
 		assert( size >= 0 );
 		if ( clear )

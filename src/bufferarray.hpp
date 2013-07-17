@@ -163,7 +163,7 @@
 			moffset = size;
 		}
 
-		void Reserve(int size,bool clear=true)
+		void Reserve(int size,bool clear=false)
 		{
 			if ( clear )
 			{
