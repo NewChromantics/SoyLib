@@ -107,6 +107,7 @@ public:
 	SoyOpenClShader*		GetShader(SoyRef ShaderRef);
 	SoyOpenClShader*		GetShader(const char* Filename);
 	SoyRef					GetUniqueRef(SoyRef BaseRef=SoyRef("Shader"));
+	prmem::Heap&			GetHeap()		{	return mHeap;	}
 
 private:
 	prmem::Heap&			mHeap;
