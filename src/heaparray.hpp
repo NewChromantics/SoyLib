@@ -557,6 +557,29 @@ public:
 		for ( int i=0;	i<GetSize();	i++ )
 			mdata[i] = Value;
 	}
+	void	SetAll(const T& Value)
+	{
+		//	attempt non-complex memset if element can be broken into a byte
+		if ( !Soy::IsComplexType<T>() )
+		{
+			bool AllSame = true;
+			const uint8* pValue = reinterpret_cast<const uint8*>( &Value );
+			for ( int i=1;	i<sizeof(Value);	i++ )
+			{
+				if ( pValue[i] == pValue[i-1] )
+					continue;
+				AllSame = false;
+			}
+			if ( AllSame )
+			{
+				memset( mdata, pValue[0], GetDataSize() );
+				return;
+			}
+		}
+
+		for ( int i=0;	i<GetSize();	i++ )
+			mdata[i] = Value;
+	}
 
 	template<class ARRAYTYPE>
 	inline bool	operator==(const ARRAYTYPE& Array)
