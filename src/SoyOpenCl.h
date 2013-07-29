@@ -12,11 +12,12 @@ class SoyFileChangeDetector
 public:
 	SoyFileChangeDetector(const char* Filename);
 
-	bool					HasChanged();
-	Poco::Timestamp			GetCurrentTimestamp();	//	get the file's current timestamp
-	void					SetLastModified(Poco::Timestamp Timestamp);
+	bool						HasChanged();
+	Poco::Timestamp				GetCurrentTimestamp();	//	get the file's current timestamp
+	void						SetLastModified(Poco::Timestamp Timestamp);
+	const BufferString<200>&	GetFilename() const	{	return mFilename;	}
 
-public:
+private:
 	Poco::Timestamp			mLastModified;
 	BufferString<200>		mFilename;
 };
@@ -66,11 +67,12 @@ public:
 class SoyOpenClShader : public SoyFileChangeDetector
 {
 public:
-	SoyOpenClShader(SoyRef Ref,const char* Filename,SoyOpenClManager& Manager) :
+	SoyOpenClShader(SoyRef Ref,const char* Filename,const char* BuildOptions,SoyOpenClManager& Manager) :
 		SoyFileChangeDetector	( Filename ),
 		mRef					( Ref ),
 		mManager				( Manager ),
-		mProgram				( NULL )
+		mProgram				( NULL ),
+		mBuildOptions			( BuildOptions )
 	{
 	}
 	~SoyOpenClShader()	{	UnloadShader();	}
@@ -79,7 +81,8 @@ public:
 	void				UnloadShader();
 	SoyOpenClKernel*	GetKernel(const char* Name);		//	load and return kernel
 	SoyRef				GetRef() const							{	return mRef;	}
-	inline bool			operator==(const char* Filename) const	{	return mFilename.StartsWith( Filename, false );	}
+	const char*			GetBuildOptions() const					{	return mBuildOptions;	}
+	inline bool			operator==(const char* Filename) const	{	return GetFilename().StartsWith( Filename, false );	}
 	inline bool			operator==(const SoyRef& Ref) const		{	return GetRef() == Ref;	}
 
 private:
@@ -91,6 +94,7 @@ private:
 	SoyOpenClManager&		mManager;
 	SoyRef					mRef;
 	Array<SoyOpenClKernel*>	mKernels;
+	BufferString<100>		mBuildOptions;
 };
 
 class SoyOpenClManager : public SoyThread
@@ -103,7 +107,7 @@ public:
 
 	SoyOpenClKernel*		GetKernel(SoyOpenClKernelRef KernelRef);
 	bool					IsValid();			//	if not, cannot use opencl
-	SoyOpenClShader*		LoadShader(const char* Filename);	//	returns invalid ref if it couldn't be created
+	SoyOpenClShader*		LoadShader(const char* Filename,const char* BuildOptions);	//	returns invalid ref if it couldn't be created
 	SoyOpenClShader*		GetShader(SoyRef ShaderRef);
 	SoyOpenClShader*		GetShader(const char* Filename);
 	SoyRef					GetUniqueRef(SoyRef BaseRef=SoyRef("Shader"));
@@ -124,7 +128,7 @@ public:
 class SoyClShaderRunner
 {
 public:
-	SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager);
+	SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,const char* BuildOptions=NULL);
 
 	bool				IsValid()		
 	{
@@ -143,14 +147,23 @@ public:
 
 class SoyClDataBuffer
 {
+private:
+	SoyClDataBuffer(const SoyClDataBuffer& That) :
+		mManager	( *(SoyOpenClManager*)NULL)
+	{
+	}
 public:
 	template<typename TYPE>
-	explicit SoyClDataBuffer(const TYPE& Data,cl_int ReadWriteMode=CL_MEM_READ_WRITE)
+	explicit SoyClDataBuffer(SoyOpenClManager& Manager,const TYPE& Data,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( NULL ),
+		mManager	( Manager )
 	{
 		Write( Data, ReadWriteMode );
 	}
 	template<typename TYPE>
-	explicit SoyClDataBuffer(const Array<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE)
+	explicit SoyClDataBuffer(SoyOpenClManager& Manager,const Array<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( NULL ),
+		mManager	( Manager )
 	{
 		Write( Array, ReadWriteMode );
 	}
@@ -158,32 +171,53 @@ public:
 	template<typename TYPE>
 	bool		Write(const Array<TYPE>& Array,cl_int ReadWriteMode)
 	{
-		return mBuffer.initBuffer( Array.GetDataSize(), ReadWriteMode, const_cast<TYPE*>(Array.GetArray()), true );
+		assert( mBuffer == NULL );
+		mBuffer = mManager.mOpencl.createBuffer( Array.GetDataSize(), ReadWriteMode, const_cast<TYPE*>(Array.GetArray()), true );
+		return (mBuffer!=NULL);
 	}
 	template<typename TYPE>
 	bool		Write(const TYPE& Data,cl_int ReadWriteMode)
 	{
-		return mBuffer.initBuffer( sizeof(TYPE), ReadWriteMode, &const_cast<TYPE&>(Data), true );
+		assert( mBuffer == NULL );
+		mBuffer = mManager.mOpencl.createBuffer( sizeof(TYPE), ReadWriteMode, &const_cast<TYPE&>(Data), true );
+		return (mBuffer!=NULL);
+	}
+
+	~SoyClDataBuffer()
+	{
+		if ( mBuffer )
+		{
+			mManager.mOpencl.deleteBuffer( mBuffer );
+		}
 	}
 
 	template<typename TYPE>
 	bool		Read(Array<TYPE>& Array,int ElementCount=-1)
 	{
+		if ( !mBuffer )
+			return false;
 		if ( ElementCount < 0 )
 			ElementCount = Array.GetSize();
 		Array.SetSize( ElementCount );
 		if ( Array.IsEmpty() )
 			return true;
-		return mBuffer.read( Array.GetArray(), 0, Array.GetDataSize(), true );
+		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), true );
 	}
 
 	template<typename TYPE>
 	bool		Read(TYPE& Data)
 	{
-		return mBuffer.read( &Data, 0, sizeof(TYPE), true );
+		if ( !mBuffer )
+			return false;
+		return mBuffer->read( &Data, 0, sizeof(TYPE), true );
 	}
 
+	bool		IsValid() const		{	return mBuffer;	}
+	operator	bool()				{	return IsValid();	}
+	cl_mem&		getCLMem()			{	static cl_mem Dummy;	assert( mBuffer );	return mBuffer ? mBuffer->getCLMem() : Dummy;	}
+
 public:
-	msa::OpenCLBuffer	mBuffer;
+	msa::OpenCLBuffer*	mBuffer;
+	SoyOpenClManager&	mManager;
 };
 

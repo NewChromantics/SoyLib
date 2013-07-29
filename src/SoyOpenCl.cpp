@@ -95,7 +95,7 @@ SoyOpenClKernel* SoyOpenClManager::GetKernel(SoyOpenClKernelRef KernelRef)
 }
 
 
-SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename)
+SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename,const char* BuildOptions)
 {
 	if ( !IsValid() )
 		return NULL;
@@ -114,7 +114,7 @@ SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename)
 
 		//	make new shader
 		ofMutex::ScopedLock Lock( mShaderLock );
-		pShader = mHeap.Alloc<SoyOpenClShader>( ShaderRef, Filename, *this );
+		pShader = mHeap.Alloc<SoyOpenClShader>( ShaderRef, Filename, BuildOptions, *this );
 		if ( !pShader )
 			return NULL;
 
@@ -176,7 +176,7 @@ SoyOpenClShader* SoyOpenClManager::GetShader(const char* Filename)
 	for ( int s=0;	s<mShaders.GetSize();	s++ )
 	{
 		auto& Shader = *mShaders[s];
-		if ( Shader.mFilename.StartsWith(Filename,false) )
+		if ( Shader.GetFilename().StartsWith(Filename,false) )
 			return &Shader;
 	}
 	return NULL;
@@ -218,7 +218,7 @@ bool SoyOpenClShader::LoadShader()
 		return false;
 
 	//	let this continue if we have build errors? so it doesnt keep trying to reload...
-	mProgram = mManager.mOpencl.loadProgramFromFile( mFilename.c_str() );
+	mProgram = mManager.mOpencl.loadProgramFromFile( GetFilename().c_str(), false, GetBuildOptions() );
 	if ( !mProgram )
 		return false;
 	SetLastModified( CurrentTimestamp );
@@ -274,11 +274,11 @@ SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name)
 
 
 
-SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager) :
+SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,const char* BuildOptions) :
 	mManager	( Manager )
 {
 	//	load shader
-	auto* pShader = mManager.LoadShader( Shader );
+	auto* pShader = mManager.LoadShader( Shader, BuildOptions );
 	if ( pShader )
 		mKernelRef.mShader = pShader->GetRef();
 
