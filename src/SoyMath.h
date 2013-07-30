@@ -160,6 +160,48 @@ inline const STRING& operator>>(const STRING& str,ofVec2f& Value)
 }
 
 template<class STRING>
+inline STRING& operator<<(STRING& str,const ofColour& Value)
+{
+	str << static_cast<int>(Value.r) << ',' << static_cast<int>(Value.g) << ',' << static_cast<int>(Value.b);
+	return str;
+}
+
+template<class STRING>
+inline STRING& operator<<(STRING& str,const ofColor_<float>& Value)
+{
+	str << Value.r << ',' << Value.g << ',' << Value.b;
+	return str;
+}
+
+template<class STRING>
+inline const STRING& operator>>(const STRING& str,ofColour& Value)
+{
+	BufferArray<float,4> Floats;
+	str.GetFloatArray( Floats );
+	
+	Value.r = (Floats.GetSize() >= 1) ? Floats[0] : 0;
+	Value.g = (Floats.GetSize() >= 2) ? Floats[1] : 0;
+	Value.b = (Floats.GetSize() >= 3) ? Floats[2] : 0;
+	Value.a = (Floats.GetSize() >= 4) ? Floats[3] : 0;
+
+	return str;
+}
+
+template<class STRING>
+inline const STRING& operator>>(const STRING& str,ofColor_<float>& Value)
+{
+	BufferArray<float,4> Floats;
+	str.GetFloatArray( Floats );
+	
+	Value.r = (Floats.GetSize() >= 1) ? Floats[0] : 0;
+	Value.g = (Floats.GetSize() >= 2) ? Floats[1] : 0;
+	Value.b = (Floats.GetSize() >= 3) ? Floats[2] : 0;
+	Value.a = (Floats.GetSize() >= 4) ? Floats[3] : 0;
+
+	return str;
+}
+
+template<class STRING>
 inline const STRING& operator>>(const STRING& str,float& Value)
 {
 	str.GetFloat( Value );
