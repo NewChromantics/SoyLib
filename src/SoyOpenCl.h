@@ -140,6 +140,7 @@ public:
 public:
 	SoyOpenClKernelRef	mKernelRef;
 	SoyOpenClManager&	mManager;
+	prmem::Heap&		mHeap;
 };
 
 
@@ -172,14 +173,17 @@ public:
 	bool		Write(const Array<TYPE>& Array,cl_int ReadWriteMode)
 	{
 		assert( mBuffer == NULL );
-		mBuffer = mManager.mOpencl.createBuffer( Array.GetDataSize(), ReadWriteMode, const_cast<TYPE*>(Array.GetArray()), true );
+		//	gr: only write data if we're NOT write-only memory
+		void* pData = (ReadWriteMode&CL_MEM_WRITE_ONLY) ? NULL : const_cast<TYPE*>(Array.GetArray());
+		mBuffer = mManager.mOpencl.createBuffer( Array.GetDataSize(), ReadWriteMode, pData, true );
 		return (mBuffer!=NULL);
 	}
 	template<typename TYPE>
 	bool		Write(const TYPE& Data,cl_int ReadWriteMode)
 	{
 		assert( mBuffer == NULL );
-		mBuffer = mManager.mOpencl.createBuffer( sizeof(TYPE), ReadWriteMode, &const_cast<TYPE&>(Data), true );
+		void* pData = (ReadWriteMode&CL_MEM_WRITE_ONLY) ? NULL : &const_cast<TYPE&>(Data);
+		mBuffer = mManager.mOpencl.createBuffer( sizeof(TYPE), ReadWriteMode, pData, true );
 		return (mBuffer!=NULL);
 	}
 

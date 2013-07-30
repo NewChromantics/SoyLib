@@ -72,7 +72,7 @@ void SoyOpenClManager::threadedFunction()
 			}
 		}
 
-		sleep(1000);
+		sleep(2000);
 	}
 }
 
@@ -275,7 +275,8 @@ SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name)
 
 
 SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,const char* BuildOptions) :
-	mManager	( Manager )
+	mManager	( Manager ),
+	mHeap		( mManager.GetHeap() )
 {
 	//	load shader
 	auto* pShader = mManager.LoadShader( Shader, BuildOptions );
