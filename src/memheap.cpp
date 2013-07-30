@@ -564,7 +564,7 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 		Debug << AllocItems.GetSize() << " objects allocated on heap " << OwnerHeap.GetName();
 		Debug << " (Heap reports " << OwnerHeap.GetAllocCount() << " objects allocated.)";
 		Debug << "\n";
-		ofLog( OF_LOG_VERBOSE, Debug );
+		ofLog( OF_LOG_NOTICE, Debug );
 	}
 
 	for ( int i=0;	i<AllocItems.GetSize();	i++ )
@@ -604,7 +604,7 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 		}
 #endif
 
-		ofLog( OF_LOG_VERBOSE, Debug );
+		ofLog( OF_LOG_NOTICE, Debug );
 	}
 }
 
@@ -1134,4 +1134,47 @@ bool SoyDebug::GetCallStack(ArrayBridge<ofStackEntry>& Stack,int StackSkip)
 #endif
 
 	return false;
+}
+
+
+void prmem::HeapInfo::OnFailedAlloc(const char* TypeName,int TypeSize,int ElementCount) const
+{
+	//	print out debug state of current heap
+	BufferString<1000> Debug;
+	Debug << "Failed to allocate " << TypeName << "x " << ElementCount << " (" << Soy::FormatSizeBytes( TypeSize * ElementCount ) << ")\n";
+	ofLogError( Debug.c_str() );
+	
+	//	show heap stats
+	Debug_DumpInfoToOutput();
+
+	//	show dump too
+	auto* pHeapDebug = GetDebug();
+	if ( pHeapDebug )
+	{
+		pHeapDebug->DumpToOutput( *this );
+	}
+
+	//	show all the other heaps stats too
+	ofLogError( "Other heaps...\n" );
+	
+	auto& Heaps = prmem::GetHeaps();
+	for ( int h=0;	Heaps.GetSize();	h++ )
+	{
+		auto& Heap = *Heaps[h];
+		Heap.Debug_DumpInfoToOutput();
+	}
+	
+}
+
+
+void prmem::HeapInfo::Debug_DumpInfoToOutput() const
+{
+	//	print out debug state of current heap
+	BufferString<1000> Debug;
+	Debug << "Heap Name: " << GetName() << "\n";
+	Debug << "Heap Allocation: " << Soy::FormatSizeBytes( GetAllocatedBytes() ) << " (peak: " << Soy::FormatSizeBytes( GetAllocatedBytesPeak() ) << ")\n";
+	Debug << "Heap Alloc Count: " << GetAllocCount() << " (peak: " << GetAllocCountPeak() << ")\n";
+	Debug << "\n";
+	ofLogNotice( Debug.c_str() );
+
 }

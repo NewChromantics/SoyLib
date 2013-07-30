@@ -118,6 +118,8 @@ namespace prmem
 		inline uint32			GetAllocatedBytesPeak() const		{	return mAllocBytesPeak;	}
 		inline uint32			GetAllocCountPeak() const			{	return mAllocCountPeak;	}
 
+		void					Debug_DumpInfoToOutput() const;		//	print out name, allocation(peak)
+
 		//	validate the heap. Checks for corruption (out-of-bounds writes). If an object is passed, just that one allocation is checked. 
 		//	"On a system set up for debugging, the HeapValidate function then displays debugging messages that describe the part of the heap or memory block that is invalid, and stops at a hard-coded breakpoint so that you can examine the system to determine the source of the invalidity"
 		//	returns true if heap is OK
@@ -139,6 +141,7 @@ namespace prmem
 			mAllocBytes -= ( Bytes > mAllocBytes ) ? mAllocBytes : Bytes;
 			mAllocCount -= ( BlockCount > mAllocCount ) ? mAllocCount : BlockCount;
 		}
+		void					OnFailedAlloc(const char* TypeName,int TypeSize,int Elements) const;
 
 	protected:
 		BufferString<100>	mName;	//	name for easy debugging purposes
@@ -405,7 +408,11 @@ namespace prmem
 		{
 			TYPE* pData = static_cast<TYPE*>( HeapAlloc( mHandle, 0x0, Elements*sizeof(TYPE) ) );
 			if ( !pData )
+			{
+				const char* TypeName = Soy::GetTypeName<TYPE>();
+				OnFailedAlloc( TypeName, sizeof(TYPE), Elements );
 				return NULL;
+			}
 			if ( mHeapDebug )
 				mHeapDebug->OnAlloc( pData, Elements );
 			OnAlloc( pData ? Elements*sizeof(TYPE) : 0, 1 );
