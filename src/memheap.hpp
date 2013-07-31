@@ -9,7 +9,8 @@
 #include <queue>
 
 #define ENABLE_STACKTRACE
-#define ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION	true
+#define ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION	false	//	catch corruption in constructors
+#define ENABLE_DEBUG_VERIFY_AFTER_DESTRUCTION	false	//	catch corruption in an objects lifetime (kinda)
 
 
 //	helpful class for tracking allocations or similar in a simple wrapped-up class
@@ -378,7 +379,7 @@ namespace prmem
 		{
 			//	destruct
 			pObject->~TYPE();
-			if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
+			if ( ENABLE_DEBUG_VERIFY_AFTER_DESTRUCTION )
 				Debug_Validate();
 
 			return RealFree( pObject, 1 );
@@ -395,7 +396,7 @@ namespace prmem
 				while ( e )
 					pObject[--e].~TYPE();
 		
-				if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
+				if ( ENABLE_DEBUG_VERIFY_AFTER_DESTRUCTION )
 					Debug_Validate();
 			}
 
@@ -409,6 +410,10 @@ namespace prmem
 			TYPE* pData = static_cast<TYPE*>( HeapAlloc( mHandle, 0x0, Elements*sizeof(TYPE) ) );
 			if ( !pData )
 			{
+				//	if we fail, do a heap validation, this will reveal corruption, rather than OOM
+				Debug_Validate();
+
+				//	report failed alloc regardless
 				const char* TypeName = Soy::GetTypeName<TYPE>();
 				OnFailedAlloc( TypeName, sizeof(TYPE), Elements );
 				return NULL;
