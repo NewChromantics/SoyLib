@@ -95,9 +95,10 @@ public:
 	}
 
 	template<typename ARRAYTYPE>
-	void Copy(const ARRAYTYPE& v)
+	bool Copy(const ARRAYTYPE& v)
 	{
-		SetSize(v.GetSize(),false,true);
+		if ( !SetSize(v.GetSize(),false,true) )
+			return false;
 
 		if ( DoComplexCopy(v) )
 		{
@@ -108,6 +109,7 @@ public:
 		{
 			memcpy( mdata, v.GetArray(), GetSize() * sizeof(T) );
 		}
+		return true;
 	}
 
 	//	different type array, must do complex copy.
@@ -172,7 +174,7 @@ public:
 		return mdata;
 	}
 
-	void SetSize(int size, bool preserve=true,bool AllowLess=true)
+	bool SetSize(int size, bool preserve=true,bool AllowLess=true)
 	{
 		assert( size >= 0 );
 		if ( size < 0 )	
@@ -181,13 +183,13 @@ public:
 		if ( size == mmaxsize )
 		{
 			moffset = size;
-			return;
+			return true;
 		}
 
 		if ( AllowLess && size <= mmaxsize )
 		{
 			moffset = size;
-			return;
+			return true;
 		}
 
 		T* array = NULL;
@@ -199,6 +201,10 @@ public:
 				array = mHeap->AllocArray<T>(size);
 			else
 				array = new T[size];
+
+			//	failed alloc
+			if ( !array )
+				return false;
 
 			if ( mdata && preserve )
 			{
@@ -228,6 +234,7 @@ public:
 		mdata    = array;
 		mmaxsize = size;
 		moffset  = size;
+		return true;
 	}
 
 	void Reserve(int size,bool clear=false)

@@ -76,9 +76,10 @@
 		}
 
 		template<class ARRAYTYPE>
-		void Copy(const ARRAYTYPE& v)
+		bool Copy(const ARRAYTYPE& v)
 		{
-			SetSize( v.GetSize(),false );
+			if ( !SetSize( v.GetSize(),false ) )
+				return false;
 
 			if ( DoComplexCopy(v) )
 			{
@@ -89,6 +90,7 @@
 			{
 				memcpy( mdata, v.GetArray(), GetSize() * sizeof(T) );
 			}
+			return true;
 		}
 
 		//	different type array, must do complex copy.
@@ -148,19 +150,25 @@
 		}
 
 		//	gr: AllowLess does nothing here, but the parameter is kept to match other Array types (in case it's used in template funcs for example)
-		void SetSize(int size, bool preserve=true,bool AllowLess=true)
+		bool SetSize(int size, bool preserve=true,bool AllowLess=true)
 		{
 			assert( size >= 0 );
 			if ( size < 0 )	
 				size = 0;
 
 			//	limit size
+			//	gr: assert, safely alloc, and return error. Maybe shouldn't "safely alloc"
 			//	gr: assert over limit, don't silently fail
 			assert( size <= mmaxsize );
 			if ( size > mmaxsize )
+			{
 				size = mmaxsize;
-
+				moffset = size;
+				return false;
+			}
+				
 			moffset = size;
+			return true;
 		}
 
 		void Reserve(int size,bool clear=false)
