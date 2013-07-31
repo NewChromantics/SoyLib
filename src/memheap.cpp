@@ -1158,7 +1158,7 @@ void prmem::HeapInfo::OnFailedAlloc(const char* TypeName,int TypeSize,int Elemen
 	ofLogError( "Other heaps...\n" );
 	
 	auto& Heaps = prmem::GetHeaps();
-	for ( int h=0;	Heaps.GetSize();	h++ )
+	for ( int h=0;	h<Heaps.GetSize();	h++ )
 	{
 		auto& Heap = *Heaps[h];
 		Heap.Debug_DumpInfoToOutput();
