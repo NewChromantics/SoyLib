@@ -79,7 +79,7 @@ public:
 			return -1;
 
 		//	found an index, if it's a different value, then it doesn't exist
-		if ( SortCompare_Descending( item, mArray[InsertIndex] ) != 0 )
+		if ( SortCompare_Descending( mArray[InsertIndex], item ) != 0 )
 			return -1;
 		return InsertIndex;
 	}
@@ -97,8 +97,8 @@ public:
 		while ( ( p2 - p1 ) > 1 )
 		{
 			int a = ( p1 + p2 ) / 2;
-			int r = SortCompare_Descending( item, mArray[a] );
-			if ( r < 0 )
+			int r = SortCompare_Descending( mArray[a], item );
+			if ( r > 0 )	//	item less than entry a
 			{
 				p2 = a;
 			}
@@ -112,11 +112,11 @@ public:
 				p1 = a;
 			}
 		}
-		a = SortCompare_Descending( item, mArray[p1] );
-		if ( a <= 0 ) return p1;
+		a = SortCompare_Descending( mArray[p1], item );
+		if ( a >= 0 ) return p1;
 		
-		a = SortCompare_Descending( item, mArray[p2] );
-		if ( a <= 0 ) return p2;
+		a = SortCompare_Descending( mArray[p2], item );
+		if ( a >= 0 ) return p2;
 		
 		return p2 + 1;
 	}
@@ -136,7 +136,7 @@ public:
 		
 		//	already exists
 		if ( dbi < GetSize() )
-			if ( SortCompare_Descending( item, mArray[dbi] ) == 0 )
+			if ( SortCompare_Descending( mArray[dbi], item ) == 0 )
 				return mArray[dbi];
 		
 		//	insert the unique item
