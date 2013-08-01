@@ -11,7 +11,11 @@ public:
 	{
 	}
 	
-	inline bool		operator==(const FIRST& Match) const		{	return mFirst == Match;	}
+	inline bool		operator<(const SoyPair<FIRST,SECOND>& Match) const		{	return mFirst < Match.mFirst;	}
+	inline bool		operator>(const SoyPair<FIRST,SECOND>& Match) const		{	return mFirst > Match.mFirst;	}
+	inline bool		operator<(const FIRST& Match) const		{	return mFirst < Match;	}
+	inline bool		operator>(const FIRST& Match) const		{	return mFirst > Match;	}
+	inline bool		operator==(const FIRST& Match) const	{	return mFirst == Match;	}
 
 public:
 	FIRST		mFirst;
