@@ -34,6 +34,9 @@ public:
 		mKernel	( Kernel )
 	{
 	}
+
+	BufferString<200>	Debug_GetName() const	{	return BufferString<200>() << mShader << "[" << mKernel << "]";	}
+
 public:
 	SoyRef				mShader;
 	BufferString<100>	mKernel;
@@ -136,6 +139,7 @@ public:
 		return pKernel ? pKernel->IsValid() : false;
 	}
 	SoyOpenClKernel*	GetKernel()		{	return mManager.GetKernel( mKernelRef );	}
+	BufferString<200>	Debug_GetName() const	{	return mKernelRef.Debug_GetName();	}
 
 public:
 	SoyOpenClKernelRef	mKernelRef;
