@@ -63,6 +63,9 @@ void SoyOpenClManager::threadedFunction()
 
 			if ( !Shader.HasChanged() )
 				continue;
+			
+			if ( Shader.IsLoading() )
+				continue;
 
 			//	reload shader
 			if ( Shader.LoadShader() )
@@ -104,6 +107,7 @@ SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename,const char* B
 	auto* pShader = GetShader( Filename );
 
 	//	make new one if it doesnt exist
+	bool IsNewShader = (!pShader);
 	if ( !pShader )
 	{
 		//	generate a ref
@@ -122,7 +126,7 @@ SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename,const char* B
 	}
 
 	//	load (in case it needs it)
-	if ( pShader->HasChanged() )
+	if ( pShader->HasChanged() && !pShader->IsLoading() )
 	{
 		if ( pShader->LoadShader() )
 		{
@@ -182,6 +186,17 @@ SoyOpenClShader* SoyOpenClManager::GetShader(const char* Filename)
 	return NULL;
 }
 
+
+
+bool SoyOpenClShader::IsLoading()
+{
+	//	if currently locked then it's loading
+	if ( !mLock.tryLock() )
+		return true;
+
+	mLock.unlock();
+	return false;
+}
 
 void SoyOpenClShader::UnloadShader()
 {

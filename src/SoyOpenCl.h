@@ -80,6 +80,7 @@ public:
 	}
 	~SoyOpenClShader()	{	UnloadShader();	}
 
+	bool				IsLoading();
 	bool				LoadShader();
 	void				UnloadShader();
 	SoyOpenClKernel*	GetKernel(const char* Name);		//	load and return kernel
