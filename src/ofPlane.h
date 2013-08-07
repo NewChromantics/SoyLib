@@ -89,5 +89,5 @@ public:
 	ofVec3f	mNormal;
 	float	mDistance;
 };
-
+DECLARE_NONCOMPLEX_TYPE(ofPlane);
 

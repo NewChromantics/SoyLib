@@ -40,6 +40,7 @@ public:
 	vec2f	mStart;
 	vec2f	mEnd;
 };
+DECLARE_NONCOMPLEX_TYPE(ofLine2);
 
 class ofLine3
 {
@@ -65,3 +66,4 @@ public:
 	vec3f	mStart;
 	vec3f	mEnd;
 };
+DECLARE_NONCOMPLEX_TYPE(ofLine3);

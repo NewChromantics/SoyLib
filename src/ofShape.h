@@ -143,6 +143,7 @@ public:
 	vec2f		mPosition;
 	float		mRadius;
 };
+DECLARE_NONCOMPLEX_TYPE(ofShapeCircle2);
 
 
 class ofShapeCapsule2
@@ -177,6 +178,7 @@ public:
 	ofLine2		mLine;
 	float		mRadius;
 };
+DECLARE_NONCOMPLEX_TYPE(ofShapeCapsule2);
 
 template<>
 inline ofShapeCapsule2 ofLerp(const ofShapeCapsule2& start,const ofShapeCapsule2& stop, float amt)
@@ -228,6 +230,7 @@ public:
 	//ofPolyline		mContour;
 	BufferArray<vec2f,3>	mTriangle;
 };
+DECLARE_NONCOMPLEX_TYPE(ofShapePolygon2);
 
 
 class ofShapeTriangle2
@@ -250,7 +253,7 @@ public:
 public:
 	vec2f	mTriangle[3];
 };
-
+DECLARE_NONCOMPLEX_TYPE(ofShapeTriangle2);
 
 class ofShapeTriangle3
 {
@@ -272,6 +275,7 @@ public:
 public:
 	BufferArray<vec2f,3>	mTriangle;
 };
+DECLARE_NONCOMPLEX_TYPE(ofShapeTriangle3);
 
 
 class ofShapeBox3
@@ -292,6 +296,7 @@ public:
 	vec3f	mMin;
 	vec3f	mMax;
 };
+DECLARE_NONCOMPLEX_TYPE(ofShapeBox3);
 
 
 
