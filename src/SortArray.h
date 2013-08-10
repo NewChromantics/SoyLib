@@ -30,6 +30,10 @@ public:
 		mArray	( Array )
 	{
 	}
+	explicit SortArray(const ARRAY& Array) :
+		mArray	( const_cast<ARRAY&>(Array) )
+	{
+	}
 
 	virtual T&			operator [] (int index)			{	return mArray[index];	}
 	virtual const T&	operator [] (int index) const	{	return mArray[index];	}
@@ -153,6 +157,12 @@ public:
 
 template<typename ARRAY>
 inline SortArray<ARRAY> GetSortArray(ARRAY& Array)
+{
+	return SortArray<ARRAY>( Array );
+}
+
+template<typename ARRAY>
+inline const SortArray<ARRAY> GetSortArrayConst(const ARRAY& Array)
 {
 	return SortArray<ARRAY>( Array );
 }
