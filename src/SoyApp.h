@@ -345,3 +345,16 @@ inline bool ofFileExists(const char* Path)
 		return false;
 	return true;
 }
+
+
+template<class ARRAYTYPE>
+inline bool ofFilenameStripPath(Soy::String2<char,ARRAYTYPE>& Filename)
+{
+	//	strip path
+	int LastSlash = ofMax( Filename.GetLastChar('/'), Filename.GetLastChar('\\') );
+	if ( LastSlash < 0 )
+		return false;
+
+	Filename.RemoveAt( 0, LastSlash+1 );
+	return true;
+}
