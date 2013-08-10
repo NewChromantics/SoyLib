@@ -155,10 +155,15 @@ namespace Soy
 		: mdata(s.GetArray())
 		{
 		}
-
+		
 		String2(const S* text)
 		{
 			*this = text;
+		}
+
+		String2(const std::string& String)
+		{
+			*this = String.c_str();
 		}
 
 		~String2()
@@ -786,6 +791,7 @@ public:
 	template<typename THATARRAYTYPE>
 	BufferString(const Soy::String2<S,THATARRAYTYPE>& s) :	Soy::String2<char,BufferArray<char,SIZE> >	( s )	{}
 	BufferString(const S* text) : String2( text )	{}
+	BufferString(const std::string& String) : String2( String )	{}
 
 	template<class THATARRAYTYPE>
 	BufferString<SIZE>& operator = (const Soy::String2<char,THATARRAYTYPE>& s)
@@ -1228,7 +1234,7 @@ bool Soy::String2<S,ARRAYTYPE>::EndsWith(const S* text,bool CaseSensitive) const
 	if ( !text )
 		return false;
 
-	int len = StringLen( text );
+	int len = StringLen( text, -1, mdata.MaxAllocSize() );
 
 	//	won't fit or no string to match
 	if ( len > GetLength() || len == 0 )
