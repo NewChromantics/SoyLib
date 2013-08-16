@@ -146,7 +146,7 @@
 		virtual const T*	GetArray() const				{	return mArray.GetArray();	}
 		virtual T*			GetArray()						{	return mArray.GetArray();	}
 		virtual bool		SetSize(int size,bool preserve,bool AllowLess)	{	return mArray.SetSize(size,preserve,AllowLess);	}
-		virtual void		Reserve(int size,bool clear)	{	return mArray.Reserve(size,clear);	}
+		virtual void		Reserve(int size,bool clear=false)	{	return mArray.Reserve(size,clear);	}
 		virtual T*			PushBlock(int count)			{	return mArray.PushBlock(count);	}
 		virtual T&			PushBack(const T& item)			{	return mArray.PushBack(item);	}
 		virtual T&			PushBack()						{	return mArray.PushBack();	}
