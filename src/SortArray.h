@@ -3,14 +3,18 @@
 #include "Array.hpp"
 
 
-
-template<typename TYPEA,typename TYPEB>
-inline int SortCompare_Descending(const TYPEA& a,const TYPEB& b)
+template<typename TYPEA>
+class TSortPolicy
 {
-	if ( a < b ) return -1;
-	if ( a > b ) return 1;
-	return 0;
-}
+public:
+	template<typename TYPEB>
+	static int		Compare(const TYPEA& a,const TYPEB& b)
+	{
+		if ( a < b ) return -1;
+		if ( a > b ) return 1;
+		return 0;
+	}
+};
 
 
 /*
@@ -19,7 +23,7 @@ inline int SortCompare_Descending(const TYPEA& a,const TYPEB& b)
 */
 
 
-template<typename ARRAY>
+template<typename ARRAY,class TSORTPOLICY>
 class SortArray : public ArrayInterface<typename ARRAY::TYPE>
 {
 public:
@@ -44,7 +48,7 @@ public:
 	virtual int			GetDataSize() const				{	return mArray.GetDataSize();	}
 	virtual const T*	GetArray() const				{	return mArray.GetArray();	}
 	virtual T*			GetArray()						{	return mArray.GetArray();	}
-	virtual void		Reserve(int size,bool clear)	{	return mArray.Reserve(size,clear);	}
+	virtual void		Reserve(int size,bool clear=false)	{	return mArray.Reserve(size,clear);	}
 	virtual void		RemoveBlock(int index, int count)	{	return mArray.RemoveBlock(index,count);	}
 	virtual void		Clear(bool Dealloc)				{	return mArray.Clear(Dealloc);	}
 	virtual int			MaxSize() const					{	return mArray.MaxSize();	}
@@ -59,7 +63,7 @@ public:
 		{
 			auto& a = mArray[i-1];
 			auto& b = mArray[i];
-			int Compare = SortCompare_Descending( a, b );
+			int Compare = TSORTPOLICY::Compare( a, b );
 			if ( Compare != -1 )
 				return false;
 		}
@@ -83,7 +87,7 @@ public:
 			return -1;
 
 		//	found an index, if it's a different value, then it doesn't exist
-		if ( SortCompare_Descending( mArray[InsertIndex], item ) != 0 )
+		if ( TSORTPOLICY::Compare( mArray[InsertIndex], item ) != 0 )
 			return -1;
 		return InsertIndex;
 	}
@@ -101,7 +105,7 @@ public:
 		while ( ( p2 - p1 ) > 1 )
 		{
 			int a = ( p1 + p2 ) / 2;
-			int r = SortCompare_Descending( mArray[a], item );
+			int r = TSORTPOLICY::Compare( mArray[a], item );
 			if ( r > 0 )	//	item less than entry a
 			{
 				p2 = a;
@@ -116,10 +120,10 @@ public:
 				p1 = a;
 			}
 		}
-		a = SortCompare_Descending( mArray[p1], item );
+		a = TSORTPOLICY::Compare( mArray[p1], item );
 		if ( a >= 0 ) return p1;
 		
-		a = SortCompare_Descending( mArray[p2], item );
+		a = TSORTPOLICY::Compare( mArray[p2], item );
 		if ( a >= 0 ) return p2;
 		
 		return p2 + 1;
@@ -140,7 +144,7 @@ public:
 		
 		//	already exists
 		if ( dbi < GetSize() )
-			if ( SortCompare_Descending( mArray[dbi], item ) == 0 )
+			if ( TSORTPOLICY::Compare( mArray[dbi], item ) == 0 )
 				return mArray[dbi];
 		
 		//	insert the unique item
@@ -154,17 +158,31 @@ public:
 };
 
 
-
-template<typename ARRAY>
-inline SortArray<ARRAY> GetSortArray(ARRAY& Array)
+//	with policy
+template<typename ARRAY,class TSORTPOLICY>
+inline SortArray<ARRAY,TSORTPOLICY> GetSortArray(ARRAY& Array,const TSORTPOLICY& Policy)
 {
-	return SortArray<ARRAY>( Array );
+	return SortArray<ARRAY,TSORTPOLICY>( Array );
+}
+
+template<typename ARRAY,class TSORTPOLICY>
+inline const SortArray<ARRAY,TSORTPOLICY> GetSortArrayConst(const ARRAY& Array,const TSORTPOLICY& Policy)
+{
+	return SortArray<ARRAY,TSORTPOLICY>( Array );
+}
+
+
+//	without policy
+template<typename ARRAY>
+inline SortArray<ARRAY,TSortPolicy<typename ARRAY::TYPE>> GetSortArray(ARRAY& Array)
+{
+	return SortArray<ARRAY,TSortPolicy<typename ARRAY::TYPE>>( Array );
 }
 
 template<typename ARRAY>
-inline const SortArray<ARRAY> GetSortArrayConst(const ARRAY& Array)
+inline const SortArray<ARRAY,TSortPolicy<typename ARRAY::TYPE>> GetSortArrayConst(const ARRAY& Array)
 {
-	return SortArray<ARRAY>( Array );
+	return SortArray<ARRAY,TSortPolicy<typename ARRAY::TYPE>>( Array );
 }
 
 
