@@ -7,6 +7,33 @@
 class ofShapeCircle2;
 class ofShapePolygon2;
 
+
+
+//	gr: maybe not soymath?
+class TColourHsl
+{
+public:
+	TColourHsl(float Hue,float Sat,float Lightness) :
+		mHsl	( Hue, Sat, Lightness )
+	{
+	}
+	TColourHsl(const ofColour& Rgb=ofColour::black);
+
+	float		GetHue() const			{	return mHsl.x;	}
+	float		GetSaturation() const	{	return mHsl.y;	}
+	float		GetLightness() const	{	return mHsl.z;	}
+	vec3f		GetHsl() const			{	return mHsl;	}
+	ofColour	GetRgb() const;
+
+public:
+	vec3f		mHsl;
+};
+DECLARE_NONCOMPLEX_TYPE( TColourHsl );
+
+
+
+
+
 #define ofNearZero				0.00001f
 #define SCREEN_UP2	vec2f(0,-1)
 
@@ -174,6 +201,13 @@ inline STRING& operator<<(STRING& str,const ofColor_<float>& Value)
 }
 
 template<class STRING>
+inline STRING& operator<<(STRING& str,const TColourHsl& Value)
+{
+	str << Value.GetHue() << ',' << Value.GetSaturation() << ',' << Value.GetLightness();
+	return str;
+}
+
+template<class STRING>
 inline const STRING& operator>>(const STRING& str,ofColour& Value)
 {
 	BufferArray<float,4> Floats;
@@ -197,6 +231,19 @@ inline const STRING& operator>>(const STRING& str,ofColor_<float>& Value)
 	Value.g = (Floats.GetSize() >= 2) ? Floats[1] : 0;
 	Value.b = (Floats.GetSize() >= 3) ? Floats[2] : 0;
 	Value.a = (Floats.GetSize() >= 4) ? Floats[3] : 0;
+
+	return str;
+}
+
+template<class STRING>
+inline const STRING& operator>>(const STRING& str,TColourHsl& Value)
+{
+	BufferArray<float,3> Floats;
+	str.GetFloatArray( Floats );
+	
+	Value.mHsl.x = (Floats.GetSize() >= 1) ? Floats[0] : 0;
+	Value.mHsl.y = (Floats.GetSize() >= 2) ? Floats[1] : 0;
+	Value.mHsl.z = (Floats.GetSize() >= 3) ? Floats[2] : 0;
 
 	return str;
 }
