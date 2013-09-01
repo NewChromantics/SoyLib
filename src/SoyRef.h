@@ -33,6 +33,8 @@ public:
 	SoyRef			operator++(int)							{	SoyRef Copy( *this );	this->Increment();	return Copy;	}	//	postfix++
 	inline bool		operator==(const SoyRef& That) const	{	return mRef == That.mRef;	}
 	inline bool		operator!=(const SoyRef& That) const	{	return mRef != That.mRef;	}
+	inline bool		operator<(const SoyRef& That) const		{	return mRef < That.mRef;	}
+	inline bool		operator>(const SoyRef& That) const		{	return mRef > That.mRef;	}
 
 private:
 	static uint64	FromString(const SoyRefString& String);
