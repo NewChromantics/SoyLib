@@ -242,7 +242,7 @@ bool SoyOpenClShader::LoadShader()
 	for ( int k=0;	k<mKernels.GetSize();	k++ )
 	{
 		auto& Kernel = mKernels[k];
-		GetKernel( Kernel->mName );
+		GetKernel( Kernel->GetName() );
 	}
 
 	return true;
@@ -267,7 +267,7 @@ SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name)
 	auto* pKernel = FindKernel( Name );
 	if ( !pKernel )
 	{
-		pKernel = new SoyOpenClKernel( Name );
+		pKernel = new SoyOpenClKernel( Name, mManager );
 		mKernels.PushBack( pKernel );
 	}
 
@@ -278,7 +278,7 @@ SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name)
 	//	try to load
 	//	gr: check the program, the MSAopencl implementation allows NULL 
 	if ( mProgram )
-		pKernel->mKernel = mManager.mOpencl.loadKernel( pKernel->mName.c_str(), mProgram );
+		pKernel->mKernel = mManager.mOpencl.loadKernel( pKernel->GetName(), mProgram );
 	
 	return pKernel;
 }
@@ -313,3 +313,86 @@ void SoyOpenClKernel::DeleteKernel()
 	delete mKernel;
 	mKernel = NULL;
 }
+
+bool SoyOpenClKernel::Begin()
+{
+	if ( !IsValid() )
+		return false;
+
+	//	lock args
+	mArgLock.lock();
+
+	return true;
+}
+
+bool SoyOpenClKernel::End1D(int Exec1)
+{
+	//	todo: add begin/end stack check
+	//	args have been set now
+	mArgLock.unlock();
+
+	if ( mFirstExecution )
+	{
+		BufferString<1000> Debug;
+		Debug << mName << " first execution...";
+		ofLogNotice( Debug.c_str() );
+		mFirstExecution = false;
+	}
+
+	//	execute
+	mKernel->run1D( Exec1 );
+
+	//	add a timeout in some way to this? to "detect" video driver crashes
+	mManager.mOpencl.finish();
+
+	return true;
+}
+
+bool SoyOpenClKernel::End2D(int Exec1,int Exec2)
+{
+	//	todo: add begin/end stack check
+	//	args have been set now
+	mArgLock.unlock();
+
+	if ( mFirstExecution )
+	{
+		BufferString<1000> Debug;
+		Debug << mName << " first execution...";
+		ofLogNotice( Debug.c_str() );
+		mFirstExecution = false;
+	}
+
+	//	execute
+	mKernel->run2D( Exec1, Exec2 );
+
+	//	gr: not actually neccessary
+	//	add a timeout in some way to this? to "detect" video driver crashes
+	mManager.mOpencl.finish();
+
+	return true;
+}
+
+bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
+{
+	//	todo: add begin/end stack check
+	//	args have been set now
+	mArgLock.unlock();
+
+	if ( mFirstExecution )
+	{
+		BufferString<1000> Debug;
+		Debug << mName << " first execution...";
+		ofLogNotice( Debug.c_str() );
+		mFirstExecution = false;
+	}
+
+	//	execute
+	mKernel->run3D( Exec1, Exec2, Exec3 );
+
+	//	gr: not actually neccessary
+	//	add a timeout in some way to this? to "detect" video driver crashes
+	mManager.mOpencl.finish();
+
+	return true;
+}
+

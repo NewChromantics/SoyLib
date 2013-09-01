@@ -3,7 +3,7 @@
 #include "ofxSoylent.h"
 #include "SoyThread.h"
 #include <MSAOpenCL.h>
-
+#include "SortArray.h"
 
 class SoyOpenClManager;
 
@@ -46,9 +46,11 @@ public:
 class SoyOpenClKernel
 {
 public:
-	SoyOpenClKernel(const char* Name) :
-		mName	( Name ),
-		mKernel	( NULL )
+	SoyOpenClKernel(const char* Name,SoyOpenClManager& Manager) :
+		mName			( Name ),
+		mKernel			( NULL ),
+		mFirstExecution	( true ),
+		mManager		( Manager )
 	{
 	}
 	~SoyOpenClKernel()
@@ -56,14 +58,23 @@ public:
 		DeleteKernel();
 	}
 
-	bool				IsValid() const			{	return mKernel!=NULL;	}
-	void				DeleteKernel();
-	inline bool			operator==(const char* Name) const	{	return mName == Name;	}
+	const char*		GetName() const			{	return mName.c_str();	}
+	bool			IsValid() const			{	return mKernel!=NULL;	}
+	void			DeleteKernel();
+	inline bool		operator==(const char* Name) const	{	return mName == Name;	}
+	bool			Begin();
+	bool			End1D(int Exec1);
+	bool			End2D(int Exec1,int Exec2);
+	bool			End3D(int Exec1,int Exec2,int Exec3);
+
+private:
+	BufferString<100>	mName;
+	ofMutex				mArgLock;	//	http://www.khronos.org/message_boards/showthread.php/6788-Multiple-host-threads-with-single-command-queue-and-device
+	bool				mFirstExecution;	//	for debugging (ie. working out which kernel crashes the driver)
+	SoyOpenClManager&	mManager;
 
 public:
-	BufferString<100>	mName;
 	msa::OpenCLKernel*	mKernel;
-	ofMutex				mArgLock;	//	http://www.khronos.org/message_boards/showthread.php/6788-Multiple-host-threads-with-single-command-queue-and-device
 };
 
 //	soy-cl-program which auto-reloads if the file changes
@@ -174,15 +185,33 @@ public:
 		Write( Array, ReadWriteMode );
 	}
 
-	template<typename TYPE>
-	bool		Write(const Array<TYPE>& Array,cl_int ReadWriteMode)
+	template<typename ARRAYTYPE>
+	bool		Write(const ArrayBridgeDef<ARRAYTYPE>& Array,cl_int ReadWriteMode)
 	{
 		assert( mBuffer == NULL );
+		//	check for non 16-byte aligned structs (assume anything more than 4 bytes is a struct)
+		if ( sizeof(ARRAYTYPE::TYPE) > 4 )
+		{
+			int Remainder = sizeof(ARRAYTYPE::TYPE) % 16;
+			if ( Remainder != 0 )
+			{
+				BufferString<100> Debug;
+				Debug << "Warning, type " << Soy::GetTypeName<ARRAYTYPE::TYPE>() << " not aligned to 16 bytes; " << sizeof(ARRAYTYPE::TYPE) << " (+" << Remainder << ")";
+				ofLogWarning( Debug.c_str() );
+			}
+		}
+
 		//	gr: only write data if we're NOT write-only memory
-		void* pData = (ReadWriteMode&CL_MEM_WRITE_ONLY) ? NULL : const_cast<TYPE*>(Array.GetArray());
+		auto* pArrayData = Array.GetArray();
+		void* pData = (ReadWriteMode&CL_MEM_WRITE_ONLY) ? NULL : const_cast<ARRAYTYPE::TYPE*>(pArrayData);
 		mBuffer = mManager.mOpencl.createBuffer( Array.GetDataSize(), ReadWriteMode, pData, true );
 		return (mBuffer!=NULL);
 	}
+	template<typename TYPE>	bool					Write(const Array<TYPE>& Array,cl_int ReadWriteMode)			{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
+	template<typename TYPE,int SIZE> bool			Write(const BufferArray<TYPE,SIZE>& Array,cl_int ReadWriteMode)	{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
+	template<typename TYPE> bool					Write(const RemoteArray<TYPE>& Array,cl_int ReadWriteMode)		{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
+	template<typename TYPE,class SORTPOLICY> bool	Write(const SortArray<TYPE,SORTPOLICY>& Array,cl_int ReadWriteMode)	{	return Write( GetArrayBridge( Array.mArray ), ReadWriteMode );	}
+	
 	template<typename TYPE>
 	bool		Write(const TYPE& Data,cl_int ReadWriteMode)
 	{
@@ -201,7 +230,7 @@ public:
 	}
 
 	template<typename TYPE>
-	bool		Read(Array<TYPE>& Array,int ElementCount=-1)
+	bool		Read(ArrayBridgeDef<TYPE>& Array,int ElementCount=-1)
 	{
 		if ( !mBuffer )
 			return false;
@@ -213,6 +242,11 @@ public:
 		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), true );
 	}
 
+	template<typename TYPE>	bool					Read(Array<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
+	template<typename TYPE,int SIZE> bool			Read(BufferArray<TYPE,SIZE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
+	template<typename TYPE>	bool					Read(RemoteArray<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
+	template<typename TYPE,class SORTPOLICY> bool	Read(SortArray<TYPE,SORTPOLICY>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array.mArray ), ElementCount );	}
+		
 	template<typename TYPE>
 	bool		Read(TYPE& Data)
 	{
