@@ -621,6 +621,20 @@ public:
 		assert( !ReAlloc );
 		mHeap = pNewHeap;
 	}
+	
+	//	copy data to a Buffer[BUFFERSIZE] c-array. (lovely template syntax! :)
+	//	returns number of elements copied
+	template <typename TYPE,unsigned int BUFFERSIZE>
+	int		CopyToBuffer(TYPE (& Buffer)[BUFFERSIZE]) const
+	{
+		int Count = ofMin<int>( GetSize(), static_cast<int>(BUFFERSIZE) );
+		for ( int i=0;	i<Count;	i++ )
+		{
+			Buffer[i] = mdata[i];
+		}
+		return Count;
+	}
+		
 
 private:
 	prmem::Heap*	mHeap;		//	where to alloc/free from
