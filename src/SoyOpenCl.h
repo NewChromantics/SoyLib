@@ -47,10 +47,11 @@ class SoyOpenClKernel
 {
 public:
 	SoyOpenClKernel(const char* Name,SoyOpenClManager& Manager) :
-		mName			( Name ),
-		mKernel			( NULL ),
-		mFirstExecution	( true ),
-		mManager		( Manager )
+		mName				( Name ),
+		mKernel				( NULL ),
+		mFirstExecution		( true ),
+		mManager			( Manager ),
+		mMaxWorkGroupSize	( 0 )
 	{
 	}
 	~SoyOpenClKernel()
@@ -58,8 +59,10 @@ public:
 		DeleteKernel();
 	}
 
+	void			OnLoaded();				//	kernel will be null if it failed
 	const char*		GetName() const			{	return mName.c_str();	}
 	bool			IsValid() const			{	return mKernel!=NULL;	}
+	bool			IsValidExecCount(int ExecCount)	{	return (mMaxWorkGroupSize==-1) ? true : (ExecCount<=mMaxWorkGroupSize);	}
 	void			DeleteKernel();
 	inline bool		operator==(const char* Name) const	{	return mName == Name;	}
 	bool			Begin();
@@ -68,6 +71,7 @@ public:
 	bool			End3D(int Exec1,int Exec2,int Exec3);
 
 private:
+	int					mMaxWorkGroupSize;
 	BufferString<100>	mName;
 	ofMutex				mArgLock;	//	http://www.khronos.org/message_boards/showthread.php/6788-Multiple-host-threads-with-single-command-queue-and-device
 	bool				mFirstExecution;	//	for debugging (ie. working out which kernel crashes the driver)

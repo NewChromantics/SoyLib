@@ -36,7 +36,8 @@ SoyOpenClManager::SoyOpenClManager(prmem::Heap& Heap) :
 	mShaders	( mHeap )
 {
 	//	init opencl
-	mOpencl.setup( CL_DEVICE_TYPE_ALL, 10 );
+	mOpencl.setup( CL_DEVICE_TYPE_CPU, 10 );
+	//mOpencl.setup( CL_DEVICE_TYPE_ALL, 10 );
 
 	startThread( true, false );
 }
@@ -278,7 +279,10 @@ SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name)
 	//	try to load
 	//	gr: check the program, the MSAopencl implementation allows NULL 
 	if ( mProgram )
+	{
 		pKernel->mKernel = mManager.mOpencl.loadKernel( pKernel->GetName(), mProgram );
+		pKernel->OnLoaded();
+	}
 	
 	return pKernel;
 }
@@ -331,6 +335,9 @@ bool SoyOpenClKernel::End1D(int Exec1)
 	//	args have been set now
 	mArgLock.unlock();
 
+	if ( !IsValidExecCount(Exec1) )
+		return false;
+
 	if ( mFirstExecution )
 	{
 		BufferString<1000> Debug;
@@ -353,6 +360,9 @@ bool SoyOpenClKernel::End2D(int Exec1,int Exec2)
 	//	todo: add begin/end stack check
 	//	args have been set now
 	mArgLock.unlock();
+
+	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) )
+		return false;
 
 	if ( mFirstExecution )
 	{
@@ -378,6 +388,9 @@ bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
 	//	args have been set now
 	mArgLock.unlock();
 
+	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) || !IsValidExecCount(Exec3) )
+		return false;
+
 	if ( mFirstExecution )
 	{
 		BufferString<1000> Debug;
@@ -394,5 +407,22 @@ bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
 	mManager.mOpencl.finish();
 
 	return true;
+}
+
+void SoyOpenClKernel::OnLoaded()
+{
+	//	failed to load (syntax error etc)
+	if ( !mKernel )
+		return;
+
+	//	query for max work group items
+	//	http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clGetKernelWorkGroupInfo.html
+	auto* Device = msa::OpenCL::currentOpenCL ? msa::OpenCL::currentOpenCL->getDevice() : NULL;
+	int Success = clGetKernelWorkGroupInfo( mKernel->getCLKernel(), Device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(mMaxWorkGroupSize), &mMaxWorkGroupSize, NULL );
+	assert( Success != CL_INVALID_VALUE );
+	if ( Success != CL_SUCCESS )
+	{
+		mMaxWorkGroupSize = -1;
+	}
 }
 
