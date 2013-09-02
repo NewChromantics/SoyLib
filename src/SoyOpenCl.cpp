@@ -426,3 +426,27 @@ void SoyOpenClKernel::OnLoaded()
 	}
 }
 
+
+
+bool SoyOpenClKernel::CheckPaddingChecksum(const int* Padding,int Length)
+{
+#if !defined(PADDING_CHECKSUM_1)
+	#define PADDING_CHECKSUM_1		123
+	#define PADDING_CHECKSUM_2		456
+	#define PADDING_CHECKSUM_3		789
+#endif
+	BufferArray<int,3> Checksums;
+	Checksums.PushBack( PADDING_CHECKSUM_1 );
+	Checksums.PushBack( PADDING_CHECKSUM_2 );
+	Checksums.PushBack( PADDING_CHECKSUM_3 );
+
+	for ( int i=0;	i<Length;	i++ )
+	{
+		int Pad = Padding[i];
+		int Checksum = Checksums[i];
+		assert( Pad == Checksum );
+		if ( Pad != Checksum )
+			return false;
+	}
+	return true;
+}
