@@ -29,6 +29,7 @@ public:
 	bool			IsValid() const							{	return (*this) != SoyRef();	}
 	SoyRefString	ToString() const;
 	void			Increment();
+	uint64			GetInt64() const						{	return mRef;	}
 	SoyRef&			operator++()							{	Increment();	return *this;	}	//	++prefix
 	SoyRef			operator++(int)							{	SoyRef Copy( *this );	this->Increment();	return Copy;	}	//	postfix++
 	inline bool		operator==(const SoyRef& That) const	{	return mRef == That.mRef;	}
