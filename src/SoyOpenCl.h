@@ -63,6 +63,8 @@ public:
 	const char*		GetName() const			{	return mName.c_str();	}
 	bool			IsValid() const			{	return mKernel!=NULL;	}
 	bool			IsValidExecCount(int ExecCount)	{	return (mMaxWorkGroupSize==-1) ? true : (ExecCount<=mMaxWorkGroupSize);	}
+	int				GetMaxWorkGroupSize() const	{	return mMaxWorkGroupSize;	}
+
 	void			DeleteKernel();
 	inline bool		operator==(const char* Name) const	{	return mName == Name;	}
 	bool			Begin();
