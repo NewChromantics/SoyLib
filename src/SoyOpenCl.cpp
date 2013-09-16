@@ -337,7 +337,7 @@ bool SoyOpenClKernel::End1D(int Exec1)
 
 	if ( !IsValidExecCount(Exec1) )
 	{
-		BufferString<100> Debug;
+		BufferString<1000> Debug;
 		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "/" << mMaxWorkGroupSize << "... execution count truncated.";
 		ofLogWarning( Debug.c_str() );
 		Exec1 = ofMin( Exec1, mMaxWorkGroupSize );
@@ -368,7 +368,7 @@ bool SoyOpenClKernel::End2D(int Exec1,int Exec2)
 
 	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) )
 	{
-		BufferString<100> Debug;
+		BufferString<1000> Debug;
 		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "," << Exec2 << "/" << mMaxWorkGroupSize << "... execution count truncated.";
 		ofLogWarning( Debug.c_str() );
 		Exec1 = ofMin( Exec1, mMaxWorkGroupSize );
@@ -401,7 +401,7 @@ bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
 
 	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) || !IsValidExecCount(Exec3) )
 	{
-		BufferString<100> Debug;
+		BufferString<1000> Debug;
 		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "," << Exec2 << "," << Exec3 << "/" << mMaxWorkGroupSize << "... execution count truncated.";
 		ofLogWarning( Debug.c_str() );
 		Exec1 = ofMin( Exec1, mMaxWorkGroupSize );
