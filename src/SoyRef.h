@@ -25,6 +25,10 @@ public:
 		mRef	( FromString( Name ) )
 	{
 	}
+	explicit SoyRef(const uint64 Int64) :
+		mRef	( Int64 )
+	{
+	}
 
 	bool			IsValid() const							{	return (*this) != SoyRef();	}
 	SoyRefString	ToString() const;

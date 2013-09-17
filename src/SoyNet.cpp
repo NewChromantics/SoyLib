@@ -6,7 +6,7 @@ namespace SoyNet
 {
 	SoyRef AllocPeerRef()
 	{
-		static SoyRef LastRef( 0 );
+		static SoyRef LastRef( "Peer" );
 		LastRef.mRef++;
 		return LastRef;
 	}
