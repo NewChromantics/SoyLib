@@ -34,6 +34,7 @@ public:
 	SoyRefString	ToString() const;
 	void			Increment();
 	uint64			GetInt64() const						{	return mRef;	}
+	int				GetDebugInt32() const					{	return mRef32[1];	}	//	second half changes the most
 	SoyRef&			operator++()							{	Increment();	return *this;	}	//	++prefix
 	SoyRef			operator++(int)							{	SoyRef Copy( *this );	this->Increment();	return Copy;	}	//	postfix++
 	inline bool		operator==(const SoyRef& That) const	{	return mRef == That.mRef;	}
@@ -50,6 +51,7 @@ public:
 		union
 		{
 			uint64	mRef;
+			uint32	mRef32[2];
 			char	mRefChars[SoyRef::MaxStringLength];
 		};
 	};
