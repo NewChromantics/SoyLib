@@ -215,7 +215,7 @@ public:
 	{
 		assert( mBuffer == NULL );
 		//	check for non 16-byte aligned structs (assume anything more than 4 bytes is a struct)
-		if ( sizeof(ARRAYTYPE::TYPE) > 4 )
+		if ( sizeof(ARRAYTYPE::TYPE) > 8 )
 		{
 			int Remainder = sizeof(ARRAYTYPE::TYPE) % 16;
 			if ( Remainder != 0 )
@@ -240,6 +240,18 @@ public:
 	template<typename TYPE>
 	bool		Write(const TYPE& Data,cl_int ReadWriteMode)
 	{
+		//	check for non 16-byte aligned structs (assume anything more than 4 bytes is a struct)
+		if ( sizeof(TYPE) > 8 )
+		{
+			int Remainder = sizeof(TYPE) % 16;
+			if ( Remainder != 0 )
+			{
+				BufferString<100> Debug;
+				Debug << "Warning, type " << Soy::GetTypeName<TYPE>() << " not aligned to 16 bytes; " << sizeof(TYPE) << " (+" << Remainder << ")";
+				ofLogWarning( Debug.c_str() );
+			}
+		}
+
 		assert( mBuffer == NULL );
 		void* pData = (ReadWriteMode&CL_MEM_WRITE_ONLY) ? NULL : &const_cast<TYPE&>(Data);
 		mBuffer = mManager.mOpencl.createBuffer( sizeof(TYPE), ReadWriteMode, pData, true );
