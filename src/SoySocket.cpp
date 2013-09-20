@@ -527,6 +527,13 @@ bool TSocketUDP::Connect(const SoyNet::TAddress& ServerAddress)
 {
 	if ( !mSocket.Create() )
 		return false;
+	
+	//	must bind to recv on same port
+	if ( !BindUDP(0) )
+	{
+		Close();
+		return false;
+	}
 
 	if ( !ConnectUDP( ServerAddress ) )
 	{
