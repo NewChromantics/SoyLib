@@ -34,7 +34,7 @@ SOY_DECLARE_ENUM( SoyNet::TSocketState );
 class SoyNet::TSocket
 {
 public:
-	TSocket();
+	TSocket(bool IncludeMetaInPacket=true);
 	virtual ~TSocket();
 
 	void				Update();				//	todo: thread this
@@ -59,6 +59,7 @@ protected:
 	virtual void		SendPackets()=0;	
 
 public:
+	bool								mIncludeMetaInPacket;
 	SoyPacketManager					mPacketsIn;
 	SoyPacketManager					mPacketsOut;
 	ofEvent<bool>						mOnClosed;
@@ -76,6 +77,10 @@ private:
 class SoyNet::TSocketTCP : public SoyNet::TSocket
 {
 public:
+	TSocketTCP(bool IncludeMetaInPacket=true) :
+		TSocket	( IncludeMetaInPacket )
+	{
+	}
 	virtual void		GetConnections(Array<SoyNet::TAddress>& Addresses) const;
 	virtual bool		Listen(uint16 Port);
 	virtual bool		Connect(const SoyNet::TAddress& ServerAddress);
@@ -110,6 +115,10 @@ private:
 class SoyNet::TSocketUDP : public SoyNet::TSocket
 {
 public:
+	TSocketUDP(bool IncludeMetaInPacket=true) :
+		TSocket	( IncludeMetaInPacket )
+	{
+	}
 	virtual void		GetConnections(Array<SoyNet::TAddress>& Addresses) const;
 	virtual bool		Listen(uint16 Port);
 	virtual bool		Connect(const SoyNet::TAddress& ServerAddress);

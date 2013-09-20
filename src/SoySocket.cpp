@@ -204,8 +204,9 @@ bool RecvPackets(SoyPacketManager& PacketManager,READWRAPPER& ReadWrapper)
 
 
 
-TSocket::TSocket() :
-	mState	( TSocketState::Closed )
+TSocket::TSocket(bool IncludeMetaInPacket) :
+	mIncludeMetaInPacket	( IncludeMetaInPacket ),
+	mState					( TSocketState::Closed )
 {
 }
 	
@@ -415,7 +416,7 @@ void TSocketTCP::SendPackets()
 	while ( !mPacketsOut.IsEmpty() )
 	{
 		Array<char> PacketRaw;
-		if ( !mPacketsOut.PopPacketRawData( PacketRaw ) )
+		if ( !mPacketsOut.PopPacketRawData( PacketRaw, mIncludeMetaInPacket ) )
 			break;
 
 		//	send packet out
@@ -661,7 +662,7 @@ void TSocketUDP::SendPackets()
 	while ( !mPacketsOut.IsEmpty() )
 	{
 		Array<char> PacketRaw;
-		if ( !mPacketsOut.PopPacketRawData( PacketRaw ) )
+		if ( !mPacketsOut.PopPacketRawData( PacketRaw, mIncludeMetaInPacket ) )
 			break;
 
 		if ( !mSocket.HasSocket() )

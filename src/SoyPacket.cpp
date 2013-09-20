@@ -22,14 +22,14 @@ bool SoyPacketManager::PopPacket(SoyPacketContainer& Container)
 	return true;
 }
 
-bool SoyPacketManager::PopPacketRawData(Array<char>& PacketData)
+bool SoyPacketManager::PopPacketRawData(Array<char>& PacketData,bool IncludeMetaInPacket)
 {
 	ofMutex::ScopedLock Lock(*this);
 	if ( mPackets.IsEmpty() )
 		return false;
 
 	auto& Container = mPackets[0];
-	Container.GetPacketRaw( PacketData );
+	Container.GetPacketRaw( PacketData, IncludeMetaInPacket );
 	mPackets.RemoveBlock( 0, 1 );
 	return true;
 }

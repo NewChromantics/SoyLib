@@ -252,9 +252,10 @@ public:
 		return Packet;
 	}
 
-	void			GetPacketRaw(Array<char>& RawData)
+	void			GetPacketRaw(Array<char>& RawData,bool IncludeMetaInPacket)
 	{
-		RawData.PushReinterpretBlock( mMeta );
+		if ( IncludeMetaInPacket )
+			RawData.PushReinterpretBlock( mMeta );
 		RawData.PushBackArray( mData );
 	}
 
@@ -291,7 +292,7 @@ public:
 	void					PushPacket(const SoyPacketMeta& Meta,const Array<char>& Data,const SoyNet::TAddress& Sender);	//	push a raw packet onto the stack
 
 	bool					PopPacket(SoyPacketContainer& Container);	//	pops the next packet. caller takes ownership of data
-	bool					PopPacketRawData(Array<char>& PacketData);	//	pops the next packet into raw data.
+	bool					PopPacketRawData(Array<char>& PacketData,bool IncludeMetaInPacket);	//	pops the next packet into raw data.
 	
 	//	incomplete packets where we've read a header, but not the data [yet]
 	bool					PeekPendingPacket(SoyPacketMeta& Meta,const SoyNet::TAddress& SenderAddress);				//	see if there is a pending packet for this sender
