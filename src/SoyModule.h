@@ -35,22 +35,46 @@ namespace SoyModulePackets
 {
 	enum Type
 	{
+		Invalid,
 		HelloWorld,			//	discovery hello-world
 		SearchWorld,		//	request everyone to send out a hello world
 		RegisterPeer,
 		MemberChanged,
 	};
+
+	//	intermediate replacement as type is now ref
+	inline SoyRef	GetRef(Type t)
+	{
+		switch( t )
+		{
+		case HelloWorld:	return SoyRef("HelloWld");
+		case SearchWorld:	return SoyRef("HelloWld");
+		case RegisterPeer:	return SoyRef("RegPeer");
+		case MemberChanged:	return SoyRef("MemChang");
+		}
+		return SoyRef();
+	}
+	
+	inline Type		GetType(SoyRef Ref)
+	{
+		if ( Ref == GetRef( HelloWorld ) )		return HelloWorld;
+		if ( Ref == GetRef( SearchWorld ) )		return SearchWorld;
+		if ( Ref == GetRef( RegisterPeer ) )	return RegisterPeer;
+		if ( Ref == GetRef( MemberChanged ) )	return MemberChanged;
+		assert(false);
+		return Invalid;
+	}
 };
 
 
 template<SoyModulePackets::Type PACKETTYPE>
-class SoyModulePacket : public SoyPacket<SoyModulePackets::Type>
+class SoyModulePacket : public SoyPacket
 {
 public:
 	static const SoyModulePackets::Type TYPE = PACKETTYPE;
 
 public:
-	virtual SoyModulePackets::Type	GetType() const	{	return PACKETTYPE;	}
+	virtual SoyRef		GetType() const	{	return SoyModulePackets::GetRef( PACKETTYPE );	}
 };
 
 
@@ -277,7 +301,7 @@ private:
 template<class PACKET>
 bool SoyModule::SendPacketToPeers(const PACKET& Packet)
 {
-	SoyPacketMeta Meta( GetRef() );
+	SoyPacketMeta Meta( GetRef(), Packet.GetType() );
 	mClusterSocket.mPacketsOut.PushPacket( Meta, Packet );
 	return true;
 }

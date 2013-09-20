@@ -109,8 +109,8 @@ void SoyModule::SendPacketBroadcastHelloWorld()
 	Packet.mPeerMeta = GetMeta();
 	Packet.mServerPort = ListenAddress.mPort;
 
-	SoyPacketMeta Meta( GetRef() );
-	Meta.mType = Packet.GetType();	//	only needed for debug
+	//	type only needed for debug
+	SoyPacketMeta Meta( GetRef(), Packet.GetType() );
 	mDiscoverySocket.mPacketsOut.PushPacket( Meta, Packet );
 
 	BufferString<100> Debug;
@@ -124,8 +124,8 @@ void SoyModule::SendPacketBroadcastSearchWorld()
 {
 	SoyModulePacket_SearchWorld Packet;
 	
-	SoyPacketMeta Meta( GetRef() );
-	Meta.mType = Packet.GetType();	//	only needed for debug
+	//	type only needed for debug
+	SoyPacketMeta Meta( GetRef(), Packet.GetType() );
 	mDiscoverySocket.mPacketsOut.PushPacket( Meta, Packet );
 
 	BufferString<100> Debug;
@@ -483,14 +483,19 @@ bool SoyModulePeer::AddAddress(const SoyNet::TAddress& Address)
 //------------------------------------------------------
 bool SoyModule::OnPacket(const SoyPacketContainer& Packet)
 {
-	auto SoyType = static_cast<SoyModulePackets::Type>( Packet.mMeta.mType );
-	switch ( SoyType )
+	if ( Packet.mMeta.mType == SoyModulePacket_MemberChanged().GetType() )
 	{
-		case_OnSoyPacket( SoyModulePacket_MemberChanged );
-		case SoyModulePacket_RegisterPeer::TYPE:	return OnPacket( Packet.GetPacketAs<SoyModulePacket_RegisterPeer>(), Packet.mSender );
-
+		SoyModulePacket_MemberChanged PacketObject;
+		if ( !Packet.GetPacketAs(PacketObject) )
+			return false;
+		return OnPacket( PacketObject );
 	}
 
+	if ( Packet.mMeta.mType == SoyModulePacket_RegisterPeer().GetType() )
+	{
+		return OnPacket( Packet.GetPacketAs<SoyModulePacket_RegisterPeer>(), Packet.mSender );
+	}
+	
 	return false;
 }
 
@@ -503,11 +508,14 @@ bool SoyModule::OnDiscoveryPacket(const SoyPacketContainer& Packet)
 	Debug << "RECV Discovery packet " << Packet.mMeta;
 	ofLogNotice( static_cast<const char*>( Debug ) );
 
-	auto SoyType = static_cast<SoyModulePackets::Type>( Packet.mMeta.mType );
-	switch ( SoyType )
+	if ( Packet.mMeta.mType == SoyModulePacket_HelloWorld().GetType() )
 	{
-		case SoyModulePacket_HelloWorld::TYPE:	return OnPacket( Packet.GetPacketAs<SoyModulePacket_HelloWorld>(), Packet.mSender );
-		case SoyModulePacket_SearchWorld::TYPE:	return OnPacket( Packet.GetPacketAs<SoyModulePacket_SearchWorld>(), Packet.mSender );
+		return OnPacket( Packet.GetPacketAs<SoyModulePacket_HelloWorld>(), Packet.mSender );
+	}
+
+	if ( Packet.mMeta.mType == SoyModulePacket_SearchWorld().GetType() )
+	{
+		return OnPacket( Packet.GetPacketAs<SoyModulePacket_SearchWorld>(), Packet.mSender );
 	}
 
 	return false;

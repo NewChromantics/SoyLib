@@ -6,15 +6,7 @@
 #define SOYPACKET_PROOF	SoyRef("Soylent")
 #define SOYPACKET_SIZE_MAX	(10*1024*1024)	//	10mb - used to catch corrupt packets and stop us allocating silly memory
 
-
-#define case_OnSoyPacket(PACKETTYPE)				\
-	case PACKETTYPE::TYPE:							\
-	{												\
-		PACKETTYPE PacketObject;					\
-		if ( !Packet.GetPacketAs( PacketObject ) )	\
-			return false;							\
-		return OnPacket( PacketObject );			\
-	}									
+							
 
 namespace SoyNet
 {
@@ -26,14 +18,16 @@ namespace SoyNet
 //-------------------------------------------
 class SoyPacketMeta
 {
-private:
-	static const uint32	InvalidType = -1;
-
 public:
-	SoyPacketMeta(const SoyRef& Sender=SoyRef()) :
+	SoyPacketMeta() :
+		mSoylentProof	( SOYPACKET_PROOF ),
+		mDataSize		( 0 )
+	{
+	}
+	SoyPacketMeta(SoyRef Sender,SoyRef Type) :
 		mSoylentProof	( SOYPACKET_PROOF ),
 		mSender			( Sender ),
-		mType			( InvalidType ),
+		mType			( Type ),
 		mDataSize		( 0 )
 	{
 	}
@@ -41,14 +35,13 @@ public:
 	SoyPacketMeta&			GetMeta()			{	return *this;	}
 	const SoyPacketMeta&	GetMeta() const		{	return *this;	}
 	bool					IsValid() const		{	return (mSoylentProof == SOYPACKET_PROOF) && (mDataSize<=SOYPACKET_SIZE_MAX) && IsValidType();	}
-	bool					IsValidType() const	{	return mType != InvalidType;	}
-	template<typename TYPETYPE>
-	TYPETYPE				GetType() const		{	return static_cast<TYPETYPE>( mType );	}
+	bool					IsValidType() const	{	return mType.IsValid();	}
+	SoyRef					GetType() const		{	return mType;	}
 
 public:
 	SoyRef		mSoylentProof;	//	all packets should start with this
 	SoyRef		mSender;		//	module that sent this packet
-	uint32		mType;			//	enum -> int. Replace with SoyRef conversion or something
+	SoyRef		mType;			//	enum -> int. Replace with SoyRef conversion or something
 	uint32		mDataSize;		//	following data is N bytes long (does not include header)
 };
 
@@ -274,11 +267,10 @@ public:
 	SoyNet::TAddress		mSender;	//	for incoming data, this is where the data came from
 };
 
-template<typename PACKETENUM>
 class SoyPacket
 {
 public:
-	virtual PACKETENUM	GetType() const=0;
+	virtual SoyRef		GetType() const=0;
 };
 
 
