@@ -1,6 +1,9 @@
 #pragma once
 
 
+#include "SoyNet.h"
+
+
 namespace SoyStream
 {
 	class TStream;
@@ -61,6 +64,13 @@ public:
 
 protected:
 	virtual SoyNet::TSocket&	GetSocket()=0;
-	virtual bool	PushPacket(const ofxXmlSettings& xml,SoyPacketManager& PacketManager);
+
+	virtual bool	PushPacket(const ofxXmlSettings& xml,SoyPacketManager& PacketManager)=0;
+
+private:
+	bool			ConnectSocket();
+
+protected:
+	SoyNet::TAddress	mServerAddress;
 };
 
