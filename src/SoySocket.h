@@ -3,6 +3,7 @@
 #include "SoyEnum.h"
 #include "SoyPacket.h"
 #include "SoyNet.h"
+#include "SoyThread.h"
 
 
 namespace SoyNet
@@ -31,18 +32,23 @@ namespace SoyNet
 };
 SOY_DECLARE_ENUM( SoyNet::TSocketState );
 
-class SoyNet::TSocket
+class SoyNet::TSocket : public SoyThread
 {
 public:
 	TSocket(bool IncludeMetaInPacket=true);
 	virtual ~TSocket();
 
-	void				Update();				//	todo: thread this
+	void				StopThread();
 	virtual void		GetConnections(Array<SoyNet::TAddress>& Addresses) const=0;
 	virtual bool		Listen(uint16 Port)=0;
 	virtual bool		Connect(const SoyNet::TAddress& ServerAddress)=0;
 	virtual void		Close()=0;
-	TSocketState::Type	GetState() const		{	return mState;	}
+	TSocketState::Type	GetState() const		{	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mStateLock ) );	return mState;	}
+
+private:
+	void				SetState(TSocketState::Type NewState);
+	void				StartThread();			//	we don't want to start thread in constructor (do we?) so it's started first time we try to connect/listen etc
+	virtual void		threadedFunction();
 	
 protected:
 	//	callbacks which instigate events and update state
@@ -70,7 +76,8 @@ public:
 	ofEvent<const SoyPacketContainer*>	mOnRecievePacket;
 
 private:
-	TSocketState::Type			mState;
+	ofMutex					mStateLock;
+	TSocketState::Type		mState;
 };
 
 
@@ -140,8 +147,8 @@ protected:
 	virtual bool		ConnectUDP(const SoyNet::TAddress& ServerAddress);
 
 protected:
-	Array<SoyPair<SoyNet::TAddress,Array<char>>>	mPacketData;	//	data we've recieved from various sources but not yet processed
-	ofxUDPManager 		mSocket;
+	ofMutexT<Array<SoyPair<SoyNet::TAddress,Array<char>>>>	mPacketData;	//	data we've recieved from various sources but not yet processed
+	ofMutexT<ofxUDPManager>		mSocket;
 };
 
 

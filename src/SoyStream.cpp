@@ -49,8 +49,6 @@ bool SoyStream::TSocket::Write(const ofxXmlSettings& xml)
 	if ( !PushPacket( xml, Socket.mPacketsOut ) )
 		return false;
 
-	Socket.Update();
-
 	return true;
 }
 

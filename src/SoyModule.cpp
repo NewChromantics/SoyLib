@@ -204,7 +204,8 @@ void SoyModule::UpdateDiscoverySocket()
 	}
 
 	//	update discovery socket
-	mDiscoverySocket.Update();
+	//	gr: does this need a forced update?
+//	mDiscoverySocket.Update();
 
 	auto& DiscoveryPackets = mDiscoverySocket.mPacketsIn;
 	while ( !DiscoveryPackets.IsEmpty() )
@@ -249,7 +250,8 @@ void SoyModule::UpdateClusterSocket()
 	}
 	
 	//	update socket
-	mClusterSocket.Update();
+	//	gr: does this need a forced update?
+//	mClusterSocket.Update();
 	
 	//	process the incoming packets
 	auto& Packets = mClusterSocket.mPacketsIn;

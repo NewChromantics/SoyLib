@@ -205,6 +205,7 @@ bool RecvPackets(SoyPacketManager& PacketManager,READWRAPPER& ReadWrapper)
 
 
 TSocket::TSocket(bool IncludeMetaInPacket) :
+	SoyThread				( "TSocket" ),
 	mIncludeMetaInPacket	( IncludeMetaInPacket ),
 	mState					( TSocketState::Closed )
 {
@@ -212,55 +213,85 @@ TSocket::TSocket(bool IncludeMetaInPacket) :
 	
 TSocket::~TSocket()
 {
+	//	gr: bit late here :/ parent should have already called the blocking StopThread
+	assert( !isThreadRunning() );
+	SoyThread::waitForThread();
 }
 
-void TSocket::Update()
+void TSocket::StopThread()
 {
-	//	check in case we've been disconnected
-	CheckState();
-
-	//	check for new clients
-	CheckForClients();
-
-	//	send/recieve packets
-	RecievePackets();
-	SendPackets();
+	SoyThread::waitForThread();
 }
 
+void TSocket::StartThread()
+{
+	//	gr: if(isrunning) just for debugging
+	if ( !isThreadRunning() )
+		SoyThread::startThread( true, true );
+}
+
+void TSocket::threadedFunction()
+{
+	while ( isThreadRunning() )
+	{
+		sleep(1);
+
+		//	check in case we've been disconnected
+		CheckState();
+
+		//	check for new clients
+		CheckForClients();
+
+		//	send/recieve packets
+		RecievePackets();
+		SendPackets();
+	}
+}
+ 
+void TSocket::SetState(TSocketState::Type NewState)
+{
+	ofMutex::ScopedLock Lock( mStateLock );
+	mState = NewState;
+}
 
 void TSocket::OnClosed()
 {
-	mState = TSocketState::Closed;
+	SetState( TSocketState::Closed );
 	bool Event;
 	ofNotifyEvent( mOnClosed, Event );
 }
 
 void TSocket::OnClientConnected()
 {
-	mState = TSocketState::ClientConnected;
+	StartThread();
+	SetState( TSocketState::ClientConnected );
 	bool Event;
 	ofNotifyEvent( mOnClientConnected, Event );
 }
 
 void TSocket::OnServerListening()
 {
-	mState = TSocketState::ServerListening;
+	StartThread();
+	SetState( TSocketState::ServerListening );
 	bool Event;
 	ofNotifyEvent( mOnServerListening, Event );
 }
 	
 void TSocket::OnClientJoin(const SoyNet::TAddress& Address)
 {
+	StartThread();
 	ofNotifyEvent( mOnClientJoin, Address );
 }
 
 void TSocket::OnClientLeft(const SoyNet::TAddress& Address)
 {
+	StartThread();
 	ofNotifyEvent( mOnClientLeft, Address );
 }
 
 void TSocket::OnRecievePacket(const SoyPacketContainer& Packet)
 {
+	StartThread();
 	const SoyPacketContainer* pPacket = &Packet;
 	ofNotifyEvent( mOnRecievePacket, pPacket );
 }
@@ -482,6 +513,8 @@ void TSocketTCP::OnClosed()
 
 void TSocketUDP::GetConnections(Array<SoyNet::TAddress>& Addresses) const
 {
+	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mPacketData.GetMutex() ) );
+
 	//	look in our cache of addresses. Some of these might be dangling, but haven't given us an error
 	for ( int i=0;	i<mPacketData.GetSize();	i++ )
 	{
@@ -494,6 +527,8 @@ bool TSocketUDP::Listen(uint16 Port)
 {
 	//	close old server if it's open
 	Close();
+
+	ofMutex::ScopedLock Lock( mSocket );
 
 	if ( !mSocket.Create() )
 		return false;
@@ -526,6 +561,8 @@ bool TSocketUDP::Listen(uint16 Port)
 
 bool TSocketUDP::Connect(const SoyNet::TAddress& ServerAddress)
 {
+	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mSocket.GetMutex() ) );
+
 	if ( !mSocket.Create() )
 		return false;
 	
@@ -553,11 +590,13 @@ bool TSocketUDP::Connect(const SoyNet::TAddress& ServerAddress)
 
 bool TSocketUDP::BindUDP(uint16 Port)
 {
+	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mSocket.GetMutex() ) );
 	return mSocket.Bind( Port );
 }
 
 bool TSocketUDP::ConnectUDP(const SoyNet::TAddress& ServerAddress)
 {
+	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mSocket.GetMutex() ) );
 	const char* Address = static_cast<const char*>(ServerAddress.mAddress);
 	return mSocket.Connect( Address, ServerAddress.mPort );
 }
@@ -565,6 +604,7 @@ bool TSocketUDP::ConnectUDP(const SoyNet::TAddress& ServerAddress)
 
 void TSocketUDP::Close()
 {
+	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mSocket.GetMutex() ) );
 	if ( mSocket.Close() )
 	{
 		OnClosed();
@@ -574,6 +614,8 @@ void TSocketUDP::Close()
 
 void TSocketUDP::CheckState()
 {
+	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mSocket.GetMutex() ) );
+
 	if ( GetState() == TSocketState::ClientConnected && !mSocket.HasSocket() )
 	{
 		OnClosed();
@@ -591,6 +633,8 @@ void TSocketUDP::CheckForClients()
 
 void TSocketUDP::RecievePackets()
 {
+	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mSocket.GetMutex() ) );
+
 	//	recieve latest chunk into our buffer
 	while ( mSocket.HasSocket() )
 	{
@@ -627,6 +671,7 @@ void TSocketUDP::RecievePackets()
 
 		//	get the existing data array (or add a new one if it's a new client)
 		TAddress Address( AddressString.c_str(), Port );
+		ofMutex::ScopedLock PacketDataLock( const_cast<ofMutex&>( mPacketData.GetMutex() ) );
 		auto* pDataContainer = mPacketData.Find( Address );
 		if ( !pDataContainer )
 		{
@@ -639,6 +684,7 @@ void TSocketUDP::RecievePackets()
 		pDataContainer->mSecond.PushBackArray( Buffer );
 	}
 
+	ofMutex::ScopedLock PacketDataLock( const_cast<ofMutex&>( mPacketData.GetMutex() ) );
 	for ( int i=mPacketData.GetSize()-1;	i>=0;	i-- )
 	{
 		auto& Address = mPacketData[i].mFirst;
@@ -659,6 +705,7 @@ void TSocketUDP::RecievePackets()
 
 void TSocketUDP::SendPackets()
 {
+	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mSocket.GetMutex() ) );
 	while ( !mPacketsOut.IsEmpty() )
 	{
 		Array<char> PacketRaw;
@@ -676,6 +723,7 @@ void TSocketUDP::SendPackets()
 
 SoyNet::TAddress SoyNet::TSocketUDP::GetMyAddress() const
 {
+	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mSocket.GetMutex() ) );
 	if ( mSocket.HasSocket() )
 	{
 		string Address;
