@@ -430,6 +430,9 @@ namespace Soy
 
 		String2& operator << (const unsigned char v)
 		{
+			//	dont push if we're pushing a terminator
+			if ( v == 0 )
+				return *this;
 			const int offset = mdata.GetSize() - 1;
 			mdata[offset] = v;
 			mdata.PushBack(0);
