@@ -55,6 +55,16 @@ public:
 	
 	inline T			PopBack() const					{	return mArray.PopBack();	}
 
+	template<typename MATCHTYPE>
+	bool				Remove(const MATCHTYPE& Match)
+	{
+		int Index = FindIndex( Match );
+		if ( Index < 0 )
+			return false;
+		RemoveBlock( Index, 1 );
+		return true;
+	}
+
 	bool				IsAscending() const				{	return true;	}
 	bool				IsDescending() const			{	return !IsAscending();	}
 	bool				IsSorted() const	
@@ -68,6 +78,42 @@ public:
 				return false;
 		}
 		return true;
+	}
+
+	bool				Sort()
+	{
+		//	bubble sort for quick implementation
+		bool Changed = false;
+		int i = 0;
+		while ( i < GetSize() )
+		{
+			//	i is at the top, move on
+			if ( i == 0 )
+			{
+				i++;
+				continue;
+			}
+
+			auto& a = mArray[i-1];
+			auto& b = mArray[i];
+			int Compare = TSORTPOLICY::Compare( a, b );
+
+			//	i is in place
+			if ( Compare == 0 || Compare == -1 )
+			{
+				i++;
+				continue;
+			}
+
+			//	i needs to move up
+			auto temp = b;
+			b = a;
+			a = temp;
+			i--;	//	i is now at i-1
+			Changed = true;
+		}
+		assert( IsSorted() );
+		return Changed;
 	}
 
 	template<typename MATCHTYPE>
