@@ -33,6 +33,7 @@ public:
 	bool			IsValid() const							{	return (*this) != SoyRef();	}
 	SoyRefString	ToString() const;
 	void			Increment();
+	void			Increment(int IncCount)					{	assert( IncCount >= 0 );	while ( IncCount-- > 0 )	Increment();	}
 	uint64			GetInt64() const						{	return mRef;	}
 	int				GetDebugInt32() const					{	return mRef32[1];	}	//	second half changes the most
 	SoyRef&			operator++()							{	Increment();	return *this;	}	//	++prefix
