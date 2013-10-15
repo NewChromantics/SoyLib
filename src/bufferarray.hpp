@@ -517,6 +517,25 @@ public:
 		//	can't really handle stuff that isn't setup
 		assert( moffset <= mmaxsize );
 	}
+	template <typename T>
+	explicit RemoteArray(T* Buffer,const int BufferSize,int& BufferCounter) :
+		moffset		( BufferCounter ),
+		mdata		( Buffer ),
+		mmaxsize	( BufferSize )
+	{
+		//	can't really handle stuff that isn't setup
+		assert( moffset <= mmaxsize );
+	}
+	template <typename T>
+	explicit RemoteArray(const T* Buffer,const int BufferSize,const int& BufferCounter) :
+		moffset		( const_cast<int&>(BufferCounter) ),
+		mdata		( const_cast<T*>(Buffer) ),
+		mmaxsize	( BufferSize )
+	{
+		//	can't really handle stuff that isn't setup
+		assert( moffset <= mmaxsize );
+	}
+
 
 	template<typename ARRAYTYPE>
 	void operator = (const ARRAYTYPE& v)
@@ -953,6 +972,13 @@ template <typename TYPE,unsigned int BUFFERSIZE>
 inline RemoteArray<TYPE>	GetRemoteArray(const TYPE (& Buffer)[BUFFERSIZE],const int& BufferCounter)
 {
 	return RemoteArray<TYPE>( Buffer, BufferCounter );
+}
+
+//	just so I can use auto
+template <typename TYPE>
+inline RemoteArray<TYPE>	GetRemoteArray(const TYPE* Buffer,const int BufferSize,const int& BufferCounter)
+{
+	return RemoteArray<TYPE>( Buffer, BufferSize, BufferCounter );
 }
 
 
