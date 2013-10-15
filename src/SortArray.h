@@ -74,7 +74,8 @@ public:
 			auto& a = mArray[i-1];
 			auto& b = mArray[i];
 			int Compare = TSORTPOLICY::Compare( a, b );
-			if ( Compare != -1 )
+			//	expecting -1 or 0
+			if ( Compare > 0 )
 				return false;
 		}
 		return true;
