@@ -6,6 +6,8 @@
 #include "SortArray.h"
 
 class SoyOpenClManager;
+class SoyOpenClShader;
+
 
 class SoyFileChangeDetector
 {
@@ -46,14 +48,7 @@ public:
 class SoyOpenClKernel
 {
 public:
-	SoyOpenClKernel(const char* Name,SoyOpenClManager& Manager) :
-		mName				( Name ),
-		mKernel				( NULL ),
-		mFirstExecution		( true ),
-		mManager			( Manager ),
-		mMaxWorkGroupSize	( 0 )
-	{
-	}
+	SoyOpenClKernel(const char* Name,SoyOpenClShader& Parent);
 	~SoyOpenClKernel()
 	{
 		DeleteKernel();
@@ -64,6 +59,7 @@ public:
 	bool			IsValid() const			{	return mKernel!=NULL;	}
 	bool			IsValidExecCount(int ExecCount)	{	return (mMaxWorkGroupSize==-1) ? true : (ExecCount<=mMaxWorkGroupSize);	}
 	int				GetMaxWorkGroupSize() const	{	return mMaxWorkGroupSize;	}
+	cl_command_queue	GetQueue()			{	return mKernel ? mKernel->getQueue() : NULL;	}
 
 	void			DeleteKernel();
 	inline bool		operator==(const char* Name) const	{	return mName == Name;	}
@@ -83,12 +79,12 @@ public:
 private:
 	int					mMaxWorkGroupSize;
 	BufferString<100>	mName;
-	ofMutex				mArgLock;	//	http://www.khronos.org/message_boards/showthread.php/6788-Multiple-host-threads-with-single-command-queue-and-device
-	bool				mFirstExecution;	//	for debugging (ie. working out which kernel crashes the driver)
-	SoyOpenClManager&	mManager;
 
 public:
+	SoyOpenClManager&	mManager;
+	SoyOpenClShader&	mShader;		//	parent
 	msa::OpenCLKernel*	mKernel;
+	SoyOpenClKernelRef	mKernelRef;
 };
 
 
@@ -119,33 +115,37 @@ public:
 	bool				IsLoading();
 	bool				LoadShader();
 	void				UnloadShader();
-	SoyOpenClKernel*	GetKernel(const char* Name);		//	load and return kernel
+	SoyOpenClKernel*	GetKernel(const char* Name,cl_command_queue Queue);			//	load and return a kernel
 	SoyRef				GetRef() const							{	return mRef;	}
 	const char*			GetBuildOptions() const					{	return mBuildOptions;	}
 	inline bool			operator==(const char* Filename) const	{	return GetFilename().StartsWith( Filename, false );	}
 	inline bool			operator==(const SoyRef& Ref) const		{	return GetRef() == Ref;	}
 
 private:
-	SoyOpenClKernel*		FindKernel(const char* Name);
-
-private:
 	ofMutex					mLock;			//	lock whilst in use so we don't reload whilst loading new file
 	msa::OpenCLProgram*		mProgram;		//	shader/file
-	SoyOpenClManager&		mManager;
 	SoyRef					mRef;
-	Array<SoyOpenClKernel*>	mKernels;
 	BufferString<100>		mBuildOptions;
+
+public:
+	SoyOpenClManager&		mManager;
 };
 
 class SoyOpenClManager : public SoyThread
 {
+public:
+	static bool OPENCL_DATA_BLOCKING_READ;
+	static bool OPENCL_DATA_BLOCKING_WRITE;
+	static bool OPENCL_EXECUTE_BLOCKING;
+
 public:
 	SoyOpenClManager(prmem::Heap& Heap);
 	~SoyOpenClManager();
 
 	virtual void			threadedFunction();
 
-	SoyOpenClKernel*		GetKernel(SoyOpenClKernelRef KernelRef);
+	SoyOpenClKernel*		GetKernel(SoyOpenClKernelRef KernelRef,cl_command_queue Queue);
+	void					DeleteKernel(SoyOpenClKernel* Kernel);
 	bool					IsValid();			//	if not, cannot use opencl
 	SoyOpenClShader*		LoadShader(const char* Filename,const char* BuildOptions);	//	returns invalid ref if it couldn't be created
 	SoyOpenClShader*		GetShader(SoyRef ShaderRef);
@@ -153,10 +153,14 @@ public:
 	SoyRef					GetUniqueRef(SoyRef BaseRef=SoyRef("Shader"));
 	prmem::Heap&			GetHeap()		{	return mHeap;	}
 
+	cl_command_queue		GetQueueForThread();				//	get/alloc a specific queue for the current thread
+	cl_command_queue		GetQueueForThread(int ThreadId);	//	get/alloc a specific queue for a thread
+
 private:
 	prmem::Heap&			mHeap;
 	ofMutex					mShaderLock;
 	Array<SoyOpenClShader*>	mShaders;
+	ofMutexT<Array<SoyPair<int,cl_command_queue>>>	mThreadQueues;
 
 public:
 	msa::OpenCL				mOpencl;
@@ -169,16 +173,21 @@ class SoyClShaderRunner
 {
 public:
 	SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,const char* BuildOptions=NULL);
+	SoyClShaderRunner(const char* Shader,const char* Kernel,bool UseThreadQueue,SoyOpenClManager& Manager,const char* BuildOptions=NULL);
+	virtual ~SoyClShaderRunner()				{	DeleteKernel();	}
 
 	bool				IsValid()		
 	{
 		auto* pKernel = GetKernel();	
 		return pKernel ? pKernel->IsValid() : false;
 	}
-	SoyOpenClKernel*	GetKernel()		{	return mManager.GetKernel( mKernelRef );	}
+	SoyOpenClKernel*	GetKernel();
+	void				DeleteKernel()			{	return mManager.DeleteKernel( mKernel );	}
 	BufferString<200>	Debug_GetName() const	{	return mKernelRef.Debug_GetName();	}
 
 public:
+	bool				mUseThreadQueue;
+	SoyOpenClKernel*	mKernel;
 	SoyOpenClKernelRef	mKernelRef;
 	SoyOpenClManager&	mManager;
 	prmem::Heap&		mHeap;
@@ -191,21 +200,24 @@ class SoyClDataBuffer
 {
 private:
 	SoyClDataBuffer(const SoyClDataBuffer& That) :
-		mManager	( *(SoyOpenClManager*)NULL)
+		mManager	( *(SoyOpenClManager*)NULL ),
+		mKernel		( *(SoyOpenClKernel*)NULL )
 	{
 	}
 public:
 	template<typename TYPE>
-	explicit SoyClDataBuffer(SoyOpenClManager& Manager,const TYPE& Data,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const TYPE& Data,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
 		mBuffer		( NULL ),
-		mManager	( Manager )
+		mManager	( Kernel.mManager ),
+		mKernel		( Kernel )
 	{
 		Write( Data, ReadWriteMode );
 	}
 	template<typename TYPE>
-	explicit SoyClDataBuffer(SoyOpenClManager& Manager,const Array<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const Array<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
 		mBuffer		( NULL ),
-		mManager	( Manager )
+		mManager	( Kernel.mManager ),
+		mKernel		( Kernel )
 	{
 		Write( Array, ReadWriteMode );
 	}
@@ -226,10 +238,13 @@ public:
 			}
 		}
 
+		if ( !mKernel.IsValid() )
+			return false;
+
 		//	gr: only write data if we're NOT write-only memory
 		auto* pArrayData = Array.GetArray();
 		void* pData = (ReadWriteMode&CL_MEM_WRITE_ONLY) ? NULL : const_cast<ARRAYTYPE::TYPE*>(pArrayData);
-		mBuffer = mManager.mOpencl.createBuffer( Array.GetDataSize(), ReadWriteMode, pData, true );
+		mBuffer = mManager.mOpencl.createBuffer( Array.GetDataSize(), ReadWriteMode, pData, SoyOpenClManager::OPENCL_DATA_BLOCKING_WRITE, mKernel.GetQueue() );
 		return (mBuffer!=NULL);
 	}
 	template<typename TYPE>				bool	Write(const Array<TYPE>& Array,cl_int ReadWriteMode)			{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
@@ -252,9 +267,12 @@ public:
 			}
 		}
 
+		if ( !mKernel.IsValid() )
+			return false;
+
 		assert( mBuffer == NULL );
 		void* pData = (ReadWriteMode&CL_MEM_WRITE_ONLY) ? NULL : &const_cast<TYPE&>(Data);
-		mBuffer = mManager.mOpencl.createBuffer( sizeof(TYPE), ReadWriteMode, pData, true );
+		mBuffer = mManager.mOpencl.createBuffer( sizeof(TYPE), ReadWriteMode, pData, SoyOpenClManager::OPENCL_DATA_BLOCKING_WRITE, mKernel.GetQueue() );
 		return (mBuffer!=NULL);
 	}
 
@@ -262,7 +280,7 @@ public:
 	{
 		if ( mBuffer )
 		{
-			mManager.mOpencl.deleteBuffer( mBuffer );
+			mManager.mOpencl.deleteBuffer( *mBuffer );
 		}
 	}
 
@@ -276,7 +294,9 @@ public:
 		Array.SetSize( ElementCount );
 		if ( Array.IsEmpty() )
 			return true;
-		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), true );
+		if ( !mKernel.IsValid() )
+			return false;
+		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), SoyOpenClManager::OPENCL_DATA_BLOCKING_READ, mKernel.GetQueue() );
 	}
 
 	template<typename TYPE>				bool	Read(Array<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
@@ -289,7 +309,9 @@ public:
 	{
 		if ( !mBuffer )
 			return false;
-		return mBuffer->read( &Data, 0, sizeof(TYPE), true );
+		if ( !mKernel.IsValid() )
+			return false;
+		return mBuffer->read( &Data, 0, sizeof(TYPE), SoyOpenClManager::OPENCL_DATA_BLOCKING_READ, mKernel.GetQueue() );
 	}
 
 	bool		IsValid() const		{	return mBuffer;	}
@@ -299,5 +321,6 @@ public:
 public:
 	msa::OpenCLBuffer*	mBuffer;
 	SoyOpenClManager&	mManager;
+	SoyOpenClKernel&	mKernel;
 };
 

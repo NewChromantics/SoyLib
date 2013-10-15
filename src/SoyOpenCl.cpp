@@ -4,6 +4,12 @@
 
 
 
+bool SoyOpenClManager::OPENCL_DATA_BLOCKING_READ = true;
+bool SoyOpenClManager::OPENCL_DATA_BLOCKING_WRITE = true;
+bool SoyOpenClManager::OPENCL_EXECUTE_BLOCKING = true;
+
+
+
 
 SoyFileChangeDetector::SoyFileChangeDetector(const char* Filename) :
 	mFilename		( Filename ),
@@ -36,8 +42,8 @@ SoyOpenClManager::SoyOpenClManager(prmem::Heap& Heap) :
 	mShaders	( mHeap )
 {
 	//	init opencl
-	mOpencl.setup( CL_DEVICE_TYPE_CPU, 10 );
-	//mOpencl.setup( CL_DEVICE_TYPE_ALL, 10 );
+	mOpencl.setup( CL_DEVICE_TYPE_GPU );
+	//mOpencl.setup( CL_DEVICE_TYPE_CPU );
 
 	startThread( true, false );
 }
@@ -47,7 +53,7 @@ SoyOpenClManager::~SoyOpenClManager()
 	waitForThread();
 }
 
-	
+		
 void SoyOpenClManager::threadedFunction()
 {
 	while ( isThreadRunning() )
@@ -89,13 +95,21 @@ bool SoyOpenClManager::IsValid()
 	return true;
 }
 
-SoyOpenClKernel* SoyOpenClManager::GetKernel(SoyOpenClKernelRef KernelRef)
+SoyOpenClKernel* SoyOpenClManager::GetKernel(SoyOpenClKernelRef KernelRef,cl_command_queue Queue)
 {
 	auto* pShader = GetShader( KernelRef.mShader );
 	if ( !pShader )
 		return NULL;
 
-	return pShader->GetKernel( KernelRef.mKernel );
+	return pShader->GetKernel( KernelRef.mKernel, Queue );
+}
+
+void SoyOpenClManager::DeleteKernel(SoyOpenClKernel* Kernel)
+{
+	if ( !Kernel )
+		return;
+	
+	delete Kernel;
 }
 
 
@@ -187,6 +201,33 @@ SoyOpenClShader* SoyOpenClManager::GetShader(const char* Filename)
 	return NULL;
 }
 
+cl_command_queue SoyOpenClManager::GetQueueForThread()
+{
+	auto* CurrentThread = Poco::Thread::current();
+	if ( !CurrentThread )
+		return NULL;
+
+	return GetQueueForThread( CurrentThread->tid() );
+}
+
+cl_command_queue SoyOpenClManager::GetQueueForThread(int ThreadId)
+{
+	ofMutex::ScopedLock Lock( mThreadQueues );
+
+	auto* pQueuePair = mThreadQueues.Find( ThreadId );
+	if ( !pQueuePair )
+	{
+		BufferString<100> Debug;
+		Debug <<"Creating opencl queue for thread id " << ThreadId;
+		ofLogNotice( Debug.c_str() );
+
+		SoyPair<int,cl_command_queue> NewQueue;
+		NewQueue.mFirst = ThreadId;
+		NewQueue.mSecond = msa::OpenCL::currentOpenCL->createNewQueue();
+		pQueuePair = &mThreadQueues.PushBack( NewQueue );
+	}
+	return pQueuePair->mSecond;
+}
 
 
 bool SoyOpenClShader::IsLoading()
@@ -202,15 +243,6 @@ bool SoyOpenClShader::IsLoading()
 void SoyOpenClShader::UnloadShader()
 {
 	ofMutex::ScopedLock Lock(mLock);
-
-	//	delete kernel programs, but keep entries so we have the function names to reload
-	for ( int k=0;	k<mKernels.GetSize();	k++ )
-	{
-		auto& Kernel = *mKernels[k];
-
-		Kernel.DeleteKernel();
-
-	}
 
 	//	delete program
 	if ( mProgram )
@@ -239,48 +271,24 @@ bool SoyOpenClShader::LoadShader()
 		return false;
 	SetLastModified( CurrentTimestamp );
 
-	//	reload kernels
-	for ( int k=0;	k<mKernels.GetSize();	k++ )
-	{
-		auto& Kernel = mKernels[k];
-		GetKernel( Kernel->GetName() );
-	}
+	//	gr: todo: mark kernels to reload
 
 	return true;
 }
 
-SoyOpenClKernel* SoyOpenClShader::FindKernel(const char* Name)
-{
-	for ( int k=0;	k<mKernels.GetSize();	k++ )
-	{
-		auto& Kernel = *mKernels[k];
-		if ( Kernel == Name )
-			return &Kernel;
-	}
-	return NULL;
-}
 
-SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name)
+SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name,cl_command_queue Queue)
 {
 	ofMutex::ScopedLock Lock(mLock);
 
-	//	get entry (create if it doesnt exist)
-	auto* pKernel = FindKernel( Name );
+	SoyOpenClKernel* pKernel = new SoyOpenClKernel( Name, *this );
 	if ( !pKernel )
-	{
-		pKernel = new SoyOpenClKernel( Name, mManager );
-		mKernels.PushBack( pKernel );
-	}
-
-	//	program exists/loaded
-	if ( pKernel->mKernel )
-		return pKernel;
+		return NULL;
 
 	//	try to load
-	//	gr: check the program, the MSAopencl implementation allows NULL 
 	if ( mProgram )
 	{
-		pKernel->mKernel = mManager.mOpencl.loadKernel( pKernel->GetName(), mProgram );
+		pKernel->mKernel = mManager.mOpencl.loadKernel( pKernel->GetName(), *mProgram, Queue );
 		pKernel->OnLoaded();
 	}
 	
@@ -293,9 +301,25 @@ SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name)
 
 
 
+SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,bool UseThreadQueue,SoyOpenClManager& Manager,const char* BuildOptions) :
+	mManager		( Manager ),
+	mKernel			( NULL ),
+	mHeap			( mManager.GetHeap() ),
+	mUseThreadQueue	( UseThreadQueue )
+{
+	//	load shader
+	auto* pShader = mManager.LoadShader( Shader, BuildOptions );
+	if ( pShader )
+		mKernelRef.mShader = pShader->GetRef();
+
+	mKernelRef.mKernel = Kernel;
+}
+
 SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,const char* BuildOptions) :
-	mManager	( Manager ),
-	mHeap		( mManager.GetHeap() )
+	mManager		( Manager ),
+	mKernel			( NULL ),
+	mHeap			( mManager.GetHeap() ),
+	mUseThreadQueue	( true )
 {
 	//	load shader
 	auto* pShader = mManager.LoadShader( Shader, BuildOptions );
@@ -306,35 +330,48 @@ SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOp
 }
 
 
+SoyOpenClKernel* SoyClShaderRunner::GetKernel()
+{
+	if ( !mKernel )
+	{
+		cl_command_queue Queue = mUseThreadQueue ? mManager.GetQueueForThread() : NULL;
+		mKernel = mManager.GetKernel( mKernelRef, Queue );
+	}
+	return mKernel;
+}
+
+
+SoyOpenClKernel::SoyOpenClKernel(const char* Name,SoyOpenClShader& Parent) :
+	mName				( Name ),
+	mKernel				( NULL ),
+	mShader				( Parent ),
+	mManager			( Parent.mManager ),
+	mMaxWorkGroupSize	( -1 ),
+	mKernelRef			( Parent.GetRef(), Name )
+{
+}
+
 void SoyOpenClKernel::DeleteKernel()
 {
-	//	lock so we dont delete mid-use
-	ofMutex::ScopedLock Lock( mArgLock );
-
 	if ( !mKernel )
 		return;
 
-	delete mKernel;
+	mManager.mOpencl.deleteKernel( *mKernel );
 	mKernel = NULL;
 }
+
 
 bool SoyOpenClKernel::Begin()
 {
 	if ( !IsValid() )
 		return false;
 
-	//	lock args
-	mArgLock.lock();
-
 	return true;
 }
 
+
 bool SoyOpenClKernel::End1D(int Exec1)
 {
-	//	todo: add begin/end stack check
-	//	args have been set now
-	mArgLock.unlock();
-
 	if ( !IsValidExecCount(Exec1) )
 	{
 		BufferString<1000> Debug;
@@ -343,62 +380,33 @@ bool SoyOpenClKernel::End1D(int Exec1)
 		Exec1 = ofMin( Exec1, mMaxWorkGroupSize );
 	}
 
-	if ( mFirstExecution )
-	{
-		BufferString<1000> Debug;
-		Debug << mName << " first execution...";
-		ofLogNotice( Debug.c_str() );
-		mFirstExecution = false;
-	}
-
 	//	execute
-	mKernel->run1D( Exec1 );
-
-	//	add a timeout in some way to this? to "detect" video driver crashes
-	mManager.mOpencl.finish();
+	if ( !mKernel->run1D( SoyOpenClManager::OPENCL_EXECUTE_BLOCKING, Exec1 ) )
+		return false;
 
 	return true;
 }
 
 bool SoyOpenClKernel::End2D(int Exec1,int Exec2)
 {
-	//	todo: add begin/end stack check
-	//	args have been set now
-	mArgLock.unlock();
-
 	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) )
 	{
 		BufferString<1000> Debug;
-		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "," << Exec2 << "/" << mMaxWorkGroupSize << "... execution count truncated.";
+ 		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "," << Exec2 << "/" << mMaxWorkGroupSize << "... execution count truncated.";
 		ofLogWarning( Debug.c_str() );
 		Exec1 = ofMin( Exec1, mMaxWorkGroupSize );
 		Exec2 = ofMin( Exec2, mMaxWorkGroupSize );
 	}
 
-	if ( mFirstExecution )
-	{
-		BufferString<1000> Debug;
-		Debug << mName << " first execution...";
-		ofLogNotice( Debug.c_str() );
-		mFirstExecution = false;
-	}
-
 	//	execute
-	mKernel->run2D( Exec1, Exec2 );
-
-	//	gr: not actually neccessary
-	//	add a timeout in some way to this? to "detect" video driver crashes
-	mManager.mOpencl.finish();
+	if ( !mKernel->run2D( SoyOpenClManager::OPENCL_EXECUTE_BLOCKING, Exec1, Exec2 ) )
+		return false;
 
 	return true;
 }
 
 bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
 {
-	//	todo: add begin/end stack check
-	//	args have been set now
-	mArgLock.unlock();
-
 	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) || !IsValidExecCount(Exec3) )
 	{
 		BufferString<1000> Debug;
@@ -409,20 +417,9 @@ bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
 		Exec3 = ofMin( Exec3, mMaxWorkGroupSize );
 	}
 
-	if ( mFirstExecution )
-	{
-		BufferString<1000> Debug;
-		Debug << mName << " first execution...";
-		ofLogNotice( Debug.c_str() );
-		mFirstExecution = false;
-	}
-
 	//	execute
-	mKernel->run3D( Exec1, Exec2, Exec3 );
-
-	//	gr: not actually neccessary
-	//	add a timeout in some way to this? to "detect" video driver crashes
-	mManager.mOpencl.finish();
+	if ( !mKernel->run3D( SoyOpenClManager::OPENCL_EXECUTE_BLOCKING, Exec1, Exec2, Exec3 ) )
+		return false;
 
 	return true;
 }
@@ -468,3 +465,5 @@ bool SoyOpenClKernel::CheckPaddingChecksum(const int* Padding,int Length)
 	}
 	return true;
 }
+
+
