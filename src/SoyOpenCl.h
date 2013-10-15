@@ -45,6 +45,28 @@ public:
 };
 
 
+
+template<int DIMENSIONS>
+class SoyOpenclKernelIteration
+{
+public:
+	SoyOpenclKernelIteration() :
+		mFirst		( DIMENSIONS ),
+		mCount		( DIMENSIONS ),
+		mBlocking	( true )
+	{
+	}
+public:
+	BufferArray<int,DIMENSIONS>		mFirst;
+	BufferArray<int,DIMENSIONS>		mCount;
+	bool							mBlocking;
+};
+DECLARE_NONCOMPLEX_TYPE( SoyOpenclKernelIteration<1> );
+DECLARE_NONCOMPLEX_TYPE( SoyOpenclKernelIteration<2> );
+DECLARE_NONCOMPLEX_TYPE( SoyOpenclKernelIteration<3> );
+
+
+
 class SoyOpenClKernel
 {
 public:
@@ -67,6 +89,16 @@ public:
 	bool			End1D(int Exec1);
 	bool			End2D(int Exec1,int Exec2);
 	bool			End3D(int Exec1,int Exec2,int Exec3);
+	bool			End1D(bool Blocking,int Exec1);
+	bool			End2D(bool Blocking,int Exec1,int Exec2);
+	bool			End3D(bool Blocking,int Exec1,int Exec2,int Exec3);
+	bool			End(const SoyOpenclKernelIteration<1>& Iteration)	{	return End1D( Iteration.mBlocking, Iteration.mCount[0] );	}
+	bool			End(const SoyOpenclKernelIteration<2>& Iteration)	{	return End2D( Iteration.mBlocking, Iteration.mCount[0], Iteration.mCount[1] );	}
+	bool			End(const SoyOpenclKernelIteration<3>& Iteration)	{	return End3D( Iteration.mBlocking, Iteration.mCount[0], Iteration.mCount[1], Iteration.mCount[2] );	}
+
+	void			GetIterations(Array<SoyOpenclKernelIteration<1>>& Iterations,int Exec1,bool BlockLast=true);
+	void			GetIterations(Array<SoyOpenclKernelIteration<2>>& Iterations,int Exec1,int Exec2,bool BlockLast=true);
+	void			GetIterations(Array<SoyOpenclKernelIteration<3>>& Iterations,int Exec1,int Exec2,int Exec3,bool BlockLast=true);
 
 	bool									CheckPaddingChecksum(const int* Padding,int Length);
 	template<typename TYPE> bool			CheckPaddingChecksum(const TYPE& Object)						{	return CheckPaddingChecksum( Object.mPadding, sizeofarray(Object.mPadding) );	}

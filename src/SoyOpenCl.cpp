@@ -5,7 +5,7 @@
 
 
 bool SoyOpenClManager::OPENCL_DATA_BLOCKING_READ = true;
-bool SoyOpenClManager::OPENCL_DATA_BLOCKING_WRITE = true;
+bool SoyOpenClManager::OPENCL_DATA_BLOCKING_WRITE = false;
 bool SoyOpenClManager::OPENCL_EXECUTE_BLOCKING = true;
 
 
@@ -217,14 +217,15 @@ cl_command_queue SoyOpenClManager::GetQueueForThread(int ThreadId)
 	auto* pQueuePair = mThreadQueues.Find( ThreadId );
 	if ( !pQueuePair )
 	{
-		BufferString<100> Debug;
-		Debug <<"Creating opencl queue for thread id " << ThreadId;
-		ofLogNotice( Debug.c_str() );
-
 		SoyPair<int,cl_command_queue> NewQueue;
 		NewQueue.mFirst = ThreadId;
 		NewQueue.mSecond = msa::OpenCL::currentOpenCL->createNewQueue();
 		pQueuePair = &mThreadQueues.PushBack( NewQueue );
+		
+		BufferString<100> Debug;
+		Debug << "Created opencl queue " << reinterpret_cast<int>(NewQueue.mSecond) << " for thread id " << ThreadId;
+		ofLogNotice( Debug.c_str() );
+
 	}
 	return pQueuePair->mSecond;
 }
@@ -369,8 +370,25 @@ bool SoyOpenClKernel::Begin()
 	return true;
 }
 
-
 bool SoyOpenClKernel::End1D(int Exec1)
+{
+	bool Blocking = SoyOpenClManager::OPENCL_EXECUTE_BLOCKING;
+	return End1D( Blocking, Exec1 );
+}
+
+bool SoyOpenClKernel::End2D(int Exec1,int Exec2)
+{
+	bool Blocking = SoyOpenClManager::OPENCL_EXECUTE_BLOCKING;
+	return End2D( Blocking, Exec1, Exec2 );
+}
+
+bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
+{
+	bool Blocking = SoyOpenClManager::OPENCL_EXECUTE_BLOCKING;
+	return End3D( Blocking, Exec1, Exec2, Exec3 );
+}
+
+bool SoyOpenClKernel::End1D(bool Blocking,int Exec1)
 {
 	if ( !IsValidExecCount(Exec1) )
 	{
@@ -381,13 +399,13 @@ bool SoyOpenClKernel::End1D(int Exec1)
 	}
 
 	//	execute
-	if ( !mKernel->run1D( SoyOpenClManager::OPENCL_EXECUTE_BLOCKING, Exec1 ) )
+	if ( !mKernel->run1D( Blocking, Exec1 ) )
 		return false;
 
 	return true;
 }
 
-bool SoyOpenClKernel::End2D(int Exec1,int Exec2)
+bool SoyOpenClKernel::End2D(bool Blocking,int Exec1,int Exec2)
 {
 	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) )
 	{
@@ -399,13 +417,13 @@ bool SoyOpenClKernel::End2D(int Exec1,int Exec2)
 	}
 
 	//	execute
-	if ( !mKernel->run2D( SoyOpenClManager::OPENCL_EXECUTE_BLOCKING, Exec1, Exec2 ) )
+	if ( !mKernel->run2D( Blocking, Exec1, Exec2 ) )
 		return false;
 
 	return true;
 }
 
-bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
+bool SoyOpenClKernel::End3D(bool Blocking,int Exec1,int Exec2,int Exec3)
 {
 	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) || !IsValidExecCount(Exec3) )
 	{
@@ -418,7 +436,7 @@ bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
 	}
 
 	//	execute
-	if ( !mKernel->run3D( SoyOpenClManager::OPENCL_EXECUTE_BLOCKING, Exec1, Exec2, Exec3 ) )
+	if ( !mKernel->run3D( Blocking, Exec1, Exec2, Exec3 ) )
 		return false;
 
 	return true;
@@ -464,6 +482,76 @@ bool SoyOpenClKernel::CheckPaddingChecksum(const int* Padding,int Length)
 			return false;
 	}
 	return true;
+}
+
+
+void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<1>>& Iterations,int Exec1,bool BlockLast)
+{
+	int KernelWorkGroupMax = GetMaxWorkGroupSize();
+	if ( KernelWorkGroupMax == -1 )
+		KernelWorkGroupMax = Exec1;
+	int Iterationsa = (Exec1 / KernelWorkGroupMax)+1;
+
+	for ( int ita=0;	ita<Iterationsa;	ita++ )
+	{
+		SoyOpenclKernelIteration<1> Iteration;
+		Iteration.mFirst[0] = ita * KernelWorkGroupMax;
+		Iteration.mCount[0] = ofMin( KernelWorkGroupMax, Exec1 - Iteration.mFirst[0] );
+		Iteration.mBlocking = BlockLast && (ita==Iterationsa-1);
+		Iterations.PushBack( Iteration );
+	}
+}
+
+void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<2>>& Iterations,int Exec1,int Exec2,bool BlockLast)
+{
+	int KernelWorkGroupMax = GetMaxWorkGroupSize();
+	if ( KernelWorkGroupMax == -1 )
+		KernelWorkGroupMax = ofMax( Exec1, Exec2 );
+	int Iterationsa = (Exec1 / KernelWorkGroupMax)+1;
+	int Iterationsb = (Exec2 / KernelWorkGroupMax)+1;
+
+	for ( int ita=0;	ita<Iterationsa;	ita++ )
+	{
+		for ( int itb=0;	itb<Iterationsb;	itb++ )
+		{
+			SoyOpenclKernelIteration<2> Iteration;
+			Iteration.mFirst[0] = ita * KernelWorkGroupMax;
+			Iteration.mCount[0] = ofMin( KernelWorkGroupMax, Exec1 - Iteration.mFirst[0] );
+			Iteration.mFirst[1] = itb * KernelWorkGroupMax;
+			Iteration.mCount[1] = ofMin( KernelWorkGroupMax, Exec2 - Iteration.mFirst[1] );
+			Iteration.mBlocking = BlockLast && (ita==Iterationsa-1) && (itb==Iterationsb-1);
+			Iterations.PushBack( Iteration );
+		}
+	}
+}
+
+void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<3>>& Iterations,int Exec1,int Exec2,int Exec3,bool BlockLast)
+{
+	int KernelWorkGroupMax = GetMaxWorkGroupSize();
+	if ( KernelWorkGroupMax == -1 )
+		KernelWorkGroupMax = ofMax( Exec1, ofMax( Exec2, Exec3 ) );
+	int Iterationsa = (Exec1 / KernelWorkGroupMax)+1;
+	int Iterationsb = (Exec2 / KernelWorkGroupMax)+1;
+	int Iterationsc = (Exec3 / KernelWorkGroupMax)+1;
+
+	for ( int ita=0;	ita<Iterationsa;	ita++ )
+	{
+		for ( int itb=0;	itb<Iterationsb;	itb++ )
+		{
+			for ( int itc=0;	itc<Iterationsc;	itc++ )
+			{
+				SoyOpenclKernelIteration<3> Iteration;
+				Iteration.mFirst[0] = ita * KernelWorkGroupMax;
+				Iteration.mCount[0] = ofMin( KernelWorkGroupMax, Exec1 - Iteration.mFirst[0] );
+				Iteration.mFirst[1] = itb * KernelWorkGroupMax;
+				Iteration.mCount[1] = ofMin( KernelWorkGroupMax, Exec2 - Iteration.mFirst[1] );
+				Iteration.mFirst[2] = itc * KernelWorkGroupMax;
+				Iteration.mCount[2] = ofMin( KernelWorkGroupMax, Exec3 - Iteration.mFirst[2] );
+				Iteration.mBlocking = BlockLast && (ita==Iterationsa-1) && (itb==Iterationsb-1) && (itc==Iterationsc-1);
+				Iterations.PushBack( Iteration );
+			}
+		}
+	}
 }
 
 
