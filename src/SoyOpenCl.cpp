@@ -2,11 +2,10 @@
 #include "SoyOpenCl.h"
 #include "SoyApp.h"
 
-
-
-bool SoyOpenClManager::OPENCL_DATA_BLOCKING_READ = true;
-bool SoyOpenClManager::OPENCL_DATA_BLOCKING_WRITE = false;
-bool SoyOpenClManager::OPENCL_EXECUTE_BLOCKING = true;
+//	default settings
+bool SoyOpenCl::OPENCL_DATA_BLOCKING_READ = true;
+bool SoyOpenCl::OPENCL_DATA_BLOCKING_WRITE = false;
+bool SoyOpenCl::OPENCL_EXECUTE_BLOCKING = true;
 
 
 
@@ -361,6 +360,33 @@ void SoyOpenClKernel::DeleteKernel()
 	mKernel = NULL;
 }
 
+void SoyOpenClKernel::OnBufferPendingWrite(cl_event PendingWriteEvent)
+{
+	assert( PendingWriteEvent != NULL );
+	mPendingBufferWrites.PushBack( PendingWriteEvent );
+}
+	
+bool SoyOpenClKernel::WaitForPendingWrites()
+{
+	if ( !mKernel )
+		return false;
+
+	static bool UseEvents = true;
+	if ( UseEvents )
+	{
+		if ( mPendingBufferWrites.IsEmpty() )
+			return true;
+		auto Err = clWaitForEvents( mPendingBufferWrites.GetSize(), mPendingBufferWrites.GetArray() );
+		return (Err == CL_SUCCESS);
+	}
+	else
+	{
+		mPendingBufferWrites.Clear();
+		auto Err = clFinish( mKernel->getQueue() );
+		return (Err == CL_SUCCESS);
+	}
+}
+
 
 bool SoyOpenClKernel::Begin()
 {
@@ -372,19 +398,19 @@ bool SoyOpenClKernel::Begin()
 
 bool SoyOpenClKernel::End1D(int Exec1)
 {
-	bool Blocking = SoyOpenClManager::OPENCL_EXECUTE_BLOCKING;
+	bool Blocking = SoyOpenCl::OPENCL_EXECUTE_BLOCKING;
 	return End1D( Blocking, Exec1 );
 }
 
 bool SoyOpenClKernel::End2D(int Exec1,int Exec2)
 {
-	bool Blocking = SoyOpenClManager::OPENCL_EXECUTE_BLOCKING;
+	bool Blocking = SoyOpenCl::OPENCL_EXECUTE_BLOCKING;
 	return End2D( Blocking, Exec1, Exec2 );
 }
 
 bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
 {
-	bool Blocking = SoyOpenClManager::OPENCL_EXECUTE_BLOCKING;
+	bool Blocking = SoyOpenCl::OPENCL_EXECUTE_BLOCKING;
 	return End3D( Blocking, Exec1, Exec2, Exec3 );
 }
 
@@ -397,6 +423,11 @@ bool SoyOpenClKernel::End1D(bool Blocking,int Exec1)
 		ofLogWarning( Debug.c_str() );
 		Exec1 = ofMin( Exec1, mMaxWorkGroupSize );
 	}
+
+	//	if we're about to execute, make sure all writes are done
+	//	gr: only if ( Blocking ) ?
+	if ( !WaitForPendingWrites() )
+		return false;
 
 	//	execute
 	if ( !mKernel->run1D( Blocking, Exec1 ) )
@@ -416,6 +447,11 @@ bool SoyOpenClKernel::End2D(bool Blocking,int Exec1,int Exec2)
 		Exec2 = ofMin( Exec2, mMaxWorkGroupSize );
 	}
 
+	//	if we're about to execute, make sure all writes are done
+	//	gr: only if ( Blocking ) ?
+	if ( !WaitForPendingWrites() )
+		return false;
+
 	//	execute
 	if ( !mKernel->run2D( Blocking, Exec1, Exec2 ) )
 		return false;
@@ -434,6 +470,11 @@ bool SoyOpenClKernel::End3D(bool Blocking,int Exec1,int Exec2,int Exec3)
 		Exec2 = ofMin( Exec2, mMaxWorkGroupSize );
 		Exec3 = ofMin( Exec3, mMaxWorkGroupSize );
 	}
+
+	//	if we're about to execute, make sure all writes are done
+	//	gr: only if ( Blocking ) ?
+	if ( !WaitForPendingWrites() )
+		return false;
 
 	//	execute
 	if ( !mKernel->run3D( Blocking, Exec1, Exec2, Exec3 ) )

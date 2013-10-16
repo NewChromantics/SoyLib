@@ -9,6 +9,13 @@ class SoyOpenClManager;
 class SoyOpenClShader;
 
 
+namespace SoyOpenCl
+{
+	extern bool	OPENCL_DATA_BLOCKING_READ;
+	extern bool	OPENCL_DATA_BLOCKING_WRITE;
+	extern bool	OPENCL_EXECUTE_BLOCKING;
+}
+
 class SoyFileChangeDetector
 {
 public:
@@ -96,9 +103,11 @@ public:
 	bool			End(const SoyOpenclKernelIteration<2>& Iteration)	{	return End2D( Iteration.mBlocking, Iteration.mCount[0], Iteration.mCount[1] );	}
 	bool			End(const SoyOpenclKernelIteration<3>& Iteration)	{	return End3D( Iteration.mBlocking, Iteration.mCount[0], Iteration.mCount[1], Iteration.mCount[2] );	}
 
-	void			GetIterations(Array<SoyOpenclKernelIteration<1>>& Iterations,int Exec1,bool BlockLast=true);
-	void			GetIterations(Array<SoyOpenclKernelIteration<2>>& Iterations,int Exec1,int Exec2,bool BlockLast=true);
-	void			GetIterations(Array<SoyOpenclKernelIteration<3>>& Iterations,int Exec1,int Exec2,int Exec3,bool BlockLast=true);
+	void			GetIterations(Array<SoyOpenclKernelIteration<1>>& Iterations,int Exec1,bool BlockLast=SoyOpenCl::OPENCL_EXECUTE_BLOCKING);
+	void			GetIterations(Array<SoyOpenclKernelIteration<2>>& Iterations,int Exec1,int Exec2,bool BlockLast=SoyOpenCl::OPENCL_EXECUTE_BLOCKING);
+	void			GetIterations(Array<SoyOpenclKernelIteration<3>>& Iterations,int Exec1,int Exec2,int Exec3,bool BlockLast=SoyOpenCl::OPENCL_EXECUTE_BLOCKING);
+
+	void			OnBufferPendingWrite(cl_event PendingWriteEvent);
 
 	bool									CheckPaddingChecksum(const int* Padding,int Length);
 	template<typename TYPE> bool			CheckPaddingChecksum(const TYPE& Object)						{	return CheckPaddingChecksum( Object.mPadding, sizeofarray(Object.mPadding) );	}
@@ -108,13 +117,17 @@ public:
 	template<typename TYPE> bool			CheckPaddingChecksum(const RemoteArray<TYPE>& ObjectArray)		{	return CheckPaddingChecksum( GetArrayBridge( ObjectArray ) );	}
 	template<typename TYPE,class SORT> bool	CheckPaddingChecksum(const SortArray<TYPE,SORT>& ObjectArray)	{	return CheckPaddingChecksum( GetArrayBridge( ObjectArray.mArray ) );	}
 	
+protected:
+	bool			WaitForPendingWrites();
+
 private:
 	int					mMaxWorkGroupSize;
 	BufferString<100>	mName;
+	Array<cl_event>		mPendingBufferWrites;	//	wait for all these to finish before executing
 
 public:
 	SoyOpenClManager&	mManager;
-	SoyOpenClShader&	mShader;		//	parent
+	SoyOpenClShader&	mShader;				//	parent
 	msa::OpenCLKernel*	mKernel;
 	SoyOpenClKernelRef	mKernelRef;
 };
@@ -165,11 +178,6 @@ public:
 
 class SoyOpenClManager : public SoyThread
 {
-public:
-	static bool OPENCL_DATA_BLOCKING_READ;
-	static bool OPENCL_DATA_BLOCKING_WRITE;
-	static bool OPENCL_EXECUTE_BLOCKING;
-
 public:
 	SoyOpenClManager(prmem::Heap& Heap);
 	~SoyOpenClManager();
@@ -257,7 +265,6 @@ public:
 	template<typename ARRAYTYPE>
 	bool		Write(const ArrayBridgeDef<ARRAYTYPE>& Array,cl_int ReadWriteMode)
 	{
-		assert( mBuffer == NULL );
 		//	check for non 16-byte aligned structs (assume anything more than 4 bytes is a struct)
 		if ( sizeof(ARRAYTYPE::TYPE) > 8 )
 		{
@@ -269,15 +276,7 @@ public:
 				ofLogWarning( Debug.c_str() );
 			}
 		}
-
-		if ( !mKernel.IsValid() )
-			return false;
-
-		//	gr: only write data if we're NOT write-only memory
-		auto* pArrayData = Array.GetArray();
-		void* pData = (ReadWriteMode&CL_MEM_WRITE_ONLY) ? NULL : const_cast<ARRAYTYPE::TYPE*>(pArrayData);
-		mBuffer = mManager.mOpencl.createBuffer( Array.GetDataSize(), ReadWriteMode, pData, SoyOpenClManager::OPENCL_DATA_BLOCKING_WRITE, mKernel.GetQueue() );
-		return (mBuffer!=NULL);
+		return Write( Array.GetArray(), Array.GetDataSize(), SoyOpenCl::OPENCL_DATA_BLOCKING_WRITE, ReadWriteMode );
 	}
 	template<typename TYPE>				bool	Write(const Array<TYPE>& Array,cl_int ReadWriteMode)			{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
 	template<typename TYPE,int SIZE>	bool	Write(const BufferArray<TYPE,SIZE>& Array,cl_int ReadWriteMode)	{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
@@ -298,14 +297,7 @@ public:
 				ofLogWarning( Debug.c_str() );
 			}
 		}
-
-		if ( !mKernel.IsValid() )
-			return false;
-
-		assert( mBuffer == NULL );
-		void* pData = (ReadWriteMode&CL_MEM_WRITE_ONLY) ? NULL : &const_cast<TYPE&>(Data);
-		mBuffer = mManager.mOpencl.createBuffer( sizeof(TYPE), ReadWriteMode, pData, SoyOpenClManager::OPENCL_DATA_BLOCKING_WRITE, mKernel.GetQueue() );
-		return (mBuffer!=NULL);
+		return Write( &Data, sizeof(TYPE), SoyOpenCl::OPENCL_DATA_BLOCKING_WRITE, ReadWriteMode );
 	}
 
 	~SoyClDataBuffer()
@@ -328,7 +320,7 @@ public:
 			return true;
 		if ( !mKernel.IsValid() )
 			return false;
-		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), SoyOpenClManager::OPENCL_DATA_BLOCKING_READ, mKernel.GetQueue() );
+		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), SoyOpenCl::OPENCL_DATA_BLOCKING_READ, mKernel.GetQueue() );
 	}
 
 	template<typename TYPE>				bool	Read(Array<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
@@ -343,12 +335,46 @@ public:
 			return false;
 		if ( !mKernel.IsValid() )
 			return false;
-		return mBuffer->read( &Data, 0, sizeof(TYPE), SoyOpenClManager::OPENCL_DATA_BLOCKING_READ, mKernel.GetQueue() );
+		return mBuffer->read( &Data, 0, sizeof(TYPE), SoyOpenCl::OPENCL_DATA_BLOCKING_READ, mKernel.GetQueue() );
 	}
 
 	bool		IsValid() const		{	return mBuffer;	}
 	operator	bool()				{	return IsValid();	}
 	cl_mem&		getCLMem()			{	static cl_mem Dummy;	assert( mBuffer );	return mBuffer ? mBuffer->getCLMem() : Dummy;	}
+
+private:
+	template<typename TYPE>
+	bool	Write(const TYPE* pDataConst,int DataSize,bool Blocking,int ReadWriteMode)
+	{
+		assert( mKernel.IsValid() );
+		if ( !mKernel.IsValid() )
+			return false;
+		assert( !mBuffer );
+		mBuffer = mManager.mOpencl.createBuffer( DataSize, ReadWriteMode, NULL, Blocking, mKernel.GetQueue() );
+		if ( !mBuffer )
+			return false;
+
+		//	gr: only write data if we're NOT write-only memory
+		bool WriteOnly = (ReadWriteMode & CL_MEM_WRITE_ONLY)!=0;
+		if ( WriteOnly )
+			return true;
+
+		void* pData = const_cast<TYPE*>( pDataConst );
+		if ( Blocking )
+		{
+			if ( !mBuffer->write( pData, 0, DataSize, Blocking, mKernel.GetQueue() ) )
+				return false;
+		}
+		else
+		{
+			//	write async and give an event to the kernel to wait for before executing
+			cl_event Event;
+			if ( !mBuffer->writeAsync( pData, 0, DataSize, &Event, mKernel.GetQueue() ) )
+				return false;
+			mKernel.OnBufferPendingWrite( Event );
+		}
+		return true;
+	}
 
 public:
 	msa::OpenCLBuffer*	mBuffer;
