@@ -104,7 +104,6 @@ namespace prmem
 		HeapInfo(const char* Name);
 		virtual ~HeapInfo();
 
-		inline uint64			GetId() const					{	return mId;	}
 		inline const char*		GetName() const					{	return mName;	}
 		virtual HANDLE			GetHandle() const=0;			//	get win32 heap handle
 		inline bool				IsValid() const					{	return GetHandle()!=NULL;	}	//	heap has been created
@@ -150,9 +149,6 @@ namespace prmem
 		uint32				mAllocCount;	//	number of individual allocations (ie, #blocks in heap)
 		uint32				mAllocBytesPeak;
 		uint32				mAllocCountPeak;
-
-	private:
-		uint64				mId;			//	unique id. Just a counter atm
 	};
 
 
@@ -166,7 +162,7 @@ namespace prmem
 	public:
 		BufferString<200>	ToString() const;
 
-		inline bool					operator==(const void* Object) const	{	return mObject == Object;	}
+		inline bool			operator==(const void* Object) const	{	return mObject == Object;	}
 
 	public:
 		const void*						mObject;		//	allocated data
