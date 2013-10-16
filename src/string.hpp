@@ -233,10 +233,18 @@ namespace Soy
 		String2& operator += (const String2& s)
 		{
 			int count = s.GetLength();
+			assert( count >= 0 );
 			if ( count > 0 )
 			{
 				//	-1 so we start at existing terminator
-				S* dest = mdata.PushBlock(count) - 1;
+				S* dest = mdata.PushBlock(count);
+
+				//	failed to alloc (gr: may be due
+				if ( dest == NULL )
+					return *this;
+
+				assert( dest );
+				dest--;
 				const S* text = s;
 
 				//	<= to copy terminator
