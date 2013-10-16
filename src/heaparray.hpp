@@ -75,11 +75,11 @@ public:
 
 	~Array()
 	{
-		//	gr; for safety, if there is no heap, we use normal new
-		if ( mdata && mHeap )
-			mHeap->FreeArray( mdata, mmaxsize );
-		else if ( mdata )
-			delete[] mdata;
+		if ( mdata )
+		{
+			auto& Heap = GetHeap();
+			Heap.FreeArray( mdata, mmaxsize );
+		}
 	}
 
 	template<typename ARRAYTYPE>
@@ -196,13 +196,11 @@ public:
 
 		if ( size )
 		{
-			//	gr; for safety, if there is no heap, we use normal new
-			if ( mHeap )
-				array = mHeap->AllocArray<T>(size);
-			else
-				array = new T[size];
+			auto& Heap = GetHeap();
+			array = Heap.AllocArray<T>(size);
 
 			//	failed alloc
+			assert( array );
 			if ( !array )
 				return false;
 
@@ -226,10 +224,8 @@ public:
 		if ( mdata )
 		{
 			//	gr; for safety, if there is no heap, we use normal new
-			if ( mHeap )
-				mHeap->FreeArray( mdata, mmaxsize );
-			else
-				delete[] mdata;
+			auto& Heap = GetHeap();
+			Heap.FreeArray( mdata, mmaxsize );
 		}
 		mdata    = array;
 		mmaxsize = size;
@@ -280,14 +276,8 @@ public:
 			if ( !mmaxsize )
 			{
 				int size = count * 2;
-
-				//	gr; for safety, if there is no heap, we use normal new
-				if ( mHeap )
-					mdata = mHeap->AllocArray<T>( size );
-				else
-					mdata = new T[size];
-
-				mmaxsize = size;
+				if ( !Alloc(size) )
+					return NULL;
 			}
 			else
 			{
@@ -318,12 +308,8 @@ public:
 		{
 			if ( !mmaxsize )
 			{
-				//	gr; for safety, if there is no heap, we use normal new
-				if ( mHeap )
-					mdata = mHeap->AllocArray<T>( 4 );
-				else
-					mdata = new T[4];
-				mmaxsize = 4;
+				if ( !Alloc( 4 ) )
+					return *mdata;
 				moffset = 0;
 			}
 			else
@@ -346,12 +332,8 @@ public:
 		{
 			if ( !mmaxsize )
 			{
-				//	gr; for safety, if there is no heap, we use normal new
-				if ( mHeap )
-					mdata = mHeap->AllocArray<T>( 4 );
-				else
-					mdata = new T[4];
-				mmaxsize = 4;
+				if ( !Alloc( 4 ) )
+					return *mdata;
 				moffset = 0;
 			}
 			else
@@ -604,22 +586,38 @@ public:
 		return ThisBridge.Matches( ThatBridge )==false;
 	}
 		
-	prmem::Heap&	GetHeap() const	{	return *mHeap;	}
+	prmem::Heap&	GetHeap() const
+	{
+		assert( mHeap );
+		if ( !mHeap )
+		{
+			auto& This = *const_cast<Array<T,HEAP>*>( this );
+			This.SetHeap( prcore::Heap );
+		}
+		return mHeap ? prcore::Heap : *mHeap;	
+	}
+
 	void			SetHeap(prmem::Heap& Heap)
 	{
-		//	if heap isn't valid yet (eg. if this has been allocated before the global heap)
-		//	we'll use NULL (and revert to new/delete)
-		prmem::Heap* pNewHeap = &Heap;
+		assert( &Heap );
+		
+		//	if heap isn't valid yet (eg. if this has been allocated before the global heap), 
+		//	throw error, but address should be okay, so in these bad cases.. we MIGHT get away with it.
 		if ( !Heap.IsHeapValid() )
-			pNewHeap = NULL;
+		{
+			assert( Heap.IsHeapValid() );
+			BufferString<1000> Debug;
+			Debug << "Array<" << Soy::GetTypeName<T>() << "> assigned non-valid heap. Array constructed before heap?";
+			ofLogError( Debug.c_str() );
+		}
 
 		//	if heap changes and we have allocated data we should re-allocate the data...
-		bool ReAlloc = mdata && (pNewHeap!=mHeap);
+		bool ReAlloc = mdata && (&Heap!=mHeap);
 
 		//	currently we don't support re-allocating to another heap. 
 		//	It's quite trivial, but usually indicates an unexpected situation so leaving it for now
 		assert( !ReAlloc );
-		mHeap = pNewHeap;
+		mHeap = &Heap;
 	}
 	
 	//	copy data to a Buffer[BUFFERSIZE] c-array. (lovely template syntax! :)
@@ -634,7 +632,25 @@ public:
 		}
 		return Count;
 	}
-		
+	
+	bool Alloc(int NewSize)
+	{
+		assert( NewSize >= 0 );
+
+		auto& Heap = GetHeap();
+		mdata = Heap.AllocArray<T>( NewSize );
+
+		//	failed to alloc - make sure vars are accurate
+		if ( !mdata )
+		{
+			mmaxsize = 0;
+			moffset = 0;
+			return false;
+		}
+		mmaxsize = NewSize;
+		assert( moffset <= mmaxsize );
+		return true;
+	}
 
 private:
 	prmem::Heap*	mHeap;		//	where to alloc/free from
