@@ -146,7 +146,7 @@ TPacketReadResult::Type ReadChunk(ArrayBridge<DATATYPE>& Array,READWRAPPER& Read
 }
 
 template<class READWRAPPER>
-bool RecvPackets(SoyPacketManager& PacketManager,READWRAPPER& ReadWrapper)
+bool RecvPackets(SoyPacketManager& PacketManager,READWRAPPER& ReadWrapper,bool ExpectingPacketMeta)
 {
 	//	have we got a pending packet to finish?
 	{
@@ -173,27 +173,45 @@ bool RecvPackets(SoyPacketManager& PacketManager,READWRAPPER& ReadWrapper)
 	{
 		BufferArray<SoyPacketMeta,1> PacketHeaderData(1);
 		auto& PacketHeader = PacketHeaderData[0];
-		auto HeaderResult = ReadChunk( GetArrayBridge( PacketHeaderData ), ReadWrapper );
-		if ( HeaderResult == TPacketReadResult::Error )
-			return false;
-		if ( HeaderResult == TPacketReadResult::NotEnoughData )
-			return true;
+		Array<char> PacketData;
 
-		//	check the packet header is okay
-		if ( !PacketHeader.IsValid() )
-			return false;
-
-		//	read the rest of the packet data
-		Array<char> PacketData( PacketHeader.mDataSize );
-		auto DataResult = ReadChunk( GetArrayBridge( PacketData ), ReadWrapper );
-		if ( DataResult == TPacketReadResult::Error )
-			return false;
-
-		//	still waiting for data (but we've read the header)
-		if ( DataResult == TPacketReadResult::NotEnoughData )
+		if ( ExpectingPacketMeta )
 		{
-			PacketManager.PushPendingPacket( PacketHeader, ReadWrapper.mSender );
-			return true;
+			auto HeaderResult = ReadChunk( GetArrayBridge( PacketHeaderData ), ReadWrapper );
+			if ( HeaderResult == TPacketReadResult::Error )
+				return false;
+			if ( HeaderResult == TPacketReadResult::NotEnoughData )
+				return true;
+
+			//	check the packet header is okay
+			if ( !PacketHeader.IsValid() )
+				return false;
+
+			//	read the rest of the packet data
+			PacketData.SetSize( PacketHeader.mDataSize );
+			auto DataResult = ReadChunk( GetArrayBridge( PacketData ), ReadWrapper );
+			if ( DataResult == TPacketReadResult::Error )
+				return false;
+
+			//	still waiting for data (but we've read the header)
+			if ( DataResult == TPacketReadResult::NotEnoughData )
+			{
+				PacketManager.PushPendingPacket( PacketHeader, ReadWrapper.mSender );
+				return true;
+			}
+		}
+		else
+		{
+			//	dumb read
+			PacketHeader.mDataSize = ReadWrapper.peekReceiveRawBytes( GetArrayBridge( PacketData ) );
+			if ( PacketHeader.mDataSize == 0 )
+				return false;
+
+			PacketData.SetSize( PacketHeader.mDataSize );
+			int BytesRecieved = ReadWrapper.receiveRawBytes( GetArrayBridge( PacketData ) );
+			assert( BytesRecieved == PacketHeader.mDataSize );
+			if ( BytesRecieved != PacketHeader.mDataSize )
+				return false;
 		}
 
 		//	push new packet
@@ -415,7 +433,7 @@ void TSocketTCP::RecievePackets()
 	if ( mClient.isConnected() )
 	{
 		TClientReadWrapper Client( mClient, GetServerAddress() );
-		if ( !RecvPackets( mPacketsIn, Client ) )
+		if ( !RecvPackets( mPacketsIn, Client, mIncludeMetaInPacket ) )
 		{
 			//	fatal error, disconnect client
 			Close();
@@ -432,7 +450,7 @@ void TSocketTCP::RecievePackets()
 				continue;
 		
 			TServerReadWrapper Client( mServer, ClientId, GetClientAddress(ClientId) );
-			if ( !RecvPackets( mPacketsIn, Client ) )
+			if ( !RecvPackets( mPacketsIn, Client, mIncludeMetaInPacket ) )
 			{
 				//	fatal error, disconnect client (should we disconnect ourselves? maybe depends on error)
 				mServer.disconnectClient( ClientId );
@@ -591,7 +609,12 @@ bool TSocketUDP::Connect(const SoyNet::TAddress& ServerAddress)
 bool TSocketUDP::BindUDP(uint16 Port)
 {
 	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mSocket.GetMutex() ) );
-	return mSocket.Bind( Port );
+	if ( !mSocket.Bind( Port ) )
+		return false;
+
+	//	make buffer recv size bigger than default
+	mSocket.SetReceiveBufferSize( 1024*64 );	//	udp max
+	return true;
 }
 
 bool TSocketUDP::ConnectUDP(const SoyNet::TAddress& ServerAddress)
@@ -639,9 +662,18 @@ void TSocketUDP::RecievePackets()
 	while ( mSocket.HasSocket() )
 	{
 		//	do a recv into our pending buffer and grab the source of the data
-		int MaxBufferSize = mSocket.GetReceiveBufferSize();
+		int MaxHardareBufferSize = mSocket.GetReceiveBufferSize();
+		int MaxBufferSize = mSocket.PeekReceive();
+		if ( MaxBufferSize == SOCKET_ERROR )
+		{
+			Close();
+			break;
+		}
+		//	nothing to recieve
+		if ( MaxBufferSize == 0 )
+			break;
 		Array<char> Buffer( MaxBufferSize );
-		int BufferSize = mSocket.Receive( Buffer.GetArray(), Buffer.GetDataSize() );
+		int BufferSize = (MaxBufferSize<=0) ? MaxBufferSize : mSocket.Receive( Buffer.GetArray(), Buffer.GetDataSize() );
 
 		//	socket error
 		if ( BufferSize == SOCKET_ERROR )
@@ -691,7 +723,7 @@ void TSocketUDP::RecievePackets()
 		auto& Data = mPacketData[i].mSecond;
 
 		TDataReadWrapper Client( Data, Address );
-		if ( RecvPackets( mPacketsIn, Client ) )
+		if ( RecvPackets( mPacketsIn, Client, mIncludeMetaInPacket ) )
 			continue;
 
 		//	fatal error, "disconnect client" by removing the data stored for the address
