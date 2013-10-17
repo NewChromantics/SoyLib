@@ -216,7 +216,7 @@ public:
 		mMeta.mDataSize = mData.GetDataSize();
 	
 		//	type needs to have already been set if we're using raw packet data
-		assert( mMeta.IsValidType() );
+		//assert( mMeta.IsValidType() );
 
 		return true;
 	}
@@ -238,6 +238,8 @@ public:
 		return true;
 	}
 
+	const Array<char>&	GetPacketAsData() const		{	return mData;	}
+
 	template<class TYPE>
 	bool			GetPacketAs(TYPE& Packet) const
 	{
@@ -251,6 +253,7 @@ public:
 			return Packet;
 		return Packet;
 	}
+
 
 	void			GetPacketRaw(Array<char>& RawData,bool IncludeMetaInPacket)
 	{
@@ -285,7 +288,14 @@ public:
 	{
 	}
 
-	bool					IsEmpty() const	{	return mPackets.IsEmpty();	}	//	read is so minute we don't need a lock
+	bool					IsEmpty() const
+	{	
+		//	gr: lock?
+		//		there is a lock when we ALLOCATE, then fill, so it's possible this returns 
+		//		that we have entries when they havent finished being filled with data
+		//		although when we come to read, we actually will have a lock
+		return mPackets.IsEmpty();	
+	}
 
 	template<class PACKET>
 	void					PushPacket(const SoyPacketMeta& Meta,const PACKET& Packet);
