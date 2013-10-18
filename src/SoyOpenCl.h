@@ -11,9 +11,10 @@ class SoyOpenClShader;
 
 namespace SoyOpenCl
 {
-	extern bool	OPENCL_DATA_BLOCKING_READ;
-	extern bool	OPENCL_DATA_BLOCKING_WRITE;
-	extern bool	OPENCL_EXECUTE_BLOCKING;
+	extern bool						DefaultReadBlocking;
+	extern bool						DefaultWriteBlocking;
+	extern bool						DefaultExecuteBlocking;
+	extern msa::OpenClDevice::Type	DefaultDeviceType;
 }
 
 class SoyFileChangeDetector
@@ -89,6 +90,7 @@ public:
 	bool			IsValidExecCount(int ExecCount)	{	return (mMaxWorkGroupSize==-1) ? true : (ExecCount<=mMaxWorkGroupSize);	}
 	int				GetMaxWorkGroupSize() const	{	return mMaxWorkGroupSize;	}
 	cl_command_queue	GetQueue()			{	return mKernel ? mKernel->getQueue() : NULL;	}
+	msa::OpenCL&	GetOpenCL() const;
 
 	void			DeleteKernel();
 	inline bool		operator==(const char* Name) const	{	return mName == Name;	}
@@ -103,9 +105,9 @@ public:
 	bool			End(const SoyOpenclKernelIteration<2>& Iteration)	{	return End2D( Iteration.mBlocking, Iteration.mCount[0], Iteration.mCount[1] );	}
 	bool			End(const SoyOpenclKernelIteration<3>& Iteration)	{	return End3D( Iteration.mBlocking, Iteration.mCount[0], Iteration.mCount[1], Iteration.mCount[2] );	}
 
-	void			GetIterations(Array<SoyOpenclKernelIteration<1>>& Iterations,int Exec1,bool BlockLast=SoyOpenCl::OPENCL_EXECUTE_BLOCKING);
-	void			GetIterations(Array<SoyOpenclKernelIteration<2>>& Iterations,int Exec1,int Exec2,bool BlockLast=SoyOpenCl::OPENCL_EXECUTE_BLOCKING);
-	void			GetIterations(Array<SoyOpenclKernelIteration<3>>& Iterations,int Exec1,int Exec2,int Exec3,bool BlockLast=SoyOpenCl::OPENCL_EXECUTE_BLOCKING);
+	void			GetIterations(Array<SoyOpenclKernelIteration<1>>& Iterations,int Exec1,bool BlockLast=SoyOpenCl::DefaultExecuteBlocking);
+	void			GetIterations(Array<SoyOpenclKernelIteration<2>>& Iterations,int Exec1,int Exec2,bool BlockLast=SoyOpenCl::DefaultExecuteBlocking);
+	void			GetIterations(Array<SoyOpenclKernelIteration<3>>& Iterations,int Exec1,int Exec2,int Exec3,bool BlockLast=SoyOpenCl::DefaultExecuteBlocking);
 
 	void			OnBufferPendingWrite(cl_event PendingWriteEvent);
 
@@ -176,6 +178,22 @@ public:
 	SoyOpenClManager&		mManager;
 };
 
+class SoyThreadQueue
+{
+public:
+	SoyThreadQueue() :
+		mThreadId	( -1 ),
+		mQueue		( NULL ),
+		mDeviceType	( msa::OpenClDevice::Invalid )
+	{
+	}
+
+public:
+	int						mThreadId;
+	cl_command_queue		mQueue;
+	msa::OpenClDevice::Type	mDeviceType;
+};
+
 class SoyOpenClManager : public SoyThread
 {
 public:
@@ -192,15 +210,16 @@ public:
 	SoyOpenClShader*		GetShader(const char* Filename);
 	SoyRef					GetUniqueRef(SoyRef BaseRef=SoyRef("Shader"));
 	prmem::Heap&			GetHeap()		{	return mHeap;	}
+	msa::OpenCL&			GetOpenCL()		{	return mOpencl;	}
 
-	cl_command_queue		GetQueueForThread();				//	get/alloc a specific queue for the current thread
-	cl_command_queue		GetQueueForThread(int ThreadId);	//	get/alloc a specific queue for a thread
+	cl_command_queue		GetQueueForThread(msa::OpenClDevice::Type DeviceType=SoyOpenCl::DefaultDeviceType);				//	get/alloc a specific queue for the current thread
+	cl_command_queue		GetQueueForThread(int ThreadId,msa::OpenClDevice::Type DeviceType=SoyOpenCl::DefaultDeviceType);	//	get/alloc a specific queue for a thread
 
 private:
 	prmem::Heap&			mHeap;
 	ofMutex					mShaderLock;
 	Array<SoyOpenClShader*>	mShaders;
-	ofMutexT<Array<SoyPair<int,cl_command_queue>>>	mThreadQueues;
+	ofMutexT<Array<SoyThreadQueue>>	mThreadQueues;
 
 public:
 	msa::OpenCL				mOpencl;
@@ -276,7 +295,7 @@ public:
 				ofLogWarning( Debug.c_str() );
 			}
 		}
-		return Write( Array.GetArray(), Array.GetDataSize(), SoyOpenCl::OPENCL_DATA_BLOCKING_WRITE, ReadWriteMode );
+		return Write( Array.GetArray(), Array.GetDataSize(), SoyOpenCl::DefaultWriteBlocking, ReadWriteMode );
 	}
 	template<typename TYPE>				bool	Write(const Array<TYPE>& Array,cl_int ReadWriteMode)			{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
 	template<typename TYPE,int SIZE>	bool	Write(const BufferArray<TYPE,SIZE>& Array,cl_int ReadWriteMode)	{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
@@ -297,7 +316,7 @@ public:
 				ofLogWarning( Debug.c_str() );
 			}
 		}
-		return Write( &Data, sizeof(TYPE), SoyOpenCl::OPENCL_DATA_BLOCKING_WRITE, ReadWriteMode );
+		return Write( &Data, sizeof(TYPE), SoyOpenCl::DefaultWriteBlocking, ReadWriteMode );
 	}
 
 	~SoyClDataBuffer()
@@ -320,7 +339,7 @@ public:
 			return true;
 		if ( !mKernel.IsValid() )
 			return false;
-		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), SoyOpenCl::OPENCL_DATA_BLOCKING_READ, mKernel.GetQueue() );
+		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), SoyOpenCl::DefaultReadBlocking, mKernel.GetQueue() );
 	}
 
 	template<typename TYPE>				bool	Read(Array<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
@@ -335,7 +354,7 @@ public:
 			return false;
 		if ( !mKernel.IsValid() )
 			return false;
-		return mBuffer->read( &Data, 0, sizeof(TYPE), SoyOpenCl::OPENCL_DATA_BLOCKING_READ, mKernel.GetQueue() );
+		return mBuffer->read( &Data, 0, sizeof(TYPE), SoyOpenCl::DefaultReadBlocking, mKernel.GetQueue() );
 	}
 
 	bool		IsValid() const		{	return mBuffer;	}
@@ -350,7 +369,7 @@ private:
 		if ( !mKernel.IsValid() )
 			return false;
 		assert( !mBuffer );
-		mBuffer = mManager.mOpencl.createBuffer( DataSize, ReadWriteMode, NULL, Blocking, mKernel.GetQueue() );
+		mBuffer = mManager.mOpencl.createBuffer( mKernel.GetQueue(), DataSize, ReadWriteMode, NULL, Blocking );
 		if ( !mBuffer )
 			return false;
 
@@ -381,4 +400,7 @@ public:
 	SoyOpenClManager&	mManager;
 	SoyOpenClKernel&	mKernel;
 };
+
+
+
 

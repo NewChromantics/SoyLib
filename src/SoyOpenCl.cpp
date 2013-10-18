@@ -3,10 +3,26 @@
 #include "SoyApp.h"
 
 //	default settings
-bool SoyOpenCl::OPENCL_DATA_BLOCKING_READ = true;
-bool SoyOpenCl::OPENCL_DATA_BLOCKING_WRITE = false;
-bool SoyOpenCl::OPENCL_EXECUTE_BLOCKING = true;
+bool SoyOpenCl::DefaultReadBlocking = true;
+bool SoyOpenCl::DefaultWriteBlocking = false;
+bool SoyOpenCl::DefaultExecuteBlocking = true;
+msa::OpenClDevice::Type SoyOpenCl::DefaultDeviceType = msa::OpenClDevice::GPU;
 
+
+
+class TSortPolicy_SoyThreadQueue
+{
+public:
+	//template<typename TYPEB>
+	static int		Compare(const SoyThreadQueue& a,const SoyThreadQueue& b)
+	{
+		if ( a.mThreadId < b.mThreadId )		return -1;
+		if ( a.mThreadId > b.mThreadId )		return 1;
+		if ( a.mDeviceType < b.mDeviceType )	return -1;
+		if ( a.mDeviceType > b.mDeviceType )	return 1;
+		return 0;
+	}
+};
 
 
 
@@ -40,9 +56,11 @@ SoyOpenClManager::SoyOpenClManager(prmem::Heap& Heap) :
 	mHeap		( Heap ),
 	mShaders	( mHeap )
 {
-	//	init opencl
-	mOpencl.setup( CL_DEVICE_TYPE_GPU );
-	//mOpencl.setup( CL_DEVICE_TYPE_CPU );
+	if ( !mOpencl.setup() )
+	{
+		assert( false );
+		ofLogError("Failed to initialise opencl");
+	}
 
 	startThread( true, false );
 }
@@ -88,7 +106,7 @@ void SoyOpenClManager::threadedFunction()
 
 bool SoyOpenClManager::IsValid()
 {
-	auto& Context = mOpencl.getContext();
+	auto Context = mOpencl.getContext();
 	if ( Context == NULL )
 		return false;
 	return true;
@@ -200,33 +218,41 @@ SoyOpenClShader* SoyOpenClManager::GetShader(const char* Filename)
 	return NULL;
 }
 
-cl_command_queue SoyOpenClManager::GetQueueForThread()
+cl_command_queue SoyOpenClManager::GetQueueForThread(msa::OpenClDevice::Type DeviceType)
 {
 	auto* CurrentThread = Poco::Thread::current();
 	if ( !CurrentThread )
 		return NULL;
 
-	return GetQueueForThread( CurrentThread->tid() );
+	return GetQueueForThread( CurrentThread->tid(), DeviceType );
 }
 
-cl_command_queue SoyOpenClManager::GetQueueForThread(int ThreadId)
+cl_command_queue SoyOpenClManager::GetQueueForThread(int ThreadId,msa::OpenClDevice::Type DeviceType)
 {
 	ofMutex::ScopedLock Lock( mThreadQueues );
 
-	auto* pQueuePair = mThreadQueues.Find( ThreadId );
-	if ( !pQueuePair )
+	//	look for matching queue meta
+	SoyThreadQueue MatchQueue;
+	MatchQueue.mDeviceType = DeviceType;
+	MatchQueue.mThreadId = ThreadId;
+	auto ThreadQueues = GetSortArray( mThreadQueues, TSortPolicy_SoyThreadQueue() );
+	auto* pQueue = ThreadQueues.Find( MatchQueue );
+
+	//	create new entry
+	if ( !pQueue )
 	{
-		SoyPair<int,cl_command_queue> NewQueue;
-		NewQueue.mFirst = ThreadId;
-		NewQueue.mSecond = msa::OpenCL::currentOpenCL->createNewQueue();
-		pQueuePair = &mThreadQueues.PushBack( NewQueue );
-		
+		MatchQueue.mQueue = mOpencl.createQueue( DeviceType );
+
 		BufferString<100> Debug;
-		Debug << "Created opencl queue " << reinterpret_cast<int>(NewQueue.mSecond) << " for thread id " << ThreadId;
+		Debug << "Created opencl queue " << PtrToInt(MatchQueue.mQueue) << " for thread id " << ThreadId;
 		ofLogNotice( Debug.c_str() );
 
+		if ( !MatchQueue.mQueue )
+			return NULL;
+		
+		pQueue = &ThreadQueues.Push( MatchQueue );
 	}
-	return pQueuePair->mSecond;
+	return pQueue->mQueue;
 }
 
 
@@ -280,7 +306,7 @@ bool SoyOpenClShader::LoadShader()
 SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name,cl_command_queue Queue)
 {
 	ofMutex::ScopedLock Lock(mLock);
-
+	ofScopeTimerWarning Warning( BufferString<1000>()<<__FUNCTION__<<" "<<Name, 1 );
 	SoyOpenClKernel* pKernel = new SoyOpenClKernel( Name, *this );
 	if ( !pKernel )
 		return NULL;
@@ -350,6 +376,11 @@ SoyOpenClKernel::SoyOpenClKernel(const char* Name,SoyOpenClShader& Parent) :
 	mKernelRef			( Parent.GetRef(), Name )
 {
 }
+	
+msa::OpenCL& SoyOpenClKernel::GetOpenCL() const
+{
+	return mManager.mOpencl;
+}
 
 void SoyOpenClKernel::DeleteKernel()
 {
@@ -398,19 +429,19 @@ bool SoyOpenClKernel::Begin()
 
 bool SoyOpenClKernel::End1D(int Exec1)
 {
-	bool Blocking = SoyOpenCl::OPENCL_EXECUTE_BLOCKING;
+	bool Blocking = SoyOpenCl::DefaultExecuteBlocking;
 	return End1D( Blocking, Exec1 );
 }
 
 bool SoyOpenClKernel::End2D(int Exec1,int Exec2)
 {
-	bool Blocking = SoyOpenCl::OPENCL_EXECUTE_BLOCKING;
+	bool Blocking = SoyOpenCl::DefaultExecuteBlocking;
 	return End2D( Blocking, Exec1, Exec2 );
 }
 
 bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
 {
-	bool Blocking = SoyOpenCl::OPENCL_EXECUTE_BLOCKING;
+	bool Blocking = SoyOpenCl::DefaultExecuteBlocking;
 	return End3D( Blocking, Exec1, Exec2, Exec3 );
 }
 
@@ -491,10 +522,13 @@ void SoyOpenClKernel::OnLoaded()
 
 	//	query for max work group items
 	//	http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clGetKernelWorkGroupInfo.html
-	auto* Device = msa::OpenCL::currentOpenCL ? msa::OpenCL::currentOpenCL->getDevice() : NULL;
-	int Success = clGetKernelWorkGroupInfo( mKernel->getCLKernel(), Device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(mMaxWorkGroupSize), &mMaxWorkGroupSize, NULL );
-	assert( Success != CL_INVALID_VALUE );
-	if ( Success != CL_SUCCESS )
+	auto Queue = GetQueue();
+	auto* Device = mManager.mOpencl.GetDevice( Queue );
+	if ( Device )
+	{
+		mMaxWorkGroupSize = Device->mInfo.maxWorkGroupSize;
+	}
+	else
 	{
 		mMaxWorkGroupSize = -1;
 	}
