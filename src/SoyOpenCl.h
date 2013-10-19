@@ -197,7 +197,7 @@ public:
 class SoyOpenClManager : public SoyThread
 {
 public:
-	SoyOpenClManager(prmem::Heap& Heap);
+	SoyOpenClManager(const char* PlatformName,prmem::Heap& Heap);
 	~SoyOpenClManager();
 
 	virtual void			threadedFunction();

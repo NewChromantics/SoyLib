@@ -51,12 +51,12 @@ void SoyFileChangeDetector::SetLastModified(Poco::Timestamp Timestamp)
 
 
 
-SoyOpenClManager::SoyOpenClManager(prmem::Heap& Heap) :
+SoyOpenClManager::SoyOpenClManager(const char* PlatformName,prmem::Heap& Heap) :
 	SoyThread	( "SoyOpenClManager" ),
 	mHeap		( Heap ),
 	mShaders	( mHeap )
 {
-	if ( !mOpencl.setup() )
+	if ( !mOpencl.setup(PlatformName) )
 	{
 		assert( false );
 		ofLogError("Failed to initialise opencl");
