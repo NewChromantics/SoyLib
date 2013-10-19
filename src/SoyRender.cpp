@@ -97,10 +97,15 @@ void ofCapsule(const ofShapeCapsule2& Capsule,float z,bool DrawCenterLine)
 	vec2f Right = Normal.getPerpendicular();
 
 	//	BL TL TR BR (bottom = start)
-	vec3f Quad_BL( Line.mStart - (Right*mRadius), z );
-	vec3f Quad_TL( Line.mEnd - (Right*mRadius), z );
-	vec3f Quad_TR( Line.mEnd + (Right*mRadius), z );
-	vec3f Quad_BR( Line.mStart + (Right*mRadius), z );
+	vec2f Quad_BL2( Line.mStart - (Right*mRadius) );
+	vec2f Quad_TL2( Line.mEnd - (Right*mRadius) );
+	vec2f Quad_TR2( Line.mEnd + (Right*mRadius) );
+	vec2f Quad_BR2( Line.mStart + (Right*mRadius) );
+
+	vec3f Quad_BL( Quad_BL2.x, Quad_BL2.y, z );
+	vec3f Quad_TL( Quad_TL2.x, Quad_TL2.y, z );
+	vec3f Quad_TR( Quad_TR2.x, Quad_TR2.y, z );
+	vec3f Quad_BR( Quad_BR2.x, Quad_BR2.y, z );
 
 	if ( ofGetFill() == OF_FILLED )
 	{

@@ -485,9 +485,9 @@ void GetTriangles(ArrayBridge<ofShapeTriangle2>& Triangles,const ofMesh& Mesh)
 		auto& v1 = Vertexes[TriangleIndexes[i+1]];
 		auto& v2 = Vertexes[TriangleIndexes[i+2]];
 		auto& Triangle = Triangles.PushBack();
-		Triangle.mTriangle[0] = v0.xy();
-		Triangle.mTriangle[1] = v1.xy();
-		Triangle.mTriangle[2] = v2.xy();
+		Triangle.mTriangle[0] = vec2f( v0.x, v0.y );
+		Triangle.mTriangle[1] = vec2f( v1.x, v1.y );
+		Triangle.mTriangle[2] = vec2f( v2.x, v2.y );
 	}
 }
 
