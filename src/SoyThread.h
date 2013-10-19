@@ -16,14 +16,14 @@ public:
 	void	startThread(bool blocking, bool verbose)
 	{
 		ofThread::startThread( blocking, verbose );
-		setThreadName( thread.getName() );
+		setThreadName( getPocoThread().getName() );
 	}
 
 
 	void	setThreadName(const string& name)
 	{
 		//	set the Poco thread name
-		thread.setName( name );
+		getPocoThread().setName( name );
 
 		//	set the OS thread name
 		//	http://msdn.microsoft.com/en-gb/library/xcb2z8hs.aspx
