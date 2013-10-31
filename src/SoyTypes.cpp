@@ -6,6 +6,7 @@
 void ofLogNotice(const std::string& Message)
 {
 	OutputDebugStringA( Message.c_str() );
+	OutputDebugStringA("\n");
 }
 #endif
 
@@ -14,6 +15,7 @@ void ofLogNotice(const std::string& Message)
 void ofLogError(const std::string& Message)
 {
 	OutputDebugStringA( Message.c_str() );
+	OutputDebugStringA("\n");
 }
 #endif
 
