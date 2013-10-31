@@ -317,7 +317,9 @@ Improvement summary
 #include <errorrep.h>
 //#include <time.h>
 //#pragma comment(lib,"version.lib")	//for VerQueryValue, GetFileVersionInfo and GetFileVersioInfoSize
-#include "SoyApp.h"
+//#include "SoyApp.h"
+#include "SoyThread.h"
+#include "SoyDebug.h"
 
 
 
@@ -564,7 +566,7 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 		Debug << AllocItems.GetSize() << " objects allocated on heap " << OwnerHeap.GetName();
 		Debug << " (Heap reports " << OwnerHeap.GetAllocCount() << " objects allocated.)";
 		Debug << "\n";
-		ofLog( OF_LOG_NOTICE, Debug );
+		ofLogNotice( Debug.c_str() );
 	}
 
 	for ( int i=0;	i<AllocItems.GetSize();	i++ )
@@ -577,7 +579,7 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 		Debug << AllocInfo.ToString();
 		
 		//	show age
-		int AgeSecs = (ofGetElapsedTimeMillis() - AllocInfo.mAllocTick) / 1000;
+		int64 AgeSecs = (ofGetElapsedTimeMillis() - AllocInfo.mAllocTick) / 1000;
 		Debug << " " << AgeSecs << " secs ago.";
 
 		//	show callstack
@@ -604,7 +606,7 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 		}
 #endif
 
-		ofLog( OF_LOG_NOTICE, Debug );
+		ofLogNotice( Debug.c_str() );
 	}
 }
 

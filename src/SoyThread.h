@@ -1,6 +1,134 @@
 #pragma once
 
 #include "ofxSoylent.h"
+#include <Shlwapi.h>
+#pragma comment(lib,"Shlwapi.lib")
+
+
+
+
+#if defined(NO_OPENFRAMEWORKS)
+
+
+template <class M>
+class ScopedLock
+	/// A class that simplifies thread synchronization
+	/// with a mutex.
+	/// The constructor accepts a Mutex (and optionally
+	/// a timeout value in milliseconds) and locks it.
+	/// The destructor unlocks the mutex.
+{
+public:
+	explicit ScopedLock(M& mutex): _mutex(mutex)
+	{
+		_mutex.lock();
+	}
+	
+	ScopedLock(M& mutex, long milliseconds): _mutex(mutex)
+	{
+		_mutex.lock();
+	}
+	
+	~ScopedLock()
+	{
+		_mutex.unlock();
+	}
+
+private:
+	M& _mutex;
+
+	ScopedLock();
+	ScopedLock(const ScopedLock&);
+	ScopedLock& operator = (const ScopedLock&);
+};
+
+class ofMutex
+{
+public:
+	typedef ScopedLock<ofMutex> ScopedLock;
+
+public:
+	ofMutex()				{	InitializeCriticalSection( &mMutex );	}
+	virtual ~ofMutex()		{	DeleteCriticalSection( &mMutex );	}
+
+	void lock()				{	EnterCriticalSection( &mMutex ); }
+	void unlock()			{	LeaveCriticalSection( &mMutex );	}
+
+private:
+	CRITICAL_SECTION	mMutex;
+};
+
+
+
+#endif // NO_OPENFRAMEWORKS
+
+
+
+
+
+
+#if defined(NO_OPENFRAMEWORKS)
+
+class ofThread
+{
+public:
+	ofThread();
+	virtual ~ofThread();
+
+	bool			startThread(bool blocking, bool verbose);
+	void			stopThread();
+	bool			isThreadRunning()					{	return mIsRunning;	}
+	void			waitForThread(bool stop = true);
+	unsigned int	getThreadId() const					{	return mThreadId;	}
+
+protected:
+	bool			create(unsigned int stackSize=0);
+	void			destroy();
+	virtual void	threadedFunction() = 0;
+
+protected:
+	std::string		mThreadName;
+
+private:
+	static unsigned int __stdcall threadFunc(void *args);
+	
+	HANDLE			mHandle;
+	unsigned int	mThreadId;
+	volatile bool	mIsRunning;
+};
+#endif // NO_OPENFRAMEWORKS
+
+
+
+
+
+
+
+
+template<class OBJECT>
+class ofMutexT : public OBJECT, public ofMutex
+{
+public:
+	ofMutexT()
+	{
+	}
+	template<typename PARAM>
+	explicit ofMutexT(PARAM& Param) :
+		OBJECT	( Param )
+	{
+	}
+	template<typename PARAM>
+	explicit ofMutexT(const PARAM& Param) :
+		OBJECT	( Param )
+	{
+	}
+
+	OBJECT&			Get()				{	return *this;	}
+	const OBJECT&	Get() const			{	return *this;	}
+	ofMutex&		GetMutex()			{	return *this;	}
+	ofMutex&		GetMutex() const	{	return const_cast<ofMutex&>( static_cast<const ofMutex&>(*this) );	}
+};
+
 
 
 
@@ -16,14 +144,23 @@ public:
 	void	startThread(bool blocking, bool verbose)
 	{
 		ofThread::startThread( blocking, verbose );
-		setThreadName( getPocoThread().getName() );
+#if defined(NO_OPENFRAMEWORKS)
+		setThreadName( mThreadName );
+#else
+		setThreadName( thread.getName() );
+#endif
 	}
 
 
-	void	setThreadName(const string& name)
+	void	setThreadName(const std::string& name)
 	{
-		//	set the Poco thread name
+#if defined(NO_OPENFRAMEWORKS)
+		auto ThreadId = getThreadId();
+		mThreadName = name;
+#else
+		auto ThreadId = getPocoThread().tid();
 		getPocoThread().setName( name );
+#endif
 
 		//	set the OS thread name
 		//	http://msdn.microsoft.com/en-gb/library/xcb2z8hs.aspx
@@ -42,7 +179,7 @@ public:
 		THREADNAME_INFO info;
 		info.dwType = 0x1000;
 		info.szName = name.c_str();
-		info.dwThreadID = getPocoThread().tid();
+		info.dwThreadID = ThreadId;
 		info.dwFlags = 0;
 
 		//	this will fail if the OS thread hasn't started yet

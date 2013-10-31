@@ -28,7 +28,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <iostream>
-#include "configure.hpp"
+#include "SoyTypes.h"
 #include "chartype.hpp"
 #include "array.hpp"
 //#include "heaparray.hpp"
@@ -484,21 +484,21 @@ namespace Soy
 		String2& operator << (const int v)
 		{
 			char text[16];
-			sprintf(text,"%d",static_cast<int>(v));
+			sprintf_s(text,"%d",static_cast<int>(v));
 			return operator += (text);
 		}
 
 		String2& operator << (const unsigned int v)
 		{
 			char text[16];
-			sprintf(text,"%u",static_cast<unsigned int>(v));
+			sprintf_s(text,"%u",static_cast<unsigned int>(v));
 			return operator += (text);
 		}
 
 		String2& operator << (const long v)
 		{
 			char text[16];
-			sprintf(text,"%d",static_cast<int>(v));
+			sprintf_s(text,"%d",static_cast<int>(v));
 			return operator += (text);
 		}
 
@@ -512,21 +512,21 @@ namespace Soy
 		String2& operator << (const int64 v)
 		{
 			char text[32];
-			sprintf(text,"%I64d",v);
+			sprintf_s(text,"%I64d",v);
 			return operator += (text);
 		}
 
 		String2& operator << (const uint64 v)
 		{
 			char text[32];
-			sprintf(text,"%I64u",v);
+			sprintf_s(text,"%I64u",v);
 			return operator += (text);
 		}
 
 		String2& operator << (const float v)
 		{
 			char text[256];
-			int OutLength = sprintf(text,"%.3f",v);
+			int OutLength = sprintf_s(text,"%.3f",v);
 			assert( OutLength <= sizeof(text) ); 
 			return operator += (text);
 		}

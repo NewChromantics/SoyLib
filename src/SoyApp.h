@@ -1,6 +1,6 @@
 #pragma once
 
-#include "..\..\..\addons\ofxSoylent\src\ofxSoylent.h"
+#include "ofxSoylent.h"
 //#include "..\..\..\addons\ofxiPhone\src\ofxiPhone.h"
 //ofxiPhoneApp
 
@@ -23,47 +23,6 @@ inline BufferString<MAX_PATH> SoyGetFileExt(const char* Filename)
 	return Ext;
 }
 
-namespace Soy
-{
-	inline	BufferString<20>	FormatSizeBytes(uint64 bytes);
-}
-
-inline BufferString<20> Soy::FormatSizeBytes(uint64 bytes)
-{
-	float size = static_cast<float>( bytes );
-	const char* sizesuffix = "bytes";
-
-	//	show bytes as an integer. 1.000 bytes makes no sense.
-	bool ShowInteger = true;
-	
-	if ( size > 1024.f )
-	{
-		size /= 1024.f;
-		sizesuffix = "kb";
-		ShowInteger = false;
-	}
-	if ( size > 1024.f )
-	{
-		size /= 1024.f;
-		sizesuffix = "mb";
-		ShowInteger = false;
-	}
-	if ( size > 1024.f )
-	{
-		size /= 1024.f;
-		sizesuffix = "gb";
-		ShowInteger = false;
-	}
-	
-	//$size = round($size,2);
-	BufferString<20> out;
-	if ( ShowInteger )
-		out << static_cast<int>( size );
-	else
-		out << size;
-	out << sizesuffix;
-	return out;
-}
 
 //------------------------------------
 //	lock which still applies when single threaded

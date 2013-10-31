@@ -3,7 +3,7 @@
 
 #include <cassert>
 #include <cstddef>
-#include "types.hpp"	//	gr: not sure why I have to include this, when it's included earlier in Soy.hpp...
+#include "SoyTypes.h"	//	gr: not sure why I have to include this, when it's included earlier in Soy.hpp...
 #include "array.hpp"
 #include "memheap.hpp"
 	

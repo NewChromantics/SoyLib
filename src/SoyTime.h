@@ -1,7 +1,7 @@
 #pragma once
 
 
-#include "string.hpp"
+#include "String.hpp"
 
 
 class SoyTime
@@ -131,7 +131,7 @@ public:
 		}
 
 		SoyTime Now(true);
-		int Delta = Now.GetTime() - mStartTime.GetTime();
+		uint64 Delta = Now.GetTime() - mStartTime.GetTime();
 		mAccumulatedTime += Delta;
 
 		mReportedOnLastStop = DoReport;

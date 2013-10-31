@@ -1,7 +1,7 @@
 #pragma once
 
 
-#include "types.hpp"
+#include "SoyTypes.h"
 #include "array.hpp"
 #include "bufferarray.hpp"
 #include "string.hpp"

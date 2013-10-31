@@ -1,7 +1,8 @@
 #pragma once
 
 
-#include "..\..\..\addons\ofxSoylent\src\ofxSoylent.h"
+//#include "..\..\..\addons\ofxSoylent\src\ofxSoylent.h"
+#include "ofxSoylent.h"
 
 
 class ofShapeCircle2;
@@ -38,46 +39,6 @@ DECLARE_NONCOMPLEX_TYPE( TColourHsl );
 #define SCREEN_UP2	vec2f(0,-1)
 
 
-template<typename T>
-const T& ofMin(const T& a,const T& b)
-{
-	return (a < b) ? a : b;
-}
-template<typename T>
-const T& ofMax(const T& a,const T& b)
-{
-	return (a > b) ? a : b;
-}
-
-template<typename T>
-void ofLimit(T& v,const T& Min,const T& Max)
-{
-	assert( Min <= Max );
-	if ( v < Min )
-		v = Min;
-	else if ( v > Max )
-		v = Max;
-}
-
-template<typename T>
-void ofSwap(T& a,T& b)
-{
-	T Temp = a;
-	a = b;
-	b = Temp;
-}
-
-template<typename T>
-T ofLerp(const T& start,const T& stop, float amt)
-{
-	return start + ((stop-start) * amt);
-}
-
-
-inline float ofGetMathTime(float z,float Min,float Max) 
-{
-	return (z-Min) / (Max-Min);	
-}
 
 
 inline vec2f ofNormalFromAngle(float AngleDegrees)
@@ -210,6 +171,7 @@ inline STRING& operator<<(STRING& str,const TColourHsl& Value)
 template<class STRING>
 inline const STRING& operator>>(const STRING& str,ofColour& Value)
 {
+	//	gr: should be GetIntArray?
 	BufferArray<float,4> Floats;
 	str.GetFloatArray( Floats );
 	
