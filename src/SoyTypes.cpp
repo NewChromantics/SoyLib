@@ -5,28 +5,28 @@
 #pragma comment(lib, "Shlwapi.lib")
 
 #if defined(NO_OPENFRAMEWORKS)
-void ofLogNotice(const char* Message)
+void ofLogNotice(const std::string& Message)
 {
-	OutputDebugStringA( Message );
+	OutputDebugStringA( Message.c_str() );
 	OutputDebugStringA("\n");
 }
 #endif
 
 #if defined(NO_OPENFRAMEWORKS)
-void ofLogWarning(const char* Message)
+void ofLogWarning(const std::string& Message)
 {
 	OutputDebugStringA( "[WARN] " );
-	OutputDebugStringA( Message );
+	OutputDebugStringA( Message.c_str() );
 	OutputDebugStringA("\n");
 }
 #endif
 
 
 #if defined(NO_OPENFRAMEWORKS)
-void ofLogError(const char* Message)
+void ofLogError(const std::string& Message)
 {
 	OutputDebugStringA( "[ERROR] " );
-	OutputDebugStringA( Message );
+	OutputDebugStringA( Message.c_str() );
 	OutputDebugStringA("\n");
 }
 #endif

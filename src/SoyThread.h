@@ -148,8 +148,8 @@ public:
 #if defined(NO_OPENFRAMEWORKS)
 		return ::GetCurrentThreadId();
 #else
-		auto* pCurrentThread = poco::getCurrentThread();
-		return pCurrentThread ? pCurrentThread->tId() : 0;
+		auto* pCurrentThread = getCurrentThread();
+		return pCurrentThread ? pCurrentThread->getPocoThread().tid() : 0;
 #endif
 	}
 
@@ -159,7 +159,7 @@ public:
 #if defined(NO_OPENFRAMEWORKS)
 		setThreadName( mThreadName );
 #else
-		setThreadName( thread.getName() );
+		setThreadName( getPocoThread().getName() );
 #endif
 	}
 

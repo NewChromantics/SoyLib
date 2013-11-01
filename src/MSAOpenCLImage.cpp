@@ -145,7 +145,9 @@ namespace msa {
 		region[1] = height;
 		region[2] = depth;
 		
-		ofLogNotice( BufferString<1000>() << __FUNCTION__ << width << ", " << height << ", " << depth );
+		BufferString<1000> Debug;
+		Debug << __FUNCTION__ << width << ", " << height << ", " << depth;
+		ofLogNotice( Debug.c_str() );
 	}
 	
 #if !defined(NO_OPENFRAMEWORKS)
