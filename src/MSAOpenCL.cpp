@@ -76,7 +76,9 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		mContext = clCreateContext(NULL, DeviceCount, DeviceBuffer, NULL, NULL, &err);
 		if( !mContext || err != CL_SUCCESS )
 		{
-			ofLogError( BufferString<1000>() << "Error creating clContext:" << getErrorAsString(err) );
+			BufferString<1000> Debug;
+			Debug << "Error creating clContext:" << getErrorAsString(err);
+			ofLogError( Debug.c_str() );
 			assert(false);
 			return false;
 		}		
@@ -131,7 +133,9 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		auto err = clGetCommandQueueInfo( Queue, CL_QUEUE_DEVICE, sizeof(Device), &Device, NULL );
 		if ( err != CL_SUCCESS)
 		{
-			ofLogError( BufferString<1000>() << "Error getting queue's device; " << getErrorAsString( err ) );
+			BufferString<1000> Debug;
+			Debug << "Error getting queue's device; " << getErrorAsString( err );
+			ofLogError( Debug.c_str() );
 			return NULL;
 		}
 		return GetDevice( Device );
@@ -165,7 +169,9 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	
 	OpenCLProgram* OpenCL::loadProgramFromFile(std::string filename, bool isBinary,const char* BuildOptions) { 
 		assert( isInitialised() );
-		ofLogNotice( BufferString<1000>() << __FUNCTION__ << " " << filename );
+		BufferString<1000> Debug;
+		Debug << __FUNCTION__ << " " << filename;
+		ofLogNotice( Debug.c_str() );
 		
 		OpenCLProgram *p = new OpenCLProgram( *this );
 		p->loadFromFile(filename, isBinary, BuildOptions );
@@ -303,7 +309,9 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		assert( PlatformCount >= 0 && PlatformCount <= MaxPlatforms );
 		if ( err != CL_SUCCESS || PlatformCount == 0 )
 		{
-			ofLogError( BufferString<1000>() << "Failed to get opencl platforms; " << getErrorAsString(err) );
+			BufferString<1000> Debug;
+			Debug << "Failed to get opencl platforms; " << getErrorAsString(err);
+			ofLogError( Debug.c_str() );
 			return false;
 		}
 
@@ -327,7 +335,9 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		//	no platforms
 		if ( PlatformCount == 0 )
 		{
-			ofLogError( BufferString<1000>() << __FUNCTION__ << " no opencl platforms found");
+			BufferString<1000> Debug;
+			Debug << __FUNCTION__ << " no opencl platforms found";
+			ofLogError( Debug.c_str() );
 			return false;
 		}
 
@@ -343,7 +353,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 				Debug += "\n";
 				Debug += PlatformInfo.GetName();
 			}
-			ofLogError( Debug );
+			ofLogError( Debug.c_str() );
 			return false;
 		}
 
@@ -360,7 +370,9 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		assert( DeviceCount >=0 && DeviceCount <= MaxDevices );
 		if ( err != CL_SUCCESS )
 		{
-			ofLogError( BufferString<1000>() << "Failed to get devices; " << getErrorAsString( err ) );
+			BufferString<1000> Debug;
+			Debug << "Failed to get devices; " << getErrorAsString( err );
+			ofLogError( Debug.c_str() );
 			return false;
 		}
 			
@@ -373,7 +385,9 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 			mDevices.PushBack( Device );
 		}				
 
-		ofLogNotice( BufferString<1000>() << mDevices.GetSize() << " devices found, on " << PlatformInfo.GetName() );
+		BufferString<1000> Debug;
+		Debug << mDevices.GetSize() << " devices found, on " << PlatformInfo.GetName();
+		ofLogNotice( Debug.c_str() );
 		if ( mDevices.IsEmpty() )
 			return false;
 		
@@ -418,7 +432,9 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 			
 			if(err != CL_SUCCESS) 
 			{
-				ofLogError( BufferString<1000>() << "Error getting clDevice information: " << getErrorAsString(err) );
+				BufferString<1000> Debug;
+				Debug << "Error getting clDevice information: " << getErrorAsString(err);
+				ofLogError( Debug.c_str() );
 			}
 			
 			ofLogNotice(getInfoAsString(info));
@@ -544,7 +560,9 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		cl_command_queue Queue = clCreateCommandQueue(mContext, DeviceId, 0, &Err );
 		if ( !Queue || Err != CL_SUCCESS )
 		{
-			ofLogError( BufferString<100>() << "Failed to create queue; " << getErrorAsString( Err ) );
+			BufferString<100> Debug;
+			Debug << "Failed to create queue; " << getErrorAsString( Err );
+			ofLogError( Debug.c_str() );
 			return NULL;
 		}
 
