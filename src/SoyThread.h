@@ -53,6 +53,7 @@ public:
 
 	void lock()				{	EnterCriticalSection( &mMutex ); }
 	void unlock()			{	LeaveCriticalSection( &mMutex );	}
+	bool tryLock()			{	return 0==TryEnterCriticalSection( &mMutex );	}
 
 private:
 	CRITICAL_SECTION	mMutex;
@@ -80,6 +81,7 @@ public:
 	bool			isThreadRunning()					{	return mIsRunning;	}
 	void			waitForThread(bool stop = true);
 	unsigned int	getThreadId() const					{	return mThreadId;	}
+	void			sleep(int ms)						{	Sleep(ms);	}
 
 protected:
 	bool			create(unsigned int stackSize=0);
@@ -139,6 +141,16 @@ public:
 	{
 		if ( threadName )
 			setThreadName( threadName );
+	}
+
+	static unsigned int	GetCurrentThreadId()
+	{
+#if defined(NO_OPENFRAMEWORKS)
+		return ::GetCurrentThreadId();
+#else
+		auto* pCurrentThread = poco::getCurrentThread();
+		return pCurrentThread ? pCurrentThread->tId() : 0;
+#endif
 	}
 
 	void	startThread(bool blocking, bool verbose)

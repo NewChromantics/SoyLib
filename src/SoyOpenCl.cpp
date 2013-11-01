@@ -1,6 +1,6 @@
 #include "ofxSoylent.h"
 #include "SoyOpenCl.h"
-#include "SoyApp.h"
+//#include "SoyApp.h"
 
 //	default settings
 bool SoyOpenCl::DefaultReadBlocking = true;
@@ -220,11 +220,8 @@ SoyOpenClShader* SoyOpenClManager::GetShader(const char* Filename)
 
 cl_command_queue SoyOpenClManager::GetQueueForThread(msa::OpenClDevice::Type DeviceType)
 {
-	auto* CurrentThread = Poco::Thread::current();
-	if ( !CurrentThread )
-		return NULL;
-
-	return GetQueueForThread( CurrentThread->tid(), DeviceType );
+	auto CurrentThreadId = SoyThread::GetCurrentThreadId();
+	return GetQueueForThread( CurrentThreadId, DeviceType );
 }
 
 cl_command_queue SoyOpenClManager::GetQueueForThread(int ThreadId,msa::OpenClDevice::Type DeviceType)

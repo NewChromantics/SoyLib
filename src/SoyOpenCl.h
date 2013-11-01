@@ -357,7 +357,7 @@ public:
 		return mBuffer->read( &Data, 0, sizeof(TYPE), SoyOpenCl::DefaultReadBlocking, mKernel.GetQueue() );
 	}
 
-	bool		IsValid() const		{	return mBuffer;	}
+	bool		IsValid() const		{	return mBuffer!=nullptr;	}
 	operator	bool()				{	return IsValid();	}
 	cl_mem&		getCLMem()			{	static cl_mem Dummy;	assert( mBuffer );	return mBuffer ? mBuffer->getCLMem() : Dummy;	}
 

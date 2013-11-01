@@ -126,6 +126,7 @@
 		bool		IsEmpty() const			{	return GetSize() == 0;		}
 		int			GetSize() const			{	return moffset;		}
 		int			GetDataSize() const		{	return GetSize() * sizeof(T);	}	//	size of all the data in bytes
+		int			GetElementSize() const	{	return sizeof(T);	}	//	size of all the data in bytes
 		const T*	GetArray() const		{	return mdata;	}
 		T*			GetArray()				{	return mdata;	}
 
@@ -599,7 +600,8 @@ public:
 
 	bool		IsEmpty() const			{	return GetSize() == 0;		}
 	int			GetSize() const			{	return moffset;		}
-	int			GetDataSize() const		{	return GetSize() * sizeof(T);	}	//	size of all the data in bytes
+	int			GetDataSize() const		{	return GetSize() * GetElementSize();	}	//	size of all the data in bytes
+	int			GetElementSize() const	{	return sizeof(T);	}	//	size of all the data in bytes
 	const T*	GetArray() const		{	return mdata;	}
 	T*			GetArray()				{	return mdata;	}
 

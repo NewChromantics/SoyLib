@@ -503,7 +503,7 @@ public:
 
 	int	MaxAllocSize() const
 	{
-		return numeric_limits<int>::max();
+		return std::numeric_limits<int>::max();
 	}
 
 	int	MaxDataSize() const

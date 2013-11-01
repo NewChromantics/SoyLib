@@ -49,9 +49,62 @@ inline unsigned long long	ofGetSystemTime()			{	return timeGetTime();	}
 inline unsigned long long	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}	//	gr: offrameworks does -StartTime
 inline float				ofGetElapsedTimef()			{	return static_cast<float>(ofGetElapsedTimeMillis()) / 1000.f;	}
 
-void						ofLogNotice(const std::string& Message);
-void						ofLogError(const std::string& Message);
+void						ofLogNotice(const char* Message);
+void						ofLogWarning(const char* Message);
+void						ofLogError(const char* Message);
+inline void					ofLogNotice(const std::string& Message)		{	ofLogNotice( Message.c_str() );	}
+inline void					ofLogWarning(const std::string& Message)	{	ofLogWarning( Message.c_str() );	}
+inline void					ofLogError(const std::string& Message)		{	ofLogError( Message.c_str() );	}
 std::string					ofToString(int Integer);
+
+//	gr: repalce uses of this with SoyTime
+namespace Poco
+{
+	class Timestamp
+	{
+	public:
+		Timestamp(int Value=0)
+		{
+		}
+		inline bool		operator==(const int v) const			{	return false;	}
+		inline bool		operator==(const Timestamp& t) const	{	return false;	}
+		inline bool		operator!=(const Timestamp& t) const	{	return false;	}
+	};
+	class File
+	{
+	public:
+		File(const char* Filename)	{}
+		File(const std::string& Filename)	{}
+		bool		exists() const	{	return false;	}
+		Timestamp	getLastModified() const	{	return Timestamp();	}
+	};
+};
+
+class ofFilePath
+{
+public:
+	static std::string		getFileName(const std::string& Filename,bool bRelativeToData=true);
+};
+std::string			ofBufferFromFile(const char* Filename);
+inline std::string	ofBufferFromFile(const std::string& Filename)	{	return ofBufferFromFile( Filename.c_str() );	}
+
+template<typename TYPE>
+class ofEvent
+{
+public:
+};
+
+template<typename TYPE,typename ARG>
+void ofNotifyEvent(ofEvent<TYPE>& Event,ARG& Arg)
+{
+}
+
+class ofTexture
+{
+public:
+	int		getWidth() const	{	return 0;	}
+	int		getHeight() const	{	return 0;	}
+};
 
 //----------------------------------------------------------
 // ofPtr
@@ -132,6 +185,8 @@ ofPtr<_Tp>
 { return ofPtr<_Tp>(__r, std::tr1::__dynamic_cast_tag()); }
 #endif
 
+inline std::string ofToDataPath(const std::string& LocalPath,bool FullPath=false)	{	return LocalPath;	}
+
 
 #endif
 
@@ -192,6 +247,26 @@ inline float ofGetMathTime(float z,float Min,float Max)
 {
 	return (z-Min) / (Max-Min);	
 }
+
+
+inline Poco::Timestamp ofFileLastModified(const char* Path)
+{
+	std::string FullPath = ofToDataPath( Path );
+	Poco::File File( FullPath );
+	if ( !File.exists() )
+		return Poco::Timestamp(0);
+
+	return File.getLastModified();
+}
+
+inline bool ofFileExists(const char* Path)
+{
+	Poco::Timestamp LastModified = ofFileLastModified( Path );
+	if ( LastModified == 0 )
+		return false;
+	return true;
+}
+
 
 
 namespace Soy
