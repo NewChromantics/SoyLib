@@ -23,7 +23,9 @@ namespace msa {
 	
 	bool OpenCLProgram::loadFromFile(std::string filename, bool isBinary,const char* BuildOptions) 
 	{
-		ofLogNotice( BufferString<1000>() << "OpenCLProgram::loadFromFile " << filename << ", isBinary: " << isBinary << ", buildoptions: " << BuildOptions );
+		BufferString<1000> Debug;
+		Debug << "OpenCLProgram::loadFromFile " << filename << ", isBinary: " << isBinary << ", buildoptions: " << BuildOptions;
+		ofLogNotice( Debug.c_str() );
 		
 		std::string fullPath = ofToDataPath(filename.c_str());
 		
@@ -39,7 +41,9 @@ namespace msa {
 
 			if ( !FileContents.size() )
 			{
-				ofLogError( BufferString<1000>() << "Error loading program file: " << fullPath );
+				BufferString<1000> Debug;
+				Debug << "Error loading program file: " << fullPath;
+				ofLogError( Debug.c_str() );
 				return false;
 			}
 			
@@ -67,7 +71,10 @@ namespace msa {
 	
 	
 	OpenCLKernel* OpenCLProgram::loadKernel(std::string kernelName,cl_command_queue Queue) {
-		ofLogNotice( BufferString<1000>() << __FUNCTION__ << " " << kernelName );
+		BufferString<1000> Debug;
+		Debug << __FUNCTION__ << " " << kernelName;
+		ofLogNotice( Debug.c_str() );
+
 		assert( mProgram );
 		if ( !mProgram )
 			return NULL;
@@ -82,7 +89,9 @@ namespace msa {
 		OpenCLKernel *k = new OpenCLKernel( mParent, Kernel, Queue, kernelName );
 		
 		if(err != CL_SUCCESS) {
-			ofLogError( BufferString<1000>() << "Error creating kernel: " << kernelName << " [" << OpenCL::getErrorAsString(err) << "]" );
+			BufferString<1000> Debug;
+			Debug << "Error creating kernel: " << kernelName << " [" << OpenCL::getErrorAsString(err) << "]";
+			ofLogError( Debug.c_str() );
 			delete k;
 			return NULL;
 		}
@@ -166,7 +175,7 @@ namespace msa {
 
 		TString Debug;
 		Debug << "Build OpenCLProgram " << ProgramSource << ": (" << Options << ") for " << DeviceCount << " devices...";
-		ofLogNotice( Debug );
+		ofLogNotice( Debug.c_str() );
 
 		cl_int err = clBuildProgram( mProgram, DeviceCount, Devices, Options.c_str(), NULL, NULL);
 		
