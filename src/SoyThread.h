@@ -132,6 +132,29 @@ public:
 };
 
 
+template<class OBJECT>
+class ofMutexM : public ofMutex
+{
+public:
+	ofMutexM()
+	{
+	}
+	template<typename PARAM>
+	explicit ofMutexM(const PARAM& Param) :
+		OBJECT	( Param )
+	{
+	}
+
+	OBJECT&			Get()				{	return mMember;	}
+	const OBJECT&	Get() const			{	return mMember;	}
+	ofMutex&		GetMutex()			{	return *this;	}
+	ofMutex&		GetMutex() const	{	return const_cast<ofMutex&>( static_cast<const ofMutex&>(*this) );	}
+
+public:
+	OBJECT			mMember;
+};
+
+
 
 
 class SoyThread : public ofThread
