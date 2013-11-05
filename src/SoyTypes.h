@@ -49,13 +49,11 @@ inline unsigned long long	ofGetSystemTime()			{	return timeGetTime();	}
 inline unsigned long long	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}	//	gr: offrameworks does -StartTime
 inline float				ofGetElapsedTimef()			{	return static_cast<float>(ofGetElapsedTimeMillis()) / 1000.f;	}
 
-void						ofLogNotice(const char* Message);
-void						ofLogWarning(const char* Message);
-void						ofLogError(const char* Message);
-inline void					ofLogNotice(const std::string& Message)		{	ofLogNotice( Message.c_str() );	}
-inline void					ofLogWarning(const std::string& Message)	{	ofLogWarning( Message.c_str() );	}
-inline void					ofLogError(const std::string& Message)		{	ofLogError( Message.c_str() );	}
-std::string					ofToString(int Integer);
+
+void					ofLogNotice(const std::string& Message)		{	ofLogNotice( Message.c_str() );	}
+void					ofLogWarning(const std::string& Message)	{	ofLogWarning( Message.c_str() );	}
+void					ofLogError(const std::string& Message)		{	ofLogError( Message.c_str() );	}
+std::string				ofToString(int Integer);
 
 //	gr: repalce uses of this with SoyTime
 namespace Poco
