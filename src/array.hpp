@@ -102,7 +102,7 @@
 			auto* ThatData = That.GetArray();
 			if ( Soy::IsComplexType<T>() )
 			{
-				for ( int i=0;	i<GetSize();	i++ )
+				for ( int i=0;	i<this->GetSize();	i++ )
 				{
 					if ( ThisData[i] == ThatData[i] )
 						continue;
