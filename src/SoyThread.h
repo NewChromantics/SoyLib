@@ -1,9 +1,15 @@
 #pragma once
 
 #include "ofxSoylent.h"
+
+#if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
 #pragma comment(lib,"Shlwapi.lib")
+#endif
 
+#if defined(TARGET_OSX)
+#include <thread>
+#endif
 
 
 
@@ -41,6 +47,10 @@ private:
 	ScopedLock(const ScopedLock&);
 	ScopedLock& operator = (const ScopedLock&);
 };
+#endif
+
+
+#if defined(NO_OPENFRAMEWORKS)
 
 class ofMutex
 {
@@ -80,7 +90,11 @@ public:
 	void			stopThread();
 	bool			isThreadRunning()					{	return mIsRunning;	}
 	void			waitForThread(bool stop = true);
+#if defined(TARGET_WINDOWS)
 	unsigned int	getThreadId() const					{	return mThreadId;	}
+#else
+	unsigned int	getThreadId() const					{	return mThread.getThreadId();	}
+#endif
 	void			sleep(int ms)						{	Sleep(ms);	}
 
 protected:
@@ -92,11 +106,15 @@ protected:
 	std::string		mThreadName;
 
 private:
-	static unsigned int __stdcall threadFunc(void *args);
-	
-	HANDLE			mHandle;
-	unsigned int	mThreadId;
 	volatile bool	mIsRunning;
+
+#if defined(TARGET_WINDOWS)
+	static unsigned int __stdcall threadFunc(void *args);
+	unsigned int	mThreadId;
+	HANDLE			mHandle;
+#else
+    std::thread     mThread;
+#endif
 };
 #endif // NO_OPENFRAMEWORKS
 

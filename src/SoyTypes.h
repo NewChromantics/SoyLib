@@ -31,6 +31,8 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 	//http://stackoverflow.com/questions/1904635/warning-c4003-and-errors-c2589-and-c2059-on-x-stdnumeric-limitsintmax
 #endif
 
+#if defined(TARGET_WINDOWS)
+
 #include <windows.h>
 #include <process.h>
 #include <vector>
@@ -43,9 +45,31 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 #endif
 #pragma comment(lib,"winmm.lib")
 
+#elif defined(TARGET_OSX)
+
+#include <sys/time.h>
+#include <math.h>
+#include <stdio.h>
+#include <string>
+#include <tr1/memory>
+#include <stdint.h>
+
+#endif
+
 
 //	openframeworks functions
-inline unsigned long long	ofGetSystemTime()			{	return timeGetTime();	}
+inline unsigned long long	ofGetSystemTime()
+{
+#if defined(TARGET_WINDOWS)
+	return timeGetTime();
+#elif defined(TARGET_OSX)
+    struct timeval now;
+    gettimeofday( &now, NULL );
+    return
+    (unsigned long long) now.tv_usec/1000 +
+    (unsigned long long) now.tv_sec*1000;
+#endif
+}
 inline unsigned long long	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}	//	gr: offrameworks does -StartTime
 inline float				ofGetElapsedTimef()			{	return static_cast<float>(ofGetElapsedTimeMillis()) / 1000.f;	}
 
@@ -108,9 +132,12 @@ public:
 // ofPtr
 //----------------------------------------------------------
 template <typename T>
+#if defined(TARGET_WINDOWS)//gr: depends on MSCV version
+class ofPtr: public std::shared_ptr<T>
+#else
 class ofPtr: public std::tr1::shared_ptr<T>
+#endif
 {
-
 public:
 
 	ofPtr()
@@ -198,11 +225,17 @@ typedef	signed char			int8;
 typedef	unsigned char		uint8;
 typedef	signed short		int16;
 typedef	unsigned short		uint16;
+#if defined(TARGET_WINDOWS)
 typedef signed __int32		int32;
 typedef unsigned __int32	uint32;
 typedef signed __int64		int64;
 typedef unsigned __int64	uint64;
-
+#else
+typedef int32_t             int32;
+typedef uint32_t             uint32;
+typedef int64_t             int64;
+typedef uint64_t             uint64;
+#endif
 
 
 template<typename T>
@@ -290,10 +323,15 @@ namespace Soy
 	template<typename TYPE>
 	inline const char* GetTypeName()	
 	{
-		//	"unregistered" type, return the size
+		//	"unregistered" type, return the size as name
+        //  gr: OSX/gcc template can't use BufferString without declaration
+#if defined(TARGET_OSX)
+        static const char* Name = "Non-soy-declared type";
+#else
 		static BufferString<30> Name;
 		if ( Name.IsEmpty() )
 			Name << sizeof(TYPE) << "ByteType";
+#endif
 		return Name;
 	}
 

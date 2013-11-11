@@ -500,7 +500,7 @@ public:
 	typedef T TYPE;	//	in case you ever need to get to T in a template function/class, you can use ARRAYPARAM::TYPE (sometimes need typename ARRAYPARAM::TYPE)
 
 public:
-	template <typename T,unsigned int BUFFERSIZE>
+	template <unsigned int BUFFERSIZE>
 	RemoteArray(T (& Buffer)[BUFFERSIZE],int& BufferCounter) :
 		moffset		( BufferCounter ),
 		mdata		( Buffer ),
@@ -509,7 +509,7 @@ public:
 		//	can't really handle stuff that isn't setup
 		assert( moffset <= mmaxsize );
 	}
-	template <typename T,unsigned int BUFFERSIZE>
+	template <unsigned int BUFFERSIZE>
 	RemoteArray(const T (& Buffer)[BUFFERSIZE],const int& BufferCounter) :
 		moffset		( const_cast<int&>(BufferCounter) ),
 		mdata		( const_cast<T*>(Buffer) ),
@@ -518,7 +518,6 @@ public:
 		//	can't really handle stuff that isn't setup
 		assert( moffset <= mmaxsize );
 	}
-	template <typename T>
 	explicit RemoteArray(T* Buffer,const int BufferSize,int& BufferCounter) :
 		moffset		( BufferCounter ),
 		mdata		( Buffer ),
@@ -527,7 +526,6 @@ public:
 		//	can't really handle stuff that isn't setup
 		assert( moffset <= mmaxsize );
 	}
-	template <typename T>
 	explicit RemoteArray(const T* Buffer,const int BufferSize,const int& BufferCounter) :
 		moffset		( const_cast<int&>(BufferCounter) ),
 		mdata		( const_cast<T*>(Buffer) ),
