@@ -473,14 +473,14 @@ namespace Soy
 		String2& operator << (const int64 v)
 		{
 			char text[32];
-			sprintf(text,"%I64d",v);
+			sprintf(text,"%lld",v);
 			return operator += (text);
 		}
 
 		String2& operator << (const uint64 v)
 		{
 			char text[32];
-			sprintf(text,"%I64u",v);
+			sprintf(text,"%llu",v);
 			return operator += (text);
 		}
 
