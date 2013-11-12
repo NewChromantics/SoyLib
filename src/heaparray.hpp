@@ -197,7 +197,7 @@ public:
 		if ( size )
 		{
 			auto& Heap = GetHeap();
-			array = Heap.AllocArray<T>(size);
+			array = Heap.template AllocArray<T>(size);
 
 			//	failed alloc
 			assert( array );
@@ -638,7 +638,7 @@ public:
 		assert( NewSize >= 0 );
 
 		auto& Heap = GetHeap();
-		mdata = Heap.AllocArray<T>( NewSize );
+		mdata = Heap.template AllocArray<T>( NewSize );
 
 		//	failed to alloc - make sure vars are accurate
 		if ( !mdata )

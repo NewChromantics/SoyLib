@@ -255,7 +255,7 @@ public:
 	void	setThreadName(const std::string& name)
 	{
 #if defined(NO_OPENFRAMEWORKS)
-		auto ThreadId = getThreadId();
+		//auto ThreadId = getThreadId();
 		mThreadName = name;
 #else
 		auto ThreadId = getPocoThread().tid();
