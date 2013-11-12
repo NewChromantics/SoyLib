@@ -54,6 +54,8 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 #include <memory>
 #include <stdint.h>
 
+#define MAX_PATH    256
+
 #endif
 
 
@@ -74,9 +76,9 @@ inline unsigned long long	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}
 inline float				ofGetElapsedTimef()			{	return static_cast<float>(ofGetElapsedTimeMillis()) / 1000.f;	}
 
 
-void					ofLogNotice(const std::string& Message)		{	ofLogNotice( Message.c_str() );	}
-void					ofLogWarning(const std::string& Message)	{	ofLogWarning( Message.c_str() );	}
-void					ofLogError(const std::string& Message)		{	ofLogError( Message.c_str() );	}
+void					ofLogNotice(const std::string& Message);
+void					ofLogWarning(const std::string& Message);
+void					ofLogError(const std::string& Message);
 std::string				ofToString(int Integer);
 
 //	gr: repalce uses of this with SoyTime
@@ -220,7 +222,11 @@ inline std::string ofToDataPath(const std::string& LocalPath,bool FullPath=false
 #define sizeofarray(ARRAY)	( sizeof(ARRAY)/sizeof((ARRAY)[0]) )
 
 // Attribute to make function be exported from a plugin
+#if defined(TARGET_WINDOWS)
 #define EXPORT_API __declspec(dllexport)
+#elif defined(TARGET_OSX)
+#define EXPORT_API
+#endif
 
 typedef	signed char			int8;
 typedef	unsigned char		uint8;
