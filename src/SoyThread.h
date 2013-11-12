@@ -3,12 +3,17 @@
 #include "ofxSoylent.h"
 
 #if defined(TARGET_WINDOWS)
-#include <Shlwapi.h>
-#pragma comment(lib,"Shlwapi.lib")
+    #include <Shlwapi.h>
+    #pragma comment(lib,"Shlwapi.lib")
 #endif
 
 #if defined(TARGET_OSX)
-#include <thread>
+    #if defined(NO_OPENFRAMEWORKS)
+        #include <thread>
+        #include <mutex>
+        #define STD_THREAD
+        #define STD_MUTEX
+    #endif
 #endif
 
 
@@ -58,15 +63,25 @@ public:
 	typedef ScopedLock<ofMutex> ScopedLock;
 
 public:
+#if defined(STD_MUTEX)
+	void lock()				{	mMutex.lock(); }
+	void unlock()			{	mMutex.unlock();	}
+	bool tryLock()			{	return mMutex.try_lock();	}
+#else
 	ofMutex()				{	InitializeCriticalSection( &mMutex );	}
 	virtual ~ofMutex()		{	DeleteCriticalSection( &mMutex );	}
 
 	void lock()				{	EnterCriticalSection( &mMutex ); }
 	void unlock()			{	LeaveCriticalSection( &mMutex );	}
 	bool tryLock()			{	return 0==TryEnterCriticalSection( &mMutex );	}
+#endif
 
 private:
-	CRITICAL_SECTION	mMutex;
+#if defined(STD_MUTEX)
+    std::recursive_mutex    mMutex;
+#else
+	CRITICAL_SECTION        mMutex;
+#endif
 };
 
 
@@ -75,7 +90,33 @@ private:
 
 
 
+//  different types on different platforms. No need for it to be an int
+class SoyThreadId
+{
+public:
+#if defined(STD_THREAD)
+    typedef std::thread::id TYPE;
+#else
+    typedef int             TYPE;
+#endif
+public:
+    SoyThreadId() :
+        mId ( TYPE() )
+    {
+    }
+    SoyThreadId(const TYPE& id) :
+        mId ( id )
+    {
+    }
 
+    inline bool     operator==(const TYPE& id) const        {   return mId == id;   }
+    inline bool     operator==(const SoyThreadId& id) const {   return mId == id.mId;   }
+    inline bool     operator!=(const TYPE& id) const        {   return mId != id;   }
+    inline bool     operator!=(const SoyThreadId& id) const {   return mId != id.mId;   }
+    
+public:
+    TYPE            mId;
+};
 
 
 #if defined(NO_OPENFRAMEWORKS)
@@ -90,17 +131,20 @@ public:
 	void			stopThread();
 	bool			isThreadRunning()					{	return mIsRunning;	}
 	void			waitForThread(bool stop = true);
-#if defined(TARGET_WINDOWS)
-	unsigned int	getThreadId() const					{	return mThreadId;	}
-#else
-	unsigned int	getThreadId() const					{	return mThread.getThreadId();	}
-#endif
+#if defined(STD_THREAD)
+	SoyThreadId     getThreadId() const					{	return mThread.get_id();	}
+	void			sleep(int ms)						{	std::this_thread::sleep_for( std::chrono::milliseconds(ms) );	}
+#elif defined(TARGET_WINDOWS)
+	SoyThreadId     getThreadId() const					{	return mThreadId;	}
 	void			sleep(int ms)						{	Sleep(ms);	}
+#endif
 
 protected:
 	bool			create(unsigned int stackSize=0);
 	void			destroy();
 	virtual void	threadedFunction() = 0;
+
+	static void     threadFunc(void *args);
 
 protected:
 	std::string		mThreadName;
@@ -108,12 +152,11 @@ protected:
 private:
 	volatile bool	mIsRunning;
 
-#if defined(TARGET_WINDOWS)
-	static unsigned int __stdcall threadFunc(void *args);
-	unsigned int	mThreadId;
-	HANDLE			mHandle;
-#else
+#if defined(STD_THREAD)
     std::thread     mThread;
+#elif defined(TARGET_WINDOWS)
+	int             mThreadId;
+	HANDLE			mHandle;
 #endif
 };
 #endif // NO_OPENFRAMEWORKS
@@ -184,13 +227,17 @@ public:
 			setThreadName( threadName );
 	}
 
-	static unsigned int	GetCurrentThreadId()
+	static SoyThreadId	GetCurrentThreadId()
 	{
-#if defined(NO_OPENFRAMEWORKS)
+#if defined(STD_THREAD)
+        return SoyThreadId( std::this_thread::get_id() );
+#elif defined(NO_OPENFRAMEWORKS)
 		return ::GetCurrentThreadId();
 #else
 		auto* pCurrentThread = getCurrentThread();
-		return pCurrentThread ? pCurrentThread->getPocoThread().tid() : 0;
+        if ( !pCurrentThread )
+            return SoyThreadId();
+		return SoyThreadId(pCurrentThread->getPocoThread().tid());
 #endif
 	}
 

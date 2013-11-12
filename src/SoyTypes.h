@@ -51,7 +51,7 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 #include <math.h>
 #include <stdio.h>
 #include <string>
-#include <tr1/memory>
+#include <memory>
 #include <stdint.h>
 
 #endif
@@ -131,61 +131,62 @@ public:
 //----------------------------------------------------------
 // ofPtr
 //----------------------------------------------------------
-template <typename T>
 #if defined(TARGET_WINDOWS)//gr: depends on MSCV version
-class ofPtr: public std::shared_ptr<T>
+#define std_experimental    std::tr1
 #else
-class ofPtr: public std::tr1::shared_ptr<T>
+#define std_experimental    std
 #endif
+template <typename T>
+class ofPtr: public std_experimental::shared_ptr<T>
 {
 public:
 
 	ofPtr()
-	  : std::tr1::shared_ptr<T>() { }
+	  : std_experimental::shared_ptr<T>() { }
 
 	  template<typename Tp1>
 		explicit
 		ofPtr(Tp1* __p)
-	: std::tr1::shared_ptr<T>(__p) { }
+	: std_experimental::shared_ptr<T>(__p) { }
 
 	  template<typename Tp1, typename _Deleter>
 		ofPtr(Tp1* __p, _Deleter __d)
-	: std::tr1::shared_ptr<T>(__p, __d) { }
+	: std_experimental::shared_ptr<T>(__p, __d) { }
 
 	  template<typename Tp1, typename _Deleter, typename _Alloc>
 		ofPtr(Tp1* __p, _Deleter __d, const _Alloc& __a)
-	: std::tr1::shared_ptr<T>(__p, __d, __a) { }
+	: std_experimental::shared_ptr<T>(__p, __d, __a) { }
 
 	  // Aliasing constructor
 	  template<typename Tp1>
 		ofPtr(const ofPtr<Tp1>& __r, T* __p)
-	: std::tr1::shared_ptr<T>(__r, __p) { }
+	: std_experimental::shared_ptr<T>(__r, __p) { }
 
 	  template<typename Tp1>
 		ofPtr(const ofPtr<Tp1>& __r)
-	: std::tr1::shared_ptr<T>(__r) { }
+	: std_experimental::shared_ptr<T>(__r) { }
 
 	  /*ofPtr(ofPtr&& __r)
-	  : std::tr1::shared_ptr<T>(std::move(__r)) { }
+	  : std_experimental::shared_ptr<T>(std::move(__r)) { }
 
 	  template<typename Tp1>
 		ofPtr(ofPtr<Tp1>&& __r)
-		: std::tr1::shared_ptr<T>(std::move(__r)) { }*/
+		: std_experimental::shared_ptr<T>(std::move(__r)) { }*/
 
 	  template<typename Tp1>
 		explicit
-		ofPtr(const std::tr1::weak_ptr<Tp1>& __r)
-	: std::tr1::shared_ptr<T>(__r) { }
+		ofPtr(const std_experimental::weak_ptr<Tp1>& __r)
+	: std_experimental::shared_ptr<T>(__r) { }
 
 	// tgfrerer: extends ofPtr facade to allow dynamic_pointer_cast, pt.1
 #if (_MSC_VER)
 	template<typename Tp1>
-	ofPtr(const ofPtr<Tp1>& __r, std::tr1::_Dynamic_tag)
-	: std::tr1::shared_ptr<T>(__r, std::tr1::_Dynamic_tag()) { }
-#else
+	ofPtr(const ofPtr<Tp1>& __r, std_experimental::_Dynamic_tag)
+	: std::tr1::shared_ptr<T>(__r, std_experimental::_Dynamic_tag()) { }
+#elif !defined(TARGET_OSX)
 	template<typename Tp1>
-	ofPtr(const ofPtr<Tp1>& __r, std::tr1::__dynamic_cast_tag)
-	: std::tr1::shared_ptr<T>(__r, std::tr1::__dynamic_cast_tag()) { }
+	ofPtr(const ofPtr<Tp1>& __r, std::__dynamic_cast_tag)
+	: std_experimental::shared_ptr<T>(__r, std::__dynamic_cast_tag()) { }
 #endif
 	  /*template<typename Tp1, typename Del>
 		explicit
@@ -202,12 +203,12 @@ public:
 template<typename _Tp, typename _Tp1>
 ofPtr<_Tp>
 	dynamic_pointer_cast(const ofPtr<_Tp1>& __r)
-{ return ofPtr<_Tp>(__r, std::tr1::_Dynamic_tag()); }
-#else
+{ return ofPtr<_Tp>(__r, std_experimental::_Dynamic_tag()); }
+#elif !defined(TARGET_OSX)
 template<typename _Tp, typename _Tp1>
 ofPtr<_Tp>
 	dynamic_pointer_cast(const ofPtr<_Tp1>& __r)
-{ return ofPtr<_Tp>(__r, std::tr1::__dynamic_cast_tag()); }
+{ return ofPtr<_Tp>(__r, std_experimental::__dynamic_cast_tag()); }
 #endif
 
 inline std::string ofToDataPath(const std::string& LocalPath,bool FullPath=false)	{	return LocalPath;	}
