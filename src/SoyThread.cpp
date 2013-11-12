@@ -1,10 +1,14 @@
 #include "SoyThread.h"
 
 
+
 #if defined(NO_OPENFRAMEWORKS)
 ofThread::ofThread() :
-	mHandle			( nullptr ),
-	mThreadId		( 0 ),
+#if defined(STD_THREAD)
+#elif defined(TARGET_WINDOWS)
+    mHandle			( nullptr ),
+    mThreadId		( 0 ),
+#endif
 	mIsRunning		( false )
 {
 }
@@ -24,6 +28,9 @@ ofThread::~ofThread()
 #if defined(NO_OPENFRAMEWORKS)
 bool ofThread::create(unsigned int stackSize)
 {
+#if defined(STD_THREAD)
+    return true;
+#else
 	if ( mHandle )
 		return true;
 
@@ -34,6 +41,7 @@ bool ofThread::create(unsigned int stackSize)
 		return false;
 	
 	return true;
+#endif
 }
 #endif
 
@@ -41,11 +49,15 @@ bool ofThread::create(unsigned int stackSize)
 #if defined(NO_OPENFRAMEWORKS)
 void ofThread::destroy()
 {
+#if defined(STD_THREAD)
+#else
 	if ( mHandle )
 	{
 		CloseHandle(mHandle);
 		mHandle = nullptr;
+        mThreadId = 0;
 	}
+#endif
 }
 #endif
 
@@ -59,12 +71,17 @@ void ofThread::waitForThread(bool Stop)
 			stopThread();
 	}
 	
+#if defined(STD_THREAD)
+    mThread.join();
+    mThread = std::thread();
+#else
 	//	for for handle to disapear
 	if ( mHandle )
 	{
 		WaitForSingleObject( mHandle, INFINITE);
 		//	destroy here?
 	}
+#endif
 }
 #endif
 
@@ -84,9 +101,6 @@ bool ofThread::startThread(bool blocking, bool verbose)
 	if ( !create() )
 		return false;
 
-	if ( !mHandle )
-		return false;
-
 	//	already running 
 	if ( isThreadRunning() )
 		return true;
@@ -95,27 +109,31 @@ bool ofThread::startThread(bool blocking, bool verbose)
 	mIsRunning = true;
 
 	//	start thread
+#if defined(STD_THREAD)
+    mThread = std::thread( threadFunc, this );
+#else
 	if ( ResumeThread( mHandle ) == -1 )
 	{
 		//	failed
 		mIsRunning = false;
 		return false;
 	}
-
+#endif
 	return true;
 }
 #endif
 
 
 #if defined(NO_OPENFRAMEWORKS)
-unsigned int __stdcall ofThread::threadFunc(void *args)
+void ofThread::threadFunc(void *args)
 {
 	ofThread* pThread = reinterpret_cast<ofThread*>(args);
 	
 	if ( pThread )
 		pThread->threadedFunction();
 
+#if !defined(STD_THREAD) && defined(TARGET_WINDOWS)
 	_endthreadex(0);
-	return 0;
-} 
+#endif
+}
 #endif
