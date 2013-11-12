@@ -603,9 +603,10 @@ public:
 		
 		//	if heap isn't valid yet (eg. if this has been allocated before the global heap), 
 		//	throw error, but address should be okay, so in these bad cases.. we MIGHT get away with it.
-		if ( !Heap.IsHeapValid() )
+		//	gr: need a better method, this is virtual again, so more likely to throw an exception (invalid vtable)
+		if ( !Heap.IsValid() )
 		{
-			assert( Heap.IsHeapValid() );
+			assert( Heap.IsValid() );
 			BufferString<1000> Debug;
 			Debug << "Array<" << Soy::GetTypeName<T>() << "> assigned non-valid heap. Array constructed before heap?";
 			ofLogError( Debug.c_str() );
