@@ -8,7 +8,9 @@
 #include <map>
 #include <queue>
 
+#if defined(TARGET_WINDOWS)
 #define ENABLE_STACKTRACE
+#endif
 #define ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION	false	//	catch corruption in constructors
 #define ENABLE_DEBUG_VERIFY_AFTER_DESTRUCTION	false	//	catch corruption in an objects lifetime (kinda)
 
