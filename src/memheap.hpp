@@ -8,6 +8,11 @@
 #include <map>
 #include <queue>
 
+#if defined(TARGET_OSX)
+#include <memory>
+#define STD_ALLOC
+#endif
+
 #if defined(TARGET_WINDOWS)
 #define ENABLE_STACKTRACE
 #endif
@@ -97,12 +102,7 @@ namespace prmem
 		Heap& _x;
 	};
     
-#if defined(TARGET_WINDOWS)
-    typedef HANDLE  THeapHandle;
-#else
-    typedef void*   THeapHandle;
-#endif
-    
+
 	//-----------------------------------------------------------------------
 	//	base heap interface so we can mix our allocated heaps and the default CRT heap (which is also a heap, but hidden away)
 	//-----------------------------------------------------------------------
@@ -113,8 +113,10 @@ namespace prmem
 		virtual ~HeapInfo();
 
 		inline const char*		GetName() const					{	return mName;	}
+#if defined(TARGET_WINDOWS)
 		virtual THeapHandle		GetHandle() const=0;			//	get win32 heap handle
-		inline bool				IsValid() const					{	return GetHandle()!=nullptr;	}	//	heap has been created
+#endif
+		virtual bool			IsValid() const=0;				//	heap has been created
 		virtual void			EnableDebug(bool Enable)		{}
 		inline bool				IsDebugEnabled() const			{	return GetDebug()!=NULL;	}
 		virtual const HeapDebugBase*	GetDebug() const		{	return NULL;	}
@@ -212,12 +214,17 @@ namespace prmem
 		Heap(bool EnableLocks,bool EnableExceptions,const char* Name,uint32 MaxSize=0,bool DebugTrackAllocs=false);
 		~Heap();
 
+#if defined(TARGET_WINDOWS)
 		virtual THeapHandle				GetHandle() const			{	return mHandle;	}
+		virtual bool					IsValid() const				{	return mHandle!=NULL;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+#elif defined(STD_ALLOC)
+		virtual bool					IsValid() const				{	return true;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+#endif
 		virtual void					EnableDebug(bool Enable);	//	deletes/allocates the debug tracker so we can toggle it at runtime
 		virtual const HeapDebugBase*	GetDebug() const			{	return mHeapDebug;	}
-		inline bool						IsHeapValid() const			{	return mHandle!=NULL;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
 
-		//	prob the system for the allocation size
+		/*
+		//	probe the system for the allocation size
 		uint32	GetAllocSize(void* pData) const
 		{
 #if defined(TARGET_WINDOWS)
@@ -228,6 +235,7 @@ namespace prmem
             return 0;
 #endif
 		};
+		 */
 
 		template<typename TYPE>
 		TYPE*	Alloc()	
@@ -417,6 +425,9 @@ namespace prmem
 		{
 #if defined(TARGET_WINDOWS)
 			TYPE* pData = static_cast<TYPE*>( HeapAlloc( mHandle, 0x0, Elements*sizeof(TYPE) ) );
+#elif defined(STD_ALLOC)
+			TYPE* pData = reinterpret_cast<TYPE*>( mAllocator.allocate( Elements*sizeof(TYPE) ) );
+#endif
 			if ( !pData )
 			{
 				//	if we fail, do a heap validation, this will reveal corruption, rather than OOM
@@ -431,9 +442,6 @@ namespace prmem
 				mHeapDebug->OnAlloc( pData, Elements );
 			OnAlloc( pData ? Elements*sizeof(TYPE) : 0, 1 );
 			return pData;
-#else
-            return nullptr;
-#endif
 		}
 
 		template<typename TYPE>
@@ -443,6 +451,9 @@ namespace prmem
 			//	no need to specify length, mem manager already knows the real size of pObject
 			if ( !HeapFree( mHandle, 0, pObject ) )
 				return false;
+#elif defined(STD_ALLOC)
+			mAllocator.deallocate( reinterpret_cast<char*>(pObject), Elements );
+#endif
 
 			if ( mHeapDebug )
 				mHeapDebug->OnFree( pObject );
@@ -450,14 +461,16 @@ namespace prmem
 			uint32 BytesFreed = sizeof(TYPE)*Elements;
 			OnFree( BytesFreed, 1 );
 			return true;
-#else
-            return false;
-#endif
 		}
 
 	private:
-		HeapDebugBase*		mHeapDebug;	//	debug information
-		THeapHandle			mHandle;	//	win32 handle to heap
+		HeapDebugBase*			mHeapDebug;	//	debug information
+		
+#if defined(TARGET_WINDOWS)
+		THeapHandle				mHandle;	//	win32 handle to heap
+#elif defined(STD_ALLOC)
+		std::allocator<char>	mAllocator;
+#endif
 	};
     
 	//-----------------------------------------------------------------------
