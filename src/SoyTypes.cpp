@@ -93,7 +93,13 @@ std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeTo
 #if defined(NO_OPENFRAMEWORKS)
 std::string ofBufferFromFile(const char* Filename)
 {
+	//	fopen is safe, but supress warning anyway
+#if defined(TARGET_WINDOWS)
+	FILE* File = nullptr;
+	fopen_s( &File, Filename, "r" );
+#else
 	FILE* File = fopen( Filename, "r" );
+#endif
 	if ( !File )
 		return std::string();
 
