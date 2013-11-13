@@ -46,6 +46,7 @@ public:
 	virtual bool		IsEmpty() const					{	return mArray.IsEmpty();	}
 	virtual int			GetSize() const					{	return mArray.GetSize();	}
 	virtual int			GetDataSize() const				{	return mArray.GetDataSize();	}
+	virtual int			GetElementSize() const			{	return mArray.GetElementSize();	}
 	virtual const T*	GetArray() const				{	return mArray.GetArray();	}
 	virtual T*			GetArray()						{	return mArray.GetArray();	}
 	virtual void		Reserve(int size,bool clear=false)	{	return mArray.Reserve(size,clear);	}

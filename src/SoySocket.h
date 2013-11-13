@@ -4,6 +4,7 @@
 #include "SoyPacket.h"
 #include "SoyNet.h"
 #include "SoyThread.h"
+#include <ofxNetwork.h>
 
 
 namespace SoyNet
