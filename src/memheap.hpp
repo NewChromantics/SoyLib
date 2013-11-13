@@ -114,7 +114,7 @@ namespace prmem
 
 		inline const char*		GetName() const					{	return mName;	}
 #if defined(TARGET_WINDOWS)
-		virtual THeapHandle		GetHandle() const=0;			//	get win32 heap handle
+		virtual HANDLE			GetHandle() const=0;			//	get win32 heap handle
 #endif
 		virtual bool			IsValid() const=0;				//	heap has been created
 		virtual void			EnableDebug(bool Enable)		{}
@@ -215,7 +215,7 @@ namespace prmem
 		~Heap();
 
 #if defined(TARGET_WINDOWS)
-		virtual THeapHandle				GetHandle() const			{	return mHandle;	}
+		virtual HANDLE					GetHandle() const			{	return mHandle;	}
 		virtual bool					IsValid() const				{	return mHandle!=NULL;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
 #elif defined(STD_ALLOC)
 		virtual bool					IsValid() const				{	return true;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
@@ -467,7 +467,7 @@ namespace prmem
 		HeapDebugBase*			mHeapDebug;	//	debug information
 		
 #if defined(TARGET_WINDOWS)
-		THeapHandle				mHandle;	//	win32 handle to heap
+		HANDLE					mHandle;	//	win32 handle to heap
 #elif defined(STD_ALLOC)
 		std::allocator<char>	mAllocator;
 #endif
@@ -485,7 +485,8 @@ namespace prmem
 		{
 		}
 
-		virtual THeapHandle		GetHandle() const;
+		virtual HANDLE			GetHandle() const;
+		virtual bool			IsValid() const		{	return GetHandle() != nullptr;	}
 
 		void					Update();			//	update tracking information
 	};
