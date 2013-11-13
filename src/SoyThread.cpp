@@ -125,7 +125,7 @@ bool ofThread::startThread(bool blocking, bool verbose)
 
 
 #if defined(NO_OPENFRAMEWORKS)
-void ofThread::threadFunc(void *args)
+unsigned int ofThread::threadFunc(void *args)
 {
 	ofThread* pThread = reinterpret_cast<ofThread*>(args);
 	
@@ -135,5 +135,6 @@ void ofThread::threadFunc(void *args)
 #if !defined(STD_THREAD) && defined(TARGET_WINDOWS)
 	_endthreadex(0);
 #endif
+	return 0;
 }
 #endif
