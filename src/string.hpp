@@ -37,6 +37,21 @@
 
 namespace Soy
 {
+	template<size_t BUFFERSIZE,typename TYPE>
+	void		Sprintf(char (&Buffer)[BUFFERSIZE],const char* Format,const TYPE& Variable)
+	{
+#if defined(TARGET_WINDOWS)
+		int Terminator = sprintf_s( Buffer, Format, Variable );
+#else
+		int Terminator = sprintf( Buffer, Format, Variable );
+#endif
+		//	force terminator in case of error/overflow
+		Terminator = ofLimit<int>( Terminator, 0, BUFFERSIZE );
+		Buffer[Terminator] = '\0';
+		assert( strlen(Buffer) <= BUFFERSIZE );
+	}
+
+
 	inline int	StrCaseCmp( const char* a, const char* b );
 
 	//	type independent version of strlen()
@@ -431,72 +446,70 @@ namespace Soy
 		String2& operator << (const short v)
 		{
 			char text[8];
-			sprintf(text,"%d",static_cast<int>(v));
+			Soy::Sprintf( text, "%d", static_cast<int>(v) );
 			return operator += (text);
 		}
 
 		String2& operator << (const unsigned short v)
 		{
 			char text[8];
-			sprintf(text,"%u",static_cast<unsigned int>(v));
+			Soy::Sprintf(text,"%u",static_cast<unsigned int>(v));
 			return operator += (text);
 		}
 
 		String2& operator << (const int v)
 		{
 			char text[16];
-			sprintf(text,"%d",static_cast<int>(v));
+			Soy::Sprintf( text, "%d", static_cast<int>(v) );
 			return operator += (text);
 		}
 
 		String2& operator << (const unsigned int v)
 		{
 			char text[16];
-			sprintf(text,"%u",static_cast<unsigned int>(v));
+			Soy::Sprintf(text,"%u",static_cast<unsigned int>(v));
 			return operator += (text);
 		}
 
 		String2& operator << (const long v)
 		{
 			char text[16];
-			sprintf(text,"%d",static_cast<int>(v));
+			Soy::Sprintf(text,"%d",static_cast<int>(v));
 			return operator += (text);
 		}
 
 		String2& operator << (const unsigned long v)
 		{
 			char text[16];
-			sprintf(text,"%u",static_cast<unsigned int>(v));
+			Soy::Sprintf(text,"%u",static_cast<unsigned int>(v));
 			return operator += (text);
 		}
 
 		String2& operator << (const int64 v)
 		{
 			char text[32];
-			sprintf(text,"%lld",v);
+			Soy::Sprintf(text,"%lld",v);
 			return operator += (text);
 		}
 
 		String2& operator << (const uint64 v)
 		{
 			char text[32];
-			sprintf(text,"%llu",v);
+			Soy::Sprintf(text,"%llu",v);
 			return operator += (text);
 		}
 
 		String2& operator << (const float v)
 		{
 			char text[256];
-			int OutLength = sprintf(text,"%.3f",v);
-			assert( OutLength <= sizeof(text) ); 
+			Soy::Sprintf(text,"%.3f",v);
 			return operator += (text);
 		}
 	
 		String2& operator << (const double v)
 		{
 			char text[256];
-			int OutLength = sprintf(text,"%.3f",v);
-			assert( OutLength <= sizeof(text) ); 
+			Soy::Sprintf(text,"%.3f",v);
 			return operator += (text);
 		}
 
