@@ -144,7 +144,7 @@ protected:
 	void			destroy();
 	virtual void	threadedFunction() = 0;
 
-	static void     threadFunc(void *args);
+	static unsigned int STDCALL	threadFunc(void *args);
 
 protected:
 	std::string		mThreadName;
@@ -153,9 +153,9 @@ private:
 	volatile bool	mIsRunning;
 
 #if defined(STD_THREAD)
-    std::thread     mThread;
+    std::thread		mThread;
 #elif defined(TARGET_WINDOWS)
-	int             mThreadId;
+	unsigned int	mThreadId;
 	HANDLE			mHandle;
 #endif
 };

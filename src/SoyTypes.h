@@ -1,5 +1,8 @@
 #pragma once
 
+#if defined(_MSC_VER)
+#define TARGET_WINDOWS
+#endif
 
 #if !defined(NO_OPENFRAMEWORKS)
 
@@ -45,18 +48,20 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 #endif
 #pragma comment(lib,"winmm.lib")
 
+
 #elif defined(TARGET_OSX)
 
 #include <sys/time.h>
 #include <math.h>
 #include <stdio.h>
-#include <string>
 #include <memory>
 #include <stdint.h>
 
 #define MAX_PATH    256
 
 #endif
+
+#include <string>
 
 
 //	openframeworks functions
@@ -138,8 +143,9 @@ public:
 #else
 #define std_experimental    std
 #endif
+
 template <typename T>
-class ofPtr: public std_experimental::shared_ptr<T>
+class ofPtr : public std_experimental::shared_ptr<T>
 {
 public:
 
@@ -223,9 +229,11 @@ inline std::string ofToDataPath(const std::string& LocalPath,bool FullPath=false
 
 // Attribute to make function be exported from a plugin
 #if defined(TARGET_WINDOWS)
-#define EXPORT_API __declspec(dllexport)
+	#define STDCALL		__stdcall
+	#define EXPORT_API	__declspec(dllexport)
 #elif defined(TARGET_OSX)
-#define EXPORT_API
+	#define STDCALL		
+	#define EXPORT_API
 #endif
 
 typedef	signed char			int8;
@@ -257,13 +265,15 @@ const T& ofMax(const T& a,const T& b)
 }
 
 template<typename T>
-void ofLimit(T& v,const T& Min,const T& Max)
+T ofLimit(const T& v,const T& Min,const T& Max)
 {
 	assert( Min <= Max );
 	if ( v < Min )
-		v = Min;
+		return Min;
 	else if ( v > Max )
-		v = Max;
+		return Max;
+	else
+		return v;
 }
 
 template<typename T>
