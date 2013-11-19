@@ -62,6 +62,7 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 #endif
 
 #include <string>
+#include <assert.h>
 
 
 //	openframeworks functions
