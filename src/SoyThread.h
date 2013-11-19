@@ -96,12 +96,14 @@ class SoyThreadId
 public:
 #if defined(STD_THREAD)
     typedef std::thread::id TYPE;
+	static const TYPE		Invalid = TYPE();
 #else
     typedef int             TYPE;
+	static const TYPE		Invalid = -1;
 #endif
 public:
     SoyThreadId() :
-        mId ( TYPE() )
+        mId ( Invalid )
     {
     }
     SoyThreadId(const TYPE& id) :
@@ -113,6 +115,10 @@ public:
     inline bool     operator==(const SoyThreadId& id) const {   return mId == id.mId;   }
     inline bool     operator!=(const TYPE& id) const        {   return mId != id;   }
     inline bool     operator!=(const SoyThreadId& id) const {   return mId != id.mId;   }
+    inline bool     operator<(const TYPE& id) const			{   return mId < id;   }
+    inline bool     operator<(const SoyThreadId& id) const	{   return mId < id.mId;   }
+    inline bool     operator>(const TYPE& id) const			{   return mId > id;   }
+    inline bool     operator>(const SoyThreadId& id) const	{   return mId > id.mId;   }
     
 public:
     TYPE            mId;

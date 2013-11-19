@@ -224,7 +224,7 @@ cl_command_queue SoyOpenClManager::GetQueueForThread(msa::OpenClDevice::Type Dev
 	return GetQueueForThread( CurrentThreadId, DeviceType );
 }
 
-cl_command_queue SoyOpenClManager::GetQueueForThread(int ThreadId,msa::OpenClDevice::Type DeviceType)
+cl_command_queue SoyOpenClManager::GetQueueForThread(SoyThreadId ThreadId,msa::OpenClDevice::Type DeviceType)
 {
 	ofMutex::ScopedLock Lock( mThreadQueues );
 
@@ -241,7 +241,7 @@ cl_command_queue SoyOpenClManager::GetQueueForThread(int ThreadId,msa::OpenClDev
 		MatchQueue.mQueue = mOpencl.createQueue( DeviceType );
 
 		BufferString<100> Debug;
-		Debug << "Created opencl queue " << PtrToInt(MatchQueue.mQueue) << " for thread id " << ThreadId;
+		Debug << "Created opencl queue " << PtrToInt(MatchQueue.mQueue) << " for thread id ";
 		ofLogNotice( Debug.c_str() );
 
 		if ( !MatchQueue.mQueue )

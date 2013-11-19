@@ -182,14 +182,13 @@ class SoyThreadQueue
 {
 public:
 	SoyThreadQueue() :
-		mThreadId	( -1 ),
 		mQueue		( NULL ),
 		mDeviceType	( msa::OpenClDevice::Invalid )
 	{
 	}
 
 public:
-	int						mThreadId;
+	SoyThreadId				mThreadId;
 	cl_command_queue		mQueue;
 	msa::OpenClDevice::Type	mDeviceType;
 };
@@ -213,7 +212,7 @@ public:
 	msa::OpenCL&			GetOpenCL()		{	return mOpencl;	}
 
 	cl_command_queue		GetQueueForThread(msa::OpenClDevice::Type DeviceType=SoyOpenCl::DefaultDeviceType);				//	get/alloc a specific queue for the current thread
-	cl_command_queue		GetQueueForThread(int ThreadId,msa::OpenClDevice::Type DeviceType=SoyOpenCl::DefaultDeviceType);	//	get/alloc a specific queue for a thread
+	cl_command_queue		GetQueueForThread(SoyThreadId ThreadId,msa::OpenClDevice::Type DeviceType=SoyOpenCl::DefaultDeviceType);	//	get/alloc a specific queue for a thread
 
 private:
 	prmem::Heap&			mHeap;
