@@ -100,12 +100,17 @@ inline const STRING& operator>>(const STRING& str,SoyTime& Time)
 }
 
 
+//	gr: oops, OF ofLogNotice isn't a function, this works for both
+inline void ofLogNoticeWrapper(const std::string& Message)
+{
+	ofLogNotice( Message.c_str() );
+}
 
 
 class ofScopeTimerWarning
 {
 public:
-	ofScopeTimerWarning(const char* Name,uint64 WarningTimeMs,bool AutoStart=true,ofDebugPrintFunc DebugPrintFunc=ofLogNotice) :
+	ofScopeTimerWarning(const char* Name,uint64 WarningTimeMs,bool AutoStart=true,ofDebugPrintFunc DebugPrintFunc=ofLogNoticeWrapper) :
 		mName				( Name ),
 		mWarningTimeMs		( WarningTimeMs ),
 		mStopped			( true ),
