@@ -154,7 +154,11 @@ namespace msa {
 	void OpenCLImage::reset(cl_command_queue Queue) {
 		ofLogNotice( __FUNCTION__ );
 		int numElements = width * height * 4; // TODO, make real
+#if (OF_VERSION_MINOR==8)
+		if(texture->getTextureData().glTypeInternal == GL_FLOAT) 
+#else
 		if(texture->getTextureData().pixelType == GL_FLOAT) 
+#endif
 			numElements *= sizeof(cl_float);
 		char *data = new char[numElements];
 		memset(data, 0, numElements);
