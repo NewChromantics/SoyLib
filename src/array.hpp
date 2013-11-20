@@ -53,7 +53,8 @@
 		virtual const T&	operator [] (int index) const=0;
 		virtual T&			GetBack()=0;
 		virtual const T&	GetBack(int index) const=0;
-		virtual bool		IsEmpty() const=0;
+		bool				IsEmpty() const					{	return GetSize() == 0;	}
+		bool				IsFull() const					{	return GetSize() >= MaxSize();	}
 		virtual int			GetSize() const=0;
 		virtual int			GetDataSize() const=0;
 		virtual int			GetElementSize() const=0;
@@ -141,7 +142,6 @@
 		virtual const T&	operator [] (int index) const	{	return mArray[index];	}
 		virtual T&			GetBack()						{	return mArray.GetBack();	}
 		virtual const T&	GetBack(int index) const		{	return mArray.GetBack();	}
-		virtual bool		IsEmpty() const					{	return mArray.IsEmpty();	}
 		virtual int			GetSize() const					{	return mArray.GetSize();	}
 		virtual int			GetDataSize() const				{	return mArray.GetDataSize();	}
 		virtual int			GetElementSize() const			{	return mArray.GetElementSize();	}

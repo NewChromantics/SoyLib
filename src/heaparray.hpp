@@ -140,39 +140,15 @@ public:
 	T&			operator [] (int index)				{	return GetAt(index);	}
 	const T&	operator [] (int index) const		{	return GetAtConst(index);	}
 
-	T&			GetBack()		{	return (*this)[GetSize()-1];	}
-	const T&	GetBack() const	{	return (*this)[GetSize()-1];	}
-
-	bool IsEmpty() const
-	{
-		return moffset == 0;
-	}
-
-	int GetSize() const
-	{
-		return moffset;
-	}
-
-	//	size of all the data in bytes
-	int GetDataSize() const
-	{
-		return GetSize() * sizeof(T);
-	}
-
-	static int GetElementSize()
-	{
-		return sizeof(T);
-	}
-
-	const T* GetArray() const
-	{
-		return mdata;
-	}
-
-	T* GetArray()
-	{
-		return mdata;
-	}
+	T&			GetBack()				{	return (*this)[GetSize()-1];	}
+	const T&	GetBack() const			{	return (*this)[GetSize()-1];	}
+	const T*	GetArray() const		{	return mdata;	}
+	T*			GetArray()				{	return mdata;	}
+	bool		IsEmpty() const			{	return GetSize() == 0;		}
+	bool		IsFull() const			{	return GetSize() >= MaxSize();		}
+	int			GetSize() const			{	return moffset;		}
+	int			GetDataSize() const		{	return GetSize() * sizeof(T);	}	//	size of all the data in bytes
+	int			GetElementSize() const	{	return sizeof(T);	}	//	size of all the data in bytes
 
 	bool SetSize(int size, bool preserve=true,bool AllowLess=true)
 	{
