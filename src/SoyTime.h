@@ -100,18 +100,23 @@ inline const STRING& operator>>(const STRING& str,SoyTime& Time)
 }
 
 
-
+//	gr: oops, OF ofLogNotice isn't a function, this works for both
+inline void ofLogNoticeWrapper(const std::string& Message)
+{
+	ofLogNotice( Message.c_str() );
+}
 
 
 class ofScopeTimerWarning
 {
 public:
-	ofScopeTimerWarning(const char* Name,uint64 WarningTimeMs,bool AutoStart=true) :
+	ofScopeTimerWarning(const char* Name,uint64 WarningTimeMs,bool AutoStart=true,ofDebugPrintFunc DebugPrintFunc=ofLogNoticeWrapper) :
 		mName				( Name ),
 		mWarningTimeMs		( WarningTimeMs ),
 		mStopped			( true ),
 		mReportedOnLastStop	( false ),
-		mAccumulatedTime	( 0 )
+		mAccumulatedTime	( 0 ),
+		mDebugPrintFunc		( DebugPrintFunc )
 	{
 		if ( AutoStart )
 			Start( true );
@@ -148,9 +153,12 @@ public:
 	{
 		if ( mAccumulatedTime >= mWarningTimeMs || Force )
 		{
-			BufferString<200> Debug;
-			Debug << mName << " took " << mAccumulatedTime << "ms to execute";
-			ofLogNotice( static_cast<const char*>( Debug ) );
+			if ( mDebugPrintFunc )
+			{
+				BufferString<200> Debug;
+				Debug << mName << " took " << mAccumulatedTime << "ms to execute";
+				(*mDebugPrintFunc)( static_cast<const char*>( Debug ) );
+			}
 			return true;
 		}
 		return false;
@@ -174,5 +182,6 @@ public:
 	bool				mStopped;
 	bool				mReportedOnLastStop;
 	uint64				mAccumulatedTime;
+	ofDebugPrintFunc	mDebugPrintFunc;
 };
 

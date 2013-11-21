@@ -4,6 +4,7 @@
 #define TARGET_WINDOWS
 #endif
 
+
 #if !defined(NO_OPENFRAMEWORKS)
 
 #include <ofMain.h>
@@ -62,6 +63,7 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 #endif
 
 #include <string>
+#include <assert.h>
 
 
 //	openframeworks functions
@@ -251,6 +253,9 @@ typedef uint32_t             uint32;
 typedef int64_t             int64;
 typedef uint64_t             uint64;
 #endif
+
+
+typedef void(*ofDebugPrintFunc)(const std::string&);
 
 
 template<typename T>

@@ -72,8 +72,11 @@ void ofThread::waitForThread(bool Stop)
 	}
 	
 #if defined(STD_THREAD)
-    mThread.join();
-    mThread = std::thread();
+	//	if thread is active, then wait for it to finish and join it
+	if ( mThread.joinable() )
+		mThread.join();
+
+	mThread = std::thread();
 #else
 	//	for for handle to disapear
 	if ( mHandle )
