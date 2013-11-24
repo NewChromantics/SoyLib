@@ -75,9 +75,9 @@ namespace msa {
 		Debug << __FUNCTION__ << " " << kernelName;
 		ofLogNotice( Debug.c_str() );
 
-		assert( mProgram );
+		//assert( mProgram );
 		if ( !mProgram )
-			return NULL;
+			return nullptr;
 		
 		assert( Queue );
 		if ( !Queue )

@@ -199,9 +199,11 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		assert( isInitialised() );
 		assert( Queue );
 		if ( !Queue )
-			return NULL;
+			return nullptr;
 		//ofLog(OF_LOG_VERBOSE, string() + __FUNCTION__ + " " + kernelName + ", " + program.getName() );
 		OpenCLKernel *k = program.loadKernel( kernelName, Queue );
+		if ( !k )
+			return nullptr;
 		
 		ofMutex::ScopedLock Lock(mKernelsLock);
 		kernels.PushBack(k);
@@ -227,11 +229,13 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	}
 
 	OpenCLBuffer* OpenCL::createBuffer(cl_command_queue Queue,int numberOfBytes, cl_mem_flags memFlags, void *dataPtr, bool blockingWrite) {
+		if ( numberOfBytes <= 0 )
+			return nullptr;
 		//ofLog(OF_LOG_VERBOSE, string() + __FUNCTION__ + " " + ofToString(numberOfBytes,0) + " bytes; blocking: " + ofToString(blockingWrite,0)  );
 		assert( isInitialised() );
 		OpenCLBuffer *clBuffer = new OpenCLBuffer(*this);
 		if (!clBuffer )
-			return NULL;
+			return nullptr;
 		clBuffer->initBuffer(numberOfBytes, memFlags, dataPtr, blockingWrite, Queue );
 
 		ofMutex::ScopedLock Lock(mMemObjectsLock);
