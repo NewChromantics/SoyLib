@@ -215,6 +215,14 @@ inline void Soy::WriteXmlData(ofxXmlSettings& xml,const char* Name,const TYPE& V
 
 }
 
+
+template<uint32 SIZE>
+inline const TString& operator>>(const TString& Source,BufferString<SIZE>& Destination)
+{
+	Destination << Source;
+	return Source;
+}
+
 //	if not tag, then data is stored as an attribute
 template<typename TYPE>
 inline bool Soy::ReadXmlData(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag)
