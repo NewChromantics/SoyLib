@@ -9,20 +9,13 @@ namespace msa {
 		mKernel		( Kernel ),
 		mQueue		( Queue )
 	{
-		BufferString<1000> Debug;
-		Debug << __FUNCTION__ << " " << mName;
-		ofLogNotice( Debug.c_str() );
-
 		assert( mKernel );
 		assert( mQueue );
 	}
 	
 	
-	OpenCLKernel::~OpenCLKernel() {
-		BufferString<1000> Debug;
-		Debug << __FUNCTION__ << " " << mName;
-		ofLogNotice( Debug.c_str() );
-
+	OpenCLKernel::~OpenCLKernel()
+	{
 		if ( mKernel )
 		{
 			clReleaseKernel( mKernel );

@@ -22,13 +22,10 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	OpenCL::OpenCL() :
 		mContext	( NULL )
 	{
-		ofLogNotice(__FUNCTION__ );
 	}
 	
 	OpenCL::~OpenCL() 
 	{
-		ofLogNotice(__FUNCTION__ );
-		
 		for ( int q=0;	q<mQueues.GetSize();	q++ )
 			clFinish( mQueues[q] );
 		
@@ -54,7 +51,6 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	
 	bool OpenCL::setup(const char* PlatformName)
 	{
-		ofLogNotice(__FUNCTION__ );
 		if( isInitialised() )
 		{
 			ofLogNotice("... already setup. returning");
@@ -89,8 +85,6 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	
 	bool OpenCL::setupFromOpenGL() {
 #if defined(ENABLE_SETUP_FROM_OPENGL)
-		ofLogNotice(__FUNCTION__ );
-		
 		if(isSetup) {
 			ofLogNotice("... already setup. returning");
 			return true;

@@ -10,11 +10,10 @@ namespace msa {
 	OpenCLMemoryObject::OpenCLMemoryObject() :
 		clMemObject	( NULL )
 	{
-		ofLogNotice( __FUNCTION__ );
 	}
 	
-	OpenCLMemoryObject::~OpenCLMemoryObject() {
-		ofLogNotice( __FUNCTION__ );
+	OpenCLMemoryObject::~OpenCLMemoryObject() 
+	{
 		if(clMemObject) 
 		{
 #if defined(ENABLE_OPENCL_RELEASE_LOCK)

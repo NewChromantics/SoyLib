@@ -70,12 +70,8 @@ namespace msa {
 	} 
 	
 	
-	OpenCLKernel* OpenCLProgram::loadKernel(std::string kernelName,cl_command_queue Queue) {
-		BufferString<1000> Debug;
-		Debug << __FUNCTION__ << " " << kernelName;
-		ofLogNotice( Debug.c_str() );
-
-		//assert( mProgram );
+	OpenCLKernel* OpenCLProgram::loadKernel(std::string kernelName,cl_command_queue Queue) 
+	{
 		if ( !mProgram )
 			return nullptr;
 		
