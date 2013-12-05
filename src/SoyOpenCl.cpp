@@ -303,7 +303,7 @@ bool SoyOpenClShader::LoadShader()
 SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name,cl_command_queue Queue)
 {
 	ofMutex::ScopedLock Lock(mLock);
-	ofScopeTimerWarning Warning( BufferString<1000>()<<__FUNCTION__<<" "<<Name, 1 );
+	ofScopeTimerWarning Warning( BufferString<1000>()<<__FUNCTION__<<" "<<Name, 3 );
 	SoyOpenClKernel* pKernel = new SoyOpenClKernel( Name, *this );
 	if ( !pKernel )
 		return NULL;
