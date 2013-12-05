@@ -141,6 +141,7 @@ namespace msa {
 	
 #if !defined(NO_OPENFRAMEWORKS)
 	void OpenCLImage::reset(cl_command_queue Queue) {
+		/*
 		ofLogNotice( __FUNCTION__ );
 		int numElements = width * height * 4; // TODO, make real
 #if (OF_VERSION_MINOR==8)
@@ -153,6 +154,7 @@ namespace msa {
 		memset(data, 0, numElements);
 		write(Queue,data, true);
 		delete []data;
+		*/
 	}
 #endif
 	
