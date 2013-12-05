@@ -146,6 +146,32 @@ inline const STRING& operator>>(const STRING& str,ofVec2f& Value)
 	return str;
 }
 
+
+template<class STRING>
+inline STRING& operator<<(STRING& str,const ofRectangle& Value)
+{
+	str << Value.getLeft() << ',' << Value.getTop() << ',' << Value.getWidth() << ',' << Value.getHeight();
+	return str;
+}
+
+template<class STRING>
+inline const STRING& operator>>(const STRING& str,ofRectangle& Value)
+{
+	BufferArray<float,4> Floats;
+	str.GetFloatArray( Floats );
+	
+	//	pad out
+	for ( int i=Floats.GetSize();	i<Floats.MaxSize();	i++ )
+		Floats.PushBack( -1.f );
+	
+	Value.setX( Floats[0] );
+	Value.setX( Floats[1] );
+	Value.setWidth( Floats[2] );
+	Value.setHeight( Floats[3] );
+
+	return str;
+}
+
 template<class STRING>
 inline STRING& operator<<(STRING& str,const ofColour& Value)
 {

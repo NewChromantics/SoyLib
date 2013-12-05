@@ -7,7 +7,6 @@ namespace msa {
 		mParent	( Parent ),
 		texture	( NULL )
 	{
-		ofLogNotice( __FUNCTION__ );
 	}
 	
 	
@@ -20,8 +19,6 @@ namespace msa {
 										 void *dataPtr,
 										 bool blockingWrite)
 	{
-		ofLogNotice( __FUNCTION__ );
-		
 		init(w, h, d);
 		
 		cl_int err;
@@ -76,8 +73,6 @@ namespace msa {
 									  cl_mem_flags memFlags,
 									  int mipLevel)
 	{
-		ofLogNotice( __FUNCTION__ );
-		
 		init(tex.getWidth(), tex.getHeight(), 1);
 		
 		cl_int err = CL_SUCCESS;
@@ -112,8 +107,6 @@ namespace msa {
 									  int glTypeInternal,
 									  cl_mem_flags memFlags)
 	{
-		ofLogNotice( __FUNCTION__ );
-		
 		if(texture)
 		{
 			delete texture;
@@ -144,10 +137,6 @@ namespace msa {
 		region[0] = width; 
 		region[1] = height;
 		region[2] = depth;
-		
-		BufferString<1000> Debug;
-		Debug << __FUNCTION__ << width << ", " << height << ", " << depth;
-		ofLogNotice( Debug.c_str() );
 	}
 	
 #if !defined(NO_OPENFRAMEWORKS)

@@ -133,6 +133,9 @@ public:
 	bool					IsUp() const		{	return mPath.IsEmpty();	}
 
 	inline bool				operator==(const SoyButton::Type& Button) const	{	return GetButton() == Button;	}
+	
+	vec2f					GetScreenPos() const		{	return IsUp() ? vec2f() : mPath.GetBack();	}
+	vec2f					GetPrevScreenPos() const	{	return (mPath.GetSize() > 1) ? mPath[mPath.GetSize()-2] : GetScreenPos();	}
 
 public:
 	Array<vec2f>			mPath;		//	path since last pop, if one point then button is down, but not moving. If none then the mouse is released
@@ -210,6 +213,14 @@ inline void Soy::WriteXmlData(ofxXmlSettings& xml,const char* Name,const TYPE& V
 	else
 		xml.addAttribute( ":", Name, static_cast<const char*>( Buffer ), -1 );
 
+}
+
+
+template<uint32 SIZE>
+inline const TString& operator>>(const TString& Source,BufferString<SIZE>& Destination)
+{
+	Destination << Source;
+	return Source;
 }
 
 //	if not tag, then data is stored as an attribute
