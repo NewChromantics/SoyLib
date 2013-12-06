@@ -279,22 +279,60 @@ public:
 	{
 		Write( Array, ReadWriteMode );
 	}
+	template<typename TYPE,uint32 SIZE>
+	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const BufferArray<TYPE,SIZE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( NULL ),
+		mManager	( Kernel.mManager ),
+		mKernel		( Kernel )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE>
+	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const RemoteArray<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( NULL ),
+		mManager	( Kernel.mManager ),
+		mKernel		( Kernel )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE,class SORT>
+	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const SortArray<TYPE,SORT>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( NULL ),
+		mManager	( Kernel.mManager ),
+		mKernel		( Kernel )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE>
+	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const ArrayBridge<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( NULL ),
+		mManager	( Kernel.mManager ),
+		mKernel		( Kernel )
+	{
+		Write( Array, ReadWriteMode );
+	}
 
-	template<typename ARRAYTYPE>
-	bool		Write(const ArrayBridgeDef<ARRAYTYPE>& Array,cl_int ReadWriteMode)
+	template<typename TYPE>
+	bool		Write(const ArrayBridge<TYPE>& Array,cl_int ReadWriteMode)
 	{
 		//	check for non 16-byte aligned structs (assume anything more than 4 bytes is a struct)
-		if ( sizeof(ARRAYTYPE::TYPE) > 8 )
+		if ( sizeof(TYPE) > 8 )
 		{
-			int Remainder = sizeof(ARRAYTYPE::TYPE) % 16;
+			int Remainder = sizeof(TYPE) % 16;
 			if ( Remainder != 0 )
 			{
 				BufferString<100> Debug;
-				Debug << "Warning, type " << Soy::GetTypeName<ARRAYTYPE::TYPE>() << " not aligned to 16 bytes; " << sizeof(ARRAYTYPE::TYPE) << " (+" << Remainder << ")";
+				Debug << "Warning, type " << Soy::GetTypeName<TYPE>() << " not aligned to 16 bytes; " << sizeof(TYPE) << " (+" << Remainder << ")";
 				ofLogWarning( Debug.c_str() );
 			}
 		}
 		return Write( Array.GetArray(), Array.GetDataSize(), SoyOpenCl::DefaultWriteBlocking, ReadWriteMode );
+	}
+	template<typename ARRAYTYPE>
+	bool		Write(const ArrayBridgeDef<ARRAYTYPE>& Array,cl_int ReadWriteMode)
+	{
+		auto& Bridge = static_cast<const ArrayBridge<ARRAYTYPE::TYPE>&>( Array );
+		return Write( Bridge, ReadWriteMode );
 	}
 	template<typename TYPE>				bool	Write(const Array<TYPE>& Array,cl_int ReadWriteMode)			{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
 	template<typename TYPE,int SIZE>	bool	Write(const BufferArray<TYPE,SIZE>& Array,cl_int ReadWriteMode)	{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
@@ -327,7 +365,7 @@ public:
 	}
 
 	template<typename TYPE>
-	bool		Read(ArrayBridgeDef<TYPE>& Array,int ElementCount=-1)
+	bool		Read(ArrayBridge<TYPE>& Array,int ElementCount=-1)
 	{
 		if ( !mBuffer )
 			return false;
@@ -340,7 +378,12 @@ public:
 			return false;
 		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), SoyOpenCl::DefaultReadBlocking, mKernel.GetQueue() );
 	}
-
+	template<typename ARRAYTYPE>
+	bool		Read(ArrayBridgeDef<ARRAYTYPE>& Array,int ElementCount)
+	{
+		auto& Bridge = static_cast<ArrayBridge<ARRAYTYPE::TYPE>&>( Array );
+		return Read( Bridge, ElementCount );
+	}
 	template<typename TYPE>				bool	Read(Array<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
 	template<typename TYPE,int SIZE>	bool	Read(BufferArray<TYPE,SIZE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
 	template<typename TYPE>				bool	Read(RemoteArray<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
