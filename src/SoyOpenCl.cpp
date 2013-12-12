@@ -324,9 +324,10 @@ SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name,cl_command_queue Qu
 
 
 
-SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,bool UseThreadQueue,SoyOpenClManager& Manager,const char* BuildOptions) :
+SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,bool UseThreadQueue,SoyOpenClManager& Manager,msa::OpenClDevice::Type Device,const char* BuildOptions) :
 	mManager		( Manager ),
 	mKernel			( NULL ),
+	mRequestDevice	( Device ),
 	mHeap			( mManager.GetHeap() ),
 	mUseThreadQueue	( UseThreadQueue )
 {
@@ -338,9 +339,10 @@ SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,bool 
 	mKernelRef.mKernel = Kernel;
 }
 
-SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,const char* BuildOptions) :
+SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,msa::OpenClDevice::Type Device,const char* BuildOptions) :
 	mManager		( Manager ),
 	mKernel			( NULL ),
+	mRequestDevice	( Device ),
 	mHeap			( mManager.GetHeap() ),
 	mUseThreadQueue	( true )
 {
@@ -357,7 +359,7 @@ SoyOpenClKernel* SoyClShaderRunner::GetKernel()
 {
 	if ( !mKernel )
 	{
-		cl_command_queue Queue = mUseThreadQueue ? mManager.GetQueueForThread() : NULL;
+		cl_command_queue Queue = mUseThreadQueue ? mManager.GetQueueForThread( mRequestDevice ) : NULL;
 		mKernel = mManager.GetKernel( mKernelRef, Queue );
 	}
 	return mKernel;
@@ -370,6 +372,7 @@ SoyOpenClKernel::SoyOpenClKernel(const char* Name,SoyOpenClShader& Parent) :
 	mShader				( Parent ),
 	mManager			( Parent.mManager ),
 	mMaxWorkGroupSize	( -1 ),
+	mDevice				( msa::OpenClDevice::Invalid ),
 	mKernelRef			( Parent.GetRef(), Name )
 {
 }
@@ -511,24 +514,33 @@ bool SoyOpenClKernel::End3D(bool Blocking,int Exec1,int Exec2,int Exec3)
 	return true;
 }
 
+void SoyOpenClKernel::OnUnloaded()
+{
+	mMaxWorkGroupSize = -1;
+	mDevice = msa::OpenClDevice::Invalid;
+}
+
 void SoyOpenClKernel::OnLoaded()
 {
 	//	failed to load (syntax error etc)
 	if ( !mKernel )
+	{
+		OnUnloaded();
 		return;
+	}
 
 	//	query for max work group items
 	//	http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clGetKernelWorkGroupInfo.html
 	auto Queue = GetQueue();
 	auto* Device = mManager.mOpencl.GetDevice( Queue );
-	if ( Device )
+	if ( !Device )
 	{
-		mMaxWorkGroupSize = Device->mInfo.maxWorkGroupSize;
+		OnUnloaded();
+		return;
 	}
-	else
-	{
-		mMaxWorkGroupSize = -1;
-	}
+	
+	mDevice = Device->GetType();
+	mMaxWorkGroupSize = Device->mInfo.maxWorkGroupSize;
 }
 
 

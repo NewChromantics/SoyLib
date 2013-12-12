@@ -85,12 +85,15 @@ public:
 	}
 
 	void			OnLoaded();				//	kernel will be null if it failed
+	void			OnUnloaded();
 	const char*		GetName() const			{	return mName.c_str();	}
 	bool			IsValid() const			{	return mKernel!=NULL;	}
 	bool			IsValidExecCount(int ExecCount)	{	return (mMaxWorkGroupSize==-1) ? true : (ExecCount<=mMaxWorkGroupSize);	}
 	int				GetMaxWorkGroupSize() const	{	return mMaxWorkGroupSize;	}
 	cl_command_queue	GetQueue()			{	return mKernel ? mKernel->getQueue() : NULL;	}
 	msa::OpenCL&	GetOpenCL() const;
+	msa::OpenClDevice::Type	GetDevice() const	{	return mDevice;	}
+
 
 	void			DeleteKernel();
 	inline bool		operator==(const char* Name) const	{	return mName == Name;	}
@@ -123,7 +126,8 @@ protected:
 	bool			WaitForPendingWrites();
 
 private:
-	int					mMaxWorkGroupSize;
+	int						mMaxWorkGroupSize;
+	msa::OpenClDevice::Type	mDevice;
 	BufferString<100>	mName;
 	Array<cl_event>		mPendingBufferWrites;	//	wait for all these to finish before executing
 
@@ -211,8 +215,8 @@ public:
 	prmem::Heap&			GetHeap()		{	return mHeap;	}
 	msa::OpenCL&			GetOpenCL()		{	return mOpencl;	}
 
-	cl_command_queue		GetQueueForThread(msa::OpenClDevice::Type DeviceType=SoyOpenCl::DefaultDeviceType);				//	get/alloc a specific queue for the current thread
-	cl_command_queue		GetQueueForThread(SoyThreadId ThreadId,msa::OpenClDevice::Type DeviceType=SoyOpenCl::DefaultDeviceType);	//	get/alloc a specific queue for a thread
+	cl_command_queue		GetQueueForThread(msa::OpenClDevice::Type DeviceType);				//	get/alloc a specific queue for the current thread
+	cl_command_queue		GetQueueForThread(SoyThreadId ThreadId,msa::OpenClDevice::Type DeviceType);	//	get/alloc a specific queue for a thread
 
 private:
 	prmem::Heap&			mHeap;
@@ -230,8 +234,8 @@ public:
 class SoyClShaderRunner
 {
 public:
-	SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,const char* BuildOptions=NULL);
-	SoyClShaderRunner(const char* Shader,const char* Kernel,bool UseThreadQueue,SoyOpenClManager& Manager,const char* BuildOptions=NULL);
+	SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,msa::OpenClDevice::Type Device=SoyOpenCl::DefaultDeviceType,const char* BuildOptions=NULL);
+	SoyClShaderRunner(const char* Shader,const char* Kernel,bool UseThreadQueue,SoyOpenClManager& Manager,msa::OpenClDevice::Type Device=SoyOpenCl::DefaultDeviceType,const char* BuildOptions=NULL);
 	virtual ~SoyClShaderRunner()				{	DeleteKernel();	}
 
 	bool				IsValid()		
@@ -241,10 +245,11 @@ public:
 	}
 	SoyOpenClKernel*	GetKernel();
 	void				DeleteKernel()			{	return mManager.DeleteKernel( mKernel );	}
-	BufferString<200>	Debug_GetName() const	{	return mKernelRef.Debug_GetName();	}
+	BufferString<200>	Debug_GetName() const	{	return BufferString<200>() << mKernelRef.Debug_GetName() << '[' << msa::OpenClDevice::ToString( mKernel ? mKernel->GetDevice() : msa::OpenClDevice::Invalid ) << ']';	}
 
 public:
 	bool				mUseThreadQueue;
+	msa::OpenClDevice::Type	mRequestDevice;	//	device we requested at construction if not default/any. actual device used is stored in kernel
 	SoyOpenClKernel*	mKernel;
 	SoyOpenClKernelRef	mKernelRef;
 	SoyOpenClManager&	mManager;
