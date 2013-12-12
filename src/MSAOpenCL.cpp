@@ -5,6 +5,21 @@
 
 namespace msa {
 	
+
+const char* OpenClDevice::ToString(OpenClDevice::Type type)
+{
+	switch ( type ) 
+	{
+	case Invalid:	return "Invalid";
+	case All:		return "All";
+	case Any:		return "Any";
+	case CPU:		return "CPU";
+	case GPU:		return "GPU";
+	default:
+		return "Unhandled Opencl Device Type";
+	}
+}
+
 clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 {
 	mName[0] = '\0';
