@@ -122,13 +122,13 @@
 
 		T&			GetBack()				{	return (*this)[GetSize()-1];	}
 		const T&	GetBack() const			{	return (*this)[GetSize()-1];	}
-
+		const T*	GetArray() const		{	return mdata;	}
+		T*			GetArray()				{	return mdata;	}
 		bool		IsEmpty() const			{	return GetSize() == 0;		}
+		bool		IsFull() const			{	return GetSize() >= MaxSize();		}
 		int			GetSize() const			{	return moffset;		}
 		int			GetDataSize() const		{	return GetSize() * sizeof(T);	}	//	size of all the data in bytes
 		int			GetElementSize() const	{	return sizeof(T);	}	//	size of all the data in bytes
-		const T*	GetArray() const		{	return mdata;	}
-		T*			GetArray()				{	return mdata;	}
 
 		//	gr: AllowLess does nothing here, but the parameter is kept to match other Array types (in case it's used in template funcs for example)
 		bool SetSize(int size, bool preserve=true,bool AllowLess=true)
@@ -500,7 +500,7 @@ public:
 	typedef T TYPE;	//	in case you ever need to get to T in a template function/class, you can use ARRAYPARAM::TYPE (sometimes need typename ARRAYPARAM::TYPE)
 
 public:
-	template <typename T,unsigned int BUFFERSIZE>
+	template <unsigned int BUFFERSIZE>
 	RemoteArray(T (& Buffer)[BUFFERSIZE],int& BufferCounter) :
 		moffset		( BufferCounter ),
 		mdata		( Buffer ),
@@ -509,7 +509,7 @@ public:
 		//	can't really handle stuff that isn't setup
 		assert( moffset <= mmaxsize );
 	}
-	template <typename T,unsigned int BUFFERSIZE>
+	template <unsigned int BUFFERSIZE>
 	RemoteArray(const T (& Buffer)[BUFFERSIZE],const int& BufferCounter) :
 		moffset		( const_cast<int&>(BufferCounter) ),
 		mdata		( const_cast<T*>(Buffer) ),
@@ -518,7 +518,6 @@ public:
 		//	can't really handle stuff that isn't setup
 		assert( moffset <= mmaxsize );
 	}
-	template <typename T>
 	explicit RemoteArray(T* Buffer,const int BufferSize,int& BufferCounter) :
 		moffset		( BufferCounter ),
 		mdata		( Buffer ),
@@ -527,7 +526,6 @@ public:
 		//	can't really handle stuff that isn't setup
 		assert( moffset <= mmaxsize );
 	}
-	template <typename T>
 	explicit RemoteArray(const T* Buffer,const int BufferSize,const int& BufferCounter) :
 		moffset		( const_cast<int&>(BufferCounter) ),
 		mdata		( const_cast<T*>(Buffer) ),
@@ -599,6 +597,7 @@ public:
 	const T&	GetBack() const			{	return (*this)[GetSize()-1];	}
 
 	bool		IsEmpty() const			{	return GetSize() == 0;		}
+	bool		IsFull() const			{	return GetSize() >= MaxSize();	}
 	int			GetSize() const			{	return moffset;		}
 	int			GetDataSize() const		{	return GetSize() * GetElementSize();	}	//	size of all the data in bytes
 	int			GetElementSize() const	{	return sizeof(T);	}	//	size of all the data in bytes

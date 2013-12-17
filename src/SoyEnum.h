@@ -21,7 +21,8 @@ namespace SoyEnum
 //		inline ENUM::Type					ToType(const BufferString<100>& Name)			{	return ENUM::ToType( Name );	}		\
 
 
-
+//  gr: not compiling on OSX
+#if defined(TARGET_WINDOWS)
 template<typename ENUM_TYPE>
 inline ENUM_TYPE SoyEnum::ToType(const BufferString<100>& Name,const ENUM_TYPE& Default)
 {
@@ -38,4 +39,4 @@ inline ENUM_TYPE SoyEnum::ToType(const BufferString<100>& Name,const ENUM_TYPE& 
 	
 	return Default;
 };
-
+#endif

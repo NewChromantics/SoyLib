@@ -1,7 +1,6 @@
 #pragma once
 
 #include "SoyRef.h"
-#include <ofxNetwork.h>
 #include "heaparray.hpp"
 
 

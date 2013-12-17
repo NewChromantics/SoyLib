@@ -85,12 +85,15 @@ public:
 	}
 
 	void			OnLoaded();				//	kernel will be null if it failed
+	void			OnUnloaded();
 	const char*		GetName() const			{	return mName.c_str();	}
 	bool			IsValid() const			{	return mKernel!=NULL;	}
 	bool			IsValidExecCount(int ExecCount)	{	return (mMaxWorkGroupSize==-1) ? true : (ExecCount<=mMaxWorkGroupSize);	}
 	int				GetMaxWorkGroupSize() const	{	return mMaxWorkGroupSize;	}
 	cl_command_queue	GetQueue()			{	return mKernel ? mKernel->getQueue() : NULL;	}
 	msa::OpenCL&	GetOpenCL() const;
+	msa::OpenClDevice::Type	GetDevice() const	{	return mDevice;	}
+
 
 	void			DeleteKernel();
 	inline bool		operator==(const char* Name) const	{	return mName == Name;	}
@@ -123,7 +126,8 @@ protected:
 	bool			WaitForPendingWrites();
 
 private:
-	int					mMaxWorkGroupSize;
+	int						mMaxWorkGroupSize;
+	msa::OpenClDevice::Type	mDevice;
 	BufferString<100>	mName;
 	Array<cl_event>		mPendingBufferWrites;	//	wait for all these to finish before executing
 
@@ -182,14 +186,13 @@ class SoyThreadQueue
 {
 public:
 	SoyThreadQueue() :
-		mThreadId	( -1 ),
 		mQueue		( NULL ),
 		mDeviceType	( msa::OpenClDevice::Invalid )
 	{
 	}
 
 public:
-	int						mThreadId;
+	SoyThreadId				mThreadId;
 	cl_command_queue		mQueue;
 	msa::OpenClDevice::Type	mDeviceType;
 };
@@ -212,8 +215,8 @@ public:
 	prmem::Heap&			GetHeap()		{	return mHeap;	}
 	msa::OpenCL&			GetOpenCL()		{	return mOpencl;	}
 
-	cl_command_queue		GetQueueForThread(msa::OpenClDevice::Type DeviceType=SoyOpenCl::DefaultDeviceType);				//	get/alloc a specific queue for the current thread
-	cl_command_queue		GetQueueForThread(int ThreadId,msa::OpenClDevice::Type DeviceType=SoyOpenCl::DefaultDeviceType);	//	get/alloc a specific queue for a thread
+	cl_command_queue		GetQueueForThread(msa::OpenClDevice::Type DeviceType);				//	get/alloc a specific queue for the current thread
+	cl_command_queue		GetQueueForThread(SoyThreadId ThreadId,msa::OpenClDevice::Type DeviceType);	//	get/alloc a specific queue for a thread
 
 private:
 	prmem::Heap&			mHeap;
@@ -231,8 +234,8 @@ public:
 class SoyClShaderRunner
 {
 public:
-	SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,const char* BuildOptions=NULL);
-	SoyClShaderRunner(const char* Shader,const char* Kernel,bool UseThreadQueue,SoyOpenClManager& Manager,const char* BuildOptions=NULL);
+	SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,msa::OpenClDevice::Type Device=SoyOpenCl::DefaultDeviceType,const char* BuildOptions=NULL);
+	SoyClShaderRunner(const char* Shader,const char* Kernel,bool UseThreadQueue,SoyOpenClManager& Manager,msa::OpenClDevice::Type Device=SoyOpenCl::DefaultDeviceType,const char* BuildOptions=NULL);
 	virtual ~SoyClShaderRunner()				{	DeleteKernel();	}
 
 	bool				IsValid()		
@@ -242,10 +245,11 @@ public:
 	}
 	SoyOpenClKernel*	GetKernel();
 	void				DeleteKernel()			{	return mManager.DeleteKernel( mKernel );	}
-	BufferString<200>	Debug_GetName() const	{	return mKernelRef.Debug_GetName();	}
+	BufferString<200>	Debug_GetName() const	{	return BufferString<200>() << mKernelRef.Debug_GetName() << '[' << msa::OpenClDevice::ToString( mKernel ? mKernel->GetDevice() : msa::OpenClDevice::Invalid ) << ']';	}
 
 public:
 	bool				mUseThreadQueue;
+	msa::OpenClDevice::Type	mRequestDevice;	//	device we requested at construction if not default/any. actual device used is stored in kernel
 	SoyOpenClKernel*	mKernel;
 	SoyOpenClKernelRef	mKernelRef;
 	SoyOpenClManager&	mManager;
@@ -280,22 +284,60 @@ public:
 	{
 		Write( Array, ReadWriteMode );
 	}
+	template<typename TYPE,uint32 SIZE>
+	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const BufferArray<TYPE,SIZE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( NULL ),
+		mManager	( Kernel.mManager ),
+		mKernel		( Kernel )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE>
+	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const RemoteArray<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( NULL ),
+		mManager	( Kernel.mManager ),
+		mKernel		( Kernel )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE,class SORT>
+	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const SortArray<TYPE,SORT>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( NULL ),
+		mManager	( Kernel.mManager ),
+		mKernel		( Kernel )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE>
+	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const ArrayBridge<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( NULL ),
+		mManager	( Kernel.mManager ),
+		mKernel		( Kernel )
+	{
+		Write( Array, ReadWriteMode );
+	}
 
-	template<typename ARRAYTYPE>
-	bool		Write(const ArrayBridgeDef<ARRAYTYPE>& Array,cl_int ReadWriteMode)
+	template<typename TYPE>
+	bool		Write(const ArrayBridge<TYPE>& Array,cl_int ReadWriteMode)
 	{
 		//	check for non 16-byte aligned structs (assume anything more than 4 bytes is a struct)
-		if ( sizeof(ARRAYTYPE::TYPE) > 8 )
+		if ( sizeof(TYPE) > 8 )
 		{
-			int Remainder = sizeof(ARRAYTYPE::TYPE) % 16;
+			int Remainder = sizeof(TYPE) % 16;
 			if ( Remainder != 0 )
 			{
 				BufferString<100> Debug;
-				Debug << "Warning, type " << Soy::GetTypeName<ARRAYTYPE::TYPE>() << " not aligned to 16 bytes; " << sizeof(ARRAYTYPE::TYPE) << " (+" << Remainder << ")";
+				Debug << "Warning, type " << Soy::GetTypeName<TYPE>() << " not aligned to 16 bytes; " << sizeof(TYPE) << " (+" << Remainder << ")";
 				ofLogWarning( Debug.c_str() );
 			}
 		}
 		return Write( Array.GetArray(), Array.GetDataSize(), SoyOpenCl::DefaultWriteBlocking, ReadWriteMode );
+	}
+	template<typename ARRAYTYPE>
+	bool		Write(const ArrayBridgeDef<ARRAYTYPE>& Array,cl_int ReadWriteMode)
+	{
+		auto& Bridge = static_cast<const ArrayBridge<ARRAYTYPE::TYPE>&>( Array );
+		return Write( Bridge, ReadWriteMode );
 	}
 	template<typename TYPE>				bool	Write(const Array<TYPE>& Array,cl_int ReadWriteMode)			{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
 	template<typename TYPE,int SIZE>	bool	Write(const BufferArray<TYPE,SIZE>& Array,cl_int ReadWriteMode)	{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
@@ -328,7 +370,7 @@ public:
 	}
 
 	template<typename TYPE>
-	bool		Read(ArrayBridgeDef<TYPE>& Array,int ElementCount=-1)
+	bool		Read(ArrayBridge<TYPE>& Array,int ElementCount=-1)
 	{
 		if ( !mBuffer )
 			return false;
@@ -341,7 +383,12 @@ public:
 			return false;
 		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), SoyOpenCl::DefaultReadBlocking, mKernel.GetQueue() );
 	}
-
+	template<typename ARRAYTYPE>
+	bool		Read(ArrayBridgeDef<ARRAYTYPE>& Array,int ElementCount)
+	{
+		auto& Bridge = static_cast<ArrayBridge<ARRAYTYPE::TYPE>&>( Array );
+		return Read( Bridge, ElementCount );
+	}
 	template<typename TYPE>				bool	Read(Array<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
 	template<typename TYPE,int SIZE>	bool	Read(BufferArray<TYPE,SIZE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
 	template<typename TYPE>				bool	Read(RemoteArray<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}

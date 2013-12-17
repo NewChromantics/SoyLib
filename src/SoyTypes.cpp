@@ -1,23 +1,34 @@
 #include "SoyTypes.h"
-#include <sstream>
 #include "heaparray.hpp"
+#include <sstream>
+
+#if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
 #pragma comment(lib, "Shlwapi.lib")
+#endif
 
 #if defined(NO_OPENFRAMEWORKS)
 void ofLogNotice(const std::string& Message)
 {
+#if defined(TARGET_WINDOWS)
 	OutputDebugStringA( Message.c_str() );
 	OutputDebugStringA("\n");
+#else
+    std::cout << Message << "\n";
+#endif
 }
 #endif
 
 #if defined(NO_OPENFRAMEWORKS)
 void ofLogWarning(const std::string& Message)
 {
+#if defined(TARGET_WINDOWS)
 	OutputDebugStringA( "[WARN] " );
 	OutputDebugStringA( Message.c_str() );
 	OutputDebugStringA("\n");
+#else
+    std::cout << "[WARN] " << Message << "\n";
+#endif
 }
 #endif
 
@@ -25,9 +36,13 @@ void ofLogWarning(const std::string& Message)
 #if defined(NO_OPENFRAMEWORKS)
 void ofLogError(const std::string& Message)
 {
+#if defined(TARGET_WINDOWS)
 	OutputDebugStringA( "[ERROR] " );
 	OutputDebugStringA( Message.c_str() );
 	OutputDebugStringA("\n");
+#else
+    std::cout << "[ERROR] " << Message << "\n";
+#endif
 }
 #endif
 
@@ -63,12 +78,14 @@ std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeTo
 	//	copy contents to buffer
 	BufferString<MAX_PATH> Buffer = Filename.c_str();
 
+#if defined(TARGET_WINDOWS)
 	//	modify buffer (will alter and move terminator)
 	if ( !Buffer.IsEmpty() )
 		::PathStripPath( Buffer.GetArray() );
-
+#endif
+    
 	//	new null-terminated string
-	return Buffer.GetArray();
+	return std::string( Buffer.GetArray().GetArray() );
 #endif
 }
 #endif
@@ -76,9 +93,14 @@ std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeTo
 #if defined(NO_OPENFRAMEWORKS)
 std::string ofBufferFromFile(const char* Filename)
 {
+	//	fopen is safe, but supress warning anyway
+#if defined(TARGET_WINDOWS)
 	FILE* File = nullptr;
-	auto Error = fopen_s( &File, Filename, "r" );
-	if ( Error != 0 )
+	fopen_s( &File, Filename, "r" );
+#else
+	FILE* File = fopen( Filename, "r" );
+#endif
+	if ( !File )
 		return std::string();
 
 	//	read
@@ -87,7 +109,11 @@ std::string ofBufferFromFile(const char* Filename)
 	{
 		BufferArray<char,1024> Buffer;
 		Buffer.SetSize( Buffer.MaxSize() );
+#if defined(TARGET_WINDOWS)
 		auto CharsRead = fread_s( Buffer.GetArray(), Buffer.GetDataSize(), Buffer.GetElementSize(), Buffer.GetSize(), File );
+#else
+		auto CharsRead = std::fread( Buffer.GetArray(), Buffer.GetElementSize(), Buffer.GetSize(), File );
+#endif
 		Buffer.SetSize( CharsRead );
 
 		Contents.PushBackArray( Buffer );

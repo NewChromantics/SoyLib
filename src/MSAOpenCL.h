@@ -76,7 +76,8 @@ namespace msa {
 	public:
 		enum Type
 		{
-			Invalid = CL_DEVICE_TYPE_ALL,
+			Invalid = 0,	//	unused in CL_DEVICE_*
+			All = CL_DEVICE_TYPE_ALL,
 			Any	= CL_DEVICE_TYPE_CPU|CL_DEVICE_TYPE_GPU,
 			CPU	= CL_DEVICE_TYPE_CPU,
 			GPU	= CL_DEVICE_TYPE_GPU,
@@ -88,7 +89,8 @@ namespace msa {
 		{
 		}
 
-		Type			GetType() const	{	return static_cast<Type>( mInfo.type );	}
+		Type				GetType() const	{	return static_cast<Type>( mInfo.type );	}
+		static const char*	ToString(Type type);
 
 	public:
 		cl_platform_id	mPlatform;

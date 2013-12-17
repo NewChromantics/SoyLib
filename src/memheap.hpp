@@ -8,7 +8,14 @@
 #include <map>
 #include <queue>
 
+#if defined(TARGET_OSX)
+#include <memory>
+#define STD_ALLOC
+#endif
+
+#if defined(TARGET_WINDOWS)
 #define ENABLE_STACKTRACE
+#endif
 #define ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION	false	//	catch corruption in constructors
 #define ENABLE_DEBUG_VERIFY_AFTER_DESTRUCTION	false	//	catch corruption in an objects lifetime (kinda)
 
@@ -84,16 +91,17 @@ namespace prmem
 	prmem::CRTHeap&										GetCRTHeap();
 
 	//	functor for STD deallocation (eg, with shared_ptr)
-	template<class T>
+	template<typename T>
 	class HeapFreeFunctor
 	{
 	public:
 		HeapFreeFunctor(Heap& x) : _x( x ) {}
-		void operator()(T* pObject) const { _x.Free(pObject); }
+		void operator()(T* pObject) const;
 
 	public:
 		Heap& _x;
 	};
+    
 
 	//-----------------------------------------------------------------------
 	//	base heap interface so we can mix our allocated heaps and the default CRT heap (which is also a heap, but hidden away)
@@ -105,8 +113,10 @@ namespace prmem
 		virtual ~HeapInfo();
 
 		inline const char*		GetName() const					{	return mName;	}
+#if defined(TARGET_WINDOWS)
 		virtual HANDLE			GetHandle() const=0;			//	get win32 heap handle
-		inline bool				IsValid() const					{	return GetHandle()!=NULL;	}	//	heap has been created
+#endif
+		virtual bool			IsValid() const=0;				//	heap has been created
 		virtual void			EnableDebug(bool Enable)		{}
 		inline bool				IsDebugEnabled() const			{	return GetDebug()!=NULL;	}
 		virtual const HeapDebugBase*	GetDebug() const		{	return NULL;	}
@@ -204,18 +214,28 @@ namespace prmem
 		Heap(bool EnableLocks,bool EnableExceptions,const char* Name,uint32 MaxSize=0,bool DebugTrackAllocs=false);
 		~Heap();
 
+#if defined(TARGET_WINDOWS)
 		virtual HANDLE					GetHandle() const			{	return mHandle;	}
+		virtual bool					IsValid() const				{	return mHandle!=NULL;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+#elif defined(STD_ALLOC)
+		virtual bool					IsValid() const				{	return true;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+#endif
 		virtual void					EnableDebug(bool Enable);	//	deletes/allocates the debug tracker so we can toggle it at runtime
 		virtual const HeapDebugBase*	GetDebug() const			{	return mHeapDebug;	}
-		inline bool						IsHeapValid() const			{	return mHandle!=NULL;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
 
-		//	prob the system for the allocation size
+		/*
+		//	probe the system for the allocation size
 		uint32	GetAllocSize(void* pData) const
 		{
+#if defined(TARGET_WINDOWS)
 			DWORD Flags = 0;
 			SIZE_T AllocSize = HeapSize( GetHandle(), Flags, pData );
 			return AllocSize;
+#else
+            return 0;
+#endif
 		};
+		 */
 
 		template<typename TYPE>
 		TYPE*	Alloc()	
@@ -403,7 +423,11 @@ namespace prmem
 		template<typename TYPE>
 		inline TYPE*	RealAlloc(const uint32 Elements)	
 		{
+#if defined(TARGET_WINDOWS)
 			TYPE* pData = static_cast<TYPE*>( HeapAlloc( mHandle, 0x0, Elements*sizeof(TYPE) ) );
+#elif defined(STD_ALLOC)
+			TYPE* pData = reinterpret_cast<TYPE*>( mAllocator.allocate( Elements*sizeof(TYPE) ) );
+#endif
 			if ( !pData )
 			{
 				//	if we fail, do a heap validation, this will reveal corruption, rather than OOM
@@ -412,7 +436,7 @@ namespace prmem
 				//	report failed alloc regardless
 				const char* TypeName = Soy::GetTypeName<TYPE>();
 				OnFailedAlloc( TypeName, sizeof(TYPE), Elements );
-				return NULL;
+				return nullptr;
 			}
 			if ( mHeapDebug )
 				mHeapDebug->OnAlloc( pData, Elements );
@@ -423,9 +447,13 @@ namespace prmem
 		template<typename TYPE>
 		inline bool	RealFree(TYPE* pObject,const uint32 Elements)	
 		{
+#if defined(TARGET_WINDOWS)
 			//	no need to specify length, mem manager already knows the real size of pObject
 			if ( !HeapFree( mHandle, 0, pObject ) )
 				return false;
+#elif defined(STD_ALLOC)
+			mAllocator.deallocate( reinterpret_cast<char*>(pObject), Elements );
+#endif
 
 			if ( mHeapDebug )
 				mHeapDebug->OnFree( pObject );
@@ -436,13 +464,19 @@ namespace prmem
 		}
 
 	private:
-		HeapDebugBase*		mHeapDebug;	//	debug information
-		HANDLE				mHandle;	//	win32 handle to heap
+		HeapDebugBase*			mHeapDebug;	//	debug information
+		
+#if defined(TARGET_WINDOWS)
+		HANDLE					mHandle;	//	win32 handle to heap
+#elif defined(STD_ALLOC)
+		std::allocator<char>	mAllocator;
+#endif
 	};
-
+    
 	//-----------------------------------------------------------------------
 	//	interface to the hidden default crt heap (where new & delete are)
 	//-----------------------------------------------------------------------
+#if defined(TARGET_WINDOWS)
 	class CRTHeap : public HeapInfo
 	{
 	public:
@@ -452,10 +486,11 @@ namespace prmem
 		}
 
 		virtual HANDLE			GetHandle() const;
+		virtual bool			IsValid() const		{	return GetHandle() != nullptr;	}
 
 		void					Update();			//	update tracking information
 	};
-
+#endif
 
 
 	//	allocator that can be used to bridge our Heap allocator, and an allocator for STD types
@@ -573,6 +608,13 @@ namespace prmem
 };
 
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( prmem::HeapDebugItem );
+
+template<typename T>
+inline void prmem::HeapFreeFunctor<T>::operator()(T* pObject) const
+{
+    _x.Free(pObject);
+}
+
 
 //	class that (HUGELY) simplifies an std::Map that uses a Heap for allocation
 //	turn 

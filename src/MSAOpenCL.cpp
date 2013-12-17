@@ -5,6 +5,21 @@
 
 namespace msa {
 	
+
+const char* OpenClDevice::ToString(OpenClDevice::Type type)
+{
+	switch ( type ) 
+	{
+	case Invalid:	return "Invalid";
+	case All:		return "All";
+	case Any:		return "Any";
+	case CPU:		return "CPU";
+	case GPU:		return "GPU";
+	default:
+		return "Unhandled Opencl Device Type";
+	}
+}
+
 clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 {
 	mName[0] = '\0';
@@ -22,13 +37,10 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	OpenCL::OpenCL() :
 		mContext	( NULL )
 	{
-		ofLogNotice(__FUNCTION__ );
 	}
 	
 	OpenCL::~OpenCL() 
 	{
-		ofLogNotice(__FUNCTION__ );
-		
 		for ( int q=0;	q<mQueues.GetSize();	q++ )
 			clFinish( mQueues[q] );
 		
@@ -54,7 +66,6 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	
 	bool OpenCL::setup(const char* PlatformName)
 	{
-		ofLogNotice(__FUNCTION__ );
 		if( isInitialised() )
 		{
 			ofLogNotice("... already setup. returning");
@@ -89,8 +100,6 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	
 	bool OpenCL::setupFromOpenGL() {
 #if defined(ENABLE_SETUP_FROM_OPENGL)
-		ofLogNotice(__FUNCTION__ );
-		
 		if(isSetup) {
 			ofLogNotice("... already setup. returning");
 			return true;
@@ -199,9 +208,11 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		assert( isInitialised() );
 		assert( Queue );
 		if ( !Queue )
-			return NULL;
+			return nullptr;
 		//ofLog(OF_LOG_VERBOSE, string() + __FUNCTION__ + " " + kernelName + ", " + program.getName() );
 		OpenCLKernel *k = program.loadKernel( kernelName, Queue );
+		if ( !k )
+			return nullptr;
 		
 		ofMutex::ScopedLock Lock(mKernelsLock);
 		kernels.PushBack(k);
@@ -227,11 +238,13 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	}
 
 	OpenCLBuffer* OpenCL::createBuffer(cl_command_queue Queue,int numberOfBytes, cl_mem_flags memFlags, void *dataPtr, bool blockingWrite) {
+		if ( numberOfBytes <= 0 )
+			return nullptr;
 		//ofLog(OF_LOG_VERBOSE, string() + __FUNCTION__ + " " + ofToString(numberOfBytes,0) + " bytes; blocking: " + ofToString(blockingWrite,0)  );
 		assert( isInitialised() );
 		OpenCLBuffer *clBuffer = new OpenCLBuffer(*this);
 		if (!clBuffer )
-			return NULL;
+			return nullptr;
 		clBuffer->initBuffer(numberOfBytes, memFlags, dataPtr, blockingWrite, Queue );
 
 		ofMutex::ScopedLock Lock(mMemObjectsLock);

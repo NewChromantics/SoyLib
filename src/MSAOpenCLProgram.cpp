@@ -70,14 +70,10 @@ namespace msa {
 	} 
 	
 	
-	OpenCLKernel* OpenCLProgram::loadKernel(std::string kernelName,cl_command_queue Queue) {
-		BufferString<1000> Debug;
-		Debug << __FUNCTION__ << " " << kernelName;
-		ofLogNotice( Debug.c_str() );
-
-		assert( mProgram );
+	OpenCLKernel* OpenCLProgram::loadKernel(std::string kernelName,cl_command_queue Queue) 
+	{
 		if ( !mProgram )
-			return NULL;
+			return nullptr;
 		
 		assert( Queue );
 		if ( !Queue )
@@ -86,16 +82,15 @@ namespace msa {
 		cl_int err = CL_SUCCESS;
 	
 		cl_kernel Kernel = clCreateKernel( mProgram, kernelName.c_str(), &err );
-		OpenCLKernel *k = new OpenCLKernel( mParent, Kernel, Queue, kernelName );
-		
-		if(err != CL_SUCCESS) {
+		if ( !Kernel || err != CL_SUCCESS )
+		{
 			BufferString<1000> Debug;
 			Debug << "Error creating kernel: " << kernelName << " [" << OpenCL::getErrorAsString(err) << "]";
 			ofLogError( Debug.c_str() );
-			delete k;
 			return NULL;
 		}
-		
+
+		OpenCLKernel *k = new OpenCLKernel( mParent, Kernel, Queue, kernelName );
 		return k;
 	}
 	
@@ -185,9 +180,9 @@ namespace msa {
 			Debug << "Failed [" << OpenCL::getErrorAsString(err) << "]";
 		Debug << "\n------------------------------------\n\n";
 		if ( err == CL_SUCCESS )
-			ofLogNotice( Debug );
+			ofLogNotice( Debug.c_str() );
 		else
-			ofLogError( Debug );
+			ofLogError( Debug.c_str() );
 
 		//	get build log size first so we always have errors to display
 		for ( int d=0;	d<DeviceCount;	d++ )
@@ -216,9 +211,9 @@ namespace msa {
 				Debug << bufferString;
 				Debug << "\n------------------------------------\n";
 				if ( err == CL_SUCCESS )
-					ofLogNotice( Debug );
+					ofLogNotice( Debug.c_str() );
 				else
-					ofLogError( Debug );
+					ofLogError( Debug.c_str() );
 			}
 		}
 		return ( err == CL_SUCCESS );

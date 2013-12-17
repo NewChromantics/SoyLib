@@ -140,39 +140,15 @@ public:
 	T&			operator [] (int index)				{	return GetAt(index);	}
 	const T&	operator [] (int index) const		{	return GetAtConst(index);	}
 
-	T&			GetBack()		{	return (*this)[GetSize()-1];	}
-	const T&	GetBack() const	{	return (*this)[GetSize()-1];	}
-
-	bool IsEmpty() const
-	{
-		return moffset == 0;
-	}
-
-	int GetSize() const
-	{
-		return moffset;
-	}
-
-	//	size of all the data in bytes
-	int GetDataSize() const
-	{
-		return GetSize() * sizeof(T);
-	}
-
-	static int GetElementSize()
-	{
-		return sizeof(T);
-	}
-
-	const T* GetArray() const
-	{
-		return mdata;
-	}
-
-	T* GetArray()
-	{
-		return mdata;
-	}
+	T&			GetBack()				{	return (*this)[GetSize()-1];	}
+	const T&	GetBack() const			{	return (*this)[GetSize()-1];	}
+	const T*	GetArray() const		{	return mdata;	}
+	T*			GetArray()				{	return mdata;	}
+	bool		IsEmpty() const			{	return GetSize() == 0;		}
+	bool		IsFull() const			{	return GetSize() >= MaxSize();		}
+	int			GetSize() const			{	return moffset;		}
+	int			GetDataSize() const		{	return GetSize() * sizeof(T);	}	//	size of all the data in bytes
+	int			GetElementSize() const	{	return sizeof(T);	}	//	size of all the data in bytes
 
 	bool SetSize(int size, bool preserve=true,bool AllowLess=true)
 	{
@@ -197,7 +173,7 @@ public:
 		if ( size )
 		{
 			auto& Heap = GetHeap();
-			array = Heap.AllocArray<T>(size);
+			array = Heap.template AllocArray<T>(size);
 
 			//	failed alloc
 			assert( array );
@@ -603,9 +579,10 @@ public:
 		
 		//	if heap isn't valid yet (eg. if this has been allocated before the global heap), 
 		//	throw error, but address should be okay, so in these bad cases.. we MIGHT get away with it.
-		if ( !Heap.IsHeapValid() )
+		//	gr: need a better method, this is virtual again, so more likely to throw an exception (invalid vtable)
+		if ( !Heap.IsValid() )
 		{
-			assert( Heap.IsHeapValid() );
+			assert( Heap.IsValid() );
 			BufferString<1000> Debug;
 			Debug << "Array<" << Soy::GetTypeName<T>() << "> assigned non-valid heap. Array constructed before heap?";
 			ofLogError( Debug.c_str() );
@@ -638,7 +615,7 @@ public:
 		assert( NewSize >= 0 );
 
 		auto& Heap = GetHeap();
-		mdata = Heap.AllocArray<T>( NewSize );
+		mdata = Heap.template AllocArray<T>( NewSize );
 
 		//	failed to alloc - make sure vars are accurate
 		if ( !mdata )

@@ -37,6 +37,21 @@
 
 namespace Soy
 {
+	template<size_t BUFFERSIZE,typename TYPE>
+	void		Sprintf(char (&Buffer)[BUFFERSIZE],const char* Format,const TYPE& Variable)
+	{
+#if defined(TARGET_WINDOWS)
+		int Terminator = sprintf_s( Buffer, Format, Variable );
+#else
+		int Terminator = sprintf( Buffer, Format, Variable );
+#endif
+		//	force terminator in case of error/overflow
+		Terminator = ofLimit<int>( Terminator, 0, BUFFERSIZE );
+		Buffer[Terminator] = '\0';
+		assert( strlen(Buffer) <= BUFFERSIZE );
+	}
+
+
 	inline int	StrCaseCmp( const char* a, const char* b );
 
 	//	type independent version of strlen()
@@ -90,45 +105,6 @@ namespace Soy
 			right.append(dest);
 		}
 	};
-
-
-	// meta string (used as low-overhead string references)
-	// string expression use this frequently
-
-	template <typename S>
-	class MetaString
-	{
-		const S* mdata;
-		int msize;
-		public:
-
-		MetaString(const S* data)
-		: mdata(data)
-		{
-			const S* s = data;
-			for ( ; *s; ++s ) ;
-			msize = static_cast<int>(s - data);
-		}
-
-		MetaString(const S* data, int size)
-		: mdata(data),msize(size)
-		{
-		}
-
-		int size() const
-		{
-			return msize;
-		}
-
-		void append(S*& dest) const
-		{
-			for ( int i=0; i<msize; ++i )
-				dest[i] = mdata[i];
-
-			dest += msize;
-		}
-	};
-
 
 	// string container
 	//	ARRAYTYPE is the storage class. Must include S;
@@ -470,72 +446,70 @@ namespace Soy
 		String2& operator << (const short v)
 		{
 			char text[8];
-			sprintf(text,"%d",static_cast<int>(v));
+			Soy::Sprintf( text, "%d", static_cast<int>(v) );
 			return operator += (text);
 		}
 
 		String2& operator << (const unsigned short v)
 		{
 			char text[8];
-			sprintf(text,"%u",static_cast<unsigned int>(v));
+			Soy::Sprintf(text,"%u",static_cast<unsigned int>(v));
 			return operator += (text);
 		}
 
 		String2& operator << (const int v)
 		{
 			char text[16];
-			sprintf_s(text,"%d",static_cast<int>(v));
+			Soy::Sprintf( text, "%d", static_cast<int>(v) );
 			return operator += (text);
 		}
 
 		String2& operator << (const unsigned int v)
 		{
 			char text[16];
-			sprintf_s(text,"%u",static_cast<unsigned int>(v));
+			Soy::Sprintf(text,"%u",static_cast<unsigned int>(v));
 			return operator += (text);
 		}
 
 		String2& operator << (const long v)
 		{
 			char text[16];
-			sprintf_s(text,"%d",static_cast<int>(v));
+			Soy::Sprintf(text,"%d",static_cast<int>(v));
 			return operator += (text);
 		}
 
 		String2& operator << (const unsigned long v)
 		{
 			char text[16];
-			sprintf(text,"%u",static_cast<unsigned int>(v));
+			Soy::Sprintf(text,"%u",static_cast<unsigned int>(v));
 			return operator += (text);
 		}
 
 		String2& operator << (const int64 v)
 		{
 			char text[32];
-			sprintf_s(text,"%I64d",v);
+			Soy::Sprintf(text,"%lld",v);
 			return operator += (text);
 		}
 
 		String2& operator << (const uint64 v)
 		{
 			char text[32];
-			sprintf_s(text,"%I64u",v);
+			Soy::Sprintf(text,"%llu",v);
 			return operator += (text);
 		}
 
 		String2& operator << (const float v)
 		{
 			char text[256];
-			int OutLength = sprintf_s(text,"%.3f",v);
-			assert( OutLength <= sizeof(text) ); 
+			Soy::Sprintf(text,"%.3f",v);
 			return operator += (text);
 		}
 	
 		String2& operator << (const double v)
 		{
 			char text[256];
-			int OutLength = sprintf(text,"%.3f",v);
-			assert( OutLength <= sizeof(text) ); 
+			Soy::Sprintf(text,"%.3f",v);
 			return operator += (text);
 		}
 
@@ -549,7 +523,7 @@ namespace Soy
 		template <typename BUFFERTYPE,unsigned int BUFFERSIZE>
 		void		CopyToBuffer(BUFFERTYPE (& Buffer)[BUFFERSIZE]) const
 		{
-			int Length = prmin<int>( GetLength(), static_cast<int>(BUFFERSIZE)-1 );
+			int Length = ofMin<int>( GetLength(), static_cast<int>(BUFFERSIZE)-1 );
 			for ( int i=0;	i<Length;		i++)
 			{
 				S Char = mdata[i];
@@ -572,37 +546,25 @@ namespace Soy
 
 			//	safer printf implemented. if the printf() operation doesn't fit in the buffer, the _TRUNCATE param means the string will clip at X chars
 			//	if _TRUNCATE not provided, an empty buffer will be returned.
-			const int BufferSize = 512;
-			char Buffer[BufferSize] = {0};
+			char Buffer[512] = {0};
+#if defined(TARGET_WINDOWS)
+			const int BufferSize = sizeofarray(Buffer);
 			bool Truncate = true;
 			int Result = vsnprintf_s( Buffer, BufferSize, Truncate ? _TRUNCATE : BufferSize-1, text, args );
-			va_end(args);
-
 			//	if this is triggered, the string was truncated (with _TRUNCATE argument) and didn't fit in the buffer.
 			//	the resulting string is still null-terminated, but probably not the expected/desired resulting string
 			assert( Result != -1 );
+#else
+            //  C99/osx function does NOT null terminator, Result can be longer than buffer (prints what the length WOULD have been)
+			int Length = vsnprintf( Buffer, sizeofarray(Buffer), text, args );
+            Length = ofMin<int>( Length+1, sizeofarray(Buffer)-1 );
+            Buffer[Length] = 0;
+            assert( Buffer[Length] == 0 );
+#endif
+			va_end(args);
+
 
 			*this = Buffer;
-		}
-
-		StringExp<S,MetaString<S>,MetaString<S> >
-		MetaSubString(int offset, int length) const
-		{
-			int size = GetLength();
-			if ( offset < 0 || offset >= size || length <= 0 )
-				return StringExp<S,MetaString<S>,MetaString<S> >(MetaString<S>(NULL,0),MetaString<S>(NULL,0));
-
-			int count = (offset + length > size ? size - offset : length);
-			const S* text = *this + offset;
-
-			// warning:
-			// This method might be tempting one to use.
-			return StringExp<S,MetaString<S>,MetaString<S> >(MetaString<S>(text,count),MetaString<S>(NULL,0));
-		}
-
-		String2 SubString(int offset, int length) const
-		{
-			return String2(MetaSubString(offset,length));
 		}
 
 		void ToLower()
@@ -683,7 +645,9 @@ namespace Soy
 				return;
 
 			//	string to push into (un-assigned until needed)
-			CHUNKARRAY::TYPE* NextString = NULL;
+            //  gr: to get around GCC name lookup (http://gcc.gnu.org/onlinedocs/gcc/Name-lookup.html) we auto get the type
+			auto* NextString = Chunks.GetArray();
+			NextString = nullptr;
 
 			//	iterate through string...
 			for ( int i=0;	i<Length;	i++ )
@@ -795,24 +759,25 @@ class BufferString : public Soy::String2<char,BufferArray<char,SIZE> >
 {
 private:
 	typedef char S;
+    typedef class Soy::String2<char,BufferArray<char,SIZE> > SUPER;
 	//	re-implement functions lost with inheritance
 public:
 	BufferString()	{}
 	//BufferString(int size) : Soy::String2(size)	{}
 	template<typename THATARRAYTYPE>
-	BufferString(const Soy::String2<S,THATARRAYTYPE>& s) :	Soy::String2<char,BufferArray<char,SIZE> >	( s )	{}
-	BufferString(const S* text) : String2( text )	{}
-	BufferString(const std::string& String) : String2( String )	{}
+	BufferString(const Soy::String2<S,THATARRAYTYPE>& s) :	SUPER( s )	{}
+	BufferString(const S* text) : SUPER( text )	{}
+	BufferString(const std::string& String) : SUPER( String )	{}
 
 	template<class THATARRAYTYPE>
 	BufferString<SIZE>& operator = (const Soy::String2<char,THATARRAYTYPE>& s)
 	{
-		mdata = s.GetArray();
+		this->mdata = s.GetArray();
 		return *this;
 	}
 
-	operator S* ()					{	return mdata.GetArray();		}
-	operator const S* () const		{	return mdata.GetArray();	}
+	operator S* ()					{	return this->mdata.GetArray();		}
+	operator const S* () const		{	return this->mdata.GetArray();	}
 };
 	
 
@@ -964,7 +929,7 @@ void Soy::String2<S,ARRAYTYPE>::GetFloatArray(FLOATARRAY& Values) const
 //	to aid splitting strings, iterate from From until we hit a non-whitespace character. Will return terminator, and returns -1 if starting at terminator
 //------------------------------------------------
 template <typename S,class ARRAYTYPE>
-int Soy::String2<S,ARRAYTYPE>::GetNextNonWhitespaceCharacterIndex(uint32 From=0) const
+int Soy::String2<S,ARRAYTYPE>::GetNextNonWhitespaceCharacterIndex(uint32 From) const
 {
 	int LastIndex = GetLength();	//	should be terminator
 	if ( LastIndex <= 0 )
@@ -989,7 +954,7 @@ int Soy::String2<S,ARRAYTYPE>::GetNextNonWhitespaceCharacterIndex(uint32 From=0)
 //	to aid splitting strings, iterate from From until we hit a whitespace character. Will return terminator, and returns -1 if starting at terminator
 //------------------------------------------------
 template <typename S,class ARRAYTYPE>
-int Soy::String2<S,ARRAYTYPE>::GetNextWhitespaceCharacterIndex(uint32 From=0) const
+int Soy::String2<S,ARRAYTYPE>::GetNextWhitespaceCharacterIndex(uint32 From) const
 {
 	int LastIndex = GetLength();	//	should be terminator
 	if ( LastIndex <= 0 )
@@ -1032,7 +997,7 @@ int Soy::String2<S,ARRAYTYPE>::GetNextChar(const S& Char,int32 From) const
 //	return index of the last occurrence of this character. returns -1 if non exist
 //------------------------------------------------
 template <typename S,class ARRAYTYPE>
-int Soy::String2<S,ARRAYTYPE>::GetLastChar(const S& Char,int32 From=0) const
+int Soy::String2<S,ARRAYTYPE>::GetLastChar(const S& Char,int32 From) const
 {
 	int32 iCandidate(-1);
 	while ( From < GetLength() )

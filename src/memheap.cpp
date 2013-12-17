@@ -310,6 +310,7 @@ Improvement summary
 #include "ofxSoylent.h"
 
 
+#if defined(TARGET_WINDOWS)
 //	for stack tracing
 #include <windows.h>
 #include <tlhelp32.h>
@@ -318,6 +319,8 @@ Improvement summary
 //#include <time.h>
 //#pragma comment(lib,"version.lib")	//for VerQueryValue, GetFileVersionInfo and GetFileVersioInfoSize
 //#include "SoyApp.h"
+#endif 
+
 #include "SoyThread.h"
 #include "SoyDebug.h"
 
@@ -342,9 +345,11 @@ namespace prmem
 	//	heap for unit tests
 	//prmem::Heap		gTestHeap( true, true, "Test Heap" );
 
+#if defined(TARGET_WINDOWS)
 	//	crt heap interface
 	prmem::CRTHeap	gCRTHeap;
-
+#endif
+    
 	//	real debug tracker class. Cannot be declared in header!
 	class HeapDebug : public HeapDebugBase, public ofMutex
 	{
@@ -354,7 +359,11 @@ namespace prmem
 
 		virtual void	OnFree(const void* Object);
 		virtual void	OnAlloc(const void* Object,const char* Typename,uint32 ElementCount,uint32 TypeSize);
-		virtual void	DumpToOutput(const prmem::HeapInfo& OwnerHeap) const	{	HeapDebugBase::DumpToOutput( OwnerHeap, GetArrayBridge( mItems ) );	}
+		virtual void	DumpToOutput(const prmem::HeapInfo& OwnerHeap) const
+        {
+            auto Items = GetArrayBridge( mItems );
+            HeapDebugBase::DumpToOutput( OwnerHeap, Items );
+        }
 
 	protected:
 		Heap					mHeap;	//	heap to contain our data to keep it away from the heaps we're debugging!
@@ -364,10 +373,12 @@ namespace prmem
 DECLARE_TYPE_NAME( prmem::HeapDebug );
 
 
+#if defined(TARGET_WINDOWS)
 prmem::CRTHeap& prmem::GetCRTHeap()
 {
 	return gCRTHeap;
 }
+#endif
 
 
 bool prmem::HeapInfo::Debug_Validate(const void* Object) const
@@ -375,6 +386,7 @@ bool prmem::HeapInfo::Debug_Validate(const void* Object) const
 	if ( !IsValid() )	
 		return true;
 
+#if defined(TARGET_WINDOWS)
 	//	if we have debug info, catch the corruption and print out all our allocs
 	const prmem::HeapDebugBase* pDebug = GetDebug();
 	if ( pDebug )
@@ -398,6 +410,9 @@ bool prmem::HeapInfo::Debug_Validate(const void* Object) const
 		assert( false );
 	}
 	return false;
+#else
+    return true;
+#endif
 }
 
 prmem::HeapDebug::HeapDebug(const Heap& OwnerHeap) :
@@ -422,12 +437,12 @@ void prmem::HeapDebug::OnAlloc(const void* Object,const char* Typename,uint32 El
 	}
 
 	//	get the callstack
+#if defined(ENABLE_STACKTRACE)
 	BufferArray<ofStackEntry,HeapDebugItem::CallStackSize> Stack;
 	int StackSkip = 0;
 	StackSkip ++;	//	HeapDebug::OnAlloc
 	StackSkip ++;	//	Heap::RealAlloc
 	StackSkip ++;	//	Heap::Alloc*
-#if defined(ENABLE_STACKTRACE)
 	SoyDebug::GetCallStack( GetArrayBridge(Stack), StackSkip );
 #endif
 
@@ -461,9 +476,10 @@ void prmem::HeapDebug::OnFree(const void* Object)
 
 const BufferArray<prmem::HeapInfo*,100>& prmem::GetHeaps()
 {
+#if defined(TARGET_WINDOWS)
 	//	update the CRT heap info on-request
 	gCRTHeap.Update();
-
+#endif
 	return gMemHeapRegister;
 }
 
@@ -491,26 +507,31 @@ prmem::HeapInfo::~HeapInfo()
 
 prmem::Heap::Heap(bool EnableLocks,bool EnableExceptions,const char* Name,uint32 MaxSize,bool DebugTrackAllocs) :
 	HeapInfo		( Name ),
+#if defined(TARGET_WINDOWS)
 	mHandle			( NULL ),
-	mHeapDebug		( NULL )
+#endif
+    mHeapDebug		( NULL )
 {
-	DWORD Flags = 0x0;
-	Flags |= EnableLocks ? 0x0 : HEAP_NO_SERIALIZE;
-	Flags |= EnableExceptions ? HEAP_GENERATE_EXCEPTIONS : 0x0;
-
 	//	check for dodgy params, eg, "true" instead of a byte-limit
 	if ( MaxSize != 0 && MaxSize < 1024*1024 )
 	{
 		assert( false );
 	}
-
+    
+#if defined(TARGET_WINDOWS)
+	DWORD Flags = 0x0;
+	Flags |= EnableLocks ? 0x0 : HEAP_NO_SERIALIZE;
+	Flags |= EnableExceptions ? HEAP_GENERATE_EXCEPTIONS : 0x0;
+    
 	mHandle = HeapCreate( Flags, 0, MaxSize );
+#endif
 
 	EnableDebug( DebugTrackAllocs );
 }
 
 prmem::Heap::~Heap()
 {
+#if defined(TARGET_WINDOWS)
 	if ( mHandle != NULL )
 	{
 		if ( !HeapDestroy( mHandle ) )
@@ -519,6 +540,7 @@ prmem::Heap::~Heap()
 		}
 		mHandle = NULL;
 	}
+#endif
 }
 
 
@@ -647,6 +669,7 @@ void GetProcessHeapUsage(uint32& AllocCount,uint32& AllocBytes)
 
 void GetCRTHeapUsage(uint32& AllocCount,uint32& AllocBytes)
 {
+#if defined(TARGET_WINDOWS)
 	_CrtMemState MemState;
 	ZeroMemory(&MemState,sizeof(MemState));
 	_CrtMemCheckpoint( &MemState );
@@ -664,6 +687,7 @@ void GetCRTHeapUsage(uint32& AllocCount,uint32& AllocBytes)
 
 	//AllocCount += CrtAllocCount;
 	//AllocBytes += CrtAllocBytes;
+#endif
 }
 
 
@@ -684,6 +708,7 @@ public:
 //----------------------------------------------
 //	update tracking information
 //----------------------------------------------
+#if defined(TARGET_WINDOWS)
 void prmem::CRTHeap::Update()
 {
 	//	gr: to hook HeapCreate (ie from external libs) 
@@ -731,14 +756,16 @@ void prmem::CRTHeap::Update()
 	OnAlloc( AllocatedBytes, AllocatedBlocks );
 	OnFree( FreedBytes, FreedBlocks );
 }
-		
+#endif
 
 //----------------------------------------------
 //----------------------------------------------
+#if defined(TARGET_WINDOWS)
 HANDLE prmem::CRTHeap::GetHandle() const	
 {
 	return GetProcessHeap()/*_get_heap_handle()*/;	
 }
+#endif
 
 /*
 
@@ -836,8 +863,9 @@ TEST(HeapAllocTest, StdHeapVectorUsage)
 
 namespace SoyDebug
 {
-	bool	IsEndOfStackAddress(DWORD64 Address);
 	bool	Init(BufferString<100>& Error);
+#if defined(TARGET_WINDOWS)
+	bool	IsEndOfStackAddress(DWORD64 Address);
 	
 //#define ENABLE_STACKTRACE64
 //#define ENABLE_STACKTRACE32
@@ -874,6 +902,7 @@ namespace SoyDebug
 	bool						gSymInitialised = false;	//	only want to initialise symbols once
 	DWORD64						gMainAddress = 0;			//	if we find main, this is it's address. This is to stop the stack-walker doing excessing walking but at the same time not having to resolve the name
 	bool						s_Initialised = false;		//	exception handler initialised
+#endif
 };
 
 bool SoyDebug::GetSymbolLocation(ofCodeLocation& Location,const ofStackEntry& Address)
@@ -903,6 +932,7 @@ bool SoyDebug::GetSymbolLocation(ofCodeLocation& Location,const ofStackEntry& Ad
 	return false;
 }
 
+#if defined(TARGET_WINDOWS)
 bool SoyDebug::IsEndOfStackAddress(DWORD64 Address)
 {
 	//	not cached address yet, try and find it
@@ -924,8 +954,10 @@ bool SoyDebug::IsEndOfStackAddress(DWORD64 Address)
 
 	return ( Address == gMainAddress );
 }
+#endif
 
 
+#if defined(TARGET_WINDOWS)
 bool SoyDebug::GetSymbolName(BufferString<200>& SymbolName,const ofStackEntry& Address,DWORD64* pSymbolOffset)
 {
 	//	address wasn't resovled when walking stack earlier
@@ -972,10 +1004,12 @@ bool SoyDebug::GetSymbolName(BufferString<200>& SymbolName,const ofStackEntry& A
 
 	return false;
 }
+#endif
 
 
 bool SoyDebug::Init(BufferString<100>& Error)
 {
+#if defined(TARGET_WINDOWS)
 #if defined(USE_EXTERNAL_DBGHELP)
 #if defined(ENABLE_STACKTRACE64)
 	//	load library
@@ -1046,9 +1080,13 @@ bool SoyDebug::Init(BufferString<100>& Error)
 #endif
 
 	return false;
+#else//target_windows
+    return true;
+#endif
 }
 
 
+#if defined(TARGET_WINDOWS)
 bool DumpX64CallStack(ArrayBridge<ofStackEntry>& Stack, const CONTEXT& SourceContext,BufferString<100>& Error,int StackSkip)
 {
 	if ( !SoyDebug::Init(Error) )
@@ -1112,6 +1150,7 @@ bool DumpX64CallStack(ArrayBridge<ofStackEntry>& Stack, const CONTEXT& SourceCon
 
 	return false;
 }
+#endif
 
 
 bool SoyDebug::GetCallStack(ArrayBridge<ofStackEntry>& Stack,int StackSkip)

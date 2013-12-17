@@ -2,7 +2,7 @@
 
 
 #if !defined(NO_OPENFRAMEWORKS)
-#include "ofMain.h"
+#include <ofMain.h>
 #endif
 
 
