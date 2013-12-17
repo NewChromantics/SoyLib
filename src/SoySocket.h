@@ -6,6 +6,7 @@
 #include "SoyThread.h"
 #include <ofxNetwork.h>
 
+#define UDP_MAX_BUFFERSIZE	1024*64
 
 namespace SoyNet
 {
@@ -126,6 +127,9 @@ public:
 	TSocketUDP(bool IncludeMetaInPacket=true) :
 		TSocket	( IncludeMetaInPacket )
 	{
+		//	this is not initialised in ofxUDPManager
+		mSocket.SetTimeoutSend( NO_TIMEOUT );
+		mSocket.SetTimeoutReceive( NO_TIMEOUT );
 	}
 	virtual void		GetConnections(Array<SoyNet::TAddress>& Addresses) const;
 	virtual bool		Listen(uint16 Port);

@@ -613,7 +613,7 @@ bool TSocketUDP::BindUDP(uint16 Port)
 		return false;
 
 	//	make buffer recv size bigger than default
-	mSocket.SetReceiveBufferSize( 1024*64 );	//	udp max
+	mSocket.SetReceiveBufferSize( UDP_MAX_BUFFERSIZE );
 	return true;
 }
 
@@ -621,7 +621,12 @@ bool TSocketUDP::ConnectUDP(const SoyNet::TAddress& ServerAddress)
 {
 	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mSocket.GetMutex() ) );
 	const char* Address = static_cast<const char*>(ServerAddress.mAddress);
-	return mSocket.Connect( Address, ServerAddress.mPort );
+	if ( !mSocket.Connect( Address, ServerAddress.mPort ) )
+		return false;
+
+	//	make buffer send size bigger than default
+	mSocket.SetSendBufferSize( UDP_MAX_BUFFERSIZE );
+	return true;
 }
 
 
@@ -747,8 +752,18 @@ void TSocketUDP::SendPackets()
 		if ( !mSocket.HasSocket() )
 			continue;
 
-		int SendResult = mSocket.SendAll( PacketRaw.GetArray(), PacketRaw.GetDataSize() );
-
+		//	send clipped
+		int MaxPacketSize = mSocket.GetMaxMsgSize();
+		int PacketSize = PacketRaw.GetDataSize();
+		if ( PacketSize > MaxPacketSize && MaxPacketSize > 0 )
+		{
+			BufferString<1000> Debug;
+			Debug << "Sending clipped packet; too big for UDP socket " << PacketSize << "/" << MaxPacketSize;
+			ofLogError( Debug.c_str() );
+			PacketSize = MaxPacketSize-1;
+		}
+		
+		int SendResult = mSocket.SendAll( PacketRaw.GetArray(), PacketSize );
 	}
 }
 
