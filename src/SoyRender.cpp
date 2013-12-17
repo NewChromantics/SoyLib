@@ -15,9 +15,8 @@ bool TRender::InitFont()
 	bool FullCharSet = false;
 	bool makeContours = false;
 	float simplifyAmt = 0.3;
-	const char* Filename = "data/NewMedia Fett.ttf";
 
-	return Font.loadFont( Filename, size, AntiAliased, FullCharSet, makeContours, simplifyAmt, dpi );
+	return Font.loadFont( SOY_FONT_FILENAME, size, AntiAliased, FullCharSet, makeContours, simplifyAmt, dpi );
 };
 
 

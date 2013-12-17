@@ -29,4 +29,10 @@ typedef Soy::String2<char,Array<char> >		TString;
 //#include "SoyOpenCl.h"
 
 
+#if OF_VERSION_MINOR > 7
+	#define SOY_FONT_FILENAME	"NewMedia Fett.ttf"
+#else
+	#define SOY_FONT_FILENAME	"data/NewMedia Fett.ttf"
+#endif
+
 
