@@ -6,7 +6,7 @@
 bool SoyOpenCl::DefaultReadBlocking = true;
 bool SoyOpenCl::DefaultWriteBlocking = false;
 bool SoyOpenCl::DefaultExecuteBlocking = true;
-msa::OpenClDevice::Type SoyOpenCl::DefaultDeviceType = msa::OpenClDevice::GPU;
+msa::OpenClDevice::Type SoyOpenCl::DefaultDeviceType = msa::OpenClDevice::Any;
 
 
 
