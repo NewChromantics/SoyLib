@@ -208,7 +208,7 @@ public:
 	}
 	template<typename PARAM>
 	explicit ofMutexM(const PARAM& Param) :
-		OBJECT	( Param )
+		mMember	( Param )
 	{
 	}
 
