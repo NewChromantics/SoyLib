@@ -89,6 +89,7 @@ namespace msa {
 		{
 		}
 
+		bool				GetInfo();
 		Type				GetType() const	{	return static_cast<Type>( mInfo.type );	}
 		static const char*	ToString(Type type);
 
@@ -190,7 +191,7 @@ namespace msa {
 										  void *dataPtr = NULL,
 										  bool blockingWrite = CL_FALSE);
 		
-		std::string			getInfoAsString(const clDeviceInfo& Info);
+		static std::string	getInfoAsString(const clDeviceInfo& Info);
 		static const char*	getErrorAsString(cl_int err);
 		
 	
