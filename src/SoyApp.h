@@ -211,8 +211,13 @@ inline void Soy::WriteXmlData(ofxXmlSettings& xml,const char* Name,const TYPE& V
 	if ( Tag )
 		xml.addValue( Name, static_cast<const char*>( Buffer ) );
 	else
-		xml.addAttribute( ":", Name, static_cast<const char*>( Buffer ), -1 );
-
+	{
+		auto* Element = xml.getStoredHandle().Element();
+		assert( Element );
+		if ( !Element )
+			return;
+		Element->SetAttribute( Name, Buffer.c_str() );
+	}
 }
 
 
@@ -231,7 +236,13 @@ inline bool Soy::ReadXmlData(ofxXmlSettings& xml,const char* Name,TYPE& Value,bo
 	if ( Tag )
 		data = xml.getValue( Name, data );
 	else
-		data = xml.getAttribute( ":", Name, data );
+	{
+		auto* Element = xml.getStoredHandle().Element();
+		auto* Attrib = Element ? Element->Attribute( Name ) : nullptr;
+		if ( !Attrib )
+			return false;
+		data = *Attrib;
+	}
 
 	if ( data.empty() )
 		return false;
