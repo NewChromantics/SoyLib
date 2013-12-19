@@ -241,7 +241,7 @@ inline bool Soy::ReadXmlData(ofxXmlSettings& xml,const char* Name,TYPE& Value,bo
 		auto* Attrib = Element ? Element->Attribute( Name ) : nullptr;
 		if ( !Attrib )
 			return false;
-		data = *Attrib;
+		data = Attrib;
 	}
 
 	if ( data.empty() )
