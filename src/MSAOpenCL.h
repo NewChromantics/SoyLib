@@ -84,14 +84,21 @@ namespace msa {
 		};
 	public:
 		OpenClDevice() :
-			mPlatform	( NULL ),
-			mDeviceId	( NULL )
+			mPlatform	( nullptr ),
+			mDeviceId	( nullptr )
+		{
+		}
+		OpenClDevice(cl_platform_id Platform,cl_device_id Device) :
+			mPlatform	( Platform ),
+			mDeviceId	( Device )
 		{
 		}
 
-		bool				GetInfo();
+		bool				Init();
 		Type				GetType() const	{	return static_cast<Type>( mInfo.type );	}
 		static const char*	ToString(Type type);
+	
+		static int			GetPlatformCount(const Array<OpenClDevice>& Devices);
 
 	public:
 		cl_platform_id	mPlatform;
@@ -197,6 +204,7 @@ namespace msa {
 	
 	protected:
 		bool				createDevices(const char* PlatformName=NULL);
+		static bool			EnumDevices(Array<OpenClDevice>& Devices,const char* PlatformNameFilter=nullptr,OpenClDevice::Type DeviceFilter=OpenClDevice::Any);
 	
 	protected:	
 		

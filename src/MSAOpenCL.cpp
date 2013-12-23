@@ -30,7 +30,7 @@ public:
 
 namespace msa {
 	
-bool OpenClDevice::GetInfo()
+bool OpenClDevice::Init()
 {
 	size_t	size;
 	auto& d = mDeviceId;
@@ -382,35 +382,43 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		return clImage;
 	}
 	
-	
-	bool OpenCL::createDevices(const char* PlatformName) 
+	int OpenClDevice::GetPlatformCount(const Array<OpenClDevice>& Devices)
 	{
-		int DeviceFilter = OpenClDevice::Any;
-		cl_int err;
+		Array<cl_platform_id> Platforms;
+		for ( int i=0;	i<Devices.GetSize();	i++ )
+		{
+			auto& Device = Devices[i];
+			Platforms.PushBackUnique( Device.mPlatform );
+		}
+		return Platforms.GetSize();
+	}
+
+	bool OpenCL::EnumDevices(Array<OpenClDevice>& Devices,const char* PlatformNameFilter,OpenClDevice::Type DeviceFilter)
+	{
+		cl_int err = CL_SUCCESS;
 		
 		cl_platform_id PlatformBuffer[100];
 		cl_uint PlatformCount = 0;
-		const int MaxPlatforms = sizeof(PlatformBuffer)/sizeof(PlatformBuffer[0]);
 
 		//	windows AMD sdk/ati radeon driver implementation doesn't accept NULL as a platform ID, so fetch the list of platforms first
-		err = clGetPlatformIDs(	MaxPlatforms, PlatformBuffer, &PlatformCount );
-		assert( PlatformCount >= 0 && PlatformCount <= MaxPlatforms );
+		err = clGetPlatformIDs(	sizeofarray(PlatformBuffer), PlatformBuffer, &PlatformCount );
+		assert( PlatformCount >= 0 && PlatformCount <= sizeofarray(PlatformBuffer) );
 		if ( err != CL_SUCCESS || PlatformCount == 0 )
 		{
 			BufferString<1000> Debug;
-			Debug << "Failed to get opencl platforms; " << getErrorAsString(err);
+			Debug << "Failed to get opencl platforms; " << OpenCL::getErrorAsString(err);
 			ofLogError( Debug.c_str() );
 			return false;
 		}
 
 		//	filter out platforms
-		for ( int p=PlatformCount-1;	PlatformName && p>=0;	p-- )
+		for ( int p=PlatformCount-1;	PlatformNameFilter && p>=0;	p-- )
 		{
 			cl_platform_id Platform = PlatformBuffer[p];
 			clPlatformInfo PlatformInfo( Platform );
 
 			//	need to filter platform
-			if ( PlatformInfo.GetName().find(std::string(PlatformName)) != std::string::npos )
+			if ( Soy::StringContains( PlatformInfo.GetName(), PlatformNameFilter, false ) )
 				continue;
 
 			//	remove from array
@@ -429,14 +437,59 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 			return false;
 		}
 
+		//	collect devices
+		for ( int p=0;	p<PlatformCount;	p++ )
+		{
+			cl_platform_id Platform = PlatformBuffer[p];
+
+			//	get platform info
+			clPlatformInfo PlatformInfo( Platform );
+
+			cl_device_id DeviceBuffer[100];
+			cl_uint DeviceCount = 0;
+			err = clGetDeviceIDs( Platform, OpenClDevice::Any, sizeofarray(DeviceBuffer), DeviceBuffer, &DeviceCount);
+			assert( DeviceCount >=0 && DeviceCount <= sizeofarray(DeviceBuffer) );
+			if ( err != CL_SUCCESS )
+			{
+				BufferString<1000> Debug;
+				Debug << "Failed to get devices; " << OpenCL::getErrorAsString( err );
+				ofLogError( Debug.c_str() );
+				return false;
+			}
+
+			for ( int d=0;	d<DeviceCount;	d++ )
+			{
+				OpenClDevice Device( Platform, DeviceBuffer[d] );
+				if ( !Device.Init() )
+					continue;
+
+				Devices.PushBack( Device );
+			}
+		}
+
+		return true;
+	}
+	
+	bool OpenCL::createDevices(const char* PlatformName) 
+	{
+		Array<OpenClDevice> Devices;
+		if ( !EnumDevices( Devices, PlatformName, OpenClDevice::Any ) )
+			return false;
+
 		//	have more than one platform, need to abort and make the user pick a platform
-		if ( PlatformCount > 1 )
+		int PlatformCount = OpenClDevice::GetPlatformCount( Devices );
+		if ( PlatformCount < 1 )
+		{
+			ofLogError("No opencl devices found");
+			return false;
+		}
+		else if ( PlatformCount > 1 )
 		{
 			std::string Debug = __FUNCTION__;
 			Debug += " More than one opencl platform found. Need to specify which platform name to use; ";
-			for ( int p=0;	p<static_cast<int>(PlatformCount);	p++ )
+			for ( int d=0;	d<Devices.GetSize();	d++ )
 			{
-				cl_platform_id Platform = PlatformBuffer[p];
+				cl_platform_id Platform = Devices[d].mPlatform;
 				clPlatformInfo PlatformInfo( Platform );
 				Debug += "\n";
 				Debug += PlatformInfo.GetName();
@@ -444,35 +497,12 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 			ofLogError( Debug.c_str() );
 			return false;
 		}
+		auto& PlatformInfo = Devices[0].mPlatformInfo;
 
-		//	collect devices
-		cl_platform_id Platform = PlatformBuffer[0];
-
-		//	get platform info
-		clPlatformInfo PlatformInfo( Platform );
-
-		cl_device_id DeviceBuffer[100];
-		cl_uint DeviceCount = 0;
-		const int MaxDevices = sizeof(DeviceBuffer)/sizeof(DeviceBuffer[0]);
-		err = clGetDeviceIDs( Platform, OpenClDevice::Any, MaxDevices, DeviceBuffer, &DeviceCount);
-		assert( DeviceCount >=0 && DeviceCount <= MaxDevices );
-		if ( err != CL_SUCCESS )
-		{
-			BufferString<1000> Debug;
-			Debug << "Failed to get devices; " << getErrorAsString( err );
-			ofLogError( Debug.c_str() );
-			return false;
-		}
-			
 		//	save devices
-		for ( int d=0;	d<static_cast<int>(DeviceCount);	d++ )
+		for ( int d=0;	d<Devices.GetSize();	d++ )
 		{
-			OpenClDevice Device;
-			Device.mDeviceId = DeviceBuffer[d];
-			Device.mPlatform = Platform;
-
-			if ( !Device.GetInfo() )
-				continue;
+			auto& Device = Devices[d];
 
 			//	sorted by preferred type
 			auto& SortedDevices = GetSortArray( mDevices, TSortPolicy_BestDevice() );
