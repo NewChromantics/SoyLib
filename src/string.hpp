@@ -37,6 +37,7 @@
 
 namespace Soy
 {
+	//	cross platform, no warning, safe sprintf
 	template<size_t BUFFERSIZE,typename TYPE>
 	void		Sprintf(char (&Buffer)[BUFFERSIZE],const char* Format,const TYPE& Variable)
 	{
@@ -50,6 +51,9 @@ namespace Soy
 		Buffer[Terminator] = '\0';
 		assert( strlen(Buffer) <= BUFFERSIZE );
 	}
+
+	//	std string function wrappers
+	bool	StringContains(const std::string& Haystack,const std::string& Needle,bool CaseSensitive);
 
 
 	inline int	StrCaseCmp( const char* a, const char* b );
@@ -1243,4 +1247,20 @@ inline int Soy::StrCaseCmp( const char* a, const char* b )
 
 }
 
+
+inline bool Soy::StringContains(const std::string& Haystack,const std::string& Needle,bool CaseSensitive)
+{
+	if ( CaseSensitive )
+	{
+		return ( Haystack.find(Needle) != std::string::npos );
+	}
+	else
+	{
+		std::string HaystackLow = Haystack;
+		std::string NeedleLow = Needle;
+		std::transform( HaystackLow.begin(), HaystackLow.end(), HaystackLow.begin(), ::tolower );
+		std::transform( NeedleLow.begin(), NeedleLow.end(), NeedleLow.begin(), ::tolower );
+		return StringContains( HaystackLow, NeedleLow, true );
+	}
+}
 
