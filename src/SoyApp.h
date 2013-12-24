@@ -320,3 +320,7 @@ inline bool ofFilenameStripPath(Soy::String2<char,ARRAYTYPE>& Filename)
 	Filename.RemoveAt( 0, LastSlash+1 );
 	return true;
 }
+
+
+bool ofFileToString(TString& ContentString,const char* Filename);
+bool ofStringToFile(const char* Filename,const TString& ContentString);
