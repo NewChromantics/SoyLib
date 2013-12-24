@@ -126,6 +126,8 @@ namespace msa {
 		OpenClDevice*		GetDevice(cl_device_id Device);
 		template<size_t MAXDEVICES>
 		int					GetDevices(cl_device_id (&Devices)[MAXDEVICES]);
+		bool				IsIncludesSuported() const		{	return false;	}	//	if false, source embeds includes upon compilation due to nvidia bug; http://stackoverflow.com/a/15315849/355753
+
 
 		// load a program (contains a bunch of kernels)
 		// returns pointer to the program should you need it (for most operations you won't need this)

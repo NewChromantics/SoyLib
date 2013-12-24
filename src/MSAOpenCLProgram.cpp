@@ -1,6 +1,7 @@
 #include "MSAOpenCL.h"
 #include "MSAOpenCLProgram.h"
 #include "MSAOpenCLKernel.h"
+#include <SoyApp.h>
 
 namespace msa { 
 	
@@ -29,30 +30,166 @@ namespace msa {
 		
 		std::string fullPath = ofToDataPath(filename.c_str());
 		
-		if(isBinary) {
-			//		clCreateProgramWithBinary
-			ofLogError( "Binary programs not implemented yet");
-			return false;
-			
-		} else {
-			//	http://stackoverflow.com/questions/2602013/read-whole-ascii-file-into-c-stdstring
-			//std::string FileContents( ofBufferFromFile( fullPath ).getText() );
-			std::string FileContents = ofBufferFromFile( fullPath );
+		std::string FileContents;
+		if ( !mParent.IsIncludesSuported() )
+		{
+			TString ParsedContents;
+			Array<BufferString<MAX_PATH>> FilesAlreadyIncluded;
+			Array<BufferString<MAX_PATH>> Paths;
+			GetIncludePaths( Paths );
+			Paths.PushBack( ofFilePath::getEnclosingDirectory( fullPath.c_str() ) );
 
-			if ( !FileContents.size() )
+			if ( !ParseIncludes( fullPath.c_str(), ParsedContents, FilesAlreadyIncluded, Paths ) )
 			{
 				BufferString<1000> Debug;
 				Debug << "Error loading program file: " << fullPath;
 				ofLogError( Debug.c_str() );
 				return false;
 			}
-			
-			bool Success = loadFromSource( FileContents, filename.c_str(), BuildOptions );
-			return Success;
+			FileContents = ParsedContents.c_str();
+
+			//	write out the file for debugging
+			static bool SavePatchedFile = true;
+			if ( SavePatchedFile )
+			{
+				BufferString<MAX_PATH> DebugFilename;
+				DebugFilename << fullPath << ".patched";
+				//	make sure we don't overwrite the source filename
+				//if ( DebugFilename != fullPath )
+				{
+					ofStringToFile( DebugFilename, ParsedContents );
+				}
+			}
 		}
+		else
+		{
+			//	http://stackoverflow.com/questions/2602013/read-whole-ascii-file-into-c-stdstring
+			//std::string FileContents( ofBufferFromFile( fullPath ).getText() );
+			FileContents = ofBufferFromFile( fullPath );
+		}
+
+		if ( !FileContents.size() )
+		{
+			BufferString<1000> Debug;
+			Debug << "Error loading program file: " << fullPath;
+			ofLogError( Debug.c_str() );
+			return false;
+		}
+			
+		
+		bool Success = loadFromSource( FileContents, filename.c_str(), BuildOptions );
+		return Success;
 	}
 	
-	
+
+	bool OpenCLProgram::ParseIncludes(const char* Filename,TString& Source,Array<BufferString<MAX_PATH>>& FilesAlreadyIncluded,const Array<BufferString<MAX_PATH>>& Paths)
+	{
+		BufferString<MAX_PATH> PathFilename;
+		if ( ofFileIsAbsolute( Filename ) )
+		{
+			PathFilename = Filename;
+		}
+		else
+		{
+			//	current code expects at least say "./" to be included in the list
+			assert( !Paths.IsEmpty() );
+			if ( Paths.IsEmpty() )
+				return false;
+
+			//	try and find the filename
+			for ( int p=0;	p<Paths.GetSize();	p++ )
+			{
+				BufferString<MAX_PATH> FullPath = Paths[p];
+
+				//	add trailing slash if needsbe
+				if ( !FullPath.IsEmpty() && !FullPath.EndsWith("/") && !FullPath.EndsWith("\\") )
+					FullPath << "/";
+
+				FullPath << Filename;
+				if ( !ofFileExists( FullPath ) )
+					continue;
+				PathFilename = FullPath;
+				break;
+			}
+		}
+
+		//	already included, don't need to include again (we'll get duplicate symbols)
+		if ( FilesAlreadyIncluded.Find( PathFilename ) )
+		{
+			assert( Source.IsEmpty() );
+			return true;
+		}
+
+		//	load file
+		if( !ofFileToString( Source, PathFilename ) )
+		{
+			BufferString<1000> Debug;
+			Debug << "Failed to read include filename \"" << PathFilename << "\"";
+			ofLogError( Debug.c_str() );
+			return false;
+		}
+
+		//	add to list now (bit premature... but need to for the recursion)
+		FilesAlreadyIncluded.PushBack( PathFilename );
+
+		//	recursively parse this file
+		if ( !ParseIncludes( Source, FilesAlreadyIncluded, Paths ) )
+			return false;
+
+		return true;
+	}
+
+	bool OpenCLProgram::ParseIncludes(TString& Source,Array<BufferString<MAX_PATH>>& FilesAlreadyIncluded,const Array<BufferString<MAX_PATH>>& Paths)
+	{
+		//	find & replace includes
+		int StringPos = 0;
+		while ( true )
+		{
+			BufferString<100> IncludePrefix = "#include \"";
+			BufferString<100> IncludeSuffix = "\"";
+			int IncludePrefixPos = Source.FindIndex( IncludePrefix, false, StringPos );
+
+			//	no more includes
+			if ( IncludePrefixPos < 0 )
+				break;
+			int IncludeFilenameStart = IncludePrefixPos + IncludePrefix.GetLength();
+
+			//	find the end pos
+			int IncludeSuffixPos = Source.FindIndex( IncludeSuffix, false, IncludeFilenameStart );
+			if ( IncludeSuffixPos < 0 )
+				break;
+			int IncludeFilenameEnd = IncludeSuffixPos;
+			assert( IncludeFilenameEnd > IncludeFilenameStart );
+
+			//	first evaluate the include...
+			BufferString<MAX_PATH> IncludePath;
+			IncludePath.CopyString( &Source[IncludeFilenameStart], IncludeFilenameEnd - IncludeFilenameStart );
+
+			TString IncludeContents;
+			if ( !ParseIncludes( IncludePath, IncludeContents, FilesAlreadyIncluded, Paths ) )
+				return false;
+
+			//	remove the include line
+			//	gr: comment out for debugging?
+			int IncludeSuffixEnd = IncludeSuffixPos + IncludeSuffix.GetLength();
+			Source.RemoveAt( IncludePrefixPos, IncludeSuffixEnd-IncludePrefixPos );
+		
+			{
+				int IncludeIncludePos = Source.FindIndex( IncludePrefix, false );
+				assert( IncludeIncludePos < 0 || IncludeIncludePos > IncludePrefixPos );
+			}
+
+			//	insert included content
+			Source.InsertAt( IncludePrefixPos, IncludeContents );
+
+			//	move along past the file we inserted and parsed
+			//	gr: maybe better to remove the recursiveness and just find the next include from where we inserted
+			StringPos = IncludePrefixPos + IncludeContents.GetLength();
+		}
+		
+		return true;
+	}
+
 	
 	bool OpenCLProgram::loadFromSource(std::string source,const char* sourceLocation,const char* BuildOptions) {
 		ofLogNotice( __FUNCTION__ );
@@ -94,51 +231,13 @@ namespace msa {
 		return k;
 	}
 	
-	
-	void OpenCLProgram::getBinary()
+	void OpenCLProgram::GetIncludePaths(Array<BufferString<MAX_PATH>>& Paths)
 	{
-		/*
-		//	gr: if this is to be used, it needs an overhaul
-		if ( !mProgram )
-			return;
+		Paths.PushBack( ofToDataPath("",true) );
 
-		cl_uint program_num_devices;
-		cl_int err;
-		err = clGetProgramInfo( mProgram, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), &program_num_devices, NULL);
-		assert(err == CL_SUCCESS);
-		
-		if (program_num_devices == 0) {
-			std::cerr << "no valid binary was found" << std::endl;
-			return;
-		}
-		
-		size_t* binaries_sizes = new size_t[program_num_devices];
-		
-		err = clGetProgramInfo( mProgram, CL_PROGRAM_BINARY_SIZES, program_num_devices*sizeof(size_t), binaries_sizes, NULL);
-		assert(err = CL_SUCCESS);
-		
-		char **binaries = new char*[program_num_devices];
-		
-		for (size_t i = 0; i < program_num_devices; i++)
-			binaries[i] = new char[binaries_sizes[i]+1];
-		
-		err = clGetProgramInfo(clProgram, CL_PROGRAM_BINARIES, program_num_devices*sizeof(size_t), binaries, NULL);
-		assert(err = CL_SUCCESS);
-		
-		for (size_t i = 0; i < program_num_devices; i++) {
-			binaries[i][binaries_sizes[i]] = '\0';
-			std::cout << "Program " << i << ":" << std::endl;
-			std::cout << binaries[i];
-		}
-		
-		for (size_t i = 0; i < program_num_devices; i++)
-			delete [] binaries[i];
-		
-		delete [] binaries;
-		delete [] binaries_sizes;
-		*/
+		//	always have this for full paths
+		Paths.PushBack( "" );
 	}
-	
 	
 	bool OpenCLProgram::build(const char* ProgramSource,const char* BuildOptions) 
 	{
@@ -149,16 +248,23 @@ namespace msa {
 		std::string Options;
 
 		//	auto-include path
-		bool IncludePath = true;
+		static bool IncludePath = true;
 		if ( IncludePath )
 		{
-			std::string Path = ofToDataPath("",true).c_str();
+			Array<BufferString<MAX_PATH>> Paths;
+			GetIncludePaths( Paths );
 
-			//	opencl [amd APP sdk] requires paths with forward slashes [on windows]
-			std::replace( Path.begin(), Path.end(), '\\', '/' );
-			Options += "-I \"";
-			Options += Path;
-			Options += "\" ";
+			for ( int p=0;	p<Paths.GetSize();	p++)
+			{
+				std::string Path = Paths[p];
+
+				//	opencl [amd APP sdk] requires paths with forward slashes [on windows]
+				std::replace( Path.begin(), Path.end(), '\\', '/' );
+				Options += "-I \"";
+				Options += Path;
+				Options += "\" ";
+			}
+
 		}
 		
 		if ( BuildOptions )
