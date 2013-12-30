@@ -320,7 +320,11 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		OpenCLBuffer *clBuffer = new OpenCLBuffer(*this);
 		if (!clBuffer )
 			return nullptr;
-		clBuffer->initBuffer(numberOfBytes, memFlags, dataPtr, blockingWrite, Queue );
+		if ( !clBuffer->initBuffer(numberOfBytes, memFlags, dataPtr, blockingWrite, Queue ) )
+		{
+			delete clBuffer;
+			return nullptr;
+		}
 
 		ofMutex::ScopedLock Lock(mMemObjectsLock);
 		memObjects.PushBack(clBuffer);
