@@ -302,9 +302,15 @@ inline float ofGetMathTime(float z,float Min,float Max)
 }
 
 
+inline bool ofFileIsAbsolute(const char* Path)
+{
+	Poco::Path inputPath( Path );
+	return inputPath.isAbsolute();
+}
+
 inline Poco::Timestamp ofFileLastModified(const char* Path)
 {
-	std::string FullPath = ofToDataPath( Path );
+	std::string FullPath = ofFileIsAbsolute( Path ) ? Path : ofToDataPath( Path );
 	Poco::File File( FullPath );
 	if ( !File.exists() )
 		return Poco::Timestamp(0);
