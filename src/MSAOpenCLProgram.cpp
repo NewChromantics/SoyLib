@@ -53,7 +53,7 @@ namespace msa {
 			if ( SavePatchedFile )
 			{
 				BufferString<MAX_PATH> DebugFilename;
-				DebugFilename << fullPath << ".patched";
+				DebugFilename << fullPath << ".patched.tmp";
 				//	make sure we don't overwrite the source filename
 				//if ( DebugFilename != fullPath )
 				{
