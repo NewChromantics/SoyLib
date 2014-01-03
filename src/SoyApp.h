@@ -11,6 +11,9 @@ namespace Soy
 	template<typename TYPE>
 	inline bool		ReadXmlData(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag=true);
 	
+	template<typename READTYPE,typename TYPE>
+	inline bool		ReadXmlDataAs(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag=true);
+	
 	template<typename TYPE>
 	inline void		WriteXmlData(ofxXmlSettings& xml,const char* Name,const TYPE& Value,bool Tag=true);
 };
@@ -227,6 +230,17 @@ inline const TString& operator>>(const TString& Source,BufferString<SIZE>& Desti
 	Destination << Source;
 	return Source;
 }
+
+//	if not tag, then data is stored as an attribute
+template<typename READTYPE,typename TYPE>
+inline bool Soy::ReadXmlDataAs(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag)
+{
+	READTYPE ValueAs = static_cast<READTYPE>( Value );
+	bool Result = ReadXmlData( xml, Name, ValueAs, Tag );
+	Value = static_cast<READTYPE>( ValueAs );
+	return Result;
+}
+
 
 //	if not tag, then data is stored as an attribute
 template<typename TYPE>
