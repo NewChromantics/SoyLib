@@ -242,6 +242,13 @@ inline const STRING& operator>>(const STRING& str,float& Value)
 	return str;
 }
 
+template<class STRING>
+inline const STRING& operator>>(const STRING& str,int& Value)
+{
+	str.GetInteger( Value );
+	return str;
+}
+
 
 
 template<class STRING>
