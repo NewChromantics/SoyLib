@@ -6,7 +6,7 @@
 bool SoyOpenCl::DefaultReadBlocking = true;
 bool SoyOpenCl::DefaultWriteBlocking = false;
 bool SoyOpenCl::DefaultExecuteBlocking = true;
-msa::OpenClDevice::Type SoyOpenCl::DefaultDeviceType = msa::OpenClDevice::GPU;
+msa::OpenClDevice::Type SoyOpenCl::DefaultDeviceType = msa::OpenClDevice::Any;
 
 
 
@@ -224,7 +224,7 @@ cl_command_queue SoyOpenClManager::GetQueueForThread(msa::OpenClDevice::Type Dev
 	return GetQueueForThread( CurrentThreadId, DeviceType );
 }
 
-cl_command_queue SoyOpenClManager::GetQueueForThread(int ThreadId,msa::OpenClDevice::Type DeviceType)
+cl_command_queue SoyOpenClManager::GetQueueForThread(SoyThreadId ThreadId,msa::OpenClDevice::Type DeviceType)
 {
 	ofMutex::ScopedLock Lock( mThreadQueues );
 
@@ -241,7 +241,7 @@ cl_command_queue SoyOpenClManager::GetQueueForThread(int ThreadId,msa::OpenClDev
 		MatchQueue.mQueue = mOpencl.createQueue( DeviceType );
 
 		BufferString<100> Debug;
-		Debug << "Created opencl queue " << PtrToInt(MatchQueue.mQueue) << " for thread id " << ThreadId;
+		Debug << "Created opencl queue " << PtrToInt(MatchQueue.mQueue) << " for thread id ";
 		ofLogNotice( Debug.c_str() );
 
 		if ( !MatchQueue.mQueue )
@@ -303,7 +303,7 @@ bool SoyOpenClShader::LoadShader()
 SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name,cl_command_queue Queue)
 {
 	ofMutex::ScopedLock Lock(mLock);
-	ofScopeTimerWarning Warning( BufferString<1000>()<<__FUNCTION__<<" "<<Name, 1 );
+	ofScopeTimerWarning Warning( BufferString<1000>()<<__FUNCTION__<<" "<<Name, 3 );
 	SoyOpenClKernel* pKernel = new SoyOpenClKernel( Name, *this );
 	if ( !pKernel )
 		return NULL;
@@ -324,9 +324,10 @@ SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name,cl_command_queue Qu
 
 
 
-SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,bool UseThreadQueue,SoyOpenClManager& Manager,const char* BuildOptions) :
+SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,bool UseThreadQueue,SoyOpenClManager& Manager,msa::OpenClDevice::Type Device,const char* BuildOptions) :
 	mManager		( Manager ),
 	mKernel			( NULL ),
+	mRequestDevice	( Device ),
 	mHeap			( mManager.GetHeap() ),
 	mUseThreadQueue	( UseThreadQueue )
 {
@@ -338,9 +339,10 @@ SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,bool 
 	mKernelRef.mKernel = Kernel;
 }
 
-SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,const char* BuildOptions) :
+SoyClShaderRunner::SoyClShaderRunner(const char* Shader,const char* Kernel,SoyOpenClManager& Manager,msa::OpenClDevice::Type Device,const char* BuildOptions) :
 	mManager		( Manager ),
 	mKernel			( NULL ),
+	mRequestDevice	( Device ),
 	mHeap			( mManager.GetHeap() ),
 	mUseThreadQueue	( true )
 {
@@ -357,7 +359,7 @@ SoyOpenClKernel* SoyClShaderRunner::GetKernel()
 {
 	if ( !mKernel )
 	{
-		cl_command_queue Queue = mUseThreadQueue ? mManager.GetQueueForThread() : NULL;
+		cl_command_queue Queue = mUseThreadQueue ? mManager.GetQueueForThread( mRequestDevice ) : NULL;
 		mKernel = mManager.GetKernel( mKernelRef, Queue );
 	}
 	return mKernel;
@@ -370,6 +372,7 @@ SoyOpenClKernel::SoyOpenClKernel(const char* Name,SoyOpenClShader& Parent) :
 	mShader				( Parent ),
 	mManager			( Parent.mManager ),
 	mMaxWorkGroupSize	( -1 ),
+	mDevice				( msa::OpenClDevice::Invalid ),
 	mKernelRef			( Parent.GetRef(), Name )
 {
 }
@@ -511,24 +514,33 @@ bool SoyOpenClKernel::End3D(bool Blocking,int Exec1,int Exec2,int Exec3)
 	return true;
 }
 
+void SoyOpenClKernel::OnUnloaded()
+{
+	mMaxWorkGroupSize = -1;
+	mDevice = msa::OpenClDevice::Invalid;
+}
+
 void SoyOpenClKernel::OnLoaded()
 {
 	//	failed to load (syntax error etc)
 	if ( !mKernel )
+	{
+		OnUnloaded();
 		return;
+	}
 
 	//	query for max work group items
 	//	http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/clGetKernelWorkGroupInfo.html
 	auto Queue = GetQueue();
 	auto* Device = mManager.mOpencl.GetDevice( Queue );
-	if ( Device )
+	if ( !Device )
 	{
-		mMaxWorkGroupSize = Device->mInfo.maxWorkGroupSize;
+		OnUnloaded();
+		return;
 	}
-	else
-	{
-		mMaxWorkGroupSize = -1;
-	}
+	
+	mDevice = Device->GetType();
+	mMaxWorkGroupSize = Device->mInfo.maxWorkGroupSize;
 }
 
 

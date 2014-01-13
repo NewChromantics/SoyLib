@@ -8,7 +8,6 @@ namespace msa {
 	OpenCLBuffer::OpenCLBuffer(OpenCL& Parent) :
 		mParent	( Parent )
 	{
-		ofLogNotice( __FUNCTION__ );
 	}
 	
 	bool OpenCLBuffer::initBuffer(int numberOfBytes,
@@ -16,8 +15,6 @@ namespace msa {
 								  void *dataPtr,
 								  bool blockingWrite,cl_command_queue Queue)
 	{
-		ofLogNotice( __FUNCTION__ );
-		
 		//	need a queue
 		assert( Queue );
 		if ( !Queue )
@@ -68,8 +65,6 @@ namespace msa {
 	void OpenCLBuffer::initFromGLObject(GLuint glBufferObject,
 										cl_mem_flags memFlags)
 	{	
-		ofLogNotice( __FUNCTION__ );
-		
 		cl_int err;
 		clMemObject= clCreateFromGLBuffer( mParent.getContext(), memFlags, glBufferObject, &err);
 		assert(err != CL_INVALID_CONTEXT);

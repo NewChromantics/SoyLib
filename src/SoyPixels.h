@@ -25,10 +25,10 @@ namespace msa
 	class OpenCLImage;
 }
 
-class TPixels
+class SoyPixels
 {
 public:
-	TPixels(prmem::Heap& Heap=prcore::Heap) :
+	SoyPixels(prmem::Heap& Heap=prcore::Heap) :
 		mChannels	( 0 ),
 		mWidth		( 0 ),
 		mPixels		( Heap )
@@ -53,8 +53,8 @@ public:
 	bool		Set(ofxCvImage& Pixels);
 	bool		Set(const IplImage& Pixels);	//	opencv internal image
 #endif
-	bool		Set(const TPixels& Pixels);
-	bool		Set(const TPixels& Pixels,uint8 Channel);
+	bool		Set(const SoyPixels& Pixels);
+	bool		Set(const SoyPixels& Pixels,uint8 Channel);
 	bool		SetChannels(uint8 Channels);
 #if defined(ENABLE_OPENCL)
 	bool		Set(const msa::OpenCLImage& Pixels,SoyOpenClKernel& Kernel,uint8 Channels);
@@ -69,9 +69,9 @@ public:
 	uint16		GetHeight() const	{	return IsValid() ? mPixels.GetSize() / (mChannels*mWidth) : 0;	}
 	bool		GetOpenglFormat(int& glFormat) const;
 	bool		GetOpenclFormat(int& ChannelOrder) const;
-	const Array<uint8>&	GetPixelsArray() const	{	return mPixels;	}
+	const Array<uint8>&	GeSoyPixelsArray() const	{	return mPixels;	}
 
-	Array<uint8>&	GetPixelsArray()			{	return mPixels;	}
+	Array<uint8>&	GeSoyPixelsArray()			{	return mPixels;	}
 	void			DumbSetChannels(int Channels)	{	mChannels = Channels;	}
 
 private:
@@ -79,4 +79,4 @@ private:
 	uint16			mWidth;
 	Array<uint8>	mPixels;
 };
-DECLARE_TYPE_NAME( TPixels );
+DECLARE_TYPE_NAME( SoyPixels );

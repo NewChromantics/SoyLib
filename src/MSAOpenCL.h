@@ -76,19 +76,29 @@ namespace msa {
 	public:
 		enum Type
 		{
-			Invalid = CL_DEVICE_TYPE_ALL,
+			Invalid = 0,	//	unused in CL_DEVICE_*
+			All = CL_DEVICE_TYPE_ALL,
 			Any	= CL_DEVICE_TYPE_CPU|CL_DEVICE_TYPE_GPU,
 			CPU	= CL_DEVICE_TYPE_CPU,
 			GPU	= CL_DEVICE_TYPE_GPU,
 		};
 	public:
 		OpenClDevice() :
-			mPlatform	( NULL ),
-			mDeviceId	( NULL )
+			mPlatform	( nullptr ),
+			mDeviceId	( nullptr )
+		{
+		}
+		OpenClDevice(cl_platform_id Platform,cl_device_id Device) :
+			mPlatform	( Platform ),
+			mDeviceId	( Device )
 		{
 		}
 
-		Type			GetType() const	{	return static_cast<Type>( mInfo.type );	}
+		bool				Init();
+		Type				GetType() const	{	return static_cast<Type>( mInfo.type );	}
+		static const char*	ToString(Type type);
+	
+		static int			GetPlatformCount(const Array<OpenClDevice>& Devices);
 
 	public:
 		cl_platform_id	mPlatform;
@@ -116,6 +126,8 @@ namespace msa {
 		OpenClDevice*		GetDevice(cl_device_id Device);
 		template<size_t MAXDEVICES>
 		int					GetDevices(cl_device_id (&Devices)[MAXDEVICES]);
+		bool				IsIncludesSuported() const		{	return false;	}	//	if false, source embeds includes upon compilation due to nvidia bug; http://stackoverflow.com/a/15315849/355753
+
 
 		// load a program (contains a bunch of kernels)
 		// returns pointer to the program should you need it (for most operations you won't need this)
@@ -188,12 +200,13 @@ namespace msa {
 										  void *dataPtr = NULL,
 										  bool blockingWrite = CL_FALSE);
 		
-		std::string			getInfoAsString(const clDeviceInfo& Info);
+		static std::string	getInfoAsString(const clDeviceInfo& Info);
 		static const char*	getErrorAsString(cl_int err);
 		
 	
 	protected:
 		bool				createDevices(const char* PlatformName=NULL);
+		static bool			EnumDevices(Array<OpenClDevice>& Devices,const char* PlatformNameFilter=nullptr,OpenClDevice::Type DeviceFilter=OpenClDevice::Any);
 	
 	protected:	
 		

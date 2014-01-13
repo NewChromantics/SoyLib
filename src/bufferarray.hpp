@@ -122,13 +122,13 @@
 
 		T&			GetBack()				{	return (*this)[GetSize()-1];	}
 		const T&	GetBack() const			{	return (*this)[GetSize()-1];	}
-
+		const T*	GetArray() const		{	return mdata;	}
+		T*			GetArray()				{	return mdata;	}
 		bool		IsEmpty() const			{	return GetSize() == 0;		}
+		bool		IsFull() const			{	return GetSize() >= MaxSize();		}
 		int			GetSize() const			{	return moffset;		}
 		int			GetDataSize() const		{	return GetSize() * sizeof(T);	}	//	size of all the data in bytes
 		int			GetElementSize() const	{	return sizeof(T);	}	//	size of all the data in bytes
-		const T*	GetArray() const		{	return mdata;	}
-		T*			GetArray()				{	return mdata;	}
 
 		//	gr: AllowLess does nothing here, but the parameter is kept to match other Array types (in case it's used in template funcs for example)
 		bool SetSize(int size, bool preserve=true,bool AllowLess=true)
@@ -597,6 +597,7 @@ public:
 	const T&	GetBack() const			{	return (*this)[GetSize()-1];	}
 
 	bool		IsEmpty() const			{	return GetSize() == 0;		}
+	bool		IsFull() const			{	return GetSize() >= MaxSize();	}
 	int			GetSize() const			{	return moffset;		}
 	int			GetDataSize() const		{	return GetSize() * GetElementSize();	}	//	size of all the data in bytes
 	int			GetElementSize() const	{	return sizeof(T);	}	//	size of all the data in bytes

@@ -11,6 +11,9 @@ namespace Soy
 	template<typename TYPE>
 	inline bool		ReadXmlData(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag=true);
 	
+	template<typename READTYPE,typename TYPE>
+	inline bool		ReadXmlDataAs(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag=true);
+	
 	template<typename TYPE>
 	inline void		WriteXmlData(ofxXmlSettings& xml,const char* Name,const TYPE& Value,bool Tag=true);
 };
@@ -133,6 +136,9 @@ public:
 	bool					IsUp() const		{	return mPath.IsEmpty();	}
 
 	inline bool				operator==(const SoyButton::Type& Button) const	{	return GetButton() == Button;	}
+	
+	vec2f					GetScreenPos() const		{	return IsUp() ? vec2f() : mPath.GetBack();	}
+	vec2f					GetPrevScreenPos() const	{	return (mPath.GetSize() > 1) ? mPath[mPath.GetSize()-2] : GetScreenPos();	}
 
 public:
 	Array<vec2f>			mPath;		//	path since last pop, if one point then button is down, but not moving. If none then the mouse is released
@@ -208,9 +214,33 @@ inline void Soy::WriteXmlData(ofxXmlSettings& xml,const char* Name,const TYPE& V
 	if ( Tag )
 		xml.addValue( Name, static_cast<const char*>( Buffer ) );
 	else
-		xml.addAttribute( ":", Name, static_cast<const char*>( Buffer ), -1 );
-
+	{
+		auto* Element = xml.getStoredHandle().Element();
+		assert( Element );
+		if ( !Element )
+			return;
+		Element->SetAttribute( Name, Buffer.c_str() );
+	}
 }
+
+
+template<uint32 SIZE>
+inline const TString& operator>>(const TString& Source,BufferString<SIZE>& Destination)
+{
+	Destination << Source;
+	return Source;
+}
+
+//	if not tag, then data is stored as an attribute
+template<typename READTYPE,typename TYPE>
+inline bool Soy::ReadXmlDataAs(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag)
+{
+	READTYPE ValueAs = static_cast<READTYPE>( Value );
+	bool Result = ReadXmlData( xml, Name, ValueAs, Tag );
+	Value = static_cast<READTYPE>( ValueAs );
+	return Result;
+}
+
 
 //	if not tag, then data is stored as an attribute
 template<typename TYPE>
@@ -220,7 +250,13 @@ inline bool Soy::ReadXmlData(ofxXmlSettings& xml,const char* Name,TYPE& Value,bo
 	if ( Tag )
 		data = xml.getValue( Name, data );
 	else
-		data = xml.getAttribute( ":", Name, data );
+	{
+		auto* Element = xml.getStoredHandle().Element();
+		auto* Attrib = Element ? Element->Attribute( Name ) : nullptr;
+		if ( !Attrib )
+			return false;
+		data = Attrib;
+	}
 
 	if ( data.empty() )
 		return false;
@@ -298,3 +334,7 @@ inline bool ofFilenameStripPath(Soy::String2<char,ARRAYTYPE>& Filename)
 	Filename.RemoveAt( 0, LastSlash+1 );
 	return true;
 }
+
+
+bool ofFileToString(TString& ContentString,const char* Filename);
+bool ofStringToFile(const char* Filename,const TString& ContentString);

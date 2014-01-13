@@ -11,7 +11,7 @@
 
 
 
-bool TPixels::Get(ofPixels& Pixels) const
+bool SoyPixels::Get(ofPixels& Pixels) const
 {
 	if ( !IsValid() )
 	{
@@ -24,7 +24,7 @@ bool TPixels::Get(ofPixels& Pixels) const
 	return true;
 }
 
-bool TPixels::Get(ofTexture& Pixels) const
+bool SoyPixels::Get(ofTexture& Pixels) const
 {
 	if ( !IsValid() )
 	{
@@ -45,7 +45,7 @@ bool TPixels::Get(ofTexture& Pixels) const
 }
 
 #if defined(ENABLE_OPENCV)
-bool TPixels::Get(ofxCvImage& Pixels) const
+bool SoyPixels::Get(ofxCvImage& Pixels) const
 {
 	if ( !IsValid() )
 	{
@@ -75,7 +75,7 @@ bool TPixels::Get(ofxCvImage& Pixels) const
 
 
 #if defined(ENABLE_OPENCV)
-bool TPixels::Get(ofxCvGrayscaleImage& Pixels,SoyOpenClManager& OpenClManager) const
+bool SoyPixels::Get(ofxCvGrayscaleImage& Pixels,SoyOpenClManager& OpenClManager) const
 {
 	if ( !IsValid() )
 	{
@@ -92,7 +92,7 @@ bool TPixels::Get(ofxCvGrayscaleImage& Pixels,SoyOpenClManager& OpenClManager) c
 	if ( Pixels.getChannels() != GetChannels() )
 	{
 		//	use shader to convert
-		TPixels Bri;
+		SoyPixels Bri;
 		ClShaderRgbToBri RgbToBriShader( OpenClManager );
 		if ( !RgbToBriShader.Run( *this, Bri ) )
 		{
@@ -112,7 +112,7 @@ bool TPixels::Get(ofxCvGrayscaleImage& Pixels,SoyOpenClManager& OpenClManager) c
 
 
 #if defined(ENABLE_OPENCL)
-bool TPixels::Get(msa::OpenCLImage& Pixels,SoyOpenClKernel& Kernel,cl_int clMemMode) const
+bool SoyPixels::Get(msa::OpenCLImage& Pixels,SoyOpenClKernel& Kernel,cl_int clMemMode) const
 {
 	if ( !IsValid() )
 		return false;
@@ -138,14 +138,14 @@ bool TPixels::Get(msa::OpenCLImage& Pixels,SoyOpenClKernel& Kernel,cl_int clMemM
 }
 #endif
 
-void TPixels::Clear()
+void SoyPixels::Clear()
 {
 	mChannels = 0;
 	mWidth = 0;
 	mPixels.Clear(true);
 }
 
-bool TPixels::SetChannels(uint8 Channels)
+bool SoyPixels::SetChannels(uint8 Channels)
 {
 	if ( Channels < 1 )
 		return false;
@@ -155,7 +155,7 @@ bool TPixels::SetChannels(uint8 Channels)
 		return false;
 
 	//	slow
-	ofScopeTimerWarning Timer("TPixels::SetChannels",1);
+	ofScopeTimerWarning Timer("SoyPixels::SetChannels",1);
 	ofPixels PixelsX;
 	Get( PixelsX );
 	PixelsX.setNumChannels( Channels );
@@ -165,7 +165,7 @@ bool TPixels::SetChannels(uint8 Channels)
 
 
 #if defined(ENABLE_OPENCL)
-bool TPixels::SetChannels(uint8 Channels,SoyOpenClManager& OpenClManager,const ofColour& FillerColour)
+bool SoyPixels::SetChannels(uint8 Channels,SoyOpenClManager& OpenClManager,const ofColour& FillerColour)
 {
 	clSetPixelParams Params = _clSetPixelParams();
 	Params.mDefaultColour = ofToCl_Rgba_int4( FillerColour );
@@ -174,7 +174,7 @@ bool TPixels::SetChannels(uint8 Channels,SoyOpenClManager& OpenClManager,const o
 #endif
 
 #if defined(ENABLE_OPENCL)
-bool TPixels::SetChannels(uint8 Channels,SoyOpenClManager& OpenClManager,const clSetPixelParams& Params)
+bool SoyPixels::SetChannels(uint8 Channels,SoyOpenClManager& OpenClManager,const clSetPixelParams& Params)
 {
 	if ( Channels < 1 )
 		return false;
@@ -197,7 +197,7 @@ bool TPixels::SetChannels(uint8 Channels,SoyOpenClManager& OpenClManager,const c
 
 
 #if defined(ENABLE_OPENCL)
-bool TPixels::Set(const msa::OpenCLImage& PixelsConst,SoyOpenClKernel& Kernel,uint8 Channels)
+bool SoyPixels::Set(const msa::OpenCLImage& PixelsConst,SoyOpenClKernel& Kernel,uint8 Channels)
 {
 	if ( !Kernel.IsValid() )
 		return false;
@@ -230,7 +230,7 @@ bool TPixels::Set(const msa::OpenCLImage& PixelsConst,SoyOpenClKernel& Kernel,ui
 }
 #endif
 
-bool TPixels::Set(const ofPixels& Pixels)
+bool SoyPixels::Set(const ofPixels& Pixels)
 {
 	mWidth = Pixels.getWidth();
 	mChannels = Pixels.getNumChannels();
@@ -240,7 +240,7 @@ bool TPixels::Set(const ofPixels& Pixels)
 	return true;
 }
 
-bool TPixels::Set(const TPixels& Pixels)
+bool SoyPixels::Set(const SoyPixels& Pixels)
 {
 	mWidth = Pixels.GetWidth();
 	mChannels = Pixels.mChannels;
@@ -249,16 +249,16 @@ bool TPixels::Set(const TPixels& Pixels)
 }
 
 #if defined(ENABLE_OPENCV)
-bool TPixels::Set(ofxCvImage& Pixels)
+bool SoyPixels::Set(ofxCvImage& Pixels)
 {
-	ofPixels& RealPixels = Pixels.getPixelsRef();
+	ofPixels& RealPixels = Pixels.geSoyPixelsRef();
 	Set( RealPixels );
 	return true;
 }
 #endif
 
 #if defined(ENABLE_OPENCV)
-bool TPixels::Set(const IplImage& Pixels)
+bool SoyPixels::Set(const IplImage& Pixels)
 {
 	mWidth = Pixels.width;
 	mChannels = Pixels.nChannels;
@@ -269,7 +269,7 @@ bool TPixels::Set(const IplImage& Pixels)
 }
 #endif
 
-bool TPixels::Set(const TPixels& That,uint8 Channel)
+bool SoyPixels::Set(const SoyPixels& That,uint8 Channel)
 {
 	//	non existant channel
 	if ( Channel >= That.GetChannels() )
@@ -284,10 +284,10 @@ bool TPixels::Set(const TPixels& That,uint8 Channel)
 
 	//	copy each pixel from source's channel
 	int Step = That.GetChannels();
-	auto& ThatPixels = That.GetPixelsArray();
-	for ( int p=Channel;	p<ThatPixels.GetSize();	p+=Step )
+	auto& ThaSoyPixels = That.GeSoyPixelsArray();
+	for ( int p=Channel;	p<ThaSoyPixels.GetSize();	p+=Step )
 	{
-		uint8 Component = ThatPixels[p];
+		uint8 Component = ThaSoyPixels[p];
 		mPixels.PushBack( Component );
 	}
 	assert( this->GetHeight() == That.GetHeight() );
@@ -295,7 +295,7 @@ bool TPixels::Set(const TPixels& That,uint8 Channel)
 	return true;
 }
 
-bool TPixels::GetOpenglFormat(int& glFormat) const
+bool SoyPixels::GetOpenglFormat(int& glFormat) const
 {
 	//	from ofGetGlInternalFormat(const ofPixels& pix)
 	switch ( mChannels )
@@ -308,7 +308,7 @@ bool TPixels::GetOpenglFormat(int& glFormat) const
 }
 
 
-bool TPixels::GetOpenclFormat(int& clFormat) const
+bool SoyPixels::GetOpenclFormat(int& clFormat) const
 {
 	//	from ofGetGlInternalFormat(const ofPixels& pix)
 	switch ( mChannels )
@@ -321,7 +321,7 @@ bool TPixels::GetOpenclFormat(int& clFormat) const
 }
 
 
-bool TPixels::Init(uint16 Width,uint16 Height,uint8 Channels,const ofColour& DefaultColour)
+bool SoyPixels::Init(uint16 Width,uint16 Height,uint8 Channels,const ofColour& DefaultColour)
 {
 	if ( !Init( Width, Height, Channels ) )
 		return false;
@@ -355,7 +355,7 @@ bool TPixels::Init(uint16 Width,uint16 Height,uint8 Channels,const ofColour& Def
 
 
 
-bool TPixels::Init(uint16 Width,uint16 Height,uint8 Channels)
+bool SoyPixels::Init(uint16 Width,uint16 Height,uint8 Channels)
 {
 	//	alloc
 	mWidth = Width;
