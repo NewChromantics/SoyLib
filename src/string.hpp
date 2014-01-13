@@ -28,6 +28,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <iostream>
+#include <algorithm>		//	std::transform
 #include "SoyTypes.h"
 #include "chartype.hpp"
 #include "array.hpp"
