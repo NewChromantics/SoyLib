@@ -44,6 +44,7 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 #include <stdio.h>
 #include <assert.h>
 #include <mmsystem.h>
+#include <memory>
 #ifdef _MSC_VER
 	#include <direct.h>
 #endif
@@ -141,7 +142,7 @@ public:
 // ofPtr
 //----------------------------------------------------------
 #if defined(TARGET_WINDOWS)//gr: depends on MSCV version
-#define std_experimental    std::tr1
+#define std_experimental    std
 #else
 #define std_experimental    std
 #endif
@@ -304,8 +305,13 @@ inline float ofGetMathTime(float z,float Min,float Max)
 
 inline bool ofFileIsAbsolute(const char* Path)
 {
+#if defined(NO_OPENFRAMEWORKS)
+	assert(false);
+	return false;
+#else
 	Poco::Path inputPath( Path );
 	return inputPath.isAbsolute();
+#endif 
 }
 
 inline Poco::Timestamp ofFileLastModified(const char* Path)
