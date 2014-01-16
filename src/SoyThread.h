@@ -2,15 +2,9 @@
 
 #include "ofxSoylent.h"
 
-#if defined(TARGET_WINDOWS)
-    #include <Shlwapi.h>
-    #pragma comment(lib,"Shlwapi.lib")
-#endif
 
 #if defined(TARGET_OSX)
     #if defined(NO_OPENFRAMEWORKS)
-        #include <thread>
-        #include <mutex>
         #define STD_THREAD
         #define STD_MUTEX
     #endif
@@ -20,6 +14,11 @@
 
 #if defined(NO_OPENFRAMEWORKS)
 
+//	c++11 threads are better!
+//	gr: if mscv > 2012?
+#if defined(TARGET_WINDOWS)
+#define STD_THREAD
+#endif
 
 template <class M>
 class ScopedLock
@@ -54,6 +53,18 @@ private:
 };
 #endif
 
+#if defined(STD_THREAD)
+	#include <thread>
+#endif
+
+#if defined(STD_MUTEX)
+	#include <mutex>
+#endif
+
+#if defined(TARGET_WINDOWS)
+    #include <Shlwapi.h>
+    #pragma comment(lib,"Shlwapi.lib")
+#endif
 
 #if defined(NO_OPENFRAMEWORKS)
 
@@ -96,7 +107,7 @@ class SoyThreadId
 public:
 #if defined(STD_THREAD)
     typedef std::thread::id TYPE;
-	static const TYPE		Invalid = TYPE();
+	static const TYPE		Invalid;
 #else
     typedef int             TYPE;
 	static const TYPE		Invalid = -1;
@@ -127,6 +138,7 @@ public:
 
 #if defined(NO_OPENFRAMEWORKS)
 
+
 class ofThread
 {
 public:
@@ -143,6 +155,10 @@ public:
 #elif defined(TARGET_WINDOWS)
 	SoyThreadId     getThreadId() const					{	return mThreadId;	}
 	void			sleep(int ms)						{	Sleep(ms);	}
+#endif
+
+#if defined(TARGET_WINDOWS) && defined(STD_THREAD)
+	DWORD			GetNativeThreadId()					{	return ::GetThreadId( static_cast<HANDLE>( mThread.native_handle() ) );	}
 #endif
 
 protected:
@@ -263,14 +279,15 @@ public:
 #if defined(NO_OPENFRAMEWORKS)
 		//auto ThreadId = getThreadId();
 		mThreadName = name;
+		int ThreadId = GetNativeThreadId();
 #else
 		auto ThreadId = getPocoThread().tid();
 		getPocoThread().setName( name );
 #endif
-
+		
 		//	set the OS thread name
 		//	http://msdn.microsoft.com/en-gb/library/xcb2z8hs.aspx
-	#if defined(TARGET_WIN32)
+	#if defined(TARGET_WINDOWS)
 		const DWORD MS_VC_EXCEPTION=0x406D1388;
 		#pragma pack(push,8)
 		typedef struct tagTHREADNAME_INFO
