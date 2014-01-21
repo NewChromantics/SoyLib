@@ -18,6 +18,7 @@
 //	gr: if mscv > 2012?
 #if defined(TARGET_WINDOWS)
 #define STD_THREAD
+#define STD_MUTEX
 #endif
 
 template <class M>
