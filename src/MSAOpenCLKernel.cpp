@@ -37,8 +37,18 @@ namespace msa {
 
 		//	block by waiting for the execute-event
 		if ( Blocking && WaitEvent )
+		{
 			err = clWaitForEvents( 1, &WaitEvent );
 
+			//	there was an error in execution, let's find what it was
+			if ( err == CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST )
+			{
+				auto GetEventInfoErr = clGetEventInfo ( WaitEvent, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(err), &err, nullptr );
+				assert( GetEventInfoErr == CL_SUCCESS && err != CL_SUCCESS );
+			}
+		}
+
+		assert(err == CL_SUCCESS);
 		return (err == CL_SUCCESS);
 	}
 	
