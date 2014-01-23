@@ -86,14 +86,14 @@ public:
 
 	void			OnLoaded();				//	kernel will be null if it failed
 	void			OnUnloaded();
-	const char*		GetName() const			{	return mName.c_str();	}
-	bool			IsValid() const			{	return mKernel!=NULL;	}
-	bool			IsValidExecCount(int ExecCount)	{	return (mMaxWorkGroupSize==-1) ? true : (ExecCount<=mMaxWorkGroupSize);	}
-	int				GetMaxWorkGroupSize() const	{	return mMaxWorkGroupSize;	}
-	cl_command_queue	GetQueue()			{	return mKernel ? mKernel->getQueue() : NULL;	}
+	const char*		GetName() const					{	return mName.c_str();	}
+	bool			IsValid() const					{	return mKernel!=NULL;	}
+	bool			IsValidExecCount(int ExecCount)	{	return (GetMaxWorkGroupSize()==-1) ? true : (ExecCount<=GetMaxWorkGroupSize());	}
+	int				GetMaxWorkGroupSize() const		{	return mDeviceInfo.maxWorkGroupSize;	}
+	int				GetMaxBufferSize() const		{	return mDeviceInfo.maxMemAllocSize;	}
+	cl_command_queue	GetQueue()					{	return mKernel ? mKernel->getQueue() : NULL;	}
 	msa::OpenCL&	GetOpenCL() const;
-	msa::OpenClDevice::Type	GetDevice() const	{	return mDevice;	}
-
+	msa::OpenClDevice::Type	GetDevice() const		{	return static_cast<msa::OpenClDevice::Type>( mDeviceInfo.type );	}
 
 	void			DeleteKernel();
 	inline bool		operator==(const char* Name) const	{	return mName == Name;	}
@@ -126,8 +126,7 @@ protected:
 	bool			WaitForPendingWrites();
 
 private:
-	int						mMaxWorkGroupSize;
-	msa::OpenClDevice::Type	mDevice;
+	msa::clDeviceInfo	mDeviceInfo;
 	BufferString<100>	mName;
 	Array<cl_event>		mPendingBufferWrites;	//	wait for all these to finish before executing
 

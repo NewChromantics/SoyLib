@@ -5,7 +5,7 @@ namespace msa {
 	
 	OpenCLImage::OpenCLImage(OpenCL& Parent) :
 		mParent	( Parent ),
-		texture	( NULL )
+		texture	( nullptr )
 	{
 	}
 	
@@ -32,7 +32,7 @@ namespace msa {
 		if(clMemObject) 
 		{
 			clReleaseMemObject(clMemObject);
-			clMemObject = NULL;
+			clMemObject = nullptr;
 		}
 		
 		if(depth == 1) {
@@ -79,7 +79,7 @@ namespace msa {
 		if(clMemObject) 
 		{
 			clReleaseMemObject(clMemObject);
-			clMemObject = NULL;
+			clMemObject = nullptr;
 		}
 		
 		//	gr: missing from amd sdk?
