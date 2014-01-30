@@ -12,6 +12,7 @@
 
 
 
+
 #if defined(NO_OPENFRAMEWORKS)
 
 //	c++11 threads are better!
@@ -35,11 +36,6 @@ public:
 		_mutex.lock();
 	}
 	
-	ScopedLock(M& mutex, long milliseconds): _mutex(mutex)
-	{
-		_mutex.lock();
-	}
-	
 	~ScopedLock()
 	{
 		_mutex.unlock();
@@ -52,7 +48,42 @@ private:
 	ScopedLock(const ScopedLock&);
 	ScopedLock& operator = (const ScopedLock&);
 };
+
+
+template <class M>
+class ScopedLockTimed
+	/// A class that simplifies thread synchronization
+	/// with a mutex.
+	/// The constructor accepts a Mutex (and optionally
+	/// a timeout value in milliseconds) and locks it.
+	/// The destructor unlocks the mutex.
+{
+public:
+	explicit ScopedLockTimed(M& mutex,unsigned int TimeoutMs) :
+		mMutex		( mutex ),
+		mIsLocked	( false )
+	{
+		mIsLocked = mMutex.tryLock( TimeoutMs );
+	}
+	
+	~ScopedLockTimed()
+	{
+		if ( mIsLocked )
+			mMutex.unlock();
+	}
+
+	bool	IsLocked() const	{	return mIsLocked;	}
+
+private:
+	M&		mMutex;
+	bool	mIsLocked;
+
+	ScopedLockTimed();
+	ScopedLockTimed(const ScopedLockTimed&);
+	ScopedLockTimed& operator = (const ScopedLockTimed&);
+};
 #endif
+
 
 #if defined(STD_THREAD)
 	#include <thread>
@@ -97,6 +128,29 @@ private:
 };
 
 
+class ofMutexTimed
+{
+public:
+	typedef ScopedLockTimed<ofMutexTimed> ScopedLockTimed;
+	typedef ScopedLock<ofMutexTimed> ScopedLock;
+
+public:
+#if defined(STD_MUTEX)
+	void lock()					{	mMutex.lock(); }
+	void unlock()				{	mMutex.unlock();	}
+	bool tryLock()				{	return mMutex.try_lock();	}
+	bool tryLock(int TimeoutMs)	{	return mMutex.try_lock_for( std::chrono::milliseconds(TimeoutMs) );	}
+#else
+#error unsupported?
+#endif
+
+private:
+#if defined(STD_MUTEX)
+    std::recursive_timed_mutex	mMutex;
+#else
+#error unsupported?
+#endif
+};
 
 #endif // NO_OPENFRAMEWORKS
 
