@@ -3,7 +3,7 @@
 
 namespace msa {
 
-	static bool CHECK_DEVICE_MAX_ALLOC_SIZE = false;
+	static bool CHECK_DEVICE_MAX_ALLOC_SIZE = true;
 
 	OpenCLBuffer::OpenCLBuffer(OpenCL& Parent) :
 		mParent	( Parent )

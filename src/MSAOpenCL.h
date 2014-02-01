@@ -12,6 +12,9 @@
 #include "MSAOpenCLBuffer.h"
 #include "MSAOpenCLImage.h"
 
+#define CL_DEVICE_TYPE_INVALID	0	//	unused in CL_DEVICE_*
+
+
 namespace msa {
 	
 	class clPlatformInfo
@@ -33,7 +36,7 @@ namespace msa {
 	public:
 		//	gr: essential that some parameters are initialsied
 		clDeviceInfo() :
-			type	( CL_DEVICE_TYPE_ALL )
+			type	( CL_DEVICE_TYPE_INVALID )
 		{
 		}
 
@@ -76,7 +79,7 @@ namespace msa {
 	public:
 		enum Type
 		{
-			Invalid = 0,	//	unused in CL_DEVICE_*
+			Invalid = CL_DEVICE_TYPE_INVALID,
 			All = CL_DEVICE_TYPE_ALL,
 			Any	= CL_DEVICE_TYPE_CPU|CL_DEVICE_TYPE_GPU,
 			CPU	= CL_DEVICE_TYPE_CPU,
