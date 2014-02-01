@@ -3,6 +3,7 @@
 #include "Array.hpp"
 
 
+//	ascending (default, todo; rename!)
 template<typename TYPEA>
 class TSortPolicy
 {
@@ -12,6 +13,20 @@ public:
 	{
 		if ( a < b ) return -1;
 		if ( a > b ) return 1;
+		return 0;
+	}
+};
+
+//	reverse of default
+template<typename TYPEA>
+class TSortPolicy_Descending
+{
+public:
+	template<typename TYPEB>
+	static int		Compare(const TYPEA& a,const TYPEB& b)
+	{
+		if ( a > b ) return -1;
+		if ( a < b ) return 1;
 		return 0;
 	}
 };
