@@ -270,6 +270,27 @@ inline bool Soy::ReadXmlData(ofxXmlSettings& xml,const char* Name,TYPE& Value,bo
 
 
 template<typename OBJECT>
+class TXmlArrayMetaMutable
+{
+public:
+	explicit TXmlArrayMetaMutable(const char* TagName,Array<OBJECT>& Objects) :
+		mTagName	( TagName ),
+		mObjects	( Objects )
+	{
+	}
+
+	//	todo: find a way to do this without having a const and non-const TXmlArrayMeta
+	Array<OBJECT>&			GetObjectsMutable() const	{	return const_cast<Array<OBJECT>&>( mObjects );	}
+
+public:
+	const char*				mTagName;
+
+private:
+	Array<OBJECT>&			mObjects;
+};
+
+
+template<typename OBJECT>
 class TXmlArrayMeta
 {
 public:
@@ -281,7 +302,6 @@ public:
 
 	//	todo: find a way to do this without having a const and non-const TXmlArrayMeta
 	const Array<OBJECT>&	GetObjectsConst() const		{	return mObjects;	}
-	Array<OBJECT>&			GetObjectsMutable() const	{	return const_cast<Array<OBJECT>&>( mObjects );	}
 
 public:
 	const char*				mTagName;
@@ -307,7 +327,7 @@ inline ofxXmlSettings& operator<<(ofxXmlSettings& xml,const TXmlArrayMeta<OBJECT
 }
 
 template<typename OBJECT>
-inline ofxXmlSettings& operator>>(ofxXmlSettings& xml,const TXmlArrayMeta<OBJECT>& Array)
+inline ofxXmlSettings& operator>>(ofxXmlSettings& xml,TXmlArrayMetaMutable<OBJECT>& Array)
 {
 	auto& Objects = Array.GetObjectsMutable();
 	int TagCount = xml.getNumTags( Array.mTagName );
