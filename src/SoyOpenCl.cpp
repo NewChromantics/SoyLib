@@ -371,8 +371,6 @@ SoyOpenClKernel::SoyOpenClKernel(const char* Name,SoyOpenClShader& Parent) :
 	mKernel				( NULL ),
 	mShader				( Parent ),
 	mManager			( Parent.mManager ),
-	mMaxWorkGroupSize	( -1 ),
-	mDevice				( msa::OpenClDevice::Invalid ),
 	mKernelRef			( Parent.GetRef(), Name )
 {
 }
@@ -450,9 +448,9 @@ bool SoyOpenClKernel::End1D(bool Blocking,int Exec1)
 	if ( !IsValidExecCount(Exec1) )
 	{
 		BufferString<1000> Debug;
-		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "/" << mMaxWorkGroupSize << "... execution count truncated.";
+		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
 		ofLogWarning( Debug.c_str() );
-		Exec1 = ofMin( Exec1, mMaxWorkGroupSize );
+		Exec1 = ofMin( Exec1, GetMaxWorkGroupSize() );
 	}
 
 	//	if we're about to execute, make sure all writes are done
@@ -472,10 +470,10 @@ bool SoyOpenClKernel::End2D(bool Blocking,int Exec1,int Exec2)
 	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) )
 	{
 		BufferString<1000> Debug;
- 		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "," << Exec2 << "/" << mMaxWorkGroupSize << "... execution count truncated.";
+ 		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "," << Exec2 << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
 		ofLogWarning( Debug.c_str() );
-		Exec1 = ofMin( Exec1, mMaxWorkGroupSize );
-		Exec2 = ofMin( Exec2, mMaxWorkGroupSize );
+		Exec1 = ofMin( Exec1, GetMaxWorkGroupSize() );
+		Exec2 = ofMin( Exec2, GetMaxWorkGroupSize() );
 	}
 
 	//	if we're about to execute, make sure all writes are done
@@ -495,11 +493,11 @@ bool SoyOpenClKernel::End3D(bool Blocking,int Exec1,int Exec2,int Exec3)
 	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) || !IsValidExecCount(Exec3) )
 	{
 		BufferString<1000> Debug;
-		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "," << Exec2 << "," << Exec3 << "/" << mMaxWorkGroupSize << "... execution count truncated.";
+		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "," << Exec2 << "," << Exec3 << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
 		ofLogWarning( Debug.c_str() );
-		Exec1 = ofMin( Exec1, mMaxWorkGroupSize );
-		Exec2 = ofMin( Exec2, mMaxWorkGroupSize );
-		Exec3 = ofMin( Exec3, mMaxWorkGroupSize );
+		Exec1 = ofMin( Exec1, GetMaxWorkGroupSize() );
+		Exec2 = ofMin( Exec2, GetMaxWorkGroupSize() );
+		Exec3 = ofMin( Exec3, GetMaxWorkGroupSize() );
 	}
 
 	//	if we're about to execute, make sure all writes are done
@@ -516,8 +514,7 @@ bool SoyOpenClKernel::End3D(bool Blocking,int Exec1,int Exec2,int Exec3)
 
 void SoyOpenClKernel::OnUnloaded()
 {
-	mMaxWorkGroupSize = -1;
-	mDevice = msa::OpenClDevice::Invalid;
+	mDeviceInfo = msa::clDeviceInfo();
 }
 
 void SoyOpenClKernel::OnLoaded()
@@ -539,8 +536,7 @@ void SoyOpenClKernel::OnLoaded()
 		return;
 	}
 	
-	mDevice = Device->GetType();
-	mMaxWorkGroupSize = Device->mInfo.maxWorkGroupSize;
+	mDeviceInfo = Device->mInfo;
 }
 
 

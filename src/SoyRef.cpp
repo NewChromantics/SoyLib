@@ -19,7 +19,7 @@ struct uint64Chars
 	union
 	{
 		uint64	m64;
-		char	mChars[SoyRef::MaxStringLength];
+		unsigned char	mChars[SoyRef::MaxStringLength];
 	};
 };
 

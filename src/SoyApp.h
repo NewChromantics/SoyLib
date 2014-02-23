@@ -16,6 +16,12 @@ namespace Soy
 	
 	template<typename TYPE>
 	inline void		WriteXmlData(ofxXmlSettings& xml,const char* Name,const TYPE& Value,bool Tag=true);
+
+	template<typename TYPE>
+	inline bool		ReadXmlParameter(ofxXmlSettings& xml,ofParameter<TYPE>& Value,bool Tag=true);
+	
+	template<typename TYPE>
+	inline void		WriteXmlParameter(ofxXmlSettings& xml,const ofParameter<TYPE>& Value,bool Tag=true);
 };
 
 inline BufferString<MAX_PATH> SoyGetFileExt(const char* Filename)
@@ -223,6 +229,24 @@ inline void Soy::WriteXmlData(ofxXmlSettings& xml,const char* Name,const TYPE& V
 	}
 }
 
+template<typename TYPE>
+inline void Soy::WriteXmlParameter(ofxXmlSettings& xml,const ofParameter<TYPE>& Value,bool Tag)
+{
+	assert( !Value.getName().empty() );
+	std::string ValueString = Value.toString();
+
+	if ( Tag )
+		xml.addValue( Value.getName(), ValueString );
+	else
+	{
+		auto* Element = xml.getStoredHandle().Element();
+		assert( Element );
+		if ( !Element )
+			return;
+		Element->SetAttribute( Value.getName(), ValueString );
+	}
+}
+
 
 template<uint32 SIZE>
 inline const TString& operator>>(const TString& Source,BufferString<SIZE>& Destination)
@@ -268,6 +292,52 @@ inline bool Soy::ReadXmlData(ofxXmlSettings& xml,const char* Name,TYPE& Value,bo
 }
 
 
+//	if not tag, then data is stored as an attribute
+template<typename TYPE>
+inline bool Soy::ReadXmlParameter(ofxXmlSettings& xml,ofParameter<TYPE>& Value,bool Tag)
+{
+	assert( !Value.getName().empty() );
+	string data;
+	if ( Tag )
+		data = xml.getValue( Value.getName(), data );
+	else
+	{
+		auto* Element = xml.getStoredHandle().Element();
+		auto* Attrib = Element ? Element->Attribute( Value.getName() ) : nullptr;
+		if ( !Attrib )
+			return false;
+		data = *Attrib;
+	}
+
+	if ( data.empty() )
+		return false;
+
+	//	convert
+	Value.fromString( data );
+	return true;
+}
+
+
+template<typename OBJECT>
+class TXmlArrayMetaMutable
+{
+public:
+	explicit TXmlArrayMetaMutable(const char* TagName,Array<OBJECT>& Objects) :
+		mTagName	( TagName ),
+		mObjects	( Objects )
+	{
+	}
+
+	//	todo: find a way to do this without having a const and non-const TXmlArrayMeta
+	Array<OBJECT>&			GetObjectsMutable() const	{	return const_cast<Array<OBJECT>&>( mObjects );	}
+
+public:
+	const char*				mTagName;
+
+private:
+	Array<OBJECT>&			mObjects;
+};
+
 
 template<typename OBJECT>
 class TXmlArrayMeta
@@ -281,7 +351,6 @@ public:
 
 	//	todo: find a way to do this without having a const and non-const TXmlArrayMeta
 	const Array<OBJECT>&	GetObjectsConst() const		{	return mObjects;	}
-	Array<OBJECT>&			GetObjectsMutable() const	{	return const_cast<Array<OBJECT>&>( mObjects );	}
 
 public:
 	const char*				mTagName;
@@ -307,7 +376,7 @@ inline ofxXmlSettings& operator<<(ofxXmlSettings& xml,const TXmlArrayMeta<OBJECT
 }
 
 template<typename OBJECT>
-inline ofxXmlSettings& operator>>(ofxXmlSettings& xml,const TXmlArrayMeta<OBJECT>& Array)
+inline ofxXmlSettings& operator>>(ofxXmlSettings& xml,TXmlArrayMetaMutable<OBJECT>& Array)
 {
 	auto& Objects = Array.GetObjectsMutable();
 	int TagCount = xml.getNumTags( Array.mTagName );

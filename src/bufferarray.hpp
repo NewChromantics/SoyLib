@@ -926,7 +926,7 @@ public:
 	}
 
 	template<class ARRAYTYPE>
-	inline bool	operator==(const ARRAYTYPE& Array)
+	inline bool	operator==(const ARRAYTYPE& Array) const
 	{
 		auto ThisBridge = GetArrayBridge( *this );
 		auto ThatBridge = GetArrayBridge( Array );
@@ -934,7 +934,7 @@ public:
 	}
 
 	template<class ARRAYTYPE>
-	inline bool	operator!=(const ARRAYTYPE& Array)
+	inline bool	operator!=(const ARRAYTYPE& Array) const
 	{
 		auto ThisBridge = GetArrayBridge( *this );
 		auto ThatBridge = GetArrayBridge( Array );

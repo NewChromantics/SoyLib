@@ -1,6 +1,10 @@
 #include "SoyThread.h"
 
 
+#if defined(STD_THREAD)
+const SoyThreadId::TYPE SoyThreadId::Invalid = SoyThreadId::TYPE();
+#endif
+
 
 #if defined(NO_OPENFRAMEWORKS)
 ofThread::ofThread() :
