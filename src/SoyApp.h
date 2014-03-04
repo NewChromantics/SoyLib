@@ -407,3 +407,12 @@ inline bool ofFilenameStripPath(Soy::String2<char,ARRAYTYPE>& Filename)
 
 bool ofFileToString(TString& ContentString,const char* Filename);
 bool ofStringToFile(const char* Filename,const TString& ContentString);
+
+
+
+template<>
+bool Soy::ReadXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,vec3f& Value,bool Tag);
+
+template<>
+void Soy::WriteXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,const vec3f& Value,bool Tag);
+
