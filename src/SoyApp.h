@@ -22,6 +22,17 @@ namespace Soy
 	
 	template<typename TYPE>
 	inline void		WriteXmlParameter(ofxXmlSettings& xml,const ofParameter<TYPE>& Value,bool Tag=true);
+
+	template<typename TYPE>
+	bool			LoadXml(const std::string& Filename,TYPE& Object,const std::string& RootTag);
+
+	template<typename TYPE>
+	bool			SaveXml(const std::string& Filename,const TYPE& Object,const std::string& RootTag);
+
+
+	//	refactoring; new specialisations using ofParameter internally
+	template<> bool	ReadXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,vec3f& Value,bool Tag);
+	template<> void	WriteXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,const vec3f& Value,bool Tag);
 };
 
 inline BufferString<MAX_PATH> SoyGetFileExt(const char* Filename)
@@ -409,10 +420,37 @@ bool ofFileToString(TString& ContentString,const char* Filename);
 bool ofStringToFile(const char* Filename,const TString& ContentString);
 
 
+template<typename TYPE>
+inline bool Soy::LoadXml(const std::string& Filename,TYPE& Object,const std::string& RootTag)
+{
+	ofxXmlSettings xml;
+	if ( !xml.loadFile( Filename ) )
+		return false;
 
-template<>
-bool Soy::ReadXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,vec3f& Value,bool Tag);
+	//	check root tag
+	if ( !xml.pushTag( RootTag ) )
+		return false;
 
-template<>
-void Soy::WriteXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,const vec3f& Value,bool Tag);
+	//	import xml
+	xml >> Object;
+	xml.popTag();
+	return true;
+}
 
+template<typename TYPE>
+inline bool Soy::SaveXml(const std::string& Filename,const TYPE& Object,const std::string& RootTag)
+{
+	ofxXmlSettings xml;
+	if ( !xml.pushTag( RootTag, xml.addTag( RootTag ) ) )
+		return false;
+
+	//	export xml data
+	xml << Object;
+	xml.popTag();
+
+	//	save 
+	if ( !xml.saveFile( Filename ) )
+		return false;
+
+	return true;
+}
