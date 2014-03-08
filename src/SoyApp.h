@@ -29,6 +29,12 @@ namespace Soy
 	template<typename TYPE>
 	bool			SaveXml(const std::string& Filename,const TYPE& Object,const std::string& RootTag);
 
+	template<typename TYPE>
+	inline bool		ReadXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag=true);
+	
+	template<typename TYPE>
+	inline void		WriteXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,const TYPE& Value,bool Tag=true);
+	
 
 	//	refactoring; new specialisations using ofParameter internally
 	template<> bool	ReadXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,vec3f& Value,bool Tag);
@@ -454,3 +460,22 @@ inline bool Soy::SaveXml(const std::string& Filename,const TYPE& Object,const st
 
 	return true;
 }
+
+
+template<typename TYPE>
+inline bool Soy::ReadXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag)
+{
+	ofParameter<TYPE> Param( Name, Value );
+	if ( !ReadXmlParameter( xml, Param, Tag ) )
+		return false;
+	Value = Param.get();
+	return true;
+}
+	
+template<typename TYPE>
+inline void Soy::WriteXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,const TYPE& Value,bool Tag)
+{
+	ofParameter<TYPE> Param( Name, Value );
+	return WriteXmlParameter( xml, Param, Tag );
+}
+

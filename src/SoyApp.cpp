@@ -347,16 +347,11 @@ bool ofStringToFile(const char* Filename,const TString& ContentString)
 
 template<> bool Soy::ReadXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,vec3f& Value,bool Tag)
 {
-	ofParameter<vec3f> Param( Name, Value );
-	if ( !ReadXmlParameter( xml, Param, Tag ) )
-		return false;
-	Value = Param.get();
-	return true;
+	return ReadXmlDataAsParameter( xml, Name, Value, Tag );
 }
 
 template<> void Soy::WriteXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,const vec3f& Value,bool Tag)
 {
-	ofParameter<vec3f> Param( Name, Value );
-	return WriteXmlParameter( xml, Param, Tag );
+	return WriteXmlDataAsParameter( xml, Name, Value, Tag );
 }
 
