@@ -96,6 +96,7 @@ public:
 	virtual void		Close();
 	
 	TAddress			GetClientAddress(int ClientId) const;
+	int					GetClientId(TAddress Client) const;
 	TAddress			GetServerAddress() const;
 	TAddress			GetMyAddress() const;
 

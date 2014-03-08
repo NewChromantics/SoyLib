@@ -465,15 +465,33 @@ void TSocketTCP::SendPackets()
 	while ( !mPacketsOut.IsEmpty() )
 	{
 		Array<char> PacketRaw;
-		if ( !mPacketsOut.PopPacketRawData( PacketRaw, mIncludeMetaInPacket ) )
+		TAddress DestinationAddress;
+		if ( !mPacketsOut.PopPacketRawData( PacketRaw, DestinationAddress, mIncludeMetaInPacket ) )
 			break;
 
-		//	send packet out
+		//	send packet out to client[s]
 		if ( mServer.isConnected() )
 		{
-			mServer.sendRawBytesToAll( PacketRaw.GetArray(), PacketRaw.GetDataSize() );
+			//	client specified?
+			if ( DestinationAddress.IsValid() )
+			{
+				int ClientId = GetClientId( DestinationAddress );
+				if ( ClientId == -1 )
+				{
+					BufferString<100> Debug;
+					Debug << "Destination client " << DestinationAddress << " not found. Packet Dropped.";
+					ofLogError( Debug.c_str() );
+					continue;
+				}
+				mServer.sendRawBytes( ClientId, PacketRaw.GetArray(), PacketRaw.GetDataSize() );
+			}
+			else
+			{
+				mServer.sendRawBytesToAll( PacketRaw.GetArray(), PacketRaw.GetDataSize() );
+			}
 		}
 
+		//	send to server
 		if(  mClient.isConnected() )
 		{
 			mClient.sendRawBytes( PacketRaw.GetArray(), PacketRaw.GetDataSize() );
@@ -505,6 +523,13 @@ SoyNet::TAddress SoyNet::TSocketTCP::GetClientAddress(int ClientId) const
 	}
 
 	return TAddress();
+}
+
+int SoyNet::TSocketTCP::GetClientId(SoyNet::TAddress ClientAddress) const
+{
+	//	gr: currently I'm assuming this address has made it all the way through....
+	assert( ClientAddress.mClientRef.IsValid() );
+	return ClientAddress.mClientRef.mClientId;
 }
 
 SoyNet::TAddress SoyNet::TSocketTCP::GetServerAddress() const
