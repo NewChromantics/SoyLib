@@ -1,5 +1,5 @@
 #include "SoyApp.h"
-
+#include "ofxXmlSettings.h"     
 
 
 SoyApp::SoyApp()
@@ -344,4 +344,19 @@ bool ofStringToFile(const char* Filename,const TString& ContentString)
 
 
 
+
+template<> bool Soy::ReadXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,vec3f& Value,bool Tag)
+{
+	ofParameter<vec3f> Param( Name, Value );
+	if ( !ReadXmlParameter( xml, Param, Tag ) )
+		return false;
+	Value = Param.get();
+	return true;
+}
+
+template<> void Soy::WriteXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,const vec3f& Value,bool Tag)
+{
+	ofParameter<vec3f> Param( Name, Value );
+	return WriteXmlParameter( xml, Param, Tag );
+}
 
