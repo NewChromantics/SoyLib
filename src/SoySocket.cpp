@@ -44,6 +44,11 @@ public:
 	{
 	}
 
+	int					GetPeekBufferSize() const
+	{
+		return mServer.getReceiveBufferSize();
+	}
+
 	template<typename DATATYPE>
 	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	
 	{
@@ -71,6 +76,11 @@ public:
 	{
 	}
 
+	int					GetPeekBufferSize() const
+	{
+		return mClient.getReceiveBufferSize();
+	}
+
 	template<typename DATATYPE>
 	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	
 	{
@@ -95,6 +105,11 @@ public:
 		mData		( Data ),
 		mSender		( Sender )
 	{
+	}
+
+	int					GetPeekBufferSize() const
+	{
+		return 0;
 	}
 
 	template<typename DATATYPE>
@@ -202,10 +217,15 @@ bool RecvPackets(SoyPacketManager& PacketManager,READWRAPPER& ReadWrapper,bool E
 		}
 		else
 		{
+			//	tcp needs a buffer to read from... UDP doesn't?
+			PacketData.SetSize( ReadWrapper.GetPeekBufferSize() );
+
 			//	dumb read
 			PacketHeader.mDataSize = ReadWrapper.peekReceiveRawBytes( GetArrayBridge( PacketData ) );
+
+			//	return true, no error, just no data to read...
 			if ( PacketHeader.mDataSize == 0 )
-				return false;
+				return true;
 
 			PacketData.SetSize( PacketHeader.mDataSize );
 			int BytesRecieved = ReadWrapper.receiveRawBytes( GetArrayBridge( PacketData ) );
@@ -432,6 +452,7 @@ void TSocketTCP::RecievePackets()
 	//	read in packets from server
 	if ( mClient.isConnected() )
 	{
+		//	gr: this probably needs re-writing liek TSocketUDP::RecievePackets()
 		TClientReadWrapper Client( mClient, GetServerAddress() );
 		if ( !RecvPackets( mPacketsIn, Client, mIncludeMetaInPacket ) )
 		{
@@ -443,12 +464,17 @@ void TSocketTCP::RecievePackets()
 	//	read in packets from each client
 	if ( mServer.isConnected() )
 	{
+		//	do a recv into our pending buffer and grab the source of the data
+		//int MaxHardareBufferSize = mServer.GetReceiveBufferSize();
+		//int MaxBufferSize = MaxHardareBufferSize;
+
 		for ( int i=0;	i<mServer.getLastID();	i++ )
 		{
 			int ClientId = i;
 			if ( !CheckForClient( ClientId ) )
 				continue;
-		
+			
+			//	see if this client has any data waiting first
 			TServerReadWrapper Client( mServer, ClientId, GetClientAddress(ClientId) );
 			if ( !RecvPackets( mPacketsIn, Client, mIncludeMetaInPacket ) )
 			{
