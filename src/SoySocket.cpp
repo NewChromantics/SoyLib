@@ -223,6 +223,9 @@ bool RecvPackets(SoyPacketManager& PacketManager,READWRAPPER& ReadWrapper,bool E
 			//	dumb read
 			PacketHeader.mDataSize = ReadWrapper.peekReceiveRawBytes( GetArrayBridge( PacketData ) );
 
+			//	socket-error
+			if ( PacketHeader.mDataSize == -1 )
+				return false;
 			//	return true, no error, just no data to read...
 			if ( PacketHeader.mDataSize == 0 )
 				return true;
@@ -327,11 +330,11 @@ void TSocket::OnClientLeft(const SoyNet::TAddress& Address)
 	ofNotifyEvent( mOnClientLeft, Address );
 }
 
-void TSocket::OnRecievePacket(const SoyPacketContainer& Packet)
+void TSocket::OnRecievePackets()
 {
 	StartThread();
-	const SoyPacketContainer* pPacket = &Packet;
-	ofNotifyEvent( mOnRecievePacket, pPacket );
+	TSocket* This = this;
+	ofNotifyEvent( mOnRecievePacket, This );
 }
 
 
@@ -483,6 +486,9 @@ void TSocketTCP::RecievePackets()
 			}
 		}
 	}
+
+	if ( !mPacketsIn.IsEmpty() )
+		OnRecievePackets();
 }
 
 
