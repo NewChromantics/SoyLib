@@ -242,8 +242,8 @@ inline const STRING& operator>>(const STRING& str,float& Value)
 	return str;
 }
 
-template<class STRING>
-inline const STRING& operator>>(const STRING& str,int& Value)
+//template<class STRING>
+inline const TString& operator>>(const TString& str,int& Value)
 {
 	str.GetInteger( Value );
 	return str;
