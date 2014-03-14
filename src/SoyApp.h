@@ -28,6 +28,12 @@ namespace Soy
 
 	template<typename TYPE>
 	bool			SaveXml(const std::string& Filename,const TYPE& Object,const std::string& RootTag);
+	
+	template<typename TYPE>
+	bool			GetXml(ofxXmlSettings& xml,const TYPE& Object,const std::string& RootTag);
+
+	template<typename TYPE>
+	bool			GetXmlString(std::string& xml,const TYPE& Object,const std::string& RootTag);
 
 	template<typename TYPE>
 	inline bool		ReadXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag=true);
@@ -447,12 +453,8 @@ template<typename TYPE>
 inline bool Soy::SaveXml(const std::string& Filename,const TYPE& Object,const std::string& RootTag)
 {
 	ofxXmlSettings xml;
-	if ( !xml.pushTag( RootTag, xml.addTag( RootTag ) ) )
+	if ( !GetXml( xml, Object, RootTag ) )
 		return false;
-
-	//	export xml data
-	xml << Object;
-	xml.popTag();
 
 	//	save 
 	if ( !xml.saveFile( Filename ) )
@@ -461,6 +463,30 @@ inline bool Soy::SaveXml(const std::string& Filename,const TYPE& Object,const st
 	return true;
 }
 
+template<typename TYPE>
+inline bool Soy::GetXml(ofxXmlSettings& xml,const TYPE& Object,const std::string& RootTag)
+{
+	//	clear xml here?
+	if ( !xml.pushTag( RootTag, xml.addTag( RootTag ) ) )
+		return false;
+
+	//	export xml data
+	xml << Object;
+	xml.popTag();
+	return true;
+}
+
+template<typename TYPE>
+inline bool Soy::GetXmlString(std::string& xmlString,const TYPE& Object,const std::string& RootTag)
+{
+	ofxXmlSettings xml;
+	if ( !GetXml( xml, Object, RootTag ) )
+		return false;
+
+	xmlString.clear();
+	xml.copyXmlToString( xmlString );
+	return true;
+}
 
 template<typename TYPE>
 inline bool Soy::ReadXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag)
