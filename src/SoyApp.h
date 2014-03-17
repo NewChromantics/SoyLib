@@ -505,3 +505,53 @@ inline void Soy::WriteXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,co
 	return WriteXmlParameter( xml, Param, Tag );
 }
 
+
+
+
+class TBitReader
+{
+public:
+	TBitReader(const ArrayBridge<char>& Data) :
+		mData	( Data ),
+		mBitPos	( 0 )
+	{
+	}
+	
+	bool						Read(int& Data,int BitCount);
+	bool						Read(uint64& Data,int BitCount);
+	bool						Read(uint8& Data,int BitCount);
+	int							Read(int BitCount)					{	int Data;	return Read( Data, BitCount) ? Data : -1;	}
+	unsigned int				BitPosition() const					{	return mBitPos;	}
+
+	template<int BYTES,typename STORAGE>
+	bool						ReadBytes(STORAGE& Data,int BitCount);
+
+private:
+	const ArrayBridge<char>&	mData;
+	unsigned int				mBitPos;	//	current bit-to-read/write-pos (the tail)
+};
+
+class TBitWriter
+{
+public:
+	TBitWriter(ArrayBridge<char>& Data) :
+		mData	( Data ),
+		mBitPos	( 0 )
+	{
+	}
+	
+	unsigned int				BitPosition() const					{	return mBitPos;	}
+	
+	void						Write(uint8 Data,int BitCount);
+	void						Write(uint16 Data,int BitCount);
+	void						Write(uint32 Data,int BitCount);
+	void						Write(uint64 Data,int BitCount);
+	void						WriteBit(int Bit);
+
+	template<int BYTES,typename STORAGE>
+	void						WriteBytes(STORAGE Data,int BitCount);
+
+private:
+	ArrayBridge<char>&	mData;
+	unsigned int		mBitPos;	//	current bit-to-read/write-pos (the tail)
+};
