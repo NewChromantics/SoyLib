@@ -86,6 +86,29 @@ namespace Soy
 				Char == ',' );
 	}
 
+	
+	inline bool	IsUtf8Char(char Character)
+	{
+		switch ( Character )
+		{
+			case 0xC0:
+			case 0xC1:
+			case 0xF5:
+			case 0xF6:
+			case 0xF7:
+			case 0xF8:
+			case 0xF9:
+			case 0xFA:
+			case 0xFB:
+			case 0xFC:
+			case 0xFD:
+			case 0xFE:
+			case 0xFF:
+				return false;
+		}
+		return true;
+	}
+
 	// string expression
 
 	template <typename S, typename L, typename R>

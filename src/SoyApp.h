@@ -28,7 +28,19 @@ namespace Soy
 
 	template<typename TYPE>
 	bool			SaveXml(const std::string& Filename,const TYPE& Object,const std::string& RootTag);
+	
+	template<typename TYPE>
+	bool			GetXml(ofxXmlSettings& xml,const TYPE& Object,const std::string& RootTag);
 
+	template<typename TYPE>
+	bool			GetXmlString(std::string& xml,const TYPE& Object,const std::string& RootTag);
+
+	template<typename TYPE>
+	inline bool		ReadXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag=true);
+	
+	template<typename TYPE>
+	inline void		WriteXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,const TYPE& Value,bool Tag=true);
+	
 
 	//	refactoring; new specialisations using ofParameter internally
 	template<> bool	ReadXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,vec3f& Value,bool Tag);
@@ -441,12 +453,8 @@ template<typename TYPE>
 inline bool Soy::SaveXml(const std::string& Filename,const TYPE& Object,const std::string& RootTag)
 {
 	ofxXmlSettings xml;
-	if ( !xml.pushTag( RootTag, xml.addTag( RootTag ) ) )
+	if ( !GetXml( xml, Object, RootTag ) )
 		return false;
-
-	//	export xml data
-	xml << Object;
-	xml.popTag();
 
 	//	save 
 	if ( !xml.saveFile( Filename ) )
@@ -454,3 +462,96 @@ inline bool Soy::SaveXml(const std::string& Filename,const TYPE& Object,const st
 
 	return true;
 }
+
+template<typename TYPE>
+inline bool Soy::GetXml(ofxXmlSettings& xml,const TYPE& Object,const std::string& RootTag)
+{
+	//	clear xml here?
+	if ( !xml.pushTag( RootTag, xml.addTag( RootTag ) ) )
+		return false;
+
+	//	export xml data
+	xml << Object;
+	xml.popTag();
+	return true;
+}
+
+template<typename TYPE>
+inline bool Soy::GetXmlString(std::string& xmlString,const TYPE& Object,const std::string& RootTag)
+{
+	ofxXmlSettings xml;
+	if ( !GetXml( xml, Object, RootTag ) )
+		return false;
+
+	xmlString.clear();
+	xml.copyXmlToString( xmlString );
+	return true;
+}
+
+template<typename TYPE>
+inline bool Soy::ReadXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,TYPE& Value,bool Tag)
+{
+	ofParameter<TYPE> Param( Name, Value );
+	if ( !ReadXmlParameter( xml, Param, Tag ) )
+		return false;
+	Value = Param.get();
+	return true;
+}
+	
+template<typename TYPE>
+inline void Soy::WriteXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,const TYPE& Value,bool Tag)
+{
+	ofParameter<TYPE> Param( Name, Value );
+	return WriteXmlParameter( xml, Param, Tag );
+}
+
+
+
+
+class TBitReader
+{
+public:
+	TBitReader(const ArrayBridge<char>& Data) :
+		mData	( Data ),
+		mBitPos	( 0 )
+	{
+	}
+	
+	bool						Read(int& Data,int BitCount);
+	bool						Read(uint64& Data,int BitCount);
+	bool						Read(uint8& Data,int BitCount);
+	int							Read(int BitCount)					{	int Data;	return Read( Data, BitCount) ? Data : -1;	}
+	unsigned int				BitPosition() const					{	return mBitPos;	}
+
+	template<int BYTES,typename STORAGE>
+	bool						ReadBytes(STORAGE& Data,int BitCount);
+
+private:
+	const ArrayBridge<char>&	mData;
+	unsigned int				mBitPos;	//	current bit-to-read/write-pos (the tail)
+};
+
+class TBitWriter
+{
+public:
+	TBitWriter(ArrayBridge<char>& Data) :
+		mData	( Data ),
+		mBitPos	( 0 )
+	{
+	}
+	
+	unsigned int				BitPosition() const					{	return mBitPos;	}
+	
+	void						Write(uint8 Data,int BitCount);
+	void						Write(uint16 Data,int BitCount);
+	void						Write(uint32 Data,int BitCount);
+	void						Write(uint64 Data,int BitCount);
+	void						WriteBit(int Bit);
+
+	template<int BYTES,typename STORAGE>
+	void						WriteBytes(STORAGE Data,int BitCount);
+
+private:
+	ArrayBridge<char>&	mData;
+	unsigned int		mBitPos;	//	current bit-to-read/write-pos (the tail)
+};
