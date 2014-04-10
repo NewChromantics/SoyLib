@@ -75,6 +75,18 @@ void SoyOpenClManager::threadedFunction()
 {
 	while ( isThreadRunning() )
 	{
+		//	setup some shaders for pre-loading
+		{
+			ofMutex::ScopedLock PreLoadLock( mPreloadShaders );
+			while ( mPreloadShaders.GetSize() )
+			{
+				auto FilenameAndBuildOptions = mPreloadShaders.PopBack();
+
+				//	create a simple shader entry which "needs reloading"
+				AllocShader( FilenameAndBuildOptions.mFirst, FilenameAndBuildOptions.mSecond );
+			}
+		}
+
 		//	check if any shader's files have changed
 		Array<SoyOpenClShader*> Shaders;
 		mShaderLock.lock();
@@ -129,11 +141,12 @@ void SoyOpenClManager::DeleteKernel(SoyOpenClKernel* Kernel)
 	delete Kernel;
 }
 
-
-SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename,const char* BuildOptions)
+SoyOpenClShader* SoyOpenClManager::AllocShader(const char* Filename,const char* BuildOptions)
 {
 	if ( !IsValid() )
-		return NULL;
+		return nullptr;
+
+	ofMutex::ScopedLock Lock( mShaderLock );
 
 	//	see if it already exists
 	auto* pShader = GetShader( Filename );
@@ -146,16 +159,35 @@ SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename,const char* B
 		BufferString<100> BaseFilename = ofFilePath::getFileName(Filename).c_str();
 		SoyRef ShaderRef = GetUniqueRef( SoyRef(BaseFilename) );
 		if ( !ShaderRef.IsValid() )
-			return NULL;
+			return nullptr;
 
 		//	make new shader
-		ofMutex::ScopedLock Lock( mShaderLock );
 		pShader = mHeap.Alloc<SoyOpenClShader>( ShaderRef, Filename, BuildOptions, *this );
 		if ( !pShader )
-			return NULL;
+			return nullptr;
 
 		mShaders.PushBack( pShader );
 	}
+
+	return pShader;
+}
+
+void SoyOpenClManager::PreLoadShader(const char* Filename,const char* BuildOptions)
+{
+	ofMutex::ScopedLock Lock( mPreloadShaders );
+
+	auto& FilenameAndBuildOptions = mPreloadShaders.PushBack();
+	FilenameAndBuildOptions.mFirst = Filename;
+	FilenameAndBuildOptions.mSecond = BuildOptions;
+
+	//	gr: could just AllocShader() here??
+}
+
+SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename,const char* BuildOptions)
+{
+	auto* pShader = AllocShader( Filename, BuildOptions );
+	if ( !pShader )
+		return nullptr;
 
 	//	load (in case it needs it)
 	if ( pShader->HasChanged() && !pShader->IsLoading() )

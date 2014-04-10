@@ -207,6 +207,7 @@ public:
 	SoyOpenClKernel*		GetKernel(SoyOpenClKernelRef KernelRef,cl_command_queue Queue);
 	void					DeleteKernel(SoyOpenClKernel* Kernel);
 	bool					IsValid();			//	if not, cannot use opencl
+	void					PreLoadShader(const char* Filename,const char* BuildOptions);	//	load in the background
 	SoyOpenClShader*		LoadShader(const char* Filename,const char* BuildOptions);	//	returns invalid ref if it couldn't be created
 	SoyOpenClShader*		GetShader(SoyRef ShaderRef);
 	SoyOpenClShader*		GetShader(const char* Filename);
@@ -218,10 +219,15 @@ public:
 	cl_command_queue		GetQueueForThread(SoyThreadId ThreadId,msa::OpenClDevice::Type DeviceType);	//	get/alloc a specific queue for a thread
 
 private:
+	SoyOpenClShader*		AllocShader(const char* Filename,const char* BuildOptions);
+
+private:
 	prmem::Heap&			mHeap;
 	ofMutex					mShaderLock;
 	Array<SoyOpenClShader*>	mShaders;
 	ofMutexT<Array<SoyThreadQueue>>	mThreadQueues;
+
+	ofMutexT<Array<SoyPair<BufferString<MAX_PATH>,BufferString<MAX_PATH>>>>	mPreloadShaders;	//	filename,buildoptions
 
 public:
 	msa::OpenCL				mOpencl;

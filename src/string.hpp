@@ -64,6 +64,9 @@ namespace Soy
 	template<typename S>
 	int			StringLen(const S* a,int Max,int AllocMax)		
 	{
+		if ( AllocMax < Max && AllocMax > 0 )
+			Max = AllocMax;
+
 		if ( Max < 0 )
 			Max = AllocMax;	//	gr: could be more clever?
 		int i=0;	
