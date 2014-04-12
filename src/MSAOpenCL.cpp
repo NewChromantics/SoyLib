@@ -228,15 +228,19 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	OpenClDevice* OpenCL::GetDevice(OpenClDevice::Type DeviceType)
 	{
 		//	find matching type
+		//	best type is first, so if we can't find a device that we want, always return the best (presumably a fallback CPU device)
+		OpenClDevice* AnyDevice = mDevices.IsEmpty() ? nullptr : &mDevices[0];
+		if ( DeviceType == OpenClDevice::Any )
+			return AnyDevice;
+
 		for ( int d=0;	d<mDevices.GetSize();	d++ )
 		{
 			auto& Device = mDevices[d];
-			if ( DeviceType == OpenClDevice::Any )
-				return &Device;
 			if ( Device.GetType() == DeviceType )
 				return &Device;
 		}
-		return NULL;
+
+		return AnyDevice;
 	}
 	
 	OpenClDevice* OpenCL::GetDevice(cl_device_id DeviceId)
