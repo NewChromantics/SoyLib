@@ -485,6 +485,10 @@ bool SoyOpenClKernel::End1D(bool Blocking,int Exec1)
 		Exec1 = ofMin( Exec1, GetMaxWorkGroupSize() );
 	}
 
+	//	dimensions need to be at least 1, zero size is not a failure, just don't execute
+	if ( Exec1 <= 0 )
+		return true;
+
 	//	if we're about to execute, make sure all writes are done
 	//	gr: only if ( Blocking ) ?
 	if ( !WaitForPendingWrites() )
@@ -507,6 +511,10 @@ bool SoyOpenClKernel::End2D(bool Blocking,int Exec1,int Exec2)
 		Exec1 = ofMin( Exec1, GetMaxWorkGroupSize() );
 		Exec2 = ofMin( Exec2, GetMaxWorkGroupSize() );
 	}
+
+	//	dimensions need to be at least 1, zero size is not a failure, just don't execute
+	if ( Exec1 <= 0 || Exec2 <= 0 )
+		return true;
 
 	//	if we're about to execute, make sure all writes are done
 	//	gr: only if ( Blocking ) ?
@@ -531,6 +539,10 @@ bool SoyOpenClKernel::End3D(bool Blocking,int Exec1,int Exec2,int Exec3)
 		Exec2 = ofMin( Exec2, GetMaxWorkGroupSize() );
 		Exec3 = ofMin( Exec3, GetMaxWorkGroupSize() );
 	}
+
+	//	dimensions need to be at least 1, zero size is not a failure, just don't execute
+	if ( Exec1 <= 0 || Exec2 <= 0 || Exec3 <= 0 )
+		return true;
 
 	//	if we're about to execute, make sure all writes are done
 	//	gr: only if ( Blocking ) ?
@@ -602,7 +614,9 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<1>>& Iteratio
 	int KernelWorkGroupMax = GetMaxWorkGroupSize();
 	if ( KernelWorkGroupMax == -1 )
 		KernelWorkGroupMax = Exec1;
-	int Iterationsa = (Exec1 / KernelWorkGroupMax)+1;
+
+	bool Overflowa = (Exec1 % KernelWorkGroupMax) > 0;
+	int Iterationsa = (Exec1 / KernelWorkGroupMax) + Overflowa;
 
 	for ( int ita=0;	ita<Iterationsa;	ita++ )
 	{
@@ -610,6 +624,7 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<1>>& Iteratio
 		Iteration.mFirst[0] = ita * KernelWorkGroupMax;
 		Iteration.mCount[0] = ofMin( KernelWorkGroupMax, Exec1 - Iteration.mFirst[0] );
 		Iteration.mBlocking = BlockLast && (ita==Iterationsa-1);
+		assert( Iteration.mCount[0] > 0 );
 		Iterations.PushBack( Iteration );
 	}
 }
@@ -619,8 +634,11 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<2>>& Iteratio
 	int KernelWorkGroupMax = GetMaxWorkGroupSize();
 	if ( KernelWorkGroupMax == -1 )
 		KernelWorkGroupMax = ofMax( Exec1, Exec2 );
-	int Iterationsa = (Exec1 / KernelWorkGroupMax)+1;
-	int Iterationsb = (Exec2 / KernelWorkGroupMax)+1;
+
+	bool Overflowa = (Exec1 % KernelWorkGroupMax) > 0;
+	bool Overflowb = (Exec2 % KernelWorkGroupMax) > 0;
+	int Iterationsa = (Exec1 / KernelWorkGroupMax) + Overflowa;
+	int Iterationsb = (Exec2 / KernelWorkGroupMax) + Overflowb;
 
 	for ( int ita=0;	ita<Iterationsa;	ita++ )
 	{
@@ -632,6 +650,8 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<2>>& Iteratio
 			Iteration.mFirst[1] = itb * KernelWorkGroupMax;
 			Iteration.mCount[1] = ofMin( KernelWorkGroupMax, Exec2 - Iteration.mFirst[1] );
 			Iteration.mBlocking = BlockLast && (ita==Iterationsa-1) && (itb==Iterationsb-1);
+			assert( Iteration.mCount[0] > 0 );
+			assert( Iteration.mCount[1] > 0 );
 			Iterations.PushBack( Iteration );
 		}
 	}
@@ -642,9 +662,13 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<3>>& Iteratio
 	int KernelWorkGroupMax = GetMaxWorkGroupSize();
 	if ( KernelWorkGroupMax == -1 )
 		KernelWorkGroupMax = ofMax( Exec1, ofMax( Exec2, Exec3 ) );
-	int Iterationsa = (Exec1 / KernelWorkGroupMax)+1;
-	int Iterationsb = (Exec2 / KernelWorkGroupMax)+1;
-	int Iterationsc = (Exec3 / KernelWorkGroupMax)+1;
+
+	bool Overflowa = (Exec1 % KernelWorkGroupMax) > 0;
+	bool Overflowb = (Exec2 % KernelWorkGroupMax) > 0;
+	bool Overflowc = (Exec3 % KernelWorkGroupMax) > 0;
+	int Iterationsa = (Exec1 / KernelWorkGroupMax) + Overflowa;
+	int Iterationsb = (Exec2 / KernelWorkGroupMax) + Overflowb;
+	int Iterationsc = (Exec3 / KernelWorkGroupMax) + Overflowc;
 
 	for ( int ita=0;	ita<Iterationsa;	ita++ )
 	{
@@ -660,6 +684,9 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<3>>& Iteratio
 				Iteration.mFirst[2] = itc * KernelWorkGroupMax;
 				Iteration.mCount[2] = ofMin( KernelWorkGroupMax, Exec3 - Iteration.mFirst[2] );
 				Iteration.mBlocking = BlockLast && (ita==Iterationsa-1) && (itb==Iterationsb-1) && (itc==Iterationsc-1);
+				assert( Iteration.mCount[0] > 0 );
+				assert( Iteration.mCount[1] > 0 );
+				assert( Iteration.mCount[2] > 0 );
 				Iterations.PushBack( Iteration );
 			}
 		}
