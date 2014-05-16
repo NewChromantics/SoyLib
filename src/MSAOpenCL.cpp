@@ -426,7 +426,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 			clPlatformInfo PlatformInfo( Platform );
 
 			//	need to filter platform
-			if ( Soy::StringContains( PlatformInfo.GetName(), PlatformNameFilter, false ) )
+			if ( std::StringContains( PlatformInfo.GetName(), PlatformNameFilter, false ) )
 				continue;
 
 			//	remove from array

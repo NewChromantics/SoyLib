@@ -199,7 +199,7 @@ bool std::StringBeginsWith(const std::string& Haystack, const std::string& Needl
 	}
 }
 
-std::string	Join(const std::vector<std::string>& Strings,const std::string& Glue)
+std::string	std::Join(const std::vector<std::string>& Strings,const std::string& Glue)
 {
 	//	gr: consider a lambda here?
 	std::stringstream Stream;
