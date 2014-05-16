@@ -1,6 +1,7 @@
 #include "SoyTypes.h"
 #include "heaparray.hpp"
 #include <sstream>
+#include <algorithm>		//	std::transform
 
 #if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
@@ -133,3 +134,82 @@ std::string ofBufferFromFile(const char* Filename)
 }
 #endif
 
+
+	std::DebugStream	std::Debug;
+
+
+
+void std::DebugStreamBuf::flush()
+{
+	if (mBuffer.length() > 0) 
+	{
+		OutputDebugStringA( mBuffer.c_str() );
+		mBuffer.erase();	// erase message buffer
+	}
+}
+
+int std::DebugStreamBuf::overflow(int c)
+{
+	mBuffer += c;
+	if (c == '\n') 
+		flush();
+
+	//	gr: what is -1? std::eof?
+    return c == -1 ? -1 : ' ';
+}
+
+
+
+void std::StringToLower(std::string& String)
+{
+	std::transform( String.begin(), String.end(), String.begin(), ::tolower );
+}
+
+
+bool std::StringContains(const std::string& Haystack, const std::string& Needle, bool CaseSensitive)
+{
+	if (CaseSensitive)
+	{
+		return (Haystack.find(Needle) != std::string::npos);
+	}
+	else
+	{
+		std::string HaystackLow = Haystack;
+		std::string NeedleLow = Needle;
+		std::StringToLower( HaystackLow );
+		std::StringToLower( NeedleLow );
+		return StringContains(HaystackLow, NeedleLow, true);
+	}
+}
+
+
+bool std::StringBeginsWith(const std::string& Haystack, const std::string& Needle, bool CaseSensitive)
+{
+	if (CaseSensitive)
+	{
+		return (Haystack.find(Needle) == 0 );
+	}
+	else
+	{
+		std::string HaystackLow = Haystack;
+		std::string NeedleLow = Needle;
+		std::StringToLower( HaystackLow );
+		std::StringToLower( NeedleLow );
+		return StringBeginsWith(HaystackLow, NeedleLow, true);
+	}
+}
+
+std::string	Join(const std::vector<std::string>& Strings,const std::string& Glue)
+{
+	//	gr: consider a lambda here?
+	std::stringstream Stream;
+	for ( auto it=Strings.begin();	it!=Strings.end();	it++ )
+	{
+		Stream << (*it);
+		auto itLast = Strings.end();
+		itLast--;
+		if ( it != itLast )
+			Stream << Glue;
+	}
+	return Stream.str();
+}
