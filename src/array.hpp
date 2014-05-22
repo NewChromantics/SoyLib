@@ -64,6 +64,13 @@
 		virtual void		RemoveBlock(int index, int count)=0;
 		virtual void		Clear(bool Dealloc=true)=0;
 		virtual int			MaxSize() const=0;
+
+		uint32				GetCrc32() const
+		{
+			TCrc32 Crc;
+			Crc.AddData( reinterpret_cast<const uint8_t*>(GetArray()), GetDataSize() );
+			return Crc.GetCrc32();
+		}
 	};
 
 

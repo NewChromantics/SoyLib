@@ -453,3 +453,25 @@ namespace std
 	std::string	Join(const std::vector<std::string>& Strings,const std::string& Glue);
 };
 
+
+class TCrc32
+{
+public:
+	static const uint32_t	Crc32Table[256];
+
+public:
+    TCrc32() { Reset(); }
+    ~TCrc32() throw() {}
+    void Reset() { _crc = (uint32_t)~0; }
+    void AddData(const uint8_t* pData, const uint32_t length)
+    {
+        uint8_t* pCur = (uint8_t*)pData;
+        uint32_t remaining = length;
+        for (; remaining--; ++pCur)
+            _crc = ( _crc >> 8 ) ^ Crc32Table[(_crc ^ *pCur) & 0xff];
+    }
+    const uint32_t GetCrc32() { return ~_crc; }
+
+private:
+    uint32_t _crc;
+};
