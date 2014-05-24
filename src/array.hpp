@@ -65,6 +65,24 @@
 		virtual void		Clear(bool Dealloc=true)=0;
 		virtual int			MaxSize() const=0;
 
+		//	simple iterator to find index of an element matching via == operator
+		template<typename MATCHTYPE>
+		int					FindIndex(const MATCHTYPE& Match) const
+		{
+			for ( int i=0;	i<GetSize();	i++ )
+			{
+				const T& Element = (*this)[i];
+				if ( Element == Match )
+					return i;
+			}
+			return -1;
+		}
+
+		//	find an element - returns first matching element or NULL
+		template<typename MATCH> T*			Find(const MATCH& Match)		{	int Index = FindIndex( Match );		return (Index < 0) ? nullptr : &((*this)[Index]);	}
+		template<typename MATCH> const T*	Find(const MATCH& Match) const	{	int Index = FindIndex( Match );		return (Index < 0) ? nullptr : &((*this)[Index]);	}
+
+
 		uint32				GetCrc32() const
 		{
 			TCrc32 Crc;
@@ -140,7 +158,7 @@
 		//	const cast :( but only way to avoid it is to duplicate both ArrayBridge 
 		//	types for a const and non-const version...
 		//	...not worth it.
-		ArrayBridgeDef(const ARRAY& Array) :
+		explicit ArrayBridgeDef(const ARRAY& Array) :
 			mArray	( const_cast<ARRAY&>(Array) )
 		{
 		}
