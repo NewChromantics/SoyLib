@@ -555,6 +555,11 @@ SoyNet::TAddress SoyNet::TSocketTCP::GetClientAddress(int ClientId) const
 		return Address;
 	}
 
+	//	if we're a client, not a server, an invalid client id means the server
+	if ( GetState() == TSocketState::ClientConnected )
+		if ( Address.mClientRef == TClientRef() )
+			return GetServerAddress();
+
 	//	bad address should still contain the unique client id
 	return Address;
 }
