@@ -58,6 +58,12 @@ public:
 	};
 };
 
+inline std::string& operator<<(std::string& str,const SoyRef& Value)
+{
+	str += std::string( Value.ToString().c_str() );
+	return str;
+}
+
 template<class STRING>
 inline STRING& operator<<(STRING& str,const SoyRef& Value)
 {
