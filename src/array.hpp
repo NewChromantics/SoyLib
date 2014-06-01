@@ -10,6 +10,8 @@
 #include <cstddef>
 #include "SoyTypes.h"	//	gr: not sure why I have to include this, when it's included earlier in Soy.hpp...
 
+
+
 //namespace Soy
 //{
 	//	ArrayTest object forces .cpp to be built and not throw away the unittest symbols
@@ -82,6 +84,94 @@
 		template<typename MATCH> T*			Find(const MATCH& Match)		{	int Index = FindIndex( Match );		return (Index < 0) ? nullptr : &((*this)[Index]);	}
 		template<typename MATCH> const T*	Find(const MATCH& Match) const	{	int Index = FindIndex( Match );		return (Index < 0) ? nullptr : &((*this)[Index]);	}
 
+		//	this was NOT required before, because of sort array. so that just fails
+		virtual T*			PushBlock(int count)=0;
+
+		template<class ARRAY>
+		bool				Copy(const ARRAY& a)
+		{
+			Clear(false);
+			return PushBackArray( a ) != nullptr;
+		}
+
+		template<class ARRAYTYPE>
+		T*					PushBackArray(const ARRAYTYPE& v)
+		{
+			int NewDataIndex = GetSize();
+			T* pNewData = PushBlock( v.GetSize() );
+			if ( !pNewData )
+				return nullptr;
+
+			if ( Soy::DoComplexCopy<T,ARRAYTYPE::TYPE>() )
+			{
+				for ( int i=0; i<v.GetSize(); ++i )
+					(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check
+			}
+			else if ( v.GetSize() > 0 )
+			{
+				//	re-fetch address for bounds check. technically unncessary
+				pNewData = &((*this)[NewDataIndex]);
+				//	note: lack of bounds check for all elements here
+				memcpy( pNewData, v.GetArray(), v.GetSize() * sizeof(T) );
+			}
+
+			return pNewData;
+		}
+
+		//	pushback a c-array
+		template<size_t CARRAYSIZE>
+		T*	PushBackArray(const T(&CArray)[CARRAYSIZE])
+		{
+			int NewDataIndex = GetSize();
+			T* pNewData = PushBlock( CARRAYSIZE );
+			if ( !pNewData )
+				return nullptr;
+
+			if ( Soy::IsComplexType<T>() )
+			{
+				for ( int i=0; i<CARRAYSIZE; ++i )
+					(*this)[i+NewDataIndex] = CArray[i];	//	use [] operator for bounds check
+			}
+			else if ( GetSize() > 0 )
+			{
+				//	re-fetch address for bounds check. technically unncessary
+				pNewData = &((*this)[NewDataIndex]);
+				//	note: lack of bounds check for all elements here
+				memcpy( pNewData, CArray, CARRAYSIZE * sizeof(T) );
+			}
+
+			return pNewData;
+		}
+		
+		//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
+		template<typename THATTYPE>
+		T*	PushBackReinterpret(const THATTYPE& OtherData)
+		{
+			int ThatDataSize = sizeof(OtherData);
+			T* pData = PushBlock( ThatDataSize / sizeof(T) );
+			if ( !pData )
+				return nullptr;
+
+			//	memcpy over the block
+			memcpy( pData, &OtherData, ThatDataSize );
+			return pData;
+		}
+
+		//	reinterpret push, mostly used for reverse endian
+		template<typename THATTYPE>
+		T*	PushReinterpretBlockReverse(const THATTYPE& OtherData)
+		{
+			int ThatDataSize = sizeof(OtherData);
+			T* pData = PushBlock( ThatDataSize / sizeof(T) );
+			if ( !pData )
+				return nullptr;
+
+			//	memcpy over the block
+			const T* OtherT = reinterpret_cast<const T*>( &OtherData );
+			for ( int i=0;	i<ThatDataSize;	i++ )
+				pData[i] = OtherT[ThatDataSize-1-i];
+			return pData;
+		}
 
 		uint32				GetCrc32() const
 		{
@@ -101,7 +191,6 @@
 		ArrayBridge()	{}
 
 		//	interfaces not required by ArrayInterface
-		virtual T*			PushBlock(int count)=0;
 		virtual T&			PushBack(const T& item)=0;
 		virtual T&			PushBack()=0;
 		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false)=0;

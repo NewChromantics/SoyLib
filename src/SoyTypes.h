@@ -9,6 +9,8 @@
 
 #include <ofMain.h>
 #include <assert.h>
+#include <type_traits>
+
 typedef ofVec2f				vec2f;
 typedef ofVec3f				vec3f;
 typedef ofVec4f				vec4f;
@@ -60,6 +62,7 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 
 #include <string>
 #include <assert.h>
+#include <type_traits>
 
 
 //	openframeworks functions
@@ -386,6 +389,15 @@ namespace Soy
 		//	by default we want to construct classes, structs etc. 
 		//	Only types with no constructor we don't want constructed for speed reallys
 		return true;	
+	}
+
+	template<typename A,typename B>
+	inline bool DoComplexCopy()
+	{
+		if ( std::is_same<A,B>::value )
+			return IsComplexType<A>();
+		else
+			return true;
 	}
 
 	//	readable name for a type (alternative to RTTI)

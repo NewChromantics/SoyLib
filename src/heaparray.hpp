@@ -97,33 +97,7 @@ public:
 	template<typename ARRAYTYPE>
 	bool Copy(const ARRAYTYPE& v)
 	{
-		if ( !SetSize(v.GetSize(),false,true) )
-			return false;
-
-		if ( DoComplexCopy(v) )
-		{
-			for ( int i=0; i<GetSize(); ++i )
-				(*this)[i] = v[i];	//	use [] operator for bounds check
-		}
-		else if ( GetSize() > 0 )
-		{
-			memcpy( mdata, v.GetArray(), GetSize() * sizeof(T) );
-		}
-		return true;
-	}
-
-	//	different type array, must do complex copy.
-	template<class ARRAYTYPE>
-	inline bool DoComplexCopy(const ARRAYTYPE& v) const
-	{
-		return true;
-	}
-
-	//	specialisation for an array of T (best case scenario T is non-complex)
-	//	gr: unfortunately, cannot test BufferArray<T> here, (cyclic headers) but we would if we could
-	inline bool DoComplexCopy(const Array& v) const
-	{
-		return Soy::IsComplexType<T>();
+		return GetArrayBridge(*this).Copy(v);
 	}
 
 	T& GetAt(int index)
@@ -185,7 +159,7 @@ public:
 				int size0 = GetSize();
 				int count = (size0 > size) ? size : size0;
 
-				if ( DoComplexCopy(*this) )
+				if ( Soy::DoComplexCopy<T,T>() )
 				{
 					for ( int i=0; i<count; ++i )
 						array[i] = mdata[i];
@@ -230,30 +204,14 @@ public:
 	template<typename THATTYPE>
 	T* PushReinterpretBlock(const THATTYPE& OtherData)
 	{
-		int ThatDataSize = sizeof(OtherData);
-		T* pData = PushBlock( ThatDataSize / sizeof(T) );
-		if ( !pData )
-			return NULL;
-
-		//	memcpy over the block
-		memcpy( pData, &OtherData, ThatDataSize );
-		return pData;
+		return GetArrayBridge(*this).PushBackReinterpret( OtherData );
 	}
 
 	//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
 	template<typename THATTYPE>
 	T* PushReinterpretBlockReverse(const THATTYPE& OtherData)
 	{
-		int ThatDataSize = sizeof(OtherData);
-		T* pData = PushBlock( ThatDataSize / sizeof(T) );
-		if ( !pData )
-			return NULL;
-
-		//	memcpy over the block
-		const T* OtherT = reinterpret_cast<const T*>( &OtherData );
-		for ( int i=0;	i<ThatDataSize;	i++ )
-			pData[i] = OtherT[ThatDataSize-1-i];
-		return pData;
+		return GetArrayBridge(*this).PushReinterpretBlockReverse( OtherData );
 	}
 
 	T* PushBlock(int count)
@@ -345,10 +303,12 @@ public:
 	template<class ARRAYTYPE>
 	void PushBackArray(const ARRAYTYPE& v)
 	{
+		GetArrayBridge( *this ).PushBackArray(v);
+		/*
 		int NewDataIndex = GetSize();
 		T* pNewData = PushBlock( v.GetSize() );
 
-		if ( DoComplexCopy(v) )
+		if ( DoComplexCopy<T,ARRAYTYPE::T>() )
 		{
 			for ( int i=0; i<v.GetSize(); ++i )
 				(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check
@@ -360,6 +320,7 @@ public:
 			//	note: lack of bounds check for all elements here
 			memcpy( pNewData, v.GetArray(), v.GetSize() * sizeof(T) );
 		}
+		*/
 	}
 
 	//	pushback a c-array
@@ -420,7 +381,7 @@ public:
 		int left = static_cast<int>(moffset - index);
 		PushBlock(count);	// increase array mem 
 
-		if ( DoComplexCopy(*this) )
+		if ( Soy::DoComplexCopy<T,T>() )
 		{
 			T* src = mdata + moffset - count - 1;
 			T* dest = mdata + moffset - 1;
@@ -450,7 +411,7 @@ public:
 		T* src = mdata + index + count;
 		int left = static_cast<int>((mdata+moffset) - src);
 
-		if ( DoComplexCopy(*this) )
+		if ( Soy::DoComplexCopy<T,T>() )
 		{				
 			for ( int i=0; i<left; ++i )
 				*dest++ = *src++;
