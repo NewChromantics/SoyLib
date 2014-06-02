@@ -155,7 +155,7 @@
 
 		//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
 		template<typename THATTYPE>
-		T* PushReinterpretBlock(const THATTYPE& OtherData)
+		T* PushBackReinterpret(const THATTYPE& OtherData)
 		{
 			return GetArrayBridge(*this).PushBackReinterpret( OtherData );
 		}
@@ -207,9 +207,9 @@
 		T& PushBack()
 		{
 			//	out of space
-			if ( moffset >= mmaxsize )
+			if ( moffset >= MaxSize() )
 			{
-				assert( moffset < mmaxsize );
+				assert( moffset < MaxSize() );
 				return mdata[ moffset-1 ];
 			}
 
@@ -598,7 +598,7 @@ public:
 
 	//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
 	template<typename THATTYPE>
-	T* PushReinterpretBlock(const THATTYPE& OtherData)
+	T* PushBackReinterpret(const THATTYPE& OtherData)
 	{
 		return GetArrayBridge(*this).PushBackReinterpret( OtherData );
 	}

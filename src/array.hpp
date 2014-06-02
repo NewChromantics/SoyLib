@@ -53,13 +53,13 @@
 
 		virtual T&			operator [] (int index)=0;
 		virtual const T&	operator [] (int index) const=0;
-		virtual T&			GetBack()=0;
-		virtual const T&	GetBack(int index) const=0;
+		virtual T&			GetBack()						{	return (*this)[GetSize()-1];	}
+		virtual const T&	GetBack() const					{	return (*this)[GetSize()-1];	}
 		bool				IsEmpty() const					{	return GetSize() == 0;	}
 		bool				IsFull() const					{	return GetSize() >= MaxSize();	}
 		virtual int			GetSize() const=0;
-		virtual int			GetDataSize() const=0;
-		virtual int			GetElementSize() const=0;
+		virtual int			GetDataSize() const				{	return GetSize() * GetElementSize();	}
+		virtual int			GetElementSize() const			{	return sizeof(T);	}
 		virtual const T*	GetArray() const=0;
 		virtual T*			GetArray()=0;
 		virtual void		Reserve(int size,bool clear=false)=0;
@@ -159,7 +159,7 @@
 
 		//	reinterpret push, mostly used for reverse endian
 		template<typename THATTYPE>
-		T*	PushReinterpretBlockReverse(const THATTYPE& OtherData)
+		T*	PushBackReinterpretReverse(const THATTYPE& OtherData)
 		{
 			int ThatDataSize = sizeof(OtherData);
 			T* pData = PushBlock( ThatDataSize / sizeof(T) );
@@ -255,10 +255,7 @@
 		virtual T&			operator [] (int index)			{	return mArray[index];	}
 		virtual const T&	operator [] (int index) const	{	return mArray[index];	}
 		virtual T&			GetBack()						{	return mArray.GetBack();	}
-		virtual const T&	GetBack(int index) const		{	return mArray.GetBack();	}
 		virtual int			GetSize() const					{	return mArray.GetSize();	}
-		virtual int			GetDataSize() const				{	return mArray.GetDataSize();	}
-		virtual int			GetElementSize() const			{	return mArray.GetElementSize();	}
 		virtual const T*	GetArray() const				{	return mArray.GetArray();	}
 		virtual T*			GetArray()						{	return mArray.GetArray();	}
 		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false)	{	return mArray.SetSize(size,preserve,AllowLess);	}

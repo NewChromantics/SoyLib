@@ -202,16 +202,16 @@ public:
 
 	//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
 	template<typename THATTYPE>
-	T* PushReinterpretBlock(const THATTYPE& OtherData)
+	T* PushBackReinterpret(const THATTYPE& OtherData)
 	{
 		return GetArrayBridge(*this).PushBackReinterpret( OtherData );
 	}
 
 	//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
 	template<typename THATTYPE>
-	T* PushReinterpretBlockReverse(const THATTYPE& OtherData)
+	T* PushBackReinterpretReverse(const THATTYPE& OtherData)
 	{
-		return GetArrayBridge(*this).PushReinterpretBlockReverse( OtherData );
+		return GetArrayBridge(*this).PushBackReinterpretReverse( OtherData );
 	}
 
 	T* PushBlock(int count)

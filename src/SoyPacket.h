@@ -64,7 +64,7 @@ public:
 	template<typename TYPE>
 	bool	Write(const TYPE& Value)	
 	{
-		mData.PushReinterpretBlock( Value );
+		mData.PushBackReinterpret( Value );
 		return true;
 	}
 
@@ -81,7 +81,7 @@ public:
 			return false;
 		}
 
-		mData.PushReinterpretBlock( ArrayLength );
+		mData.PushBackReinterpret( ArrayLength );
 
 		//	alloc and copy raw data
 		char* pData = mData.PushBlock( Array.GetDataSize() );
@@ -258,7 +258,7 @@ public:
 	void			GetPacketRaw(Array<char>& RawData,bool IncludeMetaInPacket)
 	{
 		if ( IncludeMetaInPacket )
-			RawData.PushReinterpretBlock( mMeta );
+			RawData.PushBackReinterpret( mMeta );
 		RawData.PushBackArray( mData );
 	}
 
