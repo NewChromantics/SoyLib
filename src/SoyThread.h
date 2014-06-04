@@ -3,24 +3,12 @@
 #include "ofxSoylent.h"
 
 
-#if defined(TARGET_OSX)
-    #if defined(NO_OPENFRAMEWORKS)
-        #define STD_THREAD
-        #define STD_MUTEX
-    #endif
-#endif
-
-
 
 
 #if defined(NO_OPENFRAMEWORKS)
 
 //	c++11 threads are better!
 //	gr: if mscv > 2012?
-#if defined(TARGET_WINDOWS)
-#define STD_THREAD
-#define STD_MUTEX
-#endif
 
 template <class M>
 class ScopedLock
@@ -84,14 +72,9 @@ private:
 };
 #endif
 
+#include <thread>
+#include <mutex>
 
-#if defined(STD_THREAD)
-	#include <thread>
-#endif
-
-#if defined(STD_MUTEX)
-	#include <mutex>
-#endif
 
 #if defined(TARGET_WINDOWS)
     #include <Shlwapi.h>
@@ -106,25 +89,12 @@ public:
 	typedef ScopedLock<ofMutex> ScopedLock;
 
 public:
-#if defined(STD_MUTEX)
 	void lock()				{	mMutex.lock(); }
 	void unlock()			{	mMutex.unlock();	}
 	bool tryLock()			{	return mMutex.try_lock();	}
-#else
-	ofMutex()				{	InitializeCriticalSection( &mMutex );	}
-	virtual ~ofMutex()		{	DeleteCriticalSection( &mMutex );	}
-
-	void lock()				{	EnterCriticalSection( &mMutex ); }
-	void unlock()			{	LeaveCriticalSection( &mMutex );	}
-	bool tryLock()			{	return 0==TryEnterCriticalSection( &mMutex );	}
-#endif
 
 private:
-#if defined(STD_MUTEX)
     std::recursive_mutex    mMutex;
-#else
-	CRITICAL_SECTION        mMutex;
-#endif
 };
 
 
@@ -135,21 +105,13 @@ public:
 	typedef ScopedLock<ofMutexTimed> ScopedLock;
 
 public:
-#if defined(STD_MUTEX)
 	void lock()					{	mMutex.lock(); }
 	void unlock()				{	mMutex.unlock();	}
 	bool tryLock()				{	return mMutex.try_lock();	}
 	bool tryLock(int TimeoutMs)	{	return mMutex.try_lock_for( std::chrono::milliseconds(TimeoutMs) );	}
-#else
-#error unsupported?
-#endif
 
 private:
-#if defined(STD_MUTEX)
     std::recursive_timed_mutex	mMutex;
-#else
-#error unsupported?
-#endif
 };
 
 #endif // NO_OPENFRAMEWORKS
@@ -160,13 +122,9 @@ private:
 class SoyThreadId
 {
 public:
-#if defined(STD_THREAD)
     typedef std::thread::id TYPE;
 	static const TYPE		Invalid;
-#else
-    typedef int             TYPE;
-	static const TYPE		Invalid = -1;
-#endif
+
 public:
     SoyThreadId() :
         mId ( Invalid )
@@ -204,15 +162,10 @@ public:
 	void			stopThread();
 	bool			isThreadRunning()					{	return mIsRunning;	}
 	void			waitForThread(bool stop = true);
-#if defined(STD_THREAD)
 	SoyThreadId     getThreadId() const					{	return mThread.get_id();	}
 	void			sleep(int ms)						{	std::this_thread::sleep_for( std::chrono::milliseconds(ms) );	}
-#elif defined(TARGET_WINDOWS)
-	SoyThreadId     getThreadId() const					{	return mThreadId;	}
-	void			sleep(int ms)						{	Sleep(ms);	}
-#endif
 
-#if defined(TARGET_WINDOWS) && defined(STD_THREAD)
+#if defined(TARGET_WINDOWS) 
 	DWORD			GetNativeThreadId()					{	return ::GetThreadId( static_cast<HANDLE>( mThread.native_handle() ) );	}
 #endif
 
@@ -229,12 +182,7 @@ protected:
 private:
 	volatile bool	mIsRunning;
 
-#if defined(STD_THREAD)
     std::thread		mThread;
-#elif defined(TARGET_WINDOWS)
-	unsigned int	mThreadId;
-	HANDLE			mHandle;
-#endif
 };
 #endif // NO_OPENFRAMEWORKS
 
@@ -306,16 +254,7 @@ public:
 
 	static SoyThreadId	GetCurrentThreadId()
 	{
-#if defined(STD_THREAD)
         return SoyThreadId( std::this_thread::get_id() );
-#elif defined(NO_OPENFRAMEWORKS)
-		return ::GetCurrentThreadId();
-#else
-		auto* pCurrentThread = getCurrentThread();
-        if ( !pCurrentThread )
-            return SoyThreadId();
-		return SoyThreadId(pCurrentThread->getPocoThread().tid());
-#endif
 	}
 
 	void	startThread(bool blocking, bool verbose)

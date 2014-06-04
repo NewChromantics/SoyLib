@@ -1,18 +1,11 @@
 #include "SoyThread.h"
 
 
-#if defined(STD_THREAD)
 const SoyThreadId::TYPE SoyThreadId::Invalid = SoyThreadId::TYPE();
-#endif
 
 
 #if defined(NO_OPENFRAMEWORKS)
 ofThread::ofThread() :
-#if defined(STD_THREAD)
-#elif defined(TARGET_WINDOWS)
-    mHandle			( nullptr ),
-    mThreadId		( 0 ),
-#endif
 	mIsRunning		( false )
 {
 }
@@ -32,20 +25,7 @@ ofThread::~ofThread()
 #if defined(NO_OPENFRAMEWORKS)
 bool ofThread::create(unsigned int stackSize)
 {
-#if defined(STD_THREAD)
     return true;
-#else
-	if ( mHandle )
-		return true;
-
-	mHandle = reinterpret_cast<HANDLE>(_beginthreadex(0, stackSize, 
-		threadFunc, this, CREATE_SUSPENDED, &mThreadId ));
-	
-	if ( !mHandle )
-		return false;
-	
-	return true;
-#endif
 }
 #endif
 
@@ -53,15 +33,6 @@ bool ofThread::create(unsigned int stackSize)
 #if defined(NO_OPENFRAMEWORKS)
 void ofThread::destroy()
 {
-#if defined(STD_THREAD)
-#else
-	if ( mHandle )
-	{
-		CloseHandle(mHandle);
-		mHandle = nullptr;
-        mThreadId = 0;
-	}
-#endif
 }
 #endif
 
@@ -75,20 +46,11 @@ void ofThread::waitForThread(bool Stop)
 			stopThread();
 	}
 	
-#if defined(STD_THREAD)
 	//	if thread is active, then wait for it to finish and join it
 	if ( mThread.joinable() )
 		mThread.join();
 
 	mThread = std::thread();
-#else
-	//	for for handle to disapear
-	if ( mHandle )
-	{
-		WaitForSingleObject( mHandle, INFINITE);
-		//	destroy here?
-	}
-#endif
 }
 #endif
 
@@ -116,16 +78,7 @@ bool ofThread::startThread(bool blocking, bool verbose)
 	mIsRunning = true;
 
 	//	start thread
-#if defined(STD_THREAD)
     mThread = std::thread( threadFunc, this );
-#else
-	if ( ResumeThread( mHandle ) == -1 )
-	{
-		//	failed
-		mIsRunning = false;
-		return false;
-	}
-#endif
 	return true;
 }
 #endif
@@ -139,9 +92,6 @@ unsigned int ofThread::threadFunc(void *args)
 	if ( pThread )
 		pThread->threadedFunction();
 
-#if !defined(STD_THREAD) && defined(TARGET_WINDOWS)
-	_endthreadex(0);
-#endif
 	return 0;
 }
 #endif

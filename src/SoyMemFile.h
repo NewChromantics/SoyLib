@@ -3,7 +3,7 @@
 #include "array.hpp"
 #include "HeapArray.hpp"
 #include "SoyRef.h"
-
+#include "SoyThread.h"
 
 
 class MemFileArray : public ArrayInterface<char>
