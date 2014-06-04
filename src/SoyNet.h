@@ -27,6 +27,8 @@ namespace SoyNet
 	//		(ie. PacketEmulator, GameCenter etc
 	class TClientRef;			//	wrapper for ofxTCP clientid 
 	class TAddress;				//	unique socket-recieving address identifier
+
+	class TSocket;
 };
 
 
