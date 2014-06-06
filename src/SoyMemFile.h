@@ -12,7 +12,7 @@ public:
 	typedef ArrayInterface<char>::TYPE T;
 	typedef ArrayInterface<char>::TYPE TYPE;
 public:
-	MemFileArray(std::string& Filename,int Size);	//	size must be known beforehand!
+	MemFileArray(std::string& Filename,int Size,bool ReadOnly=false);	//	size must be known beforehand!
 	~MemFileArray()
 	{
 		Close();

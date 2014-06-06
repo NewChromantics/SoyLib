@@ -32,7 +32,7 @@ std::string GetWindowsLastError()
 }
 
 
-MemFileArray::MemFileArray(std::string& Filename,int DataSize) :
+MemFileArray::MemFileArray(std::string& Filename,int DataSize,bool ReadOnly) :
 	mFilename	( Filename ),
 	mHandle		( nullptr ),
 	mMap		( nullptr ),
@@ -46,7 +46,7 @@ MemFileArray::MemFileArray(std::string& Filename,int DataSize) :
 	DWORD MaxSizeLo = DataSize;
 	mHandle = CreateFileMappingA(	INVALID_HANDLE_VALUE,    // use paging file
 									NULL,                    // default security
-									PAGE_READWRITE,          // read/write access
+									ReadOnly ? PAGE_READONLY : PAGE_READWRITE,          // read/write access
 									MaxSizeHi,                       // maximum object size (high-order DWORD)
 									MaxSizeLo,                // maximum object size (low-order DWORD)
 									mFilename.c_str()	// name of mapping object
