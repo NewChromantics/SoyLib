@@ -4,33 +4,6 @@
 
 
 
-std::string GetWindowsLastError()
-{
-	DWORD error = GetLastError();
-	if (!error)
-		return std::string();
-
-	LPVOID lpMsgBuf;
-	DWORD bufLen = FormatMessageA(
-		FORMAT_MESSAGE_ALLOCATE_BUFFER | 
-		FORMAT_MESSAGE_FROM_SYSTEM |
-		FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
-		error,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPSTR) &lpMsgBuf,
-		0, NULL );
-
-	if (!bufLen)
-		return std::string();
-    
-	LPCSTR lpMsgStr = (LPCSTR)lpMsgBuf;
-	std::string result(lpMsgStr, lpMsgStr+bufLen);
-
-	LocalFree(lpMsgBuf);
-	return result;
-}
-
 
 MemFileArray::MemFileArray(std::string& Filename,int DataSize,bool ReadOnly) :
 	mFilename	( Filename ),
@@ -53,7 +26,7 @@ MemFileArray::MemFileArray(std::string& Filename,int DataSize,bool ReadOnly) :
 									);
 	if ( mHandle == nullptr )
 	{
-		std::Debug << GetWindowsLastError();
+		std::Debug << "MemFileArray(" << mFilename << ") error: " << Soy::Windows::GetLastErrorString();
 		return;
 	}
 
@@ -66,7 +39,7 @@ MemFileArray::MemFileArray(std::string& Filename,int DataSize,bool ReadOnly) :
 							DataSize );
 	if ( !mMap )
 	{
-		std::Debug << GetWindowsLastError();
+		std::Debug << "MemFileArray(" << mFilename << ") error: " << Soy::Windows::GetLastErrorString();
 		Close();
 		return;
 	}

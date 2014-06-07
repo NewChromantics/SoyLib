@@ -487,3 +487,15 @@ public:
 private:
     uint32_t _crc;
 };
+
+
+
+namespace Soy
+{
+#if defined(TARGET_WINDOWS)
+	namespace Windows
+	{
+		std::string		GetLastErrorString();
+	}
+#endif
+};

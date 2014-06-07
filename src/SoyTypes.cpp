@@ -285,3 +285,32 @@ const uint32_t TCrc32::Crc32Table[256] = {
     0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d,
 }; // kCrc32Table
 
+
+#if defined(TARGET_WINDOWS)
+std::string Soy::Windows::GetLastErrorString()
+{
+	DWORD error = GetLastError();
+	if (!error)
+		return std::string();
+
+	LPVOID lpMsgBuf;
+	DWORD bufLen = FormatMessageA(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER | 
+		FORMAT_MESSAGE_FROM_SYSTEM |
+		FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		error,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPSTR) &lpMsgBuf,
+		0, NULL );
+
+	if (!bufLen)
+		return std::string();
+    
+	LPCSTR lpMsgStr = (LPCSTR)lpMsgBuf;
+	std::string result(lpMsgStr, lpMsgStr+bufLen);
+
+	LocalFree(lpMsgBuf);
+	return result;
+}
+#endif
