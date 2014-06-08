@@ -26,7 +26,7 @@ MemFileArray::MemFileArray(std::string& Filename,int DataSize,bool ReadOnly) :
 									);
 	if ( mHandle == nullptr )
 	{
-		std::Debug << "MemFileArray(" << mFilename << ") error: " << Soy::Windows::GetLastErrorString();
+		std::Debug << "MemFileArray(" << mFilename << ") error: " << Soy::Windows::GetLastErrorString() << std::endl;
 		return;
 	}
 
@@ -39,7 +39,7 @@ MemFileArray::MemFileArray(std::string& Filename,int DataSize,bool ReadOnly) :
 							DataSize );
 	if ( !mMap )
 	{
-		std::Debug << "MemFileArray(" << mFilename << ") error: " << Soy::Windows::GetLastErrorString();
+		std::Debug << "MemFileArray(" << mFilename << ") error: " << Soy::Windows::GetLastErrorString() << std::endl;
 		Close();
 		return;
 	}
