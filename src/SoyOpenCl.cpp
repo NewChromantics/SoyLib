@@ -457,101 +457,82 @@ bool SoyOpenClKernel::Begin()
 	return true;
 }
 
-bool SoyOpenClKernel::End1D(int Exec1)
-{
-	bool Blocking = SoyOpenCl::DefaultExecuteBlocking;
-	return End1D( Blocking, Exec1 );
-}
 
-bool SoyOpenClKernel::End2D(int Exec1,int Exec2)
+bool SoyOpenClKernel::End(bool Blocking,const ArrayBridge<int>& OrigGlobalExec,const ArrayBridge<int>& OrigLocalExec)
 {
-	bool Blocking = SoyOpenCl::DefaultExecuteBlocking;
-	return End2D( Blocking, Exec1, Exec2 );
-}
+	BufferArray<int,3> GlobalExec( OrigGlobalExec );
+	BufferArray<int,6> LocalExec( OrigLocalExec );
+	assert( !GlobalExec.IsEmpty() );
+	if ( GlobalExec.IsEmpty() )
+		return true;
 
-bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
-{
-	bool Blocking = SoyOpenCl::DefaultExecuteBlocking;
-	return End3D( Blocking, Exec1, Exec2, Exec3 );
-}
-
-bool SoyOpenClKernel::End1D(bool Blocking,int Exec1)
-{
-	if ( !IsValidExecCount(Exec1) )
+	for ( int i=0;	i<GlobalExec.GetSize();	i++ )
 	{
+		auto& ExecCount = GlobalExec[i];
+
+		//	dimensions need to be at least 1, zero size is not a failure, just don't execute
+		if ( ExecCount <= 0 )
+			return true;
+
+		if ( IsValidGlobalExecCount(ExecCount) )
+			continue;
+
 		BufferString<1000> Debug;
-		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
+		Debug << GetName() << ": Too many iterations for kernel: " << ExecCount << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
 		ofLogWarning( Debug.c_str() );
-		Exec1 = ofMin( Exec1, GetMaxWorkGroupSize() );
+		ExecCount = std::min( ExecCount, GetMaxGlobalWorkGroupSize() );
 	}
 
-	//	dimensions need to be at least 1, zero size is not a failure, just don't execute
-	if ( Exec1 <= 0 )
-		return true;
+	//	local size must match global size if specified
+	if ( !LocalExec.IsEmpty() && LocalExec.GetSize() != GlobalExec.GetSize() )
+	{
+		assert( false );
+		return false;
+	}
+
+	for ( int i=0;	i<LocalExec.GetSize();	i++ )
+	{
+		auto& ExecCount = LocalExec[i];
+
+		//	dimensions need to be at least 1, zero size is not a failure, just don't execute
+		if ( ExecCount <= 0 )
+			return true;
+
+		if ( IsValidLocalExecCount(ExecCount) )
+			continue;
+
+		BufferString<1000> Debug;
+		Debug << GetName() << ": Too many iterations for kernel: " << ExecCount << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
+		ofLogWarning( Debug.c_str() );
+		ExecCount = std::min( ExecCount, GetMaxLocalWorkGroupSize() );
+	}
 
 	//	if we're about to execute, make sure all writes are done
 	//	gr: only if ( Blocking ) ?
 	if ( !WaitForPendingWrites() )
 		return false;
 
+	//	pad out local exec in case it's not specified
+	LocalExec.PushBack(0);
+	LocalExec.PushBack(0);
+	LocalExec.PushBack(0);
+
 	//	execute
-	if ( !mKernel->run1D( Blocking, Exec1 ) )
-		return false;
-
-	return true;
-}
-
-bool SoyOpenClKernel::End2D(bool Blocking,int Exec1,int Exec2)
-{
-	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) )
+	if ( GlobalExec.GetSize() == 3 )
 	{
-		BufferString<1000> Debug;
- 		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "," << Exec2 << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
-		ofLogWarning( Debug.c_str() );
-		Exec1 = ofMin( Exec1, GetMaxWorkGroupSize() );
-		Exec2 = ofMin( Exec2, GetMaxWorkGroupSize() );
+		if ( !mKernel->run3D( Blocking, GlobalExec[0], GlobalExec[1], GlobalExec[2], LocalExec[0], LocalExec[1], LocalExec[2] ) )
+			return false;
 	}
-
-	//	dimensions need to be at least 1, zero size is not a failure, just don't execute
-	if ( Exec1 <= 0 || Exec2 <= 0 )
-		return true;
-
-	//	if we're about to execute, make sure all writes are done
-	//	gr: only if ( Blocking ) ?
-	if ( !WaitForPendingWrites() )
-		return false;
-
-	//	execute
-	if ( !mKernel->run2D( Blocking, Exec1, Exec2 ) )
-		return false;
-
-	return true;
-}
-
-bool SoyOpenClKernel::End3D(bool Blocking,int Exec1,int Exec2,int Exec3)
-{
-	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) || !IsValidExecCount(Exec3) )
+	else if ( GlobalExec.GetSize() == 2 )
 	{
-		BufferString<1000> Debug;
-		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "," << Exec2 << "," << Exec3 << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
-		ofLogWarning( Debug.c_str() );
-		Exec1 = ofMin( Exec1, GetMaxWorkGroupSize() );
-		Exec2 = ofMin( Exec2, GetMaxWorkGroupSize() );
-		Exec3 = ofMin( Exec3, GetMaxWorkGroupSize() );
+		if ( !mKernel->run2D( Blocking, GlobalExec[0], GlobalExec[1], LocalExec[0], LocalExec[1] ) )
+			return false;
 	}
-
-	//	dimensions need to be at least 1, zero size is not a failure, just don't execute
-	if ( Exec1 <= 0 || Exec2 <= 0 || Exec3 <= 0 )
-		return true;
-
-	//	if we're about to execute, make sure all writes are done
-	//	gr: only if ( Blocking ) ?
-	if ( !WaitForPendingWrites() )
-		return false;
-
-	//	execute
-	if ( !mKernel->run3D( Blocking, Exec1, Exec2, Exec3 ) )
-		return false;
+	else if ( GlobalExec.GetSize() == 1 )
+	{
+		if ( !mKernel->run1D( Blocking, GlobalExec[0], LocalExec[0] ) )
+			return false;
+	}
 
 	return true;
 }

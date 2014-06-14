@@ -63,6 +63,38 @@ public:
 		mCount		( DIMENSIONS ),
 		mBlocking	( true )
 	{
+		mFirst.SetAll(0);
+		mCount.SetAll(0);
+	}
+	SoyOpenclKernelIteration(int Exec1,bool Blocking) :
+		mFirst		( DIMENSIONS ),
+		mCount		( DIMENSIONS ),
+		mBlocking	( Blocking )
+	{
+		mFirst.SetAll(0);
+		assert( DIMENSIONS == 1 );
+		mCount[0] = Exec1;
+	}
+	SoyOpenclKernelIteration(int Exec1,int Exec2,bool Blocking) :
+		mFirst		( DIMENSIONS ),
+		mCount		( DIMENSIONS ),
+		mBlocking	( Blocking )
+	{
+		mFirst.SetAll(0);
+		assert( DIMENSIONS == 2 );
+		mCount[0] = Exec1;
+		mCount[1] = Exec2;
+	}
+	SoyOpenclKernelIteration(int Exec1,int Exec2,int Exec3,bool Blocking) :
+		mFirst		( DIMENSIONS ),
+		mCount		( DIMENSIONS ),
+		mBlocking	( Blocking )
+	{
+		mFirst.SetAll(0);
+		assert( DIMENSIONS == 3 );
+		mCount[0] = Exec1;
+		mCount[1] = Exec2;
+		mCount[2] = Exec3;
 	}
 public:
 	BufferArray<int,DIMENSIONS>		mFirst;
@@ -88,8 +120,12 @@ public:
 	void			OnUnloaded();
 	const char*		GetName() const					{	return mName.c_str();	}
 	bool			IsValid() const					{	return mKernel!=NULL;	}
-	bool			IsValidExecCount(int ExecCount)	{	return (GetMaxWorkGroupSize()==-1) ? true : (ExecCount<=GetMaxWorkGroupSize());	}
-	int				GetMaxWorkGroupSize() const		{	return mDeviceInfo.maxWorkGroupSize;	}
+	bool			IsValidExecCount(int ExecCount)	{	return IsValidGlobalExecCount( ExecCount );	}
+	bool			IsValidGlobalExecCount(int ExecCount)	{	return (GetMaxWorkGroupSize()==-1) ? true : (ExecCount<=GetMaxWorkGroupSize());	}
+	bool			IsValidLocalExecCount(int ExecCount)	{	return (GetMaxWorkGroupSize()==-1) ? true : (ExecCount<=GetMaxWorkGroupSize());	}
+	int				GetMaxWorkGroupSize() const				{	return GetMaxGlobalWorkGroupSize();	}
+	int				GetMaxGlobalWorkGroupSize() const		{	return mDeviceInfo.maxWorkGroupSize;	}
+	int				GetMaxLocalWorkGroupSize() const		{	return mDeviceInfo.maxWorkGroupSize;	}
 	int				GetMaxBufferSize() const		{	return mDeviceInfo.maxMemAllocSize;	}
 	cl_command_queue	GetQueue()					{	return mKernel ? mKernel->getQueue() : NULL;	}
 	msa::OpenCL&	GetOpenCL() const;
@@ -98,16 +134,19 @@ public:
 	void			DeleteKernel();
 	inline bool		operator==(const char* Name) const	{	return mName == Name;	}
 	bool			Begin();
-	bool			End1D(int Exec1);
-	bool			End2D(int Exec1,int Exec2);
-	bool			End3D(int Exec1,int Exec2,int Exec3);
-	bool			End1D(bool Blocking,int Exec1);
-	bool			End2D(bool Blocking,int Exec1,int Exec2);
-	bool			End3D(bool Blocking,int Exec1,int Exec2,int Exec3);
-	bool			End(const SoyOpenclKernelIteration<1>& Iteration)	{	return End1D( Iteration.mBlocking, Iteration.mCount[0] );	}
-	bool			End(const SoyOpenclKernelIteration<2>& Iteration)	{	return End2D( Iteration.mBlocking, Iteration.mCount[0], Iteration.mCount[1] );	}
-	bool			End(const SoyOpenclKernelIteration<3>& Iteration)	{	return End3D( Iteration.mBlocking, Iteration.mCount[0], Iteration.mCount[1], Iteration.mCount[2] );	}
-
+	bool			End(bool Blocking,const ArrayBridge<int>& GlobalExec,const ArrayBridge<int>& LocalExec);
+	template<int DIMENSIONS>
+	bool			End(const SoyOpenclKernelIteration<DIMENSIONS>& Iteration,const ArrayBridge<int>& LocalIterations)	{	return End( Iteration.mBlocking, GetArrayBridge(Iteration.mCount), LocalIterations );	}
+	template<int DIMENSIONS>
+	bool			End(const SoyOpenclKernelIteration<DIMENSIONS>& Iteration)	{	Array<int> LocalCount;	return End( Iteration, GetArrayBridge( LocalCount ) );	}
+	
+	bool			End1D(int Exec1)							{	return End1D( SoyOpenCl::DefaultExecuteBlocking, Exec1 );	}
+	bool			End2D(int Exec1,int Exec2)					{	return End2D( SoyOpenCl::DefaultExecuteBlocking, Exec1, Exec2 );	}
+	bool			End3D(int Exec1,int Exec2,int Exec3)		{	return End3D( SoyOpenCl::DefaultExecuteBlocking, Exec1, Exec2, Exec3 );	}
+	bool			End1D(bool Blocking,int Exec1)						{	SoyOpenclKernelIteration<1> It( Exec1, Blocking );	return End(It);	}
+	bool			End2D(bool Blocking,int Exec1,int Exec2)			{	SoyOpenclKernelIteration<2> It( Exec1, Exec2, Blocking );	return End(It);	}
+	bool			End3D(bool Blocking,int Exec1,int Exec2,int Exec3)	{	SoyOpenclKernelIteration<3> It( Exec1, Exec2, Exec3, Blocking );	return End(It);	}
+	
 	void			GetIterations(Array<SoyOpenclKernelIteration<1>>& Iterations,int Exec1,bool BlockLast=SoyOpenCl::DefaultExecuteBlocking);
 	void			GetIterations(Array<SoyOpenclKernelIteration<2>>& Iterations,int Exec1,int Exec2,bool BlockLast=SoyOpenCl::DefaultExecuteBlocking);
 	void			GetIterations(Array<SoyOpenclKernelIteration<3>>& Iterations,int Exec1,int Exec2,int Exec3,bool BlockLast=SoyOpenCl::DefaultExecuteBlocking);
