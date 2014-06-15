@@ -307,56 +307,116 @@ class SoyClDataBuffer
 {
 private:
 	SoyClDataBuffer(const SoyClDataBuffer& That) :
-		mManager	( *(SoyOpenClManager*)NULL ),
-		mKernel		( *(SoyOpenClKernel*)NULL )
+		mManager	( *(SoyOpenClManager*)nullptr ),
+		mKernel		( nullptr )
 	{
 	}
 public:
 	template<typename TYPE>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const TYPE& Data,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
-		mBuffer		( NULL ),
+		mBuffer		( nullptr ),
 		mManager	( Kernel.mManager ),
-		mKernel		( Kernel )
+		mKernel		( &Kernel ),
+		mQueue		( nullptr )
 	{
 		Write( Data, ReadWriteMode );
 	}
 	template<typename TYPE>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const Array<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
-		mBuffer		( NULL ),
+		mBuffer		( nullptr ),
 		mManager	( Kernel.mManager ),
-		mKernel		( Kernel )
+		mKernel		( &Kernel ),
+		mQueue		( nullptr )
 	{
 		Write( Array, ReadWriteMode );
 	}
 	template<typename TYPE,uint32 SIZE>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const BufferArray<TYPE,SIZE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
-		mBuffer		( NULL ),
+		mBuffer		( nullptr ),
 		mManager	( Kernel.mManager ),
-		mKernel		( Kernel )
+		mKernel		( &Kernel ),
+		mQueue		( nullptr )
 	{
 		Write( Array, ReadWriteMode );
 	}
 	template<typename TYPE>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const RemoteArray<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
-		mBuffer		( NULL ),
+		mBuffer		( nullptr ),
 		mManager	( Kernel.mManager ),
-		mKernel		( Kernel )
+		mKernel		( &Kernel ),
+		mQueue		( nullptr )
 	{
 		Write( Array, ReadWriteMode );
 	}
 	template<typename TYPE,class SORT>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const SortArray<TYPE,SORT>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
-		mBuffer		( NULL ),
+		mBuffer		( nullptr ),
 		mManager	( Kernel.mManager ),
-		mKernel		( Kernel )
+		mKernel		( &Kernel ),
+		mQueue		( nullptr )
 	{
 		Write( Array, ReadWriteMode );
 	}
 	template<typename TYPE>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const ArrayBridge<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
-		mBuffer		( NULL ),
+		mBuffer		( nullptr ),
 		mManager	( Kernel.mManager ),
-		mKernel		( Kernel )
+		mKernel		( &Kernel ),
+		mQueue		( nullptr )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE>
+	explicit SoyClDataBuffer(SoyOpenClManager& OpenCl,cl_command_queue Queue,const TYPE& Data,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( nullptr ),
+		mManager	( OpenCl ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
+	{
+		Write( Data, ReadWriteMode );
+	}
+	template<typename TYPE>
+	explicit SoyClDataBuffer(SoyOpenClManager& OpenCl,cl_command_queue Queue,const Array<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( nullptr ),
+		mManager	( OpenCl ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE,uint32 SIZE>
+	explicit SoyClDataBuffer(SoyOpenClManager& OpenCl,cl_command_queue Queue,const BufferArray<TYPE,SIZE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( nullptr ),
+		mManager	( OpenCl ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE>
+	explicit SoyClDataBuffer(SoyOpenClManager& OpenCl,cl_command_queue Queue,const RemoteArray<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( nullptr ),
+		mManager	( OpenCl ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE,class SORT>
+	explicit SoyClDataBuffer(SoyOpenClManager& OpenCl,cl_command_queue Queue,const SortArray<TYPE,SORT>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( nullptr ),
+		mManager	( OpenCl ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE>
+	explicit SoyClDataBuffer(SoyOpenClManager& OpenCl,cl_command_queue Queue,const ArrayBridge<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( nullptr ),
+		mManager	( OpenCl ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
 	{
 		Write( Array, ReadWriteMode );
 	}
@@ -423,9 +483,9 @@ public:
 		Array.SetSize( ElementCount );
 		if ( Array.IsEmpty() )
 			return true;
-		if ( !mKernel.IsValid() )
+		if ( !GetQueue() )
 			return false;
-		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), SoyOpenCl::DefaultReadBlocking, mKernel.GetQueue() );
+		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), SoyOpenCl::DefaultReadBlocking, GetQueue() );
 	}
 	template<typename ARRAYTYPE>
 	bool		Read(ArrayBridgeDef<ARRAYTYPE>& Array,int ElementCount)
@@ -443,9 +503,9 @@ public:
 	{
 		if ( !mBuffer )
 			return false;
-		if ( !mKernel.IsValid() )
+		if ( !GetQueue() )
 			return false;
-		return mBuffer->read( &Data, 0, sizeof(TYPE), SoyOpenCl::DefaultReadBlocking, mKernel.GetQueue() );
+		return mBuffer->read( &Data, 0, sizeof(TYPE), SoyOpenCl::DefaultReadBlocking, GetQueue() );
 	}
 
 	bool		IsValid() const		{	return mBuffer!=nullptr;	}
@@ -456,11 +516,11 @@ private:
 	template<typename TYPE>
 	bool	Write(const TYPE* pDataConst,int DataSize,bool Blocking,int ReadWriteMode)
 	{
-		assert( mKernel.IsValid() );
-		if ( !mKernel.IsValid() )
+		assert( GetQueue() );
+		if ( !GetQueue() )
 			return false;
 		assert( !mBuffer );
-		mBuffer = mManager.mOpencl.createBuffer( mKernel.GetQueue(), DataSize, ReadWriteMode, NULL, Blocking );
+		mBuffer = mManager.mOpencl.createBuffer( GetQueue(), DataSize, ReadWriteMode, NULL, Blocking );
 		if ( !mBuffer )
 			return false;
 
@@ -472,24 +532,28 @@ private:
 		void* pData = const_cast<TYPE*>( pDataConst );
 		if ( Blocking )
 		{
-			if ( !mBuffer->write( pData, 0, DataSize, Blocking, mKernel.GetQueue() ) )
+			if ( !mBuffer->write( pData, 0, DataSize, Blocking, GetQueue() ) )
 				return false;
 		}
 		else
 		{
 			//	write async and give an event to the kernel to wait for before executing
 			cl_event Event;
-			if ( !mBuffer->writeAsync( pData, 0, DataSize, &Event, mKernel.GetQueue() ) )
+			if ( !mBuffer->writeAsync( pData, 0, DataSize, &Event, GetQueue() ) )
 				return false;
-			mKernel.OnBufferPendingWrite( Event );
+			if ( mKernel )
+				mKernel->OnBufferPendingWrite( Event );
 		}
 		return true;
 	}
 
+	cl_command_queue	GetQueue()	{	return mKernel ? (mKernel->IsValid()?mKernel->GetQueue():nullptr) : mQueue;	}
+
 public:
 	msa::OpenCLBuffer*	mBuffer;
 	SoyOpenClManager&	mManager;
-	SoyOpenClKernel&	mKernel;
+	SoyOpenClKernel*	mKernel;
+	cl_command_queue	mQueue;
 };
 
 

@@ -3,6 +3,8 @@
 #include <ofxSoylent.h>
 #include <SoyThread.h>
 
+#define ENABLE_OPENCL
+
 //	gr: amd APP sdk, other includes/libs may be different?
 #include <cl/Opencl.h>
 #pragma comment( lib, "OpenCL.lib" )
