@@ -47,6 +47,37 @@ public:
 			SetSize( CurrentSize, true, true );
 		}
 	}
+	
+	virtual T* InsertBlock(int index, int count)
+	{
+		 T*& mData = reinterpret_cast<T*&>(mMap);
+		//	do nothing if nothing to add
+		assert( count >= 0 );
+		if ( count == 0 )
+			return IsEmpty() ? NULL : (mData + index);
+
+		if ( index >= mOffset ) 
+			return PushBlock( count );
+
+//			int left = static_cast<int>((mdata+moffset) - (mdata+index));
+		int left = static_cast<int>(mOffset - index);
+		PushBlock(count);	// increase array mem 
+
+		if ( Soy::DoComplexCopy<T,T>() )
+		{
+			T* src = mData + mOffset - count - 1;
+			T* dest = mData + mOffset - 1;
+			for ( int i=0; i<left; ++i )
+				*dest-- = *src--;
+		}
+		else if ( left > 0 )
+		{
+			memmove( &mData[index+count], &mData[index], left * sizeof(T) );
+		}
+
+		return mData + index;
+	}
+
 	virtual void		RemoveBlock(int index, int count)
 	{
 		 T*& mData = reinterpret_cast<T*&>(mMap);
