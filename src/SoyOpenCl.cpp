@@ -593,7 +593,7 @@ bool SoyOpenClKernel::CheckPaddingChecksum(const int* Padding,int Length)
 void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<1>>& Iterations,int Exec1,bool BlockLast)
 {
 	int KernelWorkGroupMax = GetMaxWorkGroupSize();
-	if ( KernelWorkGroupMax == -1 )
+	if ( KernelWorkGroupMax < 1 )
 		KernelWorkGroupMax = Exec1;
 
 	bool Overflowa = (Exec1 % KernelWorkGroupMax) > 0;
@@ -613,7 +613,7 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<1>>& Iteratio
 void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<2>>& Iterations,int Exec1,int Exec2,bool BlockLast)
 {
 	int KernelWorkGroupMax = GetMaxWorkGroupSize();
-	if ( KernelWorkGroupMax == -1 )
+	if ( KernelWorkGroupMax < 1 )
 		KernelWorkGroupMax = ofMax( Exec1, Exec2 );
 
 	bool Overflowa = (Exec1 % KernelWorkGroupMax) > 0;
@@ -641,7 +641,7 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<2>>& Iteratio
 void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<3>>& Iterations,int Exec1,int Exec2,int Exec3,bool BlockLast)
 {
 	int KernelWorkGroupMax = GetMaxWorkGroupSize();
-	if ( KernelWorkGroupMax == -1 )
+	if ( KernelWorkGroupMax < 1 )
 		KernelWorkGroupMax = ofMax( Exec1, ofMax( Exec2, Exec3 ) );
 
 	bool Overflowa = (Exec1 % KernelWorkGroupMax) > 0;
@@ -675,3 +675,16 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<3>>& Iteratio
 }
 
 
+int SoyOpenClKernel::GetMaxGlobalWorkGroupSize() const		
+{
+	int DeviceAddressBits = 32;	//CL_DEVICE_ADDRESS_BITS
+	int MaxSize = (1<<(DeviceAddressBits-1))-1;	
+	//	gr: if this is negative opencl kernels lock up (or massive loops?), code should bail out beforehand
+	assert( MaxSize > 0 );
+	return MaxSize;
+}
+
+int SoyOpenClKernel::GetMaxLocalWorkGroupSize() const		
+{
+	return mDeviceInfo.maxWorkGroupSize;	
+}

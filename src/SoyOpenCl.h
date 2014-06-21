@@ -66,7 +66,7 @@ public:
 		mFirst.SetAll(0);
 		mCount.SetAll(0);
 	}
-	SoyOpenclKernelIteration(int Exec1,bool Blocking) :
+	explicit SoyOpenclKernelIteration(int Exec1,bool Blocking) :
 		mFirst		( DIMENSIONS ),
 		mCount		( DIMENSIONS ),
 		mBlocking	( Blocking )
@@ -75,7 +75,7 @@ public:
 		assert( DIMENSIONS == 1 );
 		mCount[0] = Exec1;
 	}
-	SoyOpenclKernelIteration(int Exec1,int Exec2,bool Blocking) :
+	explicit SoyOpenclKernelIteration(int Exec1,int Exec2,bool Blocking) :
 		mFirst		( DIMENSIONS ),
 		mCount		( DIMENSIONS ),
 		mBlocking	( Blocking )
@@ -85,7 +85,7 @@ public:
 		mCount[0] = Exec1;
 		mCount[1] = Exec2;
 	}
-	SoyOpenclKernelIteration(int Exec1,int Exec2,int Exec3,bool Blocking) :
+	explicit SoyOpenclKernelIteration(int Exec1,int Exec2,int Exec3,bool Blocking) :
 		mFirst		( DIMENSIONS ),
 		mCount		( DIMENSIONS ),
 		mBlocking	( Blocking )
@@ -124,8 +124,8 @@ public:
 	bool			IsValidGlobalExecCount(int ExecCount)	{	return (GetMaxWorkGroupSize()==-1) ? true : (ExecCount<=GetMaxWorkGroupSize());	}
 	bool			IsValidLocalExecCount(int ExecCount)	{	return (GetMaxWorkGroupSize()==-1) ? true : (ExecCount<=GetMaxWorkGroupSize());	}
 	int				GetMaxWorkGroupSize() const				{	return GetMaxGlobalWorkGroupSize();	}
-	int				GetMaxGlobalWorkGroupSize() const		{	return mDeviceInfo.maxWorkGroupSize;	}
-	int				GetMaxLocalWorkGroupSize() const		{	return mDeviceInfo.maxWorkGroupSize;	}
+	int				GetMaxGlobalWorkGroupSize() const;
+	int				GetMaxLocalWorkGroupSize() const;
 	int				GetMaxBufferSize() const		{	return mDeviceInfo.maxMemAllocSize;	}
 	cl_command_queue	GetQueue()					{	return mKernel ? mKernel->getQueue() : NULL;	}
 	msa::OpenCL&	GetOpenCL() const;
@@ -312,6 +312,13 @@ private:
 	{
 	}
 public:
+	explicit SoyClDataBuffer(SoyOpenClManager& Manager,cl_command_queue Queue) :
+		mBuffer		( nullptr ),
+		mManager	( Manager ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
+	{
+	}
 	template<typename TYPE>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const TYPE& Data,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
 		mBuffer		( nullptr ),
@@ -474,7 +481,7 @@ public:
 	}
 
 	template<typename TYPE>
-	bool		Read(ArrayBridge<TYPE>& Array,int ElementCount=-1)
+	bool		Read(ArrayBridge<TYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)
 	{
 		if ( !mBuffer )
 			return false;
@@ -485,27 +492,27 @@ public:
 			return true;
 		if ( !GetQueue() )
 			return false;
-		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), SoyOpenCl::DefaultReadBlocking, GetQueue() );
+		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), Blocking, GetQueue() );
 	}
 	template<typename ARRAYTYPE>
-	bool		Read(ArrayBridgeDef<ARRAYTYPE>& Array,int ElementCount)
+	bool		Read(ArrayBridgeDef<ARRAYTYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)
 	{
 		auto& Bridge = static_cast<ArrayBridge<ARRAYTYPE::TYPE>&>( Array );
-		return Read( Bridge, ElementCount );
+		return Read( Bridge, ElementCount, Blocking );
 	}
-	template<typename TYPE>				bool	Read(Array<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
-	template<typename TYPE,int SIZE>	bool	Read(BufferArray<TYPE,SIZE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
-	template<typename TYPE>				bool	Read(RemoteArray<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
-	template<typename TYPE,class SORT>	bool	Read(SortArray<TYPE,SORT>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array.mArray ), ElementCount );	}
+	template<typename TYPE>				bool	Read(Array<TYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)				{	return Read( GetArrayBridge( Array ), ElementCount, Blocking );	}
+	template<typename TYPE,int SIZE>	bool	Read(BufferArray<TYPE,SIZE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)	{	return Read( GetArrayBridge( Array ), ElementCount, Blocking );	}
+	template<typename TYPE>				bool	Read(RemoteArray<TYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)			{	return Read( GetArrayBridge( Array ), ElementCount, Blocking );	}
+	template<typename TYPE,class SORT>	bool	Read(SortArray<TYPE,SORT>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)		{	return Read( GetArrayBridge( Array.mArray ), ElementCount, Blocking );	}
 		
 	template<typename TYPE>
-	bool		Read(TYPE& Data)
+	bool		Read(TYPE& Data,bool Blocking=SoyOpenCl::DefaultReadBlocking)
 	{
 		if ( !mBuffer )
 			return false;
 		if ( !GetQueue() )
 			return false;
-		return mBuffer->read( &Data, 0, sizeof(TYPE), SoyOpenCl::DefaultReadBlocking, GetQueue() );
+		return mBuffer->read( &Data, 0, sizeof(TYPE), Blocking, GetQueue() );
 	}
 
 	bool		IsValid() const		{	return mBuffer!=nullptr;	}
