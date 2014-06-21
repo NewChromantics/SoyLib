@@ -63,6 +63,7 @@
 		virtual const T*	GetArray() const=0;
 		virtual T*			GetArray()=0;
 		virtual void		Reserve(int size,bool clear=false)=0;
+		virtual T*			InsertBlock(int index, int count)=0;
 		virtual void		RemoveBlock(int index, int count)=0;
 		virtual void		Clear(bool Dealloc=true)=0;
 		virtual int			MaxSize() const=0;
@@ -196,6 +197,7 @@
 		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false)=0;
 		virtual void		Reserve(int size,bool clear=false)=0;
 		virtual void		RemoveBlock(int index, int count)=0;
+		virtual T*			InsertBlock(int index, int count)=0;
 		virtual void		Clear(bool Dealloc=true)=0;
 		virtual int			MaxSize() const=0;
 
@@ -263,7 +265,8 @@
 		virtual T*			PushBlock(int count)			{	return mArray.PushBlock(count);	}
 		virtual T&			PushBack(const T& item)			{	return mArray.PushBack(item);	}
 		virtual T&			PushBack()						{	return mArray.PushBack();	}
-		virtual void		RemoveBlock(int index, int count)	{	return mArray.RemoveBlock(index,count);	}
+		virtual void		RemoveBlock(int index, int count)	{	mArray.RemoveBlock(index,count);	}
+		virtual T*			InsertBlock(int index, int count)	{	return mArray.InsertBlock(index,count);	}
 		virtual void		Clear(bool Dealloc)				{	return mArray.Clear(Dealloc);	}
 		virtual int			MaxSize() const					{	return mArray.MaxSize();	}
 	

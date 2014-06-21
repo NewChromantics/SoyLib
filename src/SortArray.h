@@ -77,6 +77,12 @@ public:
 		assert(false);
 		return nullptr;
 	}
+	virtual T*			InsertBlock(int index,int Count)
+	{
+		//	can't push blocks in sort arrays!
+		assert(false);
+		return nullptr;
+	}
 
 	template<typename MATCHTYPE>
 	bool				Remove(const MATCHTYPE& Match)
