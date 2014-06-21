@@ -547,7 +547,7 @@ public:
 			auto& This = *const_cast<Array<T,HEAP>*>( this );
 			This.SetHeap( prcore::Heap );
 		}
-		return mHeap ? prcore::Heap : *mHeap;	
+		return mHeap ? *mHeap : prcore::Heap;	
 	}
 
 	void			SetHeap(prmem::Heap& Heap)
