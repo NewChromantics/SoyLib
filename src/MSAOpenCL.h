@@ -162,7 +162,7 @@ namespace msa {
 												 cl_mem_flags memFlags = CL_MEM_READ_WRITE);
 #endif
 		void			deleteBuffer(OpenCLMemoryObject& Buffer);
-		
+		int				getMemObjectCount() const		{	return memObjects.GetSize();	}
 		
 		// create OpenCL image memory objects
 		// if dataPtr parameter is passed in, data is uploaded immediately
