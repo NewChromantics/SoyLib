@@ -163,6 +163,7 @@ public:
 	bool			isThreadRunning()					{	return mIsRunning;	}
 	void			waitForThread(bool stop = true);
 	SoyThreadId     getThreadId() const					{	return mThread.get_id();	}
+	std::string		GetThreadName() const				{	return mThreadName;	}
 	void			sleep(int ms)						{	std::this_thread::sleep_for( std::chrono::milliseconds(ms) );	}
 
 #if defined(TARGET_WINDOWS) 
