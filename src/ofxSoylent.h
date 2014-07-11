@@ -3,6 +3,7 @@
 
 #if !defined(NO_OPENFRAMEWORKS)
 #include <ofMain.h>
+#define OPENFRAMEWORKS
 #endif
 
 
