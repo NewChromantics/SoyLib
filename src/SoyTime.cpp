@@ -1,5 +1,6 @@
 #include "SoyTime.h"
 #include <regex>
+#include <sstream>
 
 
 bool SoyTime::FromString(std::string String)
