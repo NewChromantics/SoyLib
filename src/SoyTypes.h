@@ -63,7 +63,12 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 #include <string>
 #include <assert.h>
 #include <type_traits>
-
+#include <sstream>
+namespace std
+{
+#define DISALLOW_EVIL_CONSTRUCTORS(x)
+#include <chromium\stack_container.h>
+};
 
 //	openframeworks functions
 inline unsigned long long	ofGetSystemTime()
@@ -139,86 +144,8 @@ public:
 //----------------------------------------------------------
 // ofPtr
 //----------------------------------------------------------
-#if defined(TARGET_WINDOWS)//gr: depends on MSCV version
-#define std_experimental    std
-#else
-#define std_experimental    std
-#endif
-
-template <typename T>
-class ofPtr : public std_experimental::shared_ptr<T>
-{
-public:
-
-	ofPtr()
-	  : std_experimental::shared_ptr<T>() { }
-
-	  template<typename Tp1>
-		explicit
-		ofPtr(Tp1* __p)
-	: std_experimental::shared_ptr<T>(__p) { }
-
-	  template<typename Tp1, typename _Deleter>
-		ofPtr(Tp1* __p, _Deleter __d)
-	: std_experimental::shared_ptr<T>(__p, __d) { }
-
-	  template<typename Tp1, typename _Deleter, typename _Alloc>
-		ofPtr(Tp1* __p, _Deleter __d, const _Alloc& __a)
-	: std_experimental::shared_ptr<T>(__p, __d, __a) { }
-
-	  // Aliasing constructor
-	  template<typename Tp1>
-		ofPtr(const ofPtr<Tp1>& __r, T* __p)
-	: std_experimental::shared_ptr<T>(__r, __p) { }
-
-	  template<typename Tp1>
-		ofPtr(const ofPtr<Tp1>& __r)
-	: std_experimental::shared_ptr<T>(__r) { }
-
-	  /*ofPtr(ofPtr&& __r)
-	  : std_experimental::shared_ptr<T>(std::move(__r)) { }
-
-	  template<typename Tp1>
-		ofPtr(ofPtr<Tp1>&& __r)
-		: std_experimental::shared_ptr<T>(std::move(__r)) { }*/
-
-	  template<typename Tp1>
-		explicit
-		ofPtr(const std_experimental::weak_ptr<Tp1>& __r)
-	: std_experimental::shared_ptr<T>(__r) { }
-
-	// tgfrerer: extends ofPtr facade to allow dynamic_pointer_cast, pt.1
-#if (_MSC_VER)
-	template<typename Tp1>
-	ofPtr(const ofPtr<Tp1>& __r, std_experimental::_Dynamic_tag)
-	: std::tr1::shared_ptr<T>(__r, std_experimental::_Dynamic_tag()) { }
-#elif !defined(TARGET_OSX)
-	template<typename Tp1>
-	ofPtr(const ofPtr<Tp1>& __r, std::__dynamic_cast_tag)
-	: std_experimental::shared_ptr<T>(__r, std::__dynamic_cast_tag()) { }
-#endif
-	  /*template<typename Tp1, typename Del>
-		explicit
-		ofPtr(const std::tr1::unique_ptr<Tp1, Del>&) = delete;
-
-	  template<typename Tp1, typename Del>
-		explicit
-		ofPtr(std::tr1::unique_ptr<Tp1, Del>&& __r)
-	: std::tr1::shared_ptr<T>(std::move(__r)) { }*/
-};
-
-// tgfrerer: extends ofPtr facade to allow dynamic_pointer_cast, pt. 2
-#if (_MSC_VER)
-template<typename _Tp, typename _Tp1>
-ofPtr<_Tp>
-	dynamic_pointer_cast(const ofPtr<_Tp1>& __r)
-{ return ofPtr<_Tp>(__r, std_experimental::_Dynamic_tag()); }
-#elif !defined(TARGET_OSX)
-template<typename _Tp, typename _Tp1>
-ofPtr<_Tp>
-	dynamic_pointer_cast(const ofPtr<_Tp1>& __r)
-{ return ofPtr<_Tp>(__r, std_experimental::__dynamic_cast_tag()); }
-#endif
+template<typename T>
+using ofPtr = std::shared_ptr<T>;
 
 inline std::string ofToDataPath(const std::string& LocalPath,bool FullPath=false)	{	return LocalPath;	}
 
@@ -330,46 +257,6 @@ inline bool ofFileExists(const char* Path)
 	return true;
 }
 
-
-namespace std
-{
-	class DebugStreamBuf : public streambuf 
-	{
-	public:
-		DebugStreamBuf()  { };
-		~DebugStreamBuf()	{	flush();	}
-
-	protected:
-		virtual int		overflow(int ch);
-		void			flush(); 	
-
-	private:
-		DebugStreamBuf(DebugStreamBuf const &);                // disallow copy construction
-		void operator= (DebugStreamBuf const &);          // disallow copy assignment
-
-	private:
-		string	mBuffer;	///< buffer for current log message
-	};
-
-	class DebugStream : public basic_ostream<char,std::char_traits<char> >
-	{
-	public:
-		explicit DebugStream() : 
-			std::basic_ostream<char,std::char_traits<char> > (&mBuffer) 
-		{
-		}
-
-	private:
-		DebugStreamBuf	mBuffer;
-	};
-
-};
-
-
-namespace std
-{
-	extern DebugStream	Debug;
-}
 
 
 namespace Soy

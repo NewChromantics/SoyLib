@@ -1,5 +1,6 @@
 #include "SoyMemFile.h"
 #include "BufferArray.hpp"	//	remotearray
+#include "SoyDebug.h"
 
 
 
