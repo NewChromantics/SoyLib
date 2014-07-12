@@ -167,7 +167,8 @@ public:
 	void			sleep(int ms)						{	std::this_thread::sleep_for( std::chrono::milliseconds(ms) );	}
 
 #if defined(TARGET_WINDOWS) 
-	DWORD			GetNativeThreadId()					{	return ::GetThreadId( static_cast<HANDLE>( mThread.native_handle() ) );	}
+	DWORD			GetNativeThreadId()					{	return ::GetThreadId( GetThreadHandle() );	}
+	HANDLE			GetThreadHandle()					{	return static_cast<HANDLE>( mThread.native_handle() );	}
 #endif
 
 protected:
