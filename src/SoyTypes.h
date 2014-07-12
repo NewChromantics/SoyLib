@@ -383,6 +383,7 @@ namespace Soy
 	namespace Windows
 	{
 		std::string		GetLastErrorString();
+		std::string		GetErrorString(int Error);
 	}
 #endif
 };

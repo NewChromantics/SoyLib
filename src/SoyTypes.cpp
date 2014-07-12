@@ -268,7 +268,14 @@ const uint32_t TCrc32::Crc32Table[256] = {
 std::string Soy::Windows::GetLastErrorString()
 {
 	DWORD error = GetLastError();
-	if (!error)
+	return GetErrorString( error );
+}
+#endif
+
+#if defined(TARGET_WINDOWS)
+std::string Soy::Windows::GetErrorString(int Error)
+{
+	if ( Error == ERROR_SUCCESS )
 		return std::string();
 
 	LPVOID lpMsgBuf;
@@ -277,7 +284,7 @@ std::string Soy::Windows::GetLastErrorString()
 		FORMAT_MESSAGE_FROM_SYSTEM |
 		FORMAT_MESSAGE_IGNORE_INSERTS,
 		NULL,
-		error,
+		Error,
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 		(LPSTR) &lpMsgBuf,
 		0, NULL );
