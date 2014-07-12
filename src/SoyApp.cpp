@@ -39,6 +39,9 @@ int Soy::Windows::TConsoleApp::RunLoop()
 	{
 		if ( !mApp.Update() )
 			break;
+
+		//	frame limiter here
+		Sleep( 1000/60 );
 	}
 	mApp.Exit();
 	return 0;
