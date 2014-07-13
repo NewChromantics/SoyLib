@@ -316,3 +316,152 @@ public:
 	}
 };
 
+
+/*
+class SoyFunctionId
+{
+private:
+	static uint64			gIdCounter;
+	static ofMutex			gIdCounterLock;
+
+public:
+	static SoyFunctionId	Alloc()
+	{
+		ofMutex::ScopedLock Lock( gIdCounterLock );
+		return SoyFunctionId( ++gIdCounter );
+	}
+
+public:
+	SoyFunctionId(uint64 Id=0) :
+		mId	( Id )
+	{
+	}
+
+	operator	bool() const		{	return IsValid();	}
+	bool		IsValid() const		{	return mId!=0;	}
+	bool		operator==(const SoyFunctionId& Id) const	{	return mId == Id.mId;	}
+	bool		operator!=(const SoyFunctionId& Id) const	{	return mId != Id.mId;	}
+
+private:
+	int			mId;
+};
+
+class SoyFunctionThread : public SoyThread
+{
+public:
+	typedef std::function<void(void)> FUNCTION;
+
+public:
+	SoyFunctionThread(std::string Name) :
+		SoyThread	( Name )
+	{
+		startThread(true,true);
+	}
+
+	SoyFunctionId		QueueFunction(FUNCTION Function)
+	{
+		if ( !mLock.tryLock() )
+			return SoyFunctionId();
+		mFunction = Function;
+		SoyFunctionId FunctionId = SoyFunctionId::Alloc();
+		mFunctionId = FunctionId;
+		mLock.unlock();
+		return FunctionId;
+	}
+
+	inline bool			operator==(SoyFunctionId FuncctionId) const
+	{
+		return (mFunctionId == FuncctionId);
+	}
+
+	virtual void	threadedFunction() override
+	{
+		while ( isThreadRunning() )
+		{
+			sleep(0);
+
+			//	grab function and execute it
+			if ( !mLock.tryLock() )
+				continue;
+			
+			if ( mFunction )
+			{
+				mFunction();
+				mFunction = nullptr;
+				mFunctionId = SoyFunctionId();
+			}
+			mLock.unlock();
+		}
+	}
+
+private:
+	ofMutex			mLock;
+	FUNCTION		mFunction;
+	SoyFunctionId	mFunctionId;
+};
+
+class SoyScheduler
+{
+public:
+	typedef std::function<void(void)> FUNCTION;
+
+public:
+	SoyScheduler(int ThreadCount)
+	{
+		for ( int i=0;	i<ThreadCount;	i++ )
+		{
+			std::stringstream ThreadName;
+			ThreadName << "SoyFunctionThread[" << i << "]";
+			mThreadPool.push_back().reset( new SoyFunctionThread(ThreadName.str()) );
+		}
+	}
+	~SoyScheduler()
+	{
+		//	stop them all
+		for ( auto it=mThreadPool.begin();	it!=mThreadPool.end();	it++ )
+			(*it)->stopThread();
+
+		//	now wait 
+		for ( auto it=mThreadPool.begin();	it!=mThreadPool.end(); )
+			(*it)->waitForThread();
+
+		//	delete
+		mThreadPool.clear();
+	}
+
+	SoyFunctionId		Run(FUNCTION Function)
+	{
+		//	keep looping through pool until there's a free one
+		int i=0;
+		while ( true )
+		{
+			auto& Thread = *mThreadPool[i];
+			auto Id = Thread.QueueFunction( Function );
+			if ( Id )
+				return Id;
+
+			i = (i+1) % mThreadPool.size();
+		}
+		assert(false);
+		return SoyFunctionId();
+	}
+
+	void				Wait(SoyFunctionId FunctionId)
+	{
+		//	find thread with id, then wait for it
+		for ( auto it=mThreadPool.begin();	it!=mThreadPool.end(); )
+		{
+			auto& Thread = *it;
+			//	if this thread IS running this function id, wait for it
+			while ( Thread == FunctionId )
+			{
+				//SwitchToThread();
+				sleep(0);
+			}
+		}
+	}
+
+protected:
+	std::vector<std::shared_ptr<SoyFunctionThread>>	mThreadPool;
+};
+*/
