@@ -259,7 +259,7 @@ public:
         return SoyThreadId( std::this_thread::get_id() );
 	}
 
-	void	startThread(bool blocking, bool verbose)
+	void	startThread(bool blocking=true, bool verbose=true)
 	{
 		ofThread::startThread( blocking, verbose );
 #if defined(NO_OPENFRAMEWORKS)
