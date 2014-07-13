@@ -248,9 +248,9 @@ public:
 class SoyThread : public ofThread
 {
 public:
-	SoyThread(const char* threadName)
+	SoyThread(std::string threadName)
 	{
-		if ( threadName )
+		if ( !threadName.empty() )
 			setThreadName( threadName );
 	}
 
