@@ -103,7 +103,7 @@
 			if ( !pNewData )
 				return nullptr;
 
-			if ( Soy::DoComplexCopy<T,ARRAYTYPE::TYPE>() )
+			if ( Soy::DoComplexCopy<T,typename ARRAYTYPE::TYPE>() )
 			{
 				for ( int i=0; i<v.GetSize(); ++i )
 					(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check

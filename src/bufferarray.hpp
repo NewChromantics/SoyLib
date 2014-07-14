@@ -81,7 +81,7 @@
 			if ( !SetSize( v.GetSize(),false ) )
 				return false;
 
-			if ( Soy::DoComplexCopy<T,ARRAYTYPE::TYPE>() )
+			if ( Soy::DoComplexCopy<T,typename ARRAYTYPE::TYPE>() )
 			{
 				for ( int i=0; i<GetSize(); ++i )
 					(*this)[i] = v[i];	//	use [] operator for bounds check

@@ -87,7 +87,7 @@ namespace Soy
 	
 	inline bool	IsUtf8Char(char Character)
 	{
-		switch ( Character )
+		switch (static_cast<unsigned char>(Character) )
 		{
 			case 0xC0:
 			case 0xC1:
@@ -633,8 +633,10 @@ namespace Soy
 
 		void InsertAt(int Offset,const char* String)
 		{
-			int Len = StringLen( String );
-			const char* Block = mdata.InsertBlock( Offset, Len );
+			//	test this StringLen
+			assert(false);
+			int Len = StringLen( String, -1, mdata.MaxAllocSize()-1  );
+			char* Block = mdata.InsertBlock( Offset, Len );
 			if ( !Block )
 				return;
 			memcpy( Block, String, Len );

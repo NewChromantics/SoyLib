@@ -11,7 +11,7 @@ bool SoyTime::FromString(std::string String)
 		return false;
 	
 	//	extract int
-	auto& IntegerStr = Match[1].str();
+	auto IntegerStr = Match[1].str();
 	int Time = std::stoi( IntegerStr );
 	if ( Time < 0 )
 		return false;

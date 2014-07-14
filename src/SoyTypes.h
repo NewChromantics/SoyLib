@@ -67,7 +67,7 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 namespace std
 {
 #define DISALLOW_EVIL_CONSTRUCTORS(x)
-#include <chromium\stack_container.h>
+//#include "chromium/stack_container.h"
 };
 
 //	openframeworks functions
@@ -343,7 +343,8 @@ DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint64 );
 
 
 
-
+//	gr: move these and this include to SoyString.h or something for string utils
+#include <vector>
 namespace std
 {
 	void		StringToLower(std::string& String);

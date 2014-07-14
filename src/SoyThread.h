@@ -169,6 +169,9 @@ public:
 #if defined(TARGET_WINDOWS) 
 	DWORD			GetNativeThreadId()					{	return ::GetThreadId( GetThreadHandle() );	}
 	HANDLE			GetThreadHandle()					{	return static_cast<HANDLE>( mThread.native_handle() );	}
+#elif defined(TARGET_OSX)
+//    typedef pthread_t native_handle_type;
+	std::thread::native_handle_type		GetNativeThreadId()					{	return mThread.native_handle();	}
 #endif
 
 protected:
@@ -273,17 +276,20 @@ public:
 	void	setThreadName(const std::string& name)
 	{
 #if defined(NO_OPENFRAMEWORKS)
-		//auto ThreadId = getThreadId();
 		mThreadName = name;
-		int ThreadId = GetNativeThreadId();
-#else
+#endif
+		
+#if defined(TARGET_WINDOWS)
+	#if defined(NO_OPENFRAMEWORKS)
+		//auto ThreadId = getThreadId();
+		auto ThreadId = GetNativeThreadId();
+	#else
 		auto ThreadId = getPocoThread().tid();
 		getPocoThread().setName( name );
-#endif
+	#endif
 		
 		//	set the OS thread name
 		//	http://msdn.microsoft.com/en-gb/library/xcb2z8hs.aspx
-	#if defined(TARGET_WINDOWS)
 		const DWORD MS_VC_EXCEPTION=0x406D1388;
 		#pragma pack(push,8)
 		typedef struct tagTHREADNAME_INFO
