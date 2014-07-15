@@ -254,21 +254,21 @@
 		{
 		}
 
-		virtual T&			operator [] (int index)			{	return mArray[index];	}
-		virtual const T&	operator [] (int index) const	{	return mArray[index];	}
-		virtual T&			GetBack()						{	return mArray.GetBack();	}
-		virtual int			GetSize() const					{	return mArray.GetSize();	}
-		virtual const T*	GetArray() const				{	return mArray.GetArray();	}
-		virtual T*			GetArray()						{	return mArray.GetArray();	}
-		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false)	{	return mArray.SetSize(size,preserve,AllowLess);	}
-		virtual void		Reserve(int size,bool clear=false)	{	return mArray.Reserve(size,clear);	}
-		virtual T*			PushBlock(int count)			{	return mArray.PushBlock(count);	}
-		virtual T&			PushBack(const T& item)			{	return mArray.PushBack(item);	}
-		virtual T&			PushBack()						{	return mArray.PushBack();	}
-		virtual void		RemoveBlock(int index, int count)	{	mArray.RemoveBlock(index,count);	}
-		virtual T*			InsertBlock(int index, int count)	{	return mArray.InsertBlock(index,count);	}
-		virtual void		Clear(bool Dealloc)				{	return mArray.Clear(Dealloc);	}
-		virtual int			MaxSize() const					{	return mArray.MaxSize();	}
+		virtual T&			operator [] (int index) override			{	return mArray[index];	}
+		virtual const T&	operator [] (int index) const override		{	return mArray[index];	}
+		virtual T&			GetBack() override							{	return mArray.GetBack();	}
+		virtual int			GetSize() const override					{	return mArray.GetSize();	}
+		virtual const T*	GetArray() const override					{	return mArray.GetArray();	}
+		virtual T*			GetArray() override							{	return mArray.GetArray();	}
+		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false) override	{	return mArray.SetSize(size,preserve,AllowLess);	}
+		virtual void		Reserve(int size,bool clear=false) override	{	return mArray.Reserve(size,clear);	}
+		virtual T*			PushBlock(int count) override				{	return mArray.PushBlock(count);	}
+		virtual T&			PushBack(const T& item) override			{	return mArray.PushBack(item);	}
+		virtual T&			PushBack() override							{	return mArray.PushBack();	}
+		virtual void		RemoveBlock(int index, int count) override	{	mArray.RemoveBlock(index,count);	}
+		virtual T*			InsertBlock(int index, int count) override	{	return mArray.InsertBlock(index,count);	}
+		virtual void		Clear(bool Dealloc) override				{	return mArray.Clear(Dealloc);	}
+		virtual int			MaxSize() const override					{	return mArray.MaxSize();	}
 	
 	private:
 		ARRAY&				mArray;
