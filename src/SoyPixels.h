@@ -101,8 +101,8 @@ public:
 
 	virtual SoyPixelsMeta&				GetMeta()			{	return mMeta;	}
 	virtual const SoyPixelsMeta&		GetMeta() const		{	return mMeta;	}
-	virtual ArrayBridge<uint8>&			GetPixelsArray()	{	return mPixels;	}
-	virtual const ArrayBridge<uint8>&	GetPixelsArray() const	{	return mPixels;	}
+	virtual ArrayBridge<uint8>&			GetPixelsArray() override	{	return mPixels;	}
+	virtual const ArrayBridge<uint8>&	GetPixelsArray() const override	{	return mPixels;	}
 
 public:
 	SoyPixelsMeta&			mMeta;
@@ -149,7 +149,6 @@ public:
 	bool		Set(const msa::OpenCLImage& Pixels,cl_command_queue Queue);
 	bool		Set(const msa::OpenCLImage& Pixels,SoyOpenClKernel& Kernel);
 #endif
-	bool		Set(const TPixels& Pixels,uint8 Channel);
 	bool		SetFormat(SoyPixelsFormat::Type Format);
 	bool		SetChannels(uint8 Channels);
 #if defined(SOY_OPENCL)
@@ -172,8 +171,8 @@ public:
 	SoyPixelsFormat::Type	GetFormat() const		{	return Def().GetFormat();	}
 	virtual SoyPixelsMeta&				GetMeta()			{	return mMeta;	}
 	virtual const SoyPixelsMeta&		GetMeta() const		{	return mMeta;	}
-	virtual ArrayBridge<uint8>&			GetPixelsArray()	{	return GetArrayBridge(mPixels);	}
-	virtual const ArrayBridge<uint8>&	GetPixelsArray() const	{	return GetArrayBridge(mPixels);	}
+	//virtual ArrayBridge<uint8>			GetPixelsArray() override		{	return GetArrayBridge(mPixels);	}
+	//virtual const ArrayBridge<uint8>	GetPixelsArray() const override	{	return GetArrayBridge(mPixels);	}
 
 	SoyPixelsDef<Array<uint8>>			Def()		{	return SoyPixelsDef<Array<uint8>>( GetArrayBridge( mPixels ), mMeta );	}
 	const SoyPixelsDef<Array<uint8>>	Def() const	{	return const_cast<TPixels*>(this)->Def();	}

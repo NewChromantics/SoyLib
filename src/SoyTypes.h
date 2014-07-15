@@ -380,11 +380,10 @@ private:
 
 namespace Soy
 {
-#if defined(TARGET_WINDOWS)
-	namespace Windows
+	namespace Platform
 	{
-		std::string		GetLastErrorString();
-		std::string		GetErrorString(int Error);
+		int					GetLastError();
+		std::string			GetErrorString(int Error);
+		inline std::string	GetLastErrorString()	{	return GetErrorString( GetLastError() );	}
 	}
-#endif
 };

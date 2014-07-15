@@ -523,34 +523,35 @@ bool TPixels::SetFormat(SoyPixelsFormat::Type Format)
 	if ( !IsValid() )
 		return false;
 
+	auto PixelsBridge = GetArrayBridge( mPixels );
 	auto ConversionFuncs = GetRemoteArray( gConversionFuncs, gConversionFuncsCount );
 	auto* ConversionFunc = ConversionFuncs.Find( std::tuple<SoyPixelsFormat::Type,SoyPixelsFormat::Type>( GetFormat(), Format ) );
 	if ( ConversionFunc )
 	{
-		if ( ConversionFunc->mFunction(  GetArrayBridge(mPixels), GetMeta(), Format ) )
+		if ( ConversionFunc->mFunction( PixelsBridge, GetMeta(), Format ) )
 			return true;
 	}
 
 	if ( GetFormat() == SoyPixelsFormat::KinectDepth && Format == SoyPixelsFormat::Greyscale )
-		return ConvertFormat_KinectDepthToGreyscale( GetArrayBridge(mPixels), GetMeta(), Format );
+		return ConvertFormat_KinectDepthToGreyscale( PixelsBridge, GetMeta(), Format );
 
 	if ( GetFormat() == SoyPixelsFormat::KinectDepth && Format == SoyPixelsFormat::GreyscaleAlpha )
-		return ConvertFormat_KinectDepthToGreyscale( GetArrayBridge(mPixels), GetMeta(), Format );
+		return ConvertFormat_KinectDepthToGreyscale( PixelsBridge, GetMeta(), Format );
 
 	if ( GetFormat() == SoyPixelsFormat::BGRA && Format == SoyPixelsFormat::RGBA )
-		return ConvertFormat_BgrToRgb( GetArrayBridge(mPixels), GetMeta(), Format );
+		return ConvertFormat_BgrToRgb( PixelsBridge, GetMeta(), Format );
 
 	if ( GetFormat() == SoyPixelsFormat::BGR && Format == SoyPixelsFormat::RGB )
-		return ConvertFormat_BgrToRgb( GetArrayBridge(mPixels), GetMeta(), Format );
+		return ConvertFormat_BgrToRgb( PixelsBridge, GetMeta(), Format );
 
 	if ( GetFormat() == SoyPixelsFormat::RGBA && Format == SoyPixelsFormat::BGRA )
-		return ConvertFormat_BgrToRgb( GetArrayBridge(mPixels), GetMeta(), Format );
+		return ConvertFormat_BgrToRgb( PixelsBridge, GetMeta(), Format );
 
 	if ( GetFormat() == SoyPixelsFormat::RGB && Format == SoyPixelsFormat::BGR )
-		return ConvertFormat_BgrToRgb( GetArrayBridge(mPixels), GetMeta(), Format );
+		return ConvertFormat_BgrToRgb( PixelsBridge, GetMeta(), Format );
 
 	if ( GetFormat() == SoyPixelsFormat::RGB && Format == SoyPixelsFormat::BGR )
-		return ConvertFormat_BgrToRgb( GetArrayBridge(mPixels), GetMeta(), Format );
+		return ConvertFormat_BgrToRgb( PixelsBridge, GetMeta(), Format );
 
 	//	see if we can use of simple channel-count change
 	bool UseOfPixels = false;
@@ -756,32 +757,6 @@ bool TPixels::Set(const IplImage& Pixels)
 	return true;
 }
 #endif
-
-bool TPixels::Set(const TPixels& That,uint8 Channel)
-{
-	//	non existant channel
-	if ( Channel >= That.GetChannels() )
-		return false;
-
-	//	alloc greyscale image
-	if ( !Init( That.GetWidth(), That.GetHeight(), SoyPixelsFormat::Greyscale ) )
-		return false;
-
-	//	so we can use pushback()
-	mPixels.Clear(false);
-
-	//	copy each pixel from source's channel
-	int Step = That.GetChannels();
-	auto& ThatPixels = That.GetPixelsArray();
-	for ( int p=Channel;	p<ThatPixels.GetSize();	p+=Step )
-	{
-		uint8 Component = ThatPixels[p];
-		mPixels.PushBack( Component );
-	}
-	assert( this->GetHeight() == That.GetHeight() );
-
-	return true;
-}
 
 static bool treatbgrasrgb = true;
 
