@@ -169,7 +169,9 @@ private:
 	T*					CreateMap()						{	return reinterpret_cast<T*>(mMap);	}
 
 private:
+#if defined(TARGET_WINDOWS)
 	HANDLE				mHandle;
+#endif
 	std::string			mFilename;
 	void*				mMap;
 	int					mMapSize;

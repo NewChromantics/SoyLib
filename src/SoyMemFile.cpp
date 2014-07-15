@@ -8,13 +8,16 @@
 
 MemFileArray::MemFileArray(std::string& Filename,int DataSize,bool ReadOnly) :
 	mFilename	( Filename ),
+#if defined(TARGET_WINDOWS)
 	mHandle		( nullptr ),
+#endif
 	mMap		( nullptr ),
 	mMapSize	( 0 ),
 	mOffset		( 0 )
 {
 	assert(DataSize>=0);
 
+#if defined(TARGET_WINDOWS)
 	//	If lpName matches the name of an existing event, semaphore, mutex, waitable timer, or job object, the function fails, and the GetLastError function returns ERROR_INVALID_HANDLE. This occurs because these objects share the same namespace.
 	DWORD MaxSizeHi = 0;
 	DWORD MaxSizeLo = DataSize;
@@ -46,16 +49,22 @@ MemFileArray::MemFileArray(std::string& Filename,int DataSize,bool ReadOnly) :
 	}
 	mMapSize = DataSize;
 	mOffset = mMapSize;
+#endif
 }
 
 bool MemFileArray::IsValid() const
 {
+#if defined(TARGET_WINDOWS)
 	return mHandle != nullptr;
+#else
+	return false;
+#endif
 }
 
 
 void MemFileArray::Close()
 {
+#if defined(TARGET_WINDOWS)
 	if ( mMap )
 	{
 		UnmapViewOfFile( mMap );
@@ -68,6 +77,7 @@ void MemFileArray::Close()
 		CloseHandle(mHandle);
 		mHandle = nullptr;
 	}
+#endif
 }
 
 
