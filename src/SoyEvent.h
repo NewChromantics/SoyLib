@@ -50,6 +50,8 @@ public:
 			Function( Param );
 		}
 	}
+	
+	bool			HasListeners() const		{	return !mListeners.empty();	}
 
 public:
 	std::mutex				mListenerLock;
