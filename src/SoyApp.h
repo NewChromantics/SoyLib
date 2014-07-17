@@ -16,13 +16,13 @@ public:
 
 namespace Soy
 {
-	namespace Windows
+	namespace Platform
 	{
 		class TConsoleApp;
 	}
 };
 
-class Soy::Windows::TConsoleApp
+class Soy::Platform::TConsoleApp
 {
 public:
 	TConsoleApp(SoyApp& App) :
@@ -32,8 +32,10 @@ public:
 	int				RunLoop();
 
 private:
+#if defined(TARGET_WINDOWS)
 	static BOOL WINAPI	ConsoleHandler(DWORD dwType);
-
+#endif
+	
 private:
 	static bool			gIsRunning;
 	SoyApp&				mApp;

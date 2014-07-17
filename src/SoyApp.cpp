@@ -4,10 +4,11 @@
 #endif
 
 
-bool Soy::Windows::TConsoleApp::gIsRunning = false;
+bool Soy::Platform::TConsoleApp::gIsRunning = false;
 
 
-BOOL WINAPI Soy::Windows::TConsoleApp::ConsoleHandler(DWORD dwType)
+#if defined(TARGET_WINDOWS)
+BOOL WINAPI Soy::Platform::TConsoleApp::ConsoleHandler(DWORD dwType)
 {
 	switch(dwType) 
 	{
@@ -26,13 +27,17 @@ BOOL WINAPI Soy::Windows::TConsoleApp::ConsoleHandler(DWORD dwType)
 		return FALSE;
 	}
 }
+#endif
 
 
-int Soy::Windows::TConsoleApp::RunLoop()
+int Soy::Platform::TConsoleApp::RunLoop()
 {
 	assert( !gIsRunning );
 	gIsRunning = true;
+	
+#if defined(TARGET_WINDOWS)
 	SetConsoleCtrlHandler( ConsoleHandler, true );
+#endif
 	if ( !mApp.Init() )
 		return 1;
 	while ( gIsRunning )
@@ -41,7 +46,7 @@ int Soy::Windows::TConsoleApp::RunLoop()
 			break;
 
 		//	frame limiter here
-		Sleep( 1000/60 );
+		SoyThread::Sleep( 1000/60 );
 	}
 	mApp.Exit();
 	return 0;

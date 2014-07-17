@@ -48,7 +48,12 @@ void std::DebugStreamBuf::flush()
 {
 	if (mBuffer.length() > 0) 
 	{
+#if defined(TARGET_WINDOWS)
 		OutputDebugStringA( mBuffer.c_str() );
+#elif defined(TARGET_OSX)
+		std::cout << mBuffer.c_str();
+		//NSLog(@"%s", message);
+#endif
 		mBuffer.erase();	// erase message buffer
 	}
 }

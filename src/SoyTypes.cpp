@@ -264,17 +264,18 @@ const uint32_t TCrc32::Crc32Table[256] = {
 }; // kCrc32Table
 
 
-#if defined(TARGET_WINDOWS)
-std::string Soy::Windows::GetLastErrorString()
+int Soy::Platform::GetLastError()
 {
-	DWORD error = GetLastError();
-	return GetErrorString( error );
-}
+#if defined(TARGET_WINDOWS)
+	return ::GetLastError();
+#else
+	return errno;
 #endif
+}
 
-#if defined(TARGET_WINDOWS)
-std::string Soy::Windows::GetErrorString(int Error)
+std::string Soy::Platform::GetErrorString(int Error)
 {
+#if defined(TARGET_WINDOWS)
 	if ( Error == ERROR_SUCCESS )
 		return std::string();
 
@@ -297,5 +298,13 @@ std::string Soy::Windows::GetErrorString(int Error)
 
 	LocalFree(lpMsgBuf);
 	return result;
-}
+#else
+	if ( Error == 0 )
+		return std::string();
+	
+	std::stringstream String;
+	String << "Error=" << Error;
+	return String.str();
 #endif
+}
+
