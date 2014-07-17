@@ -1,5 +1,5 @@
 #include "SoyThread.h"
-
+#include <SoyDebug.h>
 
 const SoyThreadId::TYPE SoyThreadId::Invalid = SoyThreadId::TYPE();
 
@@ -90,8 +90,11 @@ unsigned int ofThread::threadFunc(void *args)
 	ofThread* pThread = reinterpret_cast<ofThread*>(args);
 	
 	if ( pThread )
+	{
 		pThread->threadedFunction();
-
+		pThread->mIsRunning = false;
+		std::Debug << "Thread " << pThread->GetThreadName() << " finished" << std::endl;
+	}
 	return 0;
 }
 #endif
