@@ -2,6 +2,7 @@
 
 
 #include "String.hpp"
+#include <iomanip>
 
 
 class SoyTime
@@ -50,44 +51,9 @@ private:
 DECLARE_TYPE_NAME( SoyTime );
 
 
-
-template<class STRING>
-inline STRING& operator<<(STRING& str,const SoyTime& Time)
+inline std::ostream& operator<< (std::ostream &out,const SoyTime &in)
 {
-	BufferString<100> Buffer;
-	Buffer.PrintText("T%09Iu", Time.GetTime() );
-	str << Buffer;
-	return str;
-}
-
-
-template<class STRING>
-inline const STRING& operator>>(const STRING& str,SoyTime& Time)
-{
-	if ( str.GetLength() != 10 )
-	{
-		assert(false);
-		Time = SoyTime();
-		return str;
-	}
-
-	if ( str[0] != 'T' )
-	{
-		assert(false);
-		Time = SoyTime();
-		return str;
-	}
-
-	BufferString<100> Buffer = static_cast<const char*>( &str[1] );
-	int TimeValue = 0;
-	if ( !Buffer.GetInteger( TimeValue ) )
-	{
-		assert(false);
-		Time = SoyTime();
-		return str;
-	}
-
-	Time = SoyTime( static_cast<uint64>( TimeValue ) );
-	return str;
+	out << 'T' << std::setfill('0') << std::setw(9) << in.GetTime();
+	return out;
 }
 
