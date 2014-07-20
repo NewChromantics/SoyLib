@@ -269,7 +269,10 @@ int Soy::Platform::GetLastError()
 #if defined(TARGET_WINDOWS)
 	return ::GetLastError();
 #else
-	return errno;
+	//	gr: pop error number. This seems to be getting left set as an error after a successfull winsock call...
+	int Error = errno;
+	errno = 0;
+	return Error;
 #endif
 }
 
@@ -301,10 +304,8 @@ std::string Soy::Platform::GetErrorString(int Error)
 #else
 	if ( Error == 0 )
 		return std::string();
-	
-	std::stringstream String;
-	String << "Error=" << Error;
-	return String.str();
+
+	return strerror(Error);
 #endif
 }
 
