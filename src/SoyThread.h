@@ -118,36 +118,6 @@ private:
 
 
 
-//  different types on different platforms. No need for it to be an int
-class SoyThreadId
-{
-public:
-    typedef std::thread::id TYPE;
-	static const TYPE		Invalid;
-
-public:
-    SoyThreadId() :
-        mId ( Invalid )
-    {
-    }
-    SoyThreadId(const TYPE& id) :
-        mId ( id )
-    {
-    }
-
-    inline bool     operator==(const TYPE& id) const        {   return mId == id;   }
-    inline bool     operator==(const SoyThreadId& id) const {   return mId == id.mId;   }
-    inline bool     operator!=(const TYPE& id) const        {   return mId != id;   }
-    inline bool     operator!=(const SoyThreadId& id) const {   return mId != id.mId;   }
-    inline bool     operator<(const TYPE& id) const			{   return mId < id;   }
-    inline bool     operator<(const SoyThreadId& id) const	{   return mId < id.mId;   }
-    inline bool     operator>(const TYPE& id) const			{   return mId > id;   }
-    inline bool     operator>(const SoyThreadId& id) const	{   return mId > id.mId;   }
-    
-public:
-    TYPE            mId;
-};
-
 
 #if defined(NO_OPENFRAMEWORKS)
 
@@ -162,7 +132,7 @@ public:
 	void			stopThread();
 	bool			isThreadRunning()					{	return mIsRunning;	}
 	void			waitForThread(bool stop = true);
-	SoyThreadId     getThreadId() const					{	return mThread.get_id();	}
+	std::thread::id		GetThreadId() const					{	return mThread.get_id();	}
 	std::string		GetThreadName() const				{	return mThreadName;	}
 	static void		Sleep(int ms=0)						{	std::this_thread::sleep_for( std::chrono::milliseconds(ms) );	}
 
@@ -254,72 +224,25 @@ public:
 	SoyThread(std::string threadName)
 	{
 		if ( !threadName.empty() )
-			setThreadName( threadName );
+			SetThreadName( threadName );
 	}
 
-	static SoyThreadId	GetCurrentThreadId()
+	static std::thread::id	GetCurrentThreadId()
 	{
-        return SoyThreadId( std::this_thread::get_id() );
+        return std::this_thread::get_id();
 	}
 
 	void	startThread(bool blocking=true, bool verbose=true)
 	{
 		ofThread::startThread( blocking, verbose );
 #if defined(NO_OPENFRAMEWORKS)
-		setThreadName( mThreadName );
+		SetThreadName( mThreadName );
 #else
-		setThreadName( getPocoThread().getName() );
+		SetThreadName( getPocoThread().getName() );
 #endif
 	}
 
-
-	void	setThreadName(const std::string& name)
-	{
-#if defined(NO_OPENFRAMEWORKS)
-		mThreadName = name;
-#endif
-		
-#if defined(TARGET_WINDOWS)
-	#if defined(NO_OPENFRAMEWORKS)
-		//auto ThreadId = getThreadId();
-		auto ThreadId = GetNativeThreadId();
-	#else
-		auto ThreadId = getPocoThread().tid();
-		getPocoThread().setName( name );
-	#endif
-		
-		//	set the OS thread name
-		//	http://msdn.microsoft.com/en-gb/library/xcb2z8hs.aspx
-		const DWORD MS_VC_EXCEPTION=0x406D1388;
-		#pragma pack(push,8)
-		typedef struct tagTHREADNAME_INFO
-		{
-			DWORD dwType; // Must be 0x1000.
-			LPCSTR szName; // Pointer to name (in user addr space).
-			DWORD dwThreadID; // Thread ID (-1=caller thread).
-			DWORD dwFlags; // Reserved for future use, must be zero.
-		} THREADNAME_INFO;
-		#pragma pack(pop)
-
-		THREADNAME_INFO info;
-		info.dwType = 0x1000;
-		info.szName = name.c_str();
-		info.dwThreadID = ThreadId;
-		info.dwFlags = 0;
-
-		//	this will fail if the OS thread hasn't started yet
-		if ( info.dwThreadID != 0 )
-		{
-			__try
-			{
-				RaiseException( MS_VC_EXCEPTION, 0, sizeof(info)/sizeof(ULONG_PTR), (ULONG_PTR*)&info );
-			}
-			__except(EXCEPTION_EXECUTE_HANDLER)
-			{
-			}
-		}
-	#endif
-	}
+	void	SetThreadName(std::string Name);
 };
 
 
