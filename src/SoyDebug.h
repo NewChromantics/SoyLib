@@ -3,7 +3,8 @@
 #include "SoyTypes.h"
 #include "string.hpp"
 #include "SoyTime.h"
-
+#include <map>
+#include <thread>
 
 
 namespace std
@@ -19,11 +20,13 @@ namespace std
 		void			flush(); 	
 
 	private:
-		DebugStreamBuf(DebugStreamBuf const &);                // disallow copy construction
-		void operator= (DebugStreamBuf const &);          // disallow copy assignment
+		DebugStreamBuf(DebugStreamBuf const &);		// disallow copy construction
+		void operator= (DebugStreamBuf const &);	// disallow copy assignment
 
+		std::string&	GetBuffer();
+		
 	private:
-		string	mBuffer;	///< buffer for current log message
+		std::map<std::thread::id,std::string>	mBuffers;	//	instead of locking, a buffer per-thread.
 	};
 
 	class DebugStream : public basic_ostream<char,std::char_traits<char> >

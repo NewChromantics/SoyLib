@@ -1,5 +1,7 @@
 #include "SoyDebug.h"
+#include "SoyThread.h"
 
+std::DebugStream	std::Debug;
 
 
 BufferString<20> Soy::FormatSizeBytes(uint64 bytes)
@@ -40,27 +42,33 @@ BufferString<20> Soy::FormatSizeBytes(uint64 bytes)
 }
 
 
-	std::DebugStream	std::Debug;
+std::string& std::DebugStreamBuf::GetBuffer()
+{
+	auto Thread = SoyThread::GetCurrentThreadId();
+	return mBuffers[Thread];
+}
 
 
 
 void std::DebugStreamBuf::flush()
 {
-	if (mBuffer.length() > 0) 
+	auto& Buffer = GetBuffer();
+	if ( Buffer.length() > 0 )
 	{
 #if defined(TARGET_WINDOWS)
 		OutputDebugStringA( mBuffer.c_str() );
 #elif defined(TARGET_OSX)
-		std::cout << mBuffer.c_str();
+		std::cout << Buffer.c_str();
 		//NSLog(@"%s", message);
 #endif
-		mBuffer.erase();	// erase message buffer
+		Buffer.erase();	// erase message buffer
 	}
 }
 
 int std::DebugStreamBuf::overflow(int c)
 {
-	mBuffer += c;
+	auto& Buffer = GetBuffer();
+	Buffer += c;
 	if (c == '\n') 
 		flush();
 
