@@ -16,4 +16,31 @@ TEST(SoyTimeStreamio)
 	CHECK( One.GetTime() == 1 );
 }
 
+#include <SoyPixels.h>
+#include <SoyPng.h>
+
+TEST(PngTypeTest)
+{
+	TPng::THeader Header;
+	CHECK( !Header.IsValid() );
+}
+
+TEST(PngWriteRead)
+{
+	//	check we can read and write our own PNG's
+	SoyPixels Pixels;
+	CHECK( Pixels.Init( 32, 32, SoyPixelsFormat::RGB ) );
+	Array<char> PngData;
+	auto PngDataBridge = GetArrayBridge( PngData );
+	CHECK( Pixels.GetPng( PngDataBridge ) );
+	//	read back
+	std::stringstream Error;
+	CHECK( Pixels.SetPng( PngDataBridge, Error ) );
+	CHECK( Error.str().empty() );
+	if ( !Error.str().empty() )
+	{
+		std::cerr << "Expecting empty error: " << Error.str() << std::endl;
+	}
+}
+
 #endif
