@@ -718,9 +718,11 @@ bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData,std::stringstream& E
 	assert( !Header.IsValid() );
 	//	all the extracted IDAT chunks together
 	Array<char> ImageData;
+	bool FoundEnd = false;
 	
-	//	read next block
-	while ( !Png.Eod() )
+	//	read until out of data
+	//	gr: had a png with junk after IEND... so abort after that
+	while ( !Png.Eod() && !FoundEnd )
 	{
 		uint32 BlockLength;
 		if ( !Png.ReadReinterpretReverse<BufferArray<char,20>>( BlockLength ) )
@@ -791,6 +793,7 @@ bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData,std::stringstream& E
 		{
 			if ( !TPng::ReadTail( *this, BlockDataBridge, Error ) )
 				return false;
+			FoundEnd = true;
 		}
 		else
 		{
@@ -939,5 +942,23 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 	PngData.PushBackReinterpretReverse( TailCrc );
 	
 	return true;
+}
+
+
+const uint8& SoyPixelsImpl::GetPixel(uint16 x,uint16 y,uint16 Channel) const
+{
+	int w = GetWidth();
+	int h = GetHeight();
+	int Channels = GetChannels();
+	if ( x < 0 || x >= w || y<0 || y>=h || Channel<0 || Channel>=Channels )
+	{
+		assert(false);
+		static uint8 Fake = 0;
+		return Fake;
+	}
+	int Index = x + (y*w);
+	Index *= Channels;
+	Index += Channel;
+	return GetPixelsArray()[Index];
 }
 
