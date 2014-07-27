@@ -1,8 +1,11 @@
 #include "SoyPixels.h"
-#include "miniz/miniz.h"
 #include "SoyDebug.h"
 #include "SoyTime.h"
 #include <functional>
+#include "SoyPng.h"
+
+
+
 
 
 int SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
@@ -32,198 +35,17 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(int ChannelCoun
 	}
 }
 
-
-namespace TPng
+std::ostream& operator<< (std::ostream &out,const SoyPixelsFormat::Type &in)
 {
-	namespace TColour {	enum Type
+	switch ( in )
 	{
-		Invalid			= -1,	//	unsupported (do not write to PNG!)
-		Greyscale		= 0,
-		RGB				= 2,
-		Palette			= 3,
-		GreyscaleAlpha	= 4,
-		RGBA			= 6,
-	};};
-
-	namespace TCompression { enum Type
-	{
-		DEFLATE = 0,
-	};};
-
-	namespace TFilter { enum Type
-	{
-		None = 0,
-	};};
-	
-	namespace TInterlace { enum Type
-	{
-		None = 0,
-	};};
-
-	TColour::Type	GetColourType(SoyPixelsFormat::Type Format)
-	{
-		switch ( Format )
-		{
-		case SoyPixelsFormat::Greyscale:		return TColour::Greyscale;
-		case SoyPixelsFormat::GreyscaleAlpha:	return TColour::GreyscaleAlpha;
-		case SoyPixelsFormat::RGB:				return TColour::RGB;
-		case SoyPixelsFormat::RGBA:				return TColour::RGBA;
+		case SoyPixelsFormat::Greyscale:		return out << "Greyscale";
+		case SoyPixelsFormat::GreyscaleAlpha:	return out << "GreyscaleAlpha";
+		case SoyPixelsFormat::RGB:				return out << "RGB";
+		case SoyPixelsFormat::RGBA:				return out << "RGBA";
 		default:
-			return TColour::Invalid;
-		}
+			return out << "<unknown SoyPixelsFormat:: " << static_cast<int>(in) << ">";
 	}
-
-	bool		GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression);
-	bool		GetDeflateData(Array<char>& ChunkData,const ArrayBridge<uint8>& PixelBlock,bool LastBlock,int WindowSize); 
-};
-
-
-bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression)
-{
-	if ( Compression == TCompression::DEFLATE )
-	{
-		//	we need to add a filter value at the start of each row, so calculate all the byte indexes
-		auto& OrigPixels = Image.GetPixelsArray();
-		Array<uint8> FilteredPixels;
-		FilteredPixels.Reserve( OrigPixels.GetDataSize() + Image.GetHeight() );
-		FilteredPixels.PushBackArray( OrigPixels );
-		int Stride = Image.GetChannels()*Image.GetWidth();
-		for ( int i=OrigPixels.GetSize()-Stride;	i>=0;	i-=Stride )
-		{
-			//	insert filter value/code
-			static char FilterValue = 0;
-			auto* RowStart = FilteredPixels.InsertBlock(i,1);
-			RowStart[0] = FilterValue;
-		}
-
-		//	use miniz to compress with deflate
-		auto CompressionLevel = MZ_NO_COMPRESSION;
-		BufferString<100> Debug_TimerName;
-		Debug_TimerName << "Deflate compression; " << Soy::FormatSizeBytes(FilteredPixels.GetDataSize()) << ". Compression level: " << CompressionLevel;
-		ofScopeTimerWarning DeflateCompressTimer( Debug_TimerName, 3 );
-	
-		uLong DefAllocated = static_cast<int>( 1.2f * FilteredPixels.GetDataSize() );
-		uLong DefUsed = DefAllocated;
-		auto* DefData = PngData.PushBlock(DefAllocated);
-		auto Result = mz_compress2( reinterpret_cast<Byte*>(DefData), &DefUsed, FilteredPixels.GetArray(), FilteredPixels.GetDataSize(), CompressionLevel );
-		assert( Result == MZ_OK );
-		if ( Result != MZ_OK )
-			return false;
-		assert( DefUsed <= DefAllocated );
-		//	trim data
-		int Overflow = DefAllocated - DefUsed;
-		PngData.SetSize( PngData.GetSize() - Overflow );
-		return true;
-
-		/*
-
-
-		//	split into sections of 64k bytes
-		static int WindowSizeShift = 1;
-		//	gr: windowsize is just for decoder?
-//		http://www.libpng.org/pub/png/spec/1.2/PNG-Compression.html
-		//If the data to be compressed contains 16384 bytes or fewer, the encoder can set the window size by rounding up to a power of 2 (256 minimum). This decreases the memory required not only for encoding but also for decoding, without adversely affecting the compression ratio.
-		static int WindowSize = 65535;//32768;
-		//int WindowSize = (1 << (WindowSizeShift+8))-minus;
-		Array<char> DeflateData;
-		bool BlockCountOverflow = (FilteredPixels.GetDataSize() % WindowSize) > 0;
-		int BlockCount = (FilteredPixels.GetDataSize() / WindowSize) + BlockCountOverflow;
-		assert( BlockCount > 0 );
-		DeflateData.Reserve( FilteredPixels.GetSize() + (BlockCount*10) );
-		for ( int b=0;	b<BlockCount;	b++ )
-		{
-			int FirstPixel = b*WindowSize;
-			const int PixelCount = ofMin( WindowSize, FilteredPixels.GetDataSize()-FirstPixel );
-			bool LastBlock = (b==BlockCount-1);
-			auto BlockPixelData = GetRemoteArray( &FilteredPixels[FirstPixel], PixelCount, PixelCount );
-			if ( !GetDeflateData( DeflateData, GetArrayBridge(BlockPixelData), LastBlock, WindowSize ) )
-				return false;
-		}
-
-		//	write deflate data and decompressed checksum
-		static uint8 CompressionMethod = 8;	//	deflate
-		static uint8 CInfo = WindowSizeShift;	//	
-		uint8 Cmf = 0;
-		Cmf |= CompressionMethod << 0;
-		Cmf |= CInfo << 4;
-		
-		static uint8 fcheck = 0;
-		static uint8 fdict = 0;
-		static uint8 flevel = 0;
-		uint8 Flg = 0;
-
-		//	The FCHECK value must be such that CMF and FLG, when viewed as
-        //	a 16-bit unsigned integer stored in MSB order (CMF*256 + FLG),
-        //	is a multiple of 31.
-		int Checksum = (Cmf * 256) + Flg;
-		if ( Checksum % 31 != 0 )
-		{
-			fcheck = 31 - (Checksum % 31);
-			Checksum = (Cmf * 256) + (Flg|fcheck);
-			assert( Checksum % 31 == 0 );
-		}
-		assert( fcheck < (1<<5) );
-		//if ( Checksum == 0 )
-		//	fcheck = 31;
-
-		Flg |= fcheck << 0;
-		Flg |= fdict << 5;
-		Flg |= flevel << 6;
-	
-		PngData.Reserve( DeflateData.GetSize() + 6 );
-		PngData.PushBack( Cmf );
-		PngData.PushBack( Flg );
-		if ( Flg & 1<<5 )	//	fdict, bit 5
-		{
-			uint32 Dict = 0;
-			PngData.PushBack( Dict );
-		}
-		PngData.PushBackArray( DeflateData );
-		uint32 DecompressedCrc = GetArrayBridge(OrigPixels).GetCrc32();
-		PngData.PushBackReinterpretReverse( DecompressedCrc );
-		return true;
-		*/
-	}
-	else
-	{
-		//	unsupported
-		return false;
-	}
-}
-
-bool TPng::GetDeflateData(Array<char>& DeflateData,const ArrayBridge<uint8>& PixelBlock,bool LastBlock,int WindowSize)
-{
-	//	pixel block should have already been split
-	assert( PixelBlock.GetSize() <= WindowSize );
-	if ( PixelBlock.GetSize() > WindowSize )
-		return false;
-
-	//	if it's NOT the last block, it MUST be full-size
-	if ( !LastBlock )
-	{
-		assert( PixelBlock.GetSize() == WindowSize );
-		if ( PixelBlock.GetSize() != WindowSize )
-			return false;
-	}
-
-	//	http://en.wikipedia.org/wiki/DEFLATE
-	//	http://www.ietf.org/rfc/rfc1951.txt
-	uint8 Header = 0x0;
-	if ( LastBlock )
-		Header |= 1<<0;
-	uint16 Len = PixelBlock.GetDataSize();
-	uint16 NLen = 0;	//	compliment
-
-	DeflateData.PushBack( Header );
-	static bool reverse = false;
-	if ( reverse)
-		DeflateData.PushBackReinterpretReverse( Len );
-	else
-		DeflateData.PushBackReinterpret( Len );
-	if ( sizeof(Len)==2 )
-		DeflateData.PushBackReinterpret( NLen );
-	DeflateData.PushBackArray( PixelBlock );
-	return true;
 }
 
 #if defined(OPENFRAMEWORKS)
@@ -525,7 +347,7 @@ bool TPixels::SetFormat(SoyPixelsFormat::Type Format)
 
 	auto PixelsBridge = GetArrayBridge( mPixels );
 	auto ConversionFuncs = GetRemoteArray( gConversionFuncs, gConversionFuncsCount );
-	auto* ConversionFunc = ConversionFuncs.Find( std::tuple<SoyPixelsFormat::Type,SoyPixelsFormat::Type>( GetFormat(), Format ) );
+	auto* ConversionFunc = ConversionFuncs.Find( std::make_tuple( GetFormat(), Format ) );
 	if ( ConversionFunc )
 	{
 		if ( ConversionFunc->mFunction( PixelsBridge, GetMeta(), Format ) )
@@ -839,19 +661,20 @@ bool TPixels::Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format,const
 
 
 
-bool TPixels::Init(uint16 Width,uint16 Height,uint8 Channels)
+bool SoyPixelsImpl::Init(uint16 Width,uint16 Height,uint8 Channels)
 {
 	auto Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
 	return Init( Width, Height, Format );
 }
 
-bool TPixels::Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format)
+bool SoyPixelsImpl::Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format)
 {
 	//	alloc
 	GetMeta().DumbSetWidth( Width );
 	GetMeta().DumbSetFormat( Format );
 	int Alloc = GetWidth() * GetChannels() * Height;
-	mPixels.SetSize( Alloc, false );
+	auto& Pixels = GetPixelsArray();
+	Pixels.SetSize( Alloc, false );
 	assert( this->GetHeight() == Height );
 	return true;	
 }
@@ -869,10 +692,128 @@ bool SoyPixelsImpl::GetRawSoyPixels(ArrayBridge<char>& RawData) const
 	return true;
 }
 
-bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData)
+
+bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData,std::stringstream& Error)
 {
-	assert(false);
-	return false;
+	//	http://stackoverflow.com/questions/7942635/write-png-quickly
+	
+	//uint8 Magic[] = { 137, 80, 78, 71, 13, 10, 26, 10 };
+	char _Magic[] = { -119, 'P', 'N', 'G', 13, 10, 26, 10 };
+	BufferArray<char,8> __Magic( _Magic );
+	auto Magic = GetArrayBridge( __Magic );
+	
+
+	TArrayReader Png( PngData );
+
+	if ( !Png.ReadCompare( Magic ) )
+	{
+		Error << "PNG has invalid magic header";
+		return false;
+	}
+	
+	
+	TPng::THeader Header;
+	assert( !Header.IsValid() );
+	//	all the extracted IDAT chunks together
+	Array<char> ImageData;
+	
+	//	read next block
+	while ( !Png.Eod() )
+	{
+		uint32 BlockLength;
+		if ( !Png.ReadReinterpretReverse<BufferArray<char,20>>( BlockLength ) )
+		{
+			Error << "Failed to read block length";
+			return false;
+		}
+		BufferArray<char,4> BlockType(4);
+		auto BlockTypeBridge = GetArrayBridge( BlockType );
+		if ( !Png.Read( BlockTypeBridge ) )
+		{
+			Error << "Failed to read block type";
+			return false;
+		}
+		std::string BlockTypeString = (std::stringstream() << BlockType[0] << BlockType[1] << BlockType[2] << BlockType[3]).str();
+		
+		Array<char> BlockData( BlockLength );
+		auto BlockDataBridge = GetArrayBridge( BlockData );
+		if ( BlockLength > 0 && !Png.Read( BlockDataBridge ) )
+		{
+			Error << "Failed to read block " << BlockTypeString << " data (" << BlockLength << " bytes)";
+			return false;
+		}
+		uint32 BlockCrc;
+		if ( !Png.ReadReinterpretReverse<BufferArray<char,20>>( BlockCrc ) )
+		{
+			Error << "Failed to read block " << BlockTypeString << " CRC";
+			return false;
+		}
+		//	gr: crc doesn't match, needs to include more than just the data I think
+		uint32 BlockDataCrc = BlockDataBridge.GetCrc32();
+		if ( BlockDataCrc != BlockCrc )
+		{
+			std::Debug << "Block " << BlockTypeString << " CRC (" << BlockDataCrc << ") doesn't match header CRC (" << BlockCrc << ")" << std::endl;
+		//	Error << "Block " << BlockTypeString << " CRC (" << BlockDataCrc << ") doesn't match header CRC (" << BlockCrc << ")";
+		//	return false;
+		}
+		
+		if ( BlockTypeString == "IHDR" )
+		{
+			if ( BlockDataBridge.IsEmpty() )
+			{
+				Error << "Header data is empty, aborting";
+				return false;
+			}
+
+			if ( Header.IsValid() )
+			{
+				Error << "Found 2nd header, aborting";
+				return false;
+			}
+			
+			if ( !TPng::ReadHeader( *this, Header, BlockDataBridge, Error ) )
+				return false;
+			assert( Header.IsValid() );
+		}
+		else if ( BlockTypeString == "IDAT" )
+		{
+			if ( BlockDataBridge.IsEmpty() )
+			{
+				Error << "Block data is empty, aborting";
+				return false;
+			}
+			//	these are supposed to be consecutive but I guess it doesn't matter
+			ImageData.PushBackArray( BlockDataBridge );
+		}
+		else if ( BlockTypeString == "IEND" )
+		{
+			if ( !TPng::ReadTail( *this, BlockDataBridge, Error ) )
+				return false;
+		}
+		else
+		{
+			std::Debug << "Ignored unhandled PNG block: " << BlockTypeString << ", " << BlockLength << " bytes" << std::endl;
+		}
+	}
+	
+	if ( !Header.IsValid() )
+	{
+		Error << "PNG missing header";
+		return false;
+	}
+	
+	if ( ImageData.IsEmpty() )
+	{
+		Error << "PNG missing image data";
+		return false;
+	}
+	
+	//	read the image data
+	auto ImageDataBridge = GetArrayBridge( ImageData );
+	if ( !TPng::ReadData( *this, Header, ImageDataBridge, Error ) )
+		return false;
+	
+	return true;
 }
 
 bool SoyPixelsImpl::SetRawSoyPixels(const ArrayBridge<char>& RawData)

@@ -27,6 +27,8 @@ namespace SoyPixelsFormat
 	Type		GetFormatFromChannelCount(int ChannelCount);
 	inline bool	IsValid(Type Format)			{	return GetChannelCount( Format ) > 0;	}
 };
+std::ostream& operator<< (std::ostream &out,const SoyPixelsFormat::Type &in);
+
 
 //	meta data for pixels (header when using raw data)
 class SoyPixelsMeta
@@ -67,6 +69,9 @@ class SoyPixelsImpl
 public:
 	virtual ~SoyPixelsImpl()	{}
 
+	bool			Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format);
+	bool			Init(uint16 Width,uint16 Height,uint8 Channels);
+
 	uint16			GetHeight() const				{	return GetMeta().GetHeight( GetPixelsArray().GetSize() );	}
 	bool			IsValid() const					{	return GetMeta().IsValid();	}
 	uint8			GetBitDepth() const				{	return GetMeta().GetBitDepth();	}
@@ -78,7 +83,7 @@ public:
 	bool			GetRawSoyPixels(ArrayBridge<char>& RawData) const;
 	const uint8&	GetPixel(uint16 x,uint16 y,uint16 Channel) const;
 
-	bool			SetPng(const ArrayBridge<char>& PngData);
+	bool			SetPng(const ArrayBridge<char>& PngData,std::stringstream& Error);
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
 
 	void			ResizeClip(uint16 Width,uint16 Height);
@@ -122,8 +127,6 @@ public:
 	bool		Init(uint16 Width,uint16 Height,uint8 Channels,const ofColour& DefaultColour);
 	bool		Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format,const ofColour& DefaultColour);
 #endif
-	bool		Init(uint16 Width,uint16 Height,uint8 Channels);
-	bool		Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format);
 
 #if defined(OPENFRAMEWORKS)
 	bool		Get(ofImage& Pixels) const;
