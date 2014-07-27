@@ -911,7 +911,9 @@ bool Soy::String2<S,ARRAYTYPE>::ExtractInt(int& Value,const char* Start,const ch
 
 	//	strtod can tell us if we failed to extract
 	char*& MutableEnd = const_cast<char*&>( End );
-	Value = strtol( Start, &MutableEnd, 10 );
+	auto ValueLong = strtol( Start, &MutableEnd, 10 );
+	assert( ValueLong <= std::numeric_limits<int>::max() );
+	Value = static_cast<int>( ValueLong );
 
 	//	if the end hasn't moved on, then strtod couldn't decode the string to a float
 	if ( End == Start )

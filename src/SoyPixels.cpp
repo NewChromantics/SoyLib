@@ -257,7 +257,7 @@ bool ConvertFormat_BgrToRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPi
 	for ( int p=0;	p<PixelCount;	p++ )
 	{
 		auto& b = Pixels[(p*SrcChannels)+0];
-		auto& g = Pixels[(p*SrcChannels)+1];
+		//auto& g = Pixels[(p*SrcChannels)+1];
 		auto& r = Pixels[(p*SrcChannels)+2];
 	
 		uint8 Swap = b;
@@ -580,7 +580,9 @@ bool TPixels::Set(const IplImage& Pixels)
 }
 #endif
 
+#if defined(SOY_OPENGL)
 static bool treatbgrasrgb = true;
+#endif
 
 #if defined(SOY_OPENGL)
 bool SoyPixelsMeta::GetOpenglFormat(int& glFormat) const
@@ -856,6 +858,7 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 		{
 			case SoyPixelsFormat::KinectDepth:	NewFormat = SoyPixelsFormat::Greyscale;	break;
 			case SoyPixelsFormat::BGRA:			NewFormat = SoyPixelsFormat::RGBA;	break;
+			default:break;
 		}
 
 		//	new format MUST be compatible or we'll get stuck in a loop

@@ -100,7 +100,8 @@ uint64 SoyRef::FromString(const SoyRefString& String)
 {
 	//	make up indexes
 	uint64Chars Ref64Chars;
-	auto& AlphabetLookup = GetAlphabetLookup();
+	//auto& AlphabetLookup = GetAlphabetLookup();
+	GetAlphabetLookup();
 	auto& Alphabet = GetAlphabet();
 
 	for ( int i=0;	i<SoyRef::MaxStringLength;	i++ )
