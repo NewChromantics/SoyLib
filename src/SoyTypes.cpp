@@ -138,63 +138,6 @@ std::string ofBufferFromFile(const char* Filename)
 
 
 
-void std::StringToLower(std::string& String)
-{
-	std::transform( String.begin(), String.end(), String.begin(), ::tolower );
-}
-
-
-bool std::StringContains(const std::string& Haystack, const std::string& Needle, bool CaseSensitive)
-{
-	if (CaseSensitive)
-	{
-		return (Haystack.find(Needle) != std::string::npos);
-	}
-	else
-	{
-		std::string HaystackLow = Haystack;
-		std::string NeedleLow = Needle;
-		std::StringToLower( HaystackLow );
-		std::StringToLower( NeedleLow );
-		return StringContains(HaystackLow, NeedleLow, true);
-	}
-}
-
-
-bool std::StringBeginsWith(const std::string& Haystack, const std::string& Needle, bool CaseSensitive)
-{
-	if (CaseSensitive)
-	{
-		return (Haystack.find(Needle) == 0 );
-	}
-	else
-	{
-		std::string HaystackLow = Haystack;
-		std::string NeedleLow = Needle;
-		std::StringToLower( HaystackLow );
-		std::StringToLower( NeedleLow );
-		return StringBeginsWith(HaystackLow, NeedleLow, true);
-	}
-}
-
-std::string	std::Join(const std::vector<std::string>& Strings,const std::string& Glue)
-{
-	//	gr: consider a lambda here?
-	std::stringstream Stream;
-	for ( auto it=Strings.begin();	it!=Strings.end();	it++ )
-	{
-		Stream << (*it);
-		auto itLast = Strings.end();
-		itLast--;
-		if ( it != itLast )
-			Stream << Glue;
-	}
-	return Stream.str();
-}
-
-
-
-
 
 const uint32_t TCrc32::Crc32Table[256] = {
     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba,

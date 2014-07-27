@@ -342,18 +342,6 @@ DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint64 );
 
 
 
-
-//	gr: move these and this include to SoyString.h or something for string utils
-#include <vector>
-namespace std
-{
-	void		StringToLower(std::string& String);
-	bool		StringContains(const std::string& Haystack, const std::string& Needle, bool CaseSensitive);
-	bool		StringBeginsWith(const std::string& Haystack, const std::string& Needle, bool CaseSensitive);
-	std::string	Join(const std::vector<std::string>& Strings,const std::string& Glue);
-};
-
-
 class TCrc32
 {
 public:
