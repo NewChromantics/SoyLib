@@ -283,3 +283,45 @@
 	{	
 		return ArrayBridgeDef<ARRAY>( Array );
 	};
+
+
+
+class TArrayReader
+{
+public:
+	TArrayReader(const ArrayBridge<char>& Array) :
+		mArray	( Array ),
+		mOffset	( 0 )
+	{
+	}
+	
+	bool		Eod() const		{	return mOffset == mArray.GetDataSize();	}
+	bool		Read(ArrayBridge<char>& Pop);			//	copy this-length of data
+	bool		ReadCompare(ArrayBridge<char>& Match);	//	read array and make sure it matches Pop
+	bool		Read(uint8& Pop);
+	template<class BUFFERARRAYTYPE,typename TYPE>
+	bool		ReadReinterpretReverse(TYPE& Pop);
+	
+private:
+	bool		ReadReverse(ArrayBridge<char>& Pop);
+	
+public:
+	int			mOffset;
+	const ArrayBridge<char>&	mArray;
+};
+
+
+
+template<class BUFFERARRAYTYPE,typename TYPE>
+inline bool TArrayReader::ReadReinterpretReverse(TYPE& Pop)
+{
+	BUFFERARRAYTYPE Buffer;
+	Buffer.SetSize( sizeof(TYPE) );
+	auto BufferBridge = GetArrayBridge( Buffer );
+	if ( !ReadReverse( BufferBridge ) )
+		return false;
+	
+	const TYPE* PopRev = reinterpret_cast<const TYPE*>( Buffer.GetArray() );
+	Pop = *PopRev;
+	return true;
+}
