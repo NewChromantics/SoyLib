@@ -44,6 +44,19 @@ std::ostream& operator<< (std::ostream &out,const TPng::TColour::Type &in)
 	}
 }
 
+std::ostream& operator<< (std::ostream &out,const TPng::TFilterNone_ScanlineFilter::Type &in)
+{
+	switch ( in )
+	{
+		case TPng::TFilterNone_ScanlineFilter::None:	return out << "None";
+		case TPng::TFilterNone_ScanlineFilter::Sub:		return out << "Sub";
+		case TPng::TFilterNone_ScanlineFilter::Up:		return out << "Up";
+		case TPng::TFilterNone_ScanlineFilter::Average:	return out << "Average";
+		case TPng::TFilterNone_ScanlineFilter::Paeth:	return out << "Paeth";
+		default:
+			return out << "<unknown TPng::TFilterNone_ScanlineFilter::" << static_cast<int>(in) << ">";
+	}
+}
 
 bool TPng::THeader::IsValid() const
 {
@@ -142,11 +155,10 @@ bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char
 		for ( int i=DecompressedData.GetSize()-Stride;	i>=0;	i-=Stride )
 		{
 			//	insert filter value/code
-			static char FilterValue = 0;
 			auto& RowStart = DecompressedData[i];
-			if ( RowStart != FilterValue )
+			if ( RowStart != TFilterNone_ScanlineFilter::None )
 			{
-				Error << "defiltering PNG data came across unexpected filter value (" << static_cast<int>(RowStart) << ")";
+				Error << "defiltering PNG data came across unhandled filter value (" << static_cast<TFilterNone_ScanlineFilter::Type>(RowStart) << ")";
 				return false;
 			}
 			DecompressedData.RemoveBlock(i,1);
@@ -181,7 +193,7 @@ bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 		for ( int i=OrigPixels.GetSize()-Stride;	i>=0;	i-=Stride )
 		{
 			//	insert filter value/code
-			static char FilterValue = 0;
+			static char FilterValue = TFilterNone_ScanlineFilter::None;
 			auto* RowStart = FilteredPixels.InsertBlock(i,1);
 			RowStart[0] = FilterValue;
 		}

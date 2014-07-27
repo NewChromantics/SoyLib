@@ -28,6 +28,16 @@ namespace TPng
 			None = 0,
 		};};
 	
+	namespace TFilterNone_ScanlineFilter { enum Type
+		{
+			Invalid = -1,
+			None	= 0,
+			Sub		= 1,
+			Up		= 2,
+			Average	= 3,
+			Paeth	= 4,
+		};};
+	
 	namespace TInterlace { enum Type
 		{
 			Invalid = -1,
@@ -63,5 +73,6 @@ namespace TPng
 	bool		ReadTail(SoyPixelsImpl& Pixels,ArrayBridge<char>& Data,std::stringstream& Error);
 };
 std::ostream& operator<< (std::ostream &out,const TPng::TColour::Type &in);
+std::ostream& operator<< (std::ostream &out,const TPng::TFilterNone_ScanlineFilter::Type &in);
 
 
