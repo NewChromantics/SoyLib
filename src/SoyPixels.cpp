@@ -962,3 +962,20 @@ const uint8& SoyPixelsImpl::GetPixel(uint16 x,uint16 y,uint16 Channel) const
 	return GetPixelsArray()[Index];
 }
 
+bool SoyPixelsImpl::SetPixel(uint16 x,uint16 y,uint16 Channel,const uint8& Component)
+{
+	int w = GetWidth();
+	int h = GetHeight();
+	int Channels = GetChannels();
+	if ( x < 0 || x >= w || y<0 || y>=h || Channel<0 || Channel>=Channels )
+	{
+		assert(false);
+		return false;
+	}
+	int Index = x + (y*w);
+	Index *= Channels;
+	Index += Channel;
+	GetPixelsArray()[Index] = Component;
+	return true;
+}
+

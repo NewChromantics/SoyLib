@@ -82,6 +82,7 @@ public:
 	bool			GetPng(ArrayBridge<char>& PngData) const;
 	bool			GetRawSoyPixels(ArrayBridge<char>& RawData) const;
 	const uint8&	GetPixel(uint16 x,uint16 y,uint16 Channel) const;
+	bool			SetPixel(uint16 x,uint16 y,uint16 Channel,const uint8& Component);
 
 	bool			SetPng(const ArrayBridge<char>& PngData,std::stringstream& Error);
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
