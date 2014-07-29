@@ -63,6 +63,38 @@ public:
 		mCount		( DIMENSIONS ),
 		mBlocking	( true )
 	{
+		mFirst.SetAll(0);
+		mCount.SetAll(0);
+	}
+	explicit SoyOpenclKernelIteration(int Exec1,bool Blocking) :
+		mFirst		( DIMENSIONS ),
+		mCount		( DIMENSIONS ),
+		mBlocking	( Blocking )
+	{
+		mFirst.SetAll(0);
+		assert( DIMENSIONS == 1 );
+		mCount[0] = Exec1;
+	}
+	explicit SoyOpenclKernelIteration(int Exec1,int Exec2,bool Blocking) :
+		mFirst		( DIMENSIONS ),
+		mCount		( DIMENSIONS ),
+		mBlocking	( Blocking )
+	{
+		mFirst.SetAll(0);
+		assert( DIMENSIONS == 2 );
+		mCount[0] = Exec1;
+		mCount[1] = Exec2;
+	}
+	explicit SoyOpenclKernelIteration(int Exec1,int Exec2,int Exec3,bool Blocking) :
+		mFirst		( DIMENSIONS ),
+		mCount		( DIMENSIONS ),
+		mBlocking	( Blocking )
+	{
+		mFirst.SetAll(0);
+		assert( DIMENSIONS == 3 );
+		mCount[0] = Exec1;
+		mCount[1] = Exec2;
+		mCount[2] = Exec3;
 	}
 public:
 	BufferArray<int,DIMENSIONS>		mFirst;
@@ -88,8 +120,12 @@ public:
 	void			OnUnloaded();
 	const char*		GetName() const					{	return mName.c_str();	}
 	bool			IsValid() const					{	return mKernel!=NULL;	}
-	bool			IsValidExecCount(int ExecCount)	{	return (GetMaxWorkGroupSize()==-1) ? true : (ExecCount<=GetMaxWorkGroupSize());	}
-	int				GetMaxWorkGroupSize() const		{	return mDeviceInfo.maxWorkGroupSize;	}
+	bool			IsValidExecCount(int ExecCount)	{	return IsValidGlobalExecCount( ExecCount );	}
+	bool			IsValidGlobalExecCount(int ExecCount)	{	return (GetMaxWorkGroupSize()==-1) ? true : (ExecCount<=GetMaxWorkGroupSize());	}
+	bool			IsValidLocalExecCount(int ExecCount)	{	return (GetMaxWorkGroupSize()==-1) ? true : (ExecCount<=GetMaxWorkGroupSize());	}
+	int				GetMaxWorkGroupSize() const				{	return GetMaxGlobalWorkGroupSize();	}
+	int				GetMaxGlobalWorkGroupSize() const;
+	int				GetMaxLocalWorkGroupSize() const;
 	int				GetMaxBufferSize() const		{	return mDeviceInfo.maxMemAllocSize;	}
 	cl_command_queue	GetQueue()					{	return mKernel ? mKernel->getQueue() : NULL;	}
 	msa::OpenCL&	GetOpenCL() const;
@@ -98,16 +134,19 @@ public:
 	void			DeleteKernel();
 	inline bool		operator==(const char* Name) const	{	return mName == Name;	}
 	bool			Begin();
-	bool			End1D(int Exec1);
-	bool			End2D(int Exec1,int Exec2);
-	bool			End3D(int Exec1,int Exec2,int Exec3);
-	bool			End1D(bool Blocking,int Exec1);
-	bool			End2D(bool Blocking,int Exec1,int Exec2);
-	bool			End3D(bool Blocking,int Exec1,int Exec2,int Exec3);
-	bool			End(const SoyOpenclKernelIteration<1>& Iteration)	{	return End1D( Iteration.mBlocking, Iteration.mCount[0] );	}
-	bool			End(const SoyOpenclKernelIteration<2>& Iteration)	{	return End2D( Iteration.mBlocking, Iteration.mCount[0], Iteration.mCount[1] );	}
-	bool			End(const SoyOpenclKernelIteration<3>& Iteration)	{	return End3D( Iteration.mBlocking, Iteration.mCount[0], Iteration.mCount[1], Iteration.mCount[2] );	}
-
+	bool			End(bool Blocking,const ArrayBridge<int>& GlobalExec,const ArrayBridge<int>& LocalExec);
+	template<int DIMENSIONS>
+	bool			End(const SoyOpenclKernelIteration<DIMENSIONS>& Iteration,const ArrayBridge<int>& LocalIterations)	{	return End( Iteration.mBlocking, GetArrayBridge(Iteration.mCount), LocalIterations );	}
+	template<int DIMENSIONS>
+	bool			End(const SoyOpenclKernelIteration<DIMENSIONS>& Iteration)	{	Array<int> LocalCount;	return End( Iteration, GetArrayBridge( LocalCount ) );	}
+	
+	bool			End1D(int Exec1)							{	return End1D( SoyOpenCl::DefaultExecuteBlocking, Exec1 );	}
+	bool			End2D(int Exec1,int Exec2)					{	return End2D( SoyOpenCl::DefaultExecuteBlocking, Exec1, Exec2 );	}
+	bool			End3D(int Exec1,int Exec2,int Exec3)		{	return End3D( SoyOpenCl::DefaultExecuteBlocking, Exec1, Exec2, Exec3 );	}
+	bool			End1D(bool Blocking,int Exec1)						{	SoyOpenclKernelIteration<1> It( Exec1, Blocking );	return End(It);	}
+	bool			End2D(bool Blocking,int Exec1,int Exec2)			{	SoyOpenclKernelIteration<2> It( Exec1, Exec2, Blocking );	return End(It);	}
+	bool			End3D(bool Blocking,int Exec1,int Exec2,int Exec3)	{	SoyOpenclKernelIteration<3> It( Exec1, Exec2, Exec3, Blocking );	return End(It);	}
+	
 	void			GetIterations(Array<SoyOpenclKernelIteration<1>>& Iterations,int Exec1,bool BlockLast=SoyOpenCl::DefaultExecuteBlocking);
 	void			GetIterations(Array<SoyOpenclKernelIteration<2>>& Iterations,int Exec1,int Exec2,bool BlockLast=SoyOpenCl::DefaultExecuteBlocking);
 	void			GetIterations(Array<SoyOpenclKernelIteration<3>>& Iterations,int Exec1,int Exec2,int Exec3,bool BlockLast=SoyOpenCl::DefaultExecuteBlocking);
@@ -268,56 +307,123 @@ class SoyClDataBuffer
 {
 private:
 	SoyClDataBuffer(const SoyClDataBuffer& That) :
-		mManager	( *(SoyOpenClManager*)NULL ),
-		mKernel		( *(SoyOpenClKernel*)NULL )
+		mManager	( *(SoyOpenClManager*)nullptr ),
+		mKernel		( nullptr )
 	{
 	}
 public:
+	explicit SoyClDataBuffer(SoyOpenClManager& Manager,cl_command_queue Queue) :
+		mBuffer		( nullptr ),
+		mManager	( Manager ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
+	{
+	}
 	template<typename TYPE>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const TYPE& Data,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
-		mBuffer		( NULL ),
+		mBuffer		( nullptr ),
 		mManager	( Kernel.mManager ),
-		mKernel		( Kernel )
+		mKernel		( &Kernel ),
+		mQueue		( nullptr )
 	{
 		Write( Data, ReadWriteMode );
 	}
 	template<typename TYPE>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const Array<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
-		mBuffer		( NULL ),
+		mBuffer		( nullptr ),
 		mManager	( Kernel.mManager ),
-		mKernel		( Kernel )
+		mKernel		( &Kernel ),
+		mQueue		( nullptr )
 	{
 		Write( Array, ReadWriteMode );
 	}
 	template<typename TYPE,uint32 SIZE>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const BufferArray<TYPE,SIZE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
-		mBuffer		( NULL ),
+		mBuffer		( nullptr ),
 		mManager	( Kernel.mManager ),
-		mKernel		( Kernel )
+		mKernel		( &Kernel ),
+		mQueue		( nullptr )
 	{
 		Write( Array, ReadWriteMode );
 	}
 	template<typename TYPE>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const RemoteArray<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
-		mBuffer		( NULL ),
+		mBuffer		( nullptr ),
 		mManager	( Kernel.mManager ),
-		mKernel		( Kernel )
+		mKernel		( &Kernel ),
+		mQueue		( nullptr )
 	{
 		Write( Array, ReadWriteMode );
 	}
 	template<typename TYPE,class SORT>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const SortArray<TYPE,SORT>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
-		mBuffer		( NULL ),
+		mBuffer		( nullptr ),
 		mManager	( Kernel.mManager ),
-		mKernel		( Kernel )
+		mKernel		( &Kernel ),
+		mQueue		( nullptr )
 	{
 		Write( Array, ReadWriteMode );
 	}
 	template<typename TYPE>
 	explicit SoyClDataBuffer(SoyOpenClKernel& Kernel,const ArrayBridge<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
-		mBuffer		( NULL ),
+		mBuffer		( nullptr ),
 		mManager	( Kernel.mManager ),
-		mKernel		( Kernel )
+		mKernel		( &Kernel ),
+		mQueue		( nullptr )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE>
+	explicit SoyClDataBuffer(SoyOpenClManager& OpenCl,cl_command_queue Queue,const TYPE& Data,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( nullptr ),
+		mManager	( OpenCl ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
+	{
+		Write( Data, ReadWriteMode );
+	}
+	template<typename TYPE>
+	explicit SoyClDataBuffer(SoyOpenClManager& OpenCl,cl_command_queue Queue,const Array<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( nullptr ),
+		mManager	( OpenCl ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE,uint32 SIZE>
+	explicit SoyClDataBuffer(SoyOpenClManager& OpenCl,cl_command_queue Queue,const BufferArray<TYPE,SIZE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( nullptr ),
+		mManager	( OpenCl ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE>
+	explicit SoyClDataBuffer(SoyOpenClManager& OpenCl,cl_command_queue Queue,const RemoteArray<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( nullptr ),
+		mManager	( OpenCl ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE,class SORT>
+	explicit SoyClDataBuffer(SoyOpenClManager& OpenCl,cl_command_queue Queue,const SortArray<TYPE,SORT>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( nullptr ),
+		mManager	( OpenCl ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
+	{
+		Write( Array, ReadWriteMode );
+	}
+	template<typename TYPE>
+	explicit SoyClDataBuffer(SoyOpenClManager& OpenCl,cl_command_queue Queue,const ArrayBridge<TYPE>& Array,cl_int ReadWriteMode=CL_MEM_READ_WRITE) :
+		mBuffer		( nullptr ),
+		mManager	( OpenCl ),
+		mKernel		( nullptr ),
+		mQueue		( Queue )
 	{
 		Write( Array, ReadWriteMode );
 	}
@@ -375,7 +481,7 @@ public:
 	}
 
 	template<typename TYPE>
-	bool		Read(ArrayBridge<TYPE>& Array,int ElementCount=-1)
+	bool		Read(ArrayBridge<TYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)
 	{
 		if ( !mBuffer )
 			return false;
@@ -384,29 +490,29 @@ public:
 		Array.SetSize( ElementCount );
 		if ( Array.IsEmpty() )
 			return true;
-		if ( !mKernel.IsValid() )
+		if ( !GetQueue() )
 			return false;
-		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), SoyOpenCl::DefaultReadBlocking, mKernel.GetQueue() );
+		return mBuffer->read( Array.GetArray(), 0, Array.GetDataSize(), Blocking, GetQueue() );
 	}
 	template<typename ARRAYTYPE>
-	bool		Read(ArrayBridgeDef<ARRAYTYPE>& Array,int ElementCount)
+	bool		Read(ArrayBridgeDef<ARRAYTYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)
 	{
 		auto& Bridge = static_cast<ArrayBridge<ARRAYTYPE::TYPE>&>( Array );
-		return Read( Bridge, ElementCount );
+		return Read( Bridge, ElementCount, Blocking );
 	}
-	template<typename TYPE>				bool	Read(Array<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
-	template<typename TYPE,int SIZE>	bool	Read(BufferArray<TYPE,SIZE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
-	template<typename TYPE>				bool	Read(RemoteArray<TYPE>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array ), ElementCount );	}
-	template<typename TYPE,class SORT>	bool	Read(SortArray<TYPE,SORT>& Array,int ElementCount=-1)	{	return Read( GetArrayBridge( Array.mArray ), ElementCount );	}
+	template<typename TYPE>				bool	Read(Array<TYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)				{	return Read( GetArrayBridge( Array ), ElementCount, Blocking );	}
+	template<typename TYPE,int SIZE>	bool	Read(BufferArray<TYPE,SIZE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)	{	return Read( GetArrayBridge( Array ), ElementCount, Blocking );	}
+	template<typename TYPE>				bool	Read(RemoteArray<TYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)			{	return Read( GetArrayBridge( Array ), ElementCount, Blocking );	}
+	template<typename TYPE,class SORT>	bool	Read(SortArray<TYPE,SORT>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)		{	return Read( GetArrayBridge( Array.mArray ), ElementCount, Blocking );	}
 		
 	template<typename TYPE>
-	bool		Read(TYPE& Data)
+	bool		Read(TYPE& Data,bool Blocking=SoyOpenCl::DefaultReadBlocking)
 	{
 		if ( !mBuffer )
 			return false;
-		if ( !mKernel.IsValid() )
+		if ( !GetQueue() )
 			return false;
-		return mBuffer->read( &Data, 0, sizeof(TYPE), SoyOpenCl::DefaultReadBlocking, mKernel.GetQueue() );
+		return mBuffer->read( &Data, 0, sizeof(TYPE), Blocking, GetQueue() );
 	}
 
 	bool		IsValid() const		{	return mBuffer!=nullptr;	}
@@ -417,11 +523,11 @@ private:
 	template<typename TYPE>
 	bool	Write(const TYPE* pDataConst,int DataSize,bool Blocking,int ReadWriteMode)
 	{
-		assert( mKernel.IsValid() );
-		if ( !mKernel.IsValid() )
+		assert( GetQueue() );
+		if ( !GetQueue() )
 			return false;
 		assert( !mBuffer );
-		mBuffer = mManager.mOpencl.createBuffer( mKernel.GetQueue(), DataSize, ReadWriteMode, NULL, Blocking );
+		mBuffer = mManager.mOpencl.createBuffer( GetQueue(), DataSize, ReadWriteMode, NULL, Blocking );
 		if ( !mBuffer )
 			return false;
 
@@ -433,24 +539,28 @@ private:
 		void* pData = const_cast<TYPE*>( pDataConst );
 		if ( Blocking )
 		{
-			if ( !mBuffer->write( pData, 0, DataSize, Blocking, mKernel.GetQueue() ) )
+			if ( !mBuffer->write( pData, 0, DataSize, Blocking, GetQueue() ) )
 				return false;
 		}
 		else
 		{
 			//	write async and give an event to the kernel to wait for before executing
 			cl_event Event;
-			if ( !mBuffer->writeAsync( pData, 0, DataSize, &Event, mKernel.GetQueue() ) )
+			if ( !mBuffer->writeAsync( pData, 0, DataSize, &Event, GetQueue() ) )
 				return false;
-			mKernel.OnBufferPendingWrite( Event );
+			if ( mKernel )
+				mKernel->OnBufferPendingWrite( Event );
 		}
 		return true;
 	}
 
+	cl_command_queue	GetQueue()	{	return mKernel ? (mKernel->IsValid()?mKernel->GetQueue():nullptr) : mQueue;	}
+
 public:
 	msa::OpenCLBuffer*	mBuffer;
 	SoyOpenClManager&	mManager;
-	SoyOpenClKernel&	mKernel;
+	SoyOpenClKernel*	mKernel;
+	cl_command_queue	mQueue;
 };
 
 

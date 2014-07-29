@@ -27,6 +27,8 @@ namespace SoyNet
 	//		(ie. PacketEmulator, GameCenter etc
 	class TClientRef;			//	wrapper for ofxTCP clientid 
 	class TAddress;				//	unique socket-recieving address identifier
+
+	class TSocket;
 };
 
 
@@ -76,27 +78,7 @@ public:
 	{
 		assert(IsValid());
 	}
-	explicit TAddress(BufferString<200> AddressAndPort,TClientRef ClientRef=TClientRef()) :
-		mPort		( 0 ),
-		mClientRef	( ClientRef )
-	{
-		//	split address:port
-		BufferArray<BufferString<200>,2> AddressAndPortParts;
-		AddressAndPort.Split( AddressAndPortParts, ':' );
-
-		if ( AddressAndPortParts.GetSize() >= 1 )
-			mAddress = AddressAndPortParts[0];
-
-		//	get port
-		if ( AddressAndPortParts.GetSize() >= 2 )
-		{
-			int32 Port;
-			if ( AddressAndPortParts[1].GetInteger( Port ) )
-				mPort = Port;
-		}
-
-		assert(IsValid());
-	}
+	explicit TAddress(BufferString<200> AddressAndPort,TClientRef ClientRef=TClientRef());
 	
 	bool				Equals(const TAddress& That,bool TestClientRef) const				
 	{

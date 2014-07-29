@@ -1,6 +1,51 @@
 #pragma once
 
 #include "ofxSoylent.h"
+
+
+class SoyApp
+{
+public:
+	SoyApp()					{}
+	virtual ~SoyApp()			{}
+
+	virtual bool	Init()		{	return true;	}
+	virtual bool	Update()	{	return true;	}
+	virtual void	Exit()		{}
+};
+
+namespace Soy
+{
+	namespace Platform
+	{
+		class TConsoleApp;
+	}
+};
+
+class Soy::Platform::TConsoleApp
+{
+public:
+	TConsoleApp(SoyApp& App) :
+		mApp	( App )
+	{
+	}
+	int				RunLoop();
+
+private:
+#if defined(TARGET_WINDOWS)
+	static BOOL WINAPI	ConsoleHandler(DWORD dwType);
+#endif
+	
+private:
+	static bool			gIsRunning;
+	SoyApp&				mApp;
+};
+
+
+
+#if defined(OPENFRAMEWORKS)
+
+
 //#include "..\..\..\addons\ofxiPhone\src\ofxiPhone.h"
 //ofxiPhoneApp
 
@@ -555,3 +600,5 @@ private:
 	ArrayBridge<char>&	mData;
 	unsigned int		mBitPos;	//	current bit-to-read/write-pos (the tail)
 };
+
+#endif

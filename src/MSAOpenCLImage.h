@@ -102,15 +102,15 @@ namespace msa {
 		void reset(cl_command_queue Queue);
 #endif
 		
-		int getWidth() {
+		int getWidth() const {
 			return width;
 		}
 		
-		int getHeight() {
+		int getHeight() const {
 			return height;
 		}
 		
-		int getDepth() {
+		int getDepth() const {
 			return depth;
 		}
 		

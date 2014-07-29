@@ -545,19 +545,26 @@ SoyNet::TAddress SoyNet::TSocketTCP::GetMyAddress() const
 
 SoyNet::TAddress SoyNet::TSocketTCP::GetClientAddress(int ClientId) const
 {
+	SoyNet::TAddress Address;
+	Address.mClientRef = TClientRef( ClientId );
+
 	if ( GetServerConst().isClientConnected( ClientId ) )
 	{
-		SoyNet::TAddress Address;
 		Address.mAddress = GetServerConst().getClientIP( ClientId ).c_str();
 		Address.mPort = GetServerConst().getClientPort( ClientId );
-		Address.mClientRef = TClientRef( ClientId );
 		return Address;
 	}
 
-	return TAddress();
+	//	if we're a client, not a server, an invalid client id means the server
+	if ( GetState() == TSocketState::ClientConnected )
+		if ( Address.mClientRef == TClientRef() )
+			return GetServerAddress();
+
+	//	bad address should still contain the unique client id
+	return Address;
 }
 
-int SoyNet::TSocketTCP::GetClientId(SoyNet::TAddress ClientAddress) const
+int SoyNet::TSocket::GetClientId(SoyNet::TAddress ClientAddress) const
 {
 	//	gr: currently I'm assuming this address has made it all the way through....
 	assert( ClientAddress.mClientRef.IsValid() );
@@ -848,6 +855,12 @@ void TSocketUDP::OnClosed()
 }
 
 
+TAddress TSocketUDP::GetClientAddress(int ClientId) const
+{
+	//	todo: check this
+	assert(false);
+	return TAddress();
+}
 
 bool TSocketUDPMultiCast::BindUDP(uint16 Port)
 {

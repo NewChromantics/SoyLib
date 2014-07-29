@@ -28,7 +28,6 @@
 #include <cstdio>
 #include <cstdarg>
 #include <iostream>
-#include <algorithm>		//	std::transform
 #include "SoyTypes.h"
 #include "chartype.hpp"
 #include "array.hpp"
@@ -52,10 +51,6 @@ namespace Soy
 		Buffer[Terminator] = '\0';
 		assert( strlen(Buffer) <= BUFFERSIZE );
 	}
-
-	//	std string function wrappers
-	bool	StringContains(const std::string& Haystack, const std::string& Needle, bool CaseSensitive);
-	bool	StringBeginsWith(const std::string& Haystack, const std::string& Needle, bool CaseSensitive);
 
 
 	inline int	StrCaseCmp( const char* a, const char* b );
@@ -92,7 +87,7 @@ namespace Soy
 	
 	inline bool	IsUtf8Char(char Character)
 	{
-		switch ( Character )
+		switch (static_cast<unsigned char>(Character) )
 		{
 			case 0xC0:
 			case 0xC1:
@@ -638,8 +633,10 @@ namespace Soy
 
 		void InsertAt(int Offset,const char* String)
 		{
-			int Len = StringLen( String );
-			const char* Block = mdata.InsertBlock( Offset, Len );
+			//	test this StringLen
+			assert(false);
+			int Len = StringLen( String, -1, mdata.MaxAllocSize()-1  );
+			char* Block = mdata.InsertBlock( Offset, Len );
 			if ( !Block )
 				return;
 			memcpy( Block, String, Len );
@@ -914,7 +911,9 @@ bool Soy::String2<S,ARRAYTYPE>::ExtractInt(int& Value,const char* Start,const ch
 
 	//	strtod can tell us if we failed to extract
 	char*& MutableEnd = const_cast<char*&>( End );
-	Value = strtol( Start, &MutableEnd, 10 );
+	auto ValueLong = strtol( Start, &MutableEnd, 10 );
+	assert( ValueLong <= std::numeric_limits<int>::max() );
+	Value = static_cast<int>( ValueLong );
 
 	//	if the end hasn't moved on, then strtod couldn't decode the string to a float
 	if ( End == Start )
@@ -1296,36 +1295,4 @@ inline int Soy::StrCaseCmp( const char* a, const char* b )
 
 }
 
-
-inline bool Soy::StringContains(const std::string& Haystack, const std::string& Needle, bool CaseSensitive)
-{
-	if (CaseSensitive)
-	{
-		return (Haystack.find(Needle) != std::string::npos);
-	}
-	else
-	{
-		std::string HaystackLow = Haystack;
-		std::string NeedleLow = Needle;
-		std::transform(HaystackLow.begin(), HaystackLow.end(), HaystackLow.begin(), ::tolower);
-		std::transform(NeedleLow.begin(), NeedleLow.end(), NeedleLow.begin(), ::tolower);
-		return StringContains(HaystackLow, NeedleLow, true);
-	}
-}
-
-inline bool Soy::StringBeginsWith(const std::string& Haystack, const std::string& Needle, bool CaseSensitive)
-{
-	if (CaseSensitive)
-	{
-		return (Haystack.find(Needle) == 0 );
-	}
-	else
-	{
-		std::string HaystackLow = Haystack;
-		std::string NeedleLow = Needle;
-		std::transform(HaystackLow.begin(), HaystackLow.end(), HaystackLow.begin(), ::tolower);
-		std::transform(NeedleLow.begin(), NeedleLow.end(), NeedleLow.begin(), ::tolower);
-		return StringContains(HaystackLow, NeedleLow, true);
-	}
-}
 

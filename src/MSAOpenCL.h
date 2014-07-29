@@ -3,6 +3,8 @@
 #include <ofxSoylent.h>
 #include <SoyThread.h>
 
+#define ENABLE_OPENCL
+
 //	gr: amd APP sdk, other includes/libs may be different?
 #include <cl/Opencl.h>
 #pragma comment( lib, "OpenCL.lib" )
@@ -160,7 +162,7 @@ namespace msa {
 												 cl_mem_flags memFlags = CL_MEM_READ_WRITE);
 #endif
 		void			deleteBuffer(OpenCLMemoryObject& Buffer);
-		
+		int				getMemObjectCount() const		{	return memObjects.GetSize();	}
 		
 		// create OpenCL image memory objects
 		// if dataPtr parameter is passed in, data is uploaded immediately

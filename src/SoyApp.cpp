@@ -1,6 +1,59 @@
 #include "SoyApp.h"
-#include "ofxXmlSettings.h"     
+#if defined(OPENFRAMEWORKS)
+#include "ofxXmlSettings.h"
+#endif
 
+
+bool Soy::Platform::TConsoleApp::gIsRunning = false;
+
+
+#if defined(TARGET_WINDOWS)
+BOOL WINAPI Soy::Platform::TConsoleApp::ConsoleHandler(DWORD dwType)
+{
+	switch(dwType) 
+	{
+		case CTRL_CLOSE_EVENT:
+		case CTRL_LOGOFF_EVENT:
+		case CTRL_SHUTDOWN_EVENT:
+			gIsRunning = false;
+
+			//Returning would make the process exit!
+			//We just make the handler sleep until the main thread exits,
+			//or until the maximum execution time for this handler is reached.
+			Sleep(10000);
+		return TRUE;
+
+	default:
+		return FALSE;
+	}
+}
+#endif
+
+
+int Soy::Platform::TConsoleApp::RunLoop()
+{
+	assert( !gIsRunning );
+	gIsRunning = true;
+	
+#if defined(TARGET_WINDOWS)
+	SetConsoleCtrlHandler( ConsoleHandler, true );
+#endif
+	if ( !mApp.Init() )
+		return 1;
+	while ( gIsRunning )
+	{
+		if ( !mApp.Update() )
+			break;
+
+		//	frame limiter here
+		SoyThread::Sleep( 1000/60 );
+	}
+	mApp.Exit();
+	return 0;
+}
+
+
+#if defined(OPENFRAMEWORKS)
 
 SoyApp::SoyApp()
 {
@@ -541,3 +594,5 @@ void TBitWriter::WriteBit(int Bit)
 
 	mData[CurrentByte] |= AddBit;
 }
+
+#endif

@@ -81,7 +81,7 @@
 			if ( !SetSize( v.GetSize(),false ) )
 				return false;
 
-			if ( DoComplexCopy(v) )
+			if ( Soy::DoComplexCopy<T,typename ARRAYTYPE::TYPE>() )
 			{
 				for ( int i=0; i<GetSize(); ++i )
 					(*this)[i] = v[i];	//	use [] operator for bounds check
@@ -91,21 +91,6 @@
 				memcpy( mdata, v.GetArray(), GetSize() * sizeof(T) );
 			}
 			return true;
-		}
-
-		//	different type array, must do complex copy.
-		template<class ARRAYTYPE>
-		inline bool DoComplexCopy(const ARRAYTYPE& v) const
-		{
-			return true;
-		}
-
-		//	specialisation for an array of T (best case scenario T is non-complex)
-		//	gr: unfortunately, cannot test Array<T> here, (cyclic headers) but we would if we could
-		template<uint32 SIZE>
-		inline bool DoComplexCopy(const BufferArray<T,SIZE>& v) const
-		{
-			return Soy::IsComplexType<T>();
 		}
 
 		T& operator [] (int index)
@@ -170,16 +155,9 @@
 
 		//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
 		template<typename THATTYPE>
-		T* PushReinterpretBlock(const THATTYPE& OtherData)
+		T* PushBackReinterpret(const THATTYPE& OtherData)
 		{
-			int ThatDataSize = sizeof(OtherData);
-			T* pData = PushBlock( ThatDataSize / sizeof(T) );
-			if ( !pData )
-				return NULL;
-
-			//	memcpy over the block
-			memcpy( pData, &OtherData, ThatDataSize );
-			return pData;
+			return GetArrayBridge(*this).PushBackReinterpret( OtherData );
 		}
 
 		T* PushBlock(int count)
@@ -229,9 +207,9 @@
 		T& PushBack()
 		{
 			//	out of space
-			if ( moffset >= mmaxsize )
+			if ( moffset >= MaxSize() )
 			{
-				assert( moffset < mmaxsize );
+				assert( moffset < MaxSize() );
 				return mdata[ moffset-1 ];
 			}
 
@@ -244,10 +222,12 @@
 		template<class ARRAYTYPE>
 		void PushBackArray(const ARRAYTYPE& v)
 		{
+			GetArrayBridge( *this ).PushBackArray(v);
+			/*
 			int NewDataIndex = GetSize();
 			T* pNewData = PushBlock( v.GetSize() );
 
-			if ( DoComplexCopy(v) )
+			if ( Soy::DoComplexCopy(v) )
 			{
 				for ( int i=0; i<v.GetSize(); ++i )
 					(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check
@@ -259,6 +239,7 @@
 				//	note: lack of bounds check for all elements here
 				memcpy( pNewData, v.GetArray(), v.GetSize() * sizeof(T) );
 			}
+			*/
 		}
 
 		//	pushback a c-array
@@ -313,7 +294,7 @@
 			int left = static_cast<int>(moffset - index);
 			PushBlock(count);	// increase array mem 
 
-			if ( DoComplexCopy(*this) )
+			if ( Soy::DoComplexCopy<T,T>() )
 			{
 				T* src = mdata + moffset - count - 1;
 				T* dest = mdata + moffset - 1;
@@ -343,7 +324,7 @@
 			T* src = mdata + index + count;
 			int left = static_cast<int>((mdata+moffset) - src);
 
-			if ( DoComplexCopy(*this) )
+			if ( Soy::DoComplexCopy<T,T>() )
 			{				
 				for ( int i=0; i<left; ++i )
 					*dest++ = *src++;
@@ -551,34 +532,7 @@ public:
 	template<class ARRAYTYPE>
 	bool Copy(const ARRAYTYPE& v)
 	{
-		if ( !SetSize( v.GetSize(),false ) )
-			return false;
-
-		if ( DoComplexCopy(v) )
-		{
-			for ( int i=0; i<GetSize(); ++i )
-				(*this)[i] = v[i];	//	use [] operator for bounds check
-		}
-		else if ( GetSize() > 0 )
-		{
-			memcpy( mdata, v.GetArray(), GetSize() * sizeof(T) );
-		}
-		return true;
-	}
-
-	//	different type array, must do complex copy.
-	template<class ARRAYTYPE>
-	inline bool DoComplexCopy(const ARRAYTYPE& v) const
-	{
-		return true;
-	}
-
-	//	specialisation for an array of T (best case scenario T is non-complex)
-	//	gr: unfortunately, cannot test Array<T> here, (cyclic headers) but we would if we could
-	template<uint32 SIZE>
-	inline bool DoComplexCopy(const BufferArray<T,SIZE>& v) const
-	{
-		return Soy::IsComplexType<T>();
+		return GetArrayBridge(*this).Copy(v);
 	}
 
 	T& operator [] (int index)
@@ -644,16 +598,9 @@ public:
 
 	//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
 	template<typename THATTYPE>
-	T* PushReinterpretBlock(const THATTYPE& OtherData)
+	T* PushBackReinterpret(const THATTYPE& OtherData)
 	{
-		int ThatDataSize = sizeof(OtherData);
-		T* pData = PushBlock( ThatDataSize / sizeof(T) );
-		if ( !pData )
-			return NULL;
-
-		//	memcpy over the block
-		memcpy( pData, &OtherData, ThatDataSize );
-		return pData;
+		return GetArrayBridge(*this).PushBackReinterpret( OtherData );
 	}
 
 	T* PushBlock(int count)
@@ -667,7 +614,7 @@ public:
 		if ( endoff > mmaxsize )
 		{
 			assert( endoff <= mmaxsize );
-			return NULL;
+			return nullptr;
 		}
 			
 		moffset = endoff;
@@ -716,44 +663,16 @@ public:
 	}
 
 	template<class ARRAYTYPE>
-	void PushBackArray(const ARRAYTYPE& v)
+	T*	PushBackArray(const ARRAYTYPE& v)
 	{
-		int NewDataIndex = GetSize();
-		T* pNewData = PushBlock( v.GetSize() );
-
-		if ( DoComplexCopy(v) )
-		{
-			for ( int i=0; i<v.GetSize(); ++i )
-				(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check
-		}
-		else if ( v.GetSize() > 0 )
-		{
-			//	re-fetch address for bounds check. technically unncessary
-			pNewData = &((*this)[NewDataIndex]);
-			//	note: lack of bounds check for all elements here
-			memcpy( pNewData, v.GetArray(), v.GetSize() * sizeof(T) );
-		}
+		return GetArrayBridge(*this).PushBackArray(v);
 	}
 
 	//	pushback a c-array
 	template<size_t CARRAYSIZE>
 	void PushBackArray(const T(&CArray)[CARRAYSIZE])
 	{
-		int NewDataIndex = GetSize();
-		T* pNewData = PushBlock( CARRAYSIZE );
-
-		if ( Soy::IsComplexType<T>() )
-		{
-			for ( int i=0; i<CARRAYSIZE; ++i )
-				(*this)[i+NewDataIndex] = CArray[i];	//	use [] operator for bounds check
-		}
-		else if ( GetSize() > 0 )
-		{
-			//	re-fetch address for bounds check. technically unncessary
-			pNewData = &((*this)[NewDataIndex]);
-			//	note: lack of bounds check for all elements here
-			memcpy( pNewData, CArray, CARRAYSIZE * sizeof(T) );
-		}
+		return GetArrayBridge(*this).PushBackArray(CArray);
 	}
 
 	T& PopBack()
@@ -785,9 +704,10 @@ public:
 
 //			int left = static_cast<int>((mdata+moffset) - (mdata+index));
 		int left = static_cast<int>(moffset - index);
-		PushBlock(count);	// increase array mem 
+		if ( !PushBlock(count) )
+			return nullptr;
 
-		if ( DoComplexCopy(*this) )
+		if ( Soy::DoComplexCopy<T,T>() )
 		{
 			T* src = mdata + moffset - count - 1;
 			T* dest = mdata + moffset - 1;
@@ -800,7 +720,6 @@ public:
 		}
 
 		return mdata + index;
-
 	}
 
 	void RemoveBlock(int index, int count)
@@ -817,7 +736,7 @@ public:
 		T* src = mdata + index + count;
 		int left = static_cast<int>((mdata+moffset) - src);
 
-		if ( DoComplexCopy(*this) )
+		if ( Soy::DoComplexCopy<T,T>() )
 		{				
 			for ( int i=0; i<left; ++i )
 				*dest++ = *src++;
@@ -873,13 +792,7 @@ public:
 	template<typename MATCHTYPE>
 	int			FindIndex(const MATCHTYPE& Match) const
 	{
-		for ( int i=0;	i<GetSize();	i++ )
-		{
-			const T& Element = mdata[i];
-			if ( Element == Match )
-				return i;
-		}
-		return -1;
+		return GetArrayBridge(*this).FindIndex( Match );
 	}
 
 	//	find an element - returns first matching element or NULL

@@ -457,32 +457,54 @@ bool SoyOpenClKernel::Begin()
 	return true;
 }
 
-bool SoyOpenClKernel::End1D(int Exec1)
-{
-	bool Blocking = SoyOpenCl::DefaultExecuteBlocking;
-	return End1D( Blocking, Exec1 );
-}
 
-bool SoyOpenClKernel::End2D(int Exec1,int Exec2)
+bool SoyOpenClKernel::End(bool Blocking,const ArrayBridge<int>& OrigGlobalExec,const ArrayBridge<int>& OrigLocalExec)
 {
-	bool Blocking = SoyOpenCl::DefaultExecuteBlocking;
-	return End2D( Blocking, Exec1, Exec2 );
-}
+	BufferArray<int,3> GlobalExec( OrigGlobalExec );
+	BufferArray<int,6> LocalExec( OrigLocalExec );
+	assert( !GlobalExec.IsEmpty() );
+	if ( GlobalExec.IsEmpty() )
+		return true;
 
-bool SoyOpenClKernel::End3D(int Exec1,int Exec2,int Exec3)
-{
-	bool Blocking = SoyOpenCl::DefaultExecuteBlocking;
-	return End3D( Blocking, Exec1, Exec2, Exec3 );
-}
-
-bool SoyOpenClKernel::End1D(bool Blocking,int Exec1)
-{
-	if ( !IsValidExecCount(Exec1) )
+	for ( int i=0;	i<GlobalExec.GetSize();	i++ )
 	{
+		auto& ExecCount = GlobalExec[i];
+
+		//	dimensions need to be at least 1, zero size is not a failure, just don't execute
+		if ( ExecCount <= 0 )
+			return true;
+
+		if ( IsValidGlobalExecCount(ExecCount) )
+			continue;
+
 		BufferString<1000> Debug;
-		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
+		Debug << GetName() << ": Too many iterations for kernel: " << ExecCount << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
 		ofLogWarning( Debug.c_str() );
-		Exec1 = ofMin( Exec1, GetMaxWorkGroupSize() );
+		ExecCount = std::min( ExecCount, GetMaxGlobalWorkGroupSize() );
+	}
+
+	//	local size must match global size if specified
+	if ( !LocalExec.IsEmpty() && LocalExec.GetSize() != GlobalExec.GetSize() )
+	{
+		assert( false );
+		return false;
+	}
+
+	for ( int i=0;	i<LocalExec.GetSize();	i++ )
+	{
+		auto& ExecCount = LocalExec[i];
+
+		//	dimensions need to be at least 1, zero size is not a failure, just don't execute
+		if ( ExecCount <= 0 )
+			return true;
+
+		if ( IsValidLocalExecCount(ExecCount) )
+			continue;
+
+		BufferString<1000> Debug;
+		Debug << GetName() << ": Too many iterations for kernel: " << ExecCount << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
+		ofLogWarning( Debug.c_str() );
+		ExecCount = std::min( ExecCount, GetMaxLocalWorkGroupSize() );
 	}
 
 	//	if we're about to execute, make sure all writes are done
@@ -490,56 +512,27 @@ bool SoyOpenClKernel::End1D(bool Blocking,int Exec1)
 	if ( !WaitForPendingWrites() )
 		return false;
 
+	//	pad out local exec in case it's not specified
+	LocalExec.PushBack(0);
+	LocalExec.PushBack(0);
+	LocalExec.PushBack(0);
+
 	//	execute
-	if ( !mKernel->run1D( Blocking, Exec1 ) )
-		return false;
-
-	return true;
-}
-
-bool SoyOpenClKernel::End2D(bool Blocking,int Exec1,int Exec2)
-{
-	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) )
+	if ( GlobalExec.GetSize() == 3 )
 	{
-		BufferString<1000> Debug;
- 		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "," << Exec2 << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
-		ofLogWarning( Debug.c_str() );
-		Exec1 = ofMin( Exec1, GetMaxWorkGroupSize() );
-		Exec2 = ofMin( Exec2, GetMaxWorkGroupSize() );
+		if ( !mKernel->run3D( Blocking, GlobalExec[0], GlobalExec[1], GlobalExec[2], LocalExec[0], LocalExec[1], LocalExec[2] ) )
+			return false;
 	}
-
-	//	if we're about to execute, make sure all writes are done
-	//	gr: only if ( Blocking ) ?
-	if ( !WaitForPendingWrites() )
-		return false;
-
-	//	execute
-	if ( !mKernel->run2D( Blocking, Exec1, Exec2 ) )
-		return false;
-
-	return true;
-}
-
-bool SoyOpenClKernel::End3D(bool Blocking,int Exec1,int Exec2,int Exec3)
-{
-	if ( !IsValidExecCount(Exec1) || !IsValidExecCount(Exec2) || !IsValidExecCount(Exec3) )
+	else if ( GlobalExec.GetSize() == 2 )
 	{
-		BufferString<1000> Debug;
-		Debug << GetName() << ": Too many iterations for kernel: " << Exec1 << "," << Exec2 << "," << Exec3 << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
-		ofLogWarning( Debug.c_str() );
-		Exec1 = ofMin( Exec1, GetMaxWorkGroupSize() );
-		Exec2 = ofMin( Exec2, GetMaxWorkGroupSize() );
-		Exec3 = ofMin( Exec3, GetMaxWorkGroupSize() );
+		if ( !mKernel->run2D( Blocking, GlobalExec[0], GlobalExec[1], LocalExec[0], LocalExec[1] ) )
+			return false;
 	}
-
-	//	if we're about to execute, make sure all writes are done
-	//	gr: only if ( Blocking ) ?
-	if ( !WaitForPendingWrites() )
-		return false;
-
-	//	execute
-	if ( !mKernel->run3D( Blocking, Exec1, Exec2, Exec3 ) )
-		return false;
+	else if ( GlobalExec.GetSize() == 1 )
+	{
+		if ( !mKernel->run1D( Blocking, GlobalExec[0], LocalExec[0] ) )
+			return false;
+	}
 
 	return true;
 }
@@ -600,9 +593,11 @@ bool SoyOpenClKernel::CheckPaddingChecksum(const int* Padding,int Length)
 void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<1>>& Iterations,int Exec1,bool BlockLast)
 {
 	int KernelWorkGroupMax = GetMaxWorkGroupSize();
-	if ( KernelWorkGroupMax == -1 )
+	if ( KernelWorkGroupMax < 1 )
 		KernelWorkGroupMax = Exec1;
-	int Iterationsa = (Exec1 / KernelWorkGroupMax)+1;
+
+	bool Overflowa = (Exec1 % KernelWorkGroupMax) > 0;
+	int Iterationsa = (Exec1 / KernelWorkGroupMax) + Overflowa;
 
 	for ( int ita=0;	ita<Iterationsa;	ita++ )
 	{
@@ -610,6 +605,7 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<1>>& Iteratio
 		Iteration.mFirst[0] = ita * KernelWorkGroupMax;
 		Iteration.mCount[0] = ofMin( KernelWorkGroupMax, Exec1 - Iteration.mFirst[0] );
 		Iteration.mBlocking = BlockLast && (ita==Iterationsa-1);
+		assert( Iteration.mCount[0] > 0 );
 		Iterations.PushBack( Iteration );
 	}
 }
@@ -617,10 +613,13 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<1>>& Iteratio
 void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<2>>& Iterations,int Exec1,int Exec2,bool BlockLast)
 {
 	int KernelWorkGroupMax = GetMaxWorkGroupSize();
-	if ( KernelWorkGroupMax == -1 )
+	if ( KernelWorkGroupMax < 1 )
 		KernelWorkGroupMax = ofMax( Exec1, Exec2 );
-	int Iterationsa = (Exec1 / KernelWorkGroupMax)+1;
-	int Iterationsb = (Exec2 / KernelWorkGroupMax)+1;
+
+	bool Overflowa = (Exec1 % KernelWorkGroupMax) > 0;
+	bool Overflowb = (Exec2 % KernelWorkGroupMax) > 0;
+	int Iterationsa = (Exec1 / KernelWorkGroupMax) + Overflowa;
+	int Iterationsb = (Exec2 / KernelWorkGroupMax) + Overflowb;
 
 	for ( int ita=0;	ita<Iterationsa;	ita++ )
 	{
@@ -632,6 +631,8 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<2>>& Iteratio
 			Iteration.mFirst[1] = itb * KernelWorkGroupMax;
 			Iteration.mCount[1] = ofMin( KernelWorkGroupMax, Exec2 - Iteration.mFirst[1] );
 			Iteration.mBlocking = BlockLast && (ita==Iterationsa-1) && (itb==Iterationsb-1);
+			assert( Iteration.mCount[0] > 0 );
+			assert( Iteration.mCount[1] > 0 );
 			Iterations.PushBack( Iteration );
 		}
 	}
@@ -640,11 +641,15 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<2>>& Iteratio
 void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<3>>& Iterations,int Exec1,int Exec2,int Exec3,bool BlockLast)
 {
 	int KernelWorkGroupMax = GetMaxWorkGroupSize();
-	if ( KernelWorkGroupMax == -1 )
+	if ( KernelWorkGroupMax < 1 )
 		KernelWorkGroupMax = ofMax( Exec1, ofMax( Exec2, Exec3 ) );
-	int Iterationsa = (Exec1 / KernelWorkGroupMax)+1;
-	int Iterationsb = (Exec2 / KernelWorkGroupMax)+1;
-	int Iterationsc = (Exec3 / KernelWorkGroupMax)+1;
+
+	bool Overflowa = (Exec1 % KernelWorkGroupMax) > 0;
+	bool Overflowb = (Exec2 % KernelWorkGroupMax) > 0;
+	bool Overflowc = (Exec3 % KernelWorkGroupMax) > 0;
+	int Iterationsa = (Exec1 / KernelWorkGroupMax) + Overflowa;
+	int Iterationsb = (Exec2 / KernelWorkGroupMax) + Overflowb;
+	int Iterationsc = (Exec3 / KernelWorkGroupMax) + Overflowc;
 
 	for ( int ita=0;	ita<Iterationsa;	ita++ )
 	{
@@ -660,6 +665,9 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<3>>& Iteratio
 				Iteration.mFirst[2] = itc * KernelWorkGroupMax;
 				Iteration.mCount[2] = ofMin( KernelWorkGroupMax, Exec3 - Iteration.mFirst[2] );
 				Iteration.mBlocking = BlockLast && (ita==Iterationsa-1) && (itb==Iterationsb-1) && (itc==Iterationsc-1);
+				assert( Iteration.mCount[0] > 0 );
+				assert( Iteration.mCount[1] > 0 );
+				assert( Iteration.mCount[2] > 0 );
 				Iterations.PushBack( Iteration );
 			}
 		}
@@ -667,3 +675,16 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<3>>& Iteratio
 }
 
 
+int SoyOpenClKernel::GetMaxGlobalWorkGroupSize() const		
+{
+	int DeviceAddressBits = 32;	//CL_DEVICE_ADDRESS_BITS
+	int MaxSize = (1<<(DeviceAddressBits-1))-1;	
+	//	gr: if this is negative opencl kernels lock up (or massive loops?), code should bail out beforehand
+	assert( MaxSize > 0 );
+	return MaxSize;
+}
+
+int SoyOpenClKernel::GetMaxLocalWorkGroupSize() const		
+{
+	return mDeviceInfo.maxWorkGroupSize;	
+}

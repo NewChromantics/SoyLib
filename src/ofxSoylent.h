@@ -3,6 +3,7 @@
 
 #if !defined(NO_OPENFRAMEWORKS)
 #include <ofMain.h>
+#define OPENFRAMEWORKS
 #endif
 
 
@@ -27,6 +28,8 @@ typedef Soy::String2<char,Array<char> >		TString;
 //#include "SoyApp.h"
 //#include "SoyMath.h"
 //#include "SoyOpenCl.h"
+#include "SoyThread.h"
+#include "SoyEvent.h"
 
 
 #if OF_VERSION_MINOR > 7
