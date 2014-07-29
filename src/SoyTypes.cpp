@@ -1,6 +1,7 @@
 #include "SoyTypes.h"
 #include "heaparray.hpp"
 #include <sstream>
+#include <fstream>
 #include <algorithm>		//	std::transform
 
 #if defined(TARGET_WINDOWS)
@@ -250,5 +251,62 @@ std::string Soy::Platform::GetErrorString(int Error)
 
 	return strerror(Error);
 #endif
+}
+
+
+
+bool Soy::ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream)
+{
+	//	dunno how much to read
+	assert( !Data.IsEmpty() );
+	if ( Data.IsEmpty() )
+		return false;
+	
+	Stream.read( Data.GetArray(), Data.GetDataSize() );
+	
+	if ( Stream.fail() && !Stream.eof() )
+		return false;
+	
+	auto BytesRead = Stream.gcount();
+	Data.SetSize( BytesRead );
+	
+	return true;
+}
+
+bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::stringstream& Error)
+{
+	BufferArray<char,5*1024> Buffer;
+	while ( !Stream.eof() )
+	{
+		//	read a chunk
+		Buffer.SetSize( Buffer.MaxAllocSize() );
+		auto BufferBridge = GetArrayBridge( Buffer );
+		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
+		{
+			Error << "Error reading stream";
+			return false;
+		}
+		
+		Data.PushBackArray( Buffer );
+	}
+	
+	return true;
+}
+
+bool Soy::LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename,std::stringstream& Error)
+{
+	//	gr: would be nice to have an array! MemFileArray maybe, if it can be cross paltform...
+	std::ifstream Stream( Filename, std::ios::binary|std::ios::in );
+	if ( !Stream.is_open() )
+	{
+		Error << "Failed to open " << Filename << " (" << Soy::Platform::GetLastErrorString() << ")";
+		return false;
+	}
+	
+	//	read block by block
+	bool Result = ReadStream( Data, Stream, Error );
+	Stream.close();
+	
+	return Result;
 }
 

@@ -375,3 +375,14 @@ namespace Soy
 		inline std::string	GetLastErrorString()	{	return GetErrorString( GetLastError() );	}
 	}
 };
+
+template<typename TYPE>
+class ArrayBridge;
+
+namespace Soy
+{
+	bool	LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename,std::stringstream& Error);
+	bool	ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::stringstream& Error);
+	bool	ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream);
+}
+
