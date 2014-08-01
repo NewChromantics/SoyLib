@@ -173,6 +173,30 @@
 				pData[i] = OtherT[ThatDataSize-1-i];
 			return pData;
 		}
+		
+		template<class ARRAYTYPE>
+		T*					InsertArray(const ARRAYTYPE& v,int Index)
+		{
+			int NewDataIndex = GetSize();
+			T* pNewData = InsertBlock( Index, v.GetSize() );
+			if ( !pNewData )
+				return nullptr;
+			
+			if ( Soy::DoComplexCopy<T,typename ARRAYTYPE::TYPE>() )
+			{
+				for ( int i=0; i<v.GetSize(); ++i )
+					(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check
+			}
+			else if ( v.GetSize() > 0 )
+			{
+				//	re-fetch address for bounds check. technically unncessary
+				pNewData = &((*this)[NewDataIndex]);
+				//	note: lack of bounds check for all elements here
+				memcpy( pNewData, v.GetArray(), v.GetSize() * sizeof(T) );
+			}
+			
+			return pNewData;
+		}
 
 		uint32				GetCrc32() const
 		{
