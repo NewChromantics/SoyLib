@@ -551,6 +551,8 @@ inline void Soy::WriteXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,co
 }
 
 
+#endif
+
 
 
 class TBitReader
@@ -600,5 +602,3 @@ private:
 	ArrayBridge<char>&	mData;
 	unsigned int		mBitPos;	//	current bit-to-read/write-pos (the tail)
 };
-
-#endif

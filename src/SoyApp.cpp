@@ -409,6 +409,8 @@ template<> void Soy::WriteXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,co
 }
 
 
+#endif
+
 
 template<int BYTECOUNT,typename STORAGE>
 bool TBitReader::ReadBytes(STORAGE& Data,int BitCount)
@@ -594,5 +596,3 @@ void TBitWriter::WriteBit(int Bit)
 
 	mData[CurrentByte] |= AddBit;
 }
-
-#endif
