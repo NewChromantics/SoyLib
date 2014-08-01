@@ -364,8 +364,6 @@ private:
     uint32_t _crc;
 };
 
-
-
 namespace Soy
 {
 	namespace Platform
@@ -385,4 +383,12 @@ namespace Soy
 	bool	ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::stringstream& Error);
 	bool	ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream);
 }
+
+
+namespace Soy
+{
+	//	http://www.adp-gmbh.ch/cpp/common/base64.html
+	std::string	base64_encode(const ArrayBridge<unsigned char>& Data);
+	std::string	base64_decode(std::string const& s);
+};
 
