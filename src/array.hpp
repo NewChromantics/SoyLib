@@ -177,7 +177,7 @@
 		template<class ARRAYTYPE>
 		T*					InsertArray(const ARRAYTYPE& v,int Index)
 		{
-			int NewDataIndex = GetSize();
+			int NewDataIndex = Index;
 			T* pNewData = InsertBlock( Index, v.GetSize() );
 			if ( !pNewData )
 				return nullptr;
