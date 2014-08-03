@@ -1,6 +1,8 @@
 #include "SoyString.h"
 #include <regex>
 #include <sstream>
+#include "array.hpp"
+#include "bufferarray.hpp"
 
 
 void Soy::StringToLower(std::string& String)
@@ -85,5 +87,30 @@ std::string	Soy::Join(const std::vector<std::string>& Strings,const std::string&
 	return Stream.str();
 }
 
+
+
+std::string Soy::ArrayToString(const ArrayBridge<char>& Array)
+{
+	std::stringstream Stream;
+	ArrayToString( Array, Stream );
+	return Stream.str();
+}
+
+void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String)
+{
+	for ( int i=0;	i<Array.GetSize();	i++ )
+	{
+		if ( Array[i] == '\0' )
+			continue;
+		String << Array[i];
+	}
+}
+
+void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
+{
+	const int Size = String.length();
+	auto CommandStrArray = GetRemoteArray( String.c_str(), Size, Size );
+	Array.PushBackArray( CommandStrArray );
+}
 
 
