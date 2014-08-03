@@ -134,7 +134,14 @@ public:
 	void			waitForThread(bool stop = true);
 	std::thread::id		GetThreadId() const					{	return mThread.get_id();	}
 	std::string		GetThreadName() const				{	return mThreadName;	}
-	static void		Sleep(int ms=0)						{	std::this_thread::sleep_for( std::chrono::milliseconds(ms) );	}
+	static void		Sleep(int ms=0)
+	{
+		//	slow down cpu usage on OSX until I find out how to do this properly
+#if defined(TARGET_OSX)
+		ms += 10;
+#endif
+		std::this_thread::sleep_for( std::chrono::milliseconds(ms) );
+	}
 
 #if defined(TARGET_WINDOWS) 
 	DWORD			GetNativeThreadId()					{	return ::GetThreadId( GetThreadHandle() );	}
