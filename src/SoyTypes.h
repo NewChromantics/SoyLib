@@ -307,7 +307,11 @@ namespace Soy
 	#define DECLARE_TYPE_NAME(TYPE)								\
 		template<>															\
 		inline const char* Soy::GetTypeName<TYPE>()	{	return #TYPE ;	}
-
+	
+	#define DECLARE_TYPE_NAME_AS(TYPE,NAME)								\
+		template<>															\
+		inline const char* Soy::GetTypeName<TYPE>()	{	return NAME ;	}
+	
 	//	speed up use of this type in our arrays when resizing, allocating etc
 	//	declare a type that can be memcpy'd (ie. no pointers or ref-counted objects that rely on =operators or copy constructors)
 	#define DECLARE_NONCOMPLEX_TYPE(TYPE)								\
@@ -339,8 +343,7 @@ DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint32 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int64 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint64 );
 
-//DECLARE_TYPE_NAME( std::string );
-template<> inline const char* Soy::GetTypeName<std::string>()	{	return "text" ;	}
+DECLARE_TYPE_NAME_AS( std::string, "text" );
 
 
 
