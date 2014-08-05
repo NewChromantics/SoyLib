@@ -339,6 +339,8 @@ DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint32 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int64 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint64 );
 
+//DECLARE_TYPE_NAME( std::string );
+template<> inline const char* Soy::GetTypeName<std::string>()	{	return "text" ;	}
 
 
 
