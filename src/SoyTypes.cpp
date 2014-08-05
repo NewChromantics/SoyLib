@@ -415,3 +415,30 @@ std::string Soy::base64_decode(std::string const& encoded_string)
 }
 
 
+bool Soy::StringToFile(std::string Filename,std::string String)
+{
+	std::ofstream File( Filename, std::ios::out );
+	if ( !File.is_open() )
+		return false;
+	
+	File << String;
+	bool Success = !File.fail();
+	
+	File.close();
+	return Success;
+}
+
+
+bool Soy::FileToString(std::string Filename,std::string String)
+{
+	std::ifstream File( Filename, std::ios::in );
+	if ( !File.is_open() )
+		return false;
+	
+	File >> String;
+	bool Success = !File.fail();
+	
+	File.close();
+	return Success;
+}
+
