@@ -979,3 +979,47 @@ bool SoyPixelsImpl::SetPixel(uint16 x,uint16 y,uint16 Channel,const uint8& Compo
 	return true;
 }
 
+
+
+void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
+{
+	auto& Pixels = GetPixelsArray();
+	
+	//	simply add/remove rows
+	if ( Height > GetHeight() )
+	{
+		int RowBytes = GetChannels() * GetWidth();
+		RowBytes *= Height - GetHeight();
+		Pixels.PushBlock( RowBytes );
+	}
+	else if ( Height < GetHeight() )
+	{
+		int RowBytes = GetChannels() * GetWidth();
+		RowBytes *= GetHeight() - Height;
+		Pixels.SetSize( Pixels.GetDataSize() - RowBytes );
+	}
+	
+	//	insert/remove data on the end of each row
+	if ( Width > GetWidth() )
+	{
+		//	working backwards makes it easy & fast
+		int Stride = GetChannels() * GetWidth();
+		int ColBytes = GetChannels() * (Width - GetWidth());
+		for ( int p=Pixels.GetDataSize();	p>=0;	p-=Stride )
+			Pixels.InsertBlock( p, ColBytes );
+		GetMeta().DumbSetWidth( Width );
+	}
+	else if ( Width < GetWidth() )
+	{
+		//	working backwards makes it easy & fast
+		int Stride = GetChannels() * GetWidth();
+		int ColBytes = GetChannels() * (GetWidth() - Width);
+		for ( int p=Pixels.GetDataSize()-ColBytes;	p>=0;	p-=Stride )
+			Pixels.RemoveBlock( p, ColBytes );
+		GetMeta().DumbSetWidth( Width );
+	}
+	
+	assert( Height == GetHeight() );
+	assert( Width = GetWidth() );
+}
+
