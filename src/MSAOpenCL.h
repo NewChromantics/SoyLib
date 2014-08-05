@@ -5,9 +5,16 @@
 
 #define ENABLE_OPENCL
 
+#if defined(TARGET_WINDOWS)
 //	gr: amd APP sdk, other includes/libs may be different?
 #include <cl/Opencl.h>
 #pragma comment( lib, "OpenCL.lib" )
+#endif
+
+#if defined(TARGET_OSX)
+//	add the OpenCL.framework
+#include <opencl/opencl.h>
+#endif
 
 #include "MSAOpenCLKernel.h"
 #include "MSAOpenCLProgram.h"
@@ -118,7 +125,7 @@ namespace msa {
 		~OpenCL();
 		
 		// initializes openCL. If we have more than one platform, we need to specify it. Vender is a simpler string :)
-		bool	setup(const char* PlatformName=NULL);
+		bool	setup(std::string PlatformName=std::string());
 		bool	setupFromOpenGL();
 		
 		bool				isInitialised() const	{	return HasDevice() && HasContext();	}
@@ -136,7 +143,7 @@ namespace msa {
 
 		// load a program (contains a bunch of kernels)
 		// returns pointer to the program should you need it (for most operations you won't need this)
-		OpenCLProgram*	loadProgramFromFile(std::string filename, bool isBinary=false,const char* BuildOptions=NULL);
+		OpenCLProgram*	loadProgramFromFile(std::string filename, bool isBinary=false,std::string BuildOptions=std::string());
 		OpenCLProgram*	loadProgramFromSource(std::string programSource);
 		
 		
@@ -210,8 +217,8 @@ namespace msa {
 		
 	
 	protected:
-		bool				createDevices(const char* PlatformName=NULL);
-		static bool			EnumDevices(Array<OpenClDevice>& Devices,const char* PlatformNameFilter=nullptr,OpenClDevice::Type DeviceFilter=OpenClDevice::Any);
+		bool				createDevices(std::string PlatformName);
+		static bool			EnumDevices(Array<OpenClDevice>& Devices,std::string PlatformNameFilter,OpenClDevice::Type DeviceFilter=OpenClDevice::Any);
 	
 	protected:	
 		

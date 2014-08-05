@@ -2,6 +2,8 @@
 #include "MSAOpenCLProgram.h"
 #include "MSAOpenCLKernel.h"
 #include <SoyApp.h>
+#include <SoyDebug.h>
+
 
 namespace msa { 
 	
@@ -22,7 +24,7 @@ namespace msa {
 	}
 	
 	
-	bool OpenCLProgram::loadFromFile(std::string filename, bool isBinary,const char* BuildOptions) 
+	bool OpenCLProgram::loadFromFile(std::string filename, bool isBinary,std::string BuildOptions)
 	{
 		BufferString<1000> Debug;
 		Debug << "OpenCLProgram::loadFromFile " << filename << ", isBinary: " << isBinary << ", buildoptions: " << BuildOptions;
@@ -33,11 +35,12 @@ namespace msa {
 		std::string FileContents;
 		if ( !mParent.IsIncludesSuported() )
 		{
-			TString ParsedContents;
+			std::string ParsedContents;
 			Array<BufferString<MAX_PATH>> FilesAlreadyIncluded;
 			Array<BufferString<MAX_PATH>> Paths;
 			GetIncludePaths( Paths );
-			Paths.PushBack( ofFilePath::getEnclosingDirectory( fullPath.c_str() ) );
+#pragma warning todo: file path utils
+			//Paths.PushBack( SoyFileSys::GetParentDirectory( fullPath.c_str() ) );
 
 			if ( !ParseIncludes( fullPath.c_str(), ParsedContents, FilesAlreadyIncluded, Paths ) )
 			{
@@ -52,12 +55,12 @@ namespace msa {
 			static bool SavePatchedFile = true;
 			if ( SavePatchedFile )
 			{
-				BufferString<MAX_PATH> DebugFilename;
+				std::stringstream DebugFilename;
 				DebugFilename << fullPath << ".patched.tmp";
 				//	make sure we don't overwrite the source filename
-				//if ( DebugFilename != fullPath )
+				if ( DebugFilename.str() != fullPath )
 				{
-					ofStringToFile( DebugFilename, ParsedContents );
+					Soy::StringToFile( DebugFilename.str(), ParsedContents.c_str() );
 				}
 			}
 		}
@@ -81,11 +84,19 @@ namespace msa {
 		return Success;
 	}
 	
-
-	bool OpenCLProgram::ParseIncludes(const char* Filename,TString& Source,Array<BufferString<MAX_PATH>>& FilesAlreadyIncluded,const Array<BufferString<MAX_PATH>>& Paths)
+	namespace Soy
 	{
-		BufferString<MAX_PATH> PathFilename;
-		if ( ofFileIsAbsolute( Filename ) )
+		bool	PathIsAbsolute(std::string Filename)
+		{
+			return false;
+		}
+	}
+	
+
+	bool OpenCLProgram::ParseIncludes(std::string Filename,std::string& Source,Array<BufferString<MAX_PATH>>& FilesAlreadyIncluded,const Array<BufferString<MAX_PATH>>& Paths)
+	{
+		std::string PathFilename;
+		if ( Soy::PathIsAbsolute( Filename ) )
 		{
 			PathFilename = Filename;
 		}
@@ -116,16 +127,14 @@ namespace msa {
 		//	already included, don't need to include again (we'll get duplicate symbols)
 		if ( FilesAlreadyIncluded.Find( PathFilename ) )
 		{
-			assert( Source.IsEmpty() );
+			assert( Source.empty() );
 			return true;
 		}
 
 		//	load file
-		if( !ofFileToString( Source, PathFilename ) )
+		if( !::Soy::FileToString( PathFilename.c_str(), Source ) )
 		{
-			BufferString<1000> Debug;
-			Debug << "Failed to read include filename \"" << PathFilename << "\"";
-			ofLogError( Debug.c_str() );
+			std::Debug << "Failed to read include filename \"" << PathFilename << "\"" << std::endl;
 			return false;
 		}
 
@@ -139,59 +148,63 @@ namespace msa {
 		return true;
 	}
 
-	bool OpenCLProgram::ParseIncludes(TString& Source,Array<BufferString<MAX_PATH>>& FilesAlreadyIncluded,const Array<BufferString<MAX_PATH>>& Paths)
+	bool OpenCLProgram::ParseIncludes(std::string& Source,Array<BufferString<MAX_PATH>>& FilesAlreadyIncluded,const Array<BufferString<MAX_PATH>>& Paths)
 	{
 		//	find & replace includes
 		int StringPos = 0;
 		while ( true )
 		{
+			//	gr: change this to a regex!
 			BufferString<100> IncludePrefix = "#include \"";
 			BufferString<100> IncludeSuffix = "\"";
-			int IncludePrefixPos = Source.FindIndex( IncludePrefix, false, StringPos );
+			
+			//	gr: NOT CASE INSENTIVE
+			auto IncludePrefixPos = Source.find( IncludePrefix, StringPos );
 
 			//	no more includes
-			if ( IncludePrefixPos < 0 )
+			if ( IncludePrefixPos == std::string::npos )
 				break;
 			int IncludeFilenameStart = IncludePrefixPos + IncludePrefix.GetLength();
 
 			//	find the end pos
-			int IncludeSuffixPos = Source.FindIndex( IncludeSuffix, false, IncludeFilenameStart );
-			if ( IncludeSuffixPos < 0 )
+			int IncludeSuffixPos = Source.find( IncludeSuffix, IncludeFilenameStart );
+			if ( IncludeSuffixPos == std::string::npos )
 				break;
 			int IncludeFilenameEnd = IncludeSuffixPos;
 			assert( IncludeFilenameEnd > IncludeFilenameStart );
 
 			//	first evaluate the include...
-			BufferString<MAX_PATH> IncludePath;
-			IncludePath.CopyString( &Source[IncludeFilenameStart], IncludeFilenameEnd - IncludeFilenameStart );
+			std::string IncludePath;
+			//IncludePath.CopyString( &Source[IncludeFilenameStart], IncludeFilenameEnd - IncludeFilenameStart );
+			Source.substr( IncludeFilenameStart, IncludeFilenameEnd - IncludeFilenameStart );
 
-			TString IncludeContents;
+			std::string IncludeContents;
 			if ( !ParseIncludes( IncludePath, IncludeContents, FilesAlreadyIncluded, Paths ) )
 				return false;
 
 			//	remove the include line
 			//	gr: comment out for debugging?
 			int IncludeSuffixEnd = IncludeSuffixPos + IncludeSuffix.GetLength();
-			Source.RemoveAt( IncludePrefixPos, IncludeSuffixEnd-IncludePrefixPos );
+			Source.erase( IncludePrefixPos, IncludeSuffixEnd-IncludePrefixPos );
 		
 			{
-				int IncludeIncludePos = Source.FindIndex( IncludePrefix, false );
-				assert( IncludeIncludePos < 0 || IncludeIncludePos > IncludePrefixPos );
+				auto IncludeIncludePos = Source.find( IncludePrefix );
+				assert( IncludeIncludePos == std::string::npos || IncludeIncludePos > IncludePrefixPos );
 			}
 
 			//	insert included content
-			Source.InsertAt( IncludePrefixPos, IncludeContents );
+			Source.insert( IncludePrefixPos, IncludeContents );
 
 			//	move along past the file we inserted and parsed
 			//	gr: maybe better to remove the recursiveness and just find the next include from where we inserted
-			StringPos = IncludePrefixPos + IncludeContents.GetLength();
+			StringPos = IncludePrefixPos + IncludeContents.length();
 		}
 		
 		return true;
 	}
 
 	
-	bool OpenCLProgram::loadFromSource(std::string source,const char* sourceLocation,const char* BuildOptions) {
+	bool OpenCLProgram::loadFromSource(std::string source,std::string sourceLocation,std::string BuildOptions) {
 		ofLogNotice( __FUNCTION__ );
 		
 		assert( !mProgram );
@@ -203,7 +216,9 @@ namespace msa {
 		const char* csource = source.c_str();
 		mProgram = clCreateProgramWithSource( mParent.getContext(), 1, &csource, NULL, &err);
 		
-		return build( sourceLocation ? sourceLocation : "(From source)", BuildOptions );
+		if ( sourceLocation.empty() )
+			sourceLocation = "(From source)";
+		return build( sourceLocation, BuildOptions );
 	} 
 	
 	
@@ -214,7 +229,7 @@ namespace msa {
 		
 		assert( Queue );
 		if ( !Queue )
-			return false;
+			return nullptr;
 
 		cl_int err = CL_SUCCESS;
 	
@@ -239,7 +254,7 @@ namespace msa {
 		Paths.PushBack( "" );
 	}
 	
-	bool OpenCLProgram::build(const char* ProgramSource,const char* BuildOptions) 
+	bool OpenCLProgram::build(std::string ProgramSource,std::string BuildOptions)
 	{
 		assert( mProgram );
 		if ( !mProgram )
@@ -256,7 +271,7 @@ namespace msa {
 
 			for ( int p=0;	p<Paths.GetSize();	p++)
 			{
-				std::string Path = Paths[p];
+				std::string Path = Paths[p].c_str();
 
 				//	opencl [amd APP sdk] requires paths with forward slashes [on windows]
 				std::replace( Path.begin(), Path.end(), '\\', '/' );
@@ -267,7 +282,7 @@ namespace msa {
 
 		}
 		
-		if ( BuildOptions )
+		if ( !BuildOptions.empty() )
 			Options += BuildOptions;
 	
 		//	build for all our devices

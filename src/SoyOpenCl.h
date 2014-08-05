@@ -4,6 +4,8 @@
 #include "SoyThread.h"
 #include <MSAOpenCL.h>
 #include "SortArray.h"
+#include "SoyString.h"
+
 
 class SoyOpenClManager;
 class SoyOpenClShader;
@@ -20,16 +22,16 @@ namespace SoyOpenCl
 class SoyFileChangeDetector
 {
 public:
-	SoyFileChangeDetector(const char* Filename);
+	SoyFileChangeDetector(std::string Filename);
 
 	bool						HasChanged();
 	Poco::Timestamp				GetCurrentTimestamp();	//	get the file's current timestamp
 	void						SetLastModified(Poco::Timestamp Timestamp);
-	const BufferString<200>&	GetFilename() const	{	return mFilename;	}
+	std::string					GetFilename() const	{	return mFilename;	}
 
 private:
 	Poco::Timestamp			mLastModified;
-	BufferString<200>		mFilename;
+	std::string				mFilename;
 };
 
 
@@ -39,17 +41,17 @@ public:
 	SoyOpenClKernelRef()
 	{
 	}
-	SoyOpenClKernelRef(SoyRef Shader,const char* Kernel) :
+	SoyOpenClKernelRef(SoyRef Shader,std::string Kernel) :
 		mShader	( Shader ),
 		mKernel	( Kernel )
 	{
 	}
 
-	BufferString<200>	Debug_GetName() const	{	return BufferString<200>() << mShader << "[" << mKernel << "]";	}
+	std::string			Debug_GetName() const	{	return (std::stringstream() << mShader << "[" << mKernel << "]").str();	}
 
 public:
 	SoyRef				mShader;
-	BufferString<100>	mKernel;
+	std::string			mKernel;
 };
 
 
@@ -110,7 +112,7 @@ DECLARE_NONCOMPLEX_TYPE( SoyOpenclKernelIteration<3> );
 class SoyOpenClKernel
 {
 public:
-	SoyOpenClKernel(const char* Name,SoyOpenClShader& Parent);
+	SoyOpenClKernel(std::string Name,SoyOpenClShader& Parent);
 	~SoyOpenClKernel()
 	{
 		DeleteKernel();
@@ -118,7 +120,7 @@ public:
 
 	void			OnLoaded();				//	kernel will be null if it failed
 	void			OnUnloaded();
-	const char*		GetName() const					{	return mName.c_str();	}
+	std::string		GetName() const					{	return mName;	}
 	bool			IsValid() const					{	return mKernel!=NULL;	}
 	bool			IsValidExecCount(int ExecCount)	{	return IsValidGlobalExecCount( ExecCount );	}
 	bool			IsValidGlobalExecCount(int ExecCount)	{	return (GetMaxWorkGroupSize()==-1) ? true : (ExecCount<=GetMaxWorkGroupSize());	}
@@ -166,7 +168,7 @@ protected:
 
 private:
 	msa::clDeviceInfo	mDeviceInfo;
-	BufferString<100>	mName;
+	std::string			mName;
 	Array<cl_event>		mPendingBufferWrites;	//	wait for all these to finish before executing
 
 public:
@@ -191,7 +193,7 @@ inline bool SoyOpenClKernel::CheckPaddingChecksum(const ArrayBridgeDef<ARRAYTYPE
 class SoyOpenClShader : public SoyFileChangeDetector
 {
 public:
-	SoyOpenClShader(SoyRef Ref,const char* Filename,const char* BuildOptions,SoyOpenClManager& Manager) :
+	SoyOpenClShader(SoyRef Ref,std::string Filename,std::string BuildOptions,SoyOpenClManager& Manager) :
 		SoyFileChangeDetector	( Filename ),
 		mRef					( Ref ),
 		mManager				( Manager ),
@@ -204,17 +206,18 @@ public:
 	bool				IsLoading();
 	bool				LoadShader();
 	void				UnloadShader();
-	SoyOpenClKernel*	GetKernel(const char* Name,cl_command_queue Queue);			//	load and return a kernel
+	SoyOpenClKernel*	GetKernel(std::string Name,cl_command_queue Queue);			//	load and return a kernel
 	SoyRef				GetRef() const							{	return mRef;	}
-	const char*			GetBuildOptions() const					{	return mBuildOptions;	}
-	inline bool			operator==(const char* Filename) const	{	return GetFilename().StartsWith( Filename, false );	}
+	std::string 		GetBuildOptions() const					{	return mBuildOptions;	}
+	inline bool			operator==(const char* Filename) const	{	return Soy::StringBeginsWith( GetFilename(), Filename, false );	}
+	inline bool			operator==(std::string Filename) const	{	return Soy::StringBeginsWith( GetFilename(), Filename, false );	}
 	inline bool			operator==(const SoyRef& Ref) const		{	return GetRef() == Ref;	}
 
 private:
 	ofMutex					mLock;			//	lock whilst in use so we don't reload whilst loading new file
 	msa::OpenCLProgram*		mProgram;		//	shader/file
 	SoyRef					mRef;
-	BufferString<100>		mBuildOptions;
+	std::string				mBuildOptions;
 
 public:
 	SoyOpenClManager&		mManager;
@@ -230,7 +233,7 @@ public:
 	}
 
 public:
-	SoyThreadId				mThreadId;
+	std::thread::id			mThreadId;
 	cl_command_queue		mQueue;
 	msa::OpenClDevice::Type	mDeviceType;
 };
@@ -238,7 +241,7 @@ public:
 class SoyOpenClManager : public SoyThread
 {
 public:
-	SoyOpenClManager(const char* PlatformName,prmem::Heap& Heap);
+	SoyOpenClManager(std::string PlatformName,prmem::Heap& Heap=prcore::Heap);
 	~SoyOpenClManager();
 
 	virtual void			threadedFunction();
@@ -246,19 +249,19 @@ public:
 	SoyOpenClKernel*		GetKernel(SoyOpenClKernelRef KernelRef,cl_command_queue Queue);
 	void					DeleteKernel(SoyOpenClKernel* Kernel);
 	bool					IsValid();			//	if not, cannot use opencl
-	void					PreLoadShader(const char* Filename,const char* BuildOptions);	//	load in the background
-	SoyOpenClShader*		LoadShader(const char* Filename,const char* BuildOptions);	//	returns invalid ref if it couldn't be created
+	void					PreLoadShader(std::string Filename,std::string BuildOptions);	//	load in the background
+	SoyOpenClShader*		LoadShader(std::string Filename,std::string BuildOptions);	//	returns invalid ref if it couldn't be created
 	SoyOpenClShader*		GetShader(SoyRef ShaderRef);
-	SoyOpenClShader*		GetShader(const char* Filename);
+	SoyOpenClShader*		GetShader(std::string Filename);
 	SoyRef					GetUniqueRef(SoyRef BaseRef=SoyRef("Shader"));
 	prmem::Heap&			GetHeap()		{	return mHeap;	}
 	msa::OpenCL&			GetOpenCL()		{	return mOpencl;	}
 
 	cl_command_queue		GetQueueForThread(msa::OpenClDevice::Type DeviceType);				//	get/alloc a specific queue for the current thread
-	cl_command_queue		GetQueueForThread(SoyThreadId ThreadId,msa::OpenClDevice::Type DeviceType);	//	get/alloc a specific queue for a thread
+	cl_command_queue		GetQueueForThread(std::thread::id ThreadId,msa::OpenClDevice::Type DeviceType);	//	get/alloc a specific queue for a thread
 
 private:
-	SoyOpenClShader*		AllocShader(const char* Filename,const char* BuildOptions);
+	SoyOpenClShader*		AllocShader(std::string Filename,std::string BuildOptions);
 
 private:
 	prmem::Heap&			mHeap;
@@ -447,7 +450,7 @@ public:
 	template<typename ARRAYTYPE>
 	bool		Write(const ArrayBridgeDef<ARRAYTYPE>& Array,cl_int ReadWriteMode)
 	{
-		auto& Bridge = static_cast<const ArrayBridge<ARRAYTYPE::TYPE>&>( Array );
+		auto& Bridge = static_cast<const ArrayBridge<typename ARRAYTYPE::TYPE>&>( Array );
 		return Write( Bridge, ReadWriteMode );
 	}
 	template<typename TYPE>				bool	Write(const Array<TYPE>& Array,cl_int ReadWriteMode)			{	return Write( GetArrayBridge( Array ), ReadWriteMode );	}
@@ -497,7 +500,7 @@ public:
 	template<typename ARRAYTYPE>
 	bool		Read(ArrayBridgeDef<ARRAYTYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)
 	{
-		auto& Bridge = static_cast<ArrayBridge<ARRAYTYPE::TYPE>&>( Array );
+		auto& Bridge = static_cast<ArrayBridge<typename ARRAYTYPE::TYPE>&>( Array );
 		return Read( Bridge, ElementCount, Blocking );
 	}
 	template<typename TYPE>				bool	Read(Array<TYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)				{	return Read( GetArrayBridge( Array ), ElementCount, Blocking );	}

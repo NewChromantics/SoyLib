@@ -1,6 +1,9 @@
 #include "ofxSoylent.h"
 #include "SoyOpenCl.h"
 //#include "SoyApp.h"
+#include <SoyDebug.h>
+#include <SoyString.h>
+
 
 //	default settings
 bool SoyOpenCl::DefaultReadBlocking = true;
@@ -26,7 +29,7 @@ public:
 
 
 
-SoyFileChangeDetector::SoyFileChangeDetector(const char* Filename) :
+SoyFileChangeDetector::SoyFileChangeDetector(std::string Filename) :
 	mFilename		( Filename ),
 	mLastModified	( 0 )
 {
@@ -37,6 +40,11 @@ bool SoyFileChangeDetector::HasChanged()
 {
 	Poco::Timestamp CurrentTimestamp = GetCurrentTimestamp();
 	return mLastModified != CurrentTimestamp;
+}
+
+int ofFileLastModified(std::string Filename)
+{
+	return 1;
 }
 
 Poco::Timestamp SoyFileChangeDetector::GetCurrentTimestamp()
@@ -51,7 +59,7 @@ void SoyFileChangeDetector::SetLastModified(Poco::Timestamp Timestamp)
 
 
 
-SoyOpenClManager::SoyOpenClManager(const char* PlatformName,prmem::Heap& Heap) :
+SoyOpenClManager::SoyOpenClManager(std::string PlatformName,prmem::Heap& Heap) :
 	SoyThread	( "SoyOpenClManager" ),
 	mHeap		( Heap ),
 	mShaders	( mHeap )
@@ -83,7 +91,7 @@ void SoyOpenClManager::threadedFunction()
 				auto FilenameAndBuildOptions = mPreloadShaders.PopBack();
 
 				//	create a simple shader entry which "needs reloading"
-				AllocShader( FilenameAndBuildOptions.mFirst, FilenameAndBuildOptions.mSecond );
+				AllocShader( FilenameAndBuildOptions.mFirst.c_str(), FilenameAndBuildOptions.mSecond.c_str() );
 			}
 		}
 
@@ -141,7 +149,7 @@ void SoyOpenClManager::DeleteKernel(SoyOpenClKernel* Kernel)
 	delete Kernel;
 }
 
-SoyOpenClShader* SoyOpenClManager::AllocShader(const char* Filename,const char* BuildOptions)
+SoyOpenClShader* SoyOpenClManager::AllocShader(std::string Filename,std::string BuildOptions)
 {
 	if ( !IsValid() )
 		return nullptr;
@@ -172,7 +180,7 @@ SoyOpenClShader* SoyOpenClManager::AllocShader(const char* Filename,const char* 
 	return pShader;
 }
 
-void SoyOpenClManager::PreLoadShader(const char* Filename,const char* BuildOptions)
+void SoyOpenClManager::PreLoadShader(std::string Filename,std::string BuildOptions)
 {
 	ofMutex::ScopedLock Lock( mPreloadShaders );
 
@@ -183,7 +191,7 @@ void SoyOpenClManager::PreLoadShader(const char* Filename,const char* BuildOptio
 	//	gr: could just AllocShader() here??
 }
 
-SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename,const char* BuildOptions)
+SoyOpenClShader* SoyOpenClManager::LoadShader(std::string Filename,std::string BuildOptions)
 {
 	auto* pShader = AllocShader( Filename, BuildOptions );
 	if ( !pShader )
@@ -238,13 +246,13 @@ SoyOpenClShader* SoyOpenClManager::GetShader(SoyRef ShaderRef)
 }
 
 
-SoyOpenClShader* SoyOpenClManager::GetShader(const char* Filename)
+SoyOpenClShader* SoyOpenClManager::GetShader(std::string Filename)
 {
 	ofMutex::ScopedLock Lock( mShaderLock );
 	for ( int s=0;	s<mShaders.GetSize();	s++ )
 	{
 		auto& Shader = *mShaders[s];
-		if ( Shader.GetFilename().StartsWith(Filename,false) )
+		if ( Soy::StringBeginsWith( Shader.GetFilename(), Filename, false ) )
 			return &Shader;
 	}
 	return NULL;
@@ -256,7 +264,7 @@ cl_command_queue SoyOpenClManager::GetQueueForThread(msa::OpenClDevice::Type Dev
 	return GetQueueForThread( CurrentThreadId, DeviceType );
 }
 
-cl_command_queue SoyOpenClManager::GetQueueForThread(SoyThreadId ThreadId,msa::OpenClDevice::Type DeviceType)
+cl_command_queue SoyOpenClManager::GetQueueForThread(std::thread::id ThreadId,msa::OpenClDevice::Type DeviceType)
 {
 	ofMutex::ScopedLock Lock( mThreadQueues );
 
@@ -272,10 +280,8 @@ cl_command_queue SoyOpenClManager::GetQueueForThread(SoyThreadId ThreadId,msa::O
 	{
 		MatchQueue.mQueue = mOpencl.createQueue( DeviceType );
 
-		BufferString<100> Debug;
-		Debug << "Created opencl queue " << PtrToInt(MatchQueue.mQueue) << " for thread id ";
-		ofLogNotice( Debug.c_str() );
-
+		std::Debug << "Created opencl queue " << (ptrdiff_t)(MatchQueue.mQueue) << " for thread id " << std::endl;
+	
 		if ( !MatchQueue.mQueue )
 			return NULL;
 		
@@ -321,7 +327,7 @@ bool SoyOpenClShader::LoadShader()
 		return false;
 
 	//	let this continue if we have build errors? so it doesnt keep trying to reload...
-	mProgram = mManager.mOpencl.loadProgramFromFile( GetFilename().c_str(), false, GetBuildOptions() );
+	mProgram = mManager.mOpencl.loadProgramFromFile( GetFilename(), false, GetBuildOptions() );
 	if ( !mProgram )
 		return false;
 	SetLastModified( CurrentTimestamp );
@@ -332,7 +338,7 @@ bool SoyOpenClShader::LoadShader()
 }
 
 
-SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name,cl_command_queue Queue)
+SoyOpenClKernel* SoyOpenClShader::GetKernel(std::string Name,cl_command_queue Queue)
 {
 	ofMutex::ScopedLock Lock(mLock);
 	ofScopeTimerWarning Warning( BufferString<1000>()<<__FUNCTION__<<" "<<Name, 3 );
@@ -398,7 +404,7 @@ SoyOpenClKernel* SoyClShaderRunner::GetKernel()
 }
 
 
-SoyOpenClKernel::SoyOpenClKernel(const char* Name,SoyOpenClShader& Parent) :
+SoyOpenClKernel::SoyOpenClKernel(std::string Name,SoyOpenClShader& Parent) :
 	mName				( Name ),
 	mKernel				( NULL ),
 	mShader				( Parent ),

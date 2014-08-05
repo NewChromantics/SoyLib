@@ -3,6 +3,7 @@
 #include "MSAOpenCLKernel.h"
 #include "SortArray.h"
 //#define ENABLE_SETUP_FROM_OPENGL
+#include "SoyString.h"
 
 
 class TSortPolicy_BestDevice
@@ -139,7 +140,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	}
 	
 	
-	bool OpenCL::setup(const char* PlatformName)
+	bool OpenCL::setup(std::string PlatformName)
 	{
 		if( isInitialised() )
 		{
@@ -255,7 +256,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		return NULL;
 	}
 	
-	OpenCLProgram* OpenCL::loadProgramFromFile(std::string filename, bool isBinary,const char* BuildOptions) { 
+	OpenCLProgram* OpenCL::loadProgramFromFile(std::string filename, bool isBinary,std::string BuildOptions) {
 		assert( isInitialised() );
 		BufferString<1000> Debug;
 		Debug << __FUNCTION__ << " " << filename;
@@ -401,7 +402,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		return Platforms.GetSize();
 	}
 
-	bool OpenCL::EnumDevices(Array<OpenClDevice>& Devices,const char* PlatformNameFilter,OpenClDevice::Type DeviceFilter)
+	bool OpenCL::EnumDevices(Array<OpenClDevice>& Devices,std::string PlatformNameFilter,OpenClDevice::Type DeviceFilter)
 	{
 		cl_int err = CL_SUCCESS;
 		
@@ -420,13 +421,13 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		}
 
 		//	filter out platforms
-		for ( int p=PlatformCount-1;	PlatformNameFilter && p>=0;	p-- )
+		for ( int p=PlatformCount-1;	!PlatformNameFilter.empty() && p>=0;	p-- )
 		{
 			cl_platform_id Platform = PlatformBuffer[p];
 			clPlatformInfo PlatformInfo( Platform );
 
 			//	need to filter platform
-			if ( std::StringContains( PlatformInfo.GetName(), PlatformNameFilter, false ) )
+			if ( Soy::StringContains( PlatformInfo.GetName(), PlatformNameFilter, false ) )
 				continue;
 
 			//	remove from array
@@ -478,7 +479,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		return true;
 	}
 	
-	bool OpenCL::createDevices(const char* PlatformName) 
+	bool OpenCL::createDevices(std::string PlatformName)
 	{
 		Array<OpenClDevice> Devices;
 		if ( !EnumDevices( Devices, PlatformName, OpenClDevice::Any ) )
@@ -513,7 +514,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 			auto& Device = Devices[d];
 
 			//	sorted by preferred type
-			auto& SortedDevices = GetSortArray( mDevices, TSortPolicy_BestDevice() );
+			auto SortedDevices = GetSortArray( mDevices, TSortPolicy_BestDevice() );
 			SortedDevices.Push( Device );
 		}				
 
@@ -635,7 +636,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		if ( !pDevice )
 		{
 			ofLogError("Failed to find device of specified type.");
-			return false;
+			return nullptr;
 		}
 
 		auto DeviceId = pDevice->mDeviceId;
