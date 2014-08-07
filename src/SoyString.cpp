@@ -113,4 +113,22 @@ void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
 	Array.PushBackArray( CommandStrArray );
 }
 
+void Soy::StringSplit(ArrayBridge<std::string>& Parts,std::string String,std::string Delim,bool IncludeEmpty)
+{
+	std::string::size_type Start = 0;
+	while ( Start < String.length() )
+	{
+		auto End = String.find( Delim, Start );
+		if ( End == std::string::npos )
+			End = String.length();
+		
+		auto Part = String.substr( Start, End-Start );
+		//std::Debug << "found [" << Part << "] in [" << String << "]" << std::endl;
+
+		if ( IncludeEmpty || !Part.empty() )
+			Parts.PushBack( Part );
+	
+		Start = End+1;
+	}
+}
 
