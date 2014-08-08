@@ -125,7 +125,81 @@ bool TPng::ReadHeader(SoyPixelsImpl& Pixels,THeader& Header,ArrayBridge<char>& D
 	return true;
 }
 
+/*
+ //	from http://lpi.googlecode.com/svn/trunk/lodepng.cpp
+static void filterScanline(unsigned char* out, const unsigned char* scanline, const unsigned char* prevline,
+                           size_t length, size_t bytewidth, unsigned char filterType)
+{
+	size_t i;
+	switch(filterType)
+	{
+	
+		case 2: //Up
+			if(prevline)
+			{
+				for(i = 0; i < length; i++) out[i] = scanline[i] - prevline[i];
+			}
+			else
+			{
+				for(i = 0; i < length; i++) out[i] = scanline[i];
+			}
+			break;
+		case 3: //Average
+			if(prevline)
+			{
+				for(i = 0; i < bytewidth; i++) out[i] = scanline[i] - prevline[i] / 2;
+				for(i = bytewidth; i < length; i++) out[i] = scanline[i] - ((scanline[i - bytewidth] + prevline[i]) / 2);
+			}
+			else
+			{
+				for(i = 0; i < bytewidth; i++) out[i] = scanline[i];
+				for(i = bytewidth; i < length; i++) out[i] = scanline[i] - scanline[i - bytewidth] / 2;
+			}
+			break
+		case 4: //Paeth
+			if(prevline)
+			{
+				//paethPredictor(0, prevline[i], 0) is always prevline[i]
+				for(i = 0; i < bytewidth; i++) out[i] = (scanline[i] - prevline[i]);
+				for(i = bytewidth; i < length; i++)
+				{
+					out[i] = (scanline[i] - paethPredictor(scanline[i - bytewidth], prevline[i], prevline[i - bytewidth]));
+				}
+			}
+			else
+			{
+				for(i = 0; i < bytewidth; i++) out[i] = scanline[i];
+				//paethPredictor(scanline[i - bytewidth], 0, 0) is always scanline[i - bytewidth]
+				for(i = bytewidth; i < length; i++) out[i] = (scanline[i] - scanline[i - bytewidth]);
+			}
+			break;
+		default: return; //unexisting filter type given
+	}
+}
+ */
 
+bool DeFilterScanline(TPng::TFilterNone_ScanlineFilter::Type Filter,const ArrayBridge<uint8>& Scanline,int ByteWidth,ArrayBridge<uint8>& DeFilteredData,std::stringstream& Error)
+{
+	if ( Filter == TPng::TFilterNone_ScanlineFilter::None )
+	{
+		DeFilteredData.PushBackArray( Scanline );
+		return true;
+	}
+	else if ( Filter == TPng::TFilterNone_ScanlineFilter::Sub )
+	{
+		///	bytewidth is used for filtering, is 1 when bpp < 8, number of bytes per pixel otherwise
+		DeFilteredData.Reserve( Scanline.GetSize() );
+		int i;
+		for(i = 0; i < ByteWidth; i++)
+			DeFilteredData.PushBack( Scanline[i] );
+		for(i = ByteWidth; i < Scanline.GetSize(); i++)
+			DeFilteredData.PushBack( Scanline[i] - Scanline[i - ByteWidth] );
+		return true;
+	}
+	
+	Error << "defiltering PNG data came across unhandled filter value (" << Filter << ")";
+	return false;
+}
 
 bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char>& Data,std::stringstream& Error)
 {
@@ -148,21 +222,26 @@ bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char
 			return false;
 		}
 
+		Array<uint8> _DeFilteredData;
+		auto DeFilteredData = GetArrayBridge( _DeFilteredData );
+		
 		//	de-filter the pixels
 		int Stride = Pixels.GetChannels()*Pixels.GetWidth();
-		//	post-filter stride is +1 for the filter
+		//	decompressed data stride includes filter
 		Stride += 1;
-		for ( int i=DecompressedData.GetSize()-Stride;	i>=0;	i-=Stride )
+		for ( int i=0;	i<DecompressedData.GetSize();	i+=Stride )
 		{
-			//	insert filter value/code
-			auto& RowStart = DecompressedData[i];
-			if ( RowStart != TFilterNone_ScanlineFilter::None )
-			{
-				Error << "defiltering PNG data came across unhandled filter value (" << static_cast<TFilterNone_ScanlineFilter::Type>(RowStart) << ")";
+			//	get filter code
+			auto Filter = static_cast<TFilterNone_ScanlineFilter::Type>( DecompressedData[i] );
+			int ScanlineLength = Stride-1;
+			auto Scanline = GetRemoteArray( &DecompressedData[i+1], ScanlineLength, ScanlineLength );
+			auto ScanlineBridge = GetArrayBridge( Scanline );
+			int bytewidth = (Pixels.GetBitDepth() + 7) / 8;
+			if ( !DeFilterScanline( Filter, ScanlineBridge, bytewidth, DeFilteredData, Error ) )
 				return false;
-			}
-			DecompressedData.RemoveBlock(i,1);
 		}
+		//	overwrite data with defiltered data
+		DecompressedData.Copy( DeFilteredData );
 		
 		//	validate image data length here
 		return true;
