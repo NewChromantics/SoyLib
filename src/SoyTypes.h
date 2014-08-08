@@ -363,6 +363,6 @@ namespace Soy
 {
 	//	http://www.adp-gmbh.ch/cpp/common/base64.html
 	std::string	base64_encode(const ArrayBridge<unsigned char>& Data);
-	std::string	base64_decode(std::string const& s);
+	void		base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded);
 };
 

@@ -333,17 +333,22 @@ std::string Soy::base64_encode(const ArrayBridge<unsigned char>& Data)
 	
 }
 
-std::string Soy::base64_decode(std::string const& encoded_string)
+void Soy::base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded)
 {
-	int in_len = encoded_string.size();
+	//	gr: pre-alloc. base64 turns 3 chars into 4...
+	//		so decoding... we only need 3/4 of the data
+	//	...	just alloc same amount, it'll be smaller
+	Decoded.Reserve( Encoded.GetSize() );
+	
+	int in_len = Encoded.GetSize();
 	int i = 0;
 	int j = 0;
 	int in_ = 0;
 	unsigned char char_array_4[4], char_array_3[3];
-	std::string ret;
+	auto& ret = Decoded;
 	
-	while (in_len-- && ( encoded_string[in_] != '=') && is_base64(encoded_string[in_])) {
-		char_array_4[i++] = encoded_string[in_]; in_++;
+	while (in_len-- && ( Encoded[in_] != '=') && is_base64(Encoded[in_])) {
+		char_array_4[i++] = Encoded[in_]; in_++;
 		if (i ==4) {
 			for (i = 0; i <4; i++)
 				char_array_4[i] = base64_chars.find(char_array_4[i]);
@@ -353,7 +358,7 @@ std::string Soy::base64_decode(std::string const& encoded_string)
 			char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
 			
 			for (i = 0; (i < 3); i++)
-				ret += char_array_3[i];
+				ret.PushBack( char_array_3[i] );
 			i = 0;
 		}
 	}
@@ -369,10 +374,9 @@ std::string Soy::base64_decode(std::string const& encoded_string)
 		char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
 		char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
 		
-		for (j = 0; (j < i - 1); j++) ret += char_array_3[j];
+		for (j = 0; (j < i - 1); j++)
+			ret.PushBack( char_array_3[j] );
 	}
-	
-	return ret;
 }
 
 
