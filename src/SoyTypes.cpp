@@ -3,6 +3,9 @@
 #include <sstream>
 #include <fstream>
 #include <algorithm>		//	std::transform
+#include "SoyString.h"
+
+
 
 #if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
@@ -92,48 +95,6 @@ std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeTo
 }
 #endif
 
-#if defined(NO_OPENFRAMEWORKS)
-std::string ofBufferFromFile(const char* Filename)
-{
-	//	fopen is safe, but supress warning anyway
-#if defined(TARGET_WINDOWS)
-	FILE* File = nullptr;
-	fopen_s( &File, Filename, "r" );
-#else
-	FILE* File = fopen( Filename, "r" );
-#endif
-	if ( !File )
-		return std::string();
-
-	//	read
-	Array<char> Contents;
-	while ( true )
-	{
-		BufferArray<char,1024> Buffer;
-		Buffer.SetSize( Buffer.MaxSize() );
-#if defined(TARGET_WINDOWS)
-		auto CharsRead = fread_s( Buffer.GetArray(), Buffer.GetDataSize(), Buffer.GetElementSize(), Buffer.GetSize(), File );
-#else
-		auto CharsRead = std::fread( Buffer.GetArray(), Buffer.GetElementSize(), Buffer.GetSize(), File );
-#endif
-		Buffer.SetSize( CharsRead );
-
-		Contents.PushBackArray( Buffer );
-
-		//	EOF
-		if ( Buffer.GetSize() != Buffer.MaxSize() )
-			break;
-	}
-	fclose( File );
-	File = nullptr;
-
-	if ( Contents.IsEmpty() )
-		return std::string();
-
-	std::string ContentsStr = Contents.GetArray();
-	return ContentsStr;
-}
-#endif
 
 
 
@@ -429,16 +390,28 @@ bool Soy::StringToFile(std::string Filename,std::string String)
 }
 
 
-bool Soy::FileToString(std::string Filename,std::string String)
+bool Soy::FileToString(std::string Filename,std::string& String)
 {
+	//	gr: err surely a better way
+	Array<char> StringData;
+	auto StringDataBridge = GetArrayBridge( StringData );
+	std::stringstream Error;
+	if ( !LoadBinaryFile( StringDataBridge, Filename, Error ) )
+		return false;
+
+	String = Soy::ArrayToString( StringDataBridge );
+	return true;
+/*
 	std::ifstream File( Filename, std::ios::in );
 	if ( !File.is_open() )
 		return false;
 	
+#error this only pulls out first word
 	File >> String;
 	bool Success = !File.fail();
 	
 	File.close();
 	return Success;
+ */
 }
 

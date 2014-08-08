@@ -120,8 +120,6 @@ class ofFilePath
 public:
 	static std::string		getFileName(const std::string& Filename,bool bRelativeToData=true);
 };
-std::string			ofBufferFromFile(const char* Filename);
-inline std::string	ofBufferFromFile(const std::string& Filename)	{	return ofBufferFromFile( Filename.c_str() );	}
 
 template<typename TYPE>
 class ofEvent
@@ -226,37 +224,6 @@ inline float ofGetMathTime(float z,float Min,float Max)
 {
 	return (z-Min) / (Max-Min);	
 }
-
-
-inline bool ofFileIsAbsolute(const char* Path)
-{
-#if defined(NO_OPENFRAMEWORKS)
-	assert(false);
-	return false;
-#else
-	Poco::Path inputPath( Path );
-	return inputPath.isAbsolute();
-#endif 
-}
-
-inline Poco::Timestamp ofFileLastModified(const char* Path)
-{
-	std::string FullPath = ofFileIsAbsolute( Path ) ? Path : ofToDataPath( Path );
-	Poco::File File( FullPath );
-	if ( !File.exists() )
-		return Poco::Timestamp(0);
-
-	return File.getLastModified();
-}
-
-inline bool ofFileExists(const char* Path)
-{
-	Poco::Timestamp LastModified = ofFileLastModified( Path );
-	if ( LastModified == 0 )
-		return false;
-	return true;
-}
-
 
 
 namespace Soy
@@ -388,7 +355,7 @@ namespace Soy
 	bool	ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::stringstream& Error);
 	bool	ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream);
 	bool	StringToFile(std::string Filename,std::string String);
-	bool	FileToString(std::string Filename,std::string String);
+	bool	FileToString(std::string Filename,std::string& String);
 }
 
 
