@@ -4,6 +4,7 @@
 #include "SortArray.h"
 //#define ENABLE_SETUP_FROM_OPENGL
 #include "SoyString.h"
+#include "SoyDebug.h"
 
 
 class TSortPolicy_BestDevice
@@ -68,6 +69,7 @@ bool OpenClDevice::Init()
 	err |= clGetDeviceInfo(d, CL_DEVICE_PROFILE, sizeof(info.profile), info.profile, &size);
 	err |= clGetDeviceInfo(d, CL_DEVICE_EXTENSIONS, sizeof(info.extensions), info.extensions, &size);
 	err |= clGetDeviceInfo(d, CL_DEVICE_TYPE, sizeof(info.type), &info.type, &size);
+	err |= clGetDeviceInfo(d, CL_DEVICE_ADDRESS_BITS, sizeof(info.deviceAddressBits), &info.deviceAddressBits, &size);
 			
 	if(err != CL_SUCCESS) 
 	{
@@ -430,6 +432,8 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 			if ( Soy::StringContains( PlatformInfo.GetName(), PlatformNameFilter, false ) )
 				continue;
 
+			std::Debug << "Ignoring OpenCl platform " << PlatformInfo.GetName() << std::endl;
+			
 			//	remove from array
 			for ( int i=p+1;	i<static_cast<int>(PlatformCount);	i++ )
 				PlatformBuffer[i-1] = PlatformBuffer[i];
@@ -529,7 +533,9 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	
 	std::string OpenCL::getInfoAsString(const clDeviceInfo& info) 
 	{
-		return std::string( (char*)info.vendorName );
+		std::stringstream Debug;
+		Debug << "Device Vendor: " << info.GetVendor() << ", Name: " << info.GetName();
+		return Debug.str();
 		/*
 		TString Debug;
 		Debug << "OpenCL Device information:"	<<

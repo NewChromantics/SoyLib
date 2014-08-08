@@ -49,6 +49,9 @@ namespace msa {
 		{
 		}
 
+		std::string	GetVendor() const	{	return std::string( reinterpret_cast<const char*>( vendorName ) );	}
+		std::string	GetName() const		{	return std::string( reinterpret_cast<const char*>( deviceName ) );	}
+
 	public:
 		cl_char		vendorName[1024];
 		cl_char		deviceName[1024];
@@ -81,6 +84,7 @@ namespace msa {
 		cl_char		profile[1024];
 		cl_char		extensions[1024];		
 		cl_device_type		type;
+		cl_uint		deviceAddressBits;
 	};
 
 	class OpenClDevice

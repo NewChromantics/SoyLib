@@ -3,6 +3,7 @@
 #include "MSAOpenCLKernel.h"
 #include <SoyApp.h>
 #include <SoyDebug.h>
+#include <SoyFilesytem.h>
 
 
 namespace msa { 
@@ -33,6 +34,7 @@ namespace msa {
 		std::string fullPath = ofToDataPath(filename.c_str());
 		
 		std::string FileContents;
+		/*
 		if ( !mParent.IsIncludesSuported() )
 		{
 			std::string ParsedContents;
@@ -64,11 +66,9 @@ namespace msa {
 				}
 			}
 		}
-		else
+		else*/
 		{
-			//	http://stackoverflow.com/questions/2602013/read-whole-ascii-file-into-c-stdstring
-			//std::string FileContents( ofBufferFromFile( fullPath ).getText() );
-			FileContents = ofBufferFromFile( fullPath );
+			Soy::FileToString( fullPath, FileContents );
 		}
 
 		if ( !FileContents.size() )
@@ -84,48 +84,35 @@ namespace msa {
 		return Success;
 	}
 	
-	namespace Soy
-	{
-		bool	PathIsAbsolute(std::string Filename)
-		{
-			return false;
-		}
-	}
-	
 
-	bool OpenCLProgram::ParseIncludes(std::string Filename,std::string& Source,Array<BufferString<MAX_PATH>>& FilesAlreadyIncluded,const Array<BufferString<MAX_PATH>>& Paths)
+	bool OpenCLProgram::ParseIncludes(std::string Filename,std::string& Source,Array<SoyFilesystem::File>& FilesAlreadyIncluded,const Array<SoyFilesystem::Path>& Paths)
 	{
+#if defined(ENABLE_PARSE_INCLUDES)
 		std::string PathFilename;
-		if ( Soy::PathIsAbsolute( Filename ) )
+
+		SoyFilesystem::File File( Filename );
+		if ( File.HasAbsolutePath() )
 		{
-			PathFilename = Filename;
+			PathFilename = File.GetFullPathFilename();
 		}
 		else
 		{
-			//	current code expects at least say "./" to be included in the list
-			assert( !Paths.IsEmpty() );
-			if ( Paths.IsEmpty() )
-				return false;
-
 			//	try and find the filename
 			for ( int p=0;	p<Paths.GetSize();	p++ )
 			{
-				BufferString<MAX_PATH> FullPath = Paths[p];
+				auto& Path = Paths[p];
 
-				//	add trailing slash if needsbe
-				if ( !FullPath.IsEmpty() && !FullPath.EndsWith("/") && !FullPath.EndsWith("\\") )
-					FullPath << "/";
-
-				FullPath << Filename;
-				if ( !ofFileExists( FullPath ) )
+				SoyFilesystem::File PathFile( Path, Filename );
+				if ( !PathFile.Exists() )
 					continue;
-				PathFilename = FullPath;
+				
+				PathFilename = PathFile.GetFullPathFilename();
 				break;
 			}
 		}
 
 		//	already included, don't need to include again (we'll get duplicate symbols)
-		if ( FilesAlreadyIncluded.Find( PathFilename ) )
+		if ( FilesAlreadyIncluded.Find( SoyFilesystem::File(PathFilename) ) )
 		{
 			assert( Source.empty() );
 			return true;
@@ -146,10 +133,13 @@ namespace msa {
 			return false;
 
 		return true;
+#endif
+		return false;
 	}
 
-	bool OpenCLProgram::ParseIncludes(std::string& Source,Array<BufferString<MAX_PATH>>& FilesAlreadyIncluded,const Array<BufferString<MAX_PATH>>& Paths)
+	bool OpenCLProgram::ParseIncludes(std::string& Source,Array<SoyFilesystem::File>& FilesAlreadyIncluded,const Array<SoyFilesystem::Path>& Paths)
 	{
+#if defined(ENABLE_PARSE_INCLUDES)
 		//	find & replace includes
 		int StringPos = 0;
 		while ( true )
@@ -201,6 +191,8 @@ namespace msa {
 		}
 		
 		return true;
+#endif
+		return false;
 	}
 
 	
@@ -246,12 +238,10 @@ namespace msa {
 		return k;
 	}
 	
-	void OpenCLProgram::GetIncludePaths(Array<BufferString<MAX_PATH>>& Paths)
+	void OpenCLProgram::GetIncludePaths(Array<SoyFilesystem::Path>& Paths)
 	{
-		Paths.PushBack( ofToDataPath("",true) );
-
 		//	always have this for full paths
-		Paths.PushBack( "" );
+		//Paths.PushBack( std::string("./") );
 	}
 	
 	bool OpenCLProgram::build(std::string ProgramSource,std::string BuildOptions)
@@ -266,12 +256,12 @@ namespace msa {
 		static bool IncludePath = true;
 		if ( IncludePath )
 		{
-			Array<BufferString<MAX_PATH>> Paths;
+			Array<SoyFilesystem::Path> Paths;
 			GetIncludePaths( Paths );
 
 			for ( int p=0;	p<Paths.GetSize();	p++)
 			{
-				std::string Path = Paths[p].c_str();
+				std::string Path = Paths[p].GetFullPath();
 
 				//	opencl [amd APP sdk] requires paths with forward slashes [on windows]
 				std::replace( Path.begin(), Path.end(), '\\', '/' );
@@ -289,9 +279,9 @@ namespace msa {
 		cl_device_id Devices[100];
 		int DeviceCount = mParent.GetDevices( Devices );
 
-		TString Debug;
+		std::stringstream Debug;
 		Debug << "Build OpenCLProgram " << ProgramSource << ": (" << Options << ") for " << DeviceCount << " devices...";
-		ofLogNotice( Debug.c_str() );
+		std::Debug << Debug.str() << std::endl;
 
 		cl_int err = clBuildProgram( mProgram, DeviceCount, Devices, Options.c_str(), NULL, NULL);
 		
@@ -301,10 +291,10 @@ namespace msa {
 			Debug << "Failed [" << OpenCL::getErrorAsString(err) << "]";
 		Debug << "\n------------------------------------\n\n";
 		if ( err == CL_SUCCESS )
-			ofLogNotice( Debug.c_str() );
+			std::Debug << Debug.str() << std::endl;
 		else
-			ofLogError( Debug.c_str() );
-
+			std::Debug << Debug.str() << std::endl;
+	
 		//	get build log size first so we always have errors to display
 		for ( int d=0;	d<DeviceCount;	d++ )
 		{

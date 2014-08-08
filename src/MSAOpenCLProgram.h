@@ -2,6 +2,14 @@
 
 #include <ofxSoylent.h>
 
+namespace SoyFilesystem
+{
+	class Path;
+	class File;
+};
+
+//#define ENABLE_PARSE_INCLUDES
+
 namespace msa { 
 	
 	class OpenCL;
@@ -14,9 +22,9 @@ namespace msa {
 		
 		bool			loadFromFile(std::string filename,bool isBinary,std::string BuildOptions);
 		bool			loadFromSource(std::string source,std::string sourceLocation,std::string BuildOptions);
-		static void		GetIncludePaths(Array<BufferString<MAX_PATH>>& Paths);
-		bool			ParseIncludes(std::string Filename,std::string& Source,Array<BufferString<MAX_PATH>>& FilesAlreadyIncluded,const Array<BufferString<MAX_PATH>>& Paths);
-		bool			ParseIncludes(std::string& Source,Array<BufferString<MAX_PATH>>& FilesAlreadyIncluded,const Array<BufferString<MAX_PATH>>& Paths);
+		static void		GetIncludePaths(Array<SoyFilesystem::Path>& Paths);
+		bool			ParseIncludes(std::string Filename,std::string& Source,Array<SoyFilesystem::File>& FilesAlreadyIncluded,const Array<SoyFilesystem::Path>& Paths);
+		bool			ParseIncludes(std::string& Source,Array<SoyFilesystem::File>& FilesAlreadyIncluded,const Array<SoyFilesystem::Path>& Paths);
 
 		//	create kernel instance for this program on this queue/device
 		OpenCLKernel*	loadKernel(std::string kernelName,cl_command_queue Queue);
