@@ -30,29 +30,18 @@ public:
 
 
 SoyFileChangeDetector::SoyFileChangeDetector(std::string Filename) :
-	mFilename		( Filename ),
-	mLastModified	( 0 )
+	mFile			( Filename )
 {
 }
 
 
 bool SoyFileChangeDetector::HasChanged()
 {
-	Poco::Timestamp CurrentTimestamp = GetCurrentTimestamp();
+	auto CurrentTimestamp = GetCurrentTimestamp();
 	return mLastModified != CurrentTimestamp;
 }
 
-int ofFileLastModified(std::string Filename)
-{
-	return 1;
-}
-
-Poco::Timestamp SoyFileChangeDetector::GetCurrentTimestamp()
-{
-	return ofFileLastModified( mFilename );
-}
-
-void SoyFileChangeDetector::SetLastModified(Poco::Timestamp Timestamp)
+void SoyFileChangeDetector::SetLastModified(SoyFilesystem::Timestamp Timestamp)
 {
 	mLastModified = Timestamp;
 }
@@ -119,7 +108,8 @@ void SoyOpenClManager::threadedFunction()
 			}
 		}
 
-		sleep(2000);
+		Sleep(1);
+		
 	}
 }
 
@@ -319,11 +309,10 @@ bool SoyOpenClShader::LoadShader()
 	ofMutex::ScopedLock Lock(mLock);
 	UnloadShader();
 
-	//	
-	Poco::Timestamp CurrentTimestamp = GetCurrentTimestamp();
+	auto CurrentTimestamp = GetCurrentTimestamp();
 
 	//	file gone missing
-	if ( CurrentTimestamp == Poco::Timestamp(0) )
+	if ( !CurrentTimestamp.IsValid() )
 		return false;
 
 	//	let this continue if we have build errors? so it doesnt keep trying to reload...
@@ -463,6 +452,43 @@ bool SoyOpenClKernel::Begin()
 	return true;
 }
 
+bool SoyOpenClKernel::IsValidLocalExecCount(ArrayBridge<int>& LocalExec,bool ForceCorrection)
+{
+	if ( LocalExec.IsEmpty() )
+		return true;
+	
+	std::stringstream Debug;
+
+	//	check against device max's
+	//	gr: don't think i need to check mDevice.maxWorkGroupSize as it's implied by the individual limits...
+	bool Error = false;
+	for ( int d=0;	d<LocalExec.GetSize();	d++ )
+	{
+		int MaxSize = mDeviceInfo.maxWorkItemSizes[d];
+		int Size = LocalExec[d];
+		
+		Debug << Size << "/" << MaxSize << " ";
+		
+		if ( Size > MaxSize )
+		{
+			Error = true;
+		
+			if ( ForceCorrection )
+				LocalExec[d] = MaxSize;
+		}
+	}
+	
+	if ( Error )
+	{
+		std::Debug << GetName() << ": too many local iterations for kernel; " << Debug.str();
+		if ( ForceCorrection )
+			std::Debug << " (corrected)";
+		std::Debug << std::endl;
+		return ForceCorrection;
+	}
+	
+	return true;
+}
 
 bool SoyOpenClKernel::End(bool Blocking,const ArrayBridge<int>& OrigGlobalExec,const ArrayBridge<int>& OrigLocalExec)
 {
@@ -496,22 +522,48 @@ bool SoyOpenClKernel::End(bool Blocking,const ArrayBridge<int>& OrigGlobalExec,c
 		return false;
 	}
 
-	for ( int i=0;	i<LocalExec.GetSize();	i++ )
+	auto LocalExecBridge = GetArrayBridge(LocalExec);
+	if ( !IsValidLocalExecCount( LocalExecBridge, true ) )
+		return false;
+
+
+	//	check 		CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and
+	//			the total number of work-items in the work-group computed as
+	//			local_work_size[0] *... local_work_size[work_dim - 1] is greater than
+	//			the value specified by CL_DEVICE_MAX_WORK_GROUP_SIZE in the table of OpenCL Device Queries for clGetDeviceInfo.
+	if ( !LocalExec.IsEmpty() )
 	{
-		auto& ExecCount = LocalExec[i];
+		int TotalLocalWorkGroupSize = LocalExec[0];
+		for ( int d=1;	d<LocalExec.GetSize();	d++ )
+			TotalLocalWorkGroupSize *= LocalExec[d];
 
-		//	dimensions need to be at least 1, zero size is not a failure, just don't execute
-		if ( ExecCount <= 0 )
-			return true;
-
-		if ( IsValidLocalExecCount(ExecCount) )
-			continue;
-
-		BufferString<1000> Debug;
-		Debug << GetName() << ": Too many iterations for kernel: " << ExecCount << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
-		ofLogWarning( Debug.c_str() );
-		ExecCount = std::min( ExecCount, GetMaxLocalWorkGroupSize() );
+		if ( TotalLocalWorkGroupSize > GetMaxLocalWorkGroupSize() )
+		{
+			std::Debug << "Too many local work items for device: " << TotalLocalWorkGroupSize << "/" << GetMaxLocalWorkGroupSize() << std::endl;
+			return false;
+		}
 	}
+
+	//	CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and number of work-items specified by
+	//	global_work_size is not evenly divisable by size of work-group given by local_work_size
+	if ( !LocalExec.IsEmpty() )
+	{
+		bool Error = false;
+		for ( int Dim=0;	Dim<LocalExec.GetSize();	Dim++ )
+		{
+			int Local = LocalExec[Dim];
+			int Global = GlobalExec[Dim];
+			int Remainer = Global % Local;
+			if ( Remainer != 0 )
+			{
+				std::Debug << "Local work items[" << Dim << "] " << Local << " not divisible by global size " << Global << std::endl;
+				Error = true;
+			}
+		}
+		if ( Error )
+			return false;
+	}
+	
 
 	//	if we're about to execute, make sure all writes are done
 	//	gr: only if ( Blocking ) ?
@@ -683,7 +735,7 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<3>>& Iteratio
 
 int SoyOpenClKernel::GetMaxGlobalWorkGroupSize() const		
 {
-	int DeviceAddressBits = 32;	//CL_DEVICE_ADDRESS_BITS
+	int DeviceAddressBits = mDeviceInfo.deviceAddressBits;
 	int MaxSize = (1<<(DeviceAddressBits-1))-1;	
 	//	gr: if this is negative opencl kernels lock up (or massive loops?), code should bail out beforehand
 	assert( MaxSize > 0 );

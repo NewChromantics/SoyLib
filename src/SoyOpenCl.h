@@ -5,7 +5,7 @@
 #include <MSAOpenCL.h>
 #include "SortArray.h"
 #include "SoyString.h"
-
+#include "SoyFilesytem.h"
 
 class SoyOpenClManager;
 class SoyOpenClShader;
@@ -25,13 +25,13 @@ public:
 	SoyFileChangeDetector(std::string Filename);
 
 	bool						HasChanged();
-	Poco::Timestamp				GetCurrentTimestamp();	//	get the file's current timestamp
-	void						SetLastModified(Poco::Timestamp Timestamp);
-	std::string					GetFilename() const	{	return mFilename;	}
+	SoyFilesystem::Timestamp	GetCurrentTimestamp()	{	return mFile.GetModified();	};	//	get the file's current timestamp
+	void						SetLastModified(SoyFilesystem::Timestamp Timestamp);
+	std::string					GetFilename() const		{	return mFile.GetFilename();	}
 
 private:
-	Poco::Timestamp			mLastModified;
-	std::string				mFilename;
+	SoyFilesystem::Timestamp	mLastModified;
+	SoyFilesystem::File			mFile;
 };
 
 
@@ -124,7 +124,7 @@ public:
 	bool			IsValid() const					{	return mKernel!=NULL;	}
 	bool			IsValidExecCount(int ExecCount)	{	return IsValidGlobalExecCount( ExecCount );	}
 	bool			IsValidGlobalExecCount(int ExecCount)	{	return (GetMaxWorkGroupSize()==-1) ? true : (ExecCount<=GetMaxWorkGroupSize());	}
-	bool			IsValidLocalExecCount(int ExecCount)	{	return (GetMaxWorkGroupSize()==-1) ? true : (ExecCount<=GetMaxWorkGroupSize());	}
+	bool			IsValidLocalExecCount(ArrayBridge<int>& LocalExec,bool ForceCorrection);
 	int				GetMaxWorkGroupSize() const				{	return GetMaxGlobalWorkGroupSize();	}
 	int				GetMaxGlobalWorkGroupSize() const;
 	int				GetMaxLocalWorkGroupSize() const;
