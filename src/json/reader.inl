@@ -129,6 +129,13 @@ inline Reader::TokenStream::TokenStream(const Tokens& tokens) :
 inline const Reader::Token& Reader::TokenStream::Peek() {
    if (EOS())
    {
+	   if ( m_Tokens.size() == 0 )
+	   {
+		   std::string sMessage = "Unexpected end of token stream";
+		   Reader::Location locBegin;
+		   Reader::Location locEnd;
+		   throw ParseException(sMessage, locBegin, locEnd); // nowhere to point to
+	   }
       const Token& lastToken = *m_Tokens.rbegin();
       std::string sMessage = "Unexpected end of token stream";
       throw ParseException(sMessage, lastToken.locBegin, lastToken.locEnd); // nowhere to point to
