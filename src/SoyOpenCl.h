@@ -503,10 +503,10 @@ public:
 		auto& Bridge = static_cast<ArrayBridge<typename ARRAYTYPE::TYPE>&>( Array );
 		return Read( Bridge, ElementCount, Blocking );
 	}
-	template<typename TYPE>				bool	Read(Array<TYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)				{	return Read( GetArrayBridge( Array ), ElementCount, Blocking );	}
-	template<typename TYPE,int SIZE>	bool	Read(BufferArray<TYPE,SIZE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)	{	return Read( GetArrayBridge( Array ), ElementCount, Blocking );	}
-	template<typename TYPE>				bool	Read(RemoteArray<TYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)			{	return Read( GetArrayBridge( Array ), ElementCount, Blocking );	}
-	template<typename TYPE,class SORT>	bool	Read(SortArray<TYPE,SORT>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)		{	return Read( GetArrayBridge( Array.mArray ), ElementCount, Blocking );	}
+	template<typename TYPE>				bool	Read(Array<TYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)				{	auto Bridge = GetArrayBridge(Array);	return Read( Bridge, ElementCount, Blocking );	}
+	template<typename TYPE,int SIZE>	bool	Read(BufferArray<TYPE,SIZE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)	{	auto Bridge = GetArrayBridge(Array);	return Read( Bridge, ElementCount, Blocking );	}
+	template<typename TYPE>				bool	Read(RemoteArray<TYPE>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)			{	auto Bridge = GetArrayBridge(Array);	return Read( Bridge, ElementCount, Blocking );	}
+	template<typename TYPE,class SORT>	bool	Read(SortArray<TYPE,SORT>& Array,int ElementCount=-1,bool Blocking=SoyOpenCl::DefaultReadBlocking)		{	auto Bridge = GetArrayBridge(Array.mArray);	return Read( Bridge, ElementCount, Blocking );	}
 		
 	template<typename TYPE>
 	bool		Read(TYPE& Data,bool Blocking=SoyOpenCl::DefaultReadBlocking)
