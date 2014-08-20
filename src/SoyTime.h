@@ -57,3 +57,17 @@ inline std::ostream& operator<< (std::ostream &out,const SoyTime &in)
 	return out;
 }
 
+
+inline std::istream& operator>> (std::istream &in,SoyTime &out)
+{
+	std::string TimeStr;
+	in >> TimeStr;
+	
+	if ( in.fail() )
+		out = SoyTime();
+	else
+		out.FromString( TimeStr );
+
+	return in;
+}
+
