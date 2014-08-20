@@ -284,14 +284,14 @@ static inline bool is_base64(unsigned char c) {
 	return (isalnum(c) || (c == '+') || (c == '/'));
 }
 
-std::string Soy::base64_encode(const ArrayBridge<unsigned char>& Data)
+void Soy::base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded)
 {
-	auto in_len = Data.GetDataSize();
-	auto* bytes_to_encode = Data.GetArray();
+	auto in_len = Decoded.GetDataSize();
+	auto* bytes_to_encode = Decoded.GetArray();
 	if ( !bytes_to_encode )
-		return std::string();
+		return;
 	
-	std::string ret;
+	auto& ret = Encoded;
 	int i = 0;
 	int j = 0;
 	unsigned char char_array_3[3];
@@ -306,7 +306,7 @@ std::string Soy::base64_encode(const ArrayBridge<unsigned char>& Data)
 			char_array_4[3] = char_array_3[2] & 0x3f;
 			
 			for(i = 0; (i <4) ; i++)
-				ret += base64_chars[char_array_4[i]];
+				ret.PushBack( base64_chars[char_array_4[i]] );
 			i = 0;
 		}
 	}
@@ -322,14 +322,12 @@ std::string Soy::base64_encode(const ArrayBridge<unsigned char>& Data)
 		char_array_4[3] = char_array_3[2] & 0x3f;
 		
 		for (j = 0; (j < i + 1); j++)
-			ret += base64_chars[char_array_4[j]];
+			ret.PushBack( base64_chars[char_array_4[j]] );
 		
 		while((i++ < 3))
-			ret += '=';
+			ret.PushBack('=');
 		
 	}
-	
-	return ret;
 	
 }
 
