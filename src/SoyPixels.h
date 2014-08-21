@@ -72,6 +72,8 @@ public:
 	bool			Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format);
 	bool			Init(uint16 Width,uint16 Height,uint8 Channels);
 
+	bool			Copy(const SoyPixelsImpl& that);
+	
 	uint16			GetHeight() const				{	return GetMeta().GetHeight( GetPixelsArray().GetSize() );	}
 	bool			IsValid() const					{	return GetMeta().IsValid();	}
 	uint8			GetBitDepth() const				{	return GetMeta().GetBitDepth();	}
@@ -196,10 +198,12 @@ public:
 		SoyPixelsDef<Array<uint8>>	( GetArrayBridge( mPixels.mPixels ), mPixels.mMeta )
 	{
 	}
-
+	
 	operator TPixels& ()					{	return mPixels;	}
 	operator const TPixels& () const		{	return mPixels;	}
 
+	SoyPixels& operator=(const SoyPixels& that)	{	Copy( that );	return *this;	}
+	
 public:
 	TPixels		mPixels;
 };

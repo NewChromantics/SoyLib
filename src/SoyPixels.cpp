@@ -1023,3 +1023,13 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 	assert( Width = GetWidth() );
 }
 
+
+bool SoyPixelsImpl::Copy(const SoyPixelsImpl &that)
+{
+	if ( &that == this )
+		return true;
+	
+	this->GetMeta() = that.GetMeta();
+	this->GetPixelsArray().Copy( that.GetPixelsArray() );
+	return true;
+}
