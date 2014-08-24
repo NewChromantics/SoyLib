@@ -357,9 +357,9 @@ namespace prmem
 		HeapDebug(const Heap& OwnerHeap);
 		virtual ~HeapDebug()	{}
 
-		virtual void	OnFree(const void* Object);
-		virtual void	OnAlloc(const void* Object,const char* Typename,uint32 ElementCount,uint32 TypeSize);
-		virtual void	DumpToOutput(const prmem::HeapInfo& OwnerHeap) const
+		virtual void	OnFree(const void* Object) override;
+		virtual void	OnAlloc(const void* Object,std::string Typename,uint32 ElementCount,uint32 TypeSize) override;
+		virtual void	DumpToOutput(const prmem::HeapInfo& OwnerHeap) const override
         {
             auto Items = GetArrayBridge( mItems );
             HeapDebugBase::DumpToOutput( OwnerHeap, Items );
@@ -427,7 +427,7 @@ prmem::HeapDebug::HeapDebug(const Heap& OwnerHeap) :
 }
 
 
-void prmem::HeapDebug::OnAlloc(const void* Object,const char* Typename,uint32 ElementCount,uint32 TypeSize)
+void prmem::HeapDebug::OnAlloc(const void* Object,std::string Typename,uint32 ElementCount,uint32 TypeSize)
 {
 	ofMutex::ScopedLock Lock( *this );
 	//	do some prealloc when we get to the edge
@@ -1178,7 +1178,7 @@ bool SoyDebug::GetCallStack(ArrayBridge<ofStackEntry>& Stack,int StackSkip)
 }
 
 
-void prmem::HeapInfo::OnFailedAlloc(const char* TypeName,int TypeSize,int ElementCount) const
+void prmem::HeapInfo::OnFailedAlloc(std::string TypeName,int TypeSize,int ElementCount) const
 {
 	//	print out debug state of current heap
 	BufferString<1000> Debug;

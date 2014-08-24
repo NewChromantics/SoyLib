@@ -253,31 +253,24 @@ namespace Soy
 		else
 			return true;
 	}
-
+	
+	std::string		DemangleTypeName(const char* name);
+	
 	//	readable name for a type (alternative to RTTI)
 	template<typename TYPE>
-	inline const char* GetTypeName()	
+	inline std::string GetTypeName()
 	{
-		//	"unregistered" type, return the size as name
-        //  gr: OSX/gcc template can't use BufferString without declaration
-#if defined(TARGET_OSX)
-        static const char* Name = "Non-soy-declared type";
-#else
-		static BufferString<30> Name;
-		if ( Name.IsEmpty() )
-			Name << sizeof(TYPE) << "ByteType";
-#endif
-		return Name;
+		return DemangleTypeName( typeid(TYPE).name() );
 	}
 
 	//	auto-define the name for this type for use in the memory debug
 	#define DECLARE_TYPE_NAME(TYPE)								\
 		template<>															\
-		inline const char* Soy::GetTypeName<TYPE>()	{	return #TYPE ;	}
+		inline std::string Soy::GetTypeName<TYPE>()	{	return #TYPE ;	}
 	
 	#define DECLARE_TYPE_NAME_AS(TYPE,NAME)								\
 		template<>															\
-		inline const char* Soy::GetTypeName<TYPE>()	{	return NAME ;	}
+		inline std::string Soy::GetTypeName<TYPE>()	{	return NAME ;	}
 	
 	//	speed up use of this type in our arrays when resizing, allocating etc
 	//	declare a type that can be memcpy'd (ie. no pointers or ref-counted objects that rely on =operators or copy constructors)
