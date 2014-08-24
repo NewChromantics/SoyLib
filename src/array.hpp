@@ -215,6 +215,12 @@
 	public:
 		ArrayBridge()	{}
 
+		inline ArrayBridge<T>&	operator=(const ArrayBridge<T>& That)
+		{
+			this->Copy( That );
+			return *this;
+		}
+
 		//	interfaces not required by ArrayInterface
 		virtual T&			PushBack(const T& item)=0;
 		virtual T&			PushBack()=0;
@@ -260,6 +266,7 @@
 				return true;
 			}
 		}
+		
 	};
 
 
