@@ -359,3 +359,31 @@ namespace Soy
 	void		base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded);
 };
 
+namespace Soy
+{
+	class AssertException;
+};
+
+
+class Soy::AssertException : public std::exception
+{
+public:
+	AssertException(std::string Message) :
+	mError	( Message )
+	{
+	}
+	virtual const char* what() const _NOEXCEPT	{	return mError.c_str();	}
+std::string			mError;
+};
+
+namespace Soy
+{
+	//	replace asserts with exception. If condition fails false is returned to save code
+	bool		Assert(bool Condition,std::string ErrorMessage) throw(AssertException);
+	inline bool	Assert(bool Condition,std::stringstream&& ErrorMessage) throw(AssertException)
+	{
+		return Assert( Condition, ErrorMessage.str() );
+	}
+};
+
+

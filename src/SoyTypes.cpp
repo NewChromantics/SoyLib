@@ -448,3 +448,13 @@ std::string Soy::DemangleTypeName(const char* name)
 }
 
 #endif
+
+bool Soy::Assert(bool Condition, std::string ErrorMessage) throw(AssertException)
+{
+	if ( Condition )
+		return true;
+	
+	//	throw exception
+	throw Soy::AssertException(ErrorMessage);
+	return false;
+}
