@@ -10,6 +10,13 @@ void Soy::StringToLower(std::string& String)
 	std::transform( String.begin(), String.end(), String.begin(), ::tolower );
 }
 
+std::string Soy::StringToLower(const std::string& String)
+{
+	std::string LowerString = String;
+	StringToLower( LowerString );
+	return LowerString;
+}
+
 
 bool Soy::StringContains(const std::string& Haystack, const std::string& Needle, bool CaseSensitive)
 {

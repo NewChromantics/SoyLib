@@ -11,6 +11,7 @@ class ArrayBridge;
 namespace Soy
 {
 	void		StringToLower(std::string& String);
+	std::string	StringToLower(const std::string& String);
 	
 	bool		StringContains(const std::string& Haystack, const std::string& Needle, bool CaseSensitive);
 	bool		StringBeginsWith(const std::string& Haystack, const std::string& Needle, bool CaseSensitive);
