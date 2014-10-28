@@ -429,7 +429,7 @@ inline TYPE TLockQueue<TYPE>::Pop()
 template<class TYPE>
 inline bool TLockQueue<TYPE>::Push(const TYPE& Job)
 {
-	assert( Job.IsValid() );
+	//assert( Job.IsValid() );
 	ofMutex::ScopedLock Lock( mJobLock );
 	mJobs.PushBack( Job );
 	return true;
