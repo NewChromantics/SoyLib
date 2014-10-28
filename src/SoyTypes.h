@@ -387,3 +387,52 @@ namespace Soy
 };
 
 
+
+class vec2f
+{
+public:
+	vec2f(float _x,float _y) :
+	x	( _x ),
+	y	( _y )
+	{
+	}
+	vec2f() :
+	x	( 0 ),
+	y	( 0 )
+	{
+	}
+	
+	float	LengthSq() const	{	return (x*x)+(y*y);	}
+	float	Length() const		{	return sqrtf( LengthSq() );	}
+	
+public:
+	float	x;
+	float	y;
+};
+
+
+class vec3f
+{
+public:
+	vec3f(float _x,float _y,float _z) :
+	x	( _x ),
+	y	( _y ),
+	z	( _z )
+	{
+	}
+	vec3f() :
+	x	( 0 ),
+	y	( 0 ),
+	z	( 0 )
+	{
+	}
+	
+	float	LengthSq() const	{	return (x*x)+(y*y)+(z*z);	}
+	float	Length() const		{	return sqrtf( LengthSq() );	}
+	
+public:
+	float	x;
+	float	y;
+	float	z;
+};
+
