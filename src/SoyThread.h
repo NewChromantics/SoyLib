@@ -401,3 +401,37 @@ protected:
 	std::vector<std::shared_ptr<SoyFunctionThread>>	mThreadPool;
 };
 */
+
+
+
+
+template<class TYPE>
+class TLockQueue
+{
+public:
+	TYPE			Pop();
+	bool			Push(const TYPE& Job);
+	
+public:
+	Array<TYPE>		mJobs;
+	ofMutex			mJobLock;
+};
+
+template<class TYPE>
+inline TYPE TLockQueue<TYPE>::Pop()
+{
+	ofMutex::ScopedLock Lock( mJobLock );
+	if ( mJobs.IsEmpty() )
+		return TYPE();
+	return mJobs.PopAt(0);
+}
+
+template<class TYPE>
+inline bool TLockQueue<TYPE>::Push(const TYPE& Job)
+{
+	assert( Job.IsValid() );
+	ofMutex::ScopedLock Lock( mJobLock );
+	mJobs.PushBack( Job );
+	return true;
+}
+
