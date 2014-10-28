@@ -19,7 +19,9 @@ int SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case RGB:			return 3;
 	case RGBA:			return 4;
 	case BGRA:			return 4;
-	case KinectDepth:	return 2;
+	case KinectDepth:	return 2;	//	only 1 channel, but 16 bit
+	case FreenectDepthRaw:	return 2;	//	only 1 channel, but 16 bit
+	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
 	}
 }
 
@@ -244,6 +246,130 @@ bool ConvertFormat_KinectDepthToGreyscale(ArrayBridge<uint8>& Pixels,SoyPixelsMe
 	return true;
 }
 
+bool ConvertFormat_KinectDepthToRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+{
+	Array<uint16> DepthPixels;
+	DepthPixels.SetSize( Pixels.GetSize() / 2 );
+	memcpy( DepthPixels.GetArray(), Pixels.GetArray(), DepthPixels.GetDataSize() );
+	
+	int Components = SoyPixelsFormat::GetChannelCount( NewFormat );
+	int Height = Meta.GetHeight( Pixels.GetDataSize() );
+	int PixelCount = Meta.GetWidth() * Height;
+	Pixels.SetSize( Components * PixelCount );
+	
+	for ( int p=0;	p<PixelCount;	p++ )
+	{
+		uint16 KinectDepth = DepthPixels[p];
+		
+		int PlayerIndex = KinectDepth & ((1<<3)-1);
+		float Depthf = static_cast<float>(KinectDepth >> 3) / static_cast<float>( 1<<13 );
+
+		uint8& Red = Pixels[ p * (Components) + 0 ];
+		uint8& Green = Pixels[ p * (Components) + 1 ];
+		uint8& Blue = Pixels[ p * (Components) + 2 ];
+		uint8 Greyscale = ofLimit<int>( static_cast<int>(Depthf*255.f), 0, 255 );
+
+		Red = Greyscale;
+		if ( PlayerIndex == 7 )
+		{
+			Green = 0;
+			Blue = 0;
+		}
+		else if ( PlayerIndex == 0 )
+		{
+			Green = 255;
+			Blue = 0;
+		}
+		else if ( PlayerIndex == 1 )
+		{
+			Green = 0;
+			Blue = 255;
+		}
+		else
+		{
+			Green = 255;
+			Blue = 255;
+		}
+	}
+	
+	Meta.DumbSetFormat( NewFormat );
+	assert( Meta.IsValid() );
+	assert( Meta.GetHeight( Pixels.GetDataSize() ) == Height );
+	return true;
+}
+
+
+/// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED frame callbacks
+#define FREENECT_DEPTH_MM_MAX_VALUE 10000
+/// Value indicating that this pixel has no data, when using FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED depth modes
+#define FREENECT_DEPTH_MM_NO_VALUE 0
+/// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_11BIT, FREENECT_DEPTH_10BIT, FREENECT_DEPTH_11BIT_PACKED, or FREENECT_DEPTH_10BIT_PACKED frame callbacks
+#define FREENECT_DEPTH_RAW_MAX_VALUE 2048
+/// Value indicating that this pixel has no data, when using FREENECT_DEPTH_11BIT, FREENECT_DEPTH_10BIT, FREENECT_DEPTH_11BIT_PACKED, or FREENECT_DEPTH_10BIT_PACKED
+#define FREENECT_DEPTH_RAW_NO_VALUE 2047
+
+bool ConvertFormat_FreenectDepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+{
+	bool RawDepth = (Meta.GetFormat() == SoyPixelsFormat::FreenectDepthRaw);
+	uint16 MaxDepth = RawDepth ? FREENECT_DEPTH_RAW_MAX_VALUE : FREENECT_DEPTH_MM_MAX_VALUE;
+	uint16 InvalidDepth = RawDepth ? FREENECT_DEPTH_RAW_NO_VALUE : FREENECT_DEPTH_MM_NO_VALUE;
+
+	Array<uint16> DepthPixels;
+	DepthPixels.SetSize( Pixels.GetSize() / 2 );
+	memcpy( DepthPixels.GetArray(), Pixels.GetArray(), DepthPixels.GetDataSize() );
+	
+	int Components = SoyPixelsFormat::GetChannelCount( NewFormat );
+	int Height = Meta.GetHeight( Pixels.GetDataSize() );
+	int PixelCount = Meta.GetWidth() * Height;
+	
+	//	realloc
+	Pixels.SetSize( Components * PixelCount );
+	
+	for ( int p=0;	p<PixelCount;	p++ )
+	{
+		uint16 KinectDepth = DepthPixels[p];
+		std::Debug << KinectDepth << " ";
+		bool DepthInvalid = (KinectDepth == InvalidDepth);
+		float Depthf = DepthInvalid ? 0.f : static_cast<float>(KinectDepth) / static_cast<float>( MaxDepth );
+		
+		uint8& Red = Pixels[ p * (Components) + 0 ];
+		Red = ofLimit<int>( static_cast<int>(Depthf*255.f), 0, 255 );
+		
+		//	if RGB then we do different colours for raw and mm
+		if ( Components >= 3 )
+		{
+			int CompZero = RawDepth ? 1 : 2;
+			int CompDepth = RawDepth ? 2 : 1;
+			uint8& Green = Pixels[ p * (Components) + CompZero ];
+			uint8& Blue = Pixels[ p * (Components) + CompDepth ];
+			Green = 0;
+			Blue = DepthInvalid ? 0 : 255-Red;
+			
+			if ( Components > 3 )
+			{
+				int c = 3;
+				uint8& Alpha = Pixels[ p * (Components) + c ];
+				Alpha = DepthInvalid ? 0 : 255;
+			}
+		}
+		else
+		{
+			for ( int c=1;	c<Components;	c++ )
+			{
+				uint8& Blue = Pixels[ p * (Components) + c ];
+				Blue = DepthInvalid ? 0 : 255;
+			}
+		}
+		
+	}
+	std::Debug << std::endl;
+	
+	Meta.DumbSetFormat( NewFormat );
+	assert( Meta.IsValid() );
+	assert( Meta.GetHeight( Pixels.GetDataSize() ) == Height );
+	return true;
+}
+
 
 bool ConvertFormat_BgrToRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
@@ -326,7 +452,14 @@ public:
 
 TConvertFunc gConversionFuncs[] = 
 {
+	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::RGB, ConvertFormat_KinectDepthToRgb ),
 	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Greyscale, ConvertFormat_KinectDepthToGreyscale ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepthRaw, SoyPixelsFormat::RGB, ConvertFormat_FreenectDepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepthRaw, SoyPixelsFormat::RGBA, ConvertFormat_FreenectDepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepthRaw, SoyPixelsFormat::Greyscale, ConvertFormat_FreenectDepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::RGB, ConvertFormat_FreenectDepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::RGBA, ConvertFormat_FreenectDepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::Greyscale, ConvertFormat_FreenectDepthToGreyOrRgb ),
 	TConvertFunc( SoyPixelsFormat::BGR, SoyPixelsFormat::Greyscale, ConvertFormat_RGBAToGreyscale ),
 	TConvertFunc( SoyPixelsFormat::BGRA, SoyPixelsFormat::Greyscale, ConvertFormat_RGBAToGreyscale ),
 	TConvertFunc( SoyPixelsFormat::RGBA, SoyPixelsFormat::Greyscale, ConvertFormat_RGBAToGreyscale ),
@@ -857,9 +990,11 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 		TPixels OtherFormat;
 		OtherFormat.Set( *this );
 		auto NewFormat = SoyPixelsFormat::RGB;
+		
+		//	gr: this conversion should be done in soypixels, with a list of compatible output formats
 		switch ( GetFormat() )
 		{
-			case SoyPixelsFormat::KinectDepth:	NewFormat = SoyPixelsFormat::Greyscale;	break;
+			//case SoyPixelsFormat::KinectDepth:	NewFormat = SoyPixelsFormat::Greyscale;	break;
 			case SoyPixelsFormat::BGRA:			NewFormat = SoyPixelsFormat::RGBA;	break;
 			default:break;
 		}

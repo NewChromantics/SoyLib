@@ -19,6 +19,9 @@ namespace SoyPixelsFormat
 		BGRA			= 5,
 		BGR				= 6,
 		KinectDepth		= 7,	//	16 bit, so "two channels". 13 bits of depth, 3 bits of user-index
+		FreenectDepthRaw	= 8,	//	16 bit, all depth up to  FREENECT_DEPTH_MM_MAX_VALUE 10000
+		FreenectDepthmm	= 9,	//	16 bit, all depth up to  FREENECT_DEPTH_MM_MAX_VALUE 10000
+		
 		//HSL,
 		//HSLA,
 	};
