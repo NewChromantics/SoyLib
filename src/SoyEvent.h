@@ -52,6 +52,7 @@ public:
 	}
 	
 	bool			HasListeners() const		{	return !mListeners.empty();	}
+	int				GetListenerCount() const	{	return mListeners.size();	}
 
 public:
 	std::mutex				mListenerLock;
