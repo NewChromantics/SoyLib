@@ -405,6 +405,9 @@ public:
 	float	LengthSq() const	{	return (x*x)+(y*y);	}
 	float	Length() const		{	return sqrtf( LengthSq() );	}
 	
+	vec2f&	operator*=(const float& Scalar)	{	x*=Scalar;		y*=Scalar;	return *this;	}
+	vec2f&	operator*=(const vec2f& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;	return *this;	}
+	
 public:
 	float	x;
 	float	y;
@@ -429,6 +432,9 @@ public:
 	
 	float	LengthSq() const	{	return (x*x)+(y*y)+(z*z);	}
 	float	Length() const		{	return sqrtf( LengthSq() );	}
+
+	vec3f&	operator*=(const float& Scalar)	{	x*=Scalar;		y*=Scalar;		z*=Scalar;	return *this;	}
+	vec3f&	operator*=(const vec3f& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;		z*=Scalar.z;	return *this;	}
 	
 public:
 	float	x;
