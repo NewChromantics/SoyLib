@@ -325,10 +325,13 @@ bool ConvertFormat_FreenectDepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixels
 	//	realloc
 	Pixels.SetSize( Components * PixelCount );
 	
+	static bool Debug = false;
+	
 	for ( int p=0;	p<PixelCount;	p++ )
 	{
 		uint16 KinectDepth = DepthPixels[p];
-		std::Debug << KinectDepth << " ";
+		if ( Debug )
+			std::Debug << KinectDepth << " ";
 		bool DepthInvalid = (KinectDepth == InvalidDepth);
 		float Depthf = DepthInvalid ? 0.f : static_cast<float>(KinectDepth) / static_cast<float>( MaxDepth );
 		
@@ -362,7 +365,9 @@ bool ConvertFormat_FreenectDepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixels
 		}
 		
 	}
-	std::Debug << std::endl;
+
+	if ( Debug )
+		std::Debug << std::endl;
 	
 	Meta.DumbSetFormat( NewFormat );
 	assert( Meta.IsValid() );
@@ -1152,6 +1157,35 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 		for ( int p=Pixels.GetDataSize()-ColBytes;	p>=0;	p-=Stride )
 			Pixels.RemoveBlock( p, ColBytes );
 		GetMeta().DumbSetWidth( Width );
+	}
+	
+	assert( Height == GetHeight() );
+	assert( Width = GetWidth() );
+}
+
+
+void SoyPixelsImpl::ResizeFastSample(uint16 Width, uint16 Height)
+{
+	auto& Pixels = GetPixelsArray();
+	
+	//	copy old data
+	SoyPixels Old;
+	Old.Copy(*this);
+	
+	int ChannelCount = GetChannels();
+	ResizeClip( Width, Height );
+	for ( int y=0;	y<Height;	y++ )
+	{
+		for ( int x=0;	x<Width;	x++ )
+		{
+			float xf = x/(float)Width;
+			float yf = y/(float)Height;
+			
+			int ox = Old.GetWidth() * xf;
+			int oy = Old.GetHeight() * yf;
+			for ( int c=0;	c<ChannelCount;	c++ )
+				this->SetPixel( x, y, c, Old.GetPixel( ox, oy, c ) );
+		}
 	}
 	
 	assert( Height == GetHeight() );

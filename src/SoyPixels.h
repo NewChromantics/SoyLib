@@ -93,6 +93,7 @@ public:
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
 
 	void			ResizeClip(uint16 Width,uint16 Height);
+	void			ResizeFastSample(uint16 Width,uint16 Height);
 
 	virtual SoyPixelsMeta&				GetMeta()=0;
 	virtual const SoyPixelsMeta&		GetMeta() const=0;
