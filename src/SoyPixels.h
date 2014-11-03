@@ -29,6 +29,10 @@ namespace SoyPixelsFormat
 	int			GetChannelCount(Type Format);
 	Type		GetFormatFromChannelCount(int ChannelCount);
 	inline bool	IsValid(Type Format)			{	return GetChannelCount( Format ) > 0;	}
+	
+	
+	int			GetMaxValue(SoyPixelsFormat::Type Format);
+	int			GetInvalidValue(SoyPixelsFormat::Type Format);
 };
 std::ostream& operator<< (std::ostream &out,const SoyPixelsFormat::Type &in);
 

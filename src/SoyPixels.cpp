@@ -6,6 +6,37 @@
 
 
 
+/// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED frame callbacks
+#define FREENECT_DEPTH_MM_MAX_VALUE 10000
+/// Value indicating that this pixel has no data, when using FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED depth modes
+#define FREENECT_DEPTH_MM_NO_VALUE 0
+/// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_11BIT, FREENECT_DEPTH_10BIT, FREENECT_DEPTH_11BIT_PACKED, or FREENECT_DEPTH_10BIT_PACKED frame callbacks
+#define FREENECT_DEPTH_RAW_MAX_VALUE 2048
+/// Value indicating that this pixel has no data, when using FREENECT_DEPTH_11BIT, FREENECT_DEPTH_10BIT, FREENECT_DEPTH_11BIT_PACKED, or FREENECT_DEPTH_10BIT_PACKED
+#define FREENECT_DEPTH_RAW_NO_VALUE 2047
+
+int SoyPixelsFormat::GetMaxValue(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyPixelsFormat::FreenectDepthmm:	return FREENECT_DEPTH_MM_MAX_VALUE;
+		case SoyPixelsFormat::FreenectDepthRaw:	return FREENECT_DEPTH_RAW_MAX_VALUE;
+		default:
+			return 0;
+	}
+}
+
+
+int SoyPixelsFormat::GetInvalidValue(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyPixelsFormat::FreenectDepthmm:	return FREENECT_DEPTH_MM_NO_VALUE;
+		case SoyPixelsFormat::FreenectDepthRaw:	return FREENECT_DEPTH_RAW_NO_VALUE;
+		default:
+			return 0;
+	}
+}
 
 
 int SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
@@ -299,21 +330,13 @@ bool ConvertFormat_KinectDepthToRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Me
 }
 
 
-/// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED frame callbacks
-#define FREENECT_DEPTH_MM_MAX_VALUE 10000
-/// Value indicating that this pixel has no data, when using FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED depth modes
-#define FREENECT_DEPTH_MM_NO_VALUE 0
-/// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_11BIT, FREENECT_DEPTH_10BIT, FREENECT_DEPTH_11BIT_PACKED, or FREENECT_DEPTH_10BIT_PACKED frame callbacks
-#define FREENECT_DEPTH_RAW_MAX_VALUE 2048
-/// Value indicating that this pixel has no data, when using FREENECT_DEPTH_11BIT, FREENECT_DEPTH_10BIT, FREENECT_DEPTH_11BIT_PACKED, or FREENECT_DEPTH_10BIT_PACKED
-#define FREENECT_DEPTH_RAW_NO_VALUE 2047
 
 bool ConvertFormat_FreenectDepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	bool RawDepth = (Meta.GetFormat() == SoyPixelsFormat::FreenectDepthRaw);
-	uint16 MaxDepth = RawDepth ? FREENECT_DEPTH_RAW_MAX_VALUE : FREENECT_DEPTH_MM_MAX_VALUE;
-	uint16 InvalidDepth = RawDepth ? FREENECT_DEPTH_RAW_NO_VALUE : FREENECT_DEPTH_MM_NO_VALUE;
-
+	uint16 MaxDepth = SoyPixelsFormat::GetMaxValue( Meta.GetFormat() );
+	uint16 InvalidDepth = SoyPixelsFormat::GetInvalidValue( Meta.GetFormat() );
+ 
 	Array<uint16> DepthPixels;
 	DepthPixels.SetSize( Pixels.GetSize() / 2 );
 	memcpy( DepthPixels.GetArray(), Pixels.GetArray(), DepthPixels.GetDataSize() );
