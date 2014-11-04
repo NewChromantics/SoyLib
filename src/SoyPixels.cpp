@@ -247,6 +247,28 @@ bool TPixels::SetChannels(uint8 Channels)
 	return SetFormat( Format );
 }
 
+
+void SetDepthColour(uint8& Red,uint8& Green,uint8& Blue,float Depth,int PlayerIndex)
+{
+	static int MinBrightness = 10;
+	uint8 Greyscale = ofLimit<int>( static_cast<int>(Depth*255.f), MinBrightness, 255 );
+
+	Red = 0;
+	Green = 0;
+	Blue = 0;
+	
+	//	make 0 (no user) white
+	if ( PlayerIndex == 0 )
+		PlayerIndex = 7;
+	
+	if ( PlayerIndex & 1 )
+		Red = Greyscale;
+	if ( PlayerIndex & 2 )
+		Green = Greyscale;
+	if ( PlayerIndex & 4 )
+		Blue = Greyscale;
+}
+
 bool ConvertFormat_KinectDepthToGreyscale(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	bool GreyscaleAlphaFormat = (NewFormat == SoyPixelsFormat::GreyscaleAlpha);
@@ -286,42 +308,34 @@ bool ConvertFormat_KinectDepthToRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Me
 	int Components = SoyPixelsFormat::GetChannelCount( NewFormat );
 	int Height = Meta.GetHeight( Pixels.GetDataSize() );
 	int PixelCount = Meta.GetWidth() * Height;
+	
+	//	realloc
 	Pixels.SetSize( Components * PixelCount );
+	
+	static bool Debug = false;
 	
 	for ( int p=0;	p<PixelCount;	p++ )
 	{
 		uint16 KinectDepth = DepthPixels[p];
+		if ( Debug )
+			std::Debug << KinectDepth << " ";
 		
-		int PlayerIndex = KinectDepth & ((1<<3)-1);
-		float Depthf = static_cast<float>(KinectDepth >> 3) / static_cast<float>( 1<<13 );
-
+		static int DepthBits = 13;
+		uint16 PlayerIndex = KinectDepth >> DepthBits;
+		uint16 MaxDepth = (1<<DepthBits)-1;
+		KinectDepth &= MaxDepth;
+		
+		bool DepthInvalid = (KinectDepth == 0);
+		float Depthf = DepthInvalid ? 0.f : static_cast<float>(KinectDepth) / static_cast<float>( MaxDepth );
+		
 		uint8& Red = Pixels[ p * (Components) + 0 ];
 		uint8& Green = Pixels[ p * (Components) + 1 ];
 		uint8& Blue = Pixels[ p * (Components) + 2 ];
-		uint8 Greyscale = ofLimit<int>( static_cast<int>(Depthf*255.f), 0, 255 );
-
-		Red = Greyscale;
-		if ( PlayerIndex == 7 )
-		{
-			Green = 0;
-			Blue = 0;
-		}
-		else if ( PlayerIndex == 0 )
-		{
-			Green = 255;
-			Blue = 0;
-		}
-		else if ( PlayerIndex == 1 )
-		{
-			Green = 0;
-			Blue = 255;
-		}
-		else
-		{
-			Green = 255;
-			Blue = 255;
-		}
+		SetDepthColour( Red, Green, Blue, Depthf, PlayerIndex );
 	}
+	
+	if ( Debug )
+		std::Debug << std::endl;
 	
 	Meta.DumbSetFormat( NewFormat );
 	assert( Meta.IsValid() );
@@ -359,7 +373,6 @@ bool ConvertFormat_FreenectDepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixels
 		float Depthf = DepthInvalid ? 0.f : static_cast<float>(KinectDepth) / static_cast<float>( MaxDepth );
 		
 		uint8& Red = Pixels[ p * (Components) + 0 ];
-		Red = ofLimit<int>( static_cast<int>(Depthf*255.f), 0, 255 );
 		
 		//	if RGB then we do different colours for raw and mm
 		if ( Components >= 3 )
@@ -368,6 +381,12 @@ bool ConvertFormat_FreenectDepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixels
 			int CompDepth = RawDepth ? 2 : 1;
 			uint8& Green = Pixels[ p * (Components) + CompZero ];
 			uint8& Blue = Pixels[ p * (Components) + CompDepth ];
+
+			int PlayerIndex = KinectDepth>>11;
+			SetDepthColour( Red, Green, Blue, Depthf, PlayerIndex );
+
+			/*
+			
 			Green = 0;
 			Blue = DepthInvalid ? 0 : 255-Red;
 			
@@ -377,6 +396,7 @@ bool ConvertFormat_FreenectDepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixels
 				uint8& Alpha = Pixels[ p * (Components) + c ];
 				Alpha = DepthInvalid ? 0 : 255;
 			}
+			 */
 		}
 		else
 		{
