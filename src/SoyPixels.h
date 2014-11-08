@@ -93,6 +93,8 @@ public:
 	const uint8&	GetPixel(uint16 x,uint16 y,uint16 Channel) const;
 	bool			SetPixel(uint16 x,uint16 y,uint16 Channel,const uint8& Component);
 
+	bool			SetFormat(SoyPixelsFormat::Type Format);
+	bool			SetChannels(uint8 Channels);
 	bool			SetPng(const ArrayBridge<char>& PngData,std::stringstream& Error);
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
 
@@ -163,8 +165,6 @@ public:
 	bool		Set(const msa::OpenCLImage& Pixels,cl_command_queue Queue);
 	bool		Set(const msa::OpenCLImage& Pixels,SoyOpenClKernel& Kernel);
 #endif
-	bool		SetFormat(SoyPixelsFormat::Type Format);
-	bool		SetChannels(uint8 Channels);
 #if defined(SOY_OPENCL)
 	bool		SetChannels(uint8 Channels,SoyOpenClManager& OpenClManager,const ofColour& DefaultColour=ofColour(255,255,255,255));
 	bool		SetChannels(uint8 Channels,SoyOpenClManager& OpenClManager,const clSetPixelParams& Params);
