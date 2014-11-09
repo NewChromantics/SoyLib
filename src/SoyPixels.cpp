@@ -21,7 +21,21 @@ int SoyPixelsFormat::GetMaxValue(SoyPixelsFormat::Type Format)
 	{
 		case SoyPixelsFormat::KinectDepth:		return (1<<13);
 		case SoyPixelsFormat::FreenectDepthmm:	return FREENECT_DEPTH_MM_MAX_VALUE;
-		case SoyPixelsFormat::FreenectDepthRaw:	return FREENECT_DEPTH_RAW_MAX_VALUE;
+		case SoyPixelsFormat::FreenectDepth10bit:	return 1022;
+		case SoyPixelsFormat::FreenectDepth11bit:	return FREENECT_DEPTH_RAW_MAX_VALUE;	//	test: min: 246, Max: 1120
+		default:
+			return 0;
+	}
+}
+
+int SoyPixelsFormat::GetMinValue(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyPixelsFormat::KinectDepth:		return 1;
+		case SoyPixelsFormat::FreenectDepthmm:	return 0;
+		case SoyPixelsFormat::FreenectDepth10bit:	return 0;
+		case SoyPixelsFormat::FreenectDepth11bit:	return 0;	//	test: min: 246, Max: 1120
 		default:
 			return 0;
 	}
@@ -32,13 +46,25 @@ int SoyPixelsFormat::GetInvalidValue(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
 	{
-		case SoyPixelsFormat::KinectDepth:		return 0;
-		case SoyPixelsFormat::FreenectDepthmm:	return FREENECT_DEPTH_MM_NO_VALUE;
-		case SoyPixelsFormat::FreenectDepthRaw:	return FREENECT_DEPTH_RAW_NO_VALUE;
+		case SoyPixelsFormat::KinectDepth:			return 0;
+		case SoyPixelsFormat::FreenectDepthmm:		return FREENECT_DEPTH_MM_NO_VALUE;
+		case SoyPixelsFormat::FreenectDepth11bit:	return FREENECT_DEPTH_RAW_NO_VALUE;
+		case SoyPixelsFormat::FreenectDepth10bit:	return 1023;	//	10 bit
 		default:
 			return 0;
 	}
 }
+
+int SoyPixelsFormat::GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyPixelsFormat::KinectDepth:			return 13;
+		default:
+			return -1;
+	}
+}
+
 
 
 int SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
@@ -53,7 +79,8 @@ int SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case RGBA:			return 4;
 	case BGRA:			return 4;
 	case KinectDepth:	return 2;	//	only 1 channel, but 16 bit
-	case FreenectDepthRaw:	return 2;	//	only 1 channel, but 16 bit
+	case FreenectDepth11bit:	return 2;	//	only 1 channel, but 16 bit
+	case FreenectDepth10bit:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
 	}
 }
@@ -82,7 +109,8 @@ std::ostream& operator<< (std::ostream &out,const SoyPixelsFormat::Type &in)
 		case SoyPixelsFormat::BGRA:				return out << "BGRA";
 		case SoyPixelsFormat::BGR:				return out << "BGR";
 		case SoyPixelsFormat::KinectDepth:		return out << "KinectDepth";
-		case SoyPixelsFormat::FreenectDepthRaw:	return out << "FreenectDepthRaw";
+		case SoyPixelsFormat::FreenectDepth11bit:	return out << "FreenectDepth11bit";
+		case SoyPixelsFormat::FreenectDepth10bit:	return out << "FreenectDepth10bit";
 		case SoyPixelsFormat::FreenectDepthmm:	return out << "FreenectDepthmm";
 		default:
 			return out << "<unknown SoyPixelsFormat:: " << static_cast<int>(in) << ">";
@@ -256,25 +284,79 @@ bool SoyPixelsImpl::SetChannels(uint8 Channels)
 }
 
 
-void SetDepthColour(uint8& Red,uint8& Green,uint8& Blue,float Depth,int PlayerIndex)
+void SetDepthColour(uint8& Red,uint8& Green,uint8& Blue,float Depth,int PlayerIndex,bool NoDepthValue)
 {
-	static int MinBrightness = 10;
-	uint8 Greyscale = ofLimit<int>( static_cast<int>(Depth*255.f), MinBrightness, 255 );
+	//	yelow if invalid
+	if ( NoDepthValue )
+	{
+		Red = 255;
+		Blue = 0;
+		Green = 255;
+		return;
+	}
+	
+	//	magenta for invalid depth
+	if ( Depth > 1.f || Depth < 0.f )
+	{
+		Red = 255;
+		Blue = 255;
+		Green = 20;
+		return;
+	}
+	
+	static int MinBrightness = 0;
+	//	gr: invert to distinguish invalid from close
+	uint8 Greyscale = 255 - ofLimit<int>( static_cast<int>(Depth*255.f), MinBrightness, 255 );
 
-	Red = 0;
-	Green = 0;
-	Blue = 0;
-	
-	//	make 0 (no user) white
-	if ( PlayerIndex == 0 )
-		PlayerIndex = 7;
-	
-	if ( PlayerIndex & 1 )
-		Red = Greyscale;
-	if ( PlayerIndex & 2 )
-		Green = Greyscale;
-	if ( PlayerIndex & 4 )
-		Blue = Greyscale;
+	static bool UseRainbowScale = true;
+	if ( UseRainbowScale )
+	{
+		if ( Depth < 1.f/3.f )
+		{
+			float d = ofGetMathTime( Depth, 0.f, 1.f/3.f );
+			//	red to green
+			Red = ofLerp( 0, 255, 1.f-d );
+			Green = ofLerp( 0, 255, d );
+			Blue = 0;
+		}
+		else if ( Depth < 2.f/3.f )
+		{
+			float d = ofGetMathTime( Depth, 1.f/3.f, 2.f/3.f );
+			//	yellow to blue
+			Green = ofLerp( 0, 255, 1.f-d );
+			Blue = ofLerp( 0, 255, d );
+			Red = 0;
+		}
+		else
+		{
+			float d = ofGetMathTime( Depth, 2.f/3.f, 3.f/3.f );
+			//	blue to red
+			Blue = ofLerp( 0, 255, 1.f-d );
+			Red = ofLerp( 0, 255, d );
+			Green = 0;
+		}
+		return;
+	}
+
+	static bool UsePlayerColourGreyScale = true;
+	if ( UsePlayerColourGreyScale )
+	{
+		Red = 0;
+		Green = 0;
+		Blue = 0;
+		
+		//	make 0 (no user) white
+		if ( PlayerIndex == 0 )
+			PlayerIndex = 7;
+		
+		if ( PlayerIndex & 1 )
+			Red = Greyscale;
+		if ( PlayerIndex & 2 )
+			Green = Greyscale;
+		if ( PlayerIndex & 4 )
+			Blue = Greyscale;
+		return;
+	}
 }
 
 bool ConvertFormat_KinectDepthToGreyscale(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
@@ -331,15 +413,16 @@ bool ConvertFormat_KinectDepthToRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Me
 		static int DepthBits = 13;
 		uint16 PlayerIndex = KinectDepth >> DepthBits;
 		uint16 MaxDepth = (1<<DepthBits)-1;
+		uint16 MinDepth = 0;
 		KinectDepth &= MaxDepth;
 		
 		bool DepthInvalid = (KinectDepth == 0);
-		float Depthf = DepthInvalid ? 0.f : static_cast<float>(KinectDepth) / static_cast<float>( MaxDepth );
+		float Depthf = ofGetMathTime( KinectDepth, MinDepth, MaxDepth );
 		
 		uint8& Red = Pixels[ p * (Components) + 0 ];
 		uint8& Green = Pixels[ p * (Components) + 1 ];
 		uint8& Blue = Pixels[ p * (Components) + 2 ];
-		SetDepthColour( Red, Green, Blue, Depthf, PlayerIndex );
+		SetDepthColour( Red, Green, Blue, Depthf, PlayerIndex, DepthInvalid );
 	}
 	
 	if ( Debug )
@@ -353,11 +436,13 @@ bool ConvertFormat_KinectDepthToRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Me
 
 
 
-bool ConvertFormat_FreenectDepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+bool DepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
-	bool RawDepth = (Meta.GetFormat() == SoyPixelsFormat::FreenectDepthRaw);
+	bool RawDepth = (Meta.GetFormat() != SoyPixelsFormat::FreenectDepthmm);
+	uint16 MinDepth = SoyPixelsFormat::GetMinValue( Meta.GetFormat() );
 	uint16 MaxDepth = SoyPixelsFormat::GetMaxValue( Meta.GetFormat() );
 	uint16 InvalidDepth = SoyPixelsFormat::GetInvalidValue( Meta.GetFormat() );
+	int PlayerIndexFirstBit = SoyPixelsFormat::GetPlayerIndexFirstBit( Meta.GetFormat() );
  
 	Array<uint16> DepthPixels;
 	DepthPixels.SetSize( Pixels.GetSize() / 2 );
@@ -375,10 +460,20 @@ bool ConvertFormat_FreenectDepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixels
 	for ( int p=0;	p<PixelCount;	p++ )
 	{
 		uint16 KinectDepth = DepthPixels[p];
+		int PlayerIndex = 0;
+
+		if ( PlayerIndexFirstBit >= 0 )
+		{
+			PlayerIndex = KinectDepth >> PlayerIndexFirstBit;
+			KinectDepth &= (1<<PlayerIndexFirstBit) -1;
+		}
+
 		if ( Debug )
 			std::Debug << KinectDepth << " ";
+		
+
 		bool DepthInvalid = (KinectDepth == InvalidDepth);
-		float Depthf = DepthInvalid ? 0.f : static_cast<float>(KinectDepth) / static_cast<float>( MaxDepth );
+		float Depthf = ofGetMathTime( KinectDepth, MinDepth, MaxDepth );
 		
 		uint8& Red = Pixels[ p * (Components) + 0 ];
 		
@@ -390,8 +485,7 @@ bool ConvertFormat_FreenectDepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixels
 			uint8& Green = Pixels[ p * (Components) + CompZero ];
 			uint8& Blue = Pixels[ p * (Components) + CompDepth ];
 
-			int PlayerIndex = KinectDepth>>11;
-			SetDepthColour( Red, Green, Blue, Depthf, PlayerIndex );
+			SetDepthColour( Red, Green, Blue, Depthf, PlayerIndex, DepthInvalid );
 
 			/*
 			
@@ -503,8 +597,10 @@ bool ConvertDepth16(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsForm
 		return false;
 	
 	int OldInvalid = SoyPixelsFormat::GetInvalidValue( OldFormat );
+	int OldMin = SoyPixelsFormat::GetMinValue( OldFormat );
 	int OldMax = SoyPixelsFormat::GetMaxValue( OldFormat );
 	int NewInvalid = SoyPixelsFormat::GetInvalidValue( NewFormat );
+	int NewMin = SoyPixelsFormat::GetMinValue( NewFormat );
 	int NewMax = SoyPixelsFormat::GetMaxValue( NewFormat );
 	
 	int OldDepthBits = GetDepthFormatBits( OldFormat );
@@ -513,13 +609,16 @@ bool ConvertDepth16(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsForm
 	uint16* DepthPixels = reinterpret_cast<uint16*>( Pixels.GetArray() );
 	int PixelCount = Meta.GetWidth() * Meta.GetHeight( Pixels.GetDataSize() );
 
+	static bool Debug = false;
+	
 	for ( int p=0;	p<PixelCount;	p++ )
 	{
 		auto& DepthValue = DepthPixels[p];
 		uint16 Depth16 = DepthValue & ((1<<OldDepthBits)-1);
-		uint16 Player16 = DepthValue >> OldDepthBits;
+		//uint16 Player16 = DepthValue >> OldDepthBits;
 		bool InvalidDepth = (Depth16 == OldInvalid);
-		float Depthf = ofLimit<float>( Depthf / static_cast<float>( OldMax ), 0.f, 1.f );
+		float Depthf = ofGetMathTime( Depth16, OldMin, OldMax );
+		Depthf = ofLimit<float>( Depthf, 0.f, 1.f );
 		
 		if ( InvalidDepth )
 		{
@@ -529,9 +628,14 @@ bool ConvertDepth16(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsForm
 		else
 		{
 			//	todo: write player index if both formats have it
-			DepthValue = static_cast<uint16>( Depthf * NewMax );
+			DepthValue = static_cast<uint16>( ofLerp( NewMin, NewMax, Depthf ) );
 		}
+		
+		if ( Debug )
+			std::Debug << Depth16 << "/" << DepthValue << "   ";
 	}
+	if ( Debug )
+		std::Debug << std::endl;
 	
 	Meta.DumbSetFormat( NewFormat );
 	return true;
@@ -563,20 +667,30 @@ public:
 
 TConvertFunc gConversionFuncs[] =
 {
-	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::FreenectDepthRaw, ConvertDepth16 ),
+	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::FreenectDepth10bit, ConvertDepth16 ),
+	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::FreenectDepth11bit, ConvertDepth16 ),
 	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::FreenectDepthmm, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepthRaw, SoyPixelsFormat::FreenectDepthmm, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepthRaw, SoyPixelsFormat::KinectDepth, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::FreenectDepthRaw, ConvertDepth16 ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::FreenectDepthmm, ConvertDepth16 ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::FreenectDepth11bit, ConvertDepth16 ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::KinectDepth, ConvertDepth16 ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::FreenectDepthmm, ConvertDepth16 ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::FreenectDepth10bit, ConvertDepth16 ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::KinectDepth, ConvertDepth16 ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::FreenectDepth10bit, ConvertDepth16 ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::FreenectDepth11bit, ConvertDepth16 ),
 	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::KinectDepth, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::RGB, ConvertFormat_KinectDepthToRgb ),
-	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Greyscale, ConvertFormat_KinectDepthToGreyscale ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepthRaw, SoyPixelsFormat::RGB, ConvertFormat_FreenectDepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepthRaw, SoyPixelsFormat::RGBA, ConvertFormat_FreenectDepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepthRaw, SoyPixelsFormat::Greyscale, ConvertFormat_FreenectDepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::RGB, ConvertFormat_FreenectDepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::RGBA, ConvertFormat_FreenectDepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::Greyscale, ConvertFormat_FreenectDepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::RGB, DepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::RGBA, DepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Greyscale, DepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::RGB, DepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::RGBA, DepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::Greyscale, DepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::RGB, DepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::RGBA, DepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::Greyscale, DepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::RGB, DepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::RGBA, DepthToGreyOrRgb ),
+	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::Greyscale, DepthToGreyOrRgb ),
 	TConvertFunc( SoyPixelsFormat::BGR, SoyPixelsFormat::Greyscale, ConvertFormat_RGBAToGreyscale ),
 	TConvertFunc( SoyPixelsFormat::BGRA, SoyPixelsFormat::Greyscale, ConvertFormat_RGBAToGreyscale ),
 	TConvertFunc( SoyPixelsFormat::RGBA, SoyPixelsFormat::Greyscale, ConvertFormat_RGBAToGreyscale ),

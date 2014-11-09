@@ -19,9 +19,10 @@ namespace SoyPixelsFormat
 		BGRA			= 5,
 		BGR				= 6,
 		KinectDepth		= 7,	//	16 bit, so "two channels". 13 bits of depth, 3 bits of user-index
-		FreenectDepthRaw	= 8,	//	16 bit, all depth up to  FREENECT_DEPTH_MM_MAX_VALUE 10000
-		FreenectDepthmm	= 9,	//	16 bit, all depth up to  FREENECT_DEPTH_MM_MAX_VALUE 10000
-		
+		FreenectDepth10bit	= 8,	//	16 bit
+		FreenectDepth11bit	= 9,	//	16 bit
+		FreenectDepthmm	= 10,	//	16 bit
+	
 		//HSL,
 		//HSLA,
 	};
@@ -32,7 +33,9 @@ namespace SoyPixelsFormat
 	
 	
 	int			GetMaxValue(SoyPixelsFormat::Type Format);
+	int			GetMinValue(SoyPixelsFormat::Type Format);
 	int			GetInvalidValue(SoyPixelsFormat::Type Format);
+	int			GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format);
 };
 std::ostream& operator<< (std::ostream &out,const SoyPixelsFormat::Type &in);
 
