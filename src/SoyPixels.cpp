@@ -15,6 +15,22 @@
 /// Value indicating that this pixel has no data, when using FREENECT_DEPTH_11BIT, FREENECT_DEPTH_10BIT, FREENECT_DEPTH_11BIT_PACKED, or FREENECT_DEPTH_10BIT_PACKED
 #define FREENECT_DEPTH_RAW_NO_VALUE 2047
 
+
+bool SoyPixelsFormat::GetIsFrontToBackDepth(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyPixelsFormat::KinectDepth:			return true;
+		case SoyPixelsFormat::FreenectDepthmm:		return false;
+		case SoyPixelsFormat::FreenectDepth10bit:	return false;
+		case SoyPixelsFormat::FreenectDepth11bit:	return false;
+			
+		default:
+			return false;
+	}
+}
+
+
 int SoyPixelsFormat::GetMaxValue(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
@@ -22,7 +38,11 @@ int SoyPixelsFormat::GetMaxValue(SoyPixelsFormat::Type Format)
 		case SoyPixelsFormat::KinectDepth:		return (1<<13);
 		case SoyPixelsFormat::FreenectDepthmm:	return FREENECT_DEPTH_MM_MAX_VALUE;
 		case SoyPixelsFormat::FreenectDepth10bit:	return 1022;
-		case SoyPixelsFormat::FreenectDepth11bit:	return FREENECT_DEPTH_RAW_MAX_VALUE;	//	test: min: 246, Max: 1120
+		
+		//	test: min: 246, Max: 1120
+		//case SoyPixelsFormat::FreenectDepth11bit:	return FREENECT_DEPTH_RAW_MAX_VALUE;
+		case SoyPixelsFormat::FreenectDepth11bit:	return 1120;
+
 		default:
 			return 0;
 	}
@@ -35,7 +55,10 @@ int SoyPixelsFormat::GetMinValue(SoyPixelsFormat::Type Format)
 		case SoyPixelsFormat::KinectDepth:		return 1;
 		case SoyPixelsFormat::FreenectDepthmm:	return 0;
 		case SoyPixelsFormat::FreenectDepth10bit:	return 0;
-		case SoyPixelsFormat::FreenectDepth11bit:	return 0;	//	test: min: 246, Max: 1120
+
+		//	test: min: 246, Max: 1120
+		//case SoyPixelsFormat::FreenectDepth11bit:	return 0;
+		case SoyPixelsFormat::FreenectDepth11bit:	return 200;
 		default:
 			return 0;
 	}
@@ -599,9 +622,12 @@ bool ConvertDepth16(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsForm
 	int OldInvalid = SoyPixelsFormat::GetInvalidValue( OldFormat );
 	int OldMin = SoyPixelsFormat::GetMinValue( OldFormat );
 	int OldMax = SoyPixelsFormat::GetMaxValue( OldFormat );
+	bool OldFrontToBack = SoyPixelsFormat::GetIsFrontToBackDepth( OldFormat );
+
 	int NewInvalid = SoyPixelsFormat::GetInvalidValue( NewFormat );
 	int NewMin = SoyPixelsFormat::GetMinValue( NewFormat );
 	int NewMax = SoyPixelsFormat::GetMaxValue( NewFormat );
+	bool NewFrontToBack = SoyPixelsFormat::GetIsFrontToBackDepth( NewFormat );
 	
 	int OldDepthBits = GetDepthFormatBits( OldFormat );
 	int NewDepthBits = GetDepthFormatBits( NewFormat );
@@ -619,6 +645,9 @@ bool ConvertDepth16(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsForm
 		bool InvalidDepth = (Depth16 == OldInvalid);
 		float Depthf = ofGetMathTime( Depth16, OldMin, OldMax );
 		Depthf = ofLimit<float>( Depthf, 0.f, 1.f );
+		
+		if ( OldFrontToBack != NewFrontToBack )
+			Depthf = 1.f - Depthf;
 		
 		if ( InvalidDepth )
 		{

@@ -36,6 +36,7 @@ namespace SoyPixelsFormat
 	int			GetMinValue(SoyPixelsFormat::Type Format);
 	int			GetInvalidValue(SoyPixelsFormat::Type Format);
 	int			GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format);
+	bool		GetIsFrontToBackDepth(SoyPixelsFormat::Type Format);
 };
 std::ostream& operator<< (std::ostream &out,const SoyPixelsFormat::Type &in);
 
