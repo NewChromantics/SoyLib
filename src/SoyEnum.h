@@ -34,8 +34,8 @@ std::map<TDeviceType::Type,std::string> TDeviceType::EnumMap =
 
 #define DECLARE_SOYENUM(Namespace)	\
 	extern std::map<Namespace::Type,std::string> EnumMap;	\
-	Type		ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap );	}	\
-	std::string	ToString(Type type)				{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
+	inline Type			ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap );	}	\
+	inline std::string	ToString(Type type)				{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
 \
 
 
