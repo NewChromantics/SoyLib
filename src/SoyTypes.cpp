@@ -234,8 +234,30 @@ bool Soy::ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream)
 	return true;
 }
 
+bool Soy::ReadStream(ArrayBridge<char>&& Data,std::istream& Stream,std::stringstream& Error)
+{
+	BufferArray<char,5*1024> Buffer;
+	while ( !Stream.eof() )
+	{
+		//	read a chunk
+		Buffer.SetSize( Buffer.MaxAllocSize() );
+		auto BufferBridge = GetArrayBridge( Buffer );
+		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
+		{
+			Error << "Error reading stream";
+			return false;
+		}
+		
+		Data.PushBackArray( Buffer );
+	}
+	
+	return true;
+}
+
+
 bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::stringstream& Error)
 {
+	//	gr: todo: re-use function above, just need to send lambda or something for PushBackArary
 	BufferArray<char,5*1024> Buffer;
 	while ( !Stream.eof() )
 	{
@@ -448,6 +470,11 @@ std::string Soy::DemangleTypeName(const char* name)
 }
 
 #endif
+
+bool Soy::Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException )
+{
+	return Assert( Condition, Soy::StreamToString(ErrorMessage) );
+}
 
 bool Soy::Assert(bool Condition, std::string ErrorMessage) throw(AssertException)
 {

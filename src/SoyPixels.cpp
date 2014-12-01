@@ -1135,8 +1135,10 @@ bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData,std::stringstream& E
 			Error << "Failed to read block type";
 			return false;
 		}
-		std::string BlockTypeString = (std::stringstream() << BlockType[0] << BlockType[1] << BlockType[2] << BlockType[3]).str();
-		
+		std::stringstream BlockTypeStream;
+		BlockTypeStream << BlockType[0] << BlockType[1] << BlockType[2] << BlockType[3];
+		std::string BlockTypeString = BlockTypeStream.str();
+	
 		Array<char> BlockData( BlockLength );
 		auto BlockDataBridge = GetArrayBridge( BlockData );
 		if ( BlockLength > 0 && !Png.Read( BlockDataBridge ) )

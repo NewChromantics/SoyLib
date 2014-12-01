@@ -3,7 +3,7 @@
 #include <sstream>
 #include "array.hpp"
 #include "bufferarray.hpp"
-
+#include "heaparray.hpp"
 
 void Soy::StringToLower(std::string& String)
 {
@@ -139,3 +139,10 @@ void Soy::StringSplit(ArrayBridge<std::string>& Parts,std::string String,std::st
 	}
 }
 
+
+std::string Soy::StreamToString(std::ostream& Stream)
+{
+	std::stringstream TempStream;
+	TempStream << Stream.rdbuf();
+	return TempStream.str();
+}

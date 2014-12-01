@@ -345,8 +345,9 @@ class ArrayBridge;
 namespace Soy
 {
 	bool	LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename,std::stringstream& Error);
-	bool	ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::stringstream& Error);
-	bool	ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream);
+	bool	ReadStream(ArrayBridge<char>& Data, std::istream& Stream, std::stringstream& Error);
+	bool	ReadStream(ArrayBridge<char>&& Data, std::istream& Stream, std::stringstream& Error);
+	bool	ReadStreamChunk( ArrayBridge<char>& Data, std::istream& Stream );
 	bool	StringToFile(std::string Filename,std::string String);
 	bool	FileToString(std::string Filename,std::string& String);
 }
@@ -378,12 +379,18 @@ std::string			mError;
 
 namespace Soy
 {
+#pragma warning(disable:4290)
 	//	replace asserts with exception. If condition fails false is returned to save code
 	bool		Assert(bool Condition,std::string ErrorMessage) throw(AssertException);
-	inline bool	Assert(bool Condition,std::stringstream&& ErrorMessage) throw(AssertException)
+	inline bool	Assert(bool Condition, std::stringstream&& ErrorMessage ) throw( AssertException )
 	{
 		return Assert( Condition, ErrorMessage.str() );
 	}
+	inline bool	Assert(bool Condition, std::stringstream& ErrorMessage ) throw( AssertException )
+	{
+		return Assert( Condition, ErrorMessage.str() );
+	}
+	bool	Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException );
 };
 
 

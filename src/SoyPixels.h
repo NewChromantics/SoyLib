@@ -38,7 +38,7 @@ namespace SoyPixelsFormat
 	int			GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format);
 	bool		GetIsFrontToBackDepth(SoyPixelsFormat::Type Format);
 };
-std::ostream& operator<< (std::ostream &out,const SoyPixelsFormat::Type &in);
+std::ostream& operator<< ( std::ostream &out, const SoyPixelsFormat::Type &in );
 
 
 //	meta data for pixels (header when using raw data)
@@ -220,4 +220,13 @@ public:
 	TPixels		mPixels;
 };
 DECLARE_TYPE_NAME( SoyPixels );
+
+//	gr; unsupported for now... 
+#if defined(TARGET_WINDOWS)
+inline std::ostream& operator<< ( std::ostream &out, const SoyPixels &in )
+{
+	out.setstate( std::ios::failbit );	
+	return out; 
+}
+#endif
 

@@ -56,7 +56,7 @@ void std::DebugStreamBuf::flush()
 	if ( Buffer.length() > 0 )
 	{
 #if defined(TARGET_WINDOWS)
-		OutputDebugStringA( mBuffer.c_str() );
+		OutputDebugStringA( Buffer.c_str() );
 #elif defined(TARGET_OSX)
 		std::cout << Buffer.c_str();
 		//NSLog(@"%s", message);
