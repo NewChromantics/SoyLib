@@ -3,18 +3,18 @@
 #include <ofxSoylent.h>
 #include <SoyThread.h>
 
-#define ENABLE_OPENCL
-
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS) && defined(ENABLE_OPENCL)
 //	gr: amd APP sdk, other includes/libs may be different?
 #include <cl/Opencl.h>
 #pragma comment( lib, "OpenCL.lib" )
 #endif
 
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX) && defined(ENABLE_OPENCL)
 //	add the OpenCL.framework
 #include <opencl/opencl.h>
 #endif
+
+
 
 #include "MSAOpenCLKernel.h"
 #include "MSAOpenCLProgram.h"
