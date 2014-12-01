@@ -26,6 +26,7 @@ namespace Soy
 	void		StringToArray(std::string String,ArrayBridge<char>& Array);
 
 
-	std::string	StreamToString(std::ostream& Stream);
+	std::string	StreamToString(std::ostream& Stream);	//	windows
+	std::string	StreamToString(std::stringstream&& Stream);	//	osx
 };
 

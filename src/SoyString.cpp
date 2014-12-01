@@ -139,6 +139,10 @@ void Soy::StringSplit(ArrayBridge<std::string>& Parts,std::string String,std::st
 	}
 }
 
+std::string Soy::StreamToString(std::stringstream&& Stream)
+{
+	return Stream.str();
+}
 
 std::string Soy::StreamToString(std::ostream& Stream)
 {
