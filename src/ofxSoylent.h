@@ -1,5 +1,9 @@
 #pragma once
 
+#if defined(WIN32) && !defined(_DEBUG) && !defined(NDEBUG)
+#error neither DEBUG or non-DDEBUG preprocessor specified on windows
+#endif
+
 
 #if !defined(NO_OPENFRAMEWORKS)
 #include <ofMain.h>
