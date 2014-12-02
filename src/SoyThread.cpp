@@ -1,5 +1,5 @@
 #include "SoyThread.h"
-#include <SoyDebug.h>
+#include "SoyDebug.h"
 
 
 
