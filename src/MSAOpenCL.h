@@ -1,7 +1,7 @@
 #pragma once
 
-#include <ofxSoylent.h>
-#include <SoyThread.h>
+#include "ofxSoylent.h"
+#include "SoyThread.h"
 
 #if defined(TARGET_WINDOWS) && defined(ENABLE_OPENCL)
 //	gr: amd APP sdk, other includes/libs may be different?

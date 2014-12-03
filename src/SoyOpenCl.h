@@ -2,7 +2,7 @@
 
 #include "ofxSoylent.h"
 #include "SoyThread.h"
-#include <MSAOpenCL.h>
+#include "MSAOpenCL.h"
 #include "SortArray.h"
 #include "SoyString.h"
 #include "SoyFilesytem.h"
