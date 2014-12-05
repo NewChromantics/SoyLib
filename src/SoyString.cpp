@@ -25,6 +25,9 @@ bool Soy::StringContains(const std::string& Haystack, const std::string& Needle,
 {
 	if (CaseSensitive)
 	{
+		//	gr: may need to see WHY this doesn't return npos....
+		if ( Needle.empty() )
+			return false;
 		return (Haystack.find(Needle) != std::string::npos);
 	}
 	else
