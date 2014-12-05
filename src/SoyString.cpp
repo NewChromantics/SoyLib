@@ -4,6 +4,9 @@
 #include "array.hpp"
 #include "bufferarray.hpp"
 #include "heaparray.hpp"
+#include <SoyDebug.h>
+#include <regex>
+
 
 void Soy::StringToLower(std::string& String)
 {
@@ -120,7 +123,7 @@ void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
 	Array.PushBackArray( CommandStrArray );
 }
 
-void Soy::StringSplit(ArrayBridge<std::string>& Parts,std::string String,std::string Delim,bool IncludeEmpty)
+void Soy::StringSplitByString(ArrayBridge<std::string>& Parts,std::string String,std::string Delim,bool IncludeEmpty)
 {
 	std::string::size_type Start = 0;
 	while ( Start < String.length() )
@@ -139,6 +142,11 @@ void Soy::StringSplit(ArrayBridge<std::string>& Parts,std::string String,std::st
 	}
 }
 
+void Soy::StringSplitByString(ArrayBridge<std::string>&& Parts,std::string String,std::string Delim,bool IncludeEmpty)
+{
+	StringSplitByString( Parts, String, Delim, IncludeEmpty );
+}
+
 std::string Soy::StreamToString(std::stringstream&& Stream)
 {
 	return Stream.str();
@@ -149,4 +157,58 @@ std::string Soy::StreamToString(std::ostream& Stream)
 	std::stringstream TempStream;
 	TempStream << Stream.rdbuf();
 	return TempStream.str();
+}
+
+
+void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
+{
+	std::stringstream PatternString;
+	PatternString << "^(.*)[";
+	//	match any of these characters and EOF
+	PatternString << MatchingChars << "$" << "]";
+	//	only match one case if including emptys, else 1+
+	PatternString <<  (IncludeEmpty ? "{1}" : "+");
+	
+	//	split at cross-platform line feed (or EOF so we don't need to end with a linefeed)
+	std::regex Pattern( PatternString.str(), std::regex::icase );
+	std::smatch Match;
+	std::string PendingLines = String;
+	while ( std::regex_search( PendingLines, Match, Pattern ) )
+	{
+		//	match line
+		auto Line = Match[1].str();
+		for ( int i=2;	i<Match.size();	i++ )
+		{
+			std::Debug << "Unexpected OTHER regex matches when splitting file lines. Part#" << i << ": " << Match[i].str() << std::endl;
+		}
+		
+		if ( !Line.empty() )
+			Parts.PushBack( Line );
+		
+		//	next
+		PendingLines = Match.suffix().str();
+	}
+		
+	//	gr: regex wont match $ (end of string) argh... check for trailing command
+	if ( !Soy::Assert( PendingLines.empty(), "Remove the need for this by fixing the regex pattern!" ) )
+	{
+		auto& Line = PendingLines;
+		if ( !Line.empty() )
+			Parts.PushBack( Line );
+	}
+}
+
+void Soy::StringSplitByMatches(ArrayBridge<std::string>&& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
+{
+	StringSplitByMatches( Parts, String, MatchingChars, IncludeEmpty );
+}
+	
+void Soy::SplitStringLines(ArrayBridge<std::string>& StringLines,const std::string& String)
+{
+	StringSplitByMatches( StringLines, String, "\n\r", false );
+}
+	
+void Soy::SplitStringLines(ArrayBridge<std::string>&& StringLines,const std::string& String)
+{
+	SplitStringLines( StringLines, String );
 }

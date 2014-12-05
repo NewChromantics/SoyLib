@@ -6,7 +6,6 @@
 #include "SoyString.h"
 
 
-
 #if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
 #pragma comment(lib, "Shlwapi.lib")
@@ -443,6 +442,18 @@ bool Soy::FileToString(std::string Filename,std::string& String,std::stringstrea
 	return Success;
  */
 }
+
+bool Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::stringstream& Error)
+{
+	//	get file as string then parse
+	std::string FileContents;
+	if ( !FileToString( Filename, FileContents, Error ) )
+		return false;
+	
+	Soy::SplitStringLines( StringLines, FileContents );
+	return true;
+}
+
 
 
 //	http://stackoverflow.com/questions/281818/unmangling-the-result-of-stdtype-infoname

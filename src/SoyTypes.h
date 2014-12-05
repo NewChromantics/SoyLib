@@ -344,13 +344,14 @@ class ArrayBridge;
 
 namespace Soy
 {
-	bool	LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename,std::stringstream& Error);
-	bool	ReadStream(ArrayBridge<char>& Data, std::istream& Stream, std::stringstream& Error);
-	bool	ReadStream(ArrayBridge<char>&& Data, std::istream& Stream, std::stringstream& Error);
-	bool	ReadStreamChunk( ArrayBridge<char>& Data, std::istream& Stream );
-	bool	StringToFile(std::string Filename,std::string String);
-	bool	FileToString(std::string Filename,std::string& String);
-	bool	FileToString(std::string Filename,std::string& String,std::stringstream& Error);
+	bool		LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename,std::stringstream& Error);
+	bool		ReadStream(ArrayBridge<char>& Data, std::istream& Stream, std::stringstream& Error);
+	bool		ReadStream(ArrayBridge<char>&& Data, std::istream& Stream, std::stringstream& Error);
+	bool		ReadStreamChunk( ArrayBridge<char>& Data, std::istream& Stream );
+	bool		StringToFile(std::string Filename,std::string String);
+	bool		FileToString(std::string Filename,std::string& String);
+	bool		FileToString(std::string Filename,std::string& String,std::stringstream& Error);
+	bool		FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::stringstream& Error);
 }
 
 
