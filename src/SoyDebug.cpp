@@ -56,8 +56,13 @@ void std::DebugStreamBuf::flush()
 	if ( Buffer.length() > 0 )
 	{
 #if defined(TARGET_WINDOWS)
-		OutputDebugStringA( Buffer.c_str() );
+		//	if there's a debugger attached output to that, otherwise to-screen
+		if ( IsDebuggerPresent() )
+			OutputDebugStringA( Buffer.c_str() );
+		else
+			std::cout << Buffer.c_str();
 #elif defined(TARGET_OSX)
+		//	todo: use NSLog!
 		std::cout << Buffer.c_str();
 		//NSLog(@"%s", message);
 #endif

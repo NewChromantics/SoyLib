@@ -350,6 +350,7 @@ namespace Soy
 	bool	ReadStreamChunk( ArrayBridge<char>& Data, std::istream& Stream );
 	bool	StringToFile(std::string Filename,std::string String);
 	bool	FileToString(std::string Filename,std::string& String);
+	bool	FileToString(std::string Filename,std::string& String,std::stringstream& Error);
 }
 
 
