@@ -416,10 +416,15 @@ bool Soy::StringToFile(std::string Filename,std::string String)
 
 bool Soy::FileToString(std::string Filename,std::string& String)
 {
+	std::stringstream Error;
+	return FileToString( Filename, String, Error );
+}
+
+bool Soy::FileToString(std::string Filename,std::string& String,std::stringstream& Error)
+{
 	//	gr: err surely a better way
 	Array<char> StringData;
 	auto StringDataBridge = GetArrayBridge( StringData );
-	std::stringstream Error;
 	if ( !LoadBinaryFile( StringDataBridge, Filename, Error ) )
 		return false;
 
