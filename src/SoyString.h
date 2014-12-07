@@ -33,5 +33,8 @@ namespace Soy
 
 	void		SplitStringLines(ArrayBridge<std::string>& StringLines,const std::string& String);
 	void		SplitStringLines(ArrayBridge<std::string>&& StringLines,const std::string& String);
+
+	bool		IsUtf8String(const std::string& String);
+	bool		IsUtf8Char(char c);
 };
 

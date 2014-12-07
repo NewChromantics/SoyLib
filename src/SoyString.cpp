@@ -215,3 +215,37 @@ void Soy::SplitStringLines(ArrayBridge<std::string>&& StringLines,const std::str
 {
 	SplitStringLines( StringLines, String );
 }
+
+bool Soy::IsUtf8String(const std::string& String)
+{
+	for ( int i=0;	i<String.length();	i++ )
+	{
+		char c = String[i];
+		if ( !IsUtf8Char( c ) )
+			return false;
+	}
+	return true;
+}
+
+bool Soy::IsUtf8Char(char c)
+{
+	switch (static_cast<unsigned char>(c) )
+	{
+		case 0xC0:
+		case 0xC1:
+		case 0xF5:
+		case 0xF6:
+		case 0xF7:
+		case 0xF8:
+		case 0xF9:
+		case 0xFA:
+		case 0xFB:
+		case 0xFC:
+		case 0xFD:
+		case 0xFE:
+		case 0xFF:
+			return false;
+	}
+	return true;
+}
+
