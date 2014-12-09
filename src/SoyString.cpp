@@ -111,12 +111,7 @@ std::string Soy::ArrayToString(const ArrayBridge<char>& Array)
 
 void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String)
 {
-	for ( int i=0;	i<Array.GetSize();	i++ )
-	{
-		if ( Array[i] == '\0' )
-			continue;
-		String << Array[i];
-	}
+	String.write( Array.GetArray(), Array.GetSize() );
 }
 
 void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
