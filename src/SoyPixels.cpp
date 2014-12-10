@@ -724,6 +724,10 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::BGRA, SoyPixelsFormat::Greyscale, ConvertFormat_RGBAToGreyscale ),
 	TConvertFunc( SoyPixelsFormat::RGBA, SoyPixelsFormat::Greyscale, ConvertFormat_RGBAToGreyscale ),
 	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::Greyscale, ConvertFormat_RGBAToGreyscale ),
+	TConvertFunc( SoyPixelsFormat::BGRA, SoyPixelsFormat::RGBA, ConvertFormat_BgrToRgb ),
+	TConvertFunc( SoyPixelsFormat::BGR, SoyPixelsFormat::RGB, ConvertFormat_BgrToRgb ),
+	TConvertFunc( SoyPixelsFormat::RGBA, SoyPixelsFormat::BGRA, ConvertFormat_BgrToRgb ),
+	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::BGR, ConvertFormat_BgrToRgb ),
 };
 int gConversionFuncsCount = sizeofarray(gConversionFuncs);
 
@@ -758,20 +762,6 @@ bool SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 	if ( GetFormat() == SoyPixelsFormat::KinectDepth && Format == SoyPixelsFormat::GreyscaleAlpha )
 		return ConvertFormat_KinectDepthToGreyscale( PixelsBridge, GetMeta(), Format );
 
-	if ( GetFormat() == SoyPixelsFormat::BGRA && Format == SoyPixelsFormat::RGBA )
-		return ConvertFormat_BgrToRgb( PixelsBridge, GetMeta(), Format );
-
-	if ( GetFormat() == SoyPixelsFormat::BGR && Format == SoyPixelsFormat::RGB )
-		return ConvertFormat_BgrToRgb( PixelsBridge, GetMeta(), Format );
-
-	if ( GetFormat() == SoyPixelsFormat::RGBA && Format == SoyPixelsFormat::BGRA )
-		return ConvertFormat_BgrToRgb( PixelsBridge, GetMeta(), Format );
-
-	if ( GetFormat() == SoyPixelsFormat::RGB && Format == SoyPixelsFormat::BGR )
-		return ConvertFormat_BgrToRgb( PixelsBridge, GetMeta(), Format );
-
-	if ( GetFormat() == SoyPixelsFormat::RGB && Format == SoyPixelsFormat::BGR )
-		return ConvertFormat_BgrToRgb( PixelsBridge, GetMeta(), Format );
 
 	//	see if we can use of simple channel-count change
 	bool UseOfPixels = false;
