@@ -307,6 +307,10 @@ static inline bool is_base64(unsigned char c) {
 
 void Soy::base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded)
 {
+	//	gr: pre-alloc. base64 turns 3 chars into 4...
+	//	just double what we take in.
+	Encoded.Reserve( Decoded.GetSize()*2 );
+		
 	auto in_len = Decoded.GetDataSize();
 	auto* bytes_to_encode = Decoded.GetArray();
 	if ( !bytes_to_encode )
