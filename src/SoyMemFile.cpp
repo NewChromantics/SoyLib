@@ -3,19 +3,75 @@
 #include "SoyDebug.h"
 
 
-
-
-
-MemFileArray::MemFileArray(std::string& Filename,int DataSize,bool ReadOnly) :
-	mFilename	( Filename ),
-#if defined(TARGET_WINDOWS)
-	mHandle		( nullptr ),
+#if defined(TARGET_OSX)
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/file.h>
+#include <sys/mman.h>
 #endif
+
+
+MemFileArray::MemFileArray(std::string Filename,int DataSize,bool ReadOnly) :
+	mFilename	( Filename ),
+	mHandle		( Soy::Platform::InvalidFileHandle ),
 	mMap		( nullptr ),
 	mMapSize	( 0 ),
 	mOffset		( 0 )
 {
 	assert(DataSize>=0);
+	
+#if defined(TARGET_OSX)
+	//http://stackoverflow.com/questions/9409079/linux-dynamic-shared-memory-in-different-programs
+	int pid = getpid();
+	std::stringstream TestFilename;
+	TestFilename << Filename << getpid();
+	//const char *memname = mFilename.c_str();
+	const char *memname = TestFilename.str().c_str();
+	const size_t region_size = DataSize;//sysconf(_SC_PAGE_SIZE);
+	auto& fd = mHandle;
+	
+	std::Debug << "Making memfile " << memname << std::endl;
+	
+	int CreateFlags = ReadOnly ? O_RDONLY : O_CREAT| O_RDWR;
+	int Permission = 0666;
+	//int Permission = 0700;
+	//fd = shm_open( memname, O_CREAT /*| O_TRUNC | O_RDWR*/, Permission);
+	std::string preError = Soy::Platform::GetLastErrorString();
+	fd = shm_open( memname, CreateFlags, Permission );
+	if (fd == Soy::Platform::InvalidFileHandle)
+	{
+		std::string Error = Soy::Platform::GetLastErrorString();
+		std::Debug << "MemFileArray(" << mFilename << ") error: shm_open failed; " << Error << std::endl;
+		Close();
+		return;
+	}
+	std::Debug << "opened shared file " << memname << std::endl;
+	
+	//	set size
+	auto r = ftruncate(fd, region_size);
+	if (r != 0)
+	{
+		std::Debug << "MemFileArray(" << mFilename << ") error: ftruncate failed; " << Soy::Platform::GetLastErrorString() << std::endl;
+		Close();
+		return;
+	}
+	
+	mMap = mmap(0, region_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if ( mMap == MAP_FAILED)
+	{
+		std::string Error = Soy::Platform::GetLastErrorString();
+		std::Debug << "MemFileArray(" << mFilename << ") error: mmap failed; " << Soy::Platform::GetLastErrorString() << std::endl;
+		Close();
+		return;
+	}
+	std::Debug << "opened shared file " << memname << " size: " << region_size << std::endl;
+//	close(fd);
+	mMapSize = DataSize;
+	mOffset = mMapSize;
+	
+#endif
 
 #if defined(TARGET_WINDOWS)
 	//	If lpName matches the name of an existing event, semaphore, mutex, waitable timer, or job object, the function fails, and the GetLastError function returns ERROR_INVALID_HANDLE. This occurs because these objects share the same namespace.
@@ -54,30 +110,37 @@ MemFileArray::MemFileArray(std::string& Filename,int DataSize,bool ReadOnly) :
 
 bool MemFileArray::IsValid() const
 {
-#if defined(TARGET_WINDOWS)
-	return mHandle != nullptr;
-#else
-	return false;
-#endif
+	return mHandle != Soy::Platform::InvalidFileHandle;
 }
 
 
 void MemFileArray::Close()
 {
-#if defined(TARGET_WINDOWS)
 	if ( mMap )
 	{
+#if defined(TARGET_OSX)
+		auto Result = munmap( mMap, mMapSize );
+		Soy::Assert(Result==0, "error unmapping" );
+		Result = shm_unlink( mFilename.c_str() );
+		Soy::Assert(Result==0, "error unmapping" );
+#endif
+#if defined(TARGET_WINDOWS)
 		UnmapViewOfFile( mMap );
+#endif
 		mMap = nullptr;
 		mMapSize = 0;
 	}
 
-	if ( mHandle != nullptr )
+	if ( mHandle != Soy::Platform::InvalidFileHandle )
 	{
-		CloseHandle(mHandle);
-		mHandle = nullptr;
-	}
+#if defined(TARGET_OSX)
+		close(mHandle);
 #endif
+#if defined(TARGET_WINDOWS)
+		CloseHandle(mHandle);
+#endif
+		mHandle = Soy::Platform::InvalidFileHandle;
+	}
 }
 
 

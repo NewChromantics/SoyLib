@@ -5,14 +5,27 @@
 #include "SoyRef.h"
 #include "SoyThread.h"
 
+namespace Soy
+{
+	namespace Platform
+	{
+#if defined(TARGET_WINDOWS)
+		const static HANDLE		InvalidFileHandle = nullptr;
+#endif
+#if defined(TARGET_OSX)
+		const static int		InvalidFileHandle = -1;
+#endif
+	}
+}
 
 class MemFileArray : public ArrayInterface<char>
 {
 public:
 	typedef ArrayInterface<char>::TYPE T;
 	typedef ArrayInterface<char>::TYPE TYPE;
+	
 public:
-	MemFileArray(std::string& Filename,int Size,bool ReadOnly=false);	//	size must be known beforehand!
+	MemFileArray(std::string Filename,int Size,bool ReadOnly=false);	//	size must be known beforehand!
 	~MemFileArray()
 	{
 		Close();
@@ -172,6 +185,9 @@ private:
 #if defined(TARGET_WINDOWS)
 	HANDLE				mHandle;
 #endif
+#if defined(TARGET_OSX)
+	int					mHandle;
+#endif
 	std::string			mFilename;
 	void*				mMap;
 	int					mMapSize;
@@ -190,6 +206,10 @@ public:
 	}
 
 	ofPtr<MemFileArray>			AllocFile(const ArrayBridge<char>& Data);
+	ofPtr<MemFileArray>			AllocFile(const ArrayBridge<char>&& Data)
+	{
+		return AllocFile( Data );
+	}
 
 private:
 	ofMutex						mFileLock;
