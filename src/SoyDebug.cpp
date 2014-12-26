@@ -55,6 +55,8 @@ void std::DebugStreamBuf::flush()
 	auto& Buffer = GetBuffer();
 	if ( Buffer.length() > 0 )
 	{
+		//	gr: change these to be OS/main defined callbacks in OnFlush
+		
 #if defined(TARGET_WINDOWS)
 		//	if there's a debugger attached output to that, otherwise to-screen
 		if ( IsDebuggerPresent() )
@@ -66,6 +68,7 @@ void std::DebugStreamBuf::flush()
 		std::cout << Buffer.c_str();
 		//NSLog(@"%s", message);
 #endif
+		mOnFlush.OnTriggered( Buffer );
 		Buffer.erase();	// erase message buffer
 	}
 }

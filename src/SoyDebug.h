@@ -5,6 +5,7 @@
 #include "SoyTime.h"
 #include <map>
 #include <thread>
+#include "SoyEvent.h"
 
 
 namespace std
@@ -25,6 +26,9 @@ namespace std
 
 		std::string&	GetBuffer();
 		
+	public:
+		SoyEvent<const std::string>	mOnFlush;		//	catch debug output
+		
 	private:
 		std::map<std::thread::id,std::string>	mBuffers;	//	instead of locking, a buffer per-thread.
 	};
@@ -37,6 +41,8 @@ namespace std
 		{
 		}
 
+		SoyEvent<const std::string>&		GetOnFlushEvent()	{	return mBuffer.mOnFlush;	}
+		
 	private:
 		DebugStreamBuf	mBuffer;
 	};
