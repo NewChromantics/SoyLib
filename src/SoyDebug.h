@@ -58,6 +58,11 @@ namespace std
 namespace Soy
 {
 	BufferString<20>	FormatSizeBytes(uint64 bytes);
+	
+	namespace Platform
+	{
+		bool		IsDebuggerAttached();
+	}
 }
 
 
