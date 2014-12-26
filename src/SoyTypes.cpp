@@ -4,6 +4,7 @@
 #include <fstream>
 #include <algorithm>		//	std::transform
 #include "SoyString.h"
+#include "SoyDebug.h"
 
 
 #if defined(TARGET_WINDOWS)
@@ -500,6 +501,14 @@ bool Soy::Assert(bool Condition, std::string ErrorMessage) throw(AssertException
 {
 	if ( Condition )
 		return true;
+	
+	//	only throw exception is debugger is attached?...
+	//	gr: if not debugged, NOT throwing exception so unity plugin doesn't take down unity
+	if ( Platform::IsDebuggerAttached() )
+	{
+		std::Debug << "Assert: " << ErrorMessage << std::endl;
+		return false;
+	}
 	
 	//	throw exception
 	throw Soy::AssertException(ErrorMessage);
