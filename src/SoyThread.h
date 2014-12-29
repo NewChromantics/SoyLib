@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ofxSoylent.h"
-
+#include "SoyEvent.h"
 
 
 
@@ -252,6 +252,35 @@ public:
 	void	SetThreadName(std::string Name);
 };
 
+class SoyThreadWait : public SoyThread
+{
+public:
+	SoyThreadWait(std::string threadName) :
+		SoyThread	( threadName )
+	{
+	}
+	
+	template<typename TYPE>
+	void				WakeOnEvent(SoyEvent<TYPE>& Event)
+	{
+		auto HandlerFunc = [this](TYPE& Param)
+		{
+			this->Wake();
+		};
+		Event.AddListener( HandlerFunc );
+	}
+	void				Wake()			{	mWaitConditional.notify_all();	}
+	virtual bool		HasWork()=0;	//
+	virtual bool		Loop()=0;		//	return false to stop thread
+
+protected:
+	virtual void		threadedFunction() final;	//	don't override this, should be using Loop() and HasWork()
+	
+private:
+	std::condition_variable	mWaitConditional;
+	std::mutex				mWaitMutex;
+};
+
 
 /*
 class SoyFunctionId
@@ -409,12 +438,14 @@ template<class TYPE>
 class TLockQueue
 {
 public:
+	bool			IsEmpty() const			{	return mJobs.IsEmpty();	}
 	TYPE			Pop();
 	bool			Push(const TYPE& Job);
 	
 public:
 	Array<TYPE>		mJobs;
 	ofMutex			mJobLock;
+	SoyEvent<int>	mOnQueueAdded;
 };
 
 template<class TYPE>
@@ -430,8 +461,13 @@ template<class TYPE>
 inline bool TLockQueue<TYPE>::Push(const TYPE& Job)
 {
 	//assert( Job.IsValid() );
-	ofMutex::ScopedLock Lock( mJobLock );
-	mJobs.PushBack( Job );
+	int JobCount;
+	{
+		ofMutex::ScopedLock Lock( mJobLock );
+		mJobs.PushBack( Job );
+		JobCount = mJobs.GetSize();
+	}
+	mOnQueueAdded.OnTriggered(JobCount);
 	return true;
 }
 

@@ -163,3 +163,24 @@ void SoyThread::SetThreadName(std::string name)
 #endif
 }
 
+
+
+void SoyThreadWait::threadedFunction()
+{
+	std::unique_lock<std::mutex> Lock( mWaitMutex );
+	while ( true )
+	{
+		auto WaitFunc = [this]
+		{
+			return !isThreadRunning() || HasWork();
+		};
+		//	wait until we have work or told to stop thread
+		mWaitConditional.wait( Lock, WaitFunc );
+		
+		if ( !isThreadRunning() )
+			break;
+
+		if ( !Loop() )
+			break;
+	}
+}
