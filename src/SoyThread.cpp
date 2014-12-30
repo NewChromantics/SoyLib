@@ -102,15 +102,11 @@ unsigned int ofThread::threadFunc(void *args)
 #include <pthread.h>
 #endif
 
-void SoyThread::SetThreadName(std::string name)
+void SoyThread::SetThreadName(std::string name,std::thread::id ThreadId)
 {
-#if defined(NO_OPENFRAMEWORKS)
-	mThreadName = name;
-#endif
-	
 #if defined(TARGET_OSX)
 	//	has to be called whilst in this thread as OSX doesn't take a thread parameter
-	if ( std::this_thread::get_id() != GetThreadId() )
+	if ( std::this_thread::get_id() != ThreadId )
 		return;
 	pthread_setname_np( name.c_str() );
 #endif
@@ -165,22 +161,49 @@ void SoyThread::SetThreadName(std::string name)
 
 
 
-void SoyThreadWait::threadedFunction()
+void SoyWorker::Loop()
 {
 	std::unique_lock<std::mutex> Lock( mWaitMutex );
-	while ( true )
+	
+	//	first call
+	bool Dummy = true;
+	mOnStart.OnTriggered(Dummy);
+	
+	while ( mWorking )
 	{
-		auto WaitFunc = [this]
-		{
-			return !isThreadRunning() || HasWork();
-		};
-		//	wait until we have work or told to stop thread
-		mWaitConditional.wait( Lock, WaitFunc );
+		//	wait until woken
+		mWaitConditional.wait( Lock );
 		
-		if ( !isThreadRunning() )
+		if ( !mWorking )
 			break;
 
-		if ( !Loop() )
+		mOnPreIteration.OnTriggered(Dummy);
+		
+		if ( !Iteration() )
 			break;
 	}
+	
+	mOnFinish.OnTriggered(Dummy);
 }
+
+
+void SoyWorkerThread::Start()
+{
+	//	already have a thread
+	if ( !Soy::Assert( !HasThread(), "Thread already created" ) )
+		return;
+	
+	//	start thread
+	mThread = std::thread( [this]{	this->SoyWorker::Start();	} );
+}
+
+void SoyWorkerThread::WaitToFinish()
+{
+	Stop();
+	
+	//	if thread is active, then wait for it to finish and join it
+	if ( mThread.joinable() )
+		mThread.join();
+	mThread = std::thread();
+}
+

@@ -228,10 +228,13 @@ public:
 class SoyThread : public ofThread
 {
 public:
-	SoyThread(std::string threadName)
+	SoyThread(std::string threadName)	
 	{
 		if ( !threadName.empty() )
+		{
+			mThreadName	= threadName;
 			SetThreadName( threadName );
+		}
 	}
 
 	static std::thread::id	GetCurrentThreadId()
@@ -249,17 +252,22 @@ public:
 #endif
 	}
 
-	void	SetThreadName(std::string Name);
+	void		SetThreadName(std::string Name)	{	SetThreadName( Name, GetThreadId() );	}
+	static void	SetThreadName(std::string Name,std::thread::id ThreadId);
 };
 
-class SoyThreadWait : public SoyThread
+
+class SoyWorker
 {
 public:
-	SoyThreadWait(std::string threadName) :
-		SoyThread	( threadName )
-	{
-	}
+	virtual ~SoyWorker()	{}
 	
+	virtual void		Start()			{	mWorking = true;	Loop();	}
+	virtual void		Stop()			{	mWorking = false;	Wake();	}
+
+	virtual bool		Iteration()=0;	//	return false to stop thread
+
+	void				Wake()			{	mWaitConditional.notify_all();	}
 	template<typename TYPE>
 	void				WakeOnEvent(SoyEvent<TYPE>& Event)
 	{
@@ -269,16 +277,49 @@ public:
 		};
 		Event.AddListener( HandlerFunc );
 	}
-	void				Wake()			{	mWaitConditional.notify_all();	}
-	virtual bool		HasWork()=0;	//
-	virtual bool		Loop()=0;		//	return false to stop thread
 
-protected:
-	virtual void		threadedFunction() final;	//	don't override this, should be using Loop() and HasWork()
+public:
+	SoyEvent<bool>		mOnPreIteration;
+	SoyEvent<bool>		mOnStart;
+	SoyEvent<bool>		mOnFinish;
+	
+private:
+	void				Loop();
 	
 private:
 	std::condition_variable	mWaitConditional;
 	std::mutex				mWaitMutex;
+	bool					mWorking;
+};
+
+class SoyWorkerDummy : public SoyWorker
+{
+public:
+	virtual bool		Iteration()	{	return true;	};
+};
+
+class SoyWorkerThread : public SoyWorker
+{
+public:
+	SoyWorkerThread(std::string ThreadName="SoyWorkerThread") :
+		mThreadName	( ThreadName )
+	{
+		SoyWorker::mOnStart.AddListener( *this, &SoyWorkerThread::OnStart );
+	}
+	
+	virtual void		Start() final;
+	void				WaitToFinish();
+	std::thread::id		GetThreadId() const		{	return mThread.get_id();	}
+	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return mThread.native_handle();	}
+	bool				IsCurrentThread() const	{	return GetThreadId() == std::this_thread::get_id();	}
+
+protected:
+	bool				HasThread() const		{	return mThread.get_id() != std::thread::id();	}
+	void				OnStart(bool&)			{	SoyThread::SetThreadName( mThreadName, GetThreadId() );	}
+	
+private:
+	std::string			mThreadName;
+	std::thread			mThread;
 };
 
 
