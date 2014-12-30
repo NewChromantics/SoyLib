@@ -25,20 +25,15 @@ namespace Soy
 class Soy::Platform::TConsoleApp
 {
 public:
-	TConsoleApp(SoyApp& App) :
-		mApp	( App )
-	{
-	}
-	int				RunLoop();
-
+	void				Exit();
+	void				WaitForExit();
 private:
 #if defined(TARGET_WINDOWS)
 	static BOOL WINAPI	ConsoleHandler(DWORD dwType);
 #endif
 	
 private:
-	static bool			gIsRunning;
-	SoyApp&				mApp;
+	SoyWorkerDummy		mWorker;
 };
 
 

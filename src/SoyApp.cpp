@@ -4,7 +4,7 @@
 #endif
 
 
-bool Soy::Platform::TConsoleApp::gIsRunning = false;
+SoyEvent<bool> gOnConsoleStop;
 
 
 #if defined(TARGET_WINDOWS)
@@ -15,9 +15,9 @@ BOOL WINAPI Soy::Platform::TConsoleApp::ConsoleHandler(DWORD dwType)
 		case CTRL_CLOSE_EVENT:
 		case CTRL_LOGOFF_EVENT:
 		case CTRL_SHUTDOWN_EVENT:
-			gIsRunning = false;
+			gOnConsoleStop.OnTrigger();
 
-			//Returning would make the process exit!
+			//Returning would make the process exit immediately!
 			//We just make the handler sleep until the main thread exits,
 			//or until the maximum execution time for this handler is reached.
 			Sleep(10000);
@@ -29,27 +29,26 @@ BOOL WINAPI Soy::Platform::TConsoleApp::ConsoleHandler(DWORD dwType)
 }
 #endif
 
-
-int Soy::Platform::TConsoleApp::RunLoop()
+void Soy::Platform::TConsoleApp::Exit()
 {
-	assert( !gIsRunning );
-	gIsRunning = true;
-	
+	mWorker.Stop();
+}
+
+void Soy::Platform::TConsoleApp::WaitForExit()
+{
+	//	setup handler
 #if defined(TARGET_WINDOWS)
 	SetConsoleCtrlHandler( ConsoleHandler, true );
 #endif
-	if ( !mApp.Init() )
-		return 1;
-	while ( gIsRunning )
+	auto& Worker = mWorker;
+	auto OnConsoleStop = [&Worker](bool&)
 	{
-		if ( !mApp.Update() )
-			break;
-
-		//	frame limiter here
-		SoyThread::Sleep( 1000/60 );
-	}
-	mApp.Exit();
-	return 0;
+		Worker.Stop();
+	};
+	gOnConsoleStop.AddListener( OnConsoleStop );
+	
+	//	runs until something tells it to exit
+	mWorker.Start();
 }
 
 
