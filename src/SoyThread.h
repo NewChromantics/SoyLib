@@ -257,17 +257,35 @@ public:
 };
 
 
+//	gr: maybe change this to a policy?
+namespace SoyWorkerWaitMode
+{
+	enum Type
+	{
+		NoWait,	//	no waiting, assume Iteration() blocks
+		Wake,	//	manually woken
+		Sleep,	//	don't wait for a wake, but do a sleep
+	};
+}
+
 class SoyWorker
 {
 public:
+	SoyWorker(SoyWorkerWaitMode::Type WaitMode) :
+		mWaitMode	( WaitMode )
+	{
+	}
 	virtual ~SoyWorker()	{}
 	
-	virtual void		Start()			{	mWorking = true;	Loop();	}
-	virtual void		Stop()			{	mWorking = false;	Wake();	}
-
+	virtual std::string	WorkerName() const	{	return "SoyWorker";	}
+	virtual void		Start();
+	virtual void		Stop();
+	bool				IsWorking() const	{	return mWorking;	}
+	virtual std::chrono::milliseconds	GetSleepDuration()	{	return std::chrono::milliseconds(1000/60);	}
+	
 	virtual bool		Iteration()=0;	//	return false to stop thread
 
-	void				Wake()			{	mWaitConditional.notify_all();	}
+	void				Wake();
 	template<typename TYPE>
 	void				WakeOnEvent(SoyEvent<TYPE>& Event)
 	{
@@ -278,36 +296,42 @@ public:
 		Event.AddListener( HandlerFunc );
 	}
 
+private:
+	void				Loop();
+	
 public:
 	SoyEvent<bool>		mOnPreIteration;
 	SoyEvent<bool>		mOnStart;
 	SoyEvent<bool>		mOnFinish;
 	
 private:
-	void				Loop();
-	
-private:
 	std::condition_variable	mWaitConditional;
 	std::mutex				mWaitMutex;
 	bool					mWorking;
+	SoyWorkerWaitMode::Type	mWaitMode;
 };
 
 class SoyWorkerDummy : public SoyWorker
 {
 public:
+	SoyWorkerDummy() :
+		SoyWorker	( SoyWorkerWaitMode::Wake )
+	{
+	}
 	virtual bool		Iteration()	{	return true;	};
 };
 
 class SoyWorkerThread : public SoyWorker
 {
 public:
-	SoyWorkerThread(std::string ThreadName="SoyWorkerThread") :
+	SoyWorkerThread(std::string ThreadName,SoyWorkerWaitMode::Type WaitMode) :
+		SoyWorker	( WaitMode ),
 		mThreadName	( ThreadName )
 	{
 		SoyWorker::mOnStart.AddListener( *this, &SoyWorkerThread::OnStart );
 	}
 	
-	virtual void		Start() final;
+	virtual void		Start() override;
 	void				WaitToFinish();
 	std::thread::id		GetThreadId() const		{	return mThread.get_id();	}
 	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return mThread.native_handle();	}

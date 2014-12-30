@@ -105,10 +105,18 @@ unsigned int ofThread::threadFunc(void *args)
 void SoyThread::SetThreadName(std::string name,std::thread::id ThreadId)
 {
 #if defined(TARGET_OSX)
+
 	//	has to be called whilst in this thread as OSX doesn't take a thread parameter
 	if ( std::this_thread::get_id() != ThreadId )
+	{
+		std::Debug << "Trying to set thread name " << name << ", out-of-thread" << std::endl;
 		return;
-	pthread_setname_np( name.c_str() );
+	}
+	int Result = pthread_setname_np( name.c_str() );
+	if ( Result != 0 )
+	{
+		std::Debug << "Failed to set thread name to " << name << ": " << Result << std::endl;
+	}
 #endif
 	
 #if defined(TARGET_WINDOWS)
@@ -159,6 +167,27 @@ void SoyThread::SetThreadName(std::string name,std::thread::id ThreadId)
 #endif
 }
 
+void SoyWorker::Start()
+{
+	mWorking = true;
+	Loop();
+}
+
+void SoyWorker::Stop()
+{
+	mWorking = false;
+	Wake();
+}
+
+void SoyWorker::Wake()
+{
+	if ( mWaitMode != SoyWorkerWaitMode::Wake )
+	{
+		std::Debug << WorkerName() << "::Wake ignored as WaitMode is not Wake" << std::endl;
+		return;
+	}
+	mWaitConditional.notify_all();
+}
 
 
 void SoyWorker::Loop()
@@ -169,12 +198,22 @@ void SoyWorker::Loop()
 	bool Dummy = true;
 	mOnStart.OnTriggered(Dummy);
 	
-	while ( mWorking )
+	while ( IsWorking() )
 	{
-		//	wait until woken
-		mWaitConditional.wait( Lock );
+		//	do wait
+		switch ( mWaitMode )
+		{
+			case SoyWorkerWaitMode::Wake:
+				mWaitConditional.wait( Lock );
+				break;
+			case SoyWorkerWaitMode::Sleep:
+				mWaitConditional.wait_for( Lock, GetSleepDuration() );
+				break;
+			default:
+				break;
+		}
 		
-		if ( !mWorking )
+		if ( !IsWorking() )
 			break;
 
 		mOnPreIteration.OnTriggered(Dummy);
