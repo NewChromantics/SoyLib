@@ -53,6 +53,8 @@ std::string& std::DebugStreamBuf::GetBuffer()
 }
 
 
+//	gr: although cout is threadsafe, it doesnt synchornise the output
+std::mutex CoutLock;
 
 void std::DebugStreamBuf::flush()
 {
@@ -64,12 +66,20 @@ void std::DebugStreamBuf::flush()
 #if defined(TARGET_WINDOWS)
 		//	if there's a debugger attached output to that, otherwise to-screen
 		if ( Soy::Platform::IsDebuggerAttached() )
+		{
 			OutputDebugStringA( Buffer.c_str() );
+		}
 		else
+		{
+			std::lock_guard<std::mutex> lock(CoutLock);
 			std::cout << Buffer.c_str();
+		}
 #elif defined(TARGET_OSX)
 		//	todo: use NSLog!
-		std::cout << Buffer.c_str();
+		{
+			std::lock_guard<std::mutex> lock(CoutLock);
+			std::cout << Buffer.c_str();
+		}
 		//NSLog(@"%s", message);
 #endif
 		mOnFlush.OnTriggered( Buffer );
