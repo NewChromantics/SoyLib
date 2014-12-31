@@ -94,6 +94,7 @@ public:
 
 	bool			GetPng(ArrayBridge<char>& PngData) const;
 	bool			GetRawSoyPixels(ArrayBridge<char>& RawData) const;
+	bool			GetRawSoyPixels(ArrayBridge<char>&& RawData) const	{	return GetRawSoyPixels( RawData );	}
 	const uint8&	GetPixel(uint16 x,uint16 y,uint16 Channel) const;
 	bool			SetPixel(uint16 x,uint16 y,uint16 Channel,const uint8& Component);
 
@@ -101,6 +102,7 @@ public:
 	bool			SetChannels(uint8 Channels);
 	bool			SetPng(const ArrayBridge<char>& PngData,std::stringstream& Error);
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
+	bool			SetRawSoyPixels(const ArrayBridge<char>&& RawData)	{	return SetRawSoyPixels( RawData );	}
 
 	void			ResizeClip(uint16 Width,uint16 Height);
 	void			ResizeFastSample(uint16 Width,uint16 Height);
