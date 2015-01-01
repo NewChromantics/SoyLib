@@ -38,3 +38,10 @@ namespace Soy
 	bool		IsUtf8Char(char c);
 };
 
+#if defined(__OBJC__)
+namespace Soy
+{
+	NSString*	StringToNSString(const std::string& String);
+	std::string	NSStringToString(NSString* String);
+};
+#endif

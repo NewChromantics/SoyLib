@@ -62,6 +62,7 @@ namespace Soy
 	namespace Platform
 	{
 		bool		IsDebuggerAttached();
+		void		DebugPrint(const std::string& String);
 	}
 }
 

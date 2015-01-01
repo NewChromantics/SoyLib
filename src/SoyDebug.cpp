@@ -76,6 +76,12 @@ void std::DebugStreamBuf::flush()
 		}
 #elif defined(TARGET_OSX)
 		//	todo: use NSLog!
+		static bool UseNsLog = true;
+		if ( UseNsLog )
+		{
+			Soy::Platform::DebugPrint( Buffer );
+		}
+		else
 		{
 			std::lock_guard<std::mutex> lock(CoutLock);
 			std::cout << Buffer.c_str();
