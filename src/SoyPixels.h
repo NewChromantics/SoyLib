@@ -31,6 +31,9 @@ namespace SoyPixelsFormat
 	Type		GetFormatFromChannelCount(int ChannelCount);
 	inline bool	IsValid(Type Format)			{	return GetChannelCount( Format ) > 0;	}
 	
+	bool		GetOpenglFormat(int& glFormat,Type Format);
+	Type		GetFormatFromOpenglFormat(int glFormat);
+	bool		GetOpenclFormat(int& ChannelOrder,Type Format);
 	
 	int			GetMaxValue(SoyPixelsFormat::Type Format);
 	int			GetMinValue(SoyPixelsFormat::Type Format);
@@ -57,8 +60,8 @@ public:
 	uint8			GetChannels() const				{	return SoyPixelsFormat::GetChannelCount(mFormat);	}
 	uint16			GetWidth() const				{	return mWidth;	}
 	uint16			GetHeight(int DataSize) const	{	return IsValid() && DataSize>0 ? DataSize / (GetChannels()*mWidth) : 0;	}
-	bool			GetOpenglFormat(int& glFormat) const;
-	bool			GetOpenclFormat(int& ChannelOrder) const;
+	bool			GetOpenglFormat(int& glFormat) const	{	return SoyPixelsFormat::GetOpenglFormat( glFormat, GetFormat() );	}
+	bool			GetOpenclFormat(int& clFormat) const	{	return SoyPixelsFormat::GetOpenclFormat( clFormat, GetFormat() );	}
 	int				GetDataSize(int Height) const	{	return Height * GetChannels() * GetWidth();	}
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
 	void			DumbSetChannels(int Channels)	{	mFormat = SoyPixelsFormat::GetFormatFromChannelCount(Channels);	}

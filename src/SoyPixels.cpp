@@ -4,6 +4,12 @@
 #include <functional>
 #include "SoyPng.h"
 
+#if defined(SOY_OPENGL)
+#if defined(TARGET_OSX)
+#include <Opengl/gl.h>
+#include <OpenGL/OpenGL.h>
+#endif
+#endif
 
 
 /// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED frame callbacks
@@ -969,30 +975,55 @@ bool TPixels::Set(const IplImage& Pixels)
 #endif
 
 #if defined(SOY_OPENGL)
-static bool treatbgrasrgb = true;
+//	gr: for debugging
+static bool treatbgrasrgb = false;
 #endif
 
-#if defined(SOY_OPENGL)
-bool SoyPixelsMeta::GetOpenglFormat(int& glFormat) const
+bool SoyPixelsFormat::GetOpenglFormat(int& glFormat,SoyPixelsFormat::Type Format)
 {
+	glFormat = -1;
+#if defined(SOY_OPENGL)
+	glFormat = GL_INVALID_VALUE;
 	//	from ofGetGlInternalFormat(const ofPixels& pix)
-	switch ( GetFormat() )
+	switch ( Format )
 	{
-	case SoyPixelsFormat::Greyscale:	glFormat = GL_LUMINANCE;	return true;
-	case SoyPixelsFormat::RGB:			glFormat = GL_RGB;			return true;
-	case SoyPixelsFormat::RGBA:			glFormat = GL_RGBA;			return true;
-	case SoyPixelsFormat::BGRA:			glFormat = treatbgrasrgb ? GL_RGBA: GL_BGRA;			return true;
+#if defined(TARGET_OSX)
+		case SoyPixelsFormat::RGB:			glFormat = GL_RGB8;			return true;
+		case SoyPixelsFormat::RGBA:			glFormat = GL_RGBA8;		return true;
+#else
+		case SoyPixelsFormat::RGB:			glFormat = GL_RGB;			return true;
+		case SoyPixelsFormat::RGBA:			glFormat = GL_RGBA;			return true;
+#endif
+		case SoyPixelsFormat::Greyscale:	glFormat = GL_LUMINANCE;	return true;
+		case SoyPixelsFormat::BGRA:			glFormat = treatbgrasrgb ? GL_RGBA: GL_BGRA;			return true;
 	}
+#endif
 	return false;
 }
+
+SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromOpenglFormat(int glFormat)
+{
+#if defined(SOY_OPENGL)
+	switch ( glFormat )
+	{
+		//	gr: osx returns these values hmmmm
+		case GL_RGBA8:	return SoyPixelsFormat::RGBA;
+		case GL_RGB8:	return SoyPixelsFormat::RGB;
+		case GL_LUMINANCE:	return SoyPixelsFormat::Greyscale;
+		case GL_RGB:	return SoyPixelsFormat::RGB;
+		case GL_RGBA:	return SoyPixelsFormat::RGBA;
+		case GL_BGRA:	return treatbgrasrgb ? SoyPixelsFormat::RGBA : SoyPixelsFormat::BGRA;
+	}
 #endif
+	return SoyPixelsFormat::Invalid;
+}
 
 
 #if defined(SOY_OPENCL)
-bool SoyPixelsMeta::GetOpenclFormat(int& clFormat) const
+bool SoyPixelsFormat::GetOpenclFormat(int& clFormat,SoyPixelsFormat::Type Format)
 {
 	//	from ofGetGlInternalFormat(const ofPixels& pix)
-	switch ( GetFormat() )
+	switch ( Format )
 	{
 		//	clSURF code uses CL_R...
 	case SoyPixelsFormat::Greyscale:	clFormat = CL_R;	return true;
