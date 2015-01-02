@@ -1260,7 +1260,11 @@ bool SoyPixelsImpl::SetRawSoyPixels(const ArrayBridge<char>& RawData)
 	//	todo: verify size! (alignment!)
 	GetMeta() = Header;
 	GetPixelsArray().Clear(false);
-	GetPixelsArray().PushBackArray( Pixels );
+	
+	//	gr: until we use char/uint8 for data and pixels we should manually copy
+	//GetPixelsArray().PushBackArray( Pixels );
+	auto* pData = GetPixelsArray().PushBlock( Pixels.GetDataSize() );
+	memcpy( pData, Pixels.GetArray(), Pixels.GetDataSize() );
 
 	if ( !IsValid() )
 		return false;
