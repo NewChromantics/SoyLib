@@ -1,5 +1,8 @@
 #include "SoyEvent.h"
 
+
+std::atomic<int> SoyListenerId::mListenerCounter(1);
+
 #if defined(UNITTESTCPP_H)
 
 

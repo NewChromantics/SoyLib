@@ -3,8 +3,32 @@
 #include <mutex>
 #include <vector>
 //#include "ofxSoylent.h"
+#include <map>
 
-
+class SoyListenerId
+{
+public:
+	static SoyListenerId	Alloc()		{	return SoyListenerId( mListenerCounter++ );	}
+	
+	SoyListenerId() :
+		mId		( 0 )
+	{
+	}
+	
+	inline bool		operator==(const SoyListenerId& That) const	{	return this->mId == That.mId;	}
+	inline bool		operator!=(const SoyListenerId& That) const	{	return this->mId != That.mId;	}
+	inline bool		operator<(const SoyListenerId& That) const	{	return this->mId < That.mId;	}
+	
+private:
+	SoyListenerId(int Id) :
+		mId		( Id )
+	{
+	}
+	
+private:
+	int					mId;
+	static std::atomic<int>	mListenerCounter;
+};
 
 template<typename PARAM>
 class SoyEvent
@@ -15,11 +39,11 @@ public:
 public:
 	//	helper for member functions
 	template<class CLASS>
-	void			AddListener(CLASS& This,void(CLASS::*Member)(PARAM&))
+	SoyListenerId		AddListener(CLASS& This,void(CLASS::*Member)(PARAM&))
 	{
 		//	http://stackoverflow.com/a/7582576
 		auto bound = std::bind( Member, &This, std::placeholders::_1  );
-		AddListener( bound );
+		return AddListener( bound );
 	}
 	template<class CLASS>
 	void			RemoveListener(CLASS& This,FUNCTION Member)
@@ -28,15 +52,22 @@ public:
 	}
 
 	//	add static or lambda
-	void			AddListener(FUNCTION Function)
+	SoyListenerId		AddListener(FUNCTION Function)
 	{
 		std::lock_guard<std::mutex> lock(mListenerLock);
-		mListeners.push_back(Function);
+		SoyListenerId Id = AllocListenerId();
+		mListeners[Id] = Function;
+		return Id;
+	}
+	void			RemoveListener(SoyListenerId Id)
+	{
+		std::lock_guard<std::mutex> lock(mListenerLock);
+		mListeners.erase(Id);
 	}
 	void			RemoveListener(FUNCTION Function)
 	{
-		std::lock_guard<std::mutex> lock(mListenerLock);
-		mListeners.erase(Function);
+		//std::lock_guard<std::mutex> lock(mListenerLock);
+		//mListeners.erase(Function);
 	}
 
 	void			OnTriggered(PARAM& Param)
@@ -46,7 +77,7 @@ public:
 		//	todo: execute on seperate threads with SoyScheduler
 		for ( auto it=mListeners.begin();	it!=mListeners.end();	it++ )
 		{
-			auto& Function = *it;
+			auto& Function = it->second;
 			Function( Param );
 		}
 	}
@@ -54,7 +85,11 @@ public:
 	bool			HasListeners() const		{	return !mListeners.empty();	}
 	int				GetListenerCount() const	{	return mListeners.size();	}
 
+private:
+	SoyListenerId	AllocListenerId()			{	return SoyListenerId::Alloc();	}
+	
+	
 public:
 	std::mutex				mListenerLock;
-	std::vector<FUNCTION>	mListeners;
+	std::map<SoyListenerId,FUNCTION>	mListeners;
 };
