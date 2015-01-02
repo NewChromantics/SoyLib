@@ -1109,7 +1109,9 @@ bool SoyPixelsImpl::GetRawSoyPixels(ArrayBridge<char>& RawData) const
 	auto& Pixels = GetPixelsArray();
 	auto& Meta = GetMeta();
 	RawData.PushBackReinterpret( Meta );
-	RawData.PushBackArray( Pixels );
+	//	gr: currently long winded uint8<>char copy
+	auto* Data = RawData.PushBlock( Pixels.GetDataSize() );
+	memcpy( Data, Pixels.GetArray(), Pixels.GetDataSize() );
 	return true;
 }
 
