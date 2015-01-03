@@ -32,7 +32,8 @@ public:
 	}
 
 	std::string			GetFilename() const				{	return mFilename;	}
-	void				Close();
+	void				Close();						//	close handle but don't destroy file
+	void				Destroy();						//	destroy shared memory
 	bool				IsValid() const;
 
 	virtual T&			operator [] (int index)			{	return GetArray()[index];	}

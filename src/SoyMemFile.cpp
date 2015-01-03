@@ -20,26 +20,27 @@ MemFileArray::MemFileArray(std::string Filename,int DataSize,bool ReadOnly) :
 	mMapSize	( 0 ),
 	mOffset		( 0 )
 {
-	assert(DataSize>=0);
+	if ( !Soy::Assert( DataSize>0, "Trying to allocate/get shared memfile <1 byte" ) )
+		return;
 	
 #if defined(TARGET_OSX)
 	//http://stackoverflow.com/questions/9409079/linux-dynamic-shared-memory-in-different-programs
+	/*
 	int pid = getpid();
 	std::stringstream TestFilename;
 	TestFilename << Filename << getpid();
 	//const char *memname = mFilename.c_str();
 	const char *memname = TestFilename.str().c_str();
+	 */
 	const size_t region_size = DataSize;//sysconf(_SC_PAGE_SIZE);
 	auto& fd = mHandle;
-	
-	std::Debug << "Making memfile " << memname << std::endl;
 	
 	int CreateFlags = ReadOnly ? O_RDONLY : O_CREAT| O_RDWR;
 	int Permission = 0666;
 	//int Permission = 0700;
 	//fd = shm_open( memname, O_CREAT /*| O_TRUNC | O_RDWR*/, Permission);
 	std::string preError = Soy::Platform::GetLastErrorString();
-	fd = shm_open( memname, CreateFlags, Permission );
+	fd = shm_open( mFilename.c_str(), CreateFlags, Permission );
 	if (fd == Soy::Platform::InvalidFileHandle)
 	{
 		std::string Error = Soy::Platform::GetLastErrorString();
@@ -47,18 +48,22 @@ MemFileArray::MemFileArray(std::string Filename,int DataSize,bool ReadOnly) :
 		Close();
 		return;
 	}
-	std::Debug << "opened shared file " << memname << std::endl;
+	std::Debug << "opened shared file " << mFilename << std::endl;
 	
-	//	set size
-	auto r = ftruncate(fd, region_size);
-	if (r != 0)
+	//	initialise size
+	if ( !ReadOnly )
 	{
-		std::Debug << "MemFileArray(" << mFilename << ") error: ftruncate failed; " << Soy::Platform::GetLastErrorString() << std::endl;
-		Close();
-		return;
+		auto r = ftruncate(fd, region_size);
+		if (r != 0)
+		{
+			std::Debug << "MemFileArray(" << mFilename << ") error: ftruncate failed; " << Soy::Platform::GetLastErrorString() << std::endl;
+			Close();
+			return;
+		}
 	}
 	
-	mMap = mmap(0, region_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	int MapProtectionFlags = ReadOnly ? PROT_READ : (PROT_READ|PROT_WRITE);
+	mMap = mmap(0, region_size, MapProtectionFlags, MAP_SHARED, fd, 0);
 	if ( mMap == MAP_FAILED)
 	{
 		std::string Error = Soy::Platform::GetLastErrorString();
@@ -66,7 +71,7 @@ MemFileArray::MemFileArray(std::string Filename,int DataSize,bool ReadOnly) :
 		Close();
 		return;
 	}
-	std::Debug << "opened shared file " << memname << " size: " << region_size << std::endl;
+	std::Debug << "opened shared file " << mFilename << " size: " << region_size << std::endl;
 //	close(fd);
 	mMapSize = DataSize;
 	mOffset = mMapSize;
@@ -114,14 +119,22 @@ bool MemFileArray::IsValid() const
 }
 
 
+
+void MemFileArray::Destroy()
+{
+#if defined(TARGET_OSX)
+	//	ignore if opened in read-only?
+	auto Result = shm_unlink( mFilename.c_str() );
+	Soy::Assert(Result==0, "error unmapping" );
+#endif
+}
+
 void MemFileArray::Close()
 {
 	if ( mMap )
 	{
 #if defined(TARGET_OSX)
 		auto Result = munmap( mMap, mMapSize );
-		Soy::Assert(Result==0, "error unmapping" );
-		Result = shm_unlink( mFilename.c_str() );
 		Soy::Assert(Result==0, "error unmapping" );
 #endif
 #if defined(TARGET_WINDOWS)
