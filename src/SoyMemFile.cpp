@@ -24,55 +24,43 @@ MemFileArray::MemFileArray(std::string Filename,int DataSize,bool ReadOnly) :
 		return;
 	
 #if defined(TARGET_OSX)
-	//http://stackoverflow.com/questions/9409079/linux-dynamic-shared-memory-in-different-programs
-	/*
-	int pid = getpid();
-	std::stringstream TestFilename;
-	TestFilename << Filename << getpid();
-	//const char *memname = mFilename.c_str();
-	const char *memname = TestFilename.str().c_str();
-	 */
-	const size_t region_size = DataSize;//sysconf(_SC_PAGE_SIZE);
-	auto& fd = mHandle;
+
+	std::stringstream Error;
 	
-	int CreateFlags = ReadOnly ? O_RDONLY : O_CREAT| O_RDWR;
-	int Permission = 0666;
-	//int Permission = 0700;
-	//fd = shm_open( memname, O_CREAT /*| O_TRUNC | O_RDWR*/, Permission);
-	std::string preError = Soy::Platform::GetLastErrorString();
-	fd = shm_open( mFilename.c_str(), CreateFlags, Permission );
-	if (fd == Soy::Platform::InvalidFileHandle)
+	if ( ReadOnly )
 	{
-		std::string Error = Soy::Platform::GetLastErrorString();
-		std::Debug << "MemFileArray(" << mFilename << ") error: shm_open failed; " << Error << std::endl;
-		Close();
-		return;
-	}
-	std::Debug << "opened shared file " << mFilename << std::endl;
-	
-	//	initialise size
-	if ( !ReadOnly )
-	{
-		auto r = ftruncate(fd, region_size);
-		if (r != 0)
+		if ( !OpenReadOnlyFile(Error) )
 		{
-			std::Debug << "MemFileArray(" << mFilename << ") error: ftruncate failed; " << Soy::Platform::GetLastErrorString() << std::endl;
 			Close();
+			std::Debug << Error.str() << std::endl;
 			return;
+		}
+	}
+	else
+	{
+		//	attempt to create file
+		if ( !CreateFile(DataSize,Error) )
+		{
+			if ( !OpenWriteFile(Error) )
+			{
+				Close();
+				std::Debug << Error.str() << std::endl;
+				return;
+			}
 		}
 	}
 	
 	int MapProtectionFlags = ReadOnly ? PROT_READ : (PROT_READ|PROT_WRITE);
-	mMap = mmap(0, region_size, MapProtectionFlags, MAP_SHARED, fd, 0);
+	mMap = mmap(0, DataSize, MapProtectionFlags, MAP_SHARED, mHandle, 0);
 	if ( mMap == MAP_FAILED)
 	{
-		std::string Error = Soy::Platform::GetLastErrorString();
+		Error << Soy::Platform::GetLastErrorString();
 		std::Debug << "MemFileArray(" << mFilename << ") error: mmap failed; " << Soy::Platform::GetLastErrorString() << std::endl;
 		Close();
 		return;
 	}
-	std::Debug << "opened shared file " << mFilename << " size: " << region_size << std::endl;
-//	close(fd);
+
+	//close(fd);
 	mMapSize = DataSize;
 	mOffset = mMapSize;
 	
@@ -118,6 +106,63 @@ bool MemFileArray::IsValid() const
 	return mHandle != Soy::Platform::InvalidFileHandle;
 }
 
+bool OpenFile(int& FileHandle,std::string& Filename,int CreateFlags,std::stringstream& Error)
+{
+	std::string preError = Soy::Platform::GetLastErrorString();
+	FileHandle = shm_open( Filename.c_str(), CreateFlags );
+	if (FileHandle == Soy::Platform::InvalidFileHandle)
+	{
+		auto PlatformError = Soy::Platform::GetLastErrorString();
+		Error << "MemFileArray(" << Filename << ") error: shm_open failed; " << PlatformError;
+		return false;
+	}
+	return true;
+}
+
+bool MemFileArray::CreateFile(size_t Size,std::stringstream& Error)
+{
+	//http://stackoverflow.com/questions/9409079/linux-dynamic-shared-memory-in-different-programs
+	//	sysconf(_SC_PAGE_SIZE);
+	
+	//	gr: exclusive as if we creat, and it already exists, ftruncate fails
+	mode_t Permission = 0666;
+	static int CreateFlags = O_CREAT|O_EXCL|O_RDWR;
+	if ( !OpenFile( mHandle, mFilename, CreateFlags, Error ) )
+	{
+		Close();
+		return false;
+	}
+
+	//	initialise size - only done on create
+	auto r = ftruncate(mHandle, Size);
+	if (r != 0)
+	{
+		Error << "MemFileArray(" << mFilename << ") error: ftruncate(" << Size << ") failed; " << Soy::Platform::GetLastErrorString();
+		Close();
+		return false;
+	}
+	return true;
+}
+
+bool MemFileArray::OpenWriteFile(std::stringstream& Error)
+{
+	if ( !OpenFile( mHandle, mFilename, O_RDWR, Error ) )
+	{
+		Close();
+		return false;
+	}
+	return true;
+}
+
+bool MemFileArray::OpenReadOnlyFile(std::stringstream& Error)
+{
+	if ( !OpenFile( mHandle, mFilename, O_RDONLY, Error ) )
+	{
+		Close();
+		return false;
+	}
+	return true;
+}
 
 
 void MemFileArray::Destroy()

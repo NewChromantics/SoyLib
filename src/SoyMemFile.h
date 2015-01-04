@@ -182,6 +182,10 @@ private:
 	const T*			CreateMap() const				{	return const_cast<MemFileArray*>(this)->CreateMap();	}
 	T*					CreateMap()						{	return reinterpret_cast<T*>(mMap);	}
 
+	bool				CreateFile(size_t Size,std::stringstream& Error);		//	fails if already exists
+	bool				OpenWriteFile(std::stringstream& Error);
+	bool				OpenReadOnlyFile(std::stringstream& Error);
+	
 private:
 #if defined(TARGET_WINDOWS)
 	HANDLE				mHandle;
