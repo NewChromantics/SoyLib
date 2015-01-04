@@ -1060,10 +1060,14 @@ bool SoyPixelsImpl::GetRawSoyPixels(ArrayBridge<char>& RawData) const
 	//	write header/meta
 	auto& Pixels = GetPixelsArray();
 	auto& Meta = GetMeta();
+	
+	//	alloc all data in one go (need this for memfiles!)
+	//	gr: previously we APPENDED data. now clear. Has this broken anything?
+	RawData.Clear(false);
+	RawData.Reserve( sizeof(SoyPixelsMeta) + Pixels.GetDataSize() );
+	
 	RawData.PushBackReinterpret( Meta );
-	//	gr: currently long winded uint8<>char copy
-	auto* Data = RawData.PushBlock( Pixels.GetDataSize() );
-	memcpy( Data, Pixels.GetArray(), Pixels.GetDataSize() );
+	RawData.PushBackArray( Pixels );
 	return true;
 }
 
@@ -1212,11 +1216,7 @@ bool SoyPixelsImpl::SetRawSoyPixels(const ArrayBridge<char>& RawData)
 	//	todo: verify size! (alignment!)
 	GetMeta() = Header;
 	GetPixelsArray().Clear(false);
-	
-	//	gr: until we use char/uint8 for data and pixels we should manually copy
-	//GetPixelsArray().PushBackArray( Pixels );
-	auto* pData = GetPixelsArray().PushBlock( Pixels.GetDataSize() );
-	memcpy( pData, Pixels.GetArray(), Pixels.GetDataSize() );
+	GetPixelsArray().PushBackArray( Pixels );
 
 	if ( !IsValid() )
 		return false;

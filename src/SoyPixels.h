@@ -86,7 +86,7 @@ public:
 	bool			Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format);
 	bool			Init(uint16 Width,uint16 Height,uint8 Channels);
 
-	bool			Copy(const SoyPixelsImpl& that);
+	virtual bool	Copy(const SoyPixelsImpl& that);
 	
 	uint16			GetHeight() const				{	return GetMeta().GetHeight( GetPixelsArray().GetSize() );	}
 	bool			IsValid() const					{	return GetMeta().IsValid();	}
