@@ -237,9 +237,13 @@ public:
 		}
 
 		moffset = endoff;
+		
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
-		for ( int i=curoff;	i<curoff+count;	i++ )
-			mdata[i] = T();
+		if ( Soy::IsComplexType<TYPE>() )
+		{
+			for ( int i=curoff;	i<curoff+count;	i++ )
+				mdata[i] = T();
+		}
 		return mdata + curoff;
 	}
 		
