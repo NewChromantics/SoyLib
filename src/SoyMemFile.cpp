@@ -247,6 +247,33 @@ void MemFileArray::Close()
 }
 
 
+bool MemFileArray::SetSize(int size, bool preserve,bool AllowLess)
+{
+	if ( !Soy::Assert( size >= 0, "Invalid size specified in MemFileArray::SetSize" ) )
+		size = 0;
+	
+	//	if we haven't allocated yet, we'll need to
+	if ( size > 0 )
+	{
+		//	gr: errr do we need this to be readonly sometimes?
+		bool ReadOnly = false;
+		Init( size, ReadOnly );
+	}
+	
+	//	limit size
+	//	gr: assert, safely alloc, and return error. Maybe shouldn't "safely alloc"
+	//	gr: assert over limit, don't silently fail
+	assert( size <= MaxSize() );
+	if ( size > MaxSize() )
+	{
+		size = MaxSize();
+		mOffset = size;
+		return false;
+	}
+	
+	mOffset = size;
+	return true;
+}
 
 
 

@@ -98,7 +98,7 @@ public:
 
 	virtual void		RemoveBlock(int index, int count)
 	{
-		 T*& mData = reinterpret_cast<T*&>(mMap);
+		T*& mData = reinterpret_cast<T*&>(mMap);
 
 		//	do nothing if nothing to remove
 		assert( count >= 0 );
@@ -133,27 +133,8 @@ public:
 	}
 
 	//	gr: AllowLess does nothing here, but the parameter is kept to match other Array types (in case it's used in template funcs for example)
-	bool SetSize(int size, bool preserve=true,bool AllowLess=true)
-	{
-		assert( size >= 0 );
-		if ( size < 0 )	
-			size = 0;
+	bool SetSize(int size, bool preserve=true,bool AllowLess=true);
 
-		//	limit size
-		//	gr: assert, safely alloc, and return error. Maybe shouldn't "safely alloc"
-		//	gr: assert over limit, don't silently fail
-		assert( size <= MaxSize() );
-		if ( size > MaxSize() )
-		{
-			size = MaxSize();
-			mOffset = size;
-			return false;
-		}
-				
-		mOffset = size;
-		return true;
-	}
-		
 	virtual T*			PushBlock(int count)
 	{
 		if ( !Soy::Assert( count >= 0, "Can't allocate 0" ) )
