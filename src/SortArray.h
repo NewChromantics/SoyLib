@@ -54,30 +54,33 @@ public:
 	{
 	}
 
-	virtual T&			operator [] (int index)			{	return mArray[index];	}
-	virtual const T&	operator [] (int index) const	{	return mArray[index];	}
-	virtual T&			GetBack()						{	return mArray.GetBack();	}
-	virtual const T&	GetBack(int index) const		{	return mArray.GetBack();	}
-	virtual bool		IsEmpty() const					{	return mArray.IsEmpty();	}
-	virtual int			GetSize() const					{	return mArray.GetSize();	}
-	virtual int			GetDataSize() const				{	return mArray.GetDataSize();	}
-	virtual int			GetElementSize() const			{	return mArray.GetElementSize();	}
-	virtual const T*	GetArray() const				{	return mArray.GetArray();	}
-	virtual T*			GetArray()						{	return mArray.GetArray();	}
-	virtual void		Reserve(int size,bool clear=false)	{	return mArray.Reserve(size,clear);	}
-	virtual void		RemoveBlock(int index, int count)	{	return mArray.RemoveBlock(index,count);	}
-	virtual void		Clear(bool Dealloc)				{	return mArray.Clear(Dealloc);	}
-	virtual int			MaxSize() const					{	return mArray.MaxSize();	}
+	virtual T&			operator [] (int index) override		{	return mArray[index];	}
+	virtual const T&	operator [] (int index) const override	{	return mArray[index];	}
+	virtual T&			GetBack() override						{	return mArray.GetBack();	}
+	virtual const T&	GetBack() const override				{	return mArray.GetBack();	}
+	virtual int			GetSize() const override				{	return mArray.GetSize();	}
+	virtual const T*	GetArray() const override				{	return mArray.GetArray();	}
+	virtual T*			GetArray() override						{	return mArray.GetArray();	}
+	virtual void		Reserve(int size,bool clear=false) override	{	return mArray.Reserve(size,clear);	}
+	virtual void		RemoveBlock(int index, int count) override	{	return mArray.RemoveBlock(index,count);	}
+	virtual void		Clear(bool Dealloc) override			{	return mArray.Clear(Dealloc);	}
+	virtual int			MaxSize() const override				{	return mArray.MaxSize();	}
 	
-	inline T			PopBack() const					{	return mArray.PopBack();	}
+	inline T			PopBack() const							{	return mArray.PopBack();	}
 	
-	virtual T*			PushBlock(int count)
+	virtual T*			PushBlock(int count) override
 	{
 		//	can't push blocks in sort arrays!
-		assert(false);
+		Soy::Assert(false, "Cannot allocate in sort array");
 		return nullptr;
 	}
-	virtual T*			InsertBlock(int index,int Count)
+	virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false) override
+	{
+		//	can't push blocks in sort arrays!
+		Soy::Assert(false, "Cannot allocate in sort array");
+		return nullptr;
+	}
+	virtual T*			InsertBlock(int index,int Count) override
 	{
 		//	can't push blocks in sort arrays!
 		assert(false);

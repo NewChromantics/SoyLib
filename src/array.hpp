@@ -58,8 +58,8 @@
 		bool				IsEmpty() const					{	return GetSize() == 0;	}
 		bool				IsFull() const					{	return GetSize() >= MaxSize();	}
 		virtual int			GetSize() const=0;
-		virtual int			GetDataSize() const				{	return GetSize() * GetElementSize();	}
-		virtual int			GetElementSize() const			{	return sizeof(T);	}
+		int					GetDataSize() const				{	return GetSize() * GetElementSize();	}
+		int					GetElementSize() const			{	return sizeof(T);	}
 		virtual const T*	GetArray() const=0;
 		virtual T*			GetArray()=0;
 		virtual void		Reserve(int size,bool clear=false)=0;
@@ -87,6 +87,7 @@
 
 		//	this was NOT required before, because of sort array. so that just fails
 		virtual T*			PushBlock(int count)=0;
+		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false)=0;
 
 		template<class ARRAY>
 		bool				Copy(const ARRAY& a)
