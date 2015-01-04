@@ -300,11 +300,6 @@ bool TPixels::Get(msa::OpenCLImage& Pixels,cl_command_queue Queue,cl_int clMemMo
 }
 #endif
 
-void TPixels::Clear()
-{
-	GetMeta() = SoyPixelsMeta();
-	mPixels.Clear(true);
-}
 
 bool SoyPixelsImpl::SetChannels(uint8 Channels)
 {
@@ -313,7 +308,7 @@ bool SoyPixelsImpl::SetChannels(uint8 Channels)
 }
 
 
-void SetDepthColour(uint8& Red,uint8& Green,uint8& Blue,float Depth,int PlayerIndex,bool NoDepthValue)
+void SetDepthColour(char& Red,char& Green,char& Blue,float Depth,int PlayerIndex,bool NoDepthValue)
 {
 	//	yelow if invalid
 	if ( NoDepthValue )
@@ -388,7 +383,7 @@ void SetDepthColour(uint8& Red,uint8& Green,uint8& Blue,float Depth,int PlayerIn
 	}
 }
 
-bool ConvertFormat_KinectDepthToGreyscale(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+bool ConvertFormat_KinectDepthToGreyscale(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	bool GreyscaleAlphaFormat = (NewFormat == SoyPixelsFormat::GreyscaleAlpha);
 	int Height = Meta.GetHeight( Pixels.GetDataSize() );
@@ -396,7 +391,7 @@ bool ConvertFormat_KinectDepthToGreyscale(ArrayBridge<uint8>& Pixels,SoyPixelsMe
 	for ( int p=0;	p<PixelCount;	p++ )
 	{
 		uint16 KinectDepth = *reinterpret_cast<uint16*>( &Pixels[p*2] );
-		uint8& Greyscale = Pixels[ p * (GreyscaleAlphaFormat?2:1) ];
+		char& Greyscale = Pixels[ p * (GreyscaleAlphaFormat?2:1) ];
 
 		int PlayerIndex = KinectDepth & ((1<<3)-1);
 		float Depthf = static_cast<float>(KinectDepth >> 3) / static_cast<float>( 1<<13 );
@@ -404,7 +399,7 @@ bool ConvertFormat_KinectDepthToGreyscale(ArrayBridge<uint8>& Pixels,SoyPixelsMe
 
 		if ( GreyscaleAlphaFormat )
 		{
-			uint8& GreyscaleAlpha = Pixels[ (p * 2) + 1 ];
+			char& GreyscaleAlpha = Pixels[ (p * 2) + 1 ];
 			GreyscaleAlpha = PlayerIndex;
 		}
 	}
@@ -418,7 +413,7 @@ bool ConvertFormat_KinectDepthToGreyscale(ArrayBridge<uint8>& Pixels,SoyPixelsMe
 	return true;
 }
 
-bool ConvertFormat_KinectDepthToRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+bool ConvertFormat_KinectDepthToRgb(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	Array<uint16> DepthPixels;
 	DepthPixels.SetSize( Pixels.GetSize() / 2 );
@@ -448,9 +443,9 @@ bool ConvertFormat_KinectDepthToRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Me
 		bool DepthInvalid = (KinectDepth == 0);
 		float Depthf = ofGetMathTime( KinectDepth, MinDepth, MaxDepth );
 		
-		uint8& Red = Pixels[ p * (Components) + 0 ];
-		uint8& Green = Pixels[ p * (Components) + 1 ];
-		uint8& Blue = Pixels[ p * (Components) + 2 ];
+		char& Red = Pixels[ p * (Components) + 0 ];
+		char& Green = Pixels[ p * (Components) + 1 ];
+		char& Blue = Pixels[ p * (Components) + 2 ];
 		SetDepthColour( Red, Green, Blue, Depthf, PlayerIndex, DepthInvalid );
 	}
 	
@@ -465,7 +460,7 @@ bool ConvertFormat_KinectDepthToRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Me
 
 
 
-bool DepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+bool DepthToGreyOrRgb(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	bool RawDepth = (Meta.GetFormat() != SoyPixelsFormat::FreenectDepthmm);
 	uint16 MinDepth = SoyPixelsFormat::GetMinValue( Meta.GetFormat() );
@@ -504,15 +499,15 @@ bool DepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFo
 		bool DepthInvalid = (KinectDepth == InvalidDepth);
 		float Depthf = ofGetMathTime( KinectDepth, MinDepth, MaxDepth );
 		
-		uint8& Red = Pixels[ p * (Components) + 0 ];
+		char& Red = Pixels[ p * (Components) + 0 ];
 		
 		//	if RGB then we do different colours for raw and mm
 		if ( Components >= 3 )
 		{
 			int CompZero = RawDepth ? 1 : 2;
 			int CompDepth = RawDepth ? 2 : 1;
-			uint8& Green = Pixels[ p * (Components) + CompZero ];
-			uint8& Blue = Pixels[ p * (Components) + CompDepth ];
+			char& Green = Pixels[ p * (Components) + CompZero ];
+			char& Blue = Pixels[ p * (Components) + CompDepth ];
 
 			SetDepthColour( Red, Green, Blue, Depthf, PlayerIndex, DepthInvalid );
 
@@ -533,7 +528,7 @@ bool DepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFo
 		{
 			for ( int c=1;	c<Components;	c++ )
 			{
-				uint8& Blue = Pixels[ p * (Components) + c ];
+				char& Blue = Pixels[ p * (Components) + c ];
 				Blue = DepthInvalid ? 0 : 255;
 			}
 		}
@@ -550,7 +545,7 @@ bool DepthToGreyOrRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFo
 }
 
 
-bool ConvertFormat_BgrToRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+bool ConvertFormat_BgrToRgb(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	int Height = Meta.GetHeight( Pixels.GetDataSize() );
 	int PixelCount = Meta.GetWidth() * Height;
@@ -575,7 +570,7 @@ bool ConvertFormat_BgrToRgb(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPi
 }
 
 
-bool ConvertFormat_RGBAToGreyscale(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+bool ConvertFormat_RGBAToGreyscale(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	int Height = Meta.GetHeight( Pixels.GetDataSize() );
 	int PixelCount = Meta.GetWidth() * Height;
@@ -593,7 +588,7 @@ bool ConvertFormat_RGBAToGreyscale(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Met
 			Intensity += Pixels[ p*Channels + c ];
 		Intensity /= ReadChannels;
 		
-		uint8& Greyscale = Pixels[ p * GreyscaleChannels ];
+		char& Greyscale = Pixels[ p * GreyscaleChannels ];
 		Greyscale = ofLimit<int>( static_cast<int>(Intensity), 0, 255 );
 	}
 
@@ -615,7 +610,7 @@ int GetDepthFormatBits(SoyPixelsFormat::Type Format)
 	}
 }
 
-bool ConvertDepth16(ArrayBridge<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+bool ConvertDepth16(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	auto OldFormat = Meta.GetFormat();
 
@@ -696,7 +691,7 @@ public:
 
 	SoyPixelsFormat::Type	mSrcFormat;
 	SoyPixelsFormat::Type	mDestFormat;
-	std::function<bool(ArrayBridge<uint8>&,SoyPixelsMeta&,SoyPixelsFormat::Type)>	mFunction;
+	std::function<bool(ArrayInterface<char>&,SoyPixelsMeta&,SoyPixelsFormat::Type)>	mFunction;
 };
 
 
@@ -750,12 +745,11 @@ bool SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 		return false;
 
 	auto& PixelsArray = GetPixelsArray();
-	auto PixelsBridge = GetArrayBridge( PixelsArray );
 	auto ConversionFuncs = GetRemoteArray( gConversionFuncs, gConversionFuncsCount );
 	auto* ConversionFunc = ConversionFuncs.Find( std::make_tuple( OldFormat, Format ) );
 	if ( ConversionFunc )
 	{
-		if ( ConversionFunc->mFunction( PixelsBridge, GetMeta(), Format ) )
+		if ( ConversionFunc->mFunction( PixelsArray, GetMeta(), Format ) )
 			return true;
 	}
 	
@@ -763,10 +757,10 @@ bool SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 	std::Debug << "No soypixel conversion from " << OldFormat << " to " << Format << std::endl;
 
 	if ( GetFormat() == SoyPixelsFormat::KinectDepth && Format == SoyPixelsFormat::Greyscale )
-		return ConvertFormat_KinectDepthToGreyscale( PixelsBridge, GetMeta(), Format );
+		return ConvertFormat_KinectDepthToGreyscale( PixelsArray, GetMeta(), Format );
 
 	if ( GetFormat() == SoyPixelsFormat::KinectDepth && Format == SoyPixelsFormat::GreyscaleAlpha )
-		return ConvertFormat_KinectDepthToGreyscale( PixelsBridge, GetMeta(), Format );
+		return ConvertFormat_KinectDepthToGreyscale( PixelsArray, GetMeta(), Format );
 
 
 	//	see if we can use of simple channel-count change
@@ -931,48 +925,6 @@ bool TPixels::Set(const ofPixels& Pixels)
 }
 #endif
 
-
-bool TPixels::Set(const TPixels& Pixels)
-{
-	GetMeta() = Pixels.GetMeta();
-	mPixels = Pixels.mPixels;
-	return true;
-}
-
-bool TPixels::Set(const SoyPixelsImpl& Pixels)
-{
-	GetMeta() = Pixels.GetMeta();
-	mPixels = Pixels.GetPixelsArray();
-	return true;
-}
-
-#if defined(OPENFRAMEWORKS)
-bool TPixels::Set(ofxCvImage& Pixels)
-{
-	ofPixels& RealPixels = Pixels.getPixelsRef();
-	Set( RealPixels );
-	return true;
-}
-#endif
-
-#if defined(OPENFRAMEWORKS)
-bool TPixels::Set(const IplImage& Pixels)
-{
-	int w = Pixels.width;
-	int h = Pixels.height;
-	int c = Pixels.nChannels;
-	auto* p = Pixels.imageData;
-
-	auto Format = SoyPixelsFormat::GetFormatFromChannelCount( c );
-	if ( !Init( w, h, Format ) )
-		return false;
-
-	int Alloc = w * c * h;
-	auto SrcPixelsData = GetRemoteArray( p, Alloc, Alloc );
-	mPixels.Copy( SrcPixelsData );
-	return true;
-}
-#endif
 
 #if defined(SOY_OPENGL)
 //	gr: for debugging

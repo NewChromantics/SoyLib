@@ -112,31 +112,33 @@ public:
 
 	virtual SoyPixelsMeta&				GetMeta()=0;
 	virtual const SoyPixelsMeta&		GetMeta() const=0;
-	virtual ArrayBridge<uint8>&			GetPixelsArray()=0;
-	virtual const ArrayBridge<uint8>&	GetPixelsArray() const=0;
+	virtual ArrayInterface<char>&		GetPixelsArray()=0;
+	virtual const ArrayInterface<char>&	GetPixelsArray() const=0;
 };
 
 template<class TARRAY>
 class SoyPixelsDef : public SoyPixelsImpl
 {
 public:
-	explicit SoyPixelsDef(ArrayBridgeDef<TARRAY> Pixels,SoyPixelsMeta& Meta) :
-		mPixels	( Pixels ),
+	explicit SoyPixelsDef(TARRAY& Array,SoyPixelsMeta& Meta) :
+		mArray	( Array ),
+		mArrayBridge	( Array ),
 		mMeta	( Meta )
 	{
 	}
 
 	virtual SoyPixelsMeta&				GetMeta()			{	return mMeta;	}
 	virtual const SoyPixelsMeta&		GetMeta() const		{	return mMeta;	}
-	virtual ArrayBridge<uint8>&			GetPixelsArray() override	{	return mPixels;	}
-	virtual const ArrayBridge<uint8>&	GetPixelsArray() const override	{	return mPixels;	}
+	virtual ArrayInterface<char>&		GetPixelsArray()	{	return mArrayBridge;	}
+	virtual const ArrayInterface<char>&	GetPixelsArray() const	{	return mArrayBridge;	}
 
 public:
-	SoyPixelsMeta&			mMeta;
-	ArrayBridgeDef<TARRAY>	mPixels;
+	ArrayBridgeDef<TARRAY>	mArrayBridge;
+	TARRAY&			mArray;
+	SoyPixelsMeta&	mMeta;
 };
 
-
+/*
 class TPixels
 {
 public:
@@ -197,32 +199,30 @@ public:
 	//virtual ArrayBridge<uint8>			GetPixelsArray() override		{	return GetArrayBridge(mPixels);	}
 	//virtual const ArrayBridge<uint8>	GetPixelsArray() const override	{	return GetArrayBridge(mPixels);	}
 
-	SoyPixelsDef<Array<uint8>>			Def()		{	return SoyPixelsDef<Array<uint8>>( GetArrayBridge( mPixels ), mMeta );	}
-	const SoyPixelsDef<Array<uint8>>	Def() const	{	return const_cast<TPixels*>(this)->Def();	}
+	SoyPixelsDef<Array<char>>			Def()		{	return SoyPixelsDef<Array<uint8>>( GetArrayBridge( mPixels ), mMeta );	}
+	const SoyPixelsDef<Array<char>>	Def() const	{	return const_cast<TPixels*>(this)->Def();	}
 
 public:
 	SoyPixelsMeta	mMeta;
-	Array<uint8>	mPixels;
+	Array<char>	mPixels;
 };
 DECLARE_TYPE_NAME( TPixels );
+*/
 
-
-class SoyPixels : public SoyPixelsDef<Array<uint8>>
+class SoyPixels : public SoyPixelsDef<Array<char>>
 {
 public:
 	SoyPixels(prmem::Heap& Heap=prcore::Heap) :
-		mPixels						( Heap ),
-		SoyPixelsDef<Array<uint8>>	( GetArrayBridge( mPixels.mPixels ), mPixels.mMeta )
+		mArray						( Heap ),
+		SoyPixelsDef<Array<char>>	( mArray, mMeta )
 	{
 	}
 	
-	operator TPixels& ()					{	return mPixels;	}
-	operator const TPixels& () const		{	return mPixels;	}
-
 	SoyPixels& operator=(const SoyPixels& that)	{	Copy( that );	return *this;	}
-	
+
 public:
-	TPixels		mPixels;
+	SoyPixelsMeta	mMeta;
+	Array<char>		mArray;
 };
 DECLARE_TYPE_NAME( SoyPixels );
 
