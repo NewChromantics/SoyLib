@@ -178,7 +178,7 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
 }
  */
 
-bool DeFilterScanline(TPng::TFilterNone_ScanlineFilter::Type Filter,const ArrayBridge<uint8>& Scanline,int ByteWidth,ArrayBridge<uint8>& DeFilteredData,std::stringstream& Error)
+bool DeFilterScanline(TPng::TFilterNone_ScanlineFilter::Type Filter,const ArrayBridge<char>&& Scanline,int ByteWidth,ArrayBridge<uint8>& DeFilteredData,std::stringstream& Error)
 {
 	if ( Filter == TPng::TFilterNone_ScanlineFilter::None )
 	{
@@ -206,7 +206,7 @@ bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char
 	if ( Header.mCompression == TCompression::DEFLATE )
 	{
 		//	decompress straight into image. But the decompressed data will have extra filter values per row!
-		auto& DecompressedData = Pixels.GetPixelsArray();
+		auto&& DecompressedData = Pixels.GetPixelsArray();
 		DecompressedData.PushBlock( 1 * Pixels.GetHeight() );
 
 		mz_ulong DecompressedLength = DecompressedData.GetDataSize();
@@ -235,9 +235,8 @@ bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char
 			auto Filter = static_cast<TFilterNone_ScanlineFilter::Type>( DecompressedData[i] );
 			int ScanlineLength = Stride-1;
 			auto Scanline = GetRemoteArray( &DecompressedData[i+1], ScanlineLength, ScanlineLength );
-			auto ScanlineBridge = GetArrayBridge( Scanline );
 			int bytewidth = (Pixels.GetBitDepth() + 7) / 8;
-			if ( !DeFilterScanline( Filter, ScanlineBridge, bytewidth, DeFilteredData, Error ) )
+			if ( !DeFilterScanline( Filter, GetArrayBridge( Scanline ), bytewidth, DeFilteredData, Error ) )
 				return false;
 		}
 		//	overwrite data with defiltered data
