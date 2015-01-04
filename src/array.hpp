@@ -235,6 +235,10 @@
 		//	gr: COULD turn this into a compare for sorting, but that would invoke a < and > operator call for each type.
 		//		this is also why we don't use the != operator, only ==
 		//		if we want that, make a seperate func!
+		inline bool			Matches(const ArrayBridge<T>&& That) const
+		{
+			return Matches( That );
+		}
 		inline bool			Matches(const ArrayBridge<T>& That) const
 		{
 			if ( this->GetSize() != That.GetSize() )	
