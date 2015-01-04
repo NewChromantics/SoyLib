@@ -507,6 +507,7 @@ bool Soy::Assert(bool Condition, std::string ErrorMessage) throw(AssertException
 	if ( Platform::IsDebuggerAttached() )
 	{
 		std::Debug << "Assert: " << ErrorMessage << std::endl;
+		//Debugger();
 		return false;
 	}
 	

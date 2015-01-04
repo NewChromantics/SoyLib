@@ -256,21 +256,22 @@ namespace Soy
 	
 	std::string		DemangleTypeName(const char* name);
 	
-	//	readable name for a type (alternative to RTTI)
+	//	readable name for a type (alternative to RTTI) which means we don't need to use DECLARE_TYPE_NAME
 	template<typename TYPE>
-	inline std::string GetTypeName()
+	inline const std::string& GetTypeName()
 	{
-		return DemangleTypeName( typeid(TYPE).name() );
+		static std::string TypeName = DemangleTypeName( typeid(TYPE).name() );
+		return TypeName;
 	}
 
 	//	auto-define the name for this type for use in the memory debug
 	#define DECLARE_TYPE_NAME(TYPE)								\
 		template<>															\
-		inline std::string Soy::GetTypeName<TYPE>()	{	return #TYPE ;	}
+		inline const std::string& Soy::GetTypeName<TYPE>()	{	static std::string TypeName = #TYPE;	return TypeName;	}
 	
 	#define DECLARE_TYPE_NAME_AS(TYPE,NAME)								\
 		template<>															\
-		inline std::string Soy::GetTypeName<TYPE>()	{	return NAME ;	}
+		inline const std::string& Soy::GetTypeName<TYPE>()	{	static std::string TypeName = NAME;	return TypeName ;	}
 	
 	//	speed up use of this type in our arrays when resizing, allocating etc
 	//	declare a type that can be memcpy'd (ie. no pointers or ref-counted objects that rely on =operators or copy constructors)
