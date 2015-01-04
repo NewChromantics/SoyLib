@@ -6,11 +6,12 @@
 #include <map>
 #include <thread>
 #include "SoyEvent.h"
+#include "SoyScope.h"
 
 
 namespace std
 {
-	class DebugStreamBuf : public streambuf 
+	class DebugStreamBuf : public streambuf
 	{
 	public:
 		DebugStreamBuf()  { };
@@ -28,9 +29,6 @@ namespace std
 		
 	public:
 		SoyEvent<const std::string>	mOnFlush;		//	catch debug output
-		
-	private:
-		std::map<std::thread::id,std::string>	mBuffers;	//	instead of locking, a buffer per-thread.
 	};
 
 	class DebugStream : public basic_ostream<char,std::char_traits<char> >

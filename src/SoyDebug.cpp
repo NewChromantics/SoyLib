@@ -7,6 +7,9 @@
 
 std::DebugStream	std::Debug;
 
+//	gr: although cout is threadsafe, it doesnt synchornise the output
+std::mutex			CoutLock;
+
 
 BufferString<20> Soy::FormatSizeBytes(uint64 bytes)
 {
@@ -46,19 +49,22 @@ BufferString<20> Soy::FormatSizeBytes(uint64 bytes)
 }
 
 
+//	static per-thread
+__thread std::string* ThreadBuffer = nullptr;	//	thread_local not supported on OSX
+
 std::string& std::DebugStreamBuf::GetBuffer()
 {
-	auto Thread = SoyThread::GetCurrentThreadId();
-	return mBuffers[Thread];
+	if ( !ThreadBuffer )
+		ThreadBuffer = new std::string();
+	return *ThreadBuffer;
 }
 
 
-//	gr: although cout is threadsafe, it doesnt synchornise the output
-std::mutex CoutLock;
 
 void std::DebugStreamBuf::flush()
 {
 	auto& Buffer = GetBuffer();
+	
 	if ( Buffer.length() > 0 )
 	{
 		//	gr: change these to be OS/main defined callbacks in OnFlush
@@ -77,11 +83,13 @@ void std::DebugStreamBuf::flush()
 #elif defined(TARGET_OSX)
 		//	todo: use NSLog!
 		static bool UseNsLog = true;
+		static bool UseCout = true;
 		if ( UseNsLog )
 		{
 			Soy::Platform::DebugPrint( Buffer );
 		}
-		else
+		
+		if ( UseCout )
 		{
 			std::lock_guard<std::mutex> lock(CoutLock);
 			std::cout << Buffer.c_str();
@@ -96,6 +104,7 @@ void std::DebugStreamBuf::flush()
 int std::DebugStreamBuf::overflow(int c)
 {
 	auto& Buffer = GetBuffer();
+
 	Buffer += c;
 	if (c == '\n') 
 		flush();
