@@ -25,12 +25,16 @@ public:
 	typedef ArrayInterface<char>::TYPE TYPE;
 	
 public:
-	MemFileArray(std::string Filename,int Size,bool ReadOnly=false);	//	size must be known beforehand!
+	MemFileArray(std::string Filename,bool AllowOtherFilename);
+	MemFileArray(std::string Filename,bool AllowOtherFilename,int Size,bool ReadOnly);
 	~MemFileArray()
 	{
 		Close();
 	}
 
+	bool				Init(int Size,bool ReadOnly);
+	bool				Init(int Size,bool ReadOnly,std::stringstream& Error);	//	size must be known beforehand!
+	
 	std::string			GetFilename() const				{	return mFilename;	}
 	void				Close();						//	close handle but don't destroy file
 	void				Destroy();						//	destroy shared memory
@@ -64,7 +68,7 @@ public:
 	
 	virtual T* InsertBlock(int index, int count)
 	{
-		 T*& mData = reinterpret_cast<T*&>(mMap);
+		T*& mData = reinterpret_cast<T*&>(mMap);
 		//	do nothing if nothing to add
 		assert( count >= 0 );
 		if ( count == 0 )
@@ -152,8 +156,14 @@ public:
 		
 	virtual T*			PushBlock(int count)
 	{
+		if ( !Soy::Assert( count >= 0, "Can't allocate 0" ) )
+			return nullptr;
+		
+		//	if we haven't allocated, try now
+		if ( !Init(count,false) )
+			return nullptr;
+				 
 		T*& mData = reinterpret_cast<T*&>(mMap);
-		assert( count >= 0 );
 		if ( count < 0 )	count = 0;
 		int curoff = GetSize();
 		int endoff = GetSize() + count;
@@ -161,14 +171,18 @@ public:
 		//	fail if we try and "allocate" too much
 		if ( endoff > MaxSize() )
 		{
-			assert( endoff <= MaxSize() );
-			return NULL;
+			if ( !Soy::Assert( endoff <= MaxSize(), "Cannot allocate more data" ) )
+				return nullptr;
 		}
 			
 		mOffset = endoff;
+
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
-		for ( int i=curoff;	i<curoff+count;	i++ )
-			mData[i] = T();
+		if ( Soy::IsComplexType<TYPE>() )
+		{
+			for ( int i=curoff;	i<curoff+count;	i++ )
+				mData[i] = T();
+		}
 		return mData + curoff;
 	}
 
@@ -182,9 +196,8 @@ private:
 	const T*			CreateMap() const				{	return const_cast<MemFileArray*>(this)->CreateMap();	}
 	T*					CreateMap()						{	return reinterpret_cast<T*>(mMap);	}
 
-	bool				CreateFile(size_t Size,std::stringstream& Error);		//	fails if already exists
-	bool				OpenWriteFile(std::stringstream& Error);
-	bool				OpenReadOnlyFile(std::stringstream& Error);
+	bool				OpenWriteFile(size_t Size,std::stringstream& Error);
+	bool				OpenReadOnlyFile(size_t Size,std::stringstream& Error);
 	
 private:
 #if defined(TARGET_WINDOWS)
@@ -194,6 +207,7 @@ private:
 	int					mHandle;
 #endif
 	std::string			mFilename;
+	bool				mAllowOtherFilename;	//	if we cannot create file, we can try other filenames
 	void*				mMap;
 	int					mMapSize;
 

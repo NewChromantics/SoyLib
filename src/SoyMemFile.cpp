@@ -12,41 +12,70 @@
 #include <sys/mman.h>
 #endif
 
-
-MemFileArray::MemFileArray(std::string Filename,int DataSize,bool ReadOnly) :
+MemFileArray::MemFileArray(std::string Filename,bool AllowOtherFilename) :
 	mFilename	( Filename ),
+	mAllowOtherFilename	( AllowOtherFilename ),
 	mHandle		( Soy::Platform::InvalidFileHandle ),
 	mMap		( nullptr ),
 	mMapSize	( 0 ),
 	mOffset		( 0 )
 {
+}
+
+
+MemFileArray::MemFileArray(std::string Filename,bool AllowOtherFilename,int DataSize,bool ReadOnly) :
+	mFilename	( Filename ),
+	mAllowOtherFilename	( AllowOtherFilename ),
+	mHandle		( Soy::Platform::InvalidFileHandle ),
+	mMap		( nullptr ),
+	mMapSize	( 0 ),
+	mOffset		( 0 )
+{
+	Init( DataSize, ReadOnly );
+}
+
+bool MemFileArray::Init(int DataSize,bool ReadOnly)
+{
+	std::stringstream Error;
+	bool Result = Init( DataSize, ReadOnly, Error );
+	
+	if ( !Error.str().empty() )
+		std::Debug << Error.str() << std::endl;
+
+	return Result;
+}
+
+bool MemFileArray::Init(int DataSize,bool ReadOnly,std::stringstream& Error)
+{
 	if ( !Soy::Assert( DataSize>0, "Trying to allocate/get shared memfile <1 byte" ) )
-		return;
+		return false;
+
+	//	already allocated, success is if we have enough allocated
+	if ( mMapSize > 0 )
+	{
+		if ( DataSize <= mMapSize )
+			return true;
+		Error << "Trying to re-alloc memfile (" << Soy::FormatSizeBytes(mMapSize) << ") to larger size (" << Soy::FormatSizeBytes(DataSize) << ")";
+		return false;
+	}
 	
 #if defined(TARGET_OSX)
 
-	std::stringstream Error;
-	
 	if ( ReadOnly )
 	{
-		if ( !OpenReadOnlyFile(Error) )
+		if ( !OpenReadOnlyFile( DataSize, Error ) )
 		{
 			Close();
-			std::Debug << Error.str() << std::endl;
-			return;
+			return false;
 		}
 	}
 	else
 	{
 		//	attempt to create file
-		if ( !CreateFile(DataSize,Error) )
+		if ( !OpenWriteFile( DataSize, Error ) )
 		{
-			if ( !OpenWriteFile(Error) )
-			{
-				Close();
-				std::Debug << Error.str() << std::endl;
-				return;
-			}
+			Close();
+			return false;
 		}
 	}
 	
@@ -54,10 +83,10 @@ MemFileArray::MemFileArray(std::string Filename,int DataSize,bool ReadOnly) :
 	mMap = mmap(0, DataSize, MapProtectionFlags, MAP_SHARED, mHandle, 0);
 	if ( mMap == MAP_FAILED)
 	{
-		Error << Soy::Platform::GetLastErrorString();
-		std::Debug << "MemFileArray(" << mFilename << ") error: mmap failed; " << Soy::Platform::GetLastErrorString() << std::endl;
+		auto PlatformError = Soy::Platform::GetLastErrorString();
+		Error << "MemFileArray(" << mFilename << ") error: mmap failed; " << PlatformError;
 		Close();
-		return;
+		return false;
 	}
 
 	//close(fd);
@@ -79,8 +108,8 @@ MemFileArray::MemFileArray(std::string Filename,int DataSize,bool ReadOnly) :
 									);
 	if ( mHandle == nullptr )
 	{
-		std::Debug << "MemFileArray(" << mFilename << ") error: " << Soy::Platform::GetLastErrorString() << std::endl;
-		return;
+		Error << "MemFileArray(" << mFilename << ") error: " << Soy::Platform::GetLastErrorString();
+		return false;
 	}
 
 
@@ -92,13 +121,16 @@ MemFileArray::MemFileArray(std::string Filename,int DataSize,bool ReadOnly) :
 							DataSize );
 	if ( !mMap )
 	{
-		std::Debug << "MemFileArray(" << mFilename << ") error: " << Soy::Platform::GetLastErrorString() << std::endl;
+		auto PlatformError = Soy::Platform::GetLastErrorString();
+		Error << "MemFileArray(" << mFilename << ") error: " << PlatformError;
 		Close();
-		return;
+		return false;
 	}
 	mMapSize = DataSize;
 	mOffset = mMapSize;
 #endif
+	
+	return true;
 }
 
 bool MemFileArray::IsValid() const
@@ -106,57 +138,70 @@ bool MemFileArray::IsValid() const
 	return mHandle != Soy::Platform::InvalidFileHandle;
 }
 
-bool OpenFile(int& FileHandle,std::string& Filename,int CreateFlags,std::stringstream& Error)
+bool OpenFile(int& FileHandle,std::string& Filename,size_t Size,int CreateFlags,std::stringstream& Error)
 {
+	//http://stackoverflow.com/questions/9409079/linux-dynamic-shared-memory-in-different-programs
+	//	sysconf(_SC_PAGE_SIZE);
+
+	//	docs say this is optional, but it's needed.
+	//http://stackoverflow.com/questions/21368355/macos-x-c-shm-open-fails-with-errno-13-permission-denied-on-subsequent-runs
+	int Mode = S_IRWXU|S_IRWXG|S_IRWXO;
 	std::string preError = Soy::Platform::GetLastErrorString();
-	FileHandle = shm_open( Filename.c_str(), CreateFlags );
+	FileHandle = shm_open( Filename.c_str(), CreateFlags, Mode );
 	if (FileHandle == Soy::Platform::InvalidFileHandle)
 	{
 		auto PlatformError = Soy::Platform::GetLastErrorString();
 		Error << "MemFileArray(" << Filename << ") error: shm_open failed; " << PlatformError;
 		return false;
 	}
-	return true;
-}
-
-bool MemFileArray::CreateFile(size_t Size,std::stringstream& Error)
-{
-	//http://stackoverflow.com/questions/9409079/linux-dynamic-shared-memory-in-different-programs
-	//	sysconf(_SC_PAGE_SIZE);
 	
-	//	gr: exclusive as if we creat, and it already exists, ftruncate fails
-	mode_t Permission = 0666;
-	static int CreateFlags = O_CREAT|O_EXCL|O_RDWR;
-	if ( !OpenFile( mHandle, mFilename, CreateFlags, Error ) )
-	{
-		Close();
-		return false;
-	}
-
 	//	initialise size - only done on create
-	auto r = ftruncate(mHandle, Size);
-	if (r != 0)
+	if ( CreateFlags & O_CREAT )
 	{
-		Error << "MemFileArray(" << mFilename << ") error: ftruncate(" << Size << ") failed; " << Soy::Platform::GetLastErrorString();
-		Close();
-		return false;
+		auto r = ftruncate( FileHandle, Size);
+		if (r != 0)
+		{
+			Error << "MemFileArray(" << Filename << ") error: ftruncate(" << Size << ") failed; " << Soy::Platform::GetLastErrorString();
+		}
 	}
+	
 	return true;
 }
 
-bool MemFileArray::OpenWriteFile(std::stringstream& Error)
+bool MemFileArray::OpenWriteFile(size_t Size,std::stringstream& Error)
 {
-	if ( !OpenFile( mHandle, mFilename, O_RDWR, Error ) )
+	BufferArray<std::string,10> FilenameTries;
+	FilenameTries.PushBack( mFilename );
+	
+	if ( mAllowOtherFilename )
 	{
-		Close();
-		return false;
+		for ( int i=1;	i<FilenameTries.MaxSize();	i++ )
+		{
+			std::stringstream Filename2;
+			Filename2 << mFilename << "_" << i;
+			FilenameTries.PushBack( Filename2.str() );
+		}
 	}
-	return true;
+
+	for ( int i=0;	i<FilenameTries.GetSize();	i++ )
+	{
+		auto& Filename = FilenameTries[i];
+
+		//	clear so only the last error is left
+		Error.clear();
+		if ( !OpenFile( mHandle, Filename, Size, O_CREAT|O_RDWR, Error ) )
+			continue;
+
+		mFilename = Filename;
+		return true;
+	}
+
+	return false;
 }
 
-bool MemFileArray::OpenReadOnlyFile(std::stringstream& Error)
+bool MemFileArray::OpenReadOnlyFile(size_t Size,std::stringstream& Error)
 {
-	if ( !OpenFile( mHandle, mFilename, O_RDONLY, Error ) )
+	if ( !OpenFile( mHandle, mFilename, Size, O_RDONLY, Error ) )
 	{
 		Close();
 		return false;
