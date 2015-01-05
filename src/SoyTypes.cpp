@@ -494,13 +494,15 @@ std::string Soy::DemangleTypeName(const char* name)
 
 bool Soy::Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException )
 {
-	return Assert( Condition, Soy::StreamToString(ErrorMessage) );
+	return Assert( Condition, [&ErrorMessage]{	return Soy::StreamToString(ErrorMessage);	} );
 }
 
-bool Soy::Assert(bool Condition, std::string ErrorMessage) throw(AssertException)
+bool Soy::Assert(bool Condition,std::function<std::string()> ErrorMessageFunc) throw(AssertException)
 {
 	if ( Condition )
 		return true;
+	
+	std::string ErrorMessage = ErrorMessageFunc();
 	
 	//	only throw exception is debugger is attached?...
 	//	gr: if not debugged, NOT throwing exception so unity plugin doesn't take down unity
@@ -512,6 +514,6 @@ bool Soy::Assert(bool Condition, std::string ErrorMessage) throw(AssertException
 	}
 	
 	//	throw exception
-	throw Soy::AssertException(ErrorMessage);
+	throw Soy::AssertException( ErrorMessage );
 	return false;
 }

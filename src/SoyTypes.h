@@ -386,16 +386,20 @@ namespace Soy
 {
 #pragma warning(disable:4290)
 	//	replace asserts with exception. If condition fails false is returned to save code
-	bool		Assert(bool Condition,std::string ErrorMessage) throw(AssertException);
+	bool		Assert(bool Condition,std::function<std::string()> ErrorMessageFunc) throw(AssertException);
+	inline bool	Assert(bool Condition,std::string ErrorMessage) throw(AssertException)
+	{
+		return Assert( Condition, [&ErrorMessage]{	return ErrorMessage;	} );
+	}
 	inline bool	Assert(bool Condition, std::stringstream&& ErrorMessage ) throw( AssertException )
 	{
-		return Assert( Condition, ErrorMessage.str() );
+		return Assert( Condition, [&ErrorMessage]{	return ErrorMessage.str();	} );
 	}
 	inline bool	Assert(bool Condition, std::stringstream& ErrorMessage ) throw( AssertException )
 	{
-		return Assert( Condition, ErrorMessage.str() );
+		return Assert( Condition, [&ErrorMessage]{	return ErrorMessage.str();	} );
 	}
-	bool	Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException );
+	bool		Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException );
 };
 
 
