@@ -295,6 +295,8 @@ public:
 		};
 		Event.AddListener( HandlerFunc );
 	}
+	void				SetWakeMode(SoyWorkerWaitMode::Type WakeMode)	{	mWaitMode = WakeMode;	Wake();	}
+	SoyWorkerWaitMode::Type	GetWakeMode() const	{	return mWaitMode;	}
 
 private:
 	void				Loop();
