@@ -183,7 +183,7 @@ void SoyWorker::Wake()
 {
 	if ( mWaitMode != SoyWorkerWaitMode::Wake )
 	{
-		std::Debug << WorkerName() << "::Wake ignored as WaitMode is not Wake" << std::endl;
+		//std::Debug << WorkerName() << "::Wake ignored as WaitMode is not Wake" << std::endl;
 		return;
 	}
 	mWaitConditional.notify_all();
