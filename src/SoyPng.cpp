@@ -58,6 +58,29 @@ std::ostream& operator<< (std::ostream &out,const TPng::TFilterNone_ScanlineFilt
 	}
 }
 
+
+bool TPng::CheckMagic(ArrayBridge<char>&& PngData)
+{
+	TArrayReader ArrayReader( PngData );
+	return CheckMagic( ArrayReader );
+}
+
+bool TPng::CheckMagic(TArrayReader& ArrayReader)
+{
+	//uint8 Magic[] = { 137, 80, 78, 71, 13, 10, 26, 10 };
+	char _Magic[] = { -119, 'P', 'N', 'G', 13, 10, 26, 10 };
+	BufferArray<char,8> __Magic( _Magic );
+	auto Magic = GetArrayBridge( __Magic );
+	if ( !ArrayReader.ReadCompare( Magic ) )
+	{
+		//	if we failed here and not at the start of the data, that might be the problem
+		Soy::Assert( ArrayReader.mOffset == 0, "TPng::CheckMagic failed, and data is not at start... could be the issue" );
+		return false;
+	}
+	
+	return true;
+}
+
 bool TPng::THeader::IsValid() const
 {
 	if ( mCompression != TCompression::DEFLATE )

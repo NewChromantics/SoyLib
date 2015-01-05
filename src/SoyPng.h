@@ -62,6 +62,9 @@ namespace TPng
 		TInterlace::Type	mInterlace;
 	};
 	
+	bool		CheckMagic(TArrayReader& ArrayReader);
+	bool		CheckMagic(ArrayBridge<char>&& PngData);
+
 	TColour::Type			GetColourType(SoyPixelsFormat::Type Format);
 	SoyPixelsFormat::Type	GetPixelFormatType(TColour::Type Format);
 	

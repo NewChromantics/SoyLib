@@ -1075,21 +1075,14 @@ bool SoyPixelsImpl::GetRawSoyPixels(ArrayBridge<char>& RawData) const
 bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData,std::stringstream& Error)
 {
 	//	http://stackoverflow.com/questions/7942635/write-png-quickly
-	
-	//uint8 Magic[] = { 137, 80, 78, 71, 13, 10, 26, 10 };
-	char _Magic[] = { -119, 'P', 'N', 'G', 13, 10, 26, 10 };
-	BufferArray<char,8> __Magic( _Magic );
-	auto Magic = GetArrayBridge( __Magic );
-	
-
 	TArrayReader Png( PngData );
 
-	if ( !Png.ReadCompare( Magic ) )
+	if ( !TPng::CheckMagic( Png ) )
 	{
 		Error << "PNG has invalid magic header";
 		return false;
 	}
-	
+
 	
 	TPng::THeader Header;
 	assert( !Header.IsValid() );
