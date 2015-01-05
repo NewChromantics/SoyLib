@@ -276,7 +276,7 @@ bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::stringstr
 	return true;
 }
 
-bool Soy::LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename,std::stringstream& Error)
+bool Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename,std::stringstream& Error)
 {
 	//	gr: would be nice to have an array! MemFileArray maybe, if it can be cross paltform...
 	std::ifstream Stream( Filename, std::ios::binary|std::ios::in );
