@@ -458,3 +458,35 @@ public:
 	float	z;
 };
 
+
+
+class vec4f
+{
+public:
+	vec4f(float _x,float _y,float _z,float _w) :
+		x	( _x ),
+		y	( _y ),
+		z	( _z ),
+		w	( _w )
+	{
+	}
+	vec4f() :
+		x	( 0 ),
+		y	( 0 ),
+		z	( 0 ),
+		w	( 0 )
+	{
+	}
+	
+	float	LengthSq() const	{	return (x*x)+(y*y)+(z*z)+(w*w);	}
+	float	Length() const		{	return sqrtf( LengthSq() );	}
+	
+	vec4f&	operator*=(const float& Scalar)	{	x*=Scalar;		y*=Scalar;		z*=Scalar;	w*=Scalar;	return *this;	}
+	vec4f&	operator*=(const vec4f& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;		z*=Scalar.z;		w*=Scalar.w;	return *this;	}
+	
+public:
+	float	x;
+	float	y;
+	float	z;
+	float	w;
+};
