@@ -558,6 +558,11 @@ public:
 		mBitPos	( 0 )
 	{
 	}
+	TBitReader(const ArrayBridge<char>&& Data) :
+		mData	( Data ),
+		mBitPos	( 0 )
+	{
+	}
 	
 	bool						Read(int& Data,int BitCount);
 	bool						Read(uint64& Data,int BitCount);
@@ -576,6 +581,11 @@ private:
 class TBitWriter
 {
 public:
+	TBitWriter(ArrayBridge<char>&& Data) :
+		mData	( Data ),
+		mBitPos	( 0 )
+	{
+	}
 	TBitWriter(ArrayBridge<char>& Data) :
 		mData	( Data ),
 		mBitPos	( 0 )
