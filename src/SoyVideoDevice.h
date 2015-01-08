@@ -22,11 +22,13 @@ public:
 	mTimecode		( false ),
 	mTimedMetadata	( false ),
 	mMetadata		( false ),
-	mMuxed			( false )
+	mMuxed			( false ),
+	mDepth			( false )
 	{
 		//Soy::Assert( !IsValid(), "expected invalid" );
 	}
 	
+	const std::string&	GetName() const	{	return mName.empty() ? mSerial : mName;	}
 	bool		IsValid() const		{	return !mSerial.empty();	}
 	bool		operator==(const std::string& SerialOrName) const;
 	
@@ -45,7 +47,11 @@ public:
 	bool		mTimedMetadata;
 	bool		mMetadata;
 	bool		mMuxed;
+	bool		mDepth;
 };
+
+std::ostream& operator<< (std::ostream &out,const TVideoDeviceMeta &in);
+
 
 namespace TVideoQuality
 {
@@ -86,17 +92,28 @@ public:
 class TVideoFrameImpl
 {
 public:
+	TVideoFrameImpl(const std::string& Serial) :
+		mSerial	( Serial )
+	{
+	}
+	
 	bool							IsValid() const		{	return GetPixelsConst().IsValid();	}
 	virtual SoyPixelsImpl&			GetPixels() =0;
 	virtual const SoyPixelsImpl&	GetPixelsConst() const=0;
 	
 public:
-	SoyTime			mTimecode;
+	std::string			mSerial;
+	SoyTime				mTimecode;
 };
 
 class TVideoFrame : public TVideoFrameImpl
 {
 public:
+	TVideoFrame(const std::string& Serial) :
+		TVideoFrameImpl	( Serial )
+	{
+	}
+
 	virtual SoyPixelsImpl&			GetPixels() override		{	return mPixels;	}
 	virtual const SoyPixelsImpl&	GetPixelsConst() const override 	{	return mPixels;	}
 	
@@ -135,11 +152,13 @@ public:
 	MemFileArray		mMemFileArray;
 };
 
+
 class TVideoFrameMemFile : public TVideoFrameImpl
 {
 public:
-	TVideoFrameMemFile(std::string Filename,bool AllowOtherFilenames) :
-	mPixels	( Filename, AllowOtherFilenames )
+	TVideoFrameMemFile(const std::string& Serial,std::string Filename,bool AllowOtherFilenames) :
+		TVideoFrameImpl	( Serial ),
+		mPixels			( Filename, AllowOtherFilenames )
 	{
 	}
 	

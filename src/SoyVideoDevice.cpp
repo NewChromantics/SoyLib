@@ -15,10 +15,28 @@ bool TVideoDeviceMeta::operator==(const std::string& Serial) const
 }
 
 
+std::ostream& operator<< (std::ostream &out,const TVideoDeviceMeta &in)
+{
+	auto& Meta = in;
+	out << Meta.GetName() << "[" << Meta.mSerial << "]";
+	if ( Meta.mVideo )	out << " +Video";
+	if ( Meta.mAudio )	out << " +Audio";
+	if ( Meta.mText )	out << " +Text";
+	if ( Meta.mClosedCaption )	out << " +ClosedCaption";
+	if ( Meta.mSubtitle )	out << " +Subtitle";
+	if ( Meta.mTimecode )	out << " +Timecode";
+	if ( Meta.mTimedMetadata )	out << " +TimedMetadata";
+	if ( Meta.mMetadata )	out << " +Metadata";
+	if ( Meta.mMuxed )	out << " +Muxed";
+	if ( Meta.mDepth )	out << " +Depth";
+	return out;
+}
+
+
 TVideoDevice::TVideoDevice(std::string Serial,std::stringstream& Error) :
-mLastFrame		( (std::stringstream() << "frame_" << Serial).str(), true ),
-mLastError		( "waiting for first frame" ),
-mFrameCount		( 0 )
+	mLastFrame		( Serial, (std::stringstream() << "frame_" << Serial).str(), true ),
+	mLastError		( "waiting for first frame" ),
+	mFrameCount		( 0 )
 {
 }
 
