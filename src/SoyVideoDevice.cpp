@@ -8,7 +8,7 @@ bool TVideoDeviceMeta::operator==(const std::string& Serial) const
 		return true;
 	
 	//	gr: allow loose match by name
-	if ( Soy::StringContains( mName, Serial, false ) )
+	if ( Soy::StringContains( GetName(), Serial, false ) )
 		return true;
 	
 	return false;
@@ -146,7 +146,7 @@ public:
 		bool bExactSerial = b.mSerial == mMatchSerial;
 		if ( aExactSerial && !bExactSerial )	return -1;
 		if ( !aExactSerial && bExactSerial )	return 1;
-		
+	
 		bool aExactName = a.mName == mMatchSerial;
 		bool bExactName = b.mName == mMatchSerial;
 		if ( aExactName && !bExactName )	return -1;
