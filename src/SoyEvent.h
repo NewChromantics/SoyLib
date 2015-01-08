@@ -5,6 +5,7 @@
 //#include "ofxSoylent.h"
 #include <map>
 
+
 class SoyListenerId
 {
 public:
@@ -36,6 +37,7 @@ class SoyEvent
 {
 public:
 	typedef std::function<void(PARAM&)> FUNCTION;
+	typedef std::mutex MUTEX;		//	gr: recursive mutex DOES NOT help
 
 public:
 	//	helper for member functions
@@ -59,24 +61,46 @@ public:
 		if ( !ListenerId.IsValid() )
 			ListenerId = AllocListenerId();
 		
-		std::lock_guard<std::mutex> lock(mListenerLock);
+		std::lock_guard<MUTEX> lock(mListenerLock);
 		mListeners[ListenerId] = Function;
 		return ListenerId;
 	}
 	void			RemoveListener(SoyListenerId Id)
 	{
-		std::lock_guard<std::mutex> lock(mListenerLock);
+		//	it's very easy to get a deadlock here
+		if ( !mListenerLock.try_lock() )
+		{
+			std::lock_guard<std::mutex> DeadLock( mDeadListenerLock );
+			mDeadListeners.push_back( Id );
+			//	gr: recursive include
+			//std::Debug << "Failed to RemoveLister() in case of deadlock" << std::endl;
+			return;
+		}
 		mListeners.erase(Id);
+		mListenerLock.unlock();
 	}
 	void			RemoveListener(FUNCTION Function)
 	{
-		//std::lock_guard<std::mutex> lock(mListenerLock);
+		//std::lock_guard<MUTEX> lock(mListenerLock);
 		//mListeners.erase(Function);
 	}
 
 	void			OnTriggered(PARAM& Param)
 	{
-		std::lock_guard<std::mutex> lock(mListenerLock);
+		//	kill off dead listeners
+		if ( !mDeadListeners.empty() )
+		{
+			std::lock_guard<std::mutex> DeadLock( mDeadListenerLock );
+			std::lock_guard<MUTEX> ListenerLock(mListenerLock);
+			while ( !mDeadListeners.empty() )
+			{
+				auto Id = mDeadListeners.back();
+				mListeners.erase(Id);
+				mDeadListeners.pop_back();
+			}
+		}
+		
+		std::lock_guard<MUTEX> lock(mListenerLock);
 
 		//	todo: execute on seperate threads with SoyScheduler
 		for ( auto it=mListeners.begin();	it!=mListeners.end();	it++ )
@@ -92,6 +116,9 @@ public:
 	SoyListenerId	AllocListenerId()			{	return SoyListenerId::Alloc();	}
 	
 public:
-	std::mutex				mListenerLock;
+	MUTEX								mListenerLock;
 	std::map<SoyListenerId,FUNCTION>	mListeners;
+	
+	std::mutex							mDeadListenerLock;
+	std::vector<SoyListenerId>			mDeadListeners;
 };
