@@ -15,6 +15,7 @@ public:
 	{
 	}
 	
+	inline bool		IsValid() const	{	return (*this) != SoyListenerId();	}
 	inline bool		operator==(const SoyListenerId& That) const	{	return this->mId == That.mId;	}
 	inline bool		operator!=(const SoyListenerId& That) const	{	return this->mId != That.mId;	}
 	inline bool		operator<(const SoyListenerId& That) const	{	return this->mId < That.mId;	}
@@ -52,12 +53,15 @@ public:
 	}
 
 	//	add static or lambda
-	SoyListenerId		AddListener(FUNCTION Function)
+	SoyListenerId		AddListener(FUNCTION Function,SoyListenerId ListenerId=SoyListenerId())
 	{
+		//	gr: need to ensure no duplicates...
+		if ( !ListenerId.IsValid() )
+			ListenerId = AllocListenerId();
+		
 		std::lock_guard<std::mutex> lock(mListenerLock);
-		SoyListenerId Id = AllocListenerId();
-		mListeners[Id] = Function;
-		return Id;
+		mListeners[ListenerId] = Function;
+		return ListenerId;
 	}
 	void			RemoveListener(SoyListenerId Id)
 	{
@@ -85,9 +89,7 @@ public:
 	bool			HasListeners() const		{	return !mListeners.empty();	}
 	int				GetListenerCount() const	{	return mListeners.size();	}
 
-private:
 	SoyListenerId	AllocListenerId()			{	return SoyListenerId::Alloc();	}
-	
 	
 public:
 	std::mutex				mListenerLock;
