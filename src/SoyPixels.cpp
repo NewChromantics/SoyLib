@@ -931,6 +931,10 @@ bool TPixels::Set(const ofPixels& Pixels)
 static bool treatbgrasrgb = false;
 #endif
 
+#if defined(TARGET_OSX)
+static bool GetOsxFormatSpecial = false;
+#endif
+
 bool SoyPixelsFormat::GetOpenglFormat(int& glFormat,SoyPixelsFormat::Type Format)
 {
 	glFormat = -1;
@@ -940,8 +944,8 @@ bool SoyPixelsFormat::GetOpenglFormat(int& glFormat,SoyPixelsFormat::Type Format
 	switch ( Format )
 	{
 #if defined(TARGET_OSX)
-		case SoyPixelsFormat::RGB:			glFormat = GL_RGB8;			return true;
-		case SoyPixelsFormat::RGBA:			glFormat = GL_RGBA8;		return true;
+		case SoyPixelsFormat::RGB:			glFormat = GetOsxFormatSpecial ? GL_RGB8 : GL_RGB;		return true;
+		case SoyPixelsFormat::RGBA:			glFormat = GetOsxFormatSpecial ? GL_RGBA8 : GL_RGBA;	return true;
 #else
 		case SoyPixelsFormat::RGB:			glFormat = GL_RGB;			return true;
 		case SoyPixelsFormat::RGBA:			glFormat = GL_RGBA;			return true;
@@ -961,6 +965,7 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromOpenglFormat(int glFormat)
 		//	gr: osx returns these values hmmmm
 		case GL_RGBA8:	return SoyPixelsFormat::RGBA;
 		case GL_RGB8:	return SoyPixelsFormat::RGB;
+			
 		case GL_LUMINANCE:	return SoyPixelsFormat::Greyscale;
 		case GL_RGB:	return SoyPixelsFormat::RGB;
 		case GL_RGBA:	return SoyPixelsFormat::RGBA;
