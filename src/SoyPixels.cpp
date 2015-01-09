@@ -11,6 +11,11 @@
 #endif
 #endif
 
+#define USE_STB
+#if defined(USE_STB)
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
+#endif
 
 /// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED frame callbacks
 #define FREENECT_DEPTH_MM_MAX_VALUE 10000
@@ -1087,6 +1092,33 @@ bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData,std::stringstream& E
 		Error << "PNG has invalid magic header";
 		return false;
 	}
+	
+	//	use stb
+#if defined(USE_STB)
+	const stbi_uc* Buffer = reinterpret_cast<const stbi_uc*>( PngData.GetArray() );
+	int BufferSize = PngData.GetDataSize();
+	int Width = 0;
+	int Height = 0;
+	int Components = 0;
+	int RequestComponents = 0;
+	auto* DecodedPixels = stbi_load_from_memory( Buffer, BufferSize, &Width,&Height, &Components, RequestComponents );
+	if ( !DecodedPixels )
+	{
+		Error << "Failed to decode png pixels";
+		return false;
+	}
+	
+	auto Format = SoyPixelsFormat::GetFormatFromChannelCount(Components);
+	if ( !this->Init( Width, Height, Format ) )
+	{
+		Error << "Failed to init pixels from png (" << Width << "x" << Height << " " << Format << ")";
+		return false;
+	}
+	auto* ThisPixels = this->GetPixelsArray().GetArray();
+	memcpy( ThisPixels, DecodedPixels, this->GetPixelsArray().GetDataSize() );
+	return true;
+#endif
+	
 
 	
 	TPng::THeader Header;
