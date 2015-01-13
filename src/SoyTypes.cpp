@@ -6,6 +6,14 @@
 #include "SoyString.h"
 #include "SoyDebug.h"
 
+namespace Soy
+{
+	//	defualt on, but allow build options to change default (or call Soy::EnableAssertThrow)
+#if !defined(SOY_ENABLE_ASSERT_THROW)
+#define SOY_ENABLE_ASSERT_THROW true
+#endif
+	bool	gEnableThrowInAssert = SOY_ENABLE_ASSERT_THROW;
+}
 
 #if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
@@ -492,6 +500,11 @@ std::string Soy::DemangleTypeName(const char* name)
 
 #endif
 
+void Soy::EnableThrowInAssert(bool Enable)
+{
+	gEnableThrowInAssert = Enable;
+}
+
 bool Soy::Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException )
 {
 	return Assert( Condition, [&ErrorMessage]{	return Soy::StreamToString(ErrorMessage);	} );
@@ -503,12 +516,14 @@ bool Soy::Assert(bool Condition,std::function<std::string()> ErrorMessageFunc) t
 		return true;
 	
 	std::string ErrorMessage = ErrorMessageFunc();
-	
-	//	only throw exception is debugger is attached?...
-	//	gr: if not debugged, NOT throwing exception so unity plugin doesn't take down unity
-	if ( Platform::IsDebuggerAttached() )
+
+	//	sometimes we disable throwing an exception to stop hosting being taken down
+	if ( !gEnableThrowInAssert )
 	{
 		std::Debug << "Assert: " << ErrorMessage << std::endl;
+		//	break debugger without throwing an exception
+		//	gr: try and find this call for xcode
+		//	if ( Platform::IsDebuggerAttached() )
 		//Debugger();
 		return false;
 	}

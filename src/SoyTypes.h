@@ -384,6 +384,8 @@ std::string			mError;
 
 namespace Soy
 {
+	void		EnableThrowInAssert(bool Enable);		//	use to turn of throwing exceptions (good for plugins so they don't take down the host application)
+	
 #pragma warning(disable:4290)
 	//	replace asserts with exception. If condition fails false is returned to save code
 	bool		Assert(bool Condition,std::function<std::string()> ErrorMessageFunc) throw(AssertException);
