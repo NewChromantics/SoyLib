@@ -173,7 +173,7 @@ public:
 class TVideoDevice
 {
 public:
-	TVideoDevice(std::string Serial,std::stringstream& Error);
+	TVideoDevice(const TVideoDeviceMeta& Meta,std::stringstream& Error);
 	virtual ~TVideoDevice();
 	
 	virtual TVideoDeviceMeta	GetMeta() const=0;		//	gr: make this dynamic so other states might change
@@ -217,7 +217,7 @@ public:
 	inline void								GetDevices(ArrayBridge<TVideoDeviceMeta>&& Metas)	{	return GetDevices( Metas );	}
 
 	virtual void							GetDevices(ArrayBridge<TVideoDeviceMeta>& Metas)=0;
-	virtual std::shared_ptr<TVideoDevice>	AllocDevice(const std::string& Serial,std::stringstream& Error)=0;
+	virtual std::shared_ptr<TVideoDevice>	AllocDevice(const TVideoDeviceMeta& Meta,std::stringstream& Error)=0;
 };
 
 

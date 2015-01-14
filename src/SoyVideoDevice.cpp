@@ -33,8 +33,8 @@ std::ostream& operator<< (std::ostream &out,const TVideoDeviceMeta &in)
 }
 
 
-TVideoDevice::TVideoDevice(std::string Serial,std::stringstream& Error) :
-	mLastFrame		( Serial, (std::stringstream() << "frame_" << Serial).str(), true ),
+TVideoDevice::TVideoDevice(const TVideoDeviceMeta& Meta,std::stringstream& Error) :
+	mLastFrame		( Meta.mSerial, (std::stringstream() << "frame_" << Meta.mSerial).str(), true ),
 	mLastError		( "waiting for first frame" ),
 	mFrameCount		( 0 )
 {
@@ -254,7 +254,7 @@ std::shared_ptr<TVideoDevice> SoyVideoCapture::GetDevice(std::string Serial,std:
 			return mDevices[i];
 	}
 	
-	//	in case we've provided the name, find the proper serial
+	//	in case we've provided the name, or only part of the serial, find the proper serial (and it's meta)
 	auto Meta = GetDeviceMeta( Serial );
 	if ( !Meta.IsValid() )
 	{
@@ -272,7 +272,7 @@ std::shared_ptr<TVideoDevice> SoyVideoCapture::GetDevice(std::string Serial,std:
 		auto& Container = *mContainers[c];
 		if ( !Container.HasDevice( Meta.mSerial ) )
 			continue;
-		Device = Container.AllocDevice( Meta.mSerial, InitError );
+		Device = Container.AllocDevice( Meta, InitError );
 	}
 
 	if ( !Device )
