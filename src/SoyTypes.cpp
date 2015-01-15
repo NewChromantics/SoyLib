@@ -510,6 +510,31 @@ bool Soy::Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertExcep
 	return Assert( Condition, [&ErrorMessage]{	return Soy::StreamToString(ErrorMessage);	} );
 }
 
+namespace Soy
+{
+	namespace Platform
+	{
+		bool	DebugBreak();
+	}
+}
+
+#include <signal.h>
+bool Soy::Platform::DebugBreak()
+{
+#if defined(TARGET_OSX)
+	//	gr: supposedly this works, if you enable it in the scheme, but I don't know where it's declared
+	//Debugger();
+	
+	//	raise an interrupt
+//	raise(SIGINT);
+	raise(SIGUSR1);
+	return true;
+#endif
+	
+	//	not supported
+	return false;
+}
+
 bool Soy::Assert(bool Condition,std::function<std::string()> ErrorMessageFunc) throw(AssertException)
 {
 	if ( Condition )
@@ -517,16 +542,16 @@ bool Soy::Assert(bool Condition,std::function<std::string()> ErrorMessageFunc) t
 	
 	std::string ErrorMessage = ErrorMessageFunc();
 
+	std::Debug << "Assert: " << ErrorMessage << std::endl;
+	
+	//	if the debugger is attached, try and break the debugger without an exception so we can continue
+	if ( Platform::IsDebuggerAttached() )
+		if ( Soy::Platform::DebugBreak() )
+			return false;
+
 	//	sometimes we disable throwing an exception to stop hosting being taken down
 	if ( !gEnableThrowInAssert )
-	{
-		std::Debug << "Assert: " << ErrorMessage << std::endl;
-		//	break debugger without throwing an exception
-		//	gr: try and find this call for xcode
-		//	if ( Platform::IsDebuggerAttached() )
-		//Debugger();
 		return false;
-	}
 	
 	//	throw exception
 	throw Soy::AssertException( ErrorMessage );
