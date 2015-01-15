@@ -942,7 +942,6 @@ static bool GetOsxFormatSpecial = false;
 
 bool SoyPixelsFormat::GetOpenglFormat(int& glFormat,SoyPixelsFormat::Type Format)
 {
-	glFormat = -1;
 #if defined(SOY_OPENGL)
 	glFormat = GL_INVALID_VALUE;
 	//	from ofGetGlInternalFormat(const ofPixels& pix)
@@ -957,8 +956,14 @@ bool SoyPixelsFormat::GetOpenglFormat(int& glFormat,SoyPixelsFormat::Type Format
 #endif
 		case SoyPixelsFormat::Greyscale:	glFormat = GL_LUMINANCE;	return true;
 		case SoyPixelsFormat::BGRA:			glFormat = treatbgrasrgb ? GL_RGBA: GL_BGRA;			return true;
+			
+		default:
+			glFormat = GL_INVALID_VALUE;
+			return false;
 	}
 #endif
+
+	glFormat = -1;
 	return false;
 }
 
