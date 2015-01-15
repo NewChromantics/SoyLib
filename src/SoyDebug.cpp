@@ -81,8 +81,7 @@ void std::DebugStreamBuf::flush()
 			std::cout << Buffer.c_str();
 		}
 #elif defined(TARGET_OSX)
-		//	todo: use NSLog!
-		static bool UseNsLog = true;
+		static bool UseNsLog = false;
 		static bool UseCout = true;
 		if ( UseNsLog )
 		{
