@@ -645,7 +645,7 @@ bool ConvertDepth16(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFo
 	bool NewFrontToBack = SoyPixelsFormat::GetIsFrontToBackDepth( NewFormat );
 	
 	int OldDepthBits = GetDepthFormatBits( OldFormat );
-	int NewDepthBits = GetDepthFormatBits( NewFormat );
+	//int NewDepthBits = GetDepthFormatBits( NewFormat );
 	
 	uint16* DepthPixels = reinterpret_cast<uint16*>( Pixels.GetArray() );
 	int PixelCount = Meta.GetWidth() * Meta.GetHeight( Pixels.GetDataSize() );
@@ -1453,8 +1453,6 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 
 void SoyPixelsImpl::ResizeFastSample(uint16 Width, uint16 Height)
 {
-	auto& Pixels = GetPixelsArray();
-	
 	//	copy old data
 	SoyPixels Old;
 	Old.Copy(*this);
@@ -1476,7 +1474,7 @@ void SoyPixelsImpl::ResizeFastSample(uint16 Width, uint16 Height)
 	}
 	
 	assert( Height == GetHeight() );
-	assert( Width = GetWidth() );
+	assert( Width == GetWidth() );
 }
 
 
