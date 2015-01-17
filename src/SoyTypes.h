@@ -417,32 +417,6 @@ namespace Soy
 
 
 
-class vec2f
-{
-public:
-	vec2f(float _x,float _y) :
-	x	( _x ),
-	y	( _y )
-	{
-	}
-	vec2f() :
-	x	( 0 ),
-	y	( 0 )
-	{
-	}
-	
-	float	LengthSq() const	{	return (x*x)+(y*y);	}
-	float	Length() const		{	return sqrtf( LengthSq() );	}
-	
-	vec2f&	operator*=(const float& Scalar)	{	x*=Scalar;		y*=Scalar;	return *this;	}
-	vec2f&	operator*=(const vec2f& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;	return *this;	}
-	
-public:
-	float	x;
-	float	y;
-};
-
-
 class vec3f
 {
 public:
@@ -503,3 +477,32 @@ public:
 	float	z;
 	float	w;
 };
+
+
+template<typename TYPE>
+class vec2x
+{
+public:
+	vec2x(TYPE _x,TYPE _y) :
+	x	( _x ),
+	y	( _y )
+	{
+	}
+	vec2x() :
+	x	( 0 ),
+	y	( 0 )
+	{
+	}
+	
+	TYPE	LengthSq() const	{	return (x*x)+(y*y);	}
+	TYPE	Length() const		{	return sqrtf( LengthSq() );	}
+	
+	vec2x&	operator*=(const TYPE& Scalar)	{	x*=Scalar;		y*=Scalar;	return *this;	}
+	vec2x&	operator*=(const vec2x& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;	return *this;	}
+	
+public:
+	TYPE	x;
+	TYPE	y;
+};
+
+typedef vec2x<float> vec2f;
