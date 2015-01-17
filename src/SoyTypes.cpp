@@ -237,7 +237,8 @@ bool Soy::ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream)
 		return false;
 	
 	auto BytesRead = Stream.gcount();
-	Data.SetSize( BytesRead );
+	Soy::Assert( BytesRead < std::numeric_limits<int>::max(), "integer too big" );
+	Data.SetSize( static_cast<int>(BytesRead) );
 	
 	return true;
 }
