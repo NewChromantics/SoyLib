@@ -81,8 +81,11 @@ bool MemFileArray::Init(int DataSize,bool ReadOnly,std::stringstream& Error)
 	
 	int MapProtectionFlags = ReadOnly ? PROT_READ : (PROT_READ|PROT_WRITE);
 	mMap = mmap(0, DataSize, MapProtectionFlags, MAP_SHARED, mHandle, 0);
-	if ( mMap == MAP_FAILED)
+	if ( mMap == MAP_FAILED )
 	{
+		//	don't store error code as unmap will fail
+		mMap = nullptr;
+		
 		auto PlatformError = Soy::Platform::GetLastErrorString();
 		Error << "MemFileArray(" << mFilename << ") error: mmap failed; " << PlatformError;
 		Close();
@@ -162,6 +165,24 @@ bool OpenFile(int& FileHandle,std::string& Filename,size_t Size,int CreateFlags,
 		if (r != 0)
 		{
 			Error << "MemFileArray(" << Filename << ") error: ftruncate(" << Size << ") failed; " << Soy::Platform::GetLastErrorString();
+			
+			
+			//	gr: if truncate failed, it may be that the existing file is smaller than we want, we can't get the file size, but we can figure it out....
+			auto ValidFileSize = Size;
+			while ( r!=0 && ValidFileSize > 0 )
+			{
+				r = ftruncate( FileHandle, ValidFileSize );
+				ValidFileSize--;
+			}
+
+			//	found a file size that ftruncate worked on (though we might have just trashed the contents)
+			if ( r==0 )
+			{
+				std::Debug << "Established that MemFileArray(" << Filename << ") is already open at " << ValidFileSize << " bytes, failing open." << std::endl;
+			}
+			
+			//	fail regardless, mmap will probably fail next
+			return false;
 		}
 	}
 	
@@ -215,7 +236,7 @@ void MemFileArray::Destroy()
 #if defined(TARGET_OSX)
 	//	ignore if opened in read-only?
 	auto Result = shm_unlink( mFilename.c_str() );
-	Soy::Assert(Result==0, "error unmapping" );
+	Soy::Assert(Result==0, "error unlinking memory" );
 #endif
 }
 
@@ -260,16 +281,14 @@ bool MemFileArray::SetSize(int size, bool preserve,bool AllowLess)
 		Init( size, ReadOnly );
 	}
 	
-	//	limit size
-	//	gr: assert, safely alloc, and return error. Maybe shouldn't "safely alloc"
-	//	gr: assert over limit, don't silently fail
-	assert( size <= MaxSize() );
-	if ( size > MaxSize() )
+	//	if we hit the limit, don't change and fail
+	//	gr: this is rare enough that an assert should be okay to add to debug
+	auto Error = [size,this]
 	{
-		size = MaxSize();
-		mOffset = size;
+		return (std::stringstream() << "Cannot allocate " << size << " > maxsize " << MaxSize()).str();
+	};
+	if ( !Soy::Assert( size <= MaxSize(), Error ) )
 		return false;
-	}
 	
 	mOffset = size;
 	return true;
