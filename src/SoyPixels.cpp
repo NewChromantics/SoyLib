@@ -531,6 +531,15 @@ bool DepthToGreyOrRgb(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixels
 		}
 		else
 		{
+			//	greyscale...
+			static int GreyInvalid = 0;
+			static int GreyMin = 1;
+			uint8 Greyscale = ofLimit<int>( static_cast<int>(Depthf*255.f), GreyMin, 255 );
+
+			//	set first component to greyscale
+			Red = DepthInvalid ? GreyInvalid : Greyscale;
+			
+			//	other components just valid/not
 			for ( int c=1;	c<Components;	c++ )
 			{
 				char& Blue = Pixels[ p * (Components) + c ];
@@ -1081,8 +1090,11 @@ bool SoyPixelsImpl::GetRawSoyPixels(ArrayBridge<char>& RawData) const
 	RawData.Clear(false);
 	RawData.Reserve( sizeof(SoyPixelsMeta) + Pixels.GetDataSize() );
 	
-	RawData.PushBackReinterpret( Meta );
-	RawData.PushBackArray( Pixels );
+	if ( !RawData.PushBackReinterpret( Meta ) )
+		return false;
+	if ( !RawData.PushBackArray( Pixels ) )
+		return false;
+	
 	return true;
 }
 
