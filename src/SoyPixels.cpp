@@ -1134,9 +1134,7 @@ bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData,std::stringstream& E
 	auto* ThisPixels = this->GetPixelsArray().GetArray();
 	memcpy( ThisPixels, DecodedPixels, this->GetPixelsArray().GetDataSize() );
 	return true;
-#endif
-	
-
+#else
 	
 	TPng::THeader Header;
 	assert( !Header.IsValid() );
@@ -1245,6 +1243,7 @@ bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData,std::stringstream& E
 		return false;
 	
 	return true;
+#endif
 }
 
 bool SoyPixelsImpl::SetRawSoyPixels(const ArrayBridge<char>& RawData)
