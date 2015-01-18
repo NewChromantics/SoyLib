@@ -134,44 +134,52 @@ void SoyVideoCapture::GetDevices(ArrayBridge<TVideoDeviceMeta>&& Metas)
 class TSortPolicy_BestVideoMeta : public TSortPolicy<TVideoDeviceMeta>
 {
 public:
-	TSortPolicy_BestVideoMeta(const std::string& Serial)
+	TSortPolicy_BestVideoMeta(const std::string& Serial) :
+		mMatchSerial		( Serial ),
+		mMatchSerialLower	( Soy::StringToLower( Serial ) )
 	{
-		mMatchSerial = Serial;
 	}
 	
 	template<typename TYPEB>
-	static int		Compare(const TVideoDeviceMeta& a,const TYPEB& b)
+	static int			Compare(const TVideoDeviceMeta& a,const TYPEB& b,const TSortPolicy_BestVideoMeta& This)
 	{
-		bool aExactSerial = a.mSerial == mMatchSerial;
-		bool bExactSerial = b.mSerial == mMatchSerial;
+		bool aExactSerial = a.mSerial == This.mMatchSerial;
+		bool bExactSerial = b.mSerial == This.mMatchSerial;
 		if ( aExactSerial && !bExactSerial )	return -1;
 		if ( !aExactSerial && bExactSerial )	return 1;
-	
-		bool aExactName = a.mName == mMatchSerial;
-		bool bExactName = b.mName == mMatchSerial;
+		
+		std::string a_mSerial_Lower = Soy::StringToLower( a.mSerial );
+		std::string b_mSerial_Lower = Soy::StringToLower( b.mSerial );
+		bool aExactSerialLower = a_mSerial_Lower == This.mMatchSerialLower;
+		bool bExactSerialLower = b_mSerial_Lower == This.mMatchSerialLower;
+		if ( aExactSerialLower && !bExactSerialLower )	return -1;
+		if ( !aExactSerialLower && bExactSerialLower )	return 1;
+		
+		bool aExactName = a.mName == This.mMatchSerial;
+		bool bExactName = b.mName == This.mMatchSerial;
 		if ( aExactName && !bExactName )	return -1;
 		if ( !aExactName && bExactName )	return 1;
 		
-		bool aSerialStartsWith = Soy::StringBeginsWith( a.mSerial, mMatchSerial, false );
-		bool bSerialStartsWith = Soy::StringBeginsWith( b.mSerial, mMatchSerial, false );
+		bool aSerialStartsWith = Soy::StringBeginsWith( a.mSerial, This.mMatchSerial, false );
+		bool bSerialStartsWith = Soy::StringBeginsWith( b.mSerial, This.mMatchSerial, false );
 		if ( aSerialStartsWith && !bSerialStartsWith )	return -1;
 		if ( !aSerialStartsWith && bSerialStartsWith )	return 1;
 		
-		bool aNameStartsWith = Soy::StringBeginsWith( a.mName, mMatchSerial, false );
-		bool bNameStartsWith = Soy::StringBeginsWith( b.mName, mMatchSerial, false );
+		bool aNameStartsWith = Soy::StringBeginsWith( a.mName, This.mMatchSerial, false );
+		bool bNameStartsWith = Soy::StringBeginsWith( b.mName, This.mMatchSerial, false );
 		if ( aNameStartsWith && !bNameStartsWith )	return -1;
 		if ( !aNameStartsWith && bNameStartsWith )	return 1;
 		
 		std::stringstream Error;
-		Error << "Need some more sorting comparisons for [" << mMatchSerial << "] with [" << a.mSerial << "/" << a.mName << "] and [" << b.mSerial << "/" << b.mName << "]";
+		Error << "Need some more sorting comparisons for [" << This.mMatchSerial << "] with [" << a.mSerial << "/" << a.mName << "] and [" << b.mSerial << "/" << b.mName << "]";
 		Soy::Assert( false, Error );
 		return 0;
 	}
 	
-private:
-	static std::string		mMatchSerial;	//	gr: need a better way of having variables in sort policies
+public:
+	std::string		mMatchSerial;	//	gr: need a better way of having variables in sort policies
+	std::string		mMatchSerialLower;
 };
-std::string TSortPolicy_BestVideoMeta::mMatchSerial;
 
 
 TVideoDeviceMeta SoyVideoCapture::GetDeviceMeta(std::string Serial)
