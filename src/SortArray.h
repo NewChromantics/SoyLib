@@ -184,7 +184,7 @@ public:
 		while ( ( p2 - p1 ) > 1 )
 		{
 			int a = ( p1 + p2 ) / 2;
-			int r = mPolicy.Compare( mArray[a], item );
+			int r = TSORTPOLICY::Compare( mArray[a], item, mPolicy );
 			if ( r > 0 )	//	item less than entry a
 			{
 				p2 = a;
@@ -199,10 +199,10 @@ public:
 				p1 = a;
 			}
 		}
-		a = mPolicy.Compare( mArray[p1], item );
+		a = TSORTPOLICY::Compare( mArray[p1], item, mPolicy );
 		if ( a >= 0 ) return p1;
 		
-		a = mPolicy.Compare( mArray[p2], item );
+		a = TSORTPOLICY::Compare( mArray[p2], item, mPolicy );
 		if ( a >= 0 ) return p2;
 		
 		return p2 + 1;
@@ -223,7 +223,7 @@ public:
 		
 		//	already exists
 		if ( dbi < GetSize() )
-			if ( mPolicy.Compare( mArray[dbi], item ) == 0 )
+			if ( TSORTPOLICY::Compare( mArray[dbi], item, mPolicy ) == 0 )
 				return mArray[dbi];
 		
 		//	insert the unique item
