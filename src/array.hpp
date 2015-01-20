@@ -331,10 +331,19 @@ public:
 	{
 	}
 	
-	bool		Eod() const		{	return mOffset == mArray.GetDataSize();	}
-	bool		Read(ArrayBridge<char>& Pop);			//	copy this-length of data
+	int			GetRemainingBytes() const	{	return mArray.GetDataSize() - mOffset;	}
+	bool		Eod() const					{	return GetRemainingBytes() <= 0;	}
+	//bool		ReadArray(ArrayBridge<char>& Pop);			//	copy this-length of data
 	bool		ReadCompare(ArrayBridge<char>& Match);	//	read array and make sure it matches Pop
-	bool		Read(uint8& Pop);
+	
+	template<typename TYPE>
+	bool		Read(TYPE& Pop);
+
+	template<typename TYPE>
+	bool		ReadArray(ArrayBridge<TYPE>& Pop);		//	read this-many
+	template<typename TYPE>
+	bool		ReadArray(ArrayBridge<TYPE>&& Pop)		{	return ReadArray( Pop );	}
+	
 	template<class BUFFERARRAYTYPE,typename TYPE>
 	bool		ReadReinterpretReverse(TYPE& Pop);
 	
@@ -346,6 +355,28 @@ public:
 	const ArrayBridge<char>&	mArray;
 };
 
+
+template<typename TYPE>
+inline bool TArrayReader::Read(TYPE& Pop)
+{
+	if ( mOffset+sizeof(TYPE) > mArray.GetDataSize() )
+		return false;
+	auto& Data = *reinterpret_cast<const TYPE*>( &mArray[mOffset] );
+	Pop = Data;
+	mOffset += sizeof(TYPE);
+	return true;
+}
+
+template<typename TYPE>
+inline bool TArrayReader::ReadArray(ArrayBridge<TYPE>& Pop)
+{
+	if ( mOffset+Pop.GetDataSize() > mArray.GetDataSize() )
+		return false;
+	auto* Data = reinterpret_cast<const TYPE*>( &mArray[mOffset] );
+	memcpy( Pop.GetArray(), Data, Pop.GetDataSize() );
+	mOffset += Pop.GetDataSize();
+	return true;
+}
 
 
 template<class BUFFERARRAYTYPE,typename TYPE>

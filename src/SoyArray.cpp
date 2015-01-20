@@ -3,18 +3,6 @@
 #include "heaparray.hpp"
 
 
-bool TArrayReader::Read(uint8& Pop)
-{
-	typedef uint8 TYPE;
-	if ( mOffset+sizeof(TYPE) > mArray.GetDataSize() )
-		return false;
-	auto& Data = *reinterpret_cast<const TYPE*>( &mArray[mOffset] );
-	Pop = Data;
-	mOffset += sizeof(TYPE);
-	return true;
-}
-
-
 
 bool TArrayReader::ReadReverse(ArrayBridge<char>& Pop)
 {
@@ -29,7 +17,7 @@ bool TArrayReader::ReadReverse(ArrayBridge<char>& Pop)
 	}
 	return true;
 }
-
+/*
 bool TArrayReader::Read(ArrayBridge<char>& Pop)
 {
 	//	allow zero length? this is assuming programming error
@@ -44,12 +32,12 @@ bool TArrayReader::Read(ArrayBridge<char>& Pop)
 	}
 	return true;
 }
-
+*/
 bool TArrayReader::ReadCompare(ArrayBridge<char>& Match)
 {
 	Array<char> Pop( Match.GetSize() );
 	auto PopBridge = GetArrayBridge( Pop );
-	if ( !Read( PopBridge ) )
+	if ( !ReadArray( PopBridge ) )
 		return false;
 	
 	assert( Match.GetSize() == Pop.GetSize() );
