@@ -305,16 +305,17 @@ bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 		Debug_TimerName << "Deflate compression; " << Soy::FormatSizeBytes(FilteredPixels.GetDataSize()) << ". Compression level: " << CompressionLevel;
 		ofScopeTimerWarning DeflateCompressTimer( Debug_TimerName, 3 );
 	
-		uLong DefAllocated = static_cast<int>( 1.2f * FilteredPixels.GetDataSize() );
+		int DefAllocated = static_cast<int>( 1.2f * FilteredPixels.GetDataSize() );
 		uLong DefUsed = DefAllocated;
 		auto* DefData = PngData.PushBlock(DefAllocated);
 		auto Result = mz_compress2( reinterpret_cast<Byte*>(DefData), &DefUsed, FilteredPixels.GetArray(), FilteredPixels.GetDataSize(), CompressionLevel );
 		assert( Result == MZ_OK );
 		if ( Result != MZ_OK )
 			return false;
-		assert( DefUsed <= DefAllocated );
+		if ( !Soy::Assert( DefUsed <= DefAllocated, "miniz compressed reported that it used more memory than we had allocated" ) )
+			return false;
 		//	trim data
-		int Overflow = DefAllocated - DefUsed;
+		int Overflow = DefAllocated - static_cast<int>(DefUsed);
 		PngData.SetSize( PngData.GetSize() - Overflow );
 		return true;
 
