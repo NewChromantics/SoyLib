@@ -34,10 +34,16 @@ std::map<TDeviceType::Type,std::string> TDeviceType::EnumMap =
 
 #define DECLARE_SOYENUM(Namespace)	\
 	extern std::map<Namespace::Type,std::string> EnumMap;	\
-	inline Type			ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap );	}	\
-	inline std::string	ToString(Type type)				{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
+	inline Type			ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap, Invalid );	}	\
+	inline std::string	ToString(Type type)					{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
 \
 
+
+#define DECLARE_SOYENUM_WITHINVALID(Namespace,INVALID)	\
+	extern std::map<Namespace::Type,std::string> EnumMap;	\
+	inline Type			ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap, INVALID );	}	\
+	inline std::string	ToString(Type type)					{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
+\
 
 
 namespace SoyEnum
@@ -46,7 +52,7 @@ namespace SoyEnum
 	std::string	ToString(ENUMTYPE Type,const ENUMMAP& EnumMap);
 	
 	template<typename ENUMTYPE,class ENUMMAP>
-	ENUMTYPE	ToType(const std::string& String,const ENUMMAP& EnumMap);
+	ENUMTYPE	ToType(const std::string& String,const ENUMMAP& EnumMap,ENUMTYPE Default);
 	
 }
 
@@ -66,14 +72,14 @@ inline std::string SoyEnum::ToString(ENUMTYPE Type,const ENUMMAP& EnumMap)
 
 
 template<typename ENUMTYPE,class ENUMMAP>
-inline ENUMTYPE SoyEnum::ToType(const std::string& String,const ENUMMAP& EnumMap)
+inline ENUMTYPE SoyEnum::ToType(const std::string& String,const ENUMMAP& EnumMap,ENUMTYPE Default)
 {
 	for ( auto it=EnumMap.begin();	it!=EnumMap.end();	it++ )
 	{
 		if ( it->second == String )
 			return it->first;
 	}
-	return ENUMTYPE::Invalid;
+	return Default;
 };
 
 
