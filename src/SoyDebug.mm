@@ -24,8 +24,8 @@ NSString* Soy::StringToNSString(const std::string& String)
 #if defined(TARGET_OSX)
 void Soy::Platform::DebugPrint(const std::string& String)
 {
-	NSString* MacString = Soy::StringToNSString( String );
+//	NSString* MacString = Soy::StringToNSString( String );
 
-	NSLog( MacString );
+	NSLog( @"%s", String.c_str() );
 }
 #endif
