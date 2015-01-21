@@ -164,23 +164,18 @@ bool OpenFile(int& FileHandle,std::string& Filename,size_t Size,int CreateFlags,
 		auto r = ftruncate( FileHandle, Size);
 		if (r != 0)
 		{
-			Error << "MemFileArray(" << Filename << ") error: ftruncate(" << Size << ") failed; " << Soy::Platform::GetLastErrorString();
+			auto ErrorVal = Soy::Platform::GetLastError();
+			auto ErrorString = Soy::Platform::GetErrorString( ErrorVal );
 			
-			
-			//	gr: if truncate failed, it may be that the existing file is smaller than we want, we can't get the file size, but we can figure it out....
-			auto ValidFileSize = Size;
-			while ( r!=0 && ValidFileSize > 0 )
+			if ( ErrorVal == EINVAL )
 			{
-				r = ftruncate( FileHandle, ValidFileSize );
-				ValidFileSize--;
+				Error << "MemFileArray(" << Filename << ") ftruncate error; " << Size << " must be larger than original size. " << ErrorString;
 			}
-
-			//	found a file size that ftruncate worked on (though we might have just trashed the contents)
-			if ( r==0 )
+			else
 			{
-				std::Debug << "Established that MemFileArray(" << Filename << ") is already open at " << ValidFileSize << " bytes, failing open." << std::endl;
+				Error << "MemFileArray(" << Filename << ") error: ftruncate(" << Size << ") failed; " << ErrorString;
 			}
-			
+		
 			//	fail regardless, mmap will probably fail next
 			return false;
 		}
@@ -191,7 +186,7 @@ bool OpenFile(int& FileHandle,std::string& Filename,size_t Size,int CreateFlags,
 
 bool MemFileArray::OpenWriteFile(size_t Size,std::stringstream& Error)
 {
-	BufferArray<std::string,10> FilenameTries;
+	BufferArray<std::string,100> FilenameTries;
 	FilenameTries.PushBack( mFilename );
 	
 	if ( mAllowOtherFilename )
