@@ -414,6 +414,7 @@ namespace Soy
 		return Assert( Condition, [&ErrorMessage]{	return ErrorMessage;	} );
 	}
 };
+#define Soy_AssertTodo()	Soy::Assert(false, std::stringstream()<<"todo: "<<__func__ )
 
 
 
