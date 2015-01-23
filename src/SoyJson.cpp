@@ -1,6 +1,37 @@
 #include "SoyJson.h"
 
 
+#include "heaparray.hpp"
+#include "SoyDebug.h"
+void SoyJson::UnitTest()
+{
+	TJsonWriter Json;
+	
+	Json.Push("a","one");
+	Json.Push("b",2);
+	Json.Push("c",3.4f);
+	
+	Array<int> Ints;
+	Ints.PushBack(5);
+	Ints.PushBack(67);
+	Ints.PushBack(8910);
+	Json.Push("d", GetArrayBridge(Ints) );
+	
+	Json.Push("special chars", "\n\t\r/\\" );
+	
+	TJsonWriter Empty;
+	Json.Push("EmptyJson", Empty );
+	
+	TJsonWriter Other;
+	Other.Push("x",0);
+	Other.Push("y",1);
+	Json.Push("other",Other);
+	
+	std::Debug << Json << std::endl;
+}
+
+
+
 std::ostream& operator<< (std::ostream &out,const TJsonWriter &in)
 {
 	auto& Json = const_cast<TJsonWriter&>(in);

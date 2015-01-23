@@ -3,6 +3,10 @@
 #include <sstream>
 #include "array.hpp"
 
+namespace SoyJson
+{
+	void	UnitTest();
+}
 
 class TJsonWriter
 {
