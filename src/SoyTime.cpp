@@ -10,9 +10,9 @@ bool SoyTime::FromString(std::string String)
 	if ( !std::regex_match( String, Match, Pattern ) )
 		return false;
 	
-	//	extract int
+	//	extract long long
 	auto IntegerStr = Match[1].str();
-	int Time = std::stoi( IntegerStr );
+	auto Time = std::stoll( IntegerStr );
 	if ( Time < 0 )
 		return false;
 	mTime = Time;
