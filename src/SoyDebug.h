@@ -31,7 +31,7 @@ namespace std
 		SoyEvent<const std::string>	mOnFlush;		//	catch debug output
 	};
 
-	class DebugStream : public basic_ostream<char,std::char_traits<char> >
+	class DebugStream : public std::ostream
 	{
 	public:
 		explicit DebugStream() : 
