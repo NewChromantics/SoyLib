@@ -61,11 +61,9 @@ inline std::string SoyEnum::ToString(ENUMTYPE Type,const ENUMMAP& EnumMap)
 {
 	//	stop bad cases being created in the map
 	auto it = EnumMap.find( Type );
-	//if ( !Soy::Assert(it != EnumMap.end(), std::stringstream() << "unhandled enum" << (int)Type) )
-	std::stringstream stream;
-	stream << "unhandled enum" << (int)Type;
-	if ( !Soy::Assert(it != EnumMap.end(), stream ) )
-			it = EnumMap.begin();
+
+	if ( !Soy::Assert(it != EnumMap.end(), [Type]{	return (std::stringstream() << "unhandled enum" << (int)Type).str();	} ) )
+		it = EnumMap.begin();
 	
 	return it->second;
 };
