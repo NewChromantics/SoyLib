@@ -4,6 +4,7 @@
 #include <vector>
 //#include "ofxSoylent.h"
 #include <map>
+#include <atomic>
 
 
 class SoyListenerId
