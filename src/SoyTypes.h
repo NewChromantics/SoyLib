@@ -142,6 +142,7 @@ public:
 //----------------------------------------------------------
 // ofPtr
 //----------------------------------------------------------
+#include <memory>
 template<typename T>
 using ofPtr = std::shared_ptr<T>;
 
@@ -253,45 +254,65 @@ namespace Soy
 		else
 			return true;
 	}
-	
+
 	std::string		DemangleTypeName(const char* name);
+#if !defined(__cpp_rtti)
+	std::string		AllocTypeName();
+#endif
+	
 	
 	//	readable name for a type (alternative to RTTI) which means we don't need to use DECLARE_TYPE_NAME
 	template<typename TYPE>
 	inline const std::string& GetTypeName()
 	{
+#if defined(__cpp_rtti)
 		static std::string TypeName = DemangleTypeName( typeid(TYPE).name() );
+#else
+		static std::string TypeName = AllocTypeName();
+#endif
 		return TypeName;
 	}
 
-	//	auto-define the name for this type for use in the memory debug
-	#define DECLARE_TYPE_NAME(TYPE)								\
-		template<>															\
-		inline const std::string& Soy::GetTypeName<TYPE>()	{	static std::string TypeName = #TYPE;	return TypeName;	}
 	
-	#define DECLARE_TYPE_NAME_AS(TYPE,NAME)								\
-		template<>															\
-		inline const std::string& Soy::GetTypeName<TYPE>()	{	static std::string TypeName = NAME;	return TypeName ;	}
+	//	auto-define the name for this type for use in the memory debug
+#define DECLARE_TYPE_NAME(TYPE)	\
+	namespace Soy \
+	{	\
+		template<>		\
+		inline const std::string& GetTypeName<TYPE>()	{	static std::string TypeName = #TYPE;	return TypeName;	} \
+	};
+	
+#define DECLARE_TYPE_NAME_AS(TYPE,NAME)	\
+	namespace Soy \
+	{	\
+		template<>	\
+		inline const std::string& GetTypeName<TYPE>()	{	static std::string TypeName = NAME;	return TypeName ;	} \
+	};
 	
 	//	speed up use of this type in our arrays when resizing, allocating etc
 	//	declare a type that can be memcpy'd (ie. no pointers or ref-counted objects that rely on =operators or copy constructors)
-	#define DECLARE_NONCOMPLEX_TYPE(TYPE)								\
-		DECLARE_TYPE_NAME(TYPE)												\
-		template<>															\
-		inline bool Soy::IsComplexType<TYPE>()	{	return false;	}		
+#define DECLARE_NONCOMPLEX_TYPE(TYPE)	\
+	DECLARE_TYPE_NAME(TYPE)	\
+	namespace Soy \
+	{	\
+		template<>	\
+		inline bool IsComplexType<TYPE>()	{	return false;	} \
+	};
 	
 	//	speed up allocation of this type in our heaps...
 	//	declare a non-complex type that also requires NO construction (ie, will be memcpy'd over or fully initialised when required)
-	#define DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE(TYPE)					\
-		DECLARE_NONCOMPLEX_TYPE(TYPE)										\
-		template<>															\
-		inline bool Soy::DoConstructType<TYPE>()	{	return false;	}	
+#define DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE(TYPE)	\
+	DECLARE_NONCOMPLEX_TYPE(TYPE)	\
+	namespace Soy \
+	{	\
+		template<>	\
+		inline bool DoConstructType<TYPE>()	{	return false;	}	\
+	};
 	
-	
+
 } // namespace Soy
 
-
-//	some generic noncomplex types 
+//	some generic noncomplex types
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( float );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( char );

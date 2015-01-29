@@ -5,6 +5,7 @@
 #include <algorithm>		//	std::transform
 #include "SoyString.h"
 #include "SoyDebug.h"
+#include <atomic>
 
 namespace Soy
 {
@@ -469,6 +470,16 @@ bool Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& Strin
 }
 
 
+#if !defined(__cpp_rtti)
+std::string Soy::AllocTypeName()
+{
+	static std::atomic<int> gTypeCounter(0);
+	int TypeCount = gTypeCounter++;
+	std::stringstream TypeName;
+	TypeName << "Type" << TypeCount;
+	return TypeName.str();
+}
+#endif
 
 //	http://stackoverflow.com/questions/281818/unmangling-the-result-of-stdtype-infoname
 //#include "type.hpp"
