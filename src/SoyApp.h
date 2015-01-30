@@ -564,6 +564,7 @@ public:
 	{
 	}
 	
+	bool						Eof() const			{	return BitPosition() >= (mData.GetDataSize()*8);	}
 	bool						Read(int& Data,int BitCount);
 	bool						Read(uint64& Data,int BitCount);
 	bool						Read(uint8& Data,int BitCount);
