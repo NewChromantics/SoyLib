@@ -198,13 +198,18 @@ void SoyWorker::Loop()
 	bool Dummy = true;
 	mOnStart.OnTriggered(Dummy);
 	
+	auto CanWorkerSleep = [this]
+	{
+		return CanSleep();
+	};
+	
 	while ( IsWorking() )
 	{
 		//	do wait
 		switch ( mWaitMode )
 		{
 			case SoyWorkerWaitMode::Wake:
-				mWaitConditional.wait( Lock );
+				mWaitConditional.wait( Lock, CanWorkerSleep );
 				break;
 			case SoyWorkerWaitMode::Sleep:
 				mWaitConditional.wait_for( Lock, GetSleepDuration() );

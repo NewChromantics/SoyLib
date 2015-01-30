@@ -281,7 +281,6 @@ public:
 	virtual void		Start();
 	virtual void		Stop();
 	bool				IsWorking() const	{	return mWorking;	}
-	virtual std::chrono::milliseconds	GetSleepDuration()	{	return std::chrono::milliseconds(1000/60);	}
 	
 	virtual bool		Iteration()=0;	//	return false to stop thread
 
@@ -297,6 +296,10 @@ public:
 	}
 	void				SetWakeMode(SoyWorkerWaitMode::Type WakeMode)	{	mWaitMode = WakeMode;	Wake();	}
 	SoyWorkerWaitMode::Type	GetWakeMode() const	{	return mWaitMode;	}
+
+protected:
+	virtual bool		CanSleep() const					{	return true;	}	//	break out of conditional with this
+	virtual std::chrono::milliseconds	GetSleepDuration()	{	return std::chrono::milliseconds(1000/60);	}
 
 private:
 	void				Loop();
