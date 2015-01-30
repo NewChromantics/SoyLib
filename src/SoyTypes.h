@@ -4,6 +4,12 @@
 #define TARGET_WINDOWS
 #endif
 
+//	set a standard RTTI macro
+#if defined(__cpp_rtti) || defined(GCC_ENABLE_CPP_RTTI) || __has_feature(cxx_rtti)
+#define ENABLE_RTTI
+#endif
+
+
 
 #if !defined(NO_OPENFRAMEWORKS)
 
@@ -254,9 +260,10 @@ namespace Soy
 		else
 			return true;
 	}
+	
 
 	std::string		DemangleTypeName(const char* name);
-#if !defined(__cpp_rtti)
+#if !defined(ENABLE_RTTI)
 	std::string		AllocTypeName();
 #endif
 	
@@ -265,7 +272,7 @@ namespace Soy
 	template<typename TYPE>
 	inline const std::string& GetTypeName()
 	{
-#if defined(__cpp_rtti)
+#if defined(ENABLE_RTTI)
 		static std::string TypeName = DemangleTypeName( typeid(TYPE).name() );
 #else
 		static std::string TypeName = AllocTypeName();

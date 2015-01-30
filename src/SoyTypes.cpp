@@ -470,7 +470,7 @@ bool Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& Strin
 }
 
 
-#if !defined(__cpp_rtti)
+#if !defined(ENABLE_RTTI)
 std::string Soy::AllocTypeName()
 {
 	static std::atomic<int> gTypeCounter(0);
