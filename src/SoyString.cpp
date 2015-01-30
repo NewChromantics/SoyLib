@@ -41,6 +41,25 @@ bool Soy::StringContains(const std::string& Haystack, const std::string& Needle,
 }
 
 
+bool Soy::StringMatches(const std::string& Haystack, const std::string& Needle, bool CaseSensitive)
+{
+	if (CaseSensitive)
+	{
+		return Haystack == Needle;
+	}
+	else
+	{
+		//	do a quick length check before switching to lowercase
+		if ( Haystack.length() != Needle.length() )
+			return false;
+		std::string HaystackLow = Haystack;
+		std::string NeedleLow = Needle;
+		Soy::StringToLower( HaystackLow );
+		Soy::StringToLower( NeedleLow );
+		return StringMatches(HaystackLow, NeedleLow, true);
+	}
+}
+
 bool Soy::StringBeginsWith(const std::string& Haystack, const std::string& Needle, bool CaseSensitive)
 {
 	if (CaseSensitive)
@@ -155,6 +174,18 @@ std::string Soy::StreamToString(std::ostream& Stream)
 	std::stringstream TempStream;
 	TempStream << Stream.rdbuf();
 	return TempStream.str();
+}
+
+void Soy::StringTrimLeft(std::string& String,char TrimChar)
+{
+	std::Debug << __func__ << " (" << String <<"," << TrimChar << ")" << std::endl;
+	while ( !String.empty() )
+	{
+		if ( String[0] != TrimChar )
+			break;
+		String.erase( String.begin() );
+	}
+	std::Debug << __func__ << " ... " << String << std::endl;
 }
 
 
