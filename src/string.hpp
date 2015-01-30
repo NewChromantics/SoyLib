@@ -28,6 +28,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <iostream>
+#include <limits>
 #include "SoyTypes.h"
 #include "chartype.hpp"
 #include "array.hpp"

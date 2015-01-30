@@ -4,11 +4,20 @@
 #define TARGET_WINDOWS
 #endif
 
+//	clang(?) macro for testing features missing on android
+#if !defined(__has_feature)
+#define __has_feature(x)	FALSE
+#endif
+
 //	set a standard RTTI macro
 #if defined(__cpp_rtti) || defined(GCC_ENABLE_CPP_RTTI) || __has_feature(cxx_rtti)
 #define ENABLE_RTTI
 #endif
 
+#if !defined(_NOEXCEPT)
+#define _NOEXCEPT
+//	_GLIBCXX_USE_NOEXCEPT is something
+#endif
 
 
 #if !defined(NO_OPENFRAMEWORKS)
@@ -63,6 +72,10 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 #include <stdint.h>
 
 #define MAX_PATH    256
+
+#elif defined(TARGET_ANDROID)
+
+#include <math.h>
 
 #endif
 

@@ -7,8 +7,9 @@
 #include "string.hpp"
 #include <map>
 #include <queue>
+#include <limits>
 
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX)||defined(TARGET_ANDROID)
 #include <memory>
 #define STD_ALLOC
 #endif
