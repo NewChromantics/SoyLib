@@ -24,7 +24,6 @@
 //	yuck
 typedef Soy::String2<char,Array<char> >		TString;
 
-#include "SoyPair.h"
 #include "SoyEnum.h"
 #include "SoyTime.h"
 #include "SoyRef.h"
