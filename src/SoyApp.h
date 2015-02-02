@@ -277,7 +277,7 @@ public:
 template<typename TYPE>
 inline void Soy::WriteXmlData(ofxXmlSettings& xml,const char* Name,const TYPE& Value,bool Tag)
 {
-	TString Buffer;
+	std::stringstream Buffer;
 	Buffer << Value;
 
 	if ( Tag )

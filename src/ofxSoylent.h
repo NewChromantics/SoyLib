@@ -21,9 +21,6 @@
 #include "BufferArray.hpp"
 #include "String.hpp"
 
-//	yuck
-typedef Soy::String2<char,Array<char> >		TString;
-
 #include "SoyEnum.h"
 #include "SoyTime.h"
 #include "SoyRef.h"
