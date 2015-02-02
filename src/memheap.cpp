@@ -583,52 +583,48 @@ void prmem::Heap::EnableDebug(bool Enable)
 void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBridge<HeapDebugItem>& AllocItems) const
 {
 	{
-		BufferString<1200> Debug;
-		Debug << "-------------------------------------------------\n";
-		Debug << AllocItems.GetSize() << " objects allocated on heap " << OwnerHeap.GetName();
-		Debug << " (Heap reports " << OwnerHeap.GetAllocCount() << " objects allocated.)";
-		Debug << "\n";
-		ofLogNotice( Debug.c_str() );
+		std::Debug << "-------------------------------------------------\n";
+		std::Debug << AllocItems.GetSize() << " objects allocated on heap " << OwnerHeap.GetName();
+		std::Debug << " (Heap reports " << OwnerHeap.GetAllocCount() << " objects allocated.)";
+		std::Debug << std::endl;
 	}
 
 	for ( int i=0;	i<AllocItems.GetSize();	i++ )
 	{
 		//	gr: big string, but if we break out OutputDebugString, other threads will interrupt it
-		BufferString<1200> Debug;
 		auto& AllocInfo = AllocItems[i];
 
-		Debug << i << "/" << (AllocItems.GetSize()-1) << ": ";
-		Debug << AllocInfo.ToString();
+		std::Debug << i << "/" << (AllocItems.GetSize()-1) << ": ";
+		std::Debug << AllocInfo.ToString();
 		
 		//	show age
 		int64 AgeSecs = (ofGetElapsedTimeMillis() - AllocInfo.mAllocTick) / 1000;
-		Debug << " " << AgeSecs << " secs ago.";
+		std::Debug << " " << AgeSecs << " secs ago.";
 
 		//	show callstack
 #if defined(ENABLE_STACKTRACE)
 		if ( !AllocInfo.mCallStack.IsEmpty() )
 		{
-			Debug << " Allocated from...\n";
+			std::Debug << " Allocated from...\n";
 		
 			for ( int i=0;	i<AllocInfo.mCallStack.GetSize();	i++ )
 			{
-				Debug << "\t";
+				std::Debug << "\t";
 				ofCodeLocation Location;
 				SoyDebug::GetSymbolLocation( Location, AllocInfo.mCallStack[i] );
-				Debug << static_cast<const char*>(Location) << ": ";
+				std::Debug << static_cast<const char*>(Location) << ": ";
 
 				BufferString<200> FunctionName;
 				SoyDebug::GetSymbolName( FunctionName, AllocInfo.mCallStack[i] );
-				Debug << FunctionName << "\n";
+				std::Debug << FunctionName << "\n";
 			}
 		}
 		else
 		{
-			Debug << " No callstack.\n";
+			std::Debug << " No callstack.\n";
 		}
 #endif
 
-		ofLogNotice( Debug.c_str() );
 	}
 }
 
@@ -1181,9 +1177,7 @@ bool SoyDebug::GetCallStack(ArrayBridge<ofStackEntry>& Stack,int StackSkip)
 void prmem::HeapInfo::OnFailedAlloc(std::string TypeName,int TypeSize,int ElementCount) const
 {
 	//	print out debug state of current heap
-	BufferString<1000> Debug;
-	Debug << "Failed to allocate " << TypeName << "x " << ElementCount << " (" << Soy::FormatSizeBytes( TypeSize * ElementCount ) << ")\n";
-	ofLogError( Debug.c_str() );
+	std::Debug << "Failed to allocate " << TypeName << "x " << ElementCount << " (" << Soy::FormatSizeBytes( TypeSize * ElementCount ) << ")" << std::endl;
 	
 	//	show heap stats
 	Debug_DumpInfoToOutput();
@@ -1196,7 +1190,7 @@ void prmem::HeapInfo::OnFailedAlloc(std::string TypeName,int TypeSize,int Elemen
 	}
 
 	//	show all the other heaps stats too
-	ofLogError( "Other heaps...\n" );
+	std::Debug << "Other heaps..." << std::endl;
 	
 	auto& Heaps = prmem::GetHeaps();
 	for ( int h=0;	h<Heaps.GetSize();	h++ )
@@ -1211,11 +1205,8 @@ void prmem::HeapInfo::OnFailedAlloc(std::string TypeName,int TypeSize,int Elemen
 void prmem::HeapInfo::Debug_DumpInfoToOutput() const
 {
 	//	print out debug state of current heap
-	BufferString<1000> Debug;
-	Debug << "Heap Name: " << GetName() << "\n";
-	Debug << "Heap Allocation: " << Soy::FormatSizeBytes( GetAllocatedBytes() ) << " (peak: " << Soy::FormatSizeBytes( GetAllocatedBytesPeak() ) << ")\n";
-	Debug << "Heap Alloc Count: " << GetAllocCount() << " (peak: " << GetAllocCountPeak() << ")\n";
-	Debug << "\n";
-	ofLogNotice( Debug.c_str() );
-
+	std::Debug << "Heap Name: " << GetName() << "\n";
+	std::Debug << "Heap Allocation: " << Soy::FormatSizeBytes( GetAllocatedBytes() ) << " (peak: " << Soy::FormatSizeBytes( GetAllocatedBytesPeak() ) << ")\n";
+	std::Debug << "Heap Alloc Count: " << GetAllocCount() << " (peak: " << GetAllocCountPeak() << ")\n";
+	std::Debug << std::endl;
 }

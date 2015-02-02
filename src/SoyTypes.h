@@ -106,11 +106,6 @@ inline unsigned long long	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}
 inline float				ofGetElapsedTimef()			{	return static_cast<float>(ofGetElapsedTimeMillis()) / 1000.f;	}
 
 
-void					ofLogNotice(const std::string& Message);
-void					ofLogWarning(const std::string& Message);
-void					ofLogError(const std::string& Message);
-std::string				ofToString(int Integer);
-
 //	gr: repalce uses of this with SoyTime
 namespace Poco
 {

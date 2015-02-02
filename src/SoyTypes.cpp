@@ -21,54 +21,6 @@ namespace Soy
 #pragma comment(lib, "Shlwapi.lib")
 #endif
 
-#if defined(NO_OPENFRAMEWORKS)
-void ofLogNotice(const std::string& Message)
-{
-#if defined(TARGET_WINDOWS)
-	OutputDebugStringA( Message.c_str() );
-	OutputDebugStringA("\n");
-#else
-    std::cout << Message << "\n";
-#endif
-}
-#endif
-
-#if defined(NO_OPENFRAMEWORKS)
-void ofLogWarning(const std::string& Message)
-{
-#if defined(TARGET_WINDOWS)
-	OutputDebugStringA( "[WARN] " );
-	OutputDebugStringA( Message.c_str() );
-	OutputDebugStringA("\n");
-#else
-    std::cout << "[WARN] " << Message << "\n";
-#endif
-}
-#endif
-
-
-#if defined(NO_OPENFRAMEWORKS)
-void ofLogError(const std::string& Message)
-{
-#if defined(TARGET_WINDOWS)
-	OutputDebugStringA( "[ERROR] " );
-	OutputDebugStringA( Message.c_str() );
-	OutputDebugStringA("\n");
-#else
-    std::cout << "[ERROR] " << Message << "\n";
-#endif
-}
-#endif
-
-#if defined(NO_OPENFRAMEWORKS)
-std::string ofToString(int Integer)
-{
-	std::ostringstream s;
-	s << Integer;
-	//return std::string( s.str() );
-	return s.str();
-}
-#endif
 
 
 #if defined(NO_OPENFRAMEWORKS)
