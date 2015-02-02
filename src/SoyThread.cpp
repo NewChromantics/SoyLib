@@ -200,7 +200,7 @@ void SoyWorker::Loop()
 	
 	auto CanWorkerSleep = [this]
 	{
-		return CanSleep();
+		return !CanSleep();
 	};
 	
 	while ( IsWorking() )
@@ -209,7 +209,8 @@ void SoyWorker::Loop()
 		switch ( mWaitMode )
 		{
 			case SoyWorkerWaitMode::Wake:
-				mWaitConditional.wait( Lock, CanWorkerSleep );
+				if ( CanSleep() )
+					mWaitConditional.wait( Lock );
 				break;
 			case SoyWorkerWaitMode::Sleep:
 				mWaitConditional.wait_for( Lock, GetSleepDuration() );
