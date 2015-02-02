@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <string>
-
+#include <sstream>
 
 template<typename TYPE>
 class ArrayBridge;
@@ -40,6 +40,11 @@ namespace Soy
 
 	bool		IsUtf8String(const std::string& String);
 	bool		IsUtf8Char(char c);
+	
+	template<typename TYPE>
+	bool		StringToType(TYPE& Out,const std::string& String);
+	template<typename TYPE>
+	TYPE		StringToType(const std::string& String,const TYPE& Default);
 };
 
 #if defined(__OBJC__)
@@ -49,3 +54,25 @@ namespace Soy
 	std::string	NSStringToString(NSString* String);
 };
 #endif
+
+template<typename TYPE>
+inline bool Soy::StringToType(TYPE& Out,const std::string& String)
+{
+	std::stringstream s( String );
+	s >> Out;
+	if ( s.fail() )
+		return false;
+
+	return true;
+}
+
+	
+template<typename TYPE>
+inline TYPE Soy::StringToType(const std::string& String,const TYPE& Default)
+{
+	TYPE Value;
+	if ( !StringToType( Value, String ) )
+		return Default;
+	return Value;
+}
+
