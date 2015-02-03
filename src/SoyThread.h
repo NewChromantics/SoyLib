@@ -284,7 +284,7 @@ public:
 	
 	virtual bool		Iteration()=0;	//	return false to stop thread
 
-	void				Wake();
+	virtual void		Wake();
 	template<typename TYPE>
 	void				WakeOnEvent(SoyEvent<TYPE>& Event)
 	{
@@ -298,7 +298,7 @@ public:
 	SoyWorkerWaitMode::Type	GetWakeMode() const	{	return mWaitMode;	}
 
 protected:
-	virtual bool		CanSleep() const					{	return true;	}	//	break out of conditional with this
+	virtual bool		CanSleep()							{	return true;	}	//	break out of conditional with this
 	virtual std::chrono::milliseconds	GetSleepDuration()	{	return std::chrono::milliseconds(1000/60);	}
 
 private:
