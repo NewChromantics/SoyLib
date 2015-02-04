@@ -9,6 +9,30 @@
 #include "SoyScope.h"
 
 
+namespace Soy
+{
+	namespace Platform
+	{
+		bool	DebugBreak();
+		bool	IsDebuggerAttached();
+		void	DebugPrint(const std::string& String);
+	}
+
+	//	exception for Soy::Assert
+	class AssertException;
+};
+
+
+namespace std
+{
+	class DebugStream;
+	
+	//	cross platform debug output stream
+	//	std::Debug << XXX << std::endl;
+	extern DebugStream	Debug;
+}
+
+
 namespace std
 {
 	class DebugStreamBuf : public streambuf
@@ -48,20 +72,12 @@ namespace std
 };
 
 
-namespace std
-{
-	extern DebugStream	Debug;
-}
 
+//	gr: move this to... string?
 namespace Soy
 {
 	BufferString<20>	FormatSizeBytes(uint64 bytes);
 	
-	namespace Platform
-	{
-		bool		IsDebuggerAttached();
-		void		DebugPrint(const std::string& String);
-	}
 }
 
 
@@ -137,4 +153,55 @@ public:
 	uint64				mAccumulatedTime;
 	std::ostream&		mOutputStream;
 };
+
+
+
+
+
+class Soy::AssertException : public std::exception
+{
+public:
+	AssertException(std::string Message) :
+	mError	( Message )
+	{
+	}
+	virtual const char* what() const _NOEXCEPT	{	return mError.c_str();	}
+std::string			mError;
+};
+
+namespace Soy
+{
+	void		EnableThrowInAssert(bool Enable);		//	use to turn of throwing exceptions (good for plugins so they don't take down the host application)
+	
+#pragma warning(disable:4290)
+	//	replace asserts with exception. If condition fails false is returned to save code
+	bool		Assert(bool Condition,std::function<std::string()> ErrorMessageFunc) throw(AssertException);
+	
+	//	helpful wrappers for common string types
+	inline bool	Assert(bool Condition,const std::string& ErrorMessage) throw(AssertException)
+	{
+		return Assert( Condition, [&ErrorMessage]{	return ErrorMessage;	} );
+	}
+	
+	inline bool	Assert(bool Condition, std::stringstream&& ErrorMessage ) throw( AssertException )
+	{
+		return Assert( Condition, [&ErrorMessage]{	return ErrorMessage.str();	} );
+	}
+	
+	inline bool	Assert(bool Condition, std::stringstream& ErrorMessage ) throw( AssertException )
+	{
+		return Assert( Condition, [&ErrorMessage]{	return ErrorMessage.str();	} );
+	}
+	
+	bool		Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException );
+	
+	//	const char* version to avoid unncessary allocation to std::string
+	inline bool	Assert(bool Condition,const char* ErrorMessage) throw(AssertException)
+	{
+		return Assert( Condition, [&ErrorMessage]{	return ErrorMessage;	} );
+	}
+};
+#define Soy_AssertTodo()	Soy::Assert(false, std::stringstream()<<"todo: "<<__func__ )
+
+
 

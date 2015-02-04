@@ -1,14 +1,27 @@
 #include "SoyDebug.h"
 #include "SoyThread.h"
+#include "SoyString.h"
 
 //	gr: osx only?
 #include <unistd.h>
 #include <sys/sysctl.h>
 
+
+namespace Soy
+{
+	//	defualt on, but allow build options to change default (or call Soy::EnableAssertThrow)
+#if !defined(SOY_ENABLE_ASSERT_THROW)
+#define SOY_ENABLE_ASSERT_THROW true
+#endif
+	bool	gEnableThrowInAssert = SOY_ENABLE_ASSERT_THROW;
+}
+
+
 std::DebugStream	std::Debug;
 
 //	gr: although cout is threadsafe, it doesnt synchornise the output
 std::mutex			CoutLock;
+
 
 
 BufferString<20> Soy::FormatSizeBytes(uint64 bytes)
@@ -158,6 +171,58 @@ bool Soy::Platform::IsDebuggerAttached()
 	return XCodeDebuggerAttached();
 #endif
 	
+	return false;
+}
+
+
+void Soy::EnableThrowInAssert(bool Enable)
+{
+	gEnableThrowInAssert = Enable;
+}
+
+bool Soy::Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException )
+{
+	return Assert( Condition, [&ErrorMessage]{	return Soy::StreamToString(ErrorMessage);	} );
+}
+
+
+#include <signal.h>
+bool Soy::Platform::DebugBreak()
+{
+#if defined(TARGET_OSX)
+	//	gr: supposedly this works, if you enable it in the scheme, but I don't know where it's declared
+	//Debugger();
+	
+	//	raise an interrupt
+	//	raise(SIGINT);
+	raise(SIGUSR1);
+	return true;
+#endif
+	
+	//	not supported
+	return false;
+}
+
+bool Soy::Assert(bool Condition,std::function<std::string()> ErrorMessageFunc) throw(AssertException)
+{
+	if ( Condition )
+		return true;
+	
+	std::string ErrorMessage = ErrorMessageFunc();
+	
+	std::Debug << "Assert: " << ErrorMessage << std::endl;
+	
+	//	if the debugger is attached, try and break the debugger without an exception so we can continue
+	if ( Platform::IsDebuggerAttached() )
+		if ( Soy::Platform::DebugBreak() )
+			return false;
+	
+	//	sometimes we disable throwing an exception to stop hosting being taken down
+	if ( !gEnableThrowInAssert )
+		return false;
+	
+	//	throw exception
+	throw Soy::AssertException( ErrorMessage );
 	return false;
 }
 
