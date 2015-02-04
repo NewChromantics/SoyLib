@@ -198,11 +198,6 @@ void SoyWorker::Loop()
 	bool Dummy = true;
 	mOnStart.OnTriggered(Dummy);
 	
-	auto CanWorkerSleep = [this]
-	{
-		return !CanSleep();
-	};
-	
 	while ( IsWorking() )
 	{
 		//	do wait
