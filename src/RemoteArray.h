@@ -62,14 +62,14 @@ public:
 	
 	T& operator [] (int Index)
 	{
-		SoyArray::CheckBounds( index, *this );
-		return mData[index];
+		SoyArray::CheckBounds( Index, *this );
+		return mData[Index];
 	}
 	
 	const T& operator [] (int Index) const
 	{
-		SoyArray::CheckBounds( index, *this );
-		return mData[index];
+		SoyArray::CheckBounds( Index, *this );
+		return mData[Index];
 	}
 	
 	size_t		GetSize() const			{	return mDataSize;		}
@@ -84,9 +84,15 @@ public:
 		return size == GetSize();
 	}
 	
-	T* PushBlock(int count)
+	T*			PushBlock(int count)				{	return nullptr;	}
+	T*			InsertBlock(int Index,int Count)	{	return nullptr;	}
+	bool		RemoveBlock(int Index,int Count)	{	return false;	}
+	void		Clear(bool Dealloc)					{	}
+	
+	void		Reserve(size_t Size,bool Clear)
 	{
-		return nullptr;
+		//	should we warn here for different size?
+		Soy::Assert( Size != GetSize(), "Reserving different-size FixedRemoteArray" );
 	}
 	
 	
@@ -501,25 +507,45 @@ private:
 	int			mmaxsize;	//	original buffer size
 };
 
-//	just so I can use auto
+
+//	GetRemoteArray functions to allow use of auto;
+//	auto Array = GetRemoteArray(....)
+//	ideally this would return an array bridge... maybe we can merge ArrayInterface and ArrayBridge and just have some inherit, and some wrap
 template <typename TYPE,unsigned int BUFFERSIZE>
 inline RemoteArray<TYPE>	GetRemoteArray(TYPE (& Buffer)[BUFFERSIZE],int& BufferCounter)
 {
 	return RemoteArray<TYPE>( Buffer, BufferCounter );
 }
 
-//	just so I can use auto
 template <typename TYPE,unsigned int BUFFERSIZE>
 inline RemoteArray<TYPE>	GetRemoteArray(const TYPE (& Buffer)[BUFFERSIZE],const int& BufferCounter)
 {
 	return RemoteArray<TYPE>( Buffer, BufferCounter );
 }
 
-//	just so I can use auto
 template <typename TYPE>
 inline RemoteArray<TYPE>	GetRemoteArray(const TYPE* Buffer,const int BufferSize,const int& BufferCounter)
 {
 	return RemoteArray<TYPE>( Buffer, BufferSize, BufferCounter );
+}
+
+template <typename TYPE,size_t BUFFERSIZE>
+inline FixedRemoteArray<TYPE>	GetRemoteArray(TYPE (& Buffer)[BUFFERSIZE])
+{
+	return FixedRemoteArray<TYPE>( Buffer );
+}
+
+template <typename TYPE>
+inline FixedRemoteArray<TYPE>	GetRemoteArray(TYPE* Buffer,const size_t BufferSize)
+{
+	return FixedRemoteArray<TYPE>( Buffer, BufferSize );
+}
+
+template <typename TYPE>
+inline const FixedRemoteArray<TYPE>	GetRemoteArray(const TYPE* Buffer,const size_t BufferSize)
+{
+	auto Remote = GetRemoteArray( const_cast<TYPE*>(Buffer), BufferSize );
+	return Remote;
 }
 
 
