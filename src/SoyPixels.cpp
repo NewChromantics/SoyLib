@@ -3,6 +3,7 @@
 #include "SoyTime.h"
 #include <functional>
 #include "SoyPng.h"
+#include "RemoteArray.h"
 
 #if defined(SOY_OPENGL)
 #if defined(TARGET_OSX)
@@ -1459,6 +1460,7 @@ void SoyPixelsImpl::ResizeFastSample(uint16 Width, uint16 Height)
 	
 	int ChannelCount = GetChannels();
 	ResizeClip( Width, Height );
+	
 	for ( int y=0;	y<Height;	y++ )
 	{
 		for ( int x=0;	x<Width;	x++ )
@@ -1469,7 +1471,10 @@ void SoyPixelsImpl::ResizeFastSample(uint16 Width, uint16 Height)
 			int ox = Old.GetWidth() * xf;
 			int oy = Old.GetHeight() * yf;
 			for ( int c=0;	c<ChannelCount;	c++ )
-				this->SetPixel( x, y, c, Old.GetPixel( ox, oy, c ) );
+			{
+				auto OldComponent = Old.GetPixel( ox, oy, c );
+				this->SetPixel( x, y, c, OldComponent );
+			}
 		}
 	}
 	

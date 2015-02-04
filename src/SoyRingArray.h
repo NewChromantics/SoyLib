@@ -2,7 +2,7 @@
 
 #include "array.hpp"
 #include "heaparray.hpp"
-
+#include "RemoteArray.h"
 
 //	gr: adapt this to
 //	a) have an array interface so we can use it as an arraybridge

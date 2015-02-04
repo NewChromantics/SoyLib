@@ -6,6 +6,8 @@
 #include "heaparray.hpp"
 #include <SoyDebug.h>
 #include <regex>
+#include "RemoteArray.h"
+
 
 
 void Soy::StringToLower(std::string& String)

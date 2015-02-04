@@ -2,7 +2,7 @@
 #include "miniz/miniz.h"
 #include "SoyDebug.h"
 #include "SoyPng.h"
-
+#include "RemoteArray.h"
 
 
 
