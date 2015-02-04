@@ -760,8 +760,8 @@ bool SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 		return false;
 
 	auto& PixelsArray = GetPixelsArray();
-	auto ConversionFuncs = GetRemoteArray( gConversionFuncs, gConversionFuncsCount );
-	auto* ConversionFunc = ConversionFuncs.Find( std::make_tuple( OldFormat, Format ) );
+	auto ConversionFuncs = GetRemoteArray( gConversionFuncs );
+	auto* ConversionFunc = GetArrayBridge(ConversionFuncs).Find( std::make_tuple( OldFormat, Format ) );
 	if ( ConversionFunc )
 	{
 		if ( ConversionFunc->mFunction( PixelsArray, GetMeta(), Format ) )
@@ -933,8 +933,8 @@ bool TPixels::Set(const ofPixels& Pixels)
 	if ( !Init( w, h, Format ) )
 		return false;
 
-	int Alloc = w * c * h;
-	auto SrcPixelsData = GetRemoteArray( p, Alloc, Alloc );
+	size_t Alloc = w * c * h;
+	auto SrcPixelsData = GetRemoteArray( p, Alloc );
 	mPixels.Copy( SrcPixelsData );
 	return true;
 }
@@ -947,7 +947,7 @@ static bool treatbgrasrgb = false;
 #endif
 
 #if defined(TARGET_OSX)
-static bool GetOsxFormatSpecial = false;
+//static bool GetOsxFormatSpecial = false;
 #endif
 
 bool SoyPixelsFormat::GetOpenglFormat(int& glFormat,SoyPixelsFormat::Type Format)
@@ -1257,8 +1257,8 @@ bool SoyPixelsImpl::SetRawSoyPixels(const ArrayBridge<char>& RawData)
 		return false;
 
 	//	rest of the data as an array
-	const int PixelDataSize = RawData.GetDataSize()-HeaderSize;
-	auto Pixels = GetRemoteArray( RawData.GetArray()+HeaderSize, PixelDataSize, PixelDataSize );
+	const size_t PixelDataSize = RawData.GetDataSize()-HeaderSize;
+	auto Pixels = GetRemoteArray( RawData.GetArray()+HeaderSize, PixelDataSize );
 	
 	//	todo: verify size! (alignment!)
 	GetMeta() = Header;

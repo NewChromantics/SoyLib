@@ -137,8 +137,7 @@ void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String
 
 void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
 {
-	const int Size = String.length();
-	auto CommandStrArray = GetRemoteArray( String.c_str(), Size, Size );
+	auto CommandStrArray = GetRemoteArray( String.c_str(), String.length() );
 	Array.PushBackArray( CommandStrArray );
 }
 

@@ -70,8 +70,8 @@ inline void RingArray<TYPE>::GetStats(size_t& SpaceAfterHead,size_t& SpaceBefore
 template<typename TYPE>
 inline bool RingArray<TYPE>::PushBack(const TYPE& Element)
 {
-	int Counter = 1;
-	auto AsArray = GetRemoteArray( &Element, Counter, Counter );
+	size_t Counter = 1;
+	auto AsArray = GetRemoteArray( &Element, Counter );
 	return PushBack( GetArrayBridge( AsArray ) );
 }
 

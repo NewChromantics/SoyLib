@@ -256,8 +256,8 @@ bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char
 		{
 			//	get filter code
 			auto Filter = static_cast<TFilterNone_ScanlineFilter::Type>( DecompressedData[i] );
-			int ScanlineLength = Stride-1;
-			auto Scanline = GetRemoteArray( &DecompressedData[i+1], ScanlineLength, ScanlineLength );
+			size_t ScanlineLength = Stride-1;
+			auto Scanline = GetRemoteArray( &DecompressedData[i+1], ScanlineLength );
 			int bytewidth = (Pixels.GetBitDepth() + 7) / 8;
 			if ( !DeFilterScanline( Filter, GetArrayBridge( Scanline ), bytewidth, DeFilteredData, Error ) )
 				return false;
