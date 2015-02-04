@@ -1,5 +1,100 @@
 #pragma once
 
+namespace SoyArray
+{
+	template<typename ARRAY>
+	bool	CheckBounds(int Index,const ARRAY& This);
+};
+
+//	gr: this should be a very fast (x<y) index check, and only do the error construction when we fail
+//		maybe cost of lambda? which could be wrapped in another lambda to pass parameters only on-error? if a lambda has to construct each indivudal one
+template<typename ARRAY>
+bool SoyArray::CheckBounds(int Index,const ARRAY& This)
+{
+	auto OnError = [Index,&This]
+	{
+		std::stringstream Error;
+		Error << "Index " << Index << "/" << This.GetSize() << " out of bounds";
+		return Error.str();
+	};
+	return Soy::Assert( (Index>=0) && (Index<This.GetSize()), OnError );
+};
+
+
+//	gr: should this be a type of heap to be used on heaparray?...
+//	remote array of fixed size (cannot be shrunk or grown, only accessed)
+template<typename T>
+class FixedRemoteArray
+{
+public:
+	typedef T TYPE;	//	in case you ever need to get to T in a template function/class, you can use ARRAYPARAM::TYPE (sometimes need typename ARRAYPARAM::TYPE)
+	
+public:
+	template <unsigned int BUFFERSIZE>
+	FixedRemoteArray(T (& Buffer)[BUFFERSIZE]) :
+		mData			( Buffer ),
+		mDataSize		( BUFFERSIZE )
+	{
+	}
+	explicit FixedRemoteArray(T* Buffer,const size_t BufferSize) :
+		mData		( Buffer ),
+		mDataSize	( BufferSize )
+	{
+	}
+	
+	template<typename ARRAYTYPE>
+	void operator = (const ARRAYTYPE& v)
+	{
+		Copy(v);
+	}
+	
+	//	need an explicit = operator for self-type
+	void operator = (const FixedRemoteArray& v)
+	{
+		Copy(v);
+	}
+	
+	template<class ARRAYTYPE>
+	bool Copy(const ARRAYTYPE& v)
+	{
+		return GetArrayBridge(*this).Copy(v);
+	}
+	
+	T& operator [] (int Index)
+	{
+		SoyArray::CheckBounds( index, *this );
+		return mData[index];
+	}
+	
+	const T& operator [] (int Index) const
+	{
+		SoyArray::CheckBounds( index, *this );
+		return mData[index];
+	}
+	
+	size_t		GetSize() const			{	return mDataSize;		}
+	size_t		MaxAllocSize() const	{	return GetSize();	}
+	size_t		MaxSize() const			{	return GetSize();	}
+	const T*	GetArray() const		{	return mData;	}
+	T*			GetArray()				{	return mData;	}
+	
+	//	gr: AllowLess does nothing here, but the parameter is kept to match other Array types (in case it's used in template funcs for example)
+	bool SetSize(int size, bool preserve=true,bool AllowLess=true)
+	{
+		return size == GetSize();
+	}
+	
+	T* PushBlock(int count)
+	{
+		return nullptr;
+	}
+	
+	
+private:
+	T*			mData;
+	size_t		mDataSize;	//	elements in mData
+};
+
 
 
 //	gr: should this inherit from array interface? or do we want it copyable?
