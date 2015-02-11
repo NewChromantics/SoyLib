@@ -92,6 +92,7 @@ void std::DebugStreamBuf::flush()
 		{
 			std::lock_guard<std::mutex> lock(CoutLock);
 			std::cout << Buffer.c_str();
+			std::cout << std::flush;
 		}
 #elif defined(TARGET_OSX)
 		static bool UseNsLog = false;
@@ -105,6 +106,7 @@ void std::DebugStreamBuf::flush()
 		{
 			std::lock_guard<std::mutex> lock(CoutLock);
 			std::cout << Buffer.c_str();
+			std::cout << std::flush;
 		}
 		//NSLog(@"%s", message);
 #endif
