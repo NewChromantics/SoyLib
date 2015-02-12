@@ -88,7 +88,7 @@ void std::DebugStreamBuf::flush()
 		{
 			OutputDebugStringA( Buffer.c_str() );
 		}
-		else
+		else if ( mEnableStdOut )
 		{
 			std::lock_guard<std::mutex> lock(CoutLock);
 			std::cout << Buffer.c_str();
@@ -96,13 +96,12 @@ void std::DebugStreamBuf::flush()
 		}
 #elif defined(TARGET_OSX)
 		static bool UseNsLog = false;
-		static bool UseCout = true;
 		if ( UseNsLog )
 		{
 			Soy::Platform::DebugPrint( Buffer );
 		}
 		
-		if ( UseCout )
+		if ( mEnableStdOut )
 		{
 			std::lock_guard<std::mutex> lock(CoutLock);
 			std::cout << Buffer.c_str();

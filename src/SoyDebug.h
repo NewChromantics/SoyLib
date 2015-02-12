@@ -38,7 +38,10 @@ namespace std
 	class DebugStreamBuf : public streambuf
 	{
 	public:
-		DebugStreamBuf()  { };
+		DebugStreamBuf() :
+			mEnableStdOut	( true )
+		{
+		};
 		~DebugStreamBuf()	{	flush();	}
 
 	protected:
@@ -52,6 +55,7 @@ namespace std
 		std::string&	GetBuffer();
 		
 	public:
+		bool			mEnableStdOut;
 		SoyEvent<const std::string>	mOnFlush;		//	catch debug output
 	};
 
@@ -64,6 +68,9 @@ namespace std
 		}
 
 		SoyEvent<const std::string>&		GetOnFlushEvent()	{	return mBuffer.mOnFlush;	}
+		
+		//	toggle std output for this std debug stream
+		void			EnableStdOut(bool Enable)	{	mBuffer.mEnableStdOut = Enable;	}
 		
 	private:
 		DebugStreamBuf	mBuffer;
