@@ -288,6 +288,13 @@ namespace Soy
 		return TypeName;
 	}
 
+	template<typename TYPE>
+	inline const std::string& GetTypeName(const TYPE& Object)
+	{
+		return GetTypeName<TYPE>();		
+	}
+	
+
 	
 	//	auto-define the name for this type for use in the memory debug
 #define DECLARE_TYPE_NAME(TYPE)	\
