@@ -220,7 +220,8 @@ void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string
 	}
 		
 	//	gr: regex wont match $ (end of string) argh... check for trailing command
-	if ( !Soy::Assert( PendingLines.empty(), "Remove the need for this by fixing the regex pattern!" ) )
+	//if ( !Soy::Assert( PendingLines.empty(), "Remove the need for this by fixing the regex pattern!" ) )
+	if ( !PendingLines.empty() )
 	{
 		auto& Line = PendingLines;
 		if ( !Line.empty() )
