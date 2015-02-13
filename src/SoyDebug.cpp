@@ -211,7 +211,7 @@ bool Soy::Platform::DebugBreak()
 	return false;
 }
 
-void Soy::Assert_Impl(TErrorMessageFunc ErrorMessageFunc) throw(AssertException)
+void Soy::Private::Assert_Impl(TErrorMessageFunc ErrorMessageFunc) throw(AssertException)
 {
 	std::string ErrorMessage = ErrorMessageFunc();
 	
