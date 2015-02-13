@@ -192,40 +192,26 @@ void Soy::StringTrimLeft(std::string& String,char TrimChar)
 
 void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
 {
-	std::stringstream PatternString;
-	PatternString << "^(.*)[";
-	//	match any of these characters and EOF
-	PatternString << MatchingChars << "$" << "]";
-	//	only match one case if including emptys, else 1+
-	PatternString <<  (IncludeEmpty ? "{1}" : "+");
-	
-	//	split at cross-platform line feed (or EOF so we don't need to end with a linefeed)
-	std::regex Pattern( PatternString.str(), std::regex::icase );
-	std::smatch Match;
-	std::string PendingLines = String;
-	while ( std::regex_search( PendingLines, Match, Pattern ) )
+	//	gr: dumb approach as regexp is a little fiddly
+	std::stringstream Pending;
+	for ( int i=0;	i<=String.length();	i++ )
 	{
-		//	match line
-		auto Line = Match[1].str();
-		for ( int i=2;	i<Match.size();	i++ )
+		bool Eof = ( i >= String.length() );
+		
+		if ( !Eof && MatchingChars.find(String[i]) == MatchingChars.npos )
 		{
-			std::Debug << "Unexpected OTHER regex matches when splitting file lines. Part#" << i << ": " << Match[i].str() << std::endl;
+			Pending << String[i];
+			continue;
 		}
 		
-		if ( !Line.empty() )
-			Parts.PushBack( Line );
+		//	pop part
+		auto Part = Pending.str();
+		Pending.str( std::string() );
 		
-		//	next
-		PendingLines = Match.suffix().str();
-	}
+		if ( !IncludeEmpty && Part.empty() )
+			continue;
 		
-	//	gr: regex wont match $ (end of string) argh... check for trailing command
-	//if ( !Soy::Assert( PendingLines.empty(), "Remove the need for this by fixing the regex pattern!" ) )
-	if ( !PendingLines.empty() )
-	{
-		auto& Line = PendingLines;
-		if ( !Line.empty() )
-			Parts.PushBack( Line );
+		Parts.PushBack( Part );
 	}
 }
 
