@@ -183,7 +183,14 @@ void Soy::EnableThrowInAssert(bool Enable)
 
 bool Soy::Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException )
 {
-	return Assert( Condition, [&ErrorMessage]{	return Soy::StreamToString(ErrorMessage);	} );
+	__thread static auto* LastErrorMessage = &ErrorMessage;
+	__thread static auto ErrorFunc = []
+	{
+		return Soy::StreamToString( *LastErrorMessage );
+	};
+	LastErrorMessage = &ErrorMessage;
+
+	return Assert( Condition, ErrorFunc );
 }
 
 
@@ -204,11 +211,8 @@ bool Soy::Platform::DebugBreak()
 	return false;
 }
 
-bool Soy::Assert(bool Condition,std::function<std::string()> ErrorMessageFunc) throw(AssertException)
+void Soy::Assert_Impl(TErrorMessageFunc ErrorMessageFunc) throw(AssertException)
 {
-	if ( Condition )
-		return true;
-	
 	std::string ErrorMessage = ErrorMessageFunc();
 	
 	std::Debug << "Assert: " << ErrorMessage << std::endl;
@@ -216,14 +220,13 @@ bool Soy::Assert(bool Condition,std::function<std::string()> ErrorMessageFunc) t
 	//	if the debugger is attached, try and break the debugger without an exception so we can continue
 	if ( Platform::IsDebuggerAttached() )
 		if ( Soy::Platform::DebugBreak() )
-			return false;
+			return;
 	
 	//	sometimes we disable throwing an exception to stop hosting being taken down
 	if ( !gEnableThrowInAssert )
-		return false;
+		return;
 	
 	//	throw exception
 	throw Soy::AssertException( ErrorMessage );
-	return false;
 }
 
