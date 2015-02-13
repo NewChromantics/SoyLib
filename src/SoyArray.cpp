@@ -1,8 +1,14 @@
 #include "array.hpp"
 #include "bufferarray.hpp"
 #include "heaparray.hpp"
+#include "RemoteArray.h"
 
-
+std::string	SoyArray::OnCheckBoundsError(int Index,size_t Size,const std::string& Typename)
+{
+	std::stringstream Error;
+	Error << "Array<" << Typename << "> Index " << Index << "/" << Size << " out of bounds";
+	return Error.str();
+}
 
 bool TArrayReader::ReadReverse(ArrayBridge<char>& Pop)
 {
