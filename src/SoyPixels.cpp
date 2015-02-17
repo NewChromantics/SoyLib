@@ -1445,36 +1445,75 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 }
 
 
-void SoyPixelsImpl::ResizeFastSample(uint16 Width, uint16 Height)
+void SoyPixelsImpl::ResizeFastSample(uint16 NewWidth, uint16 NewHeight)
 {
 	//	copy old data
 	SoyPixels Old;
 	Old.Copy(*this);
 	
-	int ChannelCount = GetChannels();
-	ResizeClip( Width, Height );
+	auto& New = *this;
+	auto NewChannelCount = GetChannels();
+	//	resize buffer
+	ResizeClip( NewWidth, NewHeight );
 	
-	for ( int y=0;	y<Height;	y++ )
+	auto OldHeight = Old.GetHeight();
+	auto OldWidth = Old.GetWidth();
+	auto OldChannelCount = Old.GetChannels();
+	auto MinChannelCount = std::min( OldChannelCount, NewChannelCount );
+	
+	auto& OldPixels = Old.GetPixelsArray();
+	auto& NewPixels = New.GetPixelsArray();
+	
+	for ( int ny=0;	ny<NewHeight;	ny++ )
 	{
-		for ( int x=0;	x<Width;	x++ )
+		float yf = ny/(float)NewHeight;
+		int oy = OldHeight * yf;
+
+		auto OldLineSize = OldWidth * OldChannelCount;
+		auto NewLineSize = NewWidth * NewChannelCount;
+		auto OldRow = GetRemoteArray( &OldPixels.GetArray()[oy*OldLineSize], OldLineSize );
+		auto NewRow = GetRemoteArray( &NewPixels.GetArray()[ny*NewLineSize], NewLineSize );
+		
+		for ( int nx=0;	nx<NewWidth;	nx++ )
 		{
-			float xf = x/(float)Width;
-			float yf = y/(float)Height;
-			
-			int ox = Old.GetWidth() * xf;
-			int oy = Old.GetHeight() * yf;
-			for ( int c=0;	c<ChannelCount;	c++ )
-			{
-				auto OldComponent = Old.GetPixel( ox, oy, c );
-				this->SetPixel( x, y, c, OldComponent );
-			}
+			float xf = nx/(float)NewWidth;
+			int ox = OldWidth * xf;
+			auto* OldPixel = &OldRow[ox*OldChannelCount];
+			auto* NewPixel = &NewRow[nx*NewChannelCount];
+
+			memcpy( NewPixel, OldPixel, MinChannelCount );
 		}
 	}
 	
-	assert( Height == GetHeight() );
-	assert( Width == GetWidth() );
+	assert( NewHeight == GetHeight() );
+	assert( NewWidth == GetWidth() );
 }
 
+
+void SoyPixelsImpl::RotateFlip()
+{
+	if ( !IsValid() )
+		return;
+	
+	//	buffer a line so we don't need to realloc for the temp line
+	auto LineSize = GetWidth() * GetChannels();
+	Array<char> TempLine( LineSize );
+	auto* Pixels = const_cast<char*>( GetPixelsArray().GetArray() );
+	
+	auto Height = GetHeight();
+	for ( int y=0;	y<Height/2;	y++ )
+	{
+		//	swap lines
+		int TopY = y;
+		int BottomY = (Height-1) - y;
+
+		auto* TopRow = &Pixels[TopY * LineSize];
+		auto* BottomRow = &Pixels[BottomY  * LineSize];
+		memcpy( TempLine.GetArray(), TopRow, LineSize );
+		memcpy( TopRow, BottomRow, LineSize );
+		memcpy( BottomRow, TempLine.GetArray(), LineSize );
+	}
+}
 
 bool SoyPixelsImpl::Copy(const SoyPixelsImpl &that)
 {

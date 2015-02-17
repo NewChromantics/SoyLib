@@ -109,6 +109,8 @@ public:
 
 	void			ResizeClip(uint16 Width,uint16 Height);
 	void			ResizeFastSample(uint16 Width,uint16 Height);
+	
+	void			RotateFlip();
 
 	virtual SoyPixelsMeta&				GetMeta()=0;
 	virtual const SoyPixelsMeta&		GetMeta() const=0;
