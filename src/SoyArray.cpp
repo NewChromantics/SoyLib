@@ -1,3 +1,4 @@
+#include "SoyArray.h"
 #include "array.hpp"
 #include "bufferarray.hpp"
 #include "heaparray.hpp"

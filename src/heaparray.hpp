@@ -7,6 +7,8 @@
 #include "array.hpp"
 #include "memheap.hpp"
 #include <SoyDebug.h>
+#include "SoyArray.h"
+
 
 
 //	gr: this is exactly the same as an Array type, but uses a prmem::Heap to allocate from.

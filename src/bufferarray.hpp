@@ -1,16 +1,11 @@
-/*
-	Twilight Prophecy SDK
-	A multi-platform development system for virtual reality and multimedia.
-
-	Copyright (C) 1997-2003 Twilight 3D Finland Oy Ltd.
-*/
-#ifndef Soy_BUFFERARRAY_HPP
-#define Soy_BUFFERARRAY_HPP
+#pragma once
 
 
 #include <cassert>
 #include <cstddef>
 #include "SoyTypes.h"	//	gr: not sure why I have to include this, when it's included earlier in Soy.hpp...
+#include "SoyArray.h"
+
 
 //namespace Soy
 //{		
@@ -95,13 +90,13 @@
 
 		T& operator [] (int index)
 		{
-			assert( index >= 0 && index < moffset );
+			SoyArray::CheckBounds( index, *this );
 			return mdata[index];
 		}
 
 		const T& operator [] (int index) const
 		{
-			assert( index >= 0 && index < moffset );
+			SoyArray::CheckBounds( index, *this );
 			return mdata[index];
 		}
 
@@ -268,7 +263,7 @@
 
 		T& PopBack()
 		{
-			assert( GetSize() > 0 );
+			SoyArray::CheckBounds( moffset, *this );
 			return mdata[--moffset];
 		}
 
@@ -286,7 +281,6 @@
 		T* InsertBlock(int index, int count)
 		{
 			//	do nothing if nothing to add
-			assert( count >= 0 );
 			if ( count == 0 )
 				return IsEmpty() ? NULL : (mdata + index);
 
@@ -475,5 +469,3 @@
 //	any type that uses a BufferArray can be sped up when in use of an array with
 //	DECLARE_NONCOMPLEX_TYPE( BufferArray<yourtype,SIZE> );
 
-
-#endif

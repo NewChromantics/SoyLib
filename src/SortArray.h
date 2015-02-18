@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Array.hpp"
+#include "SoyArray.h"
+
 
 
 //	ascending (default, todo; rename!)
