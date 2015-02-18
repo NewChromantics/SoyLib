@@ -1,6 +1,9 @@
 #include "ofxSoylent.h"
 #include "SoyOpenCl.h"
 //#include "SoyApp.h"
+#include <SoyDebug.h>
+#include <SoyString.h>
+
 
 //	default settings
 bool SoyOpenCl::DefaultReadBlocking = true;
@@ -26,32 +29,26 @@ public:
 
 
 
-SoyFileChangeDetector::SoyFileChangeDetector(const char* Filename) :
-	mFilename		( Filename ),
-	mLastModified	( 0 )
+SoyFileChangeDetector::SoyFileChangeDetector(std::string Filename) :
+	mFile			( Filename )
 {
 }
 
 
 bool SoyFileChangeDetector::HasChanged()
 {
-	Poco::Timestamp CurrentTimestamp = GetCurrentTimestamp();
+	auto CurrentTimestamp = GetCurrentTimestamp();
 	return mLastModified != CurrentTimestamp;
 }
 
-Poco::Timestamp SoyFileChangeDetector::GetCurrentTimestamp()
-{
-	return ofFileLastModified( mFilename );
-}
-
-void SoyFileChangeDetector::SetLastModified(Poco::Timestamp Timestamp)
+void SoyFileChangeDetector::SetLastModified(SoyFilesystem::Timestamp Timestamp)
 {
 	mLastModified = Timestamp;
 }
 
 
 
-SoyOpenClManager::SoyOpenClManager(const char* PlatformName,prmem::Heap& Heap) :
+SoyOpenClManager::SoyOpenClManager(std::string PlatformName,prmem::Heap& Heap) :
 	SoyThread	( "SoyOpenClManager" ),
 	mHeap		( Heap ),
 	mShaders	( mHeap )
@@ -83,7 +80,7 @@ void SoyOpenClManager::threadedFunction()
 				auto FilenameAndBuildOptions = mPreloadShaders.PopBack();
 
 				//	create a simple shader entry which "needs reloading"
-				AllocShader( FilenameAndBuildOptions.mFirst, FilenameAndBuildOptions.mSecond );
+				AllocShader( FilenameAndBuildOptions.mFirst.c_str(), FilenameAndBuildOptions.mSecond.c_str() );
 			}
 		}
 
@@ -111,7 +108,8 @@ void SoyOpenClManager::threadedFunction()
 			}
 		}
 
-		sleep(2000);
+		Sleep(1);
+		
 	}
 }
 
@@ -141,7 +139,7 @@ void SoyOpenClManager::DeleteKernel(SoyOpenClKernel* Kernel)
 	delete Kernel;
 }
 
-SoyOpenClShader* SoyOpenClManager::AllocShader(const char* Filename,const char* BuildOptions)
+SoyOpenClShader* SoyOpenClManager::AllocShader(std::string Filename,std::string BuildOptions)
 {
 	if ( !IsValid() )
 		return nullptr;
@@ -172,7 +170,7 @@ SoyOpenClShader* SoyOpenClManager::AllocShader(const char* Filename,const char* 
 	return pShader;
 }
 
-void SoyOpenClManager::PreLoadShader(const char* Filename,const char* BuildOptions)
+void SoyOpenClManager::PreLoadShader(std::string Filename,std::string BuildOptions)
 {
 	ofMutex::ScopedLock Lock( mPreloadShaders );
 
@@ -183,7 +181,7 @@ void SoyOpenClManager::PreLoadShader(const char* Filename,const char* BuildOptio
 	//	gr: could just AllocShader() here??
 }
 
-SoyOpenClShader* SoyOpenClManager::LoadShader(const char* Filename,const char* BuildOptions)
+SoyOpenClShader* SoyOpenClManager::LoadShader(std::string Filename,std::string BuildOptions)
 {
 	auto* pShader = AllocShader( Filename, BuildOptions );
 	if ( !pShader )
@@ -238,13 +236,13 @@ SoyOpenClShader* SoyOpenClManager::GetShader(SoyRef ShaderRef)
 }
 
 
-SoyOpenClShader* SoyOpenClManager::GetShader(const char* Filename)
+SoyOpenClShader* SoyOpenClManager::GetShader(std::string Filename)
 {
 	ofMutex::ScopedLock Lock( mShaderLock );
 	for ( int s=0;	s<mShaders.GetSize();	s++ )
 	{
 		auto& Shader = *mShaders[s];
-		if ( Shader.GetFilename().StartsWith(Filename,false) )
+		if ( Soy::StringBeginsWith( Shader.GetFilename(), Filename, false ) )
 			return &Shader;
 	}
 	return NULL;
@@ -256,7 +254,7 @@ cl_command_queue SoyOpenClManager::GetQueueForThread(msa::OpenClDevice::Type Dev
 	return GetQueueForThread( CurrentThreadId, DeviceType );
 }
 
-cl_command_queue SoyOpenClManager::GetQueueForThread(SoyThreadId ThreadId,msa::OpenClDevice::Type DeviceType)
+cl_command_queue SoyOpenClManager::GetQueueForThread(std::thread::id ThreadId,msa::OpenClDevice::Type DeviceType)
 {
 	ofMutex::ScopedLock Lock( mThreadQueues );
 
@@ -272,10 +270,8 @@ cl_command_queue SoyOpenClManager::GetQueueForThread(SoyThreadId ThreadId,msa::O
 	{
 		MatchQueue.mQueue = mOpencl.createQueue( DeviceType );
 
-		BufferString<100> Debug;
-		Debug << "Created opencl queue " << PtrToInt(MatchQueue.mQueue) << " for thread id ";
-		ofLogNotice( Debug.c_str() );
-
+		std::Debug << "Created opencl queue " << (ptrdiff_t)(MatchQueue.mQueue) << " for thread id " << std::endl;
+	
 		if ( !MatchQueue.mQueue )
 			return NULL;
 		
@@ -313,15 +309,14 @@ bool SoyOpenClShader::LoadShader()
 	ofMutex::ScopedLock Lock(mLock);
 	UnloadShader();
 
-	//	
-	Poco::Timestamp CurrentTimestamp = GetCurrentTimestamp();
+	auto CurrentTimestamp = GetCurrentTimestamp();
 
 	//	file gone missing
-	if ( CurrentTimestamp == Poco::Timestamp(0) )
+	if ( !CurrentTimestamp.IsValid() )
 		return false;
 
 	//	let this continue if we have build errors? so it doesnt keep trying to reload...
-	mProgram = mManager.mOpencl.loadProgramFromFile( GetFilename().c_str(), false, GetBuildOptions() );
+	mProgram = mManager.mOpencl.loadProgramFromFile( GetFilename(), false, GetBuildOptions() );
 	if ( !mProgram )
 		return false;
 	SetLastModified( CurrentTimestamp );
@@ -332,7 +327,7 @@ bool SoyOpenClShader::LoadShader()
 }
 
 
-SoyOpenClKernel* SoyOpenClShader::GetKernel(const char* Name,cl_command_queue Queue)
+SoyOpenClKernel* SoyOpenClShader::GetKernel(std::string Name,cl_command_queue Queue)
 {
 	ofMutex::ScopedLock Lock(mLock);
 	ofScopeTimerWarning Warning( BufferString<1000>()<<__FUNCTION__<<" "<<Name, 3 );
@@ -398,7 +393,7 @@ SoyOpenClKernel* SoyClShaderRunner::GetKernel()
 }
 
 
-SoyOpenClKernel::SoyOpenClKernel(const char* Name,SoyOpenClShader& Parent) :
+SoyOpenClKernel::SoyOpenClKernel(std::string Name,SoyOpenClShader& Parent) :
 	mName				( Name ),
 	mKernel				( NULL ),
 	mShader				( Parent ),
@@ -457,6 +452,43 @@ bool SoyOpenClKernel::Begin()
 	return true;
 }
 
+bool SoyOpenClKernel::IsValidLocalExecCount(ArrayBridge<int>& LocalExec,bool ForceCorrection)
+{
+	if ( LocalExec.IsEmpty() )
+		return true;
+	
+	std::stringstream Debug;
+
+	//	check against device max's
+	//	gr: don't think i need to check mDevice.maxWorkGroupSize as it's implied by the individual limits...
+	bool Error = false;
+	for ( int d=0;	d<LocalExec.GetSize();	d++ )
+	{
+		int MaxSize = mDeviceInfo.maxWorkItemSizes[d];
+		int Size = LocalExec[d];
+		
+		Debug << Size << "/" << MaxSize << " ";
+		
+		if ( Size > MaxSize )
+		{
+			Error = true;
+		
+			if ( ForceCorrection )
+				LocalExec[d] = MaxSize;
+		}
+	}
+	
+	if ( Error )
+	{
+		std::Debug << GetName() << ": too many local iterations for kernel; " << Debug.str();
+		if ( ForceCorrection )
+			std::Debug << " (corrected)";
+		std::Debug << std::endl;
+		return ForceCorrection;
+	}
+	
+	return true;
+}
 
 bool SoyOpenClKernel::End(bool Blocking,const ArrayBridge<int>& OrigGlobalExec,const ArrayBridge<int>& OrigLocalExec)
 {
@@ -490,22 +522,48 @@ bool SoyOpenClKernel::End(bool Blocking,const ArrayBridge<int>& OrigGlobalExec,c
 		return false;
 	}
 
-	for ( int i=0;	i<LocalExec.GetSize();	i++ )
+	auto LocalExecBridge = GetArrayBridge(LocalExec);
+	if ( !IsValidLocalExecCount( LocalExecBridge, true ) )
+		return false;
+
+
+	//	check 		CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and
+	//			the total number of work-items in the work-group computed as
+	//			local_work_size[0] *... local_work_size[work_dim - 1] is greater than
+	//			the value specified by CL_DEVICE_MAX_WORK_GROUP_SIZE in the table of OpenCL Device Queries for clGetDeviceInfo.
+	if ( !LocalExec.IsEmpty() )
 	{
-		auto& ExecCount = LocalExec[i];
+		int TotalLocalWorkGroupSize = LocalExec[0];
+		for ( int d=1;	d<LocalExec.GetSize();	d++ )
+			TotalLocalWorkGroupSize *= LocalExec[d];
 
-		//	dimensions need to be at least 1, zero size is not a failure, just don't execute
-		if ( ExecCount <= 0 )
-			return true;
-
-		if ( IsValidLocalExecCount(ExecCount) )
-			continue;
-
-		BufferString<1000> Debug;
-		Debug << GetName() << ": Too many iterations for kernel: " << ExecCount << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
-		ofLogWarning( Debug.c_str() );
-		ExecCount = std::min( ExecCount, GetMaxLocalWorkGroupSize() );
+		if ( TotalLocalWorkGroupSize > GetMaxLocalWorkGroupSize() )
+		{
+			std::Debug << "Too many local work items for device: " << TotalLocalWorkGroupSize << "/" << GetMaxLocalWorkGroupSize() << std::endl;
+			return false;
+		}
 	}
+
+	//	CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and number of work-items specified by
+	//	global_work_size is not evenly divisable by size of work-group given by local_work_size
+	if ( !LocalExec.IsEmpty() )
+	{
+		bool Error = false;
+		for ( int Dim=0;	Dim<LocalExec.GetSize();	Dim++ )
+		{
+			int Local = LocalExec[Dim];
+			int Global = GlobalExec[Dim];
+			int Remainer = Global % Local;
+			if ( Remainer != 0 )
+			{
+				std::Debug << "Local work items[" << Dim << "] " << Local << " not divisible by global size " << Global << std::endl;
+				Error = true;
+			}
+		}
+		if ( Error )
+			return false;
+	}
+	
 
 	//	if we're about to execute, make sure all writes are done
 	//	gr: only if ( Blocking ) ?
@@ -677,7 +735,7 @@ void SoyOpenClKernel::GetIterations(Array<SoyOpenclKernelIteration<3>>& Iteratio
 
 int SoyOpenClKernel::GetMaxGlobalWorkGroupSize() const		
 {
-	int DeviceAddressBits = 32;	//CL_DEVICE_ADDRESS_BITS
+	int DeviceAddressBits = mDeviceInfo.deviceAddressBits;
 	int MaxSize = (1<<(DeviceAddressBits-1))-1;	
 	//	gr: if this is negative opencl kernels lock up (or massive loops?), code should bail out beforehand
 	assert( MaxSize > 0 );

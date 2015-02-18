@@ -25,20 +25,15 @@ namespace Soy
 class Soy::Platform::TConsoleApp
 {
 public:
-	TConsoleApp(SoyApp& App) :
-		mApp	( App )
-	{
-	}
-	int				RunLoop();
-
+	void				Exit();
+	void				WaitForExit();
 private:
 #if defined(TARGET_WINDOWS)
 	static BOOL WINAPI	ConsoleHandler(DWORD dwType);
 #endif
 	
 private:
-	static bool			gIsRunning;
-	SoyApp&				mApp;
+	SoyWorkerDummy		mWorker;
 };
 
 
@@ -282,7 +277,7 @@ public:
 template<typename TYPE>
 inline void Soy::WriteXmlData(ofxXmlSettings& xml,const char* Name,const TYPE& Value,bool Tag)
 {
-	TString Buffer;
+	std::stringstream Buffer;
 	Buffer << Value;
 
 	if ( Tag )
@@ -551,6 +546,8 @@ inline void Soy::WriteXmlDataAsParameter(ofxXmlSettings& xml,const char* Name,co
 }
 
 
+#endif
+
 
 
 class TBitReader
@@ -561,7 +558,13 @@ public:
 		mBitPos	( 0 )
 	{
 	}
+	TBitReader(const ArrayBridge<char>&& Data) :
+		mData	( Data ),
+		mBitPos	( 0 )
+	{
+	}
 	
+	bool						Eof() const			{	return BitPosition() >= (mData.GetDataSize()*8);	}
 	bool						Read(int& Data,int BitCount);
 	bool						Read(uint64& Data,int BitCount);
 	bool						Read(uint8& Data,int BitCount);
@@ -579,6 +582,11 @@ private:
 class TBitWriter
 {
 public:
+	TBitWriter(ArrayBridge<char>&& Data) :
+		mData	( Data ),
+		mBitPos	( 0 )
+	{
+	}
 	TBitWriter(ArrayBridge<char>& Data) :
 		mData	( Data ),
 		mBitPos	( 0 )
@@ -600,5 +608,3 @@ private:
 	ArrayBridge<char>&	mData;
 	unsigned int		mBitPos;	//	current bit-to-read/write-pos (the tail)
 };
-
-#endif

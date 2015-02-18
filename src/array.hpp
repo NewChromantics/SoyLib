@@ -58,8 +58,8 @@
 		bool				IsEmpty() const					{	return GetSize() == 0;	}
 		bool				IsFull() const					{	return GetSize() >= MaxSize();	}
 		virtual int			GetSize() const=0;
-		virtual int			GetDataSize() const				{	return GetSize() * GetElementSize();	}
-		virtual int			GetElementSize() const			{	return sizeof(T);	}
+		int					GetDataSize() const				{	return GetSize() * GetElementSize();	}
+		int					GetElementSize() const			{	return sizeof(T);	}
 		virtual const T*	GetArray() const=0;
 		virtual T*			GetArray()=0;
 		virtual void		Reserve(int size,bool clear=false)=0;
@@ -87,6 +87,7 @@
 
 		//	this was NOT required before, because of sort array. so that just fails
 		virtual T*			PushBlock(int count)=0;
+		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=true)=0;
 
 		template<class ARRAY>
 		bool				Copy(const ARRAY& a)
@@ -173,6 +174,30 @@
 				pData[i] = OtherT[ThatDataSize-1-i];
 			return pData;
 		}
+		
+		template<class ARRAYTYPE>
+		T*					InsertArray(const ARRAYTYPE& v,int Index)
+		{
+			int NewDataIndex = Index;
+			T* pNewData = InsertBlock( Index, v.GetSize() );
+			if ( !pNewData )
+				return nullptr;
+			
+			if ( Soy::DoComplexCopy<T,typename ARRAYTYPE::TYPE>() )
+			{
+				for ( int i=0; i<v.GetSize(); ++i )
+					(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check
+			}
+			else if ( v.GetSize() > 0 )
+			{
+				//	re-fetch address for bounds check. technically unncessary
+				pNewData = &((*this)[NewDataIndex]);
+				//	note: lack of bounds check for all elements here
+				memcpy( pNewData, v.GetArray(), v.GetSize() * sizeof(T) );
+			}
+			
+			return pNewData;
+		}
 
 		uint32				GetCrc32() const
 		{
@@ -191,10 +216,16 @@
 	public:
 		ArrayBridge()	{}
 
+		inline ArrayBridge<T>&	operator=(const ArrayBridge<T>& That)
+		{
+			this->Copy( That );
+			return *this;
+		}
+
 		//	interfaces not required by ArrayInterface
 		virtual T&			PushBack(const T& item)=0;
 		virtual T&			PushBack()=0;
-		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false)=0;
+		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=true)=0;
 		virtual void		Reserve(int size,bool clear=false)=0;
 		virtual void		RemoveBlock(int index, int count)=0;
 		virtual T*			InsertBlock(int index, int count)=0;
@@ -205,6 +236,10 @@
 		//	gr: COULD turn this into a compare for sorting, but that would invoke a < and > operator call for each type.
 		//		this is also why we don't use the != operator, only ==
 		//		if we want that, make a seperate func!
+		inline bool			Matches(const ArrayBridge<T>&& That) const
+		{
+			return Matches( That );
+		}
 		inline bool			Matches(const ArrayBridge<T>& That) const
 		{
 			if ( this->GetSize() != That.GetSize() )	
@@ -236,6 +271,7 @@
 				return true;
 			}
 		}
+		
 	};
 
 
@@ -256,15 +292,15 @@
 
 		virtual T&			operator [] (int index) override			{	return mArray[index];	}
 		virtual const T&	operator [] (int index) const override		{	return mArray[index];	}
-		virtual T&			GetBack() override							{	return mArray.GetBack();	}
+		virtual T&			GetBack() override							{	return mArray[mArray.GetSize()-1];	}
 		virtual int			GetSize() const override					{	return mArray.GetSize();	}
 		virtual const T*	GetArray() const override					{	return mArray.GetArray();	}
 		virtual T*			GetArray() override							{	return mArray.GetArray();	}
-		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false) override	{	return mArray.SetSize(size,preserve,AllowLess);	}
+		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=true) override	{	return mArray.SetSize(size,preserve,AllowLess);	}
 		virtual void		Reserve(int size,bool clear=false) override	{	return mArray.Reserve(size,clear);	}
 		virtual T*			PushBlock(int count) override				{	return mArray.PushBlock(count);	}
-		virtual T&			PushBack(const T& item) override			{	return mArray.PushBack(item);	}
-		virtual T&			PushBack() override							{	return mArray.PushBack();	}
+		virtual T&			PushBack(const T& item) override			{	auto& Tail = PushBack();	Tail = item;	return Tail;	}
+		virtual T&			PushBack() override							{	auto* Tail = PushBlock(1);	return *Tail;	}
 		virtual void		RemoveBlock(int index, int count) override	{	mArray.RemoveBlock(index,count);	}
 		virtual T*			InsertBlock(int index, int count) override	{	return mArray.InsertBlock(index,count);	}
 		virtual void		Clear(bool Dealloc) override				{	return mArray.Clear(Dealloc);	}
@@ -295,10 +331,19 @@ public:
 	{
 	}
 	
-	bool		Eod() const		{	return mOffset == mArray.GetDataSize();	}
-	bool		Read(ArrayBridge<char>& Pop);			//	copy this-length of data
+	int			GetRemainingBytes() const	{	return mArray.GetDataSize() - mOffset;	}
+	bool		Eod() const					{	return GetRemainingBytes() <= 0;	}
+	//bool		ReadArray(ArrayBridge<char>& Pop);			//	copy this-length of data
 	bool		ReadCompare(ArrayBridge<char>& Match);	//	read array and make sure it matches Pop
-	bool		Read(uint8& Pop);
+	
+	template<typename TYPE>
+	bool		Read(TYPE& Pop);
+
+	template<typename TYPE>
+	bool		ReadArray(ArrayBridge<TYPE>& Pop);		//	read this-many
+	template<typename TYPE>
+	bool		ReadArray(ArrayBridge<TYPE>&& Pop)		{	return ReadArray( Pop );	}
+	
 	template<class BUFFERARRAYTYPE,typename TYPE>
 	bool		ReadReinterpretReverse(TYPE& Pop);
 	
@@ -310,6 +355,28 @@ public:
 	const ArrayBridge<char>&	mArray;
 };
 
+
+template<typename TYPE>
+inline bool TArrayReader::Read(TYPE& Pop)
+{
+	if ( mOffset+sizeof(TYPE) > mArray.GetDataSize() )
+		return false;
+	auto& Data = *reinterpret_cast<const TYPE*>( &mArray[mOffset] );
+	Pop = Data;
+	mOffset += sizeof(TYPE);
+	return true;
+}
+
+template<typename TYPE>
+inline bool TArrayReader::ReadArray(ArrayBridge<TYPE>& Pop)
+{
+	if ( mOffset+Pop.GetDataSize() > mArray.GetDataSize() )
+		return false;
+	auto* Data = reinterpret_cast<const TYPE*>( &mArray[mOffset] );
+	memcpy( Pop.GetArray(), Data, Pop.GetDataSize() );
+	mOffset += Pop.GetDataSize();
+	return true;
+}
 
 
 template<class BUFFERARRAYTYPE,typename TYPE>

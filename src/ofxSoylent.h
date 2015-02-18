@@ -1,5 +1,9 @@
 #pragma once
 
+#if defined(WIN32) && !defined(_DEBUG) && !defined(NDEBUG)
+#error neither DEBUG or non-DDEBUG preprocessor specified on windows
+#endif
+
 
 #if !defined(NO_OPENFRAMEWORKS)
 #include <ofMain.h>
@@ -17,10 +21,6 @@
 #include "BufferArray.hpp"
 #include "String.hpp"
 
-//	yuck
-typedef Soy::String2<char,Array<char> >		TString;
-
-#include "SoyPair.h"
 #include "SoyEnum.h"
 #include "SoyTime.h"
 #include "SoyRef.h"

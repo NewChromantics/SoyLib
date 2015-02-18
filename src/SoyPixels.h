@@ -19,6 +19,10 @@ namespace SoyPixelsFormat
 		BGRA			= 5,
 		BGR				= 6,
 		KinectDepth		= 7,	//	16 bit, so "two channels". 13 bits of depth, 3 bits of user-index
+		FreenectDepth10bit	= 8,	//	16 bit
+		FreenectDepth11bit	= 9,	//	16 bit
+		FreenectDepthmm	= 10,	//	16 bit
+	
 		//HSL,
 		//HSLA,
 	};
@@ -26,8 +30,18 @@ namespace SoyPixelsFormat
 	int			GetChannelCount(Type Format);
 	Type		GetFormatFromChannelCount(int ChannelCount);
 	inline bool	IsValid(Type Format)			{	return GetChannelCount( Format ) > 0;	}
+	
+	bool		GetOpenglFormat(int& glFormat,Type Format);
+	Type		GetFormatFromOpenglFormat(int glFormat);
+	bool		GetOpenclFormat(int& ChannelOrder,Type Format);
+	
+	int			GetMaxValue(SoyPixelsFormat::Type Format);
+	int			GetMinValue(SoyPixelsFormat::Type Format);
+	int			GetInvalidValue(SoyPixelsFormat::Type Format);
+	int			GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format);
+	bool		GetIsFrontToBackDepth(SoyPixelsFormat::Type Format);
 };
-std::ostream& operator<< (std::ostream &out,const SoyPixelsFormat::Type &in);
+std::ostream& operator<< ( std::ostream &out, const SoyPixelsFormat::Type &in );
 
 
 //	meta data for pixels (header when using raw data)
@@ -46,8 +60,8 @@ public:
 	uint8			GetChannels() const				{	return SoyPixelsFormat::GetChannelCount(mFormat);	}
 	uint16			GetWidth() const				{	return mWidth;	}
 	uint16			GetHeight(int DataSize) const	{	return IsValid() && DataSize>0 ? DataSize / (GetChannels()*mWidth) : 0;	}
-	bool			GetOpenglFormat(int& glFormat) const;
-	bool			GetOpenclFormat(int& ChannelOrder) const;
+	bool			GetOpenglFormat(int& glFormat) const	{	return SoyPixelsFormat::GetOpenglFormat( glFormat, GetFormat() );	}
+	bool			GetOpenclFormat(int& clFormat) const	{	return SoyPixelsFormat::GetOpenclFormat( clFormat, GetFormat() );	}
 	int				GetDataSize(int Height) const	{	return Height * GetChannels() * GetWidth();	}
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
 	void			DumbSetChannels(int Channels)	{	mFormat = SoyPixelsFormat::GetFormatFromChannelCount(Channels);	}
@@ -72,6 +86,8 @@ public:
 	bool			Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format);
 	bool			Init(uint16 Width,uint16 Height,uint8 Channels);
 
+	virtual bool	Copy(const SoyPixelsImpl& that);
+	
 	uint16			GetHeight() const				{	return GetMeta().GetHeight( GetPixelsArray().GetSize() );	}
 	bool			IsValid() const					{	return GetMeta().IsValid();	}
 	uint8			GetBitDepth() const				{	return GetMeta().GetBitDepth();	}
@@ -81,127 +97,73 @@ public:
 
 	bool			GetPng(ArrayBridge<char>& PngData) const;
 	bool			GetRawSoyPixels(ArrayBridge<char>& RawData) const;
+	bool			GetRawSoyPixels(ArrayBridge<char>&& RawData) const	{	return GetRawSoyPixels( RawData );	}
 	const uint8&	GetPixel(uint16 x,uint16 y,uint16 Channel) const;
 	bool			SetPixel(uint16 x,uint16 y,uint16 Channel,const uint8& Component);
 
+	bool			SetFormat(SoyPixelsFormat::Type Format);
+	bool			SetChannels(uint8 Channels);
 	bool			SetPng(const ArrayBridge<char>& PngData,std::stringstream& Error);
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
+	bool			SetRawSoyPixels(const ArrayBridge<char>&& RawData)	{	return SetRawSoyPixels( RawData );	}
 
 	void			ResizeClip(uint16 Width,uint16 Height);
+	void			ResizeFastSample(uint16 Width,uint16 Height);
+	
+	void			RotateFlip();
 
 	virtual SoyPixelsMeta&				GetMeta()=0;
 	virtual const SoyPixelsMeta&		GetMeta() const=0;
-	virtual ArrayBridge<uint8>&			GetPixelsArray()=0;
-	virtual const ArrayBridge<uint8>&	GetPixelsArray() const=0;
+	virtual ArrayInterface<char>&		GetPixelsArray()=0;
+	virtual const ArrayInterface<char>&	GetPixelsArray() const=0;
 };
 
 template<class TARRAY>
 class SoyPixelsDef : public SoyPixelsImpl
 {
 public:
-	explicit SoyPixelsDef(ArrayBridgeDef<TARRAY> Pixels,SoyPixelsMeta& Meta) :
-		mPixels	( Pixels ),
+	explicit SoyPixelsDef(TARRAY& Array,SoyPixelsMeta& Meta) :
+		mArray	( Array ),
+		mArrayBridge	( Array ),
 		mMeta	( Meta )
 	{
 	}
 
 	virtual SoyPixelsMeta&				GetMeta()			{	return mMeta;	}
 	virtual const SoyPixelsMeta&		GetMeta() const		{	return mMeta;	}
-	virtual ArrayBridge<uint8>&			GetPixelsArray() override	{	return mPixels;	}
-	virtual const ArrayBridge<uint8>&	GetPixelsArray() const override	{	return mPixels;	}
+	virtual ArrayInterface<char>&		GetPixelsArray()	{	return mArrayBridge;	}
+	virtual const ArrayInterface<char>&	GetPixelsArray() const	{	return mArrayBridge;	}
 
 public:
-	SoyPixelsMeta&			mMeta;
-	ArrayBridgeDef<TARRAY>	mPixels;
+	ArrayBridgeDef<TARRAY>	mArrayBridge;
+	TARRAY&			mArray;
+	SoyPixelsMeta&	mMeta;
 };
 
 
-class TPixels
-{
-public:
-	TPixels(prmem::Heap& Heap=prcore::Heap) :
-		mPixels						( Heap )
-	{
-	}
-
-#if defined(OPENFRAMEWORKS)
-	bool		Init(uint16 Width,uint16 Height,uint8 Channels,const ofColour& DefaultColour);
-	bool		Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format,const ofColour& DefaultColour);
-#endif
-
-#if defined(OPENFRAMEWORKS)
-	bool		Get(ofImage& Pixels) const;
-	bool		Get(ofPixels& Pixels) const;
-	bool		Get(ofxCvImage& Pixels) const;
-	bool		Get(ofxCvGrayscaleImage& Pixels,SoyOpenClManager& OpenClManager) const;
-	bool		Get(ofTexture& Pixels) const;
-#endif
-
-#if defined(SOY_OPENCL)
-	bool		Get(msa::OpenCLImage& Pixels,SoyOpenClKernel& Kernel,cl_int clMemMode=CL_MEM_READ_WRITE) const;
-	bool		Get(msa::OpenCLImage& Pixels,cl_command_queue Queue,cl_int clMemMode=CL_MEM_READ_WRITE) const;
-#endif
-
-#if defined(OPENFRAMEWORKS)
-	bool		Set(const ofPixels& Pixels);
-	bool		Set(ofxCvImage& Pixels);
-	bool		Set(const IplImage& Pixels);	//	opencv internal image
-#endif
-	bool		Set(const TPixels& Pixels);
-	bool		Set(const SoyPixelsImpl& Pixels);
-#if defined(OPENFRAMEWORKS)
-	bool		Set(const msa::OpenCLImage& Pixels,cl_command_queue Queue);
-	bool		Set(const msa::OpenCLImage& Pixels,SoyOpenClKernel& Kernel);
-#endif
-	bool		SetFormat(SoyPixelsFormat::Type Format);
-	bool		SetChannels(uint8 Channels);
-#if defined(SOY_OPENCL)
-	bool		SetChannels(uint8 Channels,SoyOpenClManager& OpenClManager,const ofColour& DefaultColour=ofColour(255,255,255,255));
-	bool		SetChannels(uint8 Channels,SoyOpenClManager& OpenClManager,const clSetPixelParams& Params);
-#endif
-	void		Clear();						//	delete data
-
-#if defined(SOY_OPENCL)
-	bool		RgbaToHsla(SoyOpenClManager& OpenClManager);
-	bool		RgbaToHsla(SoyOpenClManager& OpenClManager,ofPtr<SoyClDataBuffer>& Hsla) const;
-	bool		RgbaToHsla(SoyOpenClManager& OpenClManager,ofPtr<msa::OpenCLImage>& Hsla) const;
-#endif	
-
-	uint16			GetHeight() const				{	return Def().GetHeight();	}
-	bool			IsValid() const					{	return Def().IsValid();	}
-	uint8			GetBitDepth() const				{	return Def().GetBitDepth();	}
-	uint8			GetChannels() const				{	return Def().GetChannels();	}
-	uint16			GetWidth() const				{	return Def().GetWidth();	}
-	SoyPixelsFormat::Type	GetFormat() const		{	return Def().GetFormat();	}
-	virtual SoyPixelsMeta&				GetMeta()			{	return mMeta;	}
-	virtual const SoyPixelsMeta&		GetMeta() const		{	return mMeta;	}
-	//virtual ArrayBridge<uint8>			GetPixelsArray() override		{	return GetArrayBridge(mPixels);	}
-	//virtual const ArrayBridge<uint8>	GetPixelsArray() const override	{	return GetArrayBridge(mPixels);	}
-
-	SoyPixelsDef<Array<uint8>>			Def()		{	return SoyPixelsDef<Array<uint8>>( GetArrayBridge( mPixels ), mMeta );	}
-	const SoyPixelsDef<Array<uint8>>	Def() const	{	return const_cast<TPixels*>(this)->Def();	}
-
-public:
-	SoyPixelsMeta	mMeta;
-	Array<uint8>	mPixels;
-};
-DECLARE_TYPE_NAME( TPixels );
-
-
-class SoyPixels : public SoyPixelsDef<Array<uint8>>
+class SoyPixels : public SoyPixelsDef<Array<char>>
 {
 public:
 	SoyPixels(prmem::Heap& Heap=prcore::Heap) :
-		mPixels						( Heap ),
-		SoyPixelsDef<Array<uint8>>	( GetArrayBridge( mPixels.mPixels ), mPixels.mMeta )
+		mArray						( Heap ),
+		SoyPixelsDef<Array<char>>	( mArray, mMeta )
 	{
 	}
-
-	operator TPixels& ()					{	return mPixels;	}
-	operator const TPixels& () const		{	return mPixels;	}
+	
+	SoyPixels& operator=(const SoyPixels& that)	{	Copy( that );	return *this;	}
 
 public:
-	TPixels		mPixels;
+	SoyPixelsMeta	mMeta;
+	Array<char>		mArray;
 };
 DECLARE_TYPE_NAME( SoyPixels );
+
+//	gr; unsupported for now... 
+#if defined(TARGET_WINDOWS)
+inline std::ostream& operator<< ( std::ostream &out, const SoyPixels &in )
+{
+	out.setstate( std::ios::failbit );	
+	return out; 
+}
+#endif
 

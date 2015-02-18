@@ -1,61 +1,18 @@
 #include "SoyTypes.h"
 #include "heaparray.hpp"
 #include <sstream>
+#include <fstream>
 #include <algorithm>		//	std::transform
+#include "SoyString.h"
+#include "SoyDebug.h"
+#include <atomic>
+
 
 #if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
 #pragma comment(lib, "Shlwapi.lib")
 #endif
 
-#if defined(NO_OPENFRAMEWORKS)
-void ofLogNotice(const std::string& Message)
-{
-#if defined(TARGET_WINDOWS)
-	OutputDebugStringA( Message.c_str() );
-	OutputDebugStringA("\n");
-#else
-    std::cout << Message << "\n";
-#endif
-}
-#endif
-
-#if defined(NO_OPENFRAMEWORKS)
-void ofLogWarning(const std::string& Message)
-{
-#if defined(TARGET_WINDOWS)
-	OutputDebugStringA( "[WARN] " );
-	OutputDebugStringA( Message.c_str() );
-	OutputDebugStringA("\n");
-#else
-    std::cout << "[WARN] " << Message << "\n";
-#endif
-}
-#endif
-
-
-#if defined(NO_OPENFRAMEWORKS)
-void ofLogError(const std::string& Message)
-{
-#if defined(TARGET_WINDOWS)
-	OutputDebugStringA( "[ERROR] " );
-	OutputDebugStringA( Message.c_str() );
-	OutputDebugStringA("\n");
-#else
-    std::cout << "[ERROR] " << Message << "\n";
-#endif
-}
-#endif
-
-#if defined(NO_OPENFRAMEWORKS)
-std::string ofToString(int Integer)
-{
-	std::ostringstream s;
-	s << Integer;
-	//return std::string( s.str() );
-	return s.str();
-}
-#endif
 
 
 #if defined(NO_OPENFRAMEWORKS)
@@ -91,48 +48,6 @@ std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeTo
 }
 #endif
 
-#if defined(NO_OPENFRAMEWORKS)
-std::string ofBufferFromFile(const char* Filename)
-{
-	//	fopen is safe, but supress warning anyway
-#if defined(TARGET_WINDOWS)
-	FILE* File = nullptr;
-	fopen_s( &File, Filename, "r" );
-#else
-	FILE* File = fopen( Filename, "r" );
-#endif
-	if ( !File )
-		return std::string();
-
-	//	read
-	Array<char> Contents;
-	while ( true )
-	{
-		BufferArray<char,1024> Buffer;
-		Buffer.SetSize( Buffer.MaxSize() );
-#if defined(TARGET_WINDOWS)
-		auto CharsRead = fread_s( Buffer.GetArray(), Buffer.GetDataSize(), Buffer.GetElementSize(), Buffer.GetSize(), File );
-#else
-		auto CharsRead = std::fread( Buffer.GetArray(), Buffer.GetElementSize(), Buffer.GetSize(), File );
-#endif
-		Buffer.SetSize( CharsRead );
-
-		Contents.PushBackArray( Buffer );
-
-		//	EOF
-		if ( Buffer.GetSize() != Buffer.MaxSize() )
-			break;
-	}
-	fclose( File );
-	File = nullptr;
-
-	if ( Contents.IsEmpty() )
-		return std::string();
-
-	std::string ContentsStr = Contents.GetArray();
-	return ContentsStr;
-}
-#endif
 
 
 
@@ -251,4 +166,293 @@ std::string Soy::Platform::GetErrorString(int Error)
 	return strerror(Error);
 #endif
 }
+
+
+
+bool Soy::ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream)
+{
+	//	dunno how much to read
+	assert( !Data.IsEmpty() );
+	if ( Data.IsEmpty() )
+		return false;
+	
+	Stream.read( Data.GetArray(), Data.GetDataSize() );
+	
+	if ( Stream.fail() && !Stream.eof() )
+		return false;
+	
+	auto BytesRead = Stream.gcount();
+	Soy::Assert( BytesRead < std::numeric_limits<int>::max(), "integer too big" );
+	Data.SetSize( static_cast<int>(BytesRead) );
+	
+	return true;
+}
+
+bool Soy::ReadStream(ArrayBridge<char>&& Data,std::istream& Stream,std::stringstream& Error)
+{
+	BufferArray<char,5*1024> Buffer;
+	while ( !Stream.eof() )
+	{
+		//	read a chunk
+		Buffer.SetSize( Buffer.MaxAllocSize() );
+		auto BufferBridge = GetArrayBridge( Buffer );
+		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
+		{
+			Error << "Error reading stream";
+			return false;
+		}
+		
+		Data.PushBackArray( Buffer );
+	}
+	
+	return true;
+}
+
+
+bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::stringstream& Error)
+{
+	//	gr: todo: re-use function above, just need to send lambda or something for PushBackArary
+	BufferArray<char,5*1024> Buffer;
+	while ( !Stream.eof() )
+	{
+		//	read a chunk
+		Buffer.SetSize( Buffer.MaxAllocSize() );
+		auto BufferBridge = GetArrayBridge( Buffer );
+		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
+		{
+			Error << "Error reading stream";
+			return false;
+		}
+		
+		Data.PushBackArray( Buffer );
+	}
+	
+	return true;
+}
+
+bool Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename,std::stringstream& Error)
+{
+	//	gr: would be nice to have an array! MemFileArray maybe, if it can be cross paltform...
+	std::ifstream Stream( Filename, std::ios::binary|std::ios::in );
+	if ( !Stream.is_open() )
+	{
+		Error << "Failed to open " << Filename << " (" << Soy::Platform::GetLastErrorString() << ")";
+		return false;
+	}
+	
+	//	read block by block
+	bool Result = ReadStream( Data, Stream, Error );
+	Stream.close();
+	
+	return Result;
+}
+
+
+
+
+static const std::string base64_chars =
+"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+"abcdefghijklmnopqrstuvwxyz"
+"0123456789+/";
+
+
+static inline bool is_base64(unsigned char c) {
+	return (isalnum(c) || (c == '+') || (c == '/'));
+}
+
+void Soy::base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded)
+{
+	//	gr: pre-alloc. base64 turns 3 chars into 4...
+	//	just double what we take in.
+	Encoded.Reserve( Decoded.GetSize()*2 );
+		
+	auto in_len = Decoded.GetDataSize();
+	auto* bytes_to_encode = Decoded.GetArray();
+	if ( !bytes_to_encode )
+		return;
+	
+	auto& ret = Encoded;
+	int i = 0;
+	int j = 0;
+	unsigned char char_array_3[3];
+	unsigned char char_array_4[4];
+	
+	while (in_len--) {
+		char_array_3[i++] = *(bytes_to_encode++);
+		if (i == 3) {
+			char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+			char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+			char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+			char_array_4[3] = char_array_3[2] & 0x3f;
+			
+			for(i = 0; (i <4) ; i++)
+				ret.PushBack( base64_chars[char_array_4[i]] );
+			i = 0;
+		}
+	}
+	
+	if (i)
+	{
+		for(j = i; j < 3; j++)
+			char_array_3[j] = '\0';
+		
+		char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+		char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+		char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+		char_array_4[3] = char_array_3[2] & 0x3f;
+		
+		for (j = 0; (j < i + 1); j++)
+			ret.PushBack( base64_chars[char_array_4[j]] );
+		
+		while((i++ < 3))
+			ret.PushBack('=');
+		
+	}
+	
+}
+
+void Soy::base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded)
+{
+	//	gr: pre-alloc. base64 turns 3 chars into 4...
+	//		so decoding... we only need 3/4 of the data
+	//	...	just alloc same amount, it'll be smaller
+	Decoded.Reserve( Encoded.GetSize() );
+	
+	int in_len = Encoded.GetSize();
+	int i = 0;
+	int j = 0;
+	int in_ = 0;
+	unsigned char char_array_4[4], char_array_3[3];
+	auto& ret = Decoded;
+	
+	while (in_len-- && ( Encoded[in_] != '=') && is_base64(Encoded[in_])) {
+		char_array_4[i++] = Encoded[in_]; in_++;
+		if (i ==4) {
+			for (i = 0; i <4; i++)
+				char_array_4[i] = base64_chars.find(char_array_4[i]);
+			
+			char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+			char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+			char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+			
+			for (i = 0; (i < 3); i++)
+				ret.PushBack( char_array_3[i] );
+			i = 0;
+		}
+	}
+	
+	if (i) {
+		for (j = i; j <4; j++)
+			char_array_4[j] = 0;
+		
+		for (j = 0; j <4; j++)
+			char_array_4[j] = base64_chars.find(char_array_4[j]);
+		
+		char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+		char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+		char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+		
+		for (j = 0; (j < i - 1); j++)
+			ret.PushBack( char_array_3[j] );
+	}
+}
+
+
+bool Soy::StringToFile(std::string Filename,std::string String)
+{
+	std::ofstream File( Filename, std::ios::out );
+	if ( !File.is_open() )
+		return false;
+	
+	File << String;
+	bool Success = !File.fail();
+	
+	File.close();
+	return Success;
+}
+
+
+bool Soy::FileToString(std::string Filename,std::string& String)
+{
+	std::stringstream Error;
+	return FileToString( Filename, String, Error );
+}
+
+bool Soy::FileToString(std::string Filename,std::string& String,std::stringstream& Error)
+{
+	//	gr: err surely a better way
+	Array<char> StringData;
+	auto StringDataBridge = GetArrayBridge( StringData );
+	if ( !LoadBinaryFile( StringDataBridge, Filename, Error ) )
+		return false;
+
+	String = Soy::ArrayToString( StringDataBridge );
+	return true;
+/*
+	std::ifstream File( Filename, std::ios::in );
+	if ( !File.is_open() )
+		return false;
+	
+#error this only pulls out first word
+	File >> String;
+	bool Success = !File.fail();
+	
+	File.close();
+	return Success;
+ */
+}
+
+bool Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::stringstream& Error)
+{
+	//	get file as string then parse
+	std::string FileContents;
+	if ( !FileToString( Filename, FileContents, Error ) )
+		return false;
+	
+	Soy::SplitStringLines( StringLines, FileContents );
+	return true;
+}
+
+
+#if !defined(ENABLE_RTTI)
+std::string Soy::AllocTypeName()
+{
+	static std::atomic<int> gTypeCounter(0);
+	int TypeCount = gTypeCounter++;
+	std::stringstream TypeName;
+	TypeName << "Type" << TypeCount;
+	return TypeName.str();
+}
+#endif
+
+//	http://stackoverflow.com/questions/281818/unmangling-the-result-of-stdtype-infoname
+//#include "type.hpp"
+#ifdef __GNUG__
+//#include <cstdlib>
+//#include <memory>
+#include <cxxabi.h>
+
+std::string Soy::DemangleTypeName(const char* name)
+{
+	
+    int status = -4; // some arbitrary value to eliminate the compiler warning
+	
+    // enable c++11 by passing the flag -std=c++11 to g++
+    std::unique_ptr<char, void(*)(void*)> res {
+        abi::__cxa_demangle(name, NULL, NULL, &status),
+        std::free
+    };
+	
+    return (status==0) ? res.get() : name ;
+}
+
+#else
+
+// does nothing if not g++
+std::string Soy::DemangleTypeName(const char* name)
+{
+    return name;
+}
+
+#endif
 

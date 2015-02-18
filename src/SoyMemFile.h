@@ -5,21 +5,39 @@
 #include "SoyRef.h"
 #include "SoyThread.h"
 
+namespace Soy
+{
+	namespace Platform
+	{
+#if defined(TARGET_WINDOWS)
+		const static HANDLE		InvalidFileHandle = nullptr;
+#endif
+#if defined(TARGET_OSX)
+		const static int		InvalidFileHandle = -1;
+#endif
+	}
+}
 
 class MemFileArray : public ArrayInterface<char>
 {
 public:
 	typedef ArrayInterface<char>::TYPE T;
 	typedef ArrayInterface<char>::TYPE TYPE;
+	
 public:
-	MemFileArray(std::string& Filename,int Size,bool ReadOnly=false);	//	size must be known beforehand!
+	MemFileArray(std::string Filename,bool AllowOtherFilename);
+	MemFileArray(std::string Filename,bool AllowOtherFilename,int Size,bool ReadOnly);
 	~MemFileArray()
 	{
 		Close();
 	}
 
+	bool				Init(int Size,bool ReadOnly);
+	bool				Init(int Size,bool ReadOnly,std::stringstream& Error);	//	size must be known beforehand!
+	
 	std::string			GetFilename() const				{	return mFilename;	}
-	void				Close();
+	void				Close();						//	close handle but don't destroy file
+	void				Destroy();						//	destroy shared memory
 	bool				IsValid() const;
 
 	virtual T&			operator [] (int index)			{	return GetArray()[index];	}
@@ -50,7 +68,7 @@ public:
 	
 	virtual T* InsertBlock(int index, int count)
 	{
-		 T*& mData = reinterpret_cast<T*&>(mMap);
+		T*& mData = reinterpret_cast<T*&>(mMap);
 		//	do nothing if nothing to add
 		assert( count >= 0 );
 		if ( count == 0 )
@@ -80,7 +98,7 @@ public:
 
 	virtual void		RemoveBlock(int index, int count)
 	{
-		 T*& mData = reinterpret_cast<T*&>(mMap);
+		T*& mData = reinterpret_cast<T*&>(mMap);
 
 		//	do nothing if nothing to remove
 		assert( count >= 0 );
@@ -115,31 +133,18 @@ public:
 	}
 
 	//	gr: AllowLess does nothing here, but the parameter is kept to match other Array types (in case it's used in template funcs for example)
-	bool SetSize(int size, bool preserve=true,bool AllowLess=true)
-	{
-		assert( size >= 0 );
-		if ( size < 0 )	
-			size = 0;
+	bool SetSize(int size, bool preserve=true,bool AllowLess=true);
 
-		//	limit size
-		//	gr: assert, safely alloc, and return error. Maybe shouldn't "safely alloc"
-		//	gr: assert over limit, don't silently fail
-		assert( size <= MaxSize() );
-		if ( size > MaxSize() )
-		{
-			size = MaxSize();
-			mOffset = size;
-			return false;
-		}
-				
-		mOffset = size;
-		return true;
-	}
-		
 	virtual T*			PushBlock(int count)
 	{
+		if ( !Soy::Assert( count >= 0, "Can't allocate 0" ) )
+			return nullptr;
+		
+		//	if we haven't allocated, try now
+		if ( !Init(count,false) )
+			return nullptr;
+				 
 		T*& mData = reinterpret_cast<T*&>(mMap);
-		assert( count >= 0 );
 		if ( count < 0 )	count = 0;
 		int curoff = GetSize();
 		int endoff = GetSize() + count;
@@ -147,14 +152,18 @@ public:
 		//	fail if we try and "allocate" too much
 		if ( endoff > MaxSize() )
 		{
-			assert( endoff <= MaxSize() );
-			return NULL;
+			if ( !Soy::Assert( endoff <= MaxSize(), "Cannot allocate more data" ) )
+				return nullptr;
 		}
 			
 		mOffset = endoff;
+
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
-		for ( int i=curoff;	i<curoff+count;	i++ )
-			mData[i] = T();
+		if ( Soy::IsComplexType<TYPE>() )
+		{
+			for ( int i=curoff;	i<curoff+count;	i++ )
+				mData[i] = T();
+		}
 		return mData + curoff;
 	}
 
@@ -168,11 +177,18 @@ private:
 	const T*			CreateMap() const				{	return const_cast<MemFileArray*>(this)->CreateMap();	}
 	T*					CreateMap()						{	return reinterpret_cast<T*>(mMap);	}
 
+	bool				OpenWriteFile(size_t Size,std::stringstream& Error);
+	bool				OpenReadOnlyFile(size_t Size,std::stringstream& Error);
+	
 private:
 #if defined(TARGET_WINDOWS)
 	HANDLE				mHandle;
 #endif
+#if defined(TARGET_OSX)
+	int					mHandle;
+#endif
 	std::string			mFilename;
+	bool				mAllowOtherFilename;	//	if we cannot create file, we can try other filenames
 	void*				mMap;
 	int					mMapSize;
 
@@ -190,6 +206,10 @@ public:
 	}
 
 	ofPtr<MemFileArray>			AllocFile(const ArrayBridge<char>& Data);
+	ofPtr<MemFileArray>			AllocFile(const ArrayBridge<char>&& Data)
+	{
+		return AllocFile( Data );
+	}
 
 private:
 	ofMutex						mFileLock;

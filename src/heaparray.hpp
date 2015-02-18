@@ -6,7 +6,7 @@
 #include "SoyTypes.h"	//	gr: not sure why I have to include this, when it's included earlier in Soy.hpp...
 #include "array.hpp"
 #include "memheap.hpp"
-	
+#include <SoyDebug.h>
 
 
 //	gr: this is exactly the same as an Array type, but uses a prmem::Heap to allocate from.
@@ -237,9 +237,13 @@ public:
 		}
 
 		moffset = endoff;
+		
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
-		for ( int i=curoff;	i<curoff+count;	i++ )
-			mdata[i] = T();
+		if ( Soy::IsComplexType<TYPE>() )
+		{
+			for ( int i=curoff;	i<curoff+count;	i++ )
+				mdata[i] = T();
+		}
 		return mdata + curoff;
 	}
 		
@@ -550,19 +554,18 @@ public:
 		return mHeap ? *mHeap : prcore::Heap;	
 	}
 
-	void			SetHeap(prmem::Heap& Heap)
+	bool			SetHeap(prmem::Heap& Heap)
 	{
-		assert( &Heap );
+		if ( !Soy::Assert( (&Heap)!=nullptr, "Tried to set to null heap" ) )
+			return false;
 		
 		//	if heap isn't valid yet (eg. if this has been allocated before the global heap), 
 		//	throw error, but address should be okay, so in these bad cases.. we MIGHT get away with it.
 		//	gr: need a better method, this is virtual again, so more likely to throw an exception (invalid vtable)
-		if ( !Heap.IsValid() )
+		if ( !Soy::Assert( Heap.IsValid(), "Invalid heap" ) )
 		{
-			assert( Heap.IsValid() );
-			BufferString<1000> Debug;
-			Debug << "Array<" << Soy::GetTypeName<T>() << "> assigned non-valid heap. Array constructed before heap?";
-			ofLogError( Debug.c_str() );
+			std::Debug << "Array<" << Soy::GetTypeName<T>() << "> assigned non-valid heap. Array constructed before heap?" << std::endl;
+			return false;
 		}
 
 		//	if heap changes and we have allocated data we should re-allocate the data...
@@ -570,8 +573,11 @@ public:
 
 		//	currently we don't support re-allocating to another heap. 
 		//	It's quite trivial, but usually indicates an unexpected situation so leaving it for now
-		assert( !ReAlloc );
+		if ( !Soy::Assert( !ReAlloc, "Currently don't support re-allocating to a new heap") )
+			return false;
+			
 		mHeap = &Heap;
+		return true;
 	}
 	
 	//	copy data to a Buffer[BUFFERSIZE] c-array. (lovely template syntax! :)

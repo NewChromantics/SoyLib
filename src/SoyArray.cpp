@@ -1,20 +1,14 @@
 #include "array.hpp"
 #include "bufferarray.hpp"
 #include "heaparray.hpp"
+#include "RemoteArray.h"
 
-
-bool TArrayReader::Read(uint8& Pop)
+std::string	SoyArray::OnCheckBoundsError(int Index,size_t Size,const std::string& Typename)
 {
-	typedef uint8 TYPE;
-	if ( mOffset+sizeof(TYPE) > mArray.GetDataSize() )
-		return false;
-	auto& Data = *reinterpret_cast<const TYPE*>( &mArray[mOffset] );
-	Pop = Data;
-	mOffset += sizeof(TYPE);
-	return true;
+	std::stringstream Error;
+	Error << "Array<" << Typename << "> Index " << Index << "/" << Size << " out of bounds";
+	return Error.str();
 }
-
-
 
 bool TArrayReader::ReadReverse(ArrayBridge<char>& Pop)
 {
@@ -29,7 +23,7 @@ bool TArrayReader::ReadReverse(ArrayBridge<char>& Pop)
 	}
 	return true;
 }
-
+/*
 bool TArrayReader::Read(ArrayBridge<char>& Pop)
 {
 	//	allow zero length? this is assuming programming error
@@ -44,12 +38,12 @@ bool TArrayReader::Read(ArrayBridge<char>& Pop)
 	}
 	return true;
 }
-
+*/
 bool TArrayReader::ReadCompare(ArrayBridge<char>& Match)
 {
 	Array<char> Pop( Match.GetSize() );
 	auto PopBridge = GetArrayBridge( Pop );
-	if ( !Read( PopBridge ) )
+	if ( !ReadArray( PopBridge ) )
 		return false;
 	
 	assert( Match.GetSize() == Pop.GetSize() );

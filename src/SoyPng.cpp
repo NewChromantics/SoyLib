@@ -2,7 +2,7 @@
 #include "miniz/miniz.h"
 #include "SoyDebug.h"
 #include "SoyPng.h"
-
+#include "RemoteArray.h"
 
 
 
@@ -56,6 +56,29 @@ std::ostream& operator<< (std::ostream &out,const TPng::TFilterNone_ScanlineFilt
 		default:
 			return out << "<unknown TPng::TFilterNone_ScanlineFilter::" << static_cast<int>(in) << ">";
 	}
+}
+
+
+bool TPng::CheckMagic(ArrayBridge<char>&& PngData)
+{
+	TArrayReader ArrayReader( PngData );
+	return CheckMagic( ArrayReader );
+}
+
+bool TPng::CheckMagic(TArrayReader& ArrayReader)
+{
+	//uint8 Magic[] = { 137, 80, 78, 71, 13, 10, 26, 10 };
+	char _Magic[] = { -119, 'P', 'N', 'G', 13, 10, 26, 10 };
+	BufferArray<char,8> __Magic( _Magic );
+	auto Magic = GetArrayBridge( __Magic );
+	if ( !ArrayReader.ReadCompare( Magic ) )
+	{
+		//	if we failed here and not at the start of the data, that might be the problem
+		Soy::Assert( ArrayReader.mOffset == 0, "TPng::CheckMagic failed, and data is not at start... could be the issue" );
+		return false;
+	}
+	
+	return true;
 }
 
 bool TPng::THeader::IsValid() const
@@ -125,14 +148,88 @@ bool TPng::ReadHeader(SoyPixelsImpl& Pixels,THeader& Header,ArrayBridge<char>& D
 	return true;
 }
 
+/*
+ //	from http://lpi.googlecode.com/svn/trunk/lodepng.cpp
+static void filterScanline(unsigned char* out, const unsigned char* scanline, const unsigned char* prevline,
+                           size_t length, size_t bytewidth, unsigned char filterType)
+{
+	size_t i;
+	switch(filterType)
+	{
+	
+		case 2: //Up
+			if(prevline)
+			{
+				for(i = 0; i < length; i++) out[i] = scanline[i] - prevline[i];
+			}
+			else
+			{
+				for(i = 0; i < length; i++) out[i] = scanline[i];
+			}
+			break;
+		case 3: //Average
+			if(prevline)
+			{
+				for(i = 0; i < bytewidth; i++) out[i] = scanline[i] - prevline[i] / 2;
+				for(i = bytewidth; i < length; i++) out[i] = scanline[i] - ((scanline[i - bytewidth] + prevline[i]) / 2);
+			}
+			else
+			{
+				for(i = 0; i < bytewidth; i++) out[i] = scanline[i];
+				for(i = bytewidth; i < length; i++) out[i] = scanline[i] - scanline[i - bytewidth] / 2;
+			}
+			break
+		case 4: //Paeth
+			if(prevline)
+			{
+				//paethPredictor(0, prevline[i], 0) is always prevline[i]
+				for(i = 0; i < bytewidth; i++) out[i] = (scanline[i] - prevline[i]);
+				for(i = bytewidth; i < length; i++)
+				{
+					out[i] = (scanline[i] - paethPredictor(scanline[i - bytewidth], prevline[i], prevline[i - bytewidth]));
+				}
+			}
+			else
+			{
+				for(i = 0; i < bytewidth; i++) out[i] = scanline[i];
+				//paethPredictor(scanline[i - bytewidth], 0, 0) is always scanline[i - bytewidth]
+				for(i = bytewidth; i < length; i++) out[i] = (scanline[i] - scanline[i - bytewidth]);
+			}
+			break;
+		default: return; //unexisting filter type given
+	}
+}
+ */
 
+bool DeFilterScanline(TPng::TFilterNone_ScanlineFilter::Type Filter,const ArrayBridge<char>&& Scanline,int ByteWidth,ArrayBridge<uint8>& DeFilteredData,std::stringstream& Error)
+{
+	if ( Filter == TPng::TFilterNone_ScanlineFilter::None )
+	{
+		DeFilteredData.PushBackArray( Scanline );
+		return true;
+	}
+	else if ( Filter == TPng::TFilterNone_ScanlineFilter::Sub )
+	{
+		///	bytewidth is used for filtering, is 1 when bpp < 8, number of bytes per pixel otherwise
+		DeFilteredData.Reserve( Scanline.GetSize() );
+		int i;
+		for(i = 0; i < ByteWidth; i++)
+			DeFilteredData.PushBack( Scanline[i] );
+		for(i = ByteWidth; i < Scanline.GetSize(); i++)
+			DeFilteredData.PushBack( Scanline[i] - Scanline[i - ByteWidth] );
+		return true;
+	}
+	
+	Error << "defiltering PNG data came across unhandled filter value (" << Filter << ")";
+	return false;
+}
 
 bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char>& Data,std::stringstream& Error)
 {
 	if ( Header.mCompression == TCompression::DEFLATE )
 	{
 		//	decompress straight into image. But the decompressed data will have extra filter values per row!
-		auto& DecompressedData = Pixels.GetPixelsArray();
+		auto&& DecompressedData = Pixels.GetPixelsArray();
 		DecompressedData.PushBlock( 1 * Pixels.GetHeight() );
 
 		mz_ulong DecompressedLength = DecompressedData.GetDataSize();
@@ -148,21 +245,25 @@ bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char
 			return false;
 		}
 
+		Array<uint8> _DeFilteredData;
+		auto DeFilteredData = GetArrayBridge( _DeFilteredData );
+		
 		//	de-filter the pixels
 		int Stride = Pixels.GetChannels()*Pixels.GetWidth();
-		//	post-filter stride is +1 for the filter
+		//	decompressed data stride includes filter
 		Stride += 1;
-		for ( int i=DecompressedData.GetSize()-Stride;	i>=0;	i-=Stride )
+		for ( int i=0;	i<DecompressedData.GetSize();	i+=Stride )
 		{
-			//	insert filter value/code
-			auto& RowStart = DecompressedData[i];
-			if ( RowStart != TFilterNone_ScanlineFilter::None )
-			{
-				Error << "defiltering PNG data came across unhandled filter value (" << static_cast<TFilterNone_ScanlineFilter::Type>(RowStart) << ")";
+			//	get filter code
+			auto Filter = static_cast<TFilterNone_ScanlineFilter::Type>( DecompressedData[i] );
+			size_t ScanlineLength = Stride-1;
+			auto Scanline = GetRemoteArray( &DecompressedData[i+1], ScanlineLength );
+			int bytewidth = (Pixels.GetBitDepth() + 7) / 8;
+			if ( !DeFilterScanline( Filter, GetArrayBridge( Scanline ), bytewidth, DeFilteredData, Error ) )
 				return false;
-			}
-			DecompressedData.RemoveBlock(i,1);
 		}
+		//	overwrite data with defiltered data
+		DecompressedData.Copy( DeFilteredData );
 		
 		//	validate image data length here
 		return true;
@@ -204,16 +305,17 @@ bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 		Debug_TimerName << "Deflate compression; " << Soy::FormatSizeBytes(FilteredPixels.GetDataSize()) << ". Compression level: " << CompressionLevel;
 		ofScopeTimerWarning DeflateCompressTimer( Debug_TimerName, 3 );
 	
-		uLong DefAllocated = static_cast<int>( 1.2f * FilteredPixels.GetDataSize() );
+		int DefAllocated = static_cast<int>( 1.2f * FilteredPixels.GetDataSize() );
 		uLong DefUsed = DefAllocated;
 		auto* DefData = PngData.PushBlock(DefAllocated);
 		auto Result = mz_compress2( reinterpret_cast<Byte*>(DefData), &DefUsed, FilteredPixels.GetArray(), FilteredPixels.GetDataSize(), CompressionLevel );
 		assert( Result == MZ_OK );
 		if ( Result != MZ_OK )
 			return false;
-		assert( DefUsed <= DefAllocated );
+		if ( !Soy::Assert( DefUsed <= DefAllocated, "miniz compressed reported that it used more memory than we had allocated" ) )
+			return false;
 		//	trim data
-		int Overflow = DefAllocated - DefUsed;
+		int Overflow = DefAllocated - static_cast<int>(DefUsed);
 		PngData.SetSize( PngData.GetSize() - Overflow );
 		return true;
 

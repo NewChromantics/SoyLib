@@ -7,8 +7,9 @@
 #include "string.hpp"
 #include <map>
 #include <queue>
+#include <limits>
 
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX)||defined(TARGET_ANDROID)
 #include <memory>
 #define STD_ALLOC
 #endif
@@ -151,7 +152,7 @@ namespace prmem
 			mAllocBytes -= ( Bytes > mAllocBytes ) ? mAllocBytes : Bytes;
 			mAllocCount -= ( BlockCount > mAllocCount ) ? mAllocCount : BlockCount;
 		}
-		void					OnFailedAlloc(const char* TypeName,int TypeSize,int Elements) const;
+		void					OnFailedAlloc(std::string TypeName,int TypeSize,int Elements) const;
 
 	protected:
 		BufferString<100>	mName;	//	name for easy debugging purposes
@@ -178,7 +179,7 @@ namespace prmem
 		const void*						mObject;		//	allocated data
 		uint32							mElements;		//	number of elements
 		uint32							mTypeSize;		//	sizeof(T)
-		const char*						mTypename;		//	gr: this SHOULD be safe, all strings from GetTypeName are either compile-time generated or static.
+		BufferString<100>				mTypename;		//	gr: this SHOULD be safe, all strings from GetTypeName are either compile-time generated or static.
 		uint64							mAllocTick;		//	time of allocation (ofGetElapsedTimeMillis())
 		BufferArray<uint64,CallStackSize>	mCallStack;		//	each is an address in the process' symbol data
 	};
@@ -194,14 +195,14 @@ namespace prmem
 		template<typename T>
 		void			OnAlloc(const T* Object,uint32 Elements)
 		{
-			const char* TypeName = Soy::GetTypeName<T>();
+			auto TypeName = Soy::GetTypeName<T>();
 			OnAlloc( Object, TypeName, Elements, sizeof(T) );
 		}
 		virtual void	OnFree(const void* Object)=0;
 		virtual void	DumpToOutput(const prmem::HeapInfo& OwnerHeap)const =0;	//	debug-print out all our allocations and their age
 
 	protected:
-		virtual void	OnAlloc(const void* Object,const char* TypeName,uint32 ElementCount,uint32 TypeSize)=0;
+		virtual void	OnAlloc(const void* Object,std::string TypeName,uint32 ElementCount,uint32 TypeSize)=0;
 		void			DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBridge<HeapDebugItem>& AllocItems) const;	//	debug-print out all our allocations and their age
 	};
 
@@ -434,7 +435,7 @@ namespace prmem
 				Debug_Validate();
 
 				//	report failed alloc regardless
-				const char* TypeName = Soy::GetTypeName<TYPE>();
+				auto TypeName = Soy::GetTypeName<TYPE>();
 				OnFailedAlloc( TypeName, sizeof(TYPE), Elements );
 				return nullptr;
 			}

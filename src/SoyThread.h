@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ofxSoylent.h"
-
+#include "SoyEvent.h"
 
 
 
@@ -134,7 +134,14 @@ public:
 	void			waitForThread(bool stop = true);
 	std::thread::id		GetThreadId() const					{	return mThread.get_id();	}
 	std::string		GetThreadName() const				{	return mThreadName;	}
-	static void		Sleep(int ms=0)						{	std::this_thread::sleep_for( std::chrono::milliseconds(ms) );	}
+	static void		Sleep(int ms=0)
+	{
+		//	slow down cpu usage on OSX until I find out how to do this properly
+#if defined(TARGET_OSX)
+		ms += 10;
+#endif
+		std::this_thread::sleep_for( std::chrono::milliseconds(ms) );
+	}
 
 #if defined(TARGET_WINDOWS) 
 	DWORD			GetNativeThreadId()					{	return ::GetThreadId( GetThreadHandle() );	}
@@ -221,10 +228,13 @@ public:
 class SoyThread : public ofThread
 {
 public:
-	SoyThread(std::string threadName)
+	SoyThread(std::string threadName)	
 	{
 		if ( !threadName.empty() )
+		{
+			mThreadName	= threadName;
 			SetThreadName( threadName );
+		}
 	}
 
 	static std::thread::id	GetCurrentThreadId()
@@ -242,7 +252,103 @@ public:
 #endif
 	}
 
-	void	SetThreadName(std::string Name);
+	void		SetThreadName(std::string Name)	{	SetThreadName( Name, GetThreadId() );	}
+	static void	SetThreadName(std::string Name,std::thread::id ThreadId);
+};
+
+
+//	gr: maybe change this to a policy?
+namespace SoyWorkerWaitMode
+{
+	enum Type
+	{
+		NoWait,	//	no waiting, assume Iteration() blocks
+		Wake,	//	manually woken
+		Sleep,	//	don't wait for a wake, but do a sleep
+	};
+}
+
+class SoyWorker
+{
+public:
+	SoyWorker(SoyWorkerWaitMode::Type WaitMode) :
+		mWaitMode	( WaitMode )
+	{
+	}
+	virtual ~SoyWorker()	{}
+	
+	virtual std::string	WorkerName() const	{	return "SoyWorker";	}
+	virtual void		Start();
+	virtual void		Stop();
+	bool				IsWorking() const	{	return mWorking;	}
+	
+	virtual bool		Iteration()=0;	//	return false to stop thread
+
+	virtual void		Wake();
+	template<typename TYPE>
+	void				WakeOnEvent(SoyEvent<TYPE>& Event)
+	{
+		auto HandlerFunc = [this](TYPE& Param)
+		{
+			this->Wake();
+		};
+		Event.AddListener( HandlerFunc );
+	}
+	void				SetWakeMode(SoyWorkerWaitMode::Type WakeMode)	{	mWaitMode = WakeMode;	Wake();	}
+	SoyWorkerWaitMode::Type	GetWakeMode() const	{	return mWaitMode;	}
+
+protected:
+	virtual bool		CanSleep()							{	return true;	}	//	break out of conditional with this
+	virtual std::chrono::milliseconds	GetSleepDuration()	{	return std::chrono::milliseconds(1000/60);	}
+
+private:
+	void				Loop();
+	
+public:
+	SoyEvent<bool>		mOnPreIteration;
+	SoyEvent<bool>		mOnStart;
+	SoyEvent<bool>		mOnFinish;
+	
+private:
+	std::condition_variable	mWaitConditional;
+	std::mutex				mWaitMutex;
+	bool					mWorking;
+	SoyWorkerWaitMode::Type	mWaitMode;
+};
+
+class SoyWorkerDummy : public SoyWorker
+{
+public:
+	SoyWorkerDummy() :
+		SoyWorker	( SoyWorkerWaitMode::Wake )
+	{
+	}
+	virtual bool		Iteration()	{	return true;	};
+};
+
+class SoyWorkerThread : public SoyWorker
+{
+public:
+	SoyWorkerThread(std::string ThreadName,SoyWorkerWaitMode::Type WaitMode) :
+		SoyWorker	( WaitMode ),
+		mThreadName	( ThreadName )
+	{
+		SoyWorker::mOnStart.AddListener( *this, &SoyWorkerThread::OnStart );
+	}
+	
+	virtual void		Start() override;
+	void				WaitToFinish();
+	std::thread::id		GetThreadId() const		{	return mThread.get_id();	}
+	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return mThread.native_handle();	}
+	bool				IsCurrentThread() const	{	return GetThreadId() == std::this_thread::get_id();	}
+
+protected:
+	bool				HasThread() const		{	return mThread.get_id() != std::thread::id();	}
+	void				OnStart(bool&)			{	SoyThread::SetThreadName( mThreadName, GetThreadId() );	}
+	
+private:
+	std::string			mThreadName;
+	std::thread			mThread;
 };
 
 
@@ -394,3 +500,44 @@ protected:
 	std::vector<std::shared_ptr<SoyFunctionThread>>	mThreadPool;
 };
 */
+
+
+
+
+template<class TYPE>
+class TLockQueue
+{
+public:
+	bool			IsEmpty() const			{	return mJobs.IsEmpty();	}
+	TYPE			Pop();
+	bool			Push(const TYPE& Job);
+	
+public:
+	Array<TYPE>		mJobs;
+	ofMutex			mJobLock;
+	SoyEvent<int>	mOnQueueAdded;
+};
+
+template<class TYPE>
+inline TYPE TLockQueue<TYPE>::Pop()
+{
+	ofMutex::ScopedLock Lock( mJobLock );
+	if ( mJobs.IsEmpty() )
+		return TYPE();
+	return mJobs.PopAt(0);
+}
+
+template<class TYPE>
+inline bool TLockQueue<TYPE>::Push(const TYPE& Job)
+{
+	//assert( Job.IsValid() );
+	int JobCount;
+	{
+		ofMutex::ScopedLock Lock( mJobLock );
+		mJobs.PushBack( Job );
+		JobCount = mJobs.GetSize();
+	}
+	mOnQueueAdded.OnTriggered(JobCount);
+	return true;
+}
+

@@ -4,7 +4,7 @@
 #endif
 
 
-bool Soy::Platform::TConsoleApp::gIsRunning = false;
+SoyEvent<bool> gOnConsoleStop;
 
 
 #if defined(TARGET_WINDOWS)
@@ -15,9 +15,9 @@ BOOL WINAPI Soy::Platform::TConsoleApp::ConsoleHandler(DWORD dwType)
 		case CTRL_CLOSE_EVENT:
 		case CTRL_LOGOFF_EVENT:
 		case CTRL_SHUTDOWN_EVENT:
-			gIsRunning = false;
+			gOnConsoleStop.OnTrigger();
 
-			//Returning would make the process exit!
+			//Returning would make the process exit immediately!
 			//We just make the handler sleep until the main thread exits,
 			//or until the maximum execution time for this handler is reached.
 			Sleep(10000);
@@ -29,27 +29,26 @@ BOOL WINAPI Soy::Platform::TConsoleApp::ConsoleHandler(DWORD dwType)
 }
 #endif
 
-
-int Soy::Platform::TConsoleApp::RunLoop()
+void Soy::Platform::TConsoleApp::Exit()
 {
-	assert( !gIsRunning );
-	gIsRunning = true;
-	
+	mWorker.Stop();
+}
+
+void Soy::Platform::TConsoleApp::WaitForExit()
+{
+	//	setup handler
 #if defined(TARGET_WINDOWS)
 	SetConsoleCtrlHandler( ConsoleHandler, true );
 #endif
-	if ( !mApp.Init() )
-		return 1;
-	while ( gIsRunning )
+	auto& Worker = mWorker;
+	auto OnConsoleStop = [&Worker](bool&)
 	{
-		if ( !mApp.Update() )
-			break;
-
-		//	frame limiter here
-		SoyThread::Sleep( 1000/60 );
-	}
-	mApp.Exit();
-	return 0;
+		Worker.Stop();
+	};
+	gOnConsoleStop.AddListener( OnConsoleStop );
+	
+	//	runs until something tells it to exit
+	mWorker.Start();
 }
 
 
@@ -319,85 +318,6 @@ bool SoyInput::PeekButtonDown(SoyButton::Type Button)
 
 
 
-bool ofFileToString(TString& ContentString,const char* Filename)
-{
-	//	fopen is safe, but supress warning anyway
-#if defined(TARGET_WINDOWS)
-	FILE* File = nullptr;
-	fopen_s( &File, Filename, "r" );
-#else
-	FILE* File = fopen( Filename, "r" );
-#endif
-	if ( !File )
-		return false;
-
-	//	read
-	Array<char> Contents;
-	while ( true )
-	{
-		BufferArray<char,1024> Buffer;
-		Buffer.SetSize( Buffer.MaxSize() );
-#if defined(TARGET_WINDOWS)
-		auto CharsRead = fread_s( Buffer.GetArray(), Buffer.GetDataSize(), Buffer.GetElementSize(), Buffer.GetSize(), File );
-#else
-		auto CharsRead = std::fread( Buffer.GetArray(), Buffer.GetElementSize(), Buffer.GetSize(), File );
-#endif
-		Buffer.SetSize( CharsRead );
-
-		Contents.PushBackArray( Buffer );
-
-		//	EOF
-		if ( Buffer.GetSize() != Buffer.MaxSize() )
-			break;
-	}
-	fclose( File );
-
-	//	add a terminator as there probably won't be one from the content reading
-	Contents.PushBack('\0');
-	ContentString.Reserve( Contents.GetSize() + 1 );
-	ContentString = Contents.GetArray();
-
-	return true;
-}
-
-
-bool ofStringToFile(const char* Filename,const TString& ContentString)
-{
-	//	fopen is safe, but supress warning anyway
-#if defined(TARGET_WINDOWS)
-	FILE* File = nullptr;
-	fopen_s( &File, Filename, "w" );
-#else
-	FILE* File = fopen( Filename, "w" );
-#endif
-	if ( !File )
-		return false;
-
-	bool Success = true;
-	int Written = 0;
-	while ( Success && Written < ContentString.GetLength() )
-	{
-		int WriteElements = ContentString.GetLength() - Written;
-#if defined(TARGET_WINDOWS)
-		auto CharsWritten = fwrite( &ContentString[Written], ContentString.GetArray().GetElementSize(), WriteElements, File );
-#else
-#error todo
-		//auto CharsWritten = std::fread( Buffer.GetArray(), Buffer.GetElementSize(), Buffer.GetSize(), File );
-#endif
-		if ( CharsWritten != WriteElements )
-			Success = false;
-
-		Written += CharsWritten;
-	}
-	fclose( File );
-
-	return true;
-}
-
-
-
-
-
 template<> bool Soy::ReadXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,vec3f& Value,bool Tag)
 {
 	return ReadXmlDataAsParameter( xml, Name, Value, Tag );
@@ -408,6 +328,8 @@ template<> void Soy::WriteXmlData<vec3f>(ofxXmlSettings& xml,const char* Name,co
 	return WriteXmlDataAsParameter( xml, Name, Value, Tag );
 }
 
+
+#endif
 
 
 template<int BYTECOUNT,typename STORAGE>
@@ -594,5 +516,3 @@ void TBitWriter::WriteBit(int Bit)
 
 	mData[CurrentByte] |= AddBit;
 }
-
-#endif

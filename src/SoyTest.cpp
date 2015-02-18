@@ -39,7 +39,7 @@ TEST(PngWriteRead)
 	CHECK( Error.str().empty() );
 	if ( !Error.str().empty() )
 	{
-		std::cerr << "Expecting empty error: " << Error.str() << std::endl;
+		std::Debug << "Expecting empty error: " << Error.str() << std::endl;
 	}
 }
 
