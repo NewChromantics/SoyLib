@@ -2,7 +2,6 @@
 
 #include <string>
 
-
 namespace SoyArray
 {
 	template<typename ARRAY>
