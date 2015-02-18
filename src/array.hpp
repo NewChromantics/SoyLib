@@ -87,7 +87,7 @@
 
 		//	this was NOT required before, because of sort array. so that just fails
 		virtual T*			PushBlock(int count)=0;
-		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false)=0;
+		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=true)=0;
 
 		template<class ARRAY>
 		bool				Copy(const ARRAY& a)
@@ -225,7 +225,7 @@
 		//	interfaces not required by ArrayInterface
 		virtual T&			PushBack(const T& item)=0;
 		virtual T&			PushBack()=0;
-		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false)=0;
+		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=true)=0;
 		virtual void		Reserve(int size,bool clear=false)=0;
 		virtual void		RemoveBlock(int index, int count)=0;
 		virtual T*			InsertBlock(int index, int count)=0;
@@ -296,7 +296,7 @@
 		virtual int			GetSize() const override					{	return mArray.GetSize();	}
 		virtual const T*	GetArray() const override					{	return mArray.GetArray();	}
 		virtual T*			GetArray() override							{	return mArray.GetArray();	}
-		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false) override	{	return mArray.SetSize(size,preserve,AllowLess);	}
+		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=true) override	{	return mArray.SetSize(size,preserve,AllowLess);	}
 		virtual void		Reserve(int size,bool clear=false) override	{	return mArray.Reserve(size,clear);	}
 		virtual T*			PushBlock(int count) override				{	return mArray.PushBlock(count);	}
 		virtual T&			PushBack(const T& item) override			{	auto& Tail = PushBack();	Tail = item;	return Tail;	}

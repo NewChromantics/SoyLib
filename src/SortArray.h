@@ -74,7 +74,7 @@ public:
 		Soy::Assert(false, "Cannot allocate in sort array");
 		return nullptr;
 	}
-	virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false) override
+	virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=true) override
 	{
 		//	can't push blocks in sort arrays!
 		Soy::Assert(false, "Cannot allocate in sort array");
