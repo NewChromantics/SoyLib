@@ -160,10 +160,20 @@ DECLARE_TYPE_NAME( SoyPixels );
 
 //	gr; unsupported for now... 
 #if defined(TARGET_WINDOWS)
+
 inline std::ostream& operator<< ( std::ostream &out, const SoyPixels &in )
 {
 	out.setstate( std::ios::failbit );	
 	return out; 
 }
+
+inline std::istream& operator>> ( std::istream &in, SoyPixels &out )
+{
+	in.setstate( std::ios::failbit );
+	return in;
+}
+
+
+
 #endif
 

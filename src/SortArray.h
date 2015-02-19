@@ -168,7 +168,7 @@ public:
 			return -1;
 
 		//	found an index, if it's a different value, then it doesn't exist
-		if ( mPolicy.Compare( mArray[InsertIndex], item ) != 0 )
+		if ( TSORTPOLICY::Compare( mArray[InsertIndex], item, mPolicy ) != 0 )
 			return -1;
 		return InsertIndex;
 	}

@@ -2,9 +2,11 @@
 #include "SoyThread.h"
 #include "SoyString.h"
 
-//	gr: osx only?
+
+#if defined(TARGET_OSX)
 #include <unistd.h>
 #include <sys/sysctl.h>
+#endif
 
 
 namespace Soy
@@ -165,7 +167,7 @@ bool XCodeDebuggerAttached()
 bool Soy::Platform::IsDebuggerAttached()
 {
 #if defined(TARGET_WINDOWS)
-	return IsDebuggerPresent();
+	return IsDebuggerPresent()==TRUE;
 #endif
 	
 #if defined(TARGET_OSX)
@@ -183,7 +185,7 @@ void Soy::EnableThrowInAssert(bool Enable)
 
 bool Soy::Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException )
 {
-	__thread static auto* LastErrorMessage = &ErrorMessage;
+	__thread static std::ostream* LastErrorMessage = nullptr;
 	__thread static auto ErrorFunc = []
 	{
 		return Soy::StreamToString( *LastErrorMessage );
