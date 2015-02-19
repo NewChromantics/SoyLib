@@ -141,6 +141,7 @@ bool MemFileArray::IsValid() const
 	return mHandle != Soy::Platform::InvalidFileHandle;
 }
 
+#if defined(TARGET_OSX)
 bool OpenFile(int& FileHandle,std::string& Filename,size_t Size,int CreateFlags,std::stringstream& Error)
 {
 	//http://stackoverflow.com/questions/9409079/linux-dynamic-shared-memory-in-different-programs
@@ -183,7 +184,9 @@ bool OpenFile(int& FileHandle,std::string& Filename,size_t Size,int CreateFlags,
 	
 	return true;
 }
+#endif
 
+#if defined(TARGET_OSX)
 bool MemFileArray::OpenWriteFile(size_t Size,std::stringstream& Error)
 {
 	BufferArray<std::string,100> FilenameTries;
@@ -214,7 +217,9 @@ bool MemFileArray::OpenWriteFile(size_t Size,std::stringstream& Error)
 
 	return false;
 }
+#endif
 
+#if defined(TARGET_OSX)
 bool MemFileArray::OpenReadOnlyFile(size_t Size,std::stringstream& Error)
 {
 	if ( !OpenFile( mHandle, mFilename, Size, O_RDONLY, Error ) )
@@ -224,7 +229,7 @@ bool MemFileArray::OpenReadOnlyFile(size_t Size,std::stringstream& Error)
 	}
 	return true;
 }
-
+#endif
 
 void MemFileArray::Destroy()
 {
@@ -280,7 +285,9 @@ bool MemFileArray::SetSize(int size, bool preserve,bool AllowLess)
 	//	gr: this is rare enough that an assert should be okay to add to debug
 	auto Error = [size,this]
 	{
-		return (std::stringstream() << "Cannot allocate " << size << " > maxsize " << MaxSize()).str();
+		std::stringstream Error;
+		Error << "Cannot allocate " << size << " > maxsize " << MaxSize();
+		return Error.str();
 	};
 	if ( !Soy::Assert( size <= MaxSize(), Error ) )
 		return false;
@@ -302,7 +309,7 @@ ofPtr<MemFileArray> SoyMemFileManager::AllocFile(const ArrayBridge<char>& Data)
 	Filename << mFilenameRef;
 	//	todo: see if file already exists?
 	//	alloc new file
-	ofPtr<MemFileArray> File = ofPtr<MemFileArray>( new MemFileArray( Filename, Data.GetDataSize() ) );
+	ofPtr<MemFileArray> File = ofPtr<MemFileArray>( new MemFileArray( Filename, true, Data.GetDataSize(), false ) );
 	if ( !File->IsValid() )
 		return ofPtr<MemFileArray>();
 	File->Copy( Data );

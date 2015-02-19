@@ -177,9 +177,11 @@ private:
 	const T*			CreateMap() const				{	return const_cast<MemFileArray*>(this)->CreateMap();	}
 	T*					CreateMap()						{	return reinterpret_cast<T*>(mMap);	}
 
+#if defined(TARGET_OSX)
 	bool				OpenWriteFile(size_t Size,std::stringstream& Error);
 	bool				OpenReadOnlyFile(size_t Size,std::stringstream& Error);
-	
+#endif
+
 private:
 #if defined(TARGET_WINDOWS)
 	HANDLE				mHandle;
