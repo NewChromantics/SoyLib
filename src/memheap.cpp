@@ -463,7 +463,7 @@ void prmem::HeapDebug::OnAlloc(const void* Object,std::string Typename,size_t El
 void prmem::HeapDebug::OnFree(const void* Object)
 {
 	ofMutex::ScopedLock Lock( *this );
-	int Index = mItems.FindIndex( Object );
+	auto Index = mItems.FindIndex( Object );
 
 	//	not found?
 	if ( Index < 0 )

@@ -1107,7 +1107,7 @@ bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData,std::stringstream& E
 	//	use stb
 #if defined(USE_STB)
 	const stbi_uc* Buffer = reinterpret_cast<const stbi_uc*>( PngData.GetArray() );
-	int BufferSize = PngData.GetDataSize();
+	auto BufferSize = size_cast<int>( PngData.GetDataSize() );
 	int Width = 0;
 	int Height = 0;
 	int Components = 0;
@@ -1341,7 +1341,7 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 	PngData.Reserve( PixelData.GetDataSize() + 12 );
 	PngData.Reserve( Tail.GetDataSize() + 12 );
 
-	uint32 HeaderLength = Header.GetDataSize() - sizeofarray(IHDR);
+	uint32 HeaderLength = size_cast<uint32>( Header.GetDataSize() - sizeofarray(IHDR) );
 	assert( HeaderLength == 13 );
 	uint32 HeaderCrc = Soy::GetCrc32( GetArrayBridge(Header) );
 	PngData.PushBackArray( Magic );
@@ -1349,13 +1349,13 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 	PngData.PushBackArray( Header );
 	PngData.PushBackReinterpretReverse( HeaderCrc );
 
-	uint32 PixelDataLength = PixelData.GetDataSize() - sizeofarray(IDAT);
+	uint32 PixelDataLength = size_cast<uint32>( PixelData.GetDataSize() - sizeofarray(IDAT) );
 	uint32 PixelDataCrc = Soy::GetCrc32( GetArrayBridge(PixelData) );
 	PngData.PushBackReinterpretReverse( PixelDataLength );
 	PngData.PushBackArray( PixelData );
 	PngData.PushBackReinterpretReverse( PixelDataCrc );
 
-	uint32 TailLength = Tail.GetDataSize() - sizeofarray(IEND);
+	uint32 TailLength = size_cast<uint32>( Tail.GetDataSize() - sizeofarray(IEND) );
 	uint32 TailCrc = Soy::GetCrc32( GetArrayBridge(Tail) );
 	assert( TailCrc == 0xAE426082 );
 	PngData.PushBackReinterpretReverse( TailLength );
@@ -1426,7 +1426,7 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 		//	working backwards makes it easy & fast
 		int Stride = GetChannels() * GetWidth();
 		int ColBytes = GetChannels() * (Width - GetWidth());
-		for ( size_t p=Pixels.GetDataSize();	p>=0;	p-=Stride )
+		for ( ssize_t p=Pixels.GetDataSize();	p>=0;	p-=Stride )
 			Pixels.InsertBlock( p, ColBytes );
 		GetMeta().DumbSetWidth( Width );
 	}
@@ -1435,7 +1435,7 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 		//	working backwards makes it easy & fast
 		int Stride = GetChannels() * GetWidth();
 		int ColBytes = GetChannels() * (GetWidth() - Width);
-		for ( int p=Pixels.GetDataSize()-ColBytes;	p>=0;	p-=Stride )
+		for ( ssize_t p=Pixels.GetDataSize()-ColBytes;	p>=0;	p-=Stride )
 			Pixels.RemoveBlock( p, ColBytes );
 		GetMeta().DumbSetWidth( Width );
 	}

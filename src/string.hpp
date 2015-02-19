@@ -214,8 +214,7 @@ namespace Soy
 
 		String2& operator += (const String2& s)
 		{
-			int count = s.GetLength();
-			assert( count >= 0 );
+			auto count = s.GetLength();
 			if ( count > 0 )
 			{
 				//	-1 so we start at existing terminator
@@ -262,7 +261,7 @@ namespace Soy
 
 			const S* s1 = *this;
 			const S* s2 = s;
-			int count = GetLength();
+			auto count = GetLength();
 
 			while ( count-- )
 			{
@@ -519,10 +518,10 @@ namespace Soy
 			return operator += (text);
 		}
 
-		int			FindIndex(const S* text,bool CaseSensitive=true,int StartPos=0) const;		//	find start of the occurance of this sub string. returns -1 if not found
-		const S*	Find(const S* text,bool CaseSensitive=true,int StartPos=0) const			{	int Index = FindIndex( text, CaseSensitive, StartPos );	return (Index<0) ? NULL : &(*this)[Index];	}
-		bool		Contains(const S* text,bool CaseSensitive=true,int StartPos=0) const		{	return FindIndex( text, CaseSensitive, StartPos ) >= 0;	}
-		bool		StartsWith(const S* text,bool CaseSensitive=true,int StartPos=0) const		{	return FindIndex( text, CaseSensitive, StartPos ) == 0;	}
+		ssize_t		FindIndex(const S* text,bool CaseSensitive=true,size_t StartPos=0) const;		//	find start of the occurance of this sub string. returns -1 if not found
+		const S*	Find(const S* text,bool CaseSensitive=true,size_t StartPos=0) const			{	auto Index = FindIndex( text, CaseSensitive, StartPos );	return (Index<0) ? NULL : &(*this)[Index];	}
+		bool		Contains(const S* text,bool CaseSensitive=true,size_t StartPos=0) const		{	return FindIndex( text, CaseSensitive, StartPos ) >= 0;	}
+		bool		StartsWith(const S* text,bool CaseSensitive=true,size_t StartPos=0) const	{	return FindIndex( text, CaseSensitive, StartPos ) == 0;	}
 		bool		EndsWith(const S* text,bool CaseSensitive=true) const;
 
 		//	copy string to a char Buffer[BUFFERSIZE] c-array. (lovely template syntax! :)
@@ -666,7 +665,7 @@ namespace Soy
 		template<class CHUNKARRAY,class DELINARRAY>
 		void Split(CHUNKARRAY& Chunks,const DELINARRAY& Delin,bool CullEmptyChunks=false,uint32 MaxSplits=0) const
 		{
-			int Length = GetLength();
+			auto Length = GetLength();
 			if ( Length == 0 )
 				return;
 
@@ -1184,17 +1183,17 @@ void Soy::String2<S,ARRAYTYPE>::Replace(const char& Match,const char& Replacemen
 //	find start of the occurance of this sub string. returns -1 if not found
 //------------------------------------------------
 template <typename S,class ARRAYTYPE>
-int Soy::String2<S,ARRAYTYPE>::FindIndex(const S* text,bool CaseSensitive,int StartPos) const
+ssize_t Soy::String2<S,ARRAYTYPE>::FindIndex(const S* text,bool CaseSensitive,size_t StartPos) const
 {
 	if ( !text )
 		return -1;
 
-	StartPos = ofMin( StartPos, GetLength() );
-	StartPos = ofMax( StartPos, 0 );
+	StartPos = std::min( StartPos, GetLength() );
+	StartPos = std::max<size_t>( StartPos, 0 );
 
-	for ( int Index=StartPos;	Index<GetLength();	Index++ )
+	for ( auto Index=StartPos;	Index<GetLength();	Index++ )
 	{
-		const S* s = &(*this)[Index];
+		const S* s = &(*this)[size_cast<int>(Index)];
 
 		//	oddly early...
 		if ( *s == '\0' )

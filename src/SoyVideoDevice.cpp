@@ -231,7 +231,7 @@ TVideoDeviceMeta SoyVideoCapture::GetBestDeviceMeta(std::string Serial,ArrayBrid
 	//	"Cam" will find "Camera" and "Camera2" (so whichever is first), but "Camera" will find camera
 	
 	//	standard meta==string filter
-	for ( int m=Metas.GetSize()-1;	m>=0;	m-- )
+	for ( ssize_t m=Metas.GetSize()-1;	m>=0;	m-- )
 	{
 		auto& Meta = Metas[m];
 		if ( Meta == Serial )

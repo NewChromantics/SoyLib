@@ -489,20 +489,20 @@ private:
 //	GetRemoteArray functions to allow use of auto;
 //	auto Array = GetRemoteArray(....)
 //	ideally this would return an array bridge... maybe we can merge ArrayInterface and ArrayBridge and just have some inherit, and some wrap
-template <typename TYPE,unsigned int BUFFERSIZE>
-inline RemoteArray<TYPE>	GetRemoteArray(TYPE (& Buffer)[BUFFERSIZE],int& BufferCounter)
+template <typename TYPE,size_t BUFFERSIZE>
+inline RemoteArray<TYPE>	GetRemoteArray(TYPE (& Buffer)[BUFFERSIZE],size_t& BufferCounter)
 {
 	return RemoteArray<TYPE>( Buffer, BufferCounter );
 }
 
-template <typename TYPE,unsigned int BUFFERSIZE>
-inline RemoteArray<TYPE>	GetRemoteArray(const TYPE (& Buffer)[BUFFERSIZE],const int& BufferCounter)
+template <typename TYPE,size_t BUFFERSIZE>
+inline RemoteArray<TYPE>	GetRemoteArray(const TYPE (& Buffer)[BUFFERSIZE],const size_t& BufferCounter)
 {
 	return RemoteArray<TYPE>( Buffer, BufferCounter );
 }
 
 template <typename TYPE>
-inline RemoteArray<TYPE>	GetRemoteArray(const TYPE* Buffer,const int BufferSize,const int& BufferCounter)
+inline RemoteArray<TYPE>	GetRemoteArray(const TYPE* Buffer,const size_t BufferSize,const size_t& BufferCounter)
 {
 	return RemoteArray<TYPE>( Buffer, BufferSize, BufferCounter );
 }

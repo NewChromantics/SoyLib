@@ -270,9 +270,6 @@ void MemFileArray::Close()
 
 bool MemFileArray::SetSize(size_t size, bool preserve,bool AllowLess)
 {
-	if ( !Soy::Assert( size >= 0, "Invalid size specified in MemFileArray::SetSize" ) )
-		size = 0;
-	
 	//	if we haven't allocated yet, we'll need to
 	if ( size > 0 )
 	{

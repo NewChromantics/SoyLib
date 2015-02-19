@@ -358,7 +358,7 @@ bool TBitReader::ReadBytes(STORAGE& Data,int BitCount)
 	STORAGE DataBackwardTest = 0;
 	for ( int i=0;	i<Bytes.GetSize();	i++ )
 	{
-		int Shift = (Bytes.GetSize()-1-i) * 8;
+		auto Shift = (Bytes.GetSize()-1-i) * 8;
 		DataBackwardTest |= static_cast<STORAGE>(Bytes[i]) << Shift;
 	}
 
@@ -474,7 +474,7 @@ void TBitWriter::WriteBytes(STORAGE Data,int BitCount)
 		if ( ComponentBitCount <= 0 )
 			continue;
 		//	write in reverse
-		int ByteIndex = Bytes.GetSize()-1 - i;
+		auto ByteIndex = Bytes.GetSize()-1 - i;
 		Write( Bytes[ByteIndex], ofMin(ComponentBitCount,8) );
 	}
 }

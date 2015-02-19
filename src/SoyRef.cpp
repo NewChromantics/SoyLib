@@ -48,11 +48,10 @@ const BufferArray<size_t,256>& GetAlphabetLookup()
 		AlphabetLookup.SetSize( 256 );
 		for ( int i=0;	i<256;	i++ )
 		{
-			AlphabetLookup[i] = Alphabet.FindIndex( static_cast<char>(i) );
+			auto AlphabetIndex = Alphabet.FindIndex( static_cast<char>(i) );
 
 			//	non-alphabet characters turn into #0 (default char)
-			if ( AlphabetLookup[i] < 0 )
-				AlphabetLookup[i] = 0;
+			AlphabetLookup[i] = (AlphabetIndex < 0) ? 0 : AlphabetIndex;
 		}
 	}
 	return AlphabetLookup;
@@ -65,13 +64,13 @@ void CorrectAlphabetChar(char& Char)
 	Char = Alphabet[ AlphabetLookup[Char] ];
 }
 
-BufferArray<int,SoyRef::MaxStringLength> ToAlphabetIndexes(uint64 Ref64)
+BufferArray<size_t,SoyRef::MaxStringLength> ToAlphabetIndexes(uint64 Ref64)
 {
 	uint64Chars Ref64Chars;
 	Ref64Chars.m64 = Ref64;
 	auto& AlphabetLookup = GetAlphabetLookup();
 	
-	BufferArray<int,SoyRef::MaxStringLength> Indexes;
+	BufferArray<size_t,SoyRef::MaxStringLength> Indexes;
 	for ( int i=0;	i<SoyRef::MaxStringLength;	i++ )
 	{
 		auto& Char = Ref64Chars.mChars[i];
@@ -79,7 +78,7 @@ BufferArray<int,SoyRef::MaxStringLength> ToAlphabetIndexes(uint64 Ref64)
 	}
 	return Indexes;
 }
-uint64 FromAlphabetIndexes(const BufferArray<int,SoyRef::MaxStringLength>& Indexes)
+uint64 FromAlphabetIndexes(const BufferArray<size_t,SoyRef::MaxStringLength>& Indexes)
 {
 	//	turn back to chars and cram into a u64
 	uint64Chars Ref64Chars;
@@ -88,7 +87,7 @@ uint64 FromAlphabetIndexes(const BufferArray<int,SoyRef::MaxStringLength>& Index
 
 	for ( int i=0;	i<Indexes.GetSize();	i++ )
 	{
-		int Index = Indexes[i];
+		auto Index = Indexes[i];
 		Ref64Chars.mChars[i] = Alphabet[Index];
 	}
 	return Ref64Chars.m64;
@@ -124,7 +123,7 @@ SoyRefString SoyRef::ToString() const
 	SoyRefString String;
 	for ( int i=0;	i<AlphabetIndexes.GetSize();	i++ )
 	{
-		int Index = AlphabetIndexes[i];
+		auto Index = AlphabetIndexes[i];
 		char Char = Alphabet[Index];
 		String << Char;
 	}
@@ -137,8 +136,8 @@ void SoyRef::Increment()
 	auto& Alphabet = GetAlphabet();
 
 	//	start at the back and increment 
-	int MaxIndex = Alphabet.GetSize()-1;
-	for ( int i=AlphabetIndexes.GetSize()-1;	i>=0;	i-- )
+	auto MaxIndex = Alphabet.GetSize()-1;
+	for ( ssize_t i=AlphabetIndexes.GetSize()-1;	i>=0;	i-- )
 	{
 		//	increment index
 		AlphabetIndexes[i]++;
