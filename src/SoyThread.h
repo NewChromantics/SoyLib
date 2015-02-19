@@ -2,7 +2,7 @@
 
 #include "ofxSoylent.h"
 #include "SoyEvent.h"
-
+#include <condition_variable>
 
 
 #if defined(NO_OPENFRAMEWORKS)
@@ -237,6 +237,12 @@ public:
 		}
 	}
 
+	static std::thread::native_handle_type	GetCurrentThreadNativeHandle()
+	{
+#if defined(TARGET_WINDOWS)
+		return ::GetCurrentThread();
+#endif
+	}
 	static std::thread::id	GetCurrentThreadId()
 	{
         return std::this_thread::get_id();
@@ -252,8 +258,8 @@ public:
 #endif
 	}
 
-	void		SetThreadName(std::string Name)	{	SetThreadName( Name, GetThreadId() );	}
-	static void	SetThreadName(std::string Name,std::thread::id ThreadId);
+	void		SetThreadName(std::string Name)	{	SetThreadName(Name, GetCurrentThreadNativeHandle()); }
+	static void	SetThreadName(std::string Name,std::thread::native_handle_type ThreadHandle);
 };
 
 
@@ -344,7 +350,7 @@ public:
 
 protected:
 	bool				HasThread() const		{	return mThread.get_id() != std::thread::id();	}
-	void				OnStart(bool&)			{	SoyThread::SetThreadName( mThreadName, GetThreadId() );	}
+	void				OnStart(bool&)			{	SoyThread::SetThreadName( mThreadName, GetThreadNativeHandle() );	}
 	
 private:
 	std::string			mThreadName;

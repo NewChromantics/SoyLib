@@ -102,7 +102,7 @@ unsigned int ofThread::threadFunc(void *args)
 #include <pthread.h>
 #endif
 
-void SoyThread::SetThreadName(std::string name,std::thread::id ThreadId)
+void SoyThread::SetThreadName(std::string name,std::thread::native_handle_type ThreadId)
 {
 #if defined(TARGET_OSX)
 
@@ -120,17 +120,15 @@ void SoyThread::SetThreadName(std::string name,std::thread::id ThreadId)
 #endif
 	
 #if defined(TARGET_WINDOWS)
-#if defined(NO_OPENFRAMEWORKS)
-	//auto ThreadId = getThreadId();
-	auto ThreadId = GetNativeThreadId();
-#else
+#if !defined(NO_OPENFRAMEWORKS)
 	auto ThreadId = getPocoThread().tid();
 	getPocoThread().setName( name );
 #endif
 	
 	//	wrap the try() function in a lambda to avoid the unwinding
-	auto SetNameFunc = [](const char* ThreadName,DWORD ThreadId)
+	auto SetNameFunc = [](const char* ThreadName,HANDLE ThreadHandle)
 	{
+		DWORD ThreadId = ::GetThreadId(ThreadHandle);
 		//	set the OS thread name
 		//	http://msdn.microsoft.com/en-gb/library/xcb2z8hs.aspx
 		const DWORD MS_VC_EXCEPTION = 0x406D1388;
@@ -162,6 +160,7 @@ void SoyThread::SetThreadName(std::string name,std::thread::id ThreadId)
 			}
 		}
 	};
+	
 	SetNameFunc( name.c_str(), ThreadId );
 
 #endif
