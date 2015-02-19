@@ -169,7 +169,7 @@ public:
 		bool bNameStartsWith = Soy::StringBeginsWith( b.mName, This.mMatchSerial, false );
 		if ( aNameStartsWith && !bNameStartsWith )	return -1;
 		if ( !aNameStartsWith && bNameStartsWith )	return 1;
-		
+
 		std::stringstream Error;
 		Error << "Need some more sorting comparisons for [" << This.mMatchSerial << "] with [" << a.mSerial << "/" << a.mName << "] and [" << b.mSerial << "/" << b.mName << "]";
 		Soy::Assert( false, Error );
@@ -186,6 +186,15 @@ TVideoDeviceMeta SoyVideoCapture::GetDeviceMeta(std::string Serial)
 {
 	Array<TVideoDeviceMeta> Metas;
 	GetDevices( GetArrayBridge(Metas) );
+	
+	//	filter non-video devices
+	for ( int i=Metas.GetSize()-1;	i>=0;	i-- )
+	{
+		if ( Metas[i].mVideo )
+			continue;
+		Metas.RemoveBlock( i, 1 );
+	}
+	
 	return GetBestDeviceMeta( Serial, GetArrayBridge(Metas) );
 }
 
