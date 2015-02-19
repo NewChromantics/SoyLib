@@ -10,12 +10,13 @@ SoyEvent<bool> gOnConsoleStop;
 #if defined(TARGET_WINDOWS)
 BOOL WINAPI Soy::Platform::TConsoleApp::ConsoleHandler(DWORD dwType)
 {
+	bool Dummy;
 	switch(dwType) 
 	{
 		case CTRL_CLOSE_EVENT:
 		case CTRL_LOGOFF_EVENT:
 		case CTRL_SHUTDOWN_EVENT:
-			gOnConsoleStop.OnTrigger();
+			gOnConsoleStop.OnTriggered(Dummy);
 
 			//Returning would make the process exit immediately!
 			//We just make the handler sleep until the main thread exits,
@@ -357,7 +358,7 @@ bool TBitReader::ReadBytes(STORAGE& Data,int BitCount)
 	STORAGE DataBackwardTest = 0;
 	for ( int i=0;	i<Bytes.GetSize();	i++ )
 	{
-		int Shift = (Bytes.GetSize()-1-i) * 8;
+		auto Shift = (Bytes.GetSize()-1-i) * 8;
 		DataBackwardTest |= static_cast<STORAGE>(Bytes[i]) << Shift;
 	}
 
@@ -473,7 +474,7 @@ void TBitWriter::WriteBytes(STORAGE Data,int BitCount)
 		if ( ComponentBitCount <= 0 )
 			continue;
 		//	write in reverse
-		int ByteIndex = Bytes.GetSize()-1 - i;
+		auto ByteIndex = Bytes.GetSize()-1 - i;
 		Write( Bytes[ByteIndex], ofMin(ComponentBitCount,8) );
 	}
 }

@@ -2,7 +2,7 @@
 
 #include "ofxSoylent.h"
 #include "SoyEvent.h"
-
+#include <condition_variable>
 
 
 #if defined(NO_OPENFRAMEWORKS)
@@ -237,6 +237,14 @@ public:
 		}
 	}
 
+	static std::thread::native_handle_type	GetCurrentThreadNativeHandle()
+	{
+#if defined(TARGET_WINDOWS)
+		return ::GetCurrentThread();
+#elif defined(TARGET_OSX)
+		return ::pthread_self();
+#endif
+	}
 	static std::thread::id	GetCurrentThreadId()
 	{
         return std::this_thread::get_id();
@@ -252,8 +260,8 @@ public:
 #endif
 	}
 
-	void		SetThreadName(std::string Name)	{	SetThreadName( Name, GetThreadId() );	}
-	static void	SetThreadName(std::string Name,std::thread::id ThreadId);
+	void		SetThreadName(std::string Name)	{	SetThreadName(Name, GetCurrentThreadNativeHandle()); }
+	static void	SetThreadName(std::string Name,std::thread::native_handle_type ThreadHandle);
 };
 
 
@@ -344,7 +352,7 @@ public:
 
 protected:
 	bool				HasThread() const		{	return mThread.get_id() != std::thread::id();	}
-	void				OnStart(bool&)			{	SoyThread::SetThreadName( mThreadName, GetThreadId() );	}
+	void				OnStart(bool&)			{	SoyThread::SetThreadName( mThreadName, GetThreadNativeHandle() );	}
 	
 private:
 	std::string			mThreadName;
@@ -513,9 +521,9 @@ public:
 	bool			Push(const TYPE& Job);
 	
 public:
-	Array<TYPE>		mJobs;
-	ofMutex			mJobLock;
-	SoyEvent<int>	mOnQueueAdded;
+	Array<TYPE>			mJobs;
+	ofMutex				mJobLock;
+	SoyEvent<size_t>	mOnQueueAdded;
 };
 
 template<class TYPE>
@@ -531,7 +539,7 @@ template<class TYPE>
 inline bool TLockQueue<TYPE>::Push(const TYPE& Job)
 {
 	//assert( Job.IsValid() );
-	int JobCount;
+	size_t JobCount;
 	{
 		ofMutex::ScopedLock Lock( mJobLock );
 		mJobs.PushBack( Job );

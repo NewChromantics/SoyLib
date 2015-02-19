@@ -51,7 +51,12 @@ std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeTo
 
 
 
-
+uint32 Soy::Private::GetCrc32(const char* Data,size_t DataSize)
+{
+	TCrc32 Crc;
+	Crc.AddData( reinterpret_cast<const uint8_t*>( Data ), DataSize );
+	return Crc.GetCrc32();
+}
 
 
 const uint32_t TCrc32::Crc32Table[256] = {
@@ -318,7 +323,7 @@ void Soy::base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Deco
 	//	...	just alloc same amount, it'll be smaller
 	Decoded.Reserve( Encoded.GetSize() );
 	
-	int in_len = Encoded.GetSize();
+	size_t in_len = Encoded.GetSize();
 	int i = 0;
 	int j = 0;
 	int in_ = 0;

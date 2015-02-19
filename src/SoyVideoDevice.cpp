@@ -34,7 +34,7 @@ std::ostream& operator<< (std::ostream &out,const TVideoDeviceMeta &in)
 
 
 TVideoDevice::TVideoDevice(const TVideoDeviceMeta& Meta,std::stringstream& Error) :
-	mLastFrame		( Meta.mSerial, (std::stringstream() << "frame_" << Meta.mSerial).str(), true ),
+	mLastFrame		( Meta.mSerial, Soy::StreamToString(std::stringstream() << "frame_" << Meta.mSerial), true ),
 	mLastError		( "waiting for first frame" ),
 	mFrameCount		( 0 )
 {
@@ -240,7 +240,7 @@ TVideoDeviceMeta SoyVideoCapture::GetBestDeviceMeta(std::string Serial,ArrayBrid
 	//	"Cam" will find "Camera" and "Camera2" (so whichever is first), but "Camera" will find camera
 	
 	//	standard meta==string filter
-	for ( int m=Metas.GetSize()-1;	m>=0;	m-- )
+	for ( ssize_t m=Metas.GetSize()-1;	m>=0;	m-- )
 	{
 		auto& Meta = Metas[m];
 		if ( Meta == Serial )

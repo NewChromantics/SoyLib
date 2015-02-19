@@ -59,10 +59,10 @@ public:
 	uint8			GetBitDepth() const				{	return 8;	}
 	uint8			GetChannels() const				{	return SoyPixelsFormat::GetChannelCount(mFormat);	}
 	uint16			GetWidth() const				{	return mWidth;	}
-	uint16			GetHeight(int DataSize) const	{	return IsValid() && DataSize>0 ? DataSize / (GetChannels()*mWidth) : 0;	}
+	uint16			GetHeight(size_t DataSize) const	{	return IsValid() && DataSize>0 ? DataSize / (GetChannels()*mWidth) : 0;	}
 	bool			GetOpenglFormat(int& glFormat) const	{	return SoyPixelsFormat::GetOpenglFormat( glFormat, GetFormat() );	}
 	bool			GetOpenclFormat(int& clFormat) const	{	return SoyPixelsFormat::GetOpenclFormat( clFormat, GetFormat() );	}
-	int				GetDataSize(int Height) const	{	return Height * GetChannels() * GetWidth();	}
+	size_t			GetDataSize(int Height) const	{	return Height * GetChannels() * GetWidth();	}
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
 	void			DumbSetChannels(int Channels)	{	mFormat = SoyPixelsFormat::GetFormatFromChannelCount(Channels);	}
 	void			DumbSetWidth(uint16 Width)		{	mWidth = Width;	}
@@ -160,10 +160,20 @@ DECLARE_TYPE_NAME( SoyPixels );
 
 //	gr; unsupported for now... 
 #if defined(TARGET_WINDOWS)
+
 inline std::ostream& operator<< ( std::ostream &out, const SoyPixels &in )
 {
 	out.setstate( std::ios::failbit );	
 	return out; 
 }
+
+inline std::istream& operator>> ( std::istream &in, SoyPixels &out )
+{
+	in.setstate( std::ios::failbit );
+	return in;
+}
+
+
+
 #endif
 

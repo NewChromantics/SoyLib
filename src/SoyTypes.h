@@ -1,23 +1,15 @@
 #pragma once
 
+
+//	array forward declaration
+template<typename TYPE>
+class ArrayInterface;
+
+
 #if defined(_MSC_VER)
 #define TARGET_WINDOWS
 #endif
 
-//	clang(?) macro for testing features missing on android
-#if !defined(__has_feature)
-#define __has_feature(x)	FALSE
-#endif
-
-//	set a standard RTTI macro
-#if defined(__cpp_rtti) || defined(GCC_ENABLE_CPP_RTTI) || __has_feature(cxx_rtti)
-#define ENABLE_RTTI
-#endif
-
-#if !defined(_NOEXCEPT)
-#define _NOEXCEPT
-//	_GLIBCXX_USE_NOEXCEPT is something
-#endif
 
 
 #if !defined(NO_OPENFRAMEWORKS)
@@ -39,55 +31,112 @@ inline bool operator==(const ofColor& a,const ofColor& b)
 #else
 
 
+
+
+
+#if defined(TARGET_WINDOWS)
+
 //	see ofConstants
 #define WIN32_LEAN_AND_MEAN
 
 #if (_MSC_VER)
-	#define NOMINMAX		
-	//http://stackoverflow.com/questions/1904635/warning-c4003-and-errors-c2589-and-c2059-on-x-stdnumeric-limitsintmax
+#define NOMINMAX		
+//http://stackoverflow.com/questions/1904635/warning-c4003-and-errors-c2589-and-c2059-on-x-stdnumeric-limitsintmax
 #endif
-
-#if defined(TARGET_WINDOWS)
 
 #include <windows.h>
 #include <process.h>
 #include <vector>
-#include <math.h>
-#include <stdio.h>
-#include <assert.h>
 #include <mmsystem.h>
-#include <memory>
 #ifdef _MSC_VER
 	#include <direct.h>
 #endif
 #pragma comment(lib,"winmm.lib")
 
 
+#define __func__ __FUNCTION__
+#define __thread __declspec( thread )
+// Attribute to make function be exported from a plugin
+#define STDCALL		__stdcall
+#define EXPORT_API	__declspec(dllexport)
+
 #elif defined(TARGET_OSX)
 
 #include <sys/time.h>
 #include <math.h>
-#include <stdio.h>
-#include <memory>
-#include <stdint.h>
 
 #define MAX_PATH    256
+#define STDCALL		
+#define EXPORT_API
 
 #elif defined(TARGET_ANDROID)
 
-#include <math.h>
 
 #endif
 
-#include <string>
+//	clang(?) macro for testing features missing on android
+#if !defined(__has_feature)
+#define __has_feature(x)	FALSE
+#endif
+
+
+
+//	all platforms
+#include <stdio.h>
 #include <assert.h>
+#include <stdint.h>
+#include <memory>
+#include <string>
 #include <type_traits>
 #include <sstream>
+
+
+
+typedef	signed char			int8;
+typedef	unsigned char		uint8;
+typedef	signed short		int16;
+typedef	unsigned short		uint16;
+#if defined(TARGET_WINDOWS)
+typedef signed __int32		int32;
+typedef unsigned __int32	uint32;
+typedef signed __int64		int64;
+typedef unsigned __int64	uint64;
+typedef SSIZE_T				ssize_t;
+#else
+typedef int32_t             int32;
+typedef uint32_t             uint32;
+typedef int64_t             int64;
+typedef uint64_t             uint64;
+#endif
+
+//	when casting integers down, get rid of warnings using this, so we can add a check later if it EVER comes up as a problem
+template<typename SMALLSIZE,typename BIGSIZE>
+inline SMALLSIZE size_cast(BIGSIZE Size)
+{
+	//	gr: do value check
+	return static_cast<SMALLSIZE>( Size );
+}
+
 namespace std
 {
 #define DISALLOW_EVIL_CONSTRUCTORS(x)
 //#include "chromium/stack_container.h"
 };
+#define sizeofarray(ARRAY)	( sizeof(ARRAY)/sizeof((ARRAY)[0]) )
+
+//	set a standard RTTI macro
+#if defined(__cpp_rtti) || defined(GCC_ENABLE_CPP_RTTI) || __has_feature(cxx_rtti)
+#define ENABLE_RTTI
+#endif
+
+#if !defined(_NOEXCEPT)
+#define _NOEXCEPT
+//	_GLIBCXX_USE_NOEXCEPT is something
+#endif
+
+
+
+
 
 //	openframeworks functions
 inline unsigned long long	ofGetSystemTime()
@@ -156,7 +205,6 @@ public:
 //----------------------------------------------------------
 // ofPtr
 //----------------------------------------------------------
-#include <memory>
 template<typename T>
 using ofPtr = std::shared_ptr<T>;
 
@@ -165,33 +213,6 @@ inline std::string ofToDataPath(const std::string& LocalPath,bool FullPath=false
 
 #endif
 
-
-#define sizeofarray(ARRAY)	( sizeof(ARRAY)/sizeof((ARRAY)[0]) )
-
-// Attribute to make function be exported from a plugin
-#if defined(TARGET_WINDOWS)
-	#define STDCALL		__stdcall
-	#define EXPORT_API	__declspec(dllexport)
-#elif defined(TARGET_OSX)
-	#define STDCALL		
-	#define EXPORT_API
-#endif
-
-typedef	signed char			int8;
-typedef	unsigned char		uint8;
-typedef	signed short		int16;
-typedef	unsigned short		uint16;
-#if defined(TARGET_WINDOWS)
-typedef signed __int32		int32;
-typedef unsigned __int32	uint32;
-typedef signed __int64		int64;
-typedef unsigned __int64	uint64;
-#else
-typedef int32_t             int32;
-typedef uint32_t             uint32;
-typedef int64_t             int64;
-typedef uint64_t             uint64;
-#endif
 
 
 typedef void(*ofDebugPrintFunc)(const std::string&);
@@ -360,10 +381,10 @@ public:
     TCrc32() { Reset(); }
     ~TCrc32() throw() {}
     void Reset() { _crc = (uint32_t)~0; }
-    void AddData(const uint8_t* pData, const uint32_t length)
+    void AddData(const uint8_t* pData, const size_t length)
     {
         uint8_t* pCur = (uint8_t*)pData;
-        uint32_t remaining = length;
+        auto remaining = length;
         for (; remaining--; ++pCur)
             _crc = ( _crc >> 8 ) ^ Crc32Table[(_crc ^ *pCur) & 0xff];
     }
@@ -372,6 +393,23 @@ public:
 private:
     uint32_t _crc;
 };
+
+
+namespace Soy
+{
+	namespace Private
+	{
+		uint32	GetCrc32(const char* Data,size_t DataSize);
+	};
+	
+	template<typename TYPE>
+	inline uint32	GetCrc32(const ArrayInterface<TYPE>& Array)
+	{
+		return Private::GetCrc32( Array.GetArray(), Array.GetDataSize() );
+	}
+
+};
+
 
 namespace Soy
 {
