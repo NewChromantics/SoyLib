@@ -109,6 +109,13 @@ typedef int64_t             int64;
 typedef uint64_t             uint64;
 #endif
 
+//	when casting integers down, get rid of warnings using this, so we can add a check later if it EVER comes up as a problem
+template<typename SMALLSIZE,typename BIGSIZE>
+inline SMALLSIZE size_cast(BIGSIZE Size)
+{
+	//	gr: do value check
+	return static_cast<SMALLSIZE>( Size );
+}
 
 namespace std
 {
