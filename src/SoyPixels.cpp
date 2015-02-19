@@ -1466,8 +1466,8 @@ void SoyPixelsImpl::ResizeFastSample(uint16 NewWidth, uint16 NewHeight)
 	
 	for ( int ny=0;	ny<NewHeight;	ny++ )
 	{
-		float yf = ny/(float)NewHeight;
-		int oy = OldHeight * yf;
+		float yf = ny/static_cast<float>(NewHeight);
+		int oy = static_cast<int>(OldHeight * yf);
 
 		auto OldLineSize = OldWidth * OldChannelCount;
 		auto NewLineSize = NewWidth * NewChannelCount;
@@ -1476,8 +1476,8 @@ void SoyPixelsImpl::ResizeFastSample(uint16 NewWidth, uint16 NewHeight)
 		
 		for ( int nx=0;	nx<NewWidth;	nx++ )
 		{
-			float xf = nx/(float)NewWidth;
-			int ox = OldWidth * xf;
+			float xf = nx / static_cast<float>(NewWidth);
+			int ox = static_cast<int>(OldWidth * xf);
 			auto* OldPixel = &OldRow[ox*OldChannelCount];
 			auto* NewPixel = &NewRow[nx*NewChannelCount];
 
