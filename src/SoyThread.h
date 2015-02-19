@@ -241,6 +241,8 @@ public:
 	{
 #if defined(TARGET_WINDOWS)
 		return ::GetCurrentThread();
+#elif defined(TARGET_OSX)
+		return ::pthread_self();
 #endif
 	}
 	static std::thread::id	GetCurrentThreadId()
