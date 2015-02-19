@@ -10,12 +10,13 @@ SoyEvent<bool> gOnConsoleStop;
 #if defined(TARGET_WINDOWS)
 BOOL WINAPI Soy::Platform::TConsoleApp::ConsoleHandler(DWORD dwType)
 {
+	bool Dummy;
 	switch(dwType) 
 	{
 		case CTRL_CLOSE_EVENT:
 		case CTRL_LOGOFF_EVENT:
 		case CTRL_SHUTDOWN_EVENT:
-			gOnConsoleStop.OnTrigger();
+			gOnConsoleStop.OnTriggered(Dummy);
 
 			//Returning would make the process exit immediately!
 			//We just make the handler sleep until the main thread exits,
