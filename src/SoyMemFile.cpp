@@ -23,7 +23,7 @@ MemFileArray::MemFileArray(std::string Filename,bool AllowOtherFilename) :
 }
 
 
-MemFileArray::MemFileArray(std::string Filename,bool AllowOtherFilename,int DataSize,bool ReadOnly) :
+MemFileArray::MemFileArray(std::string Filename,bool AllowOtherFilename,size_t DataSize,bool ReadOnly) :
 	mFilename	( Filename ),
 	mAllowOtherFilename	( AllowOtherFilename ),
 	mHandle		( Soy::Platform::InvalidFileHandle ),
@@ -34,7 +34,7 @@ MemFileArray::MemFileArray(std::string Filename,bool AllowOtherFilename,int Data
 	Init( DataSize, ReadOnly );
 }
 
-bool MemFileArray::Init(int DataSize,bool ReadOnly)
+bool MemFileArray::Init(size_t DataSize,bool ReadOnly)
 {
 	std::stringstream Error;
 	bool Result = Init( DataSize, ReadOnly, Error );
@@ -45,7 +45,7 @@ bool MemFileArray::Init(int DataSize,bool ReadOnly)
 	return Result;
 }
 
-bool MemFileArray::Init(int DataSize,bool ReadOnly,std::stringstream& Error)
+bool MemFileArray::Init(size_t DataSize,bool ReadOnly,std::stringstream& Error)
 {
 	if ( !Soy::Assert( DataSize>0, "Trying to allocate/get shared memfile <1 byte" ) )
 		return false;
@@ -263,7 +263,7 @@ void MemFileArray::Close()
 }
 
 
-bool MemFileArray::SetSize(int size, bool preserve,bool AllowLess)
+bool MemFileArray::SetSize(size_t size, bool preserve,bool AllowLess)
 {
 	if ( !Soy::Assert( size >= 0, "Invalid size specified in MemFileArray::SetSize" ) )
 		size = 0;

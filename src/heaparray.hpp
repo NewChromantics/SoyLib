@@ -17,7 +17,7 @@
 //	gr: This should always allocate from a heap now, by default the "pr-global heap"
 //		with the exception of heaparrays that are allocated globally before the prcore::Heap
 template <typename T,prmem::Heap& HEAP=prcore::Heap>
-class Array
+class Array // : public ArrayInterface<T>
 {
 public:
 	typedef T TYPE;	//	in case you ever need to get to T in a template function/class, you can use ARRAYPARAM::TYPE (sometimes need typename ARRAYPARAM::TYPE)
@@ -25,34 +25,41 @@ public:
 public:
 
 	Array()
-	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
+	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
 		SetHeap( HEAP );
 	}
 
 	explicit Array(prmem::Heap& Heap)
-	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
+	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
 		SetHeap( Heap );
 	}
 
+	Array(const size_t size)
+	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
+	{
+		SetHeap( HEAP );
+		SetSize(size);
+	}
+	
 	Array(const int size)
-	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
+	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
 		SetHeap( HEAP );
 		SetSize(size);
 	}
-
-	Array(const unsigned int size)
-	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
+	
+	Array(unsigned int size)
+	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
 		SetHeap( HEAP );
 		SetSize(size);
 	}
-
+	
 	//	need an explicit constructor of self-type
 	Array(const Array& v)
-	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
+	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
 		SetHeap( HEAP );
 		Copy( v );
@@ -61,7 +68,7 @@ public:
 	//	explicit to avoid accidental implicit array-conversions (eg. when passing BufferArray to Array param)
 	template<typename ARRAYTYPE>
 	explicit Array(const ARRAYTYPE& v)
-	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
+	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
 		SetHeap( HEAP );
 		Copy( v );
@@ -70,7 +77,7 @@ public:
 	//	construct from a C-array like int Hello[2]={0,1}; this automatically sets the size
 	template<size_t CARRAYSIZE>
 	explicit Array(const T(&CArray)[CARRAYSIZE])
-	: mdata(NULL),mmaxsize(0),moffset(0),mHeap(NULL)
+	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
 		PushBackArray( CArray );
 	}
@@ -102,19 +109,19 @@ public:
 		return GetArrayBridge(*this).Copy(v);
 	}
 
-	T& GetAt(int index)
+	T& GetAt(size_t index)
 	{
-		assert( index >= 0 && index < moffset );
+		SoyArray::CheckBounds( index, *this );
 		return mdata[index];
 	}
 
-	const T& GetAtConst(int index) const
+	const T& GetAtConst(size_t index) const
 	{
-		assert( index >= 0 && index < moffset );
+		SoyArray::CheckBounds( index, *this );
 		return mdata[index];
 	}
-	T&			operator [] (int index)				{	return GetAt(index);	}
-	const T&	operator [] (int index) const		{	return GetAtConst(index);	}
+	T&			operator [] (size_t index)				{	return GetAt(index);	}
+	const T&	operator [] (size_t index) const		{	return GetAtConst(index);	}
 
 	T&			GetBack()				{	return (*this)[GetSize()-1];	}
 	const T&	GetBack() const			{	return (*this)[GetSize()-1];	}
@@ -122,16 +129,12 @@ public:
 	T*			GetArray()				{	return mdata;	}
 	bool		IsEmpty() const			{	return GetSize() == 0;		}
 	bool		IsFull() const			{	return GetSize() >= MaxSize();		}
-	int			GetSize() const			{	return moffset;		}
-	int			GetDataSize() const		{	return GetSize() * sizeof(T);	}	//	size of all the data in bytes
-	int			GetElementSize() const	{	return sizeof(T);	}	//	size of all the data in bytes
+	size_t		GetSize() const			{	return moffset;		}
+	size_t		GetDataSize() const		{	return GetSize() * sizeof(T);	}	//	size of all the data in bytes
+	size_t		GElementSize() const	{	return sizeof(T);	}	//	size of all the data in bytes
 
-	bool SetSize(int size, bool preserve=true,bool AllowLess=true)
+	bool SetSize(size_t size, bool preserve=true,bool AllowLess=true)
 	{
-		assert( size >= 0 );
-		if ( size < 0 )	
-			size = 0;
-
 		if ( size == mmaxsize )
 		{
 			moffset = size;
@@ -150,20 +153,17 @@ public:
 		{
 			auto& Heap = GetHeap();
 			array = Heap.template AllocArray<T>(size);
-
-			//	failed alloc
-			assert( array );
 			if ( !array )
 				return false;
 
 			if ( mdata && preserve )
 			{
-				int size0 = GetSize();
-				int count = (size0 > size) ? size : size0;
+				auto size0 = GetSize();
+				auto count = (size0 > size) ? size : size0;
 
 				if ( Soy::DoComplexCopy<T,T>() )
 				{
-					for ( int i=0; i<count; ++i )
+					for ( size_t i=0; i<count; ++i )
 						array[i] = mdata[i];
 				}
 				else if ( count > 0 )
@@ -185,9 +185,8 @@ public:
 		return true;
 	}
 
-	void Reserve(int size,bool clear=false)
+	void Reserve(size_t size,bool clear=false)
 	{
-		assert( size >= 0 );
 		if ( clear )
 		{
 			SetSize(size,false);
@@ -196,7 +195,7 @@ public:
 		else
 		{
 			//	grow the array as neccessary, then restore the current size again
-			int CurrentSize = GetSize();
+			auto CurrentSize = GetSize();
 			SetSize( CurrentSize + size, true, true );
 			SetSize( CurrentSize, true, true );
 		}
@@ -216,24 +215,22 @@ public:
 		return GetArrayBridge(*this).PushBackReinterpretReverse( OtherData );
 	}
 
-	T* PushBlock(int count)
+	T* PushBlock(size_t count)
 	{
-		assert( count >= 0 );
-		if ( count < 0 )	count = 0;
-		int curoff = moffset;
-		int endoff = moffset + count;
+		auto curoff = moffset;
+		auto endoff = moffset + count;
 
 		if ( endoff >= mmaxsize )
 		{
 			if ( !mmaxsize )
 			{
-				int size = count * 2;
+				auto size = count * 2;
 				if ( !Alloc(size) )
-					return NULL;
+					return nullptr;
 			}
 			else
 			{
-				int size = mmaxsize * 2 + count;
+				auto size = mmaxsize * 2 + count;
 				SetSize(size,true);
 			}
 		}
@@ -243,7 +240,7 @@ public:
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
 		if ( Soy::IsComplexType<TYPE>() )
 		{
-			for ( int i=curoff;	i<curoff+count;	i++ )
+			for ( size_t i=curoff;	i<curoff+count;	i++ )
 				mdata[i] = T();
 		}
 		return mdata + curoff;
@@ -251,7 +248,7 @@ public:
 		
 	T& PushBackUnique(const T& item)
 	{
-		T* pExisting = Find( item );
+		auto* pExisting = Find( item );
 		if ( pExisting )
 			return *pExisting;
 
@@ -270,14 +267,14 @@ public:
 			}
 			else
 			{
-				int offset = moffset;
-				int size = mmaxsize * 2;
+				auto offset = moffset;
+				auto size = mmaxsize * 2;
 				SetSize(size,true);
 				moffset = offset;
 			}
 		}
 
-		T& ref = mdata[moffset++];
+		auto& ref = mdata[moffset++];
 		ref = item;
 		return ref;
 	}
@@ -294,14 +291,14 @@ public:
 			}
 			else
 			{
-				int offset = moffset;
-				int size = mmaxsize * 2;
+				auto offset = moffset;
+				auto size = mmaxsize * 2;
 				SetSize(size,true);
 				moffset = offset;
 			}
 		}
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
-		T& ref = mdata[moffset++];
+		auto& ref = mdata[moffset++];
 		ref = T();
 		return ref;
 	}
@@ -310,35 +307,18 @@ public:
 	void PushBackArray(const ARRAYTYPE& v)
 	{
 		GetArrayBridge( *this ).PushBackArray(v);
-		/*
-		int NewDataIndex = GetSize();
-		T* pNewData = PushBlock( v.GetSize() );
-
-		if ( DoComplexCopy<T,ARRAYTYPE::T>() )
-		{
-			for ( int i=0; i<v.GetSize(); ++i )
-				(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check
-		}
-		else if ( v.GetSize() > 0 )
-		{
-			//	re-fetch address for bounds check. technically unncessary
-			pNewData = &((*this)[NewDataIndex]);
-			//	note: lack of bounds check for all elements here
-			memcpy( pNewData, v.GetArray(), v.GetSize() * sizeof(T) );
-		}
-		*/
 	}
 
 	//	pushback a c-array
 	template<size_t CARRAYSIZE>
 	void PushBackArray(const T(&CArray)[CARRAYSIZE])
 	{
-		int NewDataIndex = GetSize();
-		T* pNewData = PushBlock( CARRAYSIZE );
+		auto NewDataIndex = GetSize();
+		auto* pNewData = PushBlock( CARRAYSIZE );
 
 		if ( Soy::IsComplexType<T>() )
 		{
-			for ( int i=0; i<CARRAYSIZE; ++i )
+			for ( size_t i=0; i<CARRAYSIZE; ++i )
 				(*this)[i+NewDataIndex] = CArray[i];	//	use [] operator for bounds check
 		}
 		else if ( GetSize() > 0 )
@@ -352,11 +332,11 @@ public:
 
 	T& PopBack()
 	{
-		assert( GetSize() > 0 );
+		SoyArray::CheckBounds(moffset,*this);
 		return mdata[--moffset];
 	}
 
-	T PopAt(int Index)
+	T PopAt(size_t Index)
 	{
 		T Item = GetAt(Index);
 		RemoveBlock( Index, 1 );
@@ -366,17 +346,16 @@ public:
 	template<typename MATCHTYPE>
 	bool	Remove(const MATCHTYPE& Match)
 	{
-		int Index = FindIndex( Match );
+		auto Index = FindIndex( Match );
 		if ( Index < 0 )
 			return false;
 		RemoveBlock( Index, 1 );
 		return true;
 	}
 
-	T* InsertBlock(int index, int count)
+	T* InsertBlock(size_t index,size_t count)
 	{
 		//	do nothing if nothing to add
-		assert( count >= 0 );
 		if ( count == 0 )
 			return IsEmpty() ? NULL : (mdata + index);
 
@@ -384,14 +363,14 @@ public:
 			return PushBlock( count );
 
 //			int left = static_cast<int>((mdata+moffset) - (mdata+index));
-		int left = static_cast<int>(moffset - index);
+		auto left = static_cast<ssize_t>(moffset - index);
 		PushBlock(count);	// increase array mem 
 
 		if ( Soy::DoComplexCopy<T,T>() )
 		{
 			T* src = mdata + moffset - count - 1;
 			T* dest = mdata + moffset - 1;
-			for ( int i=0; i<left; ++i )
+			for ( size_t i=0; i<left; ++i )
 				*dest-- = *src--;
 		}
 		else if ( left > 0 )
@@ -403,10 +382,9 @@ public:
 
 	}
 
-	void RemoveBlock(int index, int count)
+	void RemoveBlock(size_t index,size_t count)
 	{
 		//	do nothing if nothing to remove
-		assert( count >= 0 );
 		if ( count == 0 )
 			return;
 
@@ -419,7 +397,7 @@ public:
 
 		if ( Soy::DoComplexCopy<T,T>() )
 		{				
-			for ( int i=0; i<left; ++i )
+			for ( size_t i=0; i<left; ++i )
 				*dest++ = *src++;
 			assert( (moffset-count) == static_cast<int>(dest - mdata) );
 			moffset = static_cast<int>(dest - mdata);
@@ -432,7 +410,7 @@ public:
 		}			
 	}
 
-	void SetIndex(int index)
+	void SetIndex(size_t index)
 	{
 		assert( index >= 0 && index < mmaxsize );
 		moffset = index;
@@ -455,28 +433,28 @@ public:
 		SetSize(0,false,AllowLess);
 	}
 
-	int	MaxSize() const
+	size_t	MaxSize() const
 	{
 		return mmaxsize;
 	}
 
-	int	MaxAllocSize() const
+	size_t	MaxAllocSize() const
 	{
-		return std::numeric_limits<int>::max();
+		return std::numeric_limits<size_t>::max();
 	}
 
-	int	MaxDataSize() const
+	size_t	MaxDataSize() const
 	{
 		return MaxSize() * sizeof(T);
 	}
 
 	//	simple iterator to find index of an element matching via == operator
 	template<typename MATCHTYPE>
-	int			FindIndex(const MATCHTYPE& Match) const
+	ssize_t			FindIndex(const MATCHTYPE& Match) const
 	{
-		for ( int i=0;	i<GetSize();	i++ )
+		for ( size_t i=0;	i<GetSize();	i++ )
 		{
-			const T& Element = mdata[i];
+			auto& Element = mdata[i];
 			if ( Element == Match )
 				return i;
 		}
@@ -484,15 +462,16 @@ public:
 	}
 
 	//	find an element - returns first matching element or NULL
-	template<typename MATCH> T*			Find(const MATCH& Match)		{	int Index = FindIndex( Match );		return (Index < 0) ? NULL : &mdata[Index];	}
-	template<typename MATCH> const T*	Find(const MATCH& Match) const	{	int Index = FindIndex( Match );		return (Index < 0) ? NULL : &mdata[Index];	}
+	template<typename MATCH> T*			Find(const MATCH& Match)		{	auto Index = FindIndex( Match );		return (Index < 0) ? NULL : &mdata[Index];	}
+	template<typename MATCH> const T*	Find(const MATCH& Match) const	{	auto Index = FindIndex( Match );		return (Index < 0) ? NULL : &mdata[Index];	}
 
 	//	swap two elements
-	void	Swap(int a,int b)
+	void	Swap(size_t a,size_t b)
 	{
-		assert( a >= 0 && a < GetSize() && b >= 0 && b < GetSize() );
-		T& ElementA = (*this)[a];
-		T& ElementB = (*this)[b];
+		if ( !SoyArray::CheckBounds( a, *this ) || !SoyArray::CheckBounds(b, *this ) )
+			return;
+		auto& ElementA = (*this)[a];
+		auto& ElementB = (*this)[b];
 		T Temp = ElementA;
 		ElementA = ElementB;
 		ElementB = Temp;
@@ -502,9 +481,10 @@ public:
 	template<typename TYPE>
 	void	SetAll(const TYPE& Value)
 	{
-		for ( int i=0;	i<GetSize();	i++ )
+		for ( size_t i=0;	i<GetSize();	i++ )
 			mdata[i] = Value;
 	}
+	
 	void	SetAll(const T& Value)
 	{
 		//	attempt non-complex memset if element can be broken into a byte
@@ -512,7 +492,7 @@ public:
 		{
 			bool AllSame = true;
 			const uint8* pValue = reinterpret_cast<const uint8*>( &Value );
-			for ( int i=1;	i<sizeof(Value);	i++ )
+			for ( size_t i=1;	i<sizeof(Value);	i++ )
 			{
 				if ( pValue[i] == pValue[i-1] )
 					continue;
@@ -525,7 +505,7 @@ public:
 			}
 		}
 
-		for ( int i=0;	i<GetSize();	i++ )
+		for ( size_t i=0;	i<GetSize();	i++ )
 			mdata[i] = Value;
 	}
 
@@ -584,21 +564,19 @@ public:
 	
 	//	copy data to a Buffer[BUFFERSIZE] c-array. (lovely template syntax! :)
 	//	returns number of elements copied
-	template <typename TYPE,unsigned int BUFFERSIZE>
+	template <typename TYPE,size_t BUFFERSIZE>
 	int		CopyToBuffer(TYPE (& Buffer)[BUFFERSIZE]) const
 	{
-		int Count = ofMin<int>( GetSize(), static_cast<int>(BUFFERSIZE) );
-		for ( int i=0;	i<Count;	i++ )
+		auto Count = std::min( GetSize(), BUFFERSIZE );
+		for ( size_t i=0;	i<Count;	i++ )
 		{
 			Buffer[i] = mdata[i];
 		}
 		return Count;
 	}
 	
-	bool Alloc(int NewSize)
+	bool Alloc(size_t NewSize)
 	{
-		assert( NewSize >= 0 );
-
 		auto& Heap = GetHeap();
 		mdata = Heap.template AllocArray<T>( NewSize );
 
@@ -617,6 +595,6 @@ public:
 private:
 	prmem::Heap*	mHeap;		//	where to alloc/free from
 	T*				mdata;
-	int				mmaxsize;
-	int				moffset;
+	size_t			mmaxsize;
+	size_t			moffset;
 };

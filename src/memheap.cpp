@@ -358,7 +358,7 @@ namespace prmem
 		virtual ~HeapDebug()	{}
 
 		virtual void	OnFree(const void* Object) override;
-		virtual void	OnAlloc(const void* Object,std::string Typename,uint32 ElementCount,uint32 TypeSize) override;
+		virtual void	OnAlloc(const void* Object,std::string Typename,size_t ElementCount,size_t TypeSize) override;
 		virtual void	DumpToOutput(const prmem::HeapInfo& OwnerHeap) const override
         {
             auto Items = GetArrayBridge( mItems );
@@ -427,7 +427,7 @@ prmem::HeapDebug::HeapDebug(const Heap& OwnerHeap) :
 }
 
 
-void prmem::HeapDebug::OnAlloc(const void* Object,std::string Typename,uint32 ElementCount,uint32 TypeSize)
+void prmem::HeapDebug::OnAlloc(const void* Object,std::string Typename,size_t ElementCount,size_t TypeSize)
 {
 	ofMutex::ScopedLock Lock( *this );
 	//	do some prealloc when we get to the edge
@@ -505,7 +505,7 @@ prmem::HeapInfo::~HeapInfo()
 
 
 
-prmem::Heap::Heap(bool EnableLocks,bool EnableExceptions,const char* Name,uint32 MaxSize,bool DebugTrackAllocs) :
+prmem::Heap::Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t MaxSize,bool DebugTrackAllocs) :
 	HeapInfo		( Name ),
 #if defined(TARGET_WINDOWS)
 	mHandle			( NULL ),
@@ -1174,7 +1174,7 @@ bool SoyDebug::GetCallStack(ArrayBridge<ofStackEntry>& Stack,int StackSkip)
 }
 
 
-void prmem::HeapInfo::OnFailedAlloc(std::string TypeName,int TypeSize,int ElementCount) const
+void prmem::HeapInfo::OnFailedAlloc(std::string TypeName,size_t TypeSize,size_t ElementCount) const
 {
 	//	print out debug state of current heap
 	std::Debug << "Failed to allocate " << TypeName << "x " << ElementCount << " (" << Soy::FormatSizeBytes( TypeSize * ElementCount ) << ")" << std::endl;

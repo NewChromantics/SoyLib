@@ -1,5 +1,11 @@
 #pragma once
 
+
+//	array forward declaration
+template<typename TYPE>
+class ArrayInterface;
+
+
 #if defined(_MSC_VER)
 #define TARGET_WINDOWS
 #endif
@@ -360,10 +366,10 @@ public:
     TCrc32() { Reset(); }
     ~TCrc32() throw() {}
     void Reset() { _crc = (uint32_t)~0; }
-    void AddData(const uint8_t* pData, const uint32_t length)
+    void AddData(const uint8_t* pData, const size_t length)
     {
         uint8_t* pCur = (uint8_t*)pData;
-        uint32_t remaining = length;
+        auto remaining = length;
         for (; remaining--; ++pCur)
             _crc = ( _crc >> 8 ) ^ Crc32Table[(_crc ^ *pCur) & 0xff];
     }
@@ -372,6 +378,23 @@ public:
 private:
     uint32_t _crc;
 };
+
+
+namespace Soy
+{
+	namespace Private
+	{
+		uint32	GetCrc32(const char* Data,size_t DataSize);
+	};
+	
+	template<typename TYPE>
+	inline uint32	GetCrc32(const ArrayInterface<TYPE>& Array)
+	{
+		return Private::GetCrc32( Array.GetArray(), Array.GetDataSize() );
+	}
+
+};
+
 
 namespace Soy
 {

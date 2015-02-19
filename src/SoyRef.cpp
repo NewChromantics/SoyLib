@@ -5,7 +5,7 @@ namespace Private
 	//	max number of unique refs; sizeof(gAlphabetRaw) * SoyRef::MaxStringLength (63 * 8)
 	const char gAlphabetRaw[] = "_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz";
 	BufferArray<char,100> gAlphabet;		//	initialising this seems to mess up a bit in release, size is right, but contents are zero.
-	BufferArray<int,256> gAlphabetLookup;
+	BufferArray<size_t,256> gAlphabetLookup;
 };
 
 
@@ -37,7 +37,7 @@ const BufferArray<char,100>& GetAlphabet()
 	return Private::gAlphabet;
 }
 
-const BufferArray<int,256>& GetAlphabetLookup()
+const BufferArray<size_t,256>& GetAlphabetLookup()
 {
 	auto& AlphabetLookup = Private::gAlphabetLookup;
 

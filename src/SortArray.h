@@ -56,43 +56,43 @@ public:
 	{
 	}
 
-	virtual TYPE&		operator [] (int index) override		{	return mArray[index];	}
-	virtual const TYPE&	operator [] (int index) const override	{	return mArray[index];	}
+	virtual TYPE&		operator[](size_t index) override		{	return mArray[index];	}
+	virtual const TYPE&	operator[](size_t index) const override	{	return mArray[index];	}
 	virtual TYPE&		GetBack() override						{	return mArray.GetBack();	}
 	virtual const TYPE&	GetBack() const override				{	return mArray.GetBack();	}
-	virtual int			GetSize() const override				{	return mArray.GetSize();	}
+	virtual size_t		GetSize() const override				{	return mArray.GetSize();	}
 	virtual const TYPE*	GetArray() const override				{	return mArray.GetArray();	}
 	virtual TYPE*		GetArray() override						{	return mArray.GetArray();	}
-	virtual void		Reserve(int size,bool clear=false) override	{	return mArray.Reserve(size,clear);	}
-	virtual void		RemoveBlock(int index, int count) override	{	return mArray.RemoveBlock(index,count);	}
+	virtual void		Reserve(size_t size,bool clear=false) override	{	return mArray.Reserve(size,clear);	}
+	virtual void		RemoveBlock(size_t index,size_t count) override	{	return mArray.RemoveBlock(index,count);	}
 	virtual void		Clear(bool Dealloc) override			{	return mArray.Clear(Dealloc);	}
-	virtual int			MaxSize() const override				{	return mArray.MaxSize();	}
+	virtual size_t		MaxSize() const override				{	return mArray.MaxSize();	}
 	
 	inline TYPE			PopBack() const							{	return mArray.PopBack();	}
 	
-	virtual TYPE*		PushBlock(int count) override
+	virtual TYPE*		PushBlock(size_t count) override
 	{
 		//	can't push blocks in sort arrays!
 		Soy::Assert(false, "Cannot allocate in sort array");
 		return nullptr;
 	}
-	virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=true) override
+	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true) override
 	{
 		//	can't push blocks in sort arrays!
 		Soy::Assert(false, "Cannot allocate in sort array");
 		return nullptr;
 	}
-	virtual TYPE*			InsertBlock(int index,int Count) override
+	virtual TYPE*			InsertBlock(size_t index,size_t Count) override
 	{
 		//	can't push blocks in sort arrays!
-		assert(false);
+		Soy::Assert(false, "Cannot push blocks in sort array");
 		return nullptr;
 	}
 
 	template<typename MATCHTYPE>
 	bool				Remove(const MATCHTYPE& Match)
 	{
-		int Index = FindIndex( Match );
+		auto Index = FindIndex( Match );
 		if ( Index < 0 )
 			return false;
 		RemoveBlock( Index, 1 );
@@ -103,7 +103,7 @@ public:
 	bool				IsDescending() const			{	return !IsAscending();	}
 	bool				IsSorted() const	
 	{
-		for ( int i=1;	i<GetSize();	i++ )
+		for ( size_t i=1;	i<GetSize();	i++ )
 		{
 			auto& a = mArray[i-1];
 			auto& b = mArray[i];
@@ -119,7 +119,7 @@ public:
 	{
 		//	bubble sort for quick implementation
 		bool Changed = false;
-		int i = 0;
+		size_t i = 0;
 		while ( i < GetSize() )
 		{
 			//	i is at the top, move on
@@ -147,23 +147,23 @@ public:
 			i--;	//	i is now at i-1
 			Changed = true;
 		}
-		assert( IsSorted() );
+		Soy::Assert( IsSorted(), "Array is unsorted after sort()" );
 		return Changed;
 	}
 
 	template<typename MATCHTYPE>
 	TYPE*				Find(const MATCHTYPE& item) const
 	{
-		int Index = FindIndex( item );
+		auto Index = FindIndex( item );
 		if ( Index < 0 )
-			return NULL;
+			return nullptr;
 		return &mArray[Index];
 	}
 
 	template<typename MATCHTYPE>
-	int					FindIndex(const MATCHTYPE& item) const
+	ssize_t				FindIndex(const MATCHTYPE& item) const
 	{
-		int InsertIndex = FindInsertIndex( item );
+		auto InsertIndex = FindInsertIndex( item );
 		if ( InsertIndex >= GetSize() )
 			return -1;
 
@@ -174,18 +174,18 @@ public:
 	}
 
 	template<typename MATCHTYPE>
-	int					FindInsertIndex(const MATCHTYPE& item) const
+	ssize_t				FindInsertIndex(const MATCHTYPE& item) const
 	{
 		if ( !GetSize() ) 
 			return 0;
 		
-		int p1 = 0;
-		int p2 = GetSize() - 1;
-		int a = -1;
+		ssize_t p1 = 0;
+		ssize_t p2 = GetSize() - 1;
+		ssize_t a = -1;
 		
 		while ( ( p2 - p1 ) > 1 )
 		{
-			int a = ( p1 + p2 ) / 2;
+			auto a = ( p1 + p2 ) / 2;
 			int r = TSORTPOLICY::Compare( mArray[a], item, mPolicy );
 			if ( r > 0 )	//	item less than entry a
 			{
@@ -202,17 +202,19 @@ public:
 			}
 		}
 		a = TSORTPOLICY::Compare( mArray[p1], item, mPolicy );
-		if ( a >= 0 ) return p1;
+		if ( a >= 0 )
+			return p1;
 		
 		a = TSORTPOLICY::Compare( mArray[p2], item, mPolicy );
-		if ( a >= 0 ) return p2;
+		if ( a >= 0 )
+			return p2;
 		
 		return p2 + 1;
 	}
 	
 	TYPE&	Push(const TYPE& item)
 	{
-		int dbi = FindInsertIndex( item );
+		auto dbi = FindInsertIndex( item );
 		auto* dbr = mArray.InsertBlock( dbi, 1 );
 		*dbr = item;
 		return *dbr;

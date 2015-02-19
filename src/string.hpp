@@ -58,7 +58,7 @@ namespace Soy
 
 	//	type independent version of strlen()
 	template<typename S>
-	int			StringLen(const S* a,int Max,int AllocMax)		
+	int			StringLen(const S* a,ssize_t Max,size_t AllocMax)
 	{
 		if ( AllocMax < Max && AllocMax > 0 )
 			Max = AllocMax;
@@ -174,7 +174,7 @@ namespace Soy
 		}
 
 		//	copy[part of] a string. if MaxLength < 0 we copy the whole string
-		inline void CopyString(const S* text,int MaxLength=-1)
+		inline void CopyString(const S* text,ssize_t MaxLength=-1)
 		{
 			if ( !text )
 			{
@@ -184,7 +184,7 @@ namespace Soy
 			}
 
 			//	calc how much to copy
-			int len = StringLen( text, MaxLength, mdata.MaxAllocSize()-1 );
+			auto len = StringLen( text, MaxLength, mdata.MaxAllocSize()-1 );
 
 			//	alloc block
 			mdata.Clear(false);
@@ -245,7 +245,7 @@ namespace Soy
 			mdata.PopBack();
 
 			//	pre-alloc
-			int len = StringLen( text, -1, mdata.MaxAllocSize() );
+			auto len = StringLen( text, -1, mdata.MaxAllocSize() );
 			mdata.Reserve( len + 1, false );
 
 			for ( ; *text; ++text )
@@ -383,7 +383,7 @@ namespace Soy
 			return mdata.GetSize() <= 1;
 		}
 
-		int GetLength() const
+		size_t GetLength() const
 		{
 			return mdata.GetSize() - 1;
 		}
@@ -423,7 +423,7 @@ namespace Soy
 			//	dont push if we're pushing a terminator
 			if ( v == 0 )
 				return *this;
-			const int offset = mdata.GetSize() - 1;
+			auto offset = mdata.GetSize() - 1;
 			mdata[offset] = v;
 			mdata.PushBack(0);
 			return *this;
@@ -610,7 +610,7 @@ namespace Soy
 			memcpy( Block, String, Len );
 		}
 
-		void InsertAt(int Offset,const char* String)
+		void InsertAt(size_t Offset,const char* String)
 		{
 			//	test this StringLen
 			assert(false);

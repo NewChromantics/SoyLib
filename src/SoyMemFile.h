@@ -26,31 +26,29 @@ public:
 	
 public:
 	MemFileArray(std::string Filename,bool AllowOtherFilename);
-	MemFileArray(std::string Filename,bool AllowOtherFilename,int Size,bool ReadOnly);
+	MemFileArray(std::string Filename,bool AllowOtherFilename,size_t Size,bool ReadOnly);
 	~MemFileArray()
 	{
 		Close();
 	}
 
-	bool				Init(int Size,bool ReadOnly);
-	bool				Init(int Size,bool ReadOnly,std::stringstream& Error);	//	size must be known beforehand!
+	bool				Init(size_t Size,bool ReadOnly);
+	bool				Init(size_t Size,bool ReadOnly,std::stringstream& Error);	//	size must be known beforehand!
 	
 	std::string			GetFilename() const				{	return mFilename;	}
 	void				Close();						//	close handle but don't destroy file
 	void				Destroy();						//	destroy shared memory
 	bool				IsValid() const;
 
-	virtual T&			operator [] (int index)			{	return GetArray()[index];	}
-	virtual const T&	operator [] (int index) const	{	return GetArray()[index];	}
+	virtual T&			operator[](size_t index) override		{	return GetArray()[index];	}
+	virtual const T&	operator[](size_t index) const override	{	return GetArray()[index];	}
 	virtual T&			GetBack()						{	return (*this)[GetSize()-1];	}
-	virtual const T&	GetBack() const					{	return (*this)[GetSize()-1];	}
-	bool				IsEmpty() const					{	return GetSize() == 0;	}
-	bool				IsFull() const					{	return GetSize() >= MaxSize();	}
-	virtual int			GetSize() const					{	return mOffset;	}
-	virtual const T*	GetArray() const				{	return CreateMap();	}
-	virtual T*			GetArray()						{	return CreateMap();	}
-	virtual int			MaxSize() const					{	return mMapSize;	}
-	virtual void		Reserve(int size,bool clear=false)
+	virtual const T&	GetBack() const override		{	return (*this)[GetSize()-1];	}
+	virtual size_t		GetSize() const override		{	return mOffset;	}
+	virtual const T*	GetArray() const override		{	return CreateMap();	}
+	virtual T*			GetArray() override				{	return CreateMap();	}
+	virtual size_t		MaxSize() const override		{	return mMapSize;	}
+	virtual void		Reserve(size_t size,bool clear=false) override
 	{
 		if ( clear )
 		{
@@ -60,13 +58,13 @@ public:
 		else
 		{
 			//	grow the array as neccessary, then restore the current size again
-			int CurrentSize = GetSize();
+			auto CurrentSize = GetSize();
 			SetSize( CurrentSize + size, true, true );
 			SetSize( CurrentSize, true, true );
 		}
 	}
 	
-	virtual T* InsertBlock(int index, int count)
+	virtual T* InsertBlock(size_t index, size_t count) override
 	{
 		T*& mData = reinterpret_cast<T*&>(mMap);
 		//	do nothing if nothing to add
@@ -96,12 +94,11 @@ public:
 		return mData + index;
 	}
 
-	virtual void		RemoveBlock(int index, int count)
+	virtual void		RemoveBlock(size_t index,size_t count)
 	{
 		T*& mData = reinterpret_cast<T*&>(mMap);
 
 		//	do nothing if nothing to remove
-		assert( count >= 0 );
 		if ( count == 0 )
 			return;
 
@@ -110,11 +107,11 @@ public:
 
 		T* dest = mData + index;
 		T* src = mData + index + count;
-		int left = static_cast<int>((mData+mOffset) - src);
+		ssize_t left = (mData+mOffset) - src;
 
 		if ( Soy::DoComplexCopy<T,T>() )
 		{				
-			for ( int i=0; i<left; ++i )
+			for ( size_t i=0; i<left; ++i )
 				*dest++ = *src++;
 			mOffset = static_cast<int>(dest - mData);
 		}
@@ -126,18 +123,18 @@ public:
 		}			
 	}
 		
-	virtual void		Clear(bool Dealloc=true)
+	virtual void		Clear(bool Dealloc=true) override
 	{
 		bool AllowLess = !Dealloc;
 		SetSize(0,false,AllowLess);
 	}
 
 	//	gr: AllowLess does nothing here, but the parameter is kept to match other Array types (in case it's used in template funcs for example)
-	bool SetSize(int size, bool preserve=true,bool AllowLess=true);
+	virtual bool SetSize(size_t size, bool preserve=true,bool AllowLess=true) override;
 
-	virtual T*			PushBlock(int count)
+	virtual T*			PushBlock(size_t count) override
 	{
-		if ( !Soy::Assert( count >= 0, "Can't allocate 0" ) )
+		if ( !Soy::Assert( count > 0, "Can't allocate 0" ) )
 			return nullptr;
 		
 		//	if we haven't allocated, try now
@@ -145,9 +142,8 @@ public:
 			return nullptr;
 				 
 		T*& mData = reinterpret_cast<T*&>(mMap);
-		if ( count < 0 )	count = 0;
-		int curoff = GetSize();
-		int endoff = GetSize() + count;
+		auto curoff = GetSize();
+		auto endoff = GetSize() + count;
 
 		//	fail if we try and "allocate" too much
 		if ( endoff > MaxSize() )
@@ -161,16 +157,11 @@ public:
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
 		if ( Soy::IsComplexType<TYPE>() )
 		{
-			for ( int i=curoff;	i<curoff+count;	i++ )
+			for ( size_t i=curoff;	i<curoff+count;	i++ )
 				mData[i] = T();
 		}
 		return mData + curoff;
 	}
-
-
-	//	needed for arraybridge
-	T&			PushBack(const T& item);
-	T&			PushBack();
 
 
 private:
@@ -190,9 +181,9 @@ private:
 	std::string			mFilename;
 	bool				mAllowOtherFilename;	//	if we cannot create file, we can try other filenames
 	void*				mMap;
-	int					mMapSize;
+	size_t				mMapSize;
 
-	int					mOffset;	//	for running data like bufferarray
+	size_t				mOffset;	//	for running data like bufferarray
 };
 
 
@@ -221,7 +212,7 @@ private:
 
 
 
-
+/*
 inline MemFileArray::T& MemFileArray::PushBack(const T& item)
 {
 	T*& mData = reinterpret_cast<T*&>(mMap);
@@ -254,3 +245,5 @@ inline MemFileArray::T& MemFileArray::PushBack()
 	ref = T();
 	return ref;
 }
+*/
+

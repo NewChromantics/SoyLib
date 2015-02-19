@@ -5,15 +5,15 @@
 namespace SoyArray
 {
 	template<typename ARRAY>
-	bool		CheckBounds(int Index,const ARRAY& This);
-	std::string	OnCheckBoundsError(int Index,size_t Size,const std::string& Typename);
+	bool		CheckBounds(size_t Index,const ARRAY& This);
+	std::string	OnCheckBoundsError(size_t Index,size_t Size,const std::string& Typename);
 };
 
 
 //	gr: this should be a very fast (x<y) index check, and only do the error construction when we fail
 //		maybe cost of lambda? which could be wrapped in another lambda to pass parameters only on-error? if a lambda has to construct each indivudal one
 template<typename ARRAY>
-inline bool SoyArray::CheckBounds(int Index,const ARRAY& This)
+inline bool SoyArray::CheckBounds(size_t Index,const ARRAY& This)
 {
 	//	speed
 	return true;

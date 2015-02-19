@@ -513,9 +513,9 @@ public:
 	bool			Push(const TYPE& Job);
 	
 public:
-	Array<TYPE>		mJobs;
-	ofMutex			mJobLock;
-	SoyEvent<int>	mOnQueueAdded;
+	Array<TYPE>			mJobs;
+	ofMutex				mJobLock;
+	SoyEvent<size_t>	mOnQueueAdded;
 };
 
 template<class TYPE>
@@ -531,7 +531,7 @@ template<class TYPE>
 inline bool TLockQueue<TYPE>::Push(const TYPE& Job)
 {
 	//assert( Job.IsValid() );
-	int JobCount;
+	size_t JobCount;
 	{
 		ofMutex::ScopedLock Lock( mJobLock );
 		mJobs.PushBack( Job );

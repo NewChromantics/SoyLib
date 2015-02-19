@@ -48,30 +48,30 @@ public:
 public:
 	ArrayInterface()	{}
 
-	virtual T&			operator [] (int index)=0;
-	virtual const T&	operator [] (int index) const=0;
+	virtual T&			operator [] (size_t index)=0;
+	virtual const T&	operator [] (size_t index) const=0;
 	virtual T&			GetBack()						{	return (*this)[GetSize()-1];	}
 	virtual const T&	GetBack() const					{	return (*this)[GetSize()-1];	}
 	bool				IsEmpty() const					{	return GetSize() == 0;	}
 	bool				IsFull() const					{	return GetSize() >= MaxSize();	}
-	virtual int			GetSize() const=0;
-	int					GetDataSize() const				{	return GetSize() * GetElementSize();	}
-	int					GetElementSize() const			{	return sizeof(T);	}
+	virtual size_t		GetSize() const=0;
+	size_t				GetDataSize() const				{	return GetSize() * GetElementSize();	}
+	size_t				GetElementSize() const			{	return sizeof(T);	}
 	virtual const T*	GetArray() const=0;
 	virtual T*			GetArray()=0;
-	virtual void		Reserve(int size,bool clear=false)=0;
-	virtual T*			InsertBlock(int index, int count)=0;
-	virtual void		RemoveBlock(int index, int count)=0;
+	virtual void		Reserve(size_t size,bool clear=false)=0;
+	virtual T*			InsertBlock(size_t index,size_t count)=0;
+	virtual void		RemoveBlock(size_t index,size_t count)=0;
 	virtual void		Clear(bool Dealloc=true)=0;
-	virtual int			MaxSize() const=0;
+	virtual size_t		MaxSize() const=0;
 
 	//	simple iterator to find index of an element matching via == operator
 	template<typename MATCHTYPE>
-	int					FindIndex(const MATCHTYPE& Match) const
+	size_t				FindIndex(const MATCHTYPE& Match) const
 	{
-		for ( int i=0;	i<GetSize();	i++ )
+		for ( size_t i=0;	i<GetSize();	i++ )
 		{
-			const T& Element = (*this)[i];
+			auto& Element = (*this)[i];
 			if ( Element == Match )
 				return i;
 		}
@@ -79,12 +79,12 @@ public:
 	}
 
 	//	find an element - returns first matching element or NULL
-	template<typename MATCH> T*			Find(const MATCH& Match)		{	int Index = FindIndex( Match );		return (Index < 0) ? nullptr : &((*this)[Index]);	}
-	template<typename MATCH> const T*	Find(const MATCH& Match) const	{	int Index = FindIndex( Match );		return (Index < 0) ? nullptr : &((*this)[Index]);	}
+	template<typename MATCH> T*			Find(const MATCH& Match)		{	auto Index = FindIndex( Match );		return (Index < 0) ? nullptr : &((*this)[Index]);	}
+	template<typename MATCH> const T*	Find(const MATCH& Match) const	{	auto Index = FindIndex( Match );		return (Index < 0) ? nullptr : &((*this)[Index]);	}
 
 	//	this was NOT required before, because of sort array. so that just fails
-	virtual T*			PushBlock(int count)=0;
-	virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=true)=0;
+	virtual T*			PushBlock(size_t count)=0;
+	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true)=0;
 
 	template<class ARRAY>
 	bool				Copy(const ARRAY& a)
@@ -96,14 +96,14 @@ public:
 	template<class ARRAYTYPE>
 	T*					PushBackArray(const ARRAYTYPE& v)
 	{
-		int NewDataIndex = GetSize();
-		T* pNewData = PushBlock( v.GetSize() );
+		auto NewDataIndex = GetSize();
+		auto* pNewData = PushBlock( v.GetSize() );
 		if ( !pNewData )
 			return nullptr;
 
 		if ( Soy::DoComplexCopy<T,typename ARRAYTYPE::TYPE>() )
 		{
-			for ( int i=0; i<v.GetSize(); ++i )
+			for ( size_t i=0; i<v.GetSize(); ++i )
 				(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check
 		}
 		else if ( v.GetSize() > 0 )
@@ -121,14 +121,14 @@ public:
 	template<size_t CARRAYSIZE>
 	T*	PushBackArray(const T(&CArray)[CARRAYSIZE])
 	{
-		int NewDataIndex = GetSize();
-		T* pNewData = PushBlock( CARRAYSIZE );
+		auto NewDataIndex = GetSize();
+		auto* pNewData = PushBlock( CARRAYSIZE );
 		if ( !pNewData )
 			return nullptr;
 
 		if ( Soy::IsComplexType<T>() )
 		{
-			for ( int i=0; i<CARRAYSIZE; ++i )
+			for ( size_t i=0; i<CARRAYSIZE; ++i )
 				(*this)[i+NewDataIndex] = CArray[i];	//	use [] operator for bounds check
 		}
 		else if ( GetSize() > 0 )
@@ -146,8 +146,8 @@ public:
 	template<typename THATTYPE>
 	T*	PushBackReinterpret(const THATTYPE& OtherData)
 	{
-		int ThatDataSize = sizeof(OtherData);
-		T* pData = PushBlock( ThatDataSize / sizeof(T) );
+		size_t ThatDataSize = sizeof(OtherData);
+		auto* pData = PushBlock( ThatDataSize / sizeof(T) );
 		if ( !pData )
 			return nullptr;
 
@@ -160,29 +160,29 @@ public:
 	template<typename THATTYPE>
 	T*	PushBackReinterpretReverse(const THATTYPE& OtherData)
 	{
-		int ThatDataSize = sizeof(OtherData);
-		T* pData = PushBlock( ThatDataSize / sizeof(T) );
+		auto ThatDataSize = sizeof(OtherData);
+		auto* pData = PushBlock( ThatDataSize / sizeof(T) );
 		if ( !pData )
 			return nullptr;
 
 		//	memcpy over the block
-		const T* OtherT = reinterpret_cast<const T*>( &OtherData );
-		for ( int i=0;	i<ThatDataSize;	i++ )
+		auto* OtherT = reinterpret_cast<const T*>( &OtherData );
+		for ( size_t i=0;	i<ThatDataSize;	i++ )
 			pData[i] = OtherT[ThatDataSize-1-i];
 		return pData;
 	}
 	
 	template<class ARRAYTYPE>
-	T*					InsertArray(const ARRAYTYPE& v,int Index)
+	T*					InsertArray(const ARRAYTYPE& v,size_t Index)
 	{
-		int NewDataIndex = Index;
-		T* pNewData = InsertBlock( Index, v.GetSize() );
+		auto NewDataIndex = Index;
+		auto* pNewData = InsertBlock( Index, v.GetSize() );
 		if ( !pNewData )
 			return nullptr;
 		
 		if ( Soy::DoComplexCopy<T,typename ARRAYTYPE::TYPE>() )
 		{
-			for ( int i=0; i<v.GetSize(); ++i )
+			for ( size_t i=0; i<v.GetSize(); ++i )
 				(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check
 		}
 		else if ( v.GetSize() > 0 )
@@ -194,13 +194,6 @@ public:
 		}
 		
 		return pNewData;
-	}
-
-	uint32				GetCrc32() const
-	{
-		TCrc32 Crc;
-		Crc.AddData( reinterpret_cast<const uint8_t*>(GetArray()), GetDataSize() );
-		return Crc.GetCrc32();
 	}
 };
 
@@ -222,12 +215,11 @@ public:
 	//	interfaces not required by ArrayInterface
 	virtual T&			PushBack(const T& item)=0;
 	virtual T&			PushBack()=0;
-	virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=true)=0;
-	virtual void		Reserve(int size,bool clear=false)=0;
-	virtual void		RemoveBlock(int index, int count)=0;
-	virtual T*			InsertBlock(int index, int count)=0;
+	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true)=0;
+	virtual void		Reserve(size_t size,bool clear=false)=0;
+	virtual void		RemoveBlock(size_t index,size_t count)=0;
+	virtual T*			InsertBlock(size_t index,size_t count)=0;
 	virtual void		Clear(bool Dealloc=true)=0;
-	virtual int			MaxSize() const=0;
 
 	//	compare two arrays of the same type
 	//	gr: COULD turn this into a compare for sorting, but that would invoke a < and > operator call for each type.
@@ -251,7 +243,7 @@ public:
 		auto* ThatData = That.GetArray();
 		if ( Soy::IsComplexType<T>() )
 		{
-			for ( int i=0;	i<this->GetSize();	i++ )
+			for ( size_t i=0;	i<this->GetSize();	i++ )
 			{
 				if ( ThisData[i] == ThatData[i] )
 					continue;
@@ -287,21 +279,21 @@ public:
 	{
 	}
 
-	virtual T&			operator [] (int index) override			{	return mArray[index];	}
-	virtual const T&	operator [] (int index) const override		{	return mArray[index];	}
+	virtual T&			operator [](size_t index) override			{	return mArray[index];	}
+	virtual const T&	operator [](size_t index) const override		{	return mArray[index];	}
 	virtual T&			GetBack() override							{	return mArray[mArray.GetSize()-1];	}
-	virtual int			GetSize() const override					{	return mArray.GetSize();	}
+	virtual size_t		GetSize() const override					{	return mArray.GetSize();	}
 	virtual const T*	GetArray() const override					{	return mArray.GetArray();	}
 	virtual T*			GetArray() override							{	return mArray.GetArray();	}
-	virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=true) override	{	return mArray.SetSize(size,preserve,AllowLess);	}
-	virtual void		Reserve(int size,bool clear=false) override	{	return mArray.Reserve(size,clear);	}
-	virtual T*			PushBlock(int count) override				{	return mArray.PushBlock(count);	}
+	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true) override	{	return mArray.SetSize(size,preserve,AllowLess);	}
+	virtual void		Reserve(size_t size,bool clear=false) override	{	return mArray.Reserve(size,clear);	}
+	virtual T*			PushBlock(size_t count) override				{	return mArray.PushBlock(count);	}
 	virtual T&			PushBack(const T& item) override			{	auto& Tail = PushBack();	Tail = item;	return Tail;	}
 	virtual T&			PushBack() override							{	auto* Tail = PushBlock(1);	return *Tail;	}
-	virtual void		RemoveBlock(int index, int count) override	{	mArray.RemoveBlock(index,count);	}
-	virtual T*			InsertBlock(int index, int count) override	{	return mArray.InsertBlock(index,count);	}
+	virtual void		RemoveBlock(size_t index,size_t count) override	{	mArray.RemoveBlock(index,count);	}
+	virtual T*			InsertBlock(size_t index,size_t count) override	{	return mArray.InsertBlock(index,count);	}
 	virtual void		Clear(bool Dealloc) override				{	return mArray.Clear(Dealloc);	}
-	virtual int			MaxSize() const override					{	return mArray.MaxSize();	}
+	virtual size_t		MaxSize() const override					{	return mArray.MaxSize();	}
 
 private:
 	ARRAY&				mArray;
@@ -328,7 +320,7 @@ public:
 	{
 	}
 	
-	int			GetRemainingBytes() const	{	return mArray.GetDataSize() - mOffset;	}
+	size_t		GetRemainingBytes() const	{	return mArray.GetDataSize() - mOffset;	}
 	bool		Eod() const					{	return GetRemainingBytes() <= 0;	}
 	//bool		ReadArray(ArrayBridge<char>& Pop);			//	copy this-length of data
 	bool		ReadCompare(ArrayBridge<char>& Match);	//	read array and make sure it matches Pop

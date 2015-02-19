@@ -291,7 +291,7 @@ bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 		FilteredPixels.Reserve( OrigPixels.GetDataSize() + Image.GetHeight() );
 		FilteredPixels.PushBackArray( OrigPixels );
 		int Stride = Image.GetChannels()*Image.GetWidth();
-		for ( int i=OrigPixels.GetSize()-Stride;	i>=0;	i-=Stride )
+		for ( ssize_t i=OrigPixels.GetSize()-Stride;	i>=0;	i-=Stride )
 		{
 			//	insert filter value/code
 			static char FilterValue = TFilterNone_ScanlineFilter::None;
