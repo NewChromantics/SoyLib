@@ -195,7 +195,7 @@ public:
 		if ( clear )
 		{
 			SetSize(size,false);
-			ResetIndex();
+			moffset = 0;
 		}
 		else
 		{
@@ -322,7 +322,7 @@ public:
 		{
 			T* src = mdata + moffset - count - 1;
 			T* dest = mdata + moffset - 1;
-			for ( int i=0; i<left; ++i )
+			for ( size_t i=0; i<left; ++i )
 				*dest-- = *src--;
 		}
 		else if ( left > 0 )
@@ -333,7 +333,7 @@ public:
 		return mdata + index;
 	}
 
-	void RemoveBlock(int index, int count)
+	void RemoveBlock(size_t index,size_t count)
 	{
 		//	do nothing if nothing to remove
 		assert( count >= 0 );
@@ -345,11 +345,11 @@ public:
 
 		T* dest = mdata + index;
 		T* src = mdata + index + count;
-		int left = static_cast<int>((mdata+moffset) - src);
+		ssize_t left = ((mdata+moffset) - src);
 
 		if ( Soy::DoComplexCopy<T,T>() )
 		{				
-			for ( int i=0; i<left; ++i )
+			for ( size_t i=0; i<left; ++i )
 				*dest++ = *src++;
 			moffset = static_cast<int>(dest - mdata);
 		}
@@ -361,20 +361,9 @@ public:
 		}			
 	}
 
-	void SetIndex(int index)
-	{
-		assert( index >= 0 && index < mmaxsize );
-		moffset = index;
-	}
-
-	void ResetIndex()
-	{
-		moffset = 0;
-	}
-
 	void TrimArray()
 	{
-		int size = GetSize();
+		auto size = GetSize();
 		SetSize(size,true);
 	}
 
@@ -384,48 +373,26 @@ public:
 		SetSize(0,false,AllowLess);
 	}
 
-	int	MaxAllocSize() const
+	size_t	MaxAllocSize() const
 	{
 		return MaxSize();
 	}
 
-	int	MaxSize() const
+	size_t	MaxSize() const
 	{
 		return mmaxsize;
 	}
 
-	int	MaxDataSize() const
+	size_t	MaxDataSize() const
 	{
 		return MaxSize() * sizeof(T);
-	}
-
-	//	simple iterator to find index of an element matching via == operator
-	template<typename MATCHTYPE>
-	int			FindIndex(const MATCHTYPE& Match) const
-	{
-		return GetArrayBridge(*this).FindIndex( Match );
-	}
-
-	//	find an element - returns first matching element or NULL
-	template<typename MATCH> T*			Find(const MATCH& Match)		{	int Index = FindIndex( Match );		return (Index < 0) ? NULL : &mdata[Index];	}
-	template<typename MATCH> const T*	Find(const MATCH& Match) const	{	int Index = FindIndex( Match );		return (Index < 0) ? NULL : &mdata[Index];	}
-
-	//	swap two elements
-	void	Swap(int a,int b)
-	{
-		assert( a >= 0 && a < GetSize() && b >= 0 && b < GetSize() );
-		T& ElementA = (*this)[a];
-		T& ElementB = (*this)[b];
-		T Temp = ElementA;
-		ElementA = ElementB;
-		ElementB = Temp;
 	}
 
 	//	set all elements to a value
 	template<typename TYPE>
 	void	SetAll(const TYPE& Value)
 	{
-		for ( int i=0;	i<GetSize();	i++ )
+		for ( size_t i=0;	i<GetSize();	i++ )
 			mdata[i] = Value;
 	}
 	void	SetAll(const T& Value)
