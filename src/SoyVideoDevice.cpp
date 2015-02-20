@@ -188,9 +188,11 @@ TVideoDeviceMeta SoyVideoCapture::GetDeviceMeta(std::string Serial)
 	GetDevices( GetArrayBridge(Metas) );
 	
 	//	filter non-video devices
-	for ( int i=Metas.GetSize()-1;	i>=0;	i-- )
+	for ( ssize_t i=Metas.GetSize()-1;	i>=0;	i-- )
 	{
 		if ( Metas[i].mVideo )
+			continue;
+		if ( Metas[i].mDepth )
 			continue;
 		Metas.RemoveBlock( i, 1 );
 	}
