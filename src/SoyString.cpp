@@ -192,6 +192,11 @@ void Soy::StringTrimLeft(std::string& String,char TrimChar)
 
 void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
 {
+	//	gr; I think this is the only case where we erroneously return something
+	//		if removed, and we split "", then we get 1 empty case
+	if ( String.empty() )
+		return;
+	
 	//	gr: dumb approach as regexp is a little fiddly
 	std::stringstream Pending;
 	for ( int i=0;	i<=String.length();	i++ )
