@@ -96,18 +96,18 @@ inline bool RingArray<TYPE>::PushBack(const ArrayBridge<TYPE>& Array)
 	//	gr: if we completely fill the buffer, head and tail will collide
 	if ( SpaceAfterHead + SpaceBeforeTail <= Array.GetSize() )
 	{
-		int Spacer = 1;
+		size_t Spacer = 1;
 		ResizeBuffer( UsedAfterTail + UsedAfterStart + Spacer + Array.GetSize() );
 		return PushBack( Array );
 	}
 	
 	//	do first chunk (fills end of buffer)
-	int ArrayWritten = 0;
+	size_t ArrayWritten = 0;
 	{
-		int ArraySize = Array.GetSize();
-		int DestSize = (ArraySize <= SpaceAfterHead) ? ArraySize : SpaceAfterHead;
+		auto ArraySize = Array.GetSize();
+		auto DestSize = (ArraySize <= SpaceAfterHead) ? ArraySize : SpaceAfterHead;
 		auto Destination = GetRemoteArray( &mBuffer[static_cast<int>(mHead)], DestSize, DestSize );
-		int SrcSize = DestSize;
+		auto SrcSize = DestSize;
 		auto Source = GetRemoteArray( &Array[0], SrcSize, SrcSize );
 		
 		Destination.Copy( Source );
@@ -122,10 +122,10 @@ inline bool RingArray<TYPE>::PushBack(const ArrayBridge<TYPE>& Array)
 
 	//	do second chunk starts at start of buffer
 	{
-		int ArrayRemain = Array.GetSize() - ArrayWritten;
+		auto ArrayRemain = Array.GetSize() - ArrayWritten;
 		if ( ArrayRemain > 0 )
 		{
-			auto ArraySecondHalf = GetRemoteArray( &Array[ArrayWritten], ArrayRemain, ArrayRemain );
+			auto ArraySecondHalf = GetRemoteArray( &Array[ArrayWritten], ArrayRemain );
 			return PushBack( GetArrayBridge( ArraySecondHalf ) );
 		}
 	}
