@@ -1070,6 +1070,20 @@ bool SoyPixelsImpl::Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format
 	return true;	
 }
 
+
+void SoyPixelsImpl::Clear(bool Dealloc)
+{
+	//	gr: leaving format as it might be useful as ghost meta
+	//GetMeta().DumbSetFormat( SoyPixelsFormat::Invalid );
+	GetMeta().DumbSetWidth( 0 );
+	auto& Pixels = GetPixelsArray();
+	Pixels.Clear( Dealloc );
+
+	Soy::Assert( GetHeight() == 0, "Height should be 0 after clear");
+	Soy::Assert( !IsValid(), "should be invalid after clear");
+}
+
+
 bool SoyPixelsImpl::GetRawSoyPixels(ArrayBridge<char>& RawData) const
 {
 	if ( !IsValid() )

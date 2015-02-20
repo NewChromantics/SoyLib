@@ -85,6 +85,7 @@ public:
 
 	bool			Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format);
 	bool			Init(uint16 Width,uint16 Height,uint8 Channels);
+	void			Clear(bool Dealloc=false);
 
 	virtual bool	Copy(const SoyPixelsImpl& that);
 	
