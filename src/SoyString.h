@@ -48,6 +48,7 @@ namespace Soy
 };
 
 #if defined(__OBJC__)
+@class NSString;
 namespace Soy
 {
 	NSString*	StringToNSString(const std::string& String);
