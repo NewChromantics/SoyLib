@@ -1459,6 +1459,43 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 }
 
 
+template<size_t COMPONENTS>
+void SetPixelComponents(ArrayInterface<char>& Pixels,const ArrayBridge<char>& Components)
+{
+	BufferArray<char,COMPONENTS> BufferComponents;
+	for ( int i=0;	i<BufferComponents.GetSize();	i++ )
+	{
+		if ( i < Components.GetSize() )
+			BufferComponents.PushBack( Components[i] );
+		else
+			BufferComponents.PushBack( 255 );
+	}
+	
+	for ( int p=0;	p<Pixels.GetSize();	p++ )
+	{
+		Pixels[p] = BufferComponents[p%COMPONENTS];
+	}
+	
+}
+
+void SoyPixelsImpl::SetColour(const ArrayBridge<char>& Components)
+{
+	if ( !IsValid() )
+		return;
+	
+	auto& Pixels = GetPixelsArray();
+	
+	switch ( GetChannels() )
+	{
+		case 1:	SetPixelComponents<1>( Pixels, Components );	return;
+		case 2:	SetPixelComponents<2>( Pixels, Components );	return;
+		case 3:	SetPixelComponents<3>( Pixels, Components );	return;
+		case 4:	SetPixelComponents<4>( Pixels, Components );	return;
+		case 5:	SetPixelComponents<5>( Pixels, Components );	return;
+	};
+}
+
+
 void SoyPixelsImpl::ResizeFastSample(uint16 NewWidth, uint16 NewHeight)
 {
 	//	copy old data

@@ -101,6 +101,7 @@ public:
 	bool			GetRawSoyPixels(ArrayBridge<char>&& RawData) const	{	return GetRawSoyPixels( RawData );	}
 	const uint8&	GetPixel(uint16 x,uint16 y,uint16 Channel) const;
 	bool			SetPixel(uint16 x,uint16 y,uint16 Channel,const uint8& Component);
+	void			SetColour(const ArrayBridge<char>& Components);
 
 	bool			SetFormat(SoyPixelsFormat::Type Format);
 	bool			SetChannels(uint8 Channels);
@@ -112,6 +113,7 @@ public:
 	void			ResizeFastSample(uint16 Width,uint16 Height);
 	
 	void			RotateFlip();
+	
 
 	virtual SoyPixelsMeta&				GetMeta()=0;
 	virtual const SoyPixelsMeta&		GetMeta() const=0;
