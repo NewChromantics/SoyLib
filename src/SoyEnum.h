@@ -36,6 +36,8 @@ std::map<TDeviceType::Type,std::string> TDeviceType::EnumMap =
 	extern std::map<Namespace::Type,std::string> EnumMap;	\
 	inline Type			ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap, Invalid );	}	\
 	inline std::string	ToString(Type type)					{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
+	inline bool			IsValid(Type type)					{	return SoyEnum::Validate<Type>( type, EnumMap, Invalid ) != Invalid;	}	\
+	inline Type			Validate(Type type)					{	return SoyEnum::Validate<Type>( type, EnumMap, Invalid );	}	\
 \
 
 
@@ -43,6 +45,8 @@ std::map<TDeviceType::Type,std::string> TDeviceType::EnumMap =
 	extern std::map<Namespace::Type,std::string> EnumMap;	\
 	inline Type			ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap, INVALID );	}	\
 	inline std::string	ToString(Type type)					{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
+	inline bool			IsValid(Type type)					{	return SoyEnum::Validate<Type>( type, EnumMap, INVALID ) != INVALID;	}	\
+	inline Type			Validate(Type type)					{	return SoyEnum::Validate<Type>( type, EnumMap, INVALID );	}	\
 \
 
 
@@ -54,6 +58,9 @@ namespace SoyEnum
 	template<typename ENUMTYPE,class ENUMMAP>
 	ENUMTYPE	ToType(const std::string& String,const ENUMMAP& EnumMap,ENUMTYPE Default);
 	
+	template<typename ENUMTYPE,class ENUMMAP>
+	ENUMTYPE	Validate(ENUMTYPE Type,const ENUMMAP& EnumMap,ENUMTYPE InvalidReturn);
+	
 }
 
 template<typename ENUMTYPE,class ENUMMAP>
@@ -63,12 +70,16 @@ inline std::string SoyEnum::ToString(ENUMTYPE Type,const ENUMMAP& EnumMap)
 	auto it = EnumMap.find( Type );
 
 	__thread static ENUMTYPE LastErrorType;
-	__thread static auto Error = []
+	__thread static Soy::TErrorMessageFunc Error = nullptr;
+	if ( !Error )
 	{
-		std::stringstream Error;
-		Error << "unhandled enum" << (int)LastErrorType;
-		return Error.str();
-	};
+		Error = []
+		{
+			std::stringstream Error;
+			Error << "unhandled enum" << (int)LastErrorType;
+			return Error.str();
+		};
+	}
 	LastErrorType = Type;
 
 	if ( !Soy::Assert( it != EnumMap.end(), Error ) )
@@ -77,6 +88,16 @@ inline std::string SoyEnum::ToString(ENUMTYPE Type,const ENUMMAP& EnumMap)
 	return it->second;
 };
 
+
+//	note: this only will succeed if it's in the enum map... could still be valid in code
+template<typename ENUMTYPE,class ENUMMAP>
+inline ENUMTYPE SoyEnum::Validate(ENUMTYPE Type,const ENUMMAP& EnumMap,ENUMTYPE InvalidReturn)
+{
+	//	stop bad cases being created in the map
+	auto it = EnumMap.find( Type );
+	
+	return ( it != EnumMap.end() ) ? Type : InvalidReturn;
+};
 
 template<typename ENUMTYPE,class ENUMMAP>
 inline ENUMTYPE SoyEnum::ToType(const std::string& String,const ENUMMAP& EnumMap,ENUMTYPE Default)
