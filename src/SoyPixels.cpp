@@ -950,15 +950,15 @@ bool SoyPixelsFormat::GetOpenglFormat(int& glFormat,SoyPixelsFormat::Type Format
 	//	from ofGetGlInternalFormat(const ofPixels& pix)
 	switch ( Format )
 	{
-#if defined(TARGET_OSX)
-		case SoyPixelsFormat::RGB:			glFormat = GL_RGB;		return true;
+			//	IOS I think only supports uploading RGBA
+#if defined(TARGET_IOS)
 		case SoyPixelsFormat::RGBA:			glFormat = GL_RGBA;	return true;
 #else
-		case SoyPixelsFormat::RGB:			glFormat = GL_RGB;			return true;
-		case SoyPixelsFormat::RGBA:			glFormat = GL_RGBA;			return true;
-#endif
+		case SoyPixelsFormat::RGB:			glFormat = GL_RGB;		return true;
+		case SoyPixelsFormat::RGBA:			glFormat = GL_RGBA;	return true;
 		case SoyPixelsFormat::Greyscale:	glFormat = GL_LUMINANCE;	return true;
 		case SoyPixelsFormat::BGRA:			glFormat = GL_BGRA;			return true;
+#endif
 			
 		default:
 			glFormat = GL_INVALID_VALUE;
