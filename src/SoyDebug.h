@@ -206,10 +206,14 @@ namespace Soy
 	inline bool	Assert(bool Condition,std::function<std::string()>&& ErrorMessageFunc) throw(AssertException)
 	{
 		__thread static std::function<std::string()>* LastFunc = nullptr;
-		__thread static auto ErrorFunc = []
+		__thread static TErrorMessageFunc ErrorFunc = nullptr;
+		if ( !ErrorFunc )
 		{
-			return (*LastFunc)();
-		};
+			ErrorFunc = []
+			{
+				return (*LastFunc)();
+			};
+		}
 		LastFunc = &ErrorMessageFunc;
 		return Assert_Impl( Condition, ErrorFunc );
 	}
@@ -218,10 +222,14 @@ namespace Soy
 	inline bool	Assert(bool Condition,const std::string& ErrorMessage) throw(AssertException)
 	{
 		__thread static const std::string* LastErrorMessage = nullptr;
-		__thread static auto ErrorFunc = []()->std::string
+		__thread static TErrorMessageFunc ErrorFunc = nullptr;
+		if ( !ErrorFunc )
 		{
-			return std::string(*LastErrorMessage);
-		};
+			ErrorFunc = []()->std::string
+			{
+				return std::string(*LastErrorMessage);
+			};
+		}
 		LastErrorMessage = &ErrorMessage;
 		return Assert_Impl( Condition, ErrorFunc );
 	}
@@ -229,10 +237,14 @@ namespace Soy
 	inline bool	Assert(bool Condition, std::stringstream&& ErrorMessage ) throw( AssertException )
 	{
 		__thread static std::stringstream* LastErrorMessage = nullptr;
-		__thread static auto ErrorFunc = []
+		__thread static TErrorMessageFunc ErrorFunc = nullptr;
+		if ( !ErrorFunc )
 		{
-			return LastErrorMessage->str();
-		};
+			ErrorFunc = []
+			{
+				return LastErrorMessage->str();
+			};
+		}
 		LastErrorMessage = &ErrorMessage;
 		return Assert_Impl( Condition, ErrorFunc );
 	}
@@ -241,10 +253,14 @@ namespace Soy
 	inline bool	Assert(bool Condition, std::stringstream& ErrorMessage) throw(AssertException)
 	{
 		__thread static std::stringstream* LastErrorMessage = nullptr;
-		__thread static auto ErrorFunc = []
+		__thread static TErrorMessageFunc ErrorFunc = nullptr;
+		if ( !ErrorFunc )
 		{
-			return LastErrorMessage->str();
-		};
+			ErrorFunc = []
+			{
+				return LastErrorMessage->str();
+			};
+		}
 		LastErrorMessage = &ErrorMessage;
 		return Assert_Impl( Condition, ErrorFunc );
 	}
@@ -254,10 +270,14 @@ namespace Soy
 	{
 		//	lambdas with capture are expensive to construct and destruct
 		__thread static const char* LastErrorMessage = nullptr;
-		__thread static auto ErrorFunc = []
+		__thread static TErrorMessageFunc ErrorFunc = nullptr;
+		if ( !ErrorFunc )
 		{
-			return std::string( LastErrorMessage );
-		};
+			ErrorFunc = []
+			{
+				return std::string( LastErrorMessage );
+			};
+		}
 		LastErrorMessage = ErrorMessage;
 		return Assert_Impl( Condition, ErrorFunc );
 	}

@@ -186,10 +186,15 @@ void Soy::EnableThrowInAssert(bool Enable)
 bool Soy::Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException )
 {
 	__thread static std::ostream* LastErrorMessage = nullptr;
-	__thread static auto ErrorFunc = []
+	__thread static Soy::TErrorMessageFunc ErrorFunc = nullptr;
+	
+	if ( !ErrorFunc )
 	{
-		return Soy::StreamToString( *LastErrorMessage );
-	};
+		ErrorFunc = []
+		{
+			return Soy::StreamToString( *LastErrorMessage );
+		};
+	}
 	LastErrorMessage = &ErrorMessage;
 
 	return Assert( Condition, ErrorFunc );
