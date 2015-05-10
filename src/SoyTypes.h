@@ -18,10 +18,6 @@ class ArrayInterface;
 #include <assert.h>
 #include <type_traits>
 
-typedef ofVec2f				vec2f;
-typedef ofVec3f				vec3f;
-typedef ofVec4f				vec4f;
-
 typedef ofColor ofColour;
 inline bool operator==(const ofColor& a,const ofColor& b)
 {
@@ -447,92 +443,3 @@ namespace Soy
 	void		base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded);
 };
 
-class vec3f
-{
-public:
-	vec3f(float _x,float _y,float _z) :
-	x	( _x ),
-	y	( _y ),
-	z	( _z )
-	{
-	}
-	vec3f() :
-	x	( 0 ),
-	y	( 0 ),
-	z	( 0 )
-	{
-	}
-	
-	float	LengthSq() const	{	return (x*x)+(y*y)+(z*z);	}
-	float	Length() const		{	return sqrtf( LengthSq() );	}
-
-	vec3f&	operator*=(const float& Scalar)	{	x*=Scalar;		y*=Scalar;		z*=Scalar;	return *this;	}
-	vec3f&	operator*=(const vec3f& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;		z*=Scalar.z;	return *this;	}
-	
-public:
-	float	x;
-	float	y;
-	float	z;
-};
-
-
-
-class vec4f
-{
-public:
-	vec4f(float _x,float _y,float _z,float _w) :
-		x	( _x ),
-		y	( _y ),
-		z	( _z ),
-		w	( _w )
-	{
-	}
-	vec4f() :
-		x	( 0 ),
-		y	( 0 ),
-		z	( 0 ),
-		w	( 0 )
-	{
-	}
-	
-	float	LengthSq() const	{	return (x*x)+(y*y)+(z*z)+(w*w);	}
-	float	Length() const		{	return sqrtf( LengthSq() );	}
-	
-	vec4f&	operator*=(const float& Scalar)	{	x*=Scalar;		y*=Scalar;		z*=Scalar;	w*=Scalar;	return *this;	}
-	vec4f&	operator*=(const vec4f& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;		z*=Scalar.z;		w*=Scalar.w;	return *this;	}
-	
-public:
-	float	x;
-	float	y;
-	float	z;
-	float	w;
-};
-
-
-template<typename TYPE>
-class vec2x
-{
-public:
-	vec2x(TYPE _x,TYPE _y) :
-	x	( _x ),
-	y	( _y )
-	{
-	}
-	vec2x() :
-	x	( 0 ),
-	y	( 0 )
-	{
-	}
-	
-	TYPE	LengthSq() const	{	return (x*x)+(y*y);	}
-	TYPE	Length() const		{	return sqrtf( LengthSq() );	}
-	
-	vec2x&	operator*=(const TYPE& Scalar)	{	x*=Scalar;		y*=Scalar;	return *this;	}
-	vec2x&	operator*=(const vec2x& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;	return *this;	}
-	
-public:
-	TYPE	x;
-	TYPE	y;
-};
-
-typedef vec2x<float> vec2f;

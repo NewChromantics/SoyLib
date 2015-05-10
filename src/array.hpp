@@ -146,16 +146,30 @@ public:
 	template<typename THATTYPE>
 	T*	PushBackReinterpret(const THATTYPE& OtherData)
 	{
-		size_t ThatDataSize = sizeof(OtherData);
+		size_t ThatDataSize = sizeof(THATTYPE);
 		auto* pData = PushBlock( ThatDataSize / sizeof(T) );
 		if ( !pData )
 			return nullptr;
-
+		
 		//	memcpy over the block
 		memcpy( pData, &OtherData, ThatDataSize );
 		return pData;
 	}
-
+	
+	//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
+	template<typename THATTYPE>
+	T*	PushBackReinterpret(const THATTYPE* OtherData,size_t Count)
+	{
+		size_t ThatDataSize = sizeof(THATTYPE) * Count;
+		auto* pData = PushBlock( ThatDataSize / sizeof(T) );
+		if ( !pData )
+			return nullptr;
+		
+		//	memcpy over the block
+		memcpy( pData, OtherData, ThatDataSize );
+		return pData;
+	}
+	
 	//	reinterpret push, mostly used for reverse endian
 	template<typename THATTYPE>
 	T*	PushBackReinterpretReverse(const THATTYPE& OtherData)
