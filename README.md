@@ -1,8 +1,8 @@
 ofxSoylent
 ==========
 
-Personal code/lib for openframeworks. 
+My "little things" lib. Formerly to go with openframeworks, but not any more. Designed to be cross platform for ios, mac and windows, using as much stl c++11 code as possible for simplification.
 
-Mixture of things missing from openframeworks (math & helpers mostly) which should all be prefixed with ofXXX to be integrated one day
+Trying to clean up this code to remove dependencies so often only a few files need to be included rather than the whole lib.
 
-and SoyXXX classes/types which are for me and they probably wouldn't want in OF.
+The Soy::Assert's should be particularly useful as they provide dynamic assert messages but with zero overhead when calling Soy::Assert (the callbacks, or lambda's are only instintiated or called IF the condition is not met)
