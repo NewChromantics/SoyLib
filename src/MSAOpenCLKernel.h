@@ -10,7 +10,7 @@
 #pragma once
 
 //#include "ofMain.h"
-#include <ofxSoylent.h>
+#include "ofxSoylent.h"
 #include "MSAOpenCLMemoryObject.h"
 
 

@@ -3,6 +3,8 @@
 #include "MSAOpenCLKernel.h"
 #include "SortArray.h"
 //#define ENABLE_SETUP_FROM_OPENGL
+#include "SoyString.h"
+#include "SoyDebug.h"
 
 
 class TSortPolicy_BestDevice
@@ -67,6 +69,7 @@ bool OpenClDevice::Init()
 	err |= clGetDeviceInfo(d, CL_DEVICE_PROFILE, sizeof(info.profile), info.profile, &size);
 	err |= clGetDeviceInfo(d, CL_DEVICE_EXTENSIONS, sizeof(info.extensions), info.extensions, &size);
 	err |= clGetDeviceInfo(d, CL_DEVICE_TYPE, sizeof(info.type), &info.type, &size);
+	err |= clGetDeviceInfo(d, CL_DEVICE_ADDRESS_BITS, sizeof(info.deviceAddressBits), &info.deviceAddressBits, &size);
 			
 	if(err != CL_SUCCESS) 
 	{
@@ -139,7 +142,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	}
 	
 	
-	bool OpenCL::setup(const char* PlatformName)
+	bool OpenCL::setup(std::string PlatformName)
 	{
 		if( isInitialised() )
 		{
@@ -228,15 +231,19 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	OpenClDevice* OpenCL::GetDevice(OpenClDevice::Type DeviceType)
 	{
 		//	find matching type
+		//	best type is first, so if we can't find a device that we want, always return the best (presumably a fallback CPU device)
+		OpenClDevice* AnyDevice = mDevices.IsEmpty() ? nullptr : &mDevices[0];
+		if ( DeviceType == OpenClDevice::Any )
+			return AnyDevice;
+
 		for ( int d=0;	d<mDevices.GetSize();	d++ )
 		{
 			auto& Device = mDevices[d];
-			if ( DeviceType == OpenClDevice::Any )
-				return &Device;
 			if ( Device.GetType() == DeviceType )
 				return &Device;
 		}
-		return NULL;
+
+		return AnyDevice;
 	}
 	
 	OpenClDevice* OpenCL::GetDevice(cl_device_id DeviceId)
@@ -251,7 +258,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		return NULL;
 	}
 	
-	OpenCLProgram* OpenCL::loadProgramFromFile(std::string filename, bool isBinary,const char* BuildOptions) { 
+	OpenCLProgram* OpenCL::loadProgramFromFile(std::string filename, bool isBinary,std::string BuildOptions) {
 		assert( isInitialised() );
 		BufferString<1000> Debug;
 		Debug << __FUNCTION__ << " " << filename;
@@ -397,7 +404,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		return Platforms.GetSize();
 	}
 
-	bool OpenCL::EnumDevices(Array<OpenClDevice>& Devices,const char* PlatformNameFilter,OpenClDevice::Type DeviceFilter)
+	bool OpenCL::EnumDevices(Array<OpenClDevice>& Devices,std::string PlatformNameFilter,OpenClDevice::Type DeviceFilter)
 	{
 		cl_int err = CL_SUCCESS;
 		
@@ -416,7 +423,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		}
 
 		//	filter out platforms
-		for ( int p=PlatformCount-1;	PlatformNameFilter && p>=0;	p-- )
+		for ( int p=PlatformCount-1;	!PlatformNameFilter.empty() && p>=0;	p-- )
 		{
 			cl_platform_id Platform = PlatformBuffer[p];
 			clPlatformInfo PlatformInfo( Platform );
@@ -425,6 +432,8 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 			if ( Soy::StringContains( PlatformInfo.GetName(), PlatformNameFilter, false ) )
 				continue;
 
+			std::Debug << "Ignoring OpenCl platform " << PlatformInfo.GetName() << std::endl;
+			
 			//	remove from array
 			for ( int i=p+1;	i<static_cast<int>(PlatformCount);	i++ )
 				PlatformBuffer[i-1] = PlatformBuffer[i];
@@ -474,7 +483,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		return true;
 	}
 	
-	bool OpenCL::createDevices(const char* PlatformName) 
+	bool OpenCL::createDevices(std::string PlatformName)
 	{
 		Array<OpenClDevice> Devices;
 		if ( !EnumDevices( Devices, PlatformName, OpenClDevice::Any ) )
@@ -509,7 +518,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 			auto& Device = Devices[d];
 
 			//	sorted by preferred type
-			auto& SortedDevices = GetSortArray( mDevices, TSortPolicy_BestDevice() );
+			auto SortedDevices = GetSortArray( mDevices, TSortPolicy_BestDevice() );
 			SortedDevices.Push( Device );
 		}				
 
@@ -524,7 +533,9 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	
 	std::string OpenCL::getInfoAsString(const clDeviceInfo& info) 
 	{
-		return std::string( (char*)info.vendorName );
+		std::stringstream Debug;
+		Debug << "Device Vendor: " << info.GetVendor() << ", Name: " << info.GetName();
+		return Debug.str();
 		/*
 		TString Debug;
 		Debug << "OpenCL Device information:"	<<
@@ -631,7 +642,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		if ( !pDevice )
 		{
 			ofLogError("Failed to find device of specified type.");
-			return false;
+			return nullptr;
 		}
 
 		auto DeviceId = pDevice->mDeviceId;

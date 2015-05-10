@@ -41,7 +41,7 @@ public:
 public:
 	SoyRef		mSoylentProof;	//	all packets should start with this
 	SoyRef		mSender;		//	module that sent this packet
-	SoyRef		mType;			//	enum -> int. Replace with SoyRef conversion or something
+	SoyRef		mType;			
 	uint32		mDataSize;		//	following data is N bytes long (does not include header)
 };
 
@@ -64,7 +64,7 @@ public:
 	template<typename TYPE>
 	bool	Write(const TYPE& Value)	
 	{
-		mData.PushReinterpretBlock( Value );
+		mData.PushBackReinterpret( Value );
 		return true;
 	}
 
@@ -81,7 +81,7 @@ public:
 			return false;
 		}
 
-		mData.PushReinterpretBlock( ArrayLength );
+		mData.PushBackReinterpret( ArrayLength );
 
 		//	alloc and copy raw data
 		char* pData = mData.PushBlock( Array.GetDataSize() );
@@ -188,7 +188,7 @@ public:
 		mData	( Heap )
 	{
 	}
-	explicit SoyPacketContainer(const Array<char>& PacketData,const SoyPacketMeta& Meta,const SoyNet::TAddress& Sender,prmem::Heap& Heap=prcore::Heap) :
+	explicit SoyPacketContainer(const Array<char>& PacketData,const SoyPacketMeta& Meta,const SoyNet::TAddress& Sender,const SoyNet::TAddress& Destination=SoyNet::TAddress(),prmem::Heap& Heap=prcore::Heap) :
 		mData	( Heap )
 	{
 		Set( PacketData, Meta, Sender );
@@ -258,17 +258,15 @@ public:
 	void			GetPacketRaw(Array<char>& RawData,bool IncludeMetaInPacket)
 	{
 		if ( IncludeMetaInPacket )
-			RawData.PushReinterpretBlock( mMeta );
+			RawData.PushBackReinterpret( mMeta );
 		RawData.PushBackArray( mData );
 	}
-
-	template<typename TYPETYPE>
-	TYPETYPE				GetType() const		{	return mMeta.GetType<TYPETYPE>();	}
 
 public:
 	SoyPacketMeta			mMeta;
 	Array<char>				mData;
 	SoyNet::TAddress		mSender;	//	for incoming data, this is where the data came from
+	SoyNet::TAddress		mDestination;	//	client we're sending to. If not specified, a server sends to all connected clients. A client ignores this and sends to the sevrer
 };
 
 class SoyPacket
@@ -300,9 +298,11 @@ public:
 	template<class PACKET>
 	void					PushPacket(const SoyPacketMeta& Meta,const PACKET& Packet);
 	void					PushPacket(const SoyPacketMeta& Meta,const Array<char>& Data,const SoyNet::TAddress& Sender);	//	push a raw packet onto the stack
+	void					PushPacket(const SoyPacketContainer& Packet);
 
 	bool					PopPacket(SoyPacketContainer& Container);	//	pops the next packet. caller takes ownership of data
 	bool					PopPacketRawData(Array<char>& PacketData,bool IncludeMetaInPacket);	//	pops the next packet into raw data.
+	bool					PopPacketRawData(Array<char>& PacketData,SoyNet::TAddress& Destination,bool IncludeMetaInPacket);	//	pops the next packet into raw data.
 	
 	//	incomplete packets where we've read a header, but not the data [yet]
 	bool					PeekPendingPacket(SoyPacketMeta& Meta,const SoyNet::TAddress& SenderAddress);				//	see if there is a pending packet for this sender

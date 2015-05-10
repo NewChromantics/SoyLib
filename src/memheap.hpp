@@ -7,8 +7,9 @@
 #include "string.hpp"
 #include <map>
 #include <queue>
+#include <limits>
 
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX)||defined(TARGET_ANDROID)
 #include <memory>
 #define STD_ALLOC
 #endif
@@ -122,11 +123,11 @@ namespace prmem
 		virtual const HeapDebugBase*	GetDebug() const		{	return NULL;	}
 
 		inline float			GetAllocatedMegaBytes() const	{	float b = static_cast<float>(mAllocBytes);	return (b / 1024.f / 1024.f);	}
-		inline uint32			GetAllocatedBytes() const		{	return mAllocBytes;	}
-		inline uint32			GetAllocCount() const			{	return mAllocCount;	}
+		inline size_t			GetAllocatedBytes() const		{	return mAllocBytes;	}
+		inline size_t			GetAllocCount() const			{	return mAllocCount;	}
 		inline float			GetAllocatedMegaBytesPeak() const	{	float b = static_cast<float>(mAllocBytesPeak);	return (b / 1024.f / 1024.f);	}
-		inline uint32			GetAllocatedBytesPeak() const		{	return mAllocBytesPeak;	}
-		inline uint32			GetAllocCountPeak() const			{	return mAllocCountPeak;	}
+		inline size_t			GetAllocatedBytesPeak() const		{	return mAllocBytesPeak;	}
+		inline size_t			GetAllocCountPeak() const			{	return mAllocCountPeak;	}
 
 		void					Debug_DumpInfoToOutput() const;		//	print out name, allocation(peak)
 
@@ -138,27 +139,27 @@ namespace prmem
 
 	protected:
 		//	update tracking information. BlockCount=Allocation count, usually 1 (an Array = 1)
-		inline void				OnAlloc(uint32 Bytes,uint32 BlockCount)
+		inline void				OnAlloc(size_t Bytes,size_t BlockCount)
 		{
 			mAllocBytes += Bytes;
 			mAllocBytesPeak = (mAllocBytes>mAllocBytesPeak) ? mAllocBytes : mAllocBytesPeak;
 			mAllocCount += BlockCount;
 			mAllocCountPeak = (mAllocCount>mAllocCountPeak) ? mAllocCount : mAllocCountPeak;
 		}	
-		inline void				OnFree(uint32 Bytes,uint32 BlockCount)
+		inline void				OnFree(size_t Bytes,size_t BlockCount)
 		{
 			//	for safety, don't go under zero
 			mAllocBytes -= ( Bytes > mAllocBytes ) ? mAllocBytes : Bytes;
 			mAllocCount -= ( BlockCount > mAllocCount ) ? mAllocCount : BlockCount;
 		}
-		void					OnFailedAlloc(const char* TypeName,int TypeSize,int Elements) const;
+		void					OnFailedAlloc(std::string TypeName,size_t TypeSize,size_t Elements) const;
 
 	protected:
 		BufferString<100>	mName;	//	name for easy debugging purposes
-		uint32				mAllocBytes;	//	number of bytes currently allocated (note; actual mem usage may be greater due to block size & fragmentation)
-		uint32				mAllocCount;	//	number of individual allocations (ie, #blocks in heap)
-		uint32				mAllocBytesPeak;
-		uint32				mAllocCountPeak;
+		size_t				mAllocBytes;	//	number of bytes currently allocated (note; actual mem usage may be greater due to block size & fragmentation)
+		size_t				mAllocCount;	//	number of individual allocations (ie, #blocks in heap)
+		size_t				mAllocBytesPeak;
+		size_t				mAllocCountPeak;
 	};
 
 
@@ -176,9 +177,9 @@ namespace prmem
 
 	public:
 		const void*						mObject;		//	allocated data
-		uint32							mElements;		//	number of elements
-		uint32							mTypeSize;		//	sizeof(T)
-		const char*						mTypename;		//	gr: this SHOULD be safe, all strings from GetTypeName are either compile-time generated or static.
+		size_t							mElements;		//	number of elements
+		size_t							mTypeSize;		//	sizeof(T)
+		BufferString<100>				mTypename;		//	gr: this SHOULD be safe, all strings from GetTypeName are either compile-time generated or static.
 		uint64							mAllocTick;		//	time of allocation (ofGetElapsedTimeMillis())
 		BufferArray<uint64,CallStackSize>	mCallStack;		//	each is an address in the process' symbol data
 	};
@@ -192,16 +193,16 @@ namespace prmem
 		virtual ~HeapDebugBase()	{}
 
 		template<typename T>
-		void			OnAlloc(const T* Object,uint32 Elements)
+		void			OnAlloc(const T* Object,size_t Elements)
 		{
-			const char* TypeName = Soy::GetTypeName<T>();
+			auto TypeName = Soy::GetTypeName<T>();
 			OnAlloc( Object, TypeName, Elements, sizeof(T) );
 		}
 		virtual void	OnFree(const void* Object)=0;
 		virtual void	DumpToOutput(const prmem::HeapInfo& OwnerHeap)const =0;	//	debug-print out all our allocations and their age
 
 	protected:
-		virtual void	OnAlloc(const void* Object,const char* TypeName,uint32 ElementCount,uint32 TypeSize)=0;
+		virtual void	OnAlloc(const void* Object,std::string TypeName,size_t ElementCount,size_t TypeSize)=0;
 		void			DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBridge<HeapDebugItem>& AllocItems) const;	//	debug-print out all our allocations and their age
 	};
 
@@ -211,14 +212,14 @@ namespace prmem
 	class Heap : public HeapInfo
 	{
 	public:
-		Heap(bool EnableLocks,bool EnableExceptions,const char* Name,uint32 MaxSize=0,bool DebugTrackAllocs=false);
+		Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t MaxSize=0,bool DebugTrackAllocs=false);
 		~Heap();
 
 #if defined(TARGET_WINDOWS)
 		virtual HANDLE					GetHandle() const			{	return mHandle;	}
-		virtual bool					IsValid() const				{	return mHandle!=NULL;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+		virtual bool					IsValid() const override	{	return mHandle!=NULL;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
 #elif defined(STD_ALLOC)
-		virtual bool					IsValid() const				{	return true;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+		virtual bool					IsValid() const override	{	return true;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
 #endif
 		virtual void					EnableDebug(bool Enable);	//	deletes/allocates the debug tracker so we can toggle it at runtime
 		virtual const HeapDebugBase*	GetDebug() const			{	return mHeapDebug;	}
@@ -256,7 +257,7 @@ namespace prmem
 		}
 
 		template<typename TYPE>
-		TYPE*	AllocArray(const uint32 Elements)	
+		TYPE*	AllocArray(const size_t Elements)
 		{
 			TYPE* pAlloc = RealAlloc<TYPE>( Elements );
 			if ( !pAlloc )
@@ -265,7 +266,7 @@ namespace prmem
 			//	construct with placement New
 			if ( Soy::DoConstructType<TYPE>() )
 			{
-				for ( uint32 i=0;	i<Elements;	i++ )
+				for ( size_t i=0;	i<Elements;	i++ )
 				{
 					auto* pAlloci = &pAlloc[i];
 					//	gr: changed to have NO parenthisis to remove warning C4345. 
@@ -402,13 +403,13 @@ namespace prmem
 		}			
 
 		template<typename TYPE>
-		bool	FreeArray(TYPE* pObject,uint32 Elements)
+		bool	FreeArray(TYPE* pObject,size_t Elements)
 		{
 			//	no need to destruct types we don't construct
 			if ( Soy::DoConstructType<TYPE>() )
 			{
 				//	destruct in reverse order; http://www.ezdefinition.com/cgi-bin/showsubject.cgi?sid=409
-				uint32 e = Elements;
+				auto e = Elements;
 				while ( e )
 					pObject[--e].~TYPE();
 		
@@ -421,7 +422,7 @@ namespace prmem
 
 	private:
 		template<typename TYPE>
-		inline TYPE*	RealAlloc(const uint32 Elements)	
+		inline TYPE*	RealAlloc(const size_t Elements)
 		{
 #if defined(TARGET_WINDOWS)
 			TYPE* pData = static_cast<TYPE*>( HeapAlloc( mHandle, 0x0, Elements*sizeof(TYPE) ) );
@@ -434,7 +435,7 @@ namespace prmem
 				Debug_Validate();
 
 				//	report failed alloc regardless
-				const char* TypeName = Soy::GetTypeName<TYPE>();
+				auto TypeName = Soy::GetTypeName<TYPE>();
 				OnFailedAlloc( TypeName, sizeof(TYPE), Elements );
 				return nullptr;
 			}
@@ -445,7 +446,7 @@ namespace prmem
 		}
 
 		template<typename TYPE>
-		inline bool	RealFree(TYPE* pObject,const uint32 Elements)	
+		inline bool	RealFree(TYPE* pObject,const size_t Elements)
 		{
 #if defined(TARGET_WINDOWS)
 			//	no need to specify length, mem manager already knows the real size of pObject
@@ -458,7 +459,7 @@ namespace prmem
 			if ( mHeapDebug )
 				mHeapDebug->OnFree( pObject );
 
-			uint32 BytesFreed = sizeof(TYPE)*Elements;
+			auto BytesFreed = sizeof(TYPE)*Elements;
 			OnFree( BytesFreed, 1 );
 			return true;
 		}
@@ -486,7 +487,7 @@ namespace prmem
 		}
 
 		virtual HANDLE			GetHandle() const;
-		virtual bool			IsValid() const		{	return GetHandle() != nullptr;	}
+		virtual bool			IsValid() const override	{	return GetHandle() != nullptr;	}
 
 		void					Update();			//	update tracking information
 	};

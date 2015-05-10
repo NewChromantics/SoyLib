@@ -44,6 +44,11 @@ public:
 	{
 	}
 
+	int					GetPeekBufferSize() const
+	{
+		return mServer.getReceiveBufferSize();
+	}
+
 	template<typename DATATYPE>
 	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	
 	{
@@ -71,6 +76,11 @@ public:
 	{
 	}
 
+	int					GetPeekBufferSize() const
+	{
+		return mClient.getReceiveBufferSize();
+	}
+
 	template<typename DATATYPE>
 	int					receiveRawBytes(ArrayBridge<DATATYPE>& Array)	
 	{
@@ -95,6 +105,11 @@ public:
 		mData		( Data ),
 		mSender		( Sender )
 	{
+	}
+
+	int					GetPeekBufferSize() const
+	{
+		return 0;
 	}
 
 	template<typename DATATYPE>
@@ -202,10 +217,18 @@ bool RecvPackets(SoyPacketManager& PacketManager,READWRAPPER& ReadWrapper,bool E
 		}
 		else
 		{
+			//	tcp needs a buffer to read from... UDP doesn't?
+			PacketData.SetSize( ReadWrapper.GetPeekBufferSize() );
+
 			//	dumb read
 			PacketHeader.mDataSize = ReadWrapper.peekReceiveRawBytes( GetArrayBridge( PacketData ) );
-			if ( PacketHeader.mDataSize == 0 )
+
+			//	socket-error
+			if ( PacketHeader.mDataSize == -1 )
 				return false;
+			//	return true, no error, just no data to read...
+			if ( PacketHeader.mDataSize == 0 )
+				return true;
 
 			PacketData.SetSize( PacketHeader.mDataSize );
 			int BytesRecieved = ReadWrapper.receiveRawBytes( GetArrayBridge( PacketData ) );
@@ -307,11 +330,11 @@ void TSocket::OnClientLeft(const SoyNet::TAddress& Address)
 	ofNotifyEvent( mOnClientLeft, Address );
 }
 
-void TSocket::OnRecievePacket(const SoyPacketContainer& Packet)
+void TSocket::OnRecievePackets()
 {
 	StartThread();
-	const SoyPacketContainer* pPacket = &Packet;
-	ofNotifyEvent( mOnRecievePacket, pPacket );
+	TSocket* This = this;
+	ofNotifyEvent( mOnRecievePacket, This );
 }
 
 
@@ -432,6 +455,7 @@ void TSocketTCP::RecievePackets()
 	//	read in packets from server
 	if ( mClient.isConnected() )
 	{
+		//	gr: this probably needs re-writing liek TSocketUDP::RecievePackets()
 		TClientReadWrapper Client( mClient, GetServerAddress() );
 		if ( !RecvPackets( mPacketsIn, Client, mIncludeMetaInPacket ) )
 		{
@@ -443,12 +467,17 @@ void TSocketTCP::RecievePackets()
 	//	read in packets from each client
 	if ( mServer.isConnected() )
 	{
+		//	do a recv into our pending buffer and grab the source of the data
+		//int MaxHardareBufferSize = mServer.GetReceiveBufferSize();
+		//int MaxBufferSize = MaxHardareBufferSize;
+
 		for ( int i=0;	i<mServer.getLastID();	i++ )
 		{
 			int ClientId = i;
 			if ( !CheckForClient( ClientId ) )
 				continue;
-		
+			
+			//	see if this client has any data waiting first
 			TServerReadWrapper Client( mServer, ClientId, GetClientAddress(ClientId) );
 			if ( !RecvPackets( mPacketsIn, Client, mIncludeMetaInPacket ) )
 			{
@@ -457,6 +486,9 @@ void TSocketTCP::RecievePackets()
 			}
 		}
 	}
+
+	if ( !mPacketsIn.IsEmpty() )
+		OnRecievePackets();
 }
 
 
@@ -465,15 +497,33 @@ void TSocketTCP::SendPackets()
 	while ( !mPacketsOut.IsEmpty() )
 	{
 		Array<char> PacketRaw;
-		if ( !mPacketsOut.PopPacketRawData( PacketRaw, mIncludeMetaInPacket ) )
+		TAddress DestinationAddress;
+		if ( !mPacketsOut.PopPacketRawData( PacketRaw, DestinationAddress, mIncludeMetaInPacket ) )
 			break;
 
-		//	send packet out
+		//	send packet out to client[s]
 		if ( mServer.isConnected() )
 		{
-			mServer.sendRawBytesToAll( PacketRaw.GetArray(), PacketRaw.GetDataSize() );
+			//	client specified?
+			if ( DestinationAddress.IsValid() )
+			{
+				int ClientId = GetClientId( DestinationAddress );
+				if ( ClientId == -1 )
+				{
+					BufferString<100> Debug;
+					Debug << "Destination client " << DestinationAddress << " not found. Packet Dropped.";
+					ofLogError( Debug.c_str() );
+					continue;
+				}
+				mServer.sendRawBytes( ClientId, PacketRaw.GetArray(), PacketRaw.GetDataSize() );
+			}
+			else
+			{
+				mServer.sendRawBytesToAll( PacketRaw.GetArray(), PacketRaw.GetDataSize() );
+			}
 		}
 
+		//	send to server
 		if(  mClient.isConnected() )
 		{
 			mClient.sendRawBytes( PacketRaw.GetArray(), PacketRaw.GetDataSize() );
@@ -495,16 +545,30 @@ SoyNet::TAddress SoyNet::TSocketTCP::GetMyAddress() const
 
 SoyNet::TAddress SoyNet::TSocketTCP::GetClientAddress(int ClientId) const
 {
+	SoyNet::TAddress Address;
+	Address.mClientRef = TClientRef( ClientId );
+
 	if ( GetServerConst().isClientConnected( ClientId ) )
 	{
-		SoyNet::TAddress Address;
 		Address.mAddress = GetServerConst().getClientIP( ClientId ).c_str();
 		Address.mPort = GetServerConst().getClientPort( ClientId );
-		Address.mClientRef = TClientRef( ClientId );
 		return Address;
 	}
 
-	return TAddress();
+	//	if we're a client, not a server, an invalid client id means the server
+	if ( GetState() == TSocketState::ClientConnected )
+		if ( Address.mClientRef == TClientRef() )
+			return GetServerAddress();
+
+	//	bad address should still contain the unique client id
+	return Address;
+}
+
+int SoyNet::TSocket::GetClientId(SoyNet::TAddress ClientAddress) const
+{
+	//	gr: currently I'm assuming this address has made it all the way through....
+	assert( ClientAddress.mClientRef.IsValid() );
+	return ClientAddress.mClientRef.mClientId;
 }
 
 SoyNet::TAddress SoyNet::TSocketTCP::GetServerAddress() const
@@ -791,6 +855,12 @@ void TSocketUDP::OnClosed()
 }
 
 
+TAddress TSocketUDP::GetClientAddress(int ClientId) const
+{
+	//	todo: check this
+	assert(false);
+	return TAddress();
+}
 
 bool TSocketUDPMultiCast::BindUDP(uint16 Port)
 {

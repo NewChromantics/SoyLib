@@ -47,6 +47,10 @@ public:
 	virtual void		Close()=0;
 	TSocketState::Type	GetState() const		{	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mStateLock ) );	return mState;	}
 
+	virtual TAddress	GetClientAddress(int ClientId) const=0;
+	virtual int			GetClientId(TAddress Client) const;
+	virtual TAddress	GetMyAddress() const=0;
+
 private:
 	void				SetState(TSocketState::Type NewState);
 	void				StartThread();			//	we don't want to start thread in constructor (do we?) so it's started first time we try to connect/listen etc
@@ -59,7 +63,7 @@ protected:
 	void				OnServerListening();
 	void				OnClientJoin(const SoyNet::TAddress& Address);
 	void				OnClientLeft(const SoyNet::TAddress& Address);
-	void				OnRecievePacket(const SoyPacketContainer& Packet);
+	void				OnRecievePackets();
 
 	virtual void		CheckState()=0;			//	check if we've been closed
 	virtual void		CheckForClients()=0;	//	check clients have connected/disconnected
@@ -75,7 +79,7 @@ public:
 	ofEvent<bool>						mOnServerListening;
 	ofEvent<const SoyNet::TAddress>		mOnClientJoin;
 	ofEvent<const SoyNet::TAddress>		mOnClientLeft;
-	ofEvent<const SoyPacketContainer*>	mOnRecievePacket;
+	ofEvent<TSocket*>					mOnRecievePacket;		//	notify when there are packets to pop
 
 private:
 	ofMutex					mStateLock;
@@ -95,9 +99,9 @@ public:
 	virtual bool		Connect(const SoyNet::TAddress& ServerAddress);
 	virtual void		Close();
 	
-	TAddress			GetClientAddress(int ClientId) const;
+	virtual TAddress	GetClientAddress(int ClientId) const;
 	TAddress			GetServerAddress() const;
-	TAddress			GetMyAddress() const;
+	virtual TAddress	GetMyAddress() const;
 
 protected:
 	virtual void		OnClosed();
@@ -136,7 +140,8 @@ public:
 	virtual bool		Connect(const SoyNet::TAddress& ServerAddress);
 	virtual void		Close();
 	
-	TAddress			GetMyAddress() const;
+	virtual TAddress	GetClientAddress(int ClientId) const;
+	virtual TAddress	GetMyAddress() const;
 
 protected:
 	virtual void		OnClosed();

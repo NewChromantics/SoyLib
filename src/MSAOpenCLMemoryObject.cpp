@@ -19,7 +19,8 @@ namespace msa {
 #if defined(ENABLE_OPENCL_RELEASE_LOCK)
 			ofMutex::ScopedLock Lock(OpenCLMemoryObject::gReleaseLock);
 #endif
-			clReleaseMemObject(clMemObject);
+			auto Result = clReleaseMemObject(clMemObject);
+			assert( Result == CL_SUCCESS );
 		}
 	}
 }

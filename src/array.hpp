@@ -10,162 +10,388 @@
 #include <cstddef>
 #include "SoyTypes.h"	//	gr: not sure why I have to include this, when it's included earlier in Soy.hpp...
 
-//namespace Soy
-//{
-	//	ArrayTest object forces .cpp to be built and not throw away the unittest symbols
-	class ArrayTestDummy
+
+//	ArrayTest object forces .cpp to be built and not throw away the unittest symbols
+class ArrayTestDummy
+{
+public:
+	// nothing class
+	ArrayTestDummy();
+};
+
+
+//	An ArrayBridge<T> is an interface to an array object, without needing to specialise the array type (buffer, heap, etc)
+//	Why do we need this when we could template our function? because this allows us to put the definition somewhere away from
+//	the header! Although there is a (minor) overhead of using a vtable, it's much more useful for having more flexible functions
+//	in source (obviously not everything can go in headers) and reduces code-size (if we ever require that)
+//		usage;
+//	bool	MyFunc(ArrayBridge<int>& Array);	//	source NOT in header
+//	....
+//	HeapArray<int> h;
+//	Array<int> a;
+//	MyFunc( GetArrayBridge(h) );
+//	MyFunc( GetArrayBridge(a) );
+//	MyFunc( GetArrayBridge(s) );
+//	
+//	or for even more transparency (eg. no need to change lots of calls....)
+//	template<class ARRAY> MyFunc(ARRAY& Array)	{	MyFunc( GetArrayBridge(Array) );	}
+//	MyFunc( h );
+//	MyFunc( a );
+//	MyFunc( s );
+//	
+//	gr: can't currently use SortArray's because of the hidden/missing PushBack/PushBlock functions, which ideally we require here..
+template<typename T>
+class ArrayInterface
+{
+public:
+	typedef T TYPE;	//	in case you ever need to get to T in a template function/class, you can use ARRAYPARAM::TYPE (sometimes need typename ARRAYPARAM::TYPE)
+public:
+	ArrayInterface()	{}
+
+	virtual T&			operator [] (size_t index)=0;
+	virtual const T&	operator [] (size_t index) const=0;
+	virtual T&			GetBack()						{	return (*this)[GetSize()-1];	}
+	virtual const T&	GetBack() const					{	return (*this)[GetSize()-1];	}
+	bool				IsEmpty() const					{	return GetSize() == 0;	}
+	bool				IsFull() const					{	return GetSize() >= MaxSize();	}
+	virtual size_t		GetSize() const=0;
+	size_t				GetDataSize() const				{	return GetSize() * GetElementSize();	}
+	size_t				GetElementSize() const			{	return sizeof(T);	}
+	virtual const T*	GetArray() const=0;
+	virtual T*			GetArray()=0;
+	virtual void		Reserve(size_t size,bool clear=false)=0;
+	virtual T*			InsertBlock(size_t index,size_t count)=0;
+	virtual void		RemoveBlock(size_t index,size_t count)=0;
+	virtual void		Clear(bool Dealloc=true)=0;
+	virtual size_t		MaxSize() const=0;
+
+	//	simple iterator to find index of an element matching via == operator
+	template<typename MATCHTYPE>
+	size_t				FindIndex(const MATCHTYPE& Match) const
 	{
-	public:
-		// nothing class
-		ArrayTestDummy();
-	};
-
-
-	//	An ArrayBridge<T> is an interface to an array object, without needing to specialise the array type (buffer, heap, etc)
-	//	Why do we need this when we could template our function? because this allows us to put the definition somewhere away from
-	//	the header! Although there is a (minor) overhead of using a vtable, it's much more useful for having more flexible functions
-	//	in source (obviously not everything can go in headers) and reduces code-size (if we ever require that)
-	//		usage;
-	//	bool	MyFunc(ArrayBridge<int>& Array);	//	source NOT in header
-	//	....
-	//	HeapArray<int> h;
-	//	Array<int> a;
-	//	MyFunc( GetArrayBridge(h) );
-	//	MyFunc( GetArrayBridge(a) );
-	//	MyFunc( GetArrayBridge(s) );
-	//	
-	//	or for even more transparency (eg. no need to change lots of calls....)
-	//	template<class ARRAY> MyFunc(ARRAY& Array)	{	MyFunc( GetArrayBridge(Array) );	}
-	//	MyFunc( h );
-	//	MyFunc( a );
-	//	MyFunc( s );
-	//	
-	//	gr: can't currently use SortArray's because of the hidden/missing PushBack/PushBlock functions, which ideally we require here..
-	template<typename T>
-	class ArrayInterface
-	{
-	public:
-		typedef T TYPE;	//	in case you ever need to get to T in a template function/class, you can use ARRAYPARAM::TYPE (sometimes need typename ARRAYPARAM::TYPE)
-	public:
-		ArrayInterface()	{}
-
-		virtual T&			operator [] (int index)=0;
-		virtual const T&	operator [] (int index) const=0;
-		virtual T&			GetBack()=0;
-		virtual const T&	GetBack(int index) const=0;
-		bool				IsEmpty() const					{	return GetSize() == 0;	}
-		bool				IsFull() const					{	return GetSize() >= MaxSize();	}
-		virtual int			GetSize() const=0;
-		virtual int			GetDataSize() const=0;
-		virtual int			GetElementSize() const=0;
-		virtual const T*	GetArray() const=0;
-		virtual T*			GetArray()=0;
-		virtual void		Reserve(int size,bool clear=false)=0;
-		virtual void		RemoveBlock(int index, int count)=0;
-		virtual void		Clear(bool Dealloc=true)=0;
-		virtual int			MaxSize() const=0;
-	};
-
-
-	template<typename T>
-	class ArrayBridge : public ArrayInterface<T>
-	{
-	public:
-		typedef T TYPE;	//	in case you ever need to get to T in a template function/class, you can use ARRAYPARAM::TYPE (sometimes need typename ARRAYPARAM::TYPE)
-	public:
-		ArrayBridge()	{}
-
-		//	interfaces not required by ArrayInterface
-		virtual T*			PushBlock(int count)=0;
-		virtual T&			PushBack(const T& item)=0;
-		virtual T&			PushBack()=0;
-		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false)=0;
-		virtual void		Reserve(int size,bool clear=false)=0;
-		virtual void		RemoveBlock(int index, int count)=0;
-		virtual void		Clear(bool Dealloc=true)=0;
-		virtual int			MaxSize() const=0;
-
-		//	compare two arrays of the same type
-		//	gr: COULD turn this into a compare for sorting, but that would invoke a < and > operator call for each type.
-		//		this is also why we don't use the != operator, only ==
-		//		if we want that, make a seperate func!
-		inline bool			Matches(const ArrayBridge<T>& That) const
+		for ( size_t i=0;	i<GetSize();	i++ )
 		{
-			if ( this->GetSize() != That.GetSize() )	
-				return false;
-
-			//	both empty
-			if ( this->IsEmpty() )
-				return true;
-
-			//	do quick compare (memcmp) when possible
-			auto* ThisData = this->GetArray();
-			auto* ThatData = That.GetArray();
-			if ( Soy::IsComplexType<T>() )
-			{
-				for ( int i=0;	i<this->GetSize();	i++ )
-				{
-					if ( ThisData[i] == ThatData[i] )
-						continue;
-					//	elements differ
-					return false;
-				}
-				return true;
-			}
-			else
-			{
-				//	memory differs
-				if ( memcmp( ThisData, ThatData, this->GetDataSize() ) != 0 )
-					return false;
-				return true;
-			}
+			auto& Element = (*this)[i];
+			if ( Element == Match )
+				return i;
 		}
-	};
+		return -1;
+	}
 
+	//	find an element - returns first matching element or NULL
+	template<typename MATCH> T*			Find(const MATCH& Match)		{	auto Index = FindIndex( Match );		return (Index < 0) ? nullptr : &((*this)[Index]);	}
+	template<typename MATCH> const T*	Find(const MATCH& Match) const	{	auto Index = FindIndex( Match );		return (Index < 0) ? nullptr : &((*this)[Index]);	}
 
-	//	actual BridgeObject, templated to your array.
+	//	this was NOT required before, because of sort array. so that just fails
+	virtual T*			PushBlock(size_t count)=0;
+	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true)=0;
+
 	template<class ARRAY>
-	class ArrayBridgeDef : public ArrayBridge<typename ARRAY::TYPE>
+	bool				Copy(const ARRAY& a)
 	{
-	public:
-		typedef typename ARRAY::TYPE T;
-	public:
-		//	const cast :( but only way to avoid it is to duplicate both ArrayBridge 
-		//	types for a const and non-const version...
-		//	...not worth it.
-		ArrayBridgeDef(const ARRAY& Array) :
-			mArray	( const_cast<ARRAY&>(Array) )
+		Clear(false);
+		return PushBackArray( a ) != nullptr;
+	}
+
+	template<class ARRAYTYPE>
+	T*					PushBackArray(const ARRAYTYPE& v)
+	{
+		auto NewDataIndex = GetSize();
+		auto* pNewData = PushBlock( v.GetSize() );
+		if ( !pNewData )
+			return nullptr;
+
+		if ( Soy::DoComplexCopy<T,typename ARRAYTYPE::TYPE>() )
 		{
+			for ( size_t i=0; i<v.GetSize(); ++i )
+				(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check
+		}
+		else if ( v.GetSize() > 0 )
+		{
+			//	re-fetch address for bounds check. technically unncessary
+			pNewData = &((*this)[NewDataIndex]);
+			//	note: lack of bounds check for all elements here
+			memcpy( pNewData, v.GetArray(), v.GetSize() * sizeof(T) );
 		}
 
-		virtual T&			operator [] (int index)			{	return mArray[index];	}
-		virtual const T&	operator [] (int index) const	{	return mArray[index];	}
-		virtual T&			GetBack()						{	return mArray.GetBack();	}
-		virtual const T&	GetBack(int index) const		{	return mArray.GetBack();	}
-		virtual int			GetSize() const					{	return mArray.GetSize();	}
-		virtual int			GetDataSize() const				{	return mArray.GetDataSize();	}
-		virtual int			GetElementSize() const			{	return mArray.GetElementSize();	}
-		virtual const T*	GetArray() const				{	return mArray.GetArray();	}
-		virtual T*			GetArray()						{	return mArray.GetArray();	}
-		virtual bool		SetSize(int size,bool preserve=true,bool AllowLess=false)	{	return mArray.SetSize(size,preserve,AllowLess);	}
-		virtual void		Reserve(int size,bool clear=false)	{	return mArray.Reserve(size,clear);	}
-		virtual T*			PushBlock(int count)			{	return mArray.PushBlock(count);	}
-		virtual T&			PushBack(const T& item)			{	return mArray.PushBack(item);	}
-		virtual T&			PushBack()						{	return mArray.PushBack();	}
-		virtual void		RemoveBlock(int index, int count)	{	return mArray.RemoveBlock(index,count);	}
-		virtual void		Clear(bool Dealloc)				{	return mArray.Clear(Dealloc);	}
-		virtual int			MaxSize() const					{	return mArray.MaxSize();	}
+		return pNewData;
+	}
+
+	//	pushback a c-array
+	template<size_t CARRAYSIZE>
+	T*	PushBackArray(const T(&CArray)[CARRAYSIZE])
+	{
+		auto NewDataIndex = GetSize();
+		auto* pNewData = PushBlock( CARRAYSIZE );
+		if ( !pNewData )
+			return nullptr;
+
+		if ( Soy::IsComplexType<T>() )
+		{
+			for ( size_t i=0; i<CARRAYSIZE; ++i )
+				(*this)[i+NewDataIndex] = CArray[i];	//	use [] operator for bounds check
+		}
+		else if ( GetSize() > 0 )
+		{
+			//	re-fetch address for bounds check. technically unncessary
+			pNewData = &((*this)[NewDataIndex]);
+			//	note: lack of bounds check for all elements here
+			memcpy( pNewData, CArray, CARRAYSIZE * sizeof(T) );
+		}
+
+		return pNewData;
+	}
 	
-	private:
-		ARRAY&				mArray;
-	};
+	//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
+	template<typename THATTYPE>
+	T*	PushBackReinterpret(const THATTYPE& OtherData)
+	{
+		size_t ThatDataSize = sizeof(THATTYPE);
+		auto* pData = PushBlock( ThatDataSize / sizeof(T) );
+		if ( !pData )
+			return nullptr;
+		
+		//	memcpy over the block
+		memcpy( pData, &OtherData, ThatDataSize );
+		return pData;
+	}
+	
+	//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
+	template<typename THATTYPE>
+	T*	PushBackReinterpret(const THATTYPE* OtherData,size_t Count)
+	{
+		size_t ThatDataSize = sizeof(THATTYPE) * Count;
+		auto* pData = PushBlock( ThatDataSize / sizeof(T) );
+		if ( !pData )
+			return nullptr;
+		
+		//	memcpy over the block
+		memcpy( pData, OtherData, ThatDataSize );
+		return pData;
+	}
+	
+	//	reinterpret push, mostly used for reverse endian
+	template<typename THATTYPE>
+	T*	PushBackReinterpretReverse(const THATTYPE& OtherData)
+	{
+		auto ThatDataSize = sizeof(OtherData);
+		auto* pData = PushBlock( ThatDataSize / sizeof(T) );
+		if ( !pData )
+			return nullptr;
 
-	//	helper function to make syntax nicer;
-	//		auto Bridge = GetArrayBridge( MyArray );
-	//	instead of
-	//		auto Bridge = ArrayBridgeDef<BufferArray<int,100>>( MyArray );
-	template<class ARRAY>
-	inline ArrayBridgeDef<ARRAY> GetArrayBridge(const ARRAY& Array)	
-	{	
-		return ArrayBridgeDef<ARRAY>( Array );
-	};
+		//	memcpy over the block
+		auto* OtherT = reinterpret_cast<const T*>( &OtherData );
+		for ( size_t i=0;	i<ThatDataSize;	i++ )
+			pData[i] = OtherT[ThatDataSize-1-i];
+		return pData;
+	}
+	
+	template<class ARRAYTYPE>
+	T*					InsertArray(const ARRAYTYPE& v,size_t Index)
+	{
+		auto NewDataIndex = Index;
+		auto* pNewData = InsertBlock( Index, v.GetSize() );
+		if ( !pNewData )
+			return nullptr;
+		
+		if ( Soy::DoComplexCopy<T,typename ARRAYTYPE::TYPE>() )
+		{
+			for ( size_t i=0; i<v.GetSize(); ++i )
+				(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check
+		}
+		else if ( v.GetSize() > 0 )
+		{
+			//	re-fetch address for bounds check. technically unncessary
+			pNewData = &((*this)[NewDataIndex]);
+			//	note: lack of bounds check for all elements here
+			memcpy( pNewData, v.GetArray(), v.GetSize() * sizeof(T) );
+		}
+		
+		return pNewData;
+	}
+};
+
+
+template<typename T>
+class ArrayBridge : public ArrayInterface<T>
+{
+public:
+	typedef T TYPE;	//	in case you ever need to get to T in a template function/class, you can use ARRAYPARAM::TYPE (sometimes need typename ARRAYPARAM::TYPE)
+public:
+	ArrayBridge()	{}
+
+	inline ArrayBridge<T>&	operator=(const ArrayBridge<T>& That)
+	{
+		this->Copy( That );
+		return *this;
+	}
+
+	//	interfaces not required by ArrayInterface
+	virtual T&			PushBack(const T& item)=0;
+	virtual T&			PushBack()=0;
+	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true)=0;
+	virtual void		Reserve(size_t size,bool clear=false)=0;
+	virtual void		RemoveBlock(size_t index,size_t count)=0;
+	virtual T*			InsertBlock(size_t index,size_t count)=0;
+	virtual void		Clear(bool Dealloc=true)=0;
+
+	//	compare two arrays of the same type
+	//	gr: COULD turn this into a compare for sorting, but that would invoke a < and > operator call for each type.
+	//		this is also why we don't use the != operator, only ==
+	//		if we want that, make a seperate func!
+	inline bool			Matches(const ArrayBridge<T>&& That) const
+	{
+		return Matches( That );
+	}
+	inline bool			Matches(const ArrayBridge<T>& That) const
+	{
+		if ( this->GetSize() != That.GetSize() )	
+			return false;
+
+		//	both empty
+		if ( this->IsEmpty() )
+			return true;
+
+		//	do quick compare (memcmp) when possible
+		auto* ThisData = this->GetArray();
+		auto* ThatData = That.GetArray();
+		if ( Soy::IsComplexType<T>() )
+		{
+			for ( size_t i=0;	i<this->GetSize();	i++ )
+			{
+				if ( ThisData[i] == ThatData[i] )
+					continue;
+				//	elements differ
+				return false;
+			}
+			return true;
+		}
+		else
+		{
+			//	memory differs
+			if ( memcmp( ThisData, ThatData, this->GetDataSize() ) != 0 )
+				return false;
+			return true;
+		}
+	}
+	
+};
+
+
+//	actual BridgeObject, templated to your array.
+template<class ARRAY>
+class ArrayBridgeDef : public ArrayBridge<typename ARRAY::TYPE>
+{
+public:
+	typedef typename ARRAY::TYPE T;
+public:
+	//	const cast :( but only way to avoid it is to duplicate both ArrayBridge 
+	//	types for a const and non-const version...
+	//	...not worth it.
+	explicit ArrayBridgeDef(const ARRAY& Array) :
+		mArray	( const_cast<ARRAY&>(Array) )
+	{
+	}
+
+	virtual T&			operator [](size_t index) override			{	return mArray[index];	}
+	virtual const T&	operator [](size_t index) const override		{	return mArray[index];	}
+	virtual T&			GetBack() override							{	return mArray[mArray.GetSize()-1];	}
+	virtual size_t		GetSize() const override					{	return mArray.GetSize();	}
+	virtual const T*	GetArray() const override					{	return mArray.GetArray();	}
+	virtual T*			GetArray() override							{	return mArray.GetArray();	}
+	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true) override	{	return mArray.SetSize(size,preserve,AllowLess);	}
+	virtual void		Reserve(size_t size,bool clear=false) override	{	return mArray.Reserve(size,clear);	}
+	virtual T*			PushBlock(size_t count) override				{	return mArray.PushBlock(count);	}
+	virtual T&			PushBack(const T& item) override			{	auto& Tail = PushBack();	Tail = item;	return Tail;	}
+	virtual T&			PushBack() override							{	auto* Tail = PushBlock(1);	return *Tail;	}
+	virtual void		RemoveBlock(size_t index,size_t count) override	{	mArray.RemoveBlock(index,count);	}
+	virtual T*			InsertBlock(size_t index,size_t count) override	{	return mArray.InsertBlock(index,count);	}
+	virtual void		Clear(bool Dealloc) override				{	return mArray.Clear(Dealloc);	}
+	virtual size_t		MaxSize() const override					{	return mArray.MaxSize();	}
+
+private:
+	ARRAY&				mArray;
+};
+
+//	helper function to make syntax nicer;
+//		auto Bridge = GetArrayBridge( MyArray );
+//	instead of
+//		auto Bridge = ArrayBridgeDef<BufferArray<int,100>>( MyArray );
+template<class ARRAY>
+inline ArrayBridgeDef<ARRAY> GetArrayBridge(const ARRAY& Array)	
+{	
+	return ArrayBridgeDef<ARRAY>( Array );
+};
+
+
+
+class TArrayReader
+{
+public:
+	TArrayReader(const ArrayBridge<char>& Array) :
+		mArray	( Array ),
+		mOffset	( 0 )
+	{
+	}
+	
+	size_t		GetRemainingBytes() const	{	return mArray.GetDataSize() - mOffset;	}
+	bool		Eod() const					{	return GetRemainingBytes() <= 0;	}
+	//bool		ReadArray(ArrayBridge<char>& Pop);			//	copy this-length of data
+	bool		ReadCompare(ArrayBridge<char>& Match);	//	read array and make sure it matches Pop
+	
+	template<typename TYPE>
+	bool		Read(TYPE& Pop);
+
+	template<typename TYPE>
+	bool		ReadArray(ArrayBridge<TYPE>& Pop);		//	read this-many
+	template<typename TYPE>
+	bool		ReadArray(ArrayBridge<TYPE>&& Pop)		{	return ReadArray( Pop );	}
+	
+	template<class BUFFERARRAYTYPE,typename TYPE>
+	bool		ReadReinterpretReverse(TYPE& Pop);
+	
+private:
+	bool		ReadReverse(ArrayBridge<char>& Pop);
+	
+public:
+	int			mOffset;
+	const ArrayBridge<char>&	mArray;
+};
+
+
+template<typename TYPE>
+inline bool TArrayReader::Read(TYPE& Pop)
+{
+	if ( mOffset+sizeof(TYPE) > mArray.GetDataSize() )
+		return false;
+	auto& Data = *reinterpret_cast<const TYPE*>( &mArray[mOffset] );
+	Pop = Data;
+	mOffset += sizeof(TYPE);
+	return true;
+}
+
+template<typename TYPE>
+inline bool TArrayReader::ReadArray(ArrayBridge<TYPE>& Pop)
+{
+	if ( mOffset+Pop.GetDataSize() > mArray.GetDataSize() )
+		return false;
+	auto* Data = reinterpret_cast<const TYPE*>( &mArray[mOffset] );
+	memcpy( Pop.GetArray(), Data, Pop.GetDataSize() );
+	mOffset += Pop.GetDataSize();
+	return true;
+}
+
+
+template<class BUFFERARRAYTYPE,typename TYPE>
+inline bool TArrayReader::ReadReinterpretReverse(TYPE& Pop)
+{
+	BUFFERARRAYTYPE Buffer;
+	Buffer.SetSize( sizeof(TYPE) );
+	auto BufferBridge = GetArrayBridge( Buffer );
+	if ( !ReadReverse( BufferBridge ) )
+		return false;
+	
+	const TYPE* PopRev = reinterpret_cast<const TYPE*>( Buffer.GetArray() );
+	Pop = *PopRev;
+	return true;
+}

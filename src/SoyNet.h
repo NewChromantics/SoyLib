@@ -27,6 +27,8 @@ namespace SoyNet
 	//		(ie. PacketEmulator, GameCenter etc
 	class TClientRef;			//	wrapper for ofxTCP clientid 
 	class TAddress;				//	unique socket-recieving address identifier
+
+	class TSocket;
 };
 
 
@@ -76,30 +78,14 @@ public:
 	{
 		assert(IsValid());
 	}
-	explicit TAddress(BufferString<200> AddressAndPort,TClientRef ClientRef=TClientRef()) :
-		mPort		( 0 ),
-		mClientRef	( ClientRef )
+	explicit TAddress(BufferString<200> AddressAndPort,TClientRef ClientRef=TClientRef());
+	
+	bool				Equals(const TAddress& That,bool TestClientRef) const				
 	{
-		//	split address:port
-		BufferArray<BufferString<200>,2> AddressAndPortParts;
-		AddressAndPort.Split( AddressAndPortParts, ':' );
-
-		if ( AddressAndPortParts.GetSize() >= 1 )
-			mAddress = AddressAndPortParts[0];
-
-		//	get port
-		if ( AddressAndPortParts.GetSize() >= 2 )
-		{
-			int32 Port;
-			if ( AddressAndPortParts[1].GetInteger( Port ) )
-				mPort = Port;
-		}
-
-		assert(IsValid());
+		return (!TestClientRef||mClientRef==That.mClientRef) && (mAddress == That.mAddress) && (this->mPort == That.mPort);
 	}
-
 	bool				IsValid() const									{	return (mPort != 0) || !mAddress.IsEmpty();	}	//	gr: though I want this, for peers we've found, but don't have a listening port for, we have their address and no port... so zero.
-	inline bool			operator==(const TAddress& That) const			{	return (mAddress == That.mAddress) && (this->mPort == That.mPort);	}
+	inline bool			operator==(const TAddress& That) const			{	return Equals( That, false );	}
 	inline bool			operator==(const TClientRef& ClientRef)const	{	return mClientRef == ClientRef;	}
 
 public:

@@ -4,7 +4,7 @@
 
 namespace Private
 {
-	static const int SoyRef_MaxStringLength = sizeof(uint64)/sizeof(char);
+	static const size_t SoyRef_MaxStringLength = sizeof(uint64)/sizeof(char);
 }
 typedef BufferString<Private::SoyRef_MaxStringLength+1> SoyRefString;
 
@@ -14,7 +14,7 @@ typedef BufferString<Private::SoyRef_MaxStringLength+1> SoyRefString;
 class SoyRef
 {
 public:
-	static const int MaxStringLength = Private::SoyRef_MaxStringLength;
+	static const size_t MaxStringLength = Private::SoyRef_MaxStringLength;
 
 public:
 	SoyRef() :
@@ -57,6 +57,12 @@ public:
 		};
 	};
 };
+
+inline std::string& operator<<(std::string& str,const SoyRef& Value)
+{
+	str += std::string( Value.ToString().c_str() );
+	return str;
+}
 
 template<class STRING>
 inline STRING& operator<<(STRING& str,const SoyRef& Value)

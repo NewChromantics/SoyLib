@@ -13,6 +13,7 @@ float hue2rgb(float p,float q,float t)
     return p;
 }
 
+#if !defined(NO_OPENFRAMEWORKS)
 //	http://stackoverflow.com/questions/2353211/hsl-to-rgb-color-conversion/9493060#9493060
 ofColour GetRgb(float h,float s,float l)
 {
@@ -30,7 +31,9 @@ ofColour GetRgb(float h,float s,float l)
 
     return ofColour( r * 255, g * 255, b * 255 );
 }
+#endif
 
+#if !defined(NO_OPENFRAMEWORKS)
 //	gr: copy of opencl code	http://stackoverflow.com/questions/2353211/hsl-to-rgb-color-conversion/9493060#9493060
 vec3f GetHsl(const ofColour& Rgba)
 {
@@ -72,14 +75,19 @@ vec3f GetHsl(const ofColour& Rgba)
 
 	return vec3f( h, s, l );
 }
+#endif
 
+#if !defined(NO_OPENFRAMEWORKS)
 TColourHsl::TColourHsl(const ofColour& Rgb) :
 	mHsl	( ::GetHsl( Rgb ) )
 {
 
 }
+#endif
 
+#if !defined(NO_OPENFRAMEWORKS)
 ofColour TColourHsl::GetRgb() const
 {
 	return ::GetRgb( GetHue(), GetSaturation(), GetLightness() );
 }
+#endif

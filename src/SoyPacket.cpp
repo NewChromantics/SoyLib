@@ -11,6 +11,16 @@ void SoyPacketManager::PushPacket(const SoyPacketMeta& Meta,const Array<char>& D
 
 
 
+void SoyPacketManager::PushPacket(const SoyPacketContainer& Packet)
+{
+	ofMutex::ScopedLock Lock(*this);
+	SoyPacketContainer& Container = mPackets.PushBack( Packet );
+	
+	//	gr: do we need to verify anything here?
+}
+
+
+
 bool SoyPacketManager::PopPacket(SoyPacketContainer& Container)
 {
 	ofMutex::ScopedLock Lock(*this);
@@ -33,6 +43,21 @@ bool SoyPacketManager::PopPacketRawData(Array<char>& PacketData,bool IncludeMeta
 	mPackets.RemoveBlock( 0, 1 );
 	return true;
 }
+
+
+bool SoyPacketManager::PopPacketRawData(Array<char>& PacketData,SoyNet::TAddress& Destination,bool IncludeMetaInPacket)
+{
+	ofMutex::ScopedLock Lock(*this);
+	if ( mPackets.IsEmpty() )
+		return false;
+
+	auto& Container = mPackets[0];
+	Container.GetPacketRaw( PacketData, IncludeMetaInPacket );
+	Destination = Container.mDestination;
+	mPackets.RemoveBlock( 0, 1 );
+	return true;
+}
+
 
 
 

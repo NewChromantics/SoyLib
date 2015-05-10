@@ -1,26 +1,14 @@
 #pragma once
 
 #include "ofxSoylent.h"
-
-
-#if defined(TARGET_OSX)
-    #if defined(NO_OPENFRAMEWORKS)
-        #define STD_THREAD
-        #define STD_MUTEX
-    #endif
-#endif
-
-
+#include "SoyEvent.h"
+#include <condition_variable>
 
 
 #if defined(NO_OPENFRAMEWORKS)
 
 //	c++11 threads are better!
 //	gr: if mscv > 2012?
-#if defined(TARGET_WINDOWS)
-#define STD_THREAD
-#define STD_MUTEX
-#endif
 
 template <class M>
 class ScopedLock
@@ -84,14 +72,9 @@ private:
 };
 #endif
 
+#include <thread>
+#include <mutex>
 
-#if defined(STD_THREAD)
-	#include <thread>
-#endif
-
-#if defined(STD_MUTEX)
-	#include <mutex>
-#endif
 
 #if defined(TARGET_WINDOWS)
     #include <Shlwapi.h>
@@ -106,25 +89,12 @@ public:
 	typedef ScopedLock<ofMutex> ScopedLock;
 
 public:
-#if defined(STD_MUTEX)
 	void lock()				{	mMutex.lock(); }
 	void unlock()			{	mMutex.unlock();	}
 	bool tryLock()			{	return mMutex.try_lock();	}
-#else
-	ofMutex()				{	InitializeCriticalSection( &mMutex );	}
-	virtual ~ofMutex()		{	DeleteCriticalSection( &mMutex );	}
-
-	void lock()				{	EnterCriticalSection( &mMutex ); }
-	void unlock()			{	LeaveCriticalSection( &mMutex );	}
-	bool tryLock()			{	return 0==TryEnterCriticalSection( &mMutex );	}
-#endif
 
 private:
-#if defined(STD_MUTEX)
     std::recursive_mutex    mMutex;
-#else
-	CRITICAL_SECTION        mMutex;
-#endif
 };
 
 
@@ -135,60 +105,18 @@ public:
 	typedef ScopedLock<ofMutexTimed> ScopedLock;
 
 public:
-#if defined(STD_MUTEX)
 	void lock()					{	mMutex.lock(); }
 	void unlock()				{	mMutex.unlock();	}
 	bool tryLock()				{	return mMutex.try_lock();	}
 	bool tryLock(int TimeoutMs)	{	return mMutex.try_lock_for( std::chrono::milliseconds(TimeoutMs) );	}
-#else
-#error unsupported?
-#endif
 
 private:
-#if defined(STD_MUTEX)
     std::recursive_timed_mutex	mMutex;
-#else
-#error unsupported?
-#endif
 };
 
 #endif // NO_OPENFRAMEWORKS
 
 
-
-//  different types on different platforms. No need for it to be an int
-class SoyThreadId
-{
-public:
-#if defined(STD_THREAD)
-    typedef std::thread::id TYPE;
-	static const TYPE		Invalid;
-#else
-    typedef int             TYPE;
-	static const TYPE		Invalid = -1;
-#endif
-public:
-    SoyThreadId() :
-        mId ( Invalid )
-    {
-    }
-    SoyThreadId(const TYPE& id) :
-        mId ( id )
-    {
-    }
-
-    inline bool     operator==(const TYPE& id) const        {   return mId == id;   }
-    inline bool     operator==(const SoyThreadId& id) const {   return mId == id.mId;   }
-    inline bool     operator!=(const TYPE& id) const        {   return mId != id;   }
-    inline bool     operator!=(const SoyThreadId& id) const {   return mId != id.mId;   }
-    inline bool     operator<(const TYPE& id) const			{   return mId < id;   }
-    inline bool     operator<(const SoyThreadId& id) const	{   return mId < id.mId;   }
-    inline bool     operator>(const TYPE& id) const			{   return mId > id;   }
-    inline bool     operator>(const SoyThreadId& id) const	{   return mId > id.mId;   }
-    
-public:
-    TYPE            mId;
-};
 
 
 #if defined(NO_OPENFRAMEWORKS)
@@ -204,16 +132,23 @@ public:
 	void			stopThread();
 	bool			isThreadRunning()					{	return mIsRunning;	}
 	void			waitForThread(bool stop = true);
-#if defined(STD_THREAD)
-	SoyThreadId     getThreadId() const					{	return mThread.get_id();	}
-	void			sleep(int ms)						{	std::this_thread::sleep_for( std::chrono::milliseconds(ms) );	}
-#elif defined(TARGET_WINDOWS)
-	SoyThreadId     getThreadId() const					{	return mThreadId;	}
-	void			sleep(int ms)						{	Sleep(ms);	}
+	std::thread::id		GetThreadId() const					{	return mThread.get_id();	}
+	std::string		GetThreadName() const				{	return mThreadName;	}
+	static void		Sleep(int ms=0)
+	{
+		//	slow down cpu usage on OSX until I find out how to do this properly
+#if defined(TARGET_OSX)
+		ms += 10;
 #endif
+		std::this_thread::sleep_for( std::chrono::milliseconds(ms) );
+	}
 
-#if defined(TARGET_WINDOWS) && defined(STD_THREAD)
-	DWORD			GetNativeThreadId()					{	return ::GetThreadId( static_cast<HANDLE>( mThread.native_handle() ) );	}
+#if defined(TARGET_WINDOWS) 
+	DWORD			GetNativeThreadId()					{	return ::GetThreadId( GetThreadHandle() );	}
+	HANDLE			GetThreadHandle()					{	return static_cast<HANDLE>( mThread.native_handle() );	}
+#elif defined(TARGET_OSX)
+//    typedef pthread_t native_handle_type;
+	std::thread::native_handle_type		GetNativeThreadId()					{	return mThread.native_handle();	}
 #endif
 
 protected:
@@ -229,12 +164,7 @@ protected:
 private:
 	volatile bool	mIsRunning;
 
-#if defined(STD_THREAD)
     std::thread		mThread;
-#elif defined(TARGET_WINDOWS)
-	unsigned int	mThreadId;
-	HANDLE			mHandle;
-#endif
 };
 #endif // NO_OPENFRAMEWORKS
 
@@ -298,80 +228,324 @@ public:
 class SoyThread : public ofThread
 {
 public:
-	SoyThread(const char* threadName)
+	SoyThread(std::string threadName)	
 	{
-		if ( threadName )
-			setThreadName( threadName );
+		if ( !threadName.empty() )
+		{
+			mThreadName	= threadName;
+			SetThreadName( threadName );
+		}
 	}
 
-	static SoyThreadId	GetCurrentThreadId()
+	static std::thread::native_handle_type	GetCurrentThreadNativeHandle()
 	{
-#if defined(STD_THREAD)
-        return SoyThreadId( std::this_thread::get_id() );
-#elif defined(NO_OPENFRAMEWORKS)
-		return ::GetCurrentThreadId();
-#else
-		auto* pCurrentThread = getCurrentThread();
-        if ( !pCurrentThread )
-            return SoyThreadId();
-		return SoyThreadId(pCurrentThread->getPocoThread().tid());
+#if defined(TARGET_WINDOWS)
+		return ::GetCurrentThread();
+#elif defined(TARGET_OSX)
+		return ::pthread_self();
 #endif
 	}
+	static std::thread::id	GetCurrentThreadId()
+	{
+        return std::this_thread::get_id();
+	}
 
-	void	startThread(bool blocking, bool verbose)
+	void	startThread(bool blocking=true, bool verbose=true)
 	{
 		ofThread::startThread( blocking, verbose );
 #if defined(NO_OPENFRAMEWORKS)
-		setThreadName( mThreadName );
+		SetThreadName( mThreadName );
 #else
-		setThreadName( getPocoThread().getName() );
+		SetThreadName( getPocoThread().getName() );
 #endif
 	}
 
+	void		SetThreadName(std::string Name)	{	SetThreadName(Name, GetCurrentThreadNativeHandle()); }
+	static void	SetThreadName(std::string Name,std::thread::native_handle_type ThreadHandle);
+};
 
-	void	setThreadName(const std::string& name)
+
+//	gr: maybe change this to a policy?
+namespace SoyWorkerWaitMode
+{
+	enum Type
 	{
-#if defined(NO_OPENFRAMEWORKS)
-		//auto ThreadId = getThreadId();
-		mThreadName = name;
-		int ThreadId = GetNativeThreadId();
-#else
-		auto ThreadId = getPocoThread().tid();
-		getPocoThread().setName( name );
-#endif
-		
-		//	set the OS thread name
-		//	http://msdn.microsoft.com/en-gb/library/xcb2z8hs.aspx
-	#if defined(TARGET_WINDOWS)
-		const DWORD MS_VC_EXCEPTION=0x406D1388;
-		#pragma pack(push,8)
-		typedef struct tagTHREADNAME_INFO
-		{
-			DWORD dwType; // Must be 0x1000.
-			LPCSTR szName; // Pointer to name (in user addr space).
-			DWORD dwThreadID; // Thread ID (-1=caller thread).
-			DWORD dwFlags; // Reserved for future use, must be zero.
-		} THREADNAME_INFO;
-		#pragma pack(pop)
+		NoWait,	//	no waiting, assume Iteration() blocks
+		Wake,	//	manually woken
+		Sleep,	//	don't wait for a wake, but do a sleep
+	};
+}
 
-		THREADNAME_INFO info;
-		info.dwType = 0x1000;
-		info.szName = name.c_str();
-		info.dwThreadID = ThreadId;
-		info.dwFlags = 0;
+class SoyWorker
+{
+public:
+	SoyWorker(SoyWorkerWaitMode::Type WaitMode) :
+		mWaitMode	( WaitMode )
+	{
+	}
+	virtual ~SoyWorker()	{}
+	
+	virtual std::string	WorkerName() const	{	return "SoyWorker";	}
+	virtual void		Start();
+	virtual void		Stop();
+	bool				IsWorking() const	{	return mWorking;	}
+	
+	virtual bool		Iteration()=0;	//	return false to stop thread
 
-		//	this will fail if the OS thread hasn't started yet
-		if ( info.dwThreadID != 0 )
+	virtual void		Wake();
+	template<typename TYPE>
+	void				WakeOnEvent(SoyEvent<TYPE>& Event)
+	{
+		auto HandlerFunc = [this](TYPE& Param)
 		{
-			__try
+			this->Wake();
+		};
+		Event.AddListener( HandlerFunc );
+	}
+	void				SetWakeMode(SoyWorkerWaitMode::Type WakeMode)	{	mWaitMode = WakeMode;	Wake();	}
+	SoyWorkerWaitMode::Type	GetWakeMode() const	{	return mWaitMode;	}
+
+protected:
+	virtual bool		CanSleep()							{	return true;	}	//	break out of conditional with this
+	virtual std::chrono::milliseconds	GetSleepDuration()	{	return std::chrono::milliseconds(1000/60);	}
+
+private:
+	void				Loop();
+	
+public:
+	SoyEvent<bool>		mOnPreIteration;
+	SoyEvent<bool>		mOnStart;
+	SoyEvent<bool>		mOnFinish;
+	
+private:
+	std::condition_variable	mWaitConditional;
+	std::mutex				mWaitMutex;
+	bool					mWorking;
+	SoyWorkerWaitMode::Type	mWaitMode;
+};
+
+class SoyWorkerDummy : public SoyWorker
+{
+public:
+	SoyWorkerDummy() :
+		SoyWorker	( SoyWorkerWaitMode::Wake )
+	{
+	}
+	virtual bool		Iteration()	{	return true;	};
+};
+
+class SoyWorkerThread : public SoyWorker
+{
+public:
+	SoyWorkerThread(std::string ThreadName,SoyWorkerWaitMode::Type WaitMode) :
+		SoyWorker	( WaitMode ),
+		mThreadName	( ThreadName )
+	{
+		SoyWorker::mOnStart.AddListener( *this, &SoyWorkerThread::OnStart );
+	}
+	
+	virtual void		Start() override;
+	void				WaitToFinish();
+	std::thread::id		GetThreadId() const		{	return mThread.get_id();	}
+	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return mThread.native_handle();	}
+	bool				IsCurrentThread() const	{	return GetThreadId() == std::this_thread::get_id();	}
+
+protected:
+	bool				HasThread() const		{	return mThread.get_id() != std::thread::id();	}
+	void				OnStart(bool&)			{	SoyThread::SetThreadName( mThreadName, GetThreadNativeHandle() );	}
+	
+private:
+	std::string			mThreadName;
+	std::thread			mThread;
+};
+
+
+/*
+class SoyFunctionId
+{
+private:
+	static uint64			gIdCounter;
+	static ofMutex			gIdCounterLock;
+
+public:
+	static SoyFunctionId	Alloc()
+	{
+		ofMutex::ScopedLock Lock( gIdCounterLock );
+		return SoyFunctionId( ++gIdCounter );
+	}
+
+public:
+	SoyFunctionId(uint64 Id=0) :
+		mId	( Id )
+	{
+	}
+
+	operator	bool() const		{	return IsValid();	}
+	bool		IsValid() const		{	return mId!=0;	}
+	bool		operator==(const SoyFunctionId& Id) const	{	return mId == Id.mId;	}
+	bool		operator!=(const SoyFunctionId& Id) const	{	return mId != Id.mId;	}
+
+private:
+	int			mId;
+};
+
+class SoyFunctionThread : public SoyThread
+{
+public:
+	typedef std::function<void(void)> FUNCTION;
+
+public:
+	SoyFunctionThread(std::string Name) :
+		SoyThread	( Name )
+	{
+		startThread(true,true);
+	}
+
+	SoyFunctionId		QueueFunction(FUNCTION Function)
+	{
+		if ( !mLock.tryLock() )
+			return SoyFunctionId();
+		mFunction = Function;
+		SoyFunctionId FunctionId = SoyFunctionId::Alloc();
+		mFunctionId = FunctionId;
+		mLock.unlock();
+		return FunctionId;
+	}
+
+	inline bool			operator==(SoyFunctionId FuncctionId) const
+	{
+		return (mFunctionId == FuncctionId);
+	}
+
+	virtual void	threadedFunction() override
+	{
+		while ( isThreadRunning() )
+		{
+			sleep(0);
+
+			//	grab function and execute it
+			if ( !mLock.tryLock() )
+				continue;
+			
+			if ( mFunction )
 			{
-				RaiseException( MS_VC_EXCEPTION, 0, sizeof(info)/sizeof(ULONG_PTR), (ULONG_PTR*)&info );
+				mFunction();
+				mFunction = nullptr;
+				mFunctionId = SoyFunctionId();
 			}
-			__except(EXCEPTION_EXECUTE_HANDLER)
+			mLock.unlock();
+		}
+	}
+
+private:
+	ofMutex			mLock;
+	FUNCTION		mFunction;
+	SoyFunctionId	mFunctionId;
+};
+
+class SoyScheduler
+{
+public:
+	typedef std::function<void(void)> FUNCTION;
+
+public:
+	SoyScheduler(int ThreadCount)
+	{
+		for ( int i=0;	i<ThreadCount;	i++ )
+		{
+			std::stringstream ThreadName;
+			ThreadName << "SoyFunctionThread[" << i << "]";
+			mThreadPool.push_back().reset( new SoyFunctionThread(ThreadName.str()) );
+		}
+	}
+	~SoyScheduler()
+	{
+		//	stop them all
+		for ( auto it=mThreadPool.begin();	it!=mThreadPool.end();	it++ )
+			(*it)->stopThread();
+
+		//	now wait 
+		for ( auto it=mThreadPool.begin();	it!=mThreadPool.end(); )
+			(*it)->waitForThread();
+
+		//	delete
+		mThreadPool.clear();
+	}
+
+	SoyFunctionId		Run(FUNCTION Function)
+	{
+		//	keep looping through pool until there's a free one
+		int i=0;
+		while ( true )
+		{
+			auto& Thread = *mThreadPool[i];
+			auto Id = Thread.QueueFunction( Function );
+			if ( Id )
+				return Id;
+
+			i = (i+1) % mThreadPool.size();
+		}
+		assert(false);
+		return SoyFunctionId();
+	}
+
+	void				Wait(SoyFunctionId FunctionId)
+	{
+		//	find thread with id, then wait for it
+		for ( auto it=mThreadPool.begin();	it!=mThreadPool.end(); )
+		{
+			auto& Thread = *it;
+			//	if this thread IS running this function id, wait for it
+			while ( Thread == FunctionId )
 			{
+				//SwitchToThread();
+				sleep(0);
 			}
 		}
-	#endif
 	}
+
+protected:
+	std::vector<std::shared_ptr<SoyFunctionThread>>	mThreadPool;
 };
+*/
+
+
+
+
+template<class TYPE>
+class TLockQueue
+{
+public:
+	bool			IsEmpty() const			{	return mJobs.IsEmpty();	}
+	TYPE			Pop();
+	bool			Push(const TYPE& Job);
+	
+public:
+	Array<TYPE>			mJobs;
+	ofMutex				mJobLock;
+	SoyEvent<size_t>	mOnQueueAdded;
+};
+
+template<class TYPE>
+inline TYPE TLockQueue<TYPE>::Pop()
+{
+	ofMutex::ScopedLock Lock( mJobLock );
+	if ( mJobs.IsEmpty() )
+		return TYPE();
+	return mJobs.PopAt(0);
+}
+
+template<class TYPE>
+inline bool TLockQueue<TYPE>::Push(const TYPE& Job)
+{
+	//assert( Job.IsValid() );
+	size_t JobCount;
+	{
+		ofMutex::ScopedLock Lock( mJobLock );
+		mJobs.PushBack( Job );
+		JobCount = mJobs.GetSize();
+	}
+	mOnQueueAdded.OnTriggered(JobCount);
+	return true;
+}
 

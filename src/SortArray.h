@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Array.hpp"
+#include "SoyArray.h"
+
 
 
 //	ascending (default, todo; rename!)
@@ -9,7 +11,7 @@ class TSortPolicy
 {
 public:
 	template<typename TYPEB>
-	static int		Compare(const TYPEA& a,const TYPEB& b)
+	static int		Compare(const TYPEA& a,const TYPEB& b,const TSortPolicy& This)
 	{
 		if ( a < b ) return -1;
 		if ( a > b ) return 1;
@@ -23,7 +25,7 @@ class TSortPolicy_Descending
 {
 public:
 	template<typename TYPEB>
-	static int		Compare(const TYPEA& a,const TYPEB& b)
+	static int		Compare(const TYPEA& a,const TYPEB& b,const TSortPolicy_Descending& This)
 	{
 		if ( a > b ) return -1;
 		if ( a < b ) return 1;
@@ -37,44 +39,60 @@ public:
 
 */
 
-
 template<typename ARRAY,class TSORTPOLICY>
 class SortArray : public ArrayInterface<typename ARRAY::TYPE>
 {
 public:
-	typedef typename ARRAY::TYPE T;
-
+	typedef typename ARRAY::TYPE TYPE;
 public:
-	explicit SortArray(ARRAY& Array) :
-		mArray	( Array )
+	explicit SortArray(ARRAY& Array,const TSORTPOLICY& SortPolicy) :
+		mArray		( Array ),
+		mPolicy		( SortPolicy )
 	{
 	}
-	explicit SortArray(const ARRAY& Array) :
-		mArray	( const_cast<ARRAY&>(Array) )
+	explicit SortArray(const ARRAY& Array,const TSORTPOLICY& SortPolicy) :
+		mArray		( const_cast<ARRAY&>(Array) ),
+		mPolicy		( SortPolicy )
 	{
 	}
 
-	virtual T&			operator [] (int index)			{	return mArray[index];	}
-	virtual const T&	operator [] (int index) const	{	return mArray[index];	}
-	virtual T&			GetBack()						{	return mArray.GetBack();	}
-	virtual const T&	GetBack(int index) const		{	return mArray.GetBack();	}
-	virtual bool		IsEmpty() const					{	return mArray.IsEmpty();	}
-	virtual int			GetSize() const					{	return mArray.GetSize();	}
-	virtual int			GetDataSize() const				{	return mArray.GetDataSize();	}
-	virtual int			GetElementSize() const			{	return mArray.GetElementSize();	}
-	virtual const T*	GetArray() const				{	return mArray.GetArray();	}
-	virtual T*			GetArray()						{	return mArray.GetArray();	}
-	virtual void		Reserve(int size,bool clear=false)	{	return mArray.Reserve(size,clear);	}
-	virtual void		RemoveBlock(int index, int count)	{	return mArray.RemoveBlock(index,count);	}
-	virtual void		Clear(bool Dealloc)				{	return mArray.Clear(Dealloc);	}
-	virtual int			MaxSize() const					{	return mArray.MaxSize();	}
+	virtual TYPE&		operator[](size_t index) override		{	return mArray[index];	}
+	virtual const TYPE&	operator[](size_t index) const override	{	return mArray[index];	}
+	virtual TYPE&		GetBack() override						{	return mArray.GetBack();	}
+	virtual const TYPE&	GetBack() const override				{	return mArray.GetBack();	}
+	virtual size_t		GetSize() const override				{	return mArray.GetSize();	}
+	virtual const TYPE*	GetArray() const override				{	return mArray.GetArray();	}
+	virtual TYPE*		GetArray() override						{	return mArray.GetArray();	}
+	virtual void		Reserve(size_t size,bool clear=false) override	{	return mArray.Reserve(size,clear);	}
+	virtual void		RemoveBlock(size_t index,size_t count) override	{	return mArray.RemoveBlock(index,count);	}
+	virtual void		Clear(bool Dealloc) override			{	return mArray.Clear(Dealloc);	}
+	virtual size_t		MaxSize() const override				{	return mArray.MaxSize();	}
 	
-	inline T			PopBack() const					{	return mArray.PopBack();	}
+	inline TYPE			PopBack() const							{	return mArray.PopBack();	}
+	
+	virtual TYPE*		PushBlock(size_t count) override
+	{
+		//	can't push blocks in sort arrays!
+		Soy::Assert(false, "Cannot allocate in sort array");
+		return nullptr;
+	}
+	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true) override
+	{
+		//	can't push blocks in sort arrays!
+		Soy::Assert(false, "Cannot allocate in sort array");
+		return nullptr;
+	}
+	virtual TYPE*			InsertBlock(size_t index,size_t Count) override
+	{
+		//	can't push blocks in sort arrays!
+		Soy::Assert(false, "Cannot push blocks in sort array");
+		return nullptr;
+	}
 
 	template<typename MATCHTYPE>
 	bool				Remove(const MATCHTYPE& Match)
 	{
-		int Index = FindIndex( Match );
+		auto Index = FindIndex( Match );
 		if ( Index < 0 )
 			return false;
 		RemoveBlock( Index, 1 );
@@ -85,11 +103,11 @@ public:
 	bool				IsDescending() const			{	return !IsAscending();	}
 	bool				IsSorted() const	
 	{
-		for ( int i=1;	i<GetSize();	i++ )
+		for ( size_t i=1;	i<GetSize();	i++ )
 		{
 			auto& a = mArray[i-1];
 			auto& b = mArray[i];
-			int Compare = TSORTPOLICY::Compare( a, b );
+			int Compare = TSORTPOLICY::Compare( a, b, mPolicy );
 			//	expecting -1 or 0
 			if ( Compare > 0 )
 				return false;
@@ -101,7 +119,7 @@ public:
 	{
 		//	bubble sort for quick implementation
 		bool Changed = false;
-		int i = 0;
+		size_t i = 0;
 		while ( i < GetSize() )
 		{
 			//	i is at the top, move on
@@ -113,7 +131,7 @@ public:
 
 			auto& a = mArray[i-1];
 			auto& b = mArray[i];
-			int Compare = TSORTPOLICY::Compare( a, b );
+			int Compare = TSORTPOLICY::Compare( a, b, mPolicy );
 
 			//	i is in place
 			if ( Compare == 0 || Compare == -1 )
@@ -129,46 +147,46 @@ public:
 			i--;	//	i is now at i-1
 			Changed = true;
 		}
-		assert( IsSorted() );
+		Soy::Assert( IsSorted(), "Array is unsorted after sort()" );
 		return Changed;
 	}
 
 	template<typename MATCHTYPE>
-	T*					Find(const MATCHTYPE& item) const
+	TYPE*				Find(const MATCHTYPE& item) const
 	{
-		int Index = FindIndex( item );
+		auto Index = FindIndex( item );
 		if ( Index < 0 )
-			return NULL;
+			return nullptr;
 		return &mArray[Index];
 	}
 
 	template<typename MATCHTYPE>
-	int					FindIndex(const MATCHTYPE& item) const
+	ssize_t				FindIndex(const MATCHTYPE& item) const
 	{
-		int InsertIndex = FindInsertIndex( item );
+		auto InsertIndex = FindInsertIndex( item );
 		if ( InsertIndex >= GetSize() )
 			return -1;
 
 		//	found an index, if it's a different value, then it doesn't exist
-		if ( TSORTPOLICY::Compare( mArray[InsertIndex], item ) != 0 )
+		if ( TSORTPOLICY::Compare( mArray[InsertIndex], item, mPolicy ) != 0 )
 			return -1;
 		return InsertIndex;
 	}
 
 	template<typename MATCHTYPE>
-	int					FindInsertIndex(const MATCHTYPE& item) const
+	ssize_t				FindInsertIndex(const MATCHTYPE& item) const
 	{
 		if ( !GetSize() ) 
 			return 0;
 		
-		int p1 = 0;
-		int p2 = GetSize() - 1;
-		int a = -1;
+		ssize_t p1 = 0;
+		ssize_t p2 = GetSize() - 1;
+		ssize_t a = -1;
 		
 		while ( ( p2 - p1 ) > 1 )
 		{
-			int a = ( p1 + p2 ) / 2;
-			int r = TSORTPOLICY::Compare( mArray[a], item );
+			auto a = ( p1 + p2 ) / 2;
+			int r = TSORTPOLICY::Compare( mArray[a], item, mPolicy );
 			if ( r > 0 )	//	item less than entry a
 			{
 				p2 = a;
@@ -183,41 +201,44 @@ public:
 				p1 = a;
 			}
 		}
-		a = TSORTPOLICY::Compare( mArray[p1], item );
-		if ( a >= 0 ) return p1;
+		a = TSORTPOLICY::Compare( mArray[p1], item, mPolicy );
+		if ( a >= 0 )
+			return p1;
 		
-		a = TSORTPOLICY::Compare( mArray[p2], item );
-		if ( a >= 0 ) return p2;
+		a = TSORTPOLICY::Compare( mArray[p2], item, mPolicy );
+		if ( a >= 0 )
+			return p2;
 		
 		return p2 + 1;
 	}
 	
-	T&	Push(const T& item)
+	TYPE&	Push(const TYPE& item)
 	{
-		int dbi = FindInsertIndex( item );
-		T* dbr = mArray.InsertBlock( dbi, 1 );
+		auto dbi = FindInsertIndex( item );
+		auto* dbr = mArray.InsertBlock( dbi, 1 );
 		*dbr = item;
 		return *dbr;
 	}
 
 	//	adds item if it's unique. If item already exists, the original is returned
-	T&	PushUnique(const T& item)
+	TYPE&	PushUnique(const TYPE& item)
 	{
-		int dbi = FindInsertIndex( item );
+		auto dbi = FindInsertIndex( item );
 		
 		//	already exists
 		if ( dbi < GetSize() )
-			if ( TSORTPOLICY::Compare( mArray[dbi], item ) == 0 )
+			if ( TSORTPOLICY::Compare( mArray[dbi], item, mPolicy ) == 0 )
 				return mArray[dbi];
 		
 		//	insert the unique item
-		T* dbr = mArray.InsertBlock( dbi, 1 );
+		auto* dbr = mArray.InsertBlock( dbi, 1 );
 		*dbr = item;
 		return *dbr;
 	}
 
 public:
-	ARRAY&		mArray;
+	TSORTPOLICY				mPolicy;
+	ArrayInterface<TYPE>&	mArray;
 };
 
 
@@ -225,27 +246,28 @@ public:
 template<typename ARRAY,class TSORTPOLICY>
 inline SortArray<ARRAY,TSORTPOLICY> GetSortArray(ARRAY& Array,const TSORTPOLICY& Policy)
 {
-	return SortArray<ARRAY,TSORTPOLICY>( Array );
+	return SortArray<ARRAY,TSORTPOLICY>( Array, Policy );
 }
 
 template<typename ARRAY,class TSORTPOLICY>
 inline const SortArray<ARRAY,TSORTPOLICY> GetSortArrayConst(const ARRAY& Array,const TSORTPOLICY& Policy)
 {
-	return SortArray<ARRAY,TSORTPOLICY>( Array );
+	return SortArray<ARRAY,TSORTPOLICY>( Array, Policy );
 }
 
 
 //	without policy
+//	gr: can't i just use defaults?
 template<typename ARRAY>
 inline SortArray<ARRAY,TSortPolicy<typename ARRAY::TYPE>> GetSortArray(ARRAY& Array)
 {
-	return SortArray<ARRAY,TSortPolicy<typename ARRAY::TYPE>>( Array );
+	return SortArray<ARRAY,TSortPolicy<typename ARRAY::TYPE>>( Array, TSortPolicy<typename ARRAY::TYPE>() );
 }
 
 template<typename ARRAY>
 inline const SortArray<ARRAY,TSortPolicy<typename ARRAY::TYPE>> GetSortArrayConst(const ARRAY& Array)
 {
-	return SortArray<ARRAY,TSortPolicy<typename ARRAY::TYPE>>( Array );
+	return SortArray<ARRAY,TSortPolicy<typename ARRAY::TYPE>>( Array, TSortPolicy<typename ARRAY::TYPE>() );
 }
 
 
