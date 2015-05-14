@@ -106,7 +106,7 @@ bool Soy::StringEndsWith(const std::string& Haystack, const std::string& Needle,
 	return false;
 }
 
-std::string	Soy::Join(const std::vector<std::string>& Strings,const std::string& Glue)
+std::string	Soy::StringJoin(const std::vector<std::string>& Strings,const std::string& Glue)
 {
 	//	gr: consider a lambda here?
 	std::stringstream Stream;

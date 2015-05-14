@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <SoyDebug.h>
 
 template<typename TYPE>
 class ArrayBridge;
@@ -18,7 +19,9 @@ namespace Soy
 	bool		StringEndsWith(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
 	bool		StringMatches(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
 	
-	std::string	Join(const std::vector<std::string>& Strings,const std::string& Glue);
+	std::string	StringJoin(const std::vector<std::string>& Strings,const std::string& Glue);
+	template<typename TYPE>
+	std::string	StringJoin(const ArrayBridge<TYPE>& Elements,const std::string& Glue);
 	void		StringSplitByString(ArrayBridge<std::string>& Parts,std::string String,std::string Delim,bool IncludeEmpty=true);
 	void		StringSplitByString(ArrayBridge<std::string>&& Parts,std::string String,std::string Delim,bool IncludeEmpty=true);
 	void		StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty=true);
@@ -85,3 +88,21 @@ inline TYPE Soy::StringToType(const std::string& String,const TYPE& Default)
 	return Value;
 }
 
+template<typename TYPE>
+inline std::string Soy::StringJoin(const ArrayBridge<TYPE>& Elements,const std::string& Glue)
+{
+	std::stringstream Stream;
+	for ( int i=0;	i<Elements.GetSize();	i++ )
+	{
+		auto& Element = Elements[i];
+		Stream << (Element);
+		
+		//	look out for bad pushes
+		if ( !Soy::Assert( !Stream.bad(), std::stringstream() << "string << with " << Soy::GetTypeName<TYPE>() << " error'd" ) )
+			break;
+
+		if ( i != Elements.GetSize()-1 )
+			Stream << Glue;
+	}
+	return Stream.str();
+}
