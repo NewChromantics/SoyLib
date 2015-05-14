@@ -29,6 +29,10 @@ public:
 		mRef	( Int64 )
 	{
 	}
+	explicit SoyRef(const std::string& Name) :
+		mRef	( FromString(Name.c_str()) )
+	{
+	}
 
 	bool			IsValid() const							{	return (*this) != SoyRef();	}
 	SoyRefString	ToString() const;
