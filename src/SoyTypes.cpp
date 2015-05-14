@@ -6,7 +6,7 @@
 #include "SoyString.h"
 #include "SoyDebug.h"
 #include <atomic>
-
+#include "string.hpp"
 
 #if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
@@ -162,6 +162,12 @@ std::string Soy::Platform::GetErrorString(int Error)
 	std::string result(lpMsgStr, lpMsgStr+bufLen);
 
 	LocalFree(lpMsgBuf);
+
+	//	gr: trim off line feeds
+	BufferArray<char, 2> LineFeeds;
+	LineFeeds.PushBack('\n');
+	LineFeeds.PushBack('\r');
+	Soy::StringTrimRight(result, GetArrayBridge(LineFeeds));
 	return result;
 #else
 	if ( Error == 0 )

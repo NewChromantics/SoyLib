@@ -1,9 +1,8 @@
 #pragma once
 
 
-#include "String.hpp"
 #include <iomanip>
-
+#include "SoyTypes.h"
 
 class SoyTime
 {
@@ -20,14 +19,13 @@ public:
 		mTime	( Time.GetTime() )
 	{
 	}
-	template <typename S,class ARRAYTYPE>
-	explicit SoyTime(const Soy::String2<S,ARRAYTYPE>& String) :
+	explicit SoyTime(const std::string& String) :
 		mTime	( 0 )
 	{
-		FromString( std::string( String ) );
+		FromString( String );
 	}
 
-	bool			FromString(std::string String);
+	bool			FromString(const std::string& String);
 	std::string		ToString() const;
 
 	uint64			GetTime() const							{	return mTime;	}

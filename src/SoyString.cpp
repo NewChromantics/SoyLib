@@ -4,7 +4,7 @@
 #include "array.hpp"
 #include "bufferarray.hpp"
 #include "heaparray.hpp"
-#include <SoyDebug.h>
+#include "SoyDebug.h"
 #include <regex>
 #include "RemoteArray.h"
 
@@ -177,18 +177,35 @@ std::string Soy::StreamToString(std::ostream& Stream)
 	return TempStream.str();
 }
 
-void Soy::StringTrimLeft(std::string& String,char TrimChar)
+bool Soy::StringTrimLeft(std::string& String,char TrimChar)
 {
+	bool Changed = false;
 	std::Debug << __func__ << " (" << String <<"," << TrimChar << ")" << std::endl;
 	while ( !String.empty() )
 	{
 		if ( String[0] != TrimChar )
 			break;
 		String.erase( String.begin() );
+		Changed = true;
 	}
 	std::Debug << __func__ << " ... " << String << std::endl;
+	return Changed;
 }
 
+bool Soy::StringTrimRight(std::string& String,const ArrayBridge<char>& TrimChars)
+{
+	bool Changed = false;
+	while ( !String.empty() )
+	{
+		auto tail = String.back();
+
+		if ( !TrimChars.Find(tail) )
+			break;
+
+		String.pop_back();
+	}
+	return Changed;
+}
 
 void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
 {

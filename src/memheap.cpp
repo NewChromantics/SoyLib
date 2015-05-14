@@ -323,7 +323,7 @@ Improvement summary
 
 #include "SoyThread.h"
 #include "SoyDebug.h"
-
+#include "SoyString.h"
 
 
 
@@ -416,7 +416,7 @@ bool prmem::HeapInfo::Debug_Validate(const void* Object) const
 }
 
 prmem::HeapDebug::HeapDebug(const Heap& OwnerHeap) :
-	mHeap	( true, true, BufferString<100>() << "DEBUG " << OwnerHeap.GetName() , 0, false ),
+	mHeap	( true, true, Soy::StreamToString(std::stringstream()<< "DEBUG " << OwnerHeap.GetName()).c_str() , 0, false ),
 	mItems	( mHeap )
 {
 	//	probably not needed this early...
@@ -544,15 +544,15 @@ prmem::Heap::~Heap()
 }
 
 
-BufferString<200> prmem::HeapDebugItem::ToString() const
+std::string prmem::HeapDebugItem::ToString() const
 {
-	BufferString<200> out;
+	std::stringstream out;
 
-	out.PrintText("0x%08x", mObject );
+	//out.PrintText("0x%08x", mObject );
 	out << " " << Soy::FormatSizeBytes( mTypeSize*mElements );
 	out << " (" << mTypename << " x" << mElements << ")";
 
-	return out;
+	return out.str();
 }
 
 //----------------------------------------------
@@ -614,9 +614,9 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 				SoyDebug::GetSymbolLocation( Location, AllocInfo.mCallStack[i] );
 				std::Debug << static_cast<const char*>(Location) << ": ";
 
-				BufferString<200> FunctionName;
+				std::string FunctionName;
 				SoyDebug::GetSymbolName( FunctionName, AllocInfo.mCallStack[i] );
-				std::Debug << FunctionName << "\n";
+				std::Debug << FunctionName << std::endl;
 			}
 		}
 		else
@@ -859,8 +859,8 @@ TEST(HeapAllocTest, StdHeapVectorUsage)
 
 namespace SoyDebug
 {
-	bool	Init(BufferString<100>& Error);
-#if defined(TARGET_WINDOWS)
+	bool	Init(std::stringstream& Error);
+#if defined(ENABLE_STACKTRACE)
 	bool	IsEndOfStackAddress(DWORD64 Address);
 	
 //#define ENABLE_STACKTRACE64
@@ -928,18 +928,19 @@ bool SoyDebug::GetSymbolLocation(ofCodeLocation& Location,const ofStackEntry& Ad
 	return false;
 }
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_STACKTRACE)
 bool SoyDebug::IsEndOfStackAddress(DWORD64 Address)
 {
 	//	not cached address yet, try and find it
 	if ( gMainAddress == 0 )
 	{
-		BufferString<200> SymbolName;
+		std::string SymbolName;
 		DWORD64 OffsetFromSymbol;
 		if ( !GetSymbolName( SymbolName, Address, &OffsetFromSymbol ) )
 			return false;
 
 		//	is it main?
+		Soy::StringBeginsWith
 		if ( !SymbolName.StartsWith("main+") && !SymbolName.StartsWith("WinMain+") )
 			return false;
 
@@ -953,8 +954,8 @@ bool SoyDebug::IsEndOfStackAddress(DWORD64 Address)
 #endif
 
 
-#if defined(TARGET_WINDOWS)
-bool SoyDebug::GetSymbolName(BufferString<200>& SymbolName,const ofStackEntry& Address,DWORD64* pSymbolOffset)
+#if defined(ENABLE_STACKTRACE)
+bool SoyDebug::GetSymbolName(std::string& SymbolName,const ofStackEntry& Address,DWORD64* pSymbolOffset)
 {
 	//	address wasn't resovled when walking stack earlier
 	if ( Address.mProcessAddress == 0 )
@@ -1003,7 +1004,7 @@ bool SoyDebug::GetSymbolName(BufferString<200>& SymbolName,const ofStackEntry& A
 #endif
 
 
-bool SoyDebug::Init(BufferString<100>& Error)
+bool SoyDebug::Init(std::stringstream& Error)
 {
 #if defined(TARGET_WINDOWS)
 #if defined(USE_EXTERNAL_DBGHELP)
@@ -1082,7 +1083,7 @@ bool SoyDebug::Init(BufferString<100>& Error)
 }
 
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_STACKTRACE)
 bool DumpX64CallStack(ArrayBridge<ofStackEntry>& Stack, const CONTEXT& SourceContext,BufferString<100>& Error,int StackSkip)
 {
 	if ( !SoyDebug::Init(Error) )

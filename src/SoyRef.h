@@ -1,12 +1,5 @@
 #pragma once
 
-#include "string.hpp"
-
-namespace Private
-{
-	static const size_t SoyRef_MaxStringLength = sizeof(uint64)/sizeof(char);
-}
-typedef BufferString<Private::SoyRef_MaxStringLength+1> SoyRefString;
 
 //--------------------------------------------
 //	a string<->int identifier. This is NOT packet (not like tootle's TRef)
@@ -14,7 +7,7 @@ typedef BufferString<Private::SoyRef_MaxStringLength+1> SoyRefString;
 class SoyRef
 {
 public:
-	static const size_t MaxStringLength = Private::SoyRef_MaxStringLength;
+	static const size_t MaxStringLength = sizeof(uint64) / sizeof(char);
 
 public:
 	SoyRef() :
@@ -30,12 +23,12 @@ public:
 	{
 	}
 	explicit SoyRef(const std::string& Name) :
-		mRef	( FromString(Name.c_str()) )
+		mRef	( FromString(Name) )
 	{
 	}
 
 	bool			IsValid() const							{	return (*this) != SoyRef();	}
-	SoyRefString	ToString() const;
+	std::string		ToString() const;
 	void			Increment();
 	void			Increment(int IncCount)					{	assert( IncCount >= 0 );	while ( IncCount-- > 0 )	Increment();	}
 	uint64			GetInt64() const						{	return mRef;	}
@@ -48,7 +41,7 @@ public:
 	inline bool		operator>(const SoyRef& That) const		{	return mRef > That.mRef;	}
 
 private:
-	static uint64	FromString(const SoyRefString& String);
+	static uint64	FromString(const std::string& String);
 
 public:
 	struct

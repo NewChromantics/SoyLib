@@ -3,7 +3,7 @@
 #include <sstream>
 
 
-bool SoyTime::FromString(std::string String)
+bool SoyTime::FromString(const std::string& String)
 {
 	std::regex Pattern("T?([0-9]+)$" );
 	std::smatch Match;

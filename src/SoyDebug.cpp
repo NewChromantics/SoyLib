@@ -1,7 +1,7 @@
 #include "SoyDebug.h"
 #include "SoyThread.h"
 #include "SoyString.h"
-
+#include <iostream>
 
 #if defined(TARGET_OSX)
 #include <unistd.h>
@@ -26,7 +26,7 @@ std::mutex			CoutLock;
 
 
 
-BufferString<20> Soy::FormatSizeBytes(uint64 bytes)
+std::string Soy::FormatSizeBytes(uint64 bytes)
 {
 	float size = static_cast<float>( bytes );
 	const char* sizesuffix = "bytes";
@@ -54,13 +54,13 @@ BufferString<20> Soy::FormatSizeBytes(uint64 bytes)
 	}
 	
 	//$size = round($size,2);
-	BufferString<20> out;
+	std::stringstream out;
 	if ( ShowInteger )
 		out << static_cast<int>( size );
 	else
 		out << size;
 	out << sizesuffix;
-	return out;
+	return out.str();
 }
 
 
