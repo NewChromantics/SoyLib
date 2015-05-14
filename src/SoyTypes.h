@@ -433,6 +433,7 @@ namespace Soy
 	bool		FileToString(std::string Filename,std::string& String);
 	bool		FileToString(std::string Filename,std::string& String,std::stringstream& Error);
 	bool		FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::stringstream& Error);
+	inline bool	FileToStringLines(std::string Filename,ArrayBridge<std::string>&& StringLines,std::stringstream& Error)	{	return FileToStringLines( Filename, StringLines, Error );	}
 }
 
 
