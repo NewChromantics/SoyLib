@@ -3,40 +3,29 @@
 
 
 
-#if defined(NO_OPENFRAMEWORKS)
+
 ofThread::ofThread() :
 	mIsRunning		( false )
 {
 }
-#endif
 
 
-#if defined(NO_OPENFRAMEWORKS)
 ofThread::~ofThread()
 {
 	waitForThread();
 
 	destroy();
 }
-#endif
 
-
-#if defined(NO_OPENFRAMEWORKS)
 bool ofThread::create(unsigned int stackSize)
 {
     return true;
 }
-#endif
 
-
-#if defined(NO_OPENFRAMEWORKS)
 void ofThread::destroy()
 {
 }
-#endif
 
-
-#if defined(NO_OPENFRAMEWORKS)
 void ofThread::waitForThread(bool Stop)
 {
 	if ( isThreadRunning() )
@@ -51,19 +40,13 @@ void ofThread::waitForThread(bool Stop)
 
 	mThread = std::thread();
 }
-#endif
 
-
-#if defined(NO_OPENFRAMEWORKS)
 void ofThread::stopThread()
 {
 	//	thread's loop will stop on next loop
 	mIsRunning = false;
 }
-#endif
 
-
-#if defined(NO_OPENFRAMEWORKS)
 bool ofThread::startThread(bool blocking, bool verbose)
 {
 	if ( !create() )
@@ -80,10 +63,7 @@ bool ofThread::startThread(bool blocking, bool verbose)
     mThread = std::thread( threadFunc, this );
 	return true;
 }
-#endif
 
-
-#if defined(NO_OPENFRAMEWORKS)
 unsigned int ofThread::threadFunc(void *args)
 {
 	ofThread* pThread = reinterpret_cast<ofThread*>(args);
@@ -96,7 +76,7 @@ unsigned int ofThread::threadFunc(void *args)
 	}
 	return 0;
 }
-#endif
+
 
 #if defined(PLATFORM_OSX)
 #include <pthread.h>
@@ -122,10 +102,6 @@ void SoyThread::SetThreadName(std::string name,std::thread::native_handle_type T
 #endif
 	
 #if defined(TARGET_WINDOWS)
-#if !defined(NO_OPENFRAMEWORKS)
-	auto ThreadId = getPocoThread().tid();
-	getPocoThread().setName( name );
-#endif
 	
 	//	wrap the try() function in a lambda to avoid the unwinding
 	auto SetNameFunc = [](const char* ThreadName,HANDLE ThreadHandle)

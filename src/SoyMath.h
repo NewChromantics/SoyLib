@@ -139,17 +139,12 @@ public:
 		mHsl	( Hue, Sat, Lightness )
 	{
 	}
-#if !defined(NO_OPENFRAMEWORKS)
-	TColourHsl(const ofColour& Rgb=ofColour::black);
-#endif
 	
 	float		GetHue() const			{	return mHsl.x;	}
 	float		GetSaturation() const	{	return mHsl.y;	}
 	float		GetLightness() const	{	return mHsl.z;	}
 	vec3f		GetHsl() const			{	return mHsl;	}
-#if !defined(NO_OPENFRAMEWORKS)
-	ofColour	GetRgb() const;
-#endif
+
 public:
 	vec3f		mHsl;
 };

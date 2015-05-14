@@ -5,8 +5,6 @@
 #include <condition_variable>
 
 
-#if defined(NO_OPENFRAMEWORKS)
-
 //	c++11 threads are better!
 //	gr: if mscv > 2012?
 
@@ -70,7 +68,7 @@ private:
 	ScopedLockTimed(const ScopedLockTimed&);
 	ScopedLockTimed& operator = (const ScopedLockTimed&);
 };
-#endif
+
 
 #include <thread>
 #include <mutex>
@@ -81,7 +79,7 @@ private:
     #pragma comment(lib,"Shlwapi.lib")
 #endif
 
-#if defined(NO_OPENFRAMEWORKS)
+
 
 class ofMutex
 {
@@ -113,13 +111,6 @@ public:
 private:
     std::recursive_timed_mutex	mMutex;
 };
-
-#endif // NO_OPENFRAMEWORKS
-
-
-
-
-#if defined(NO_OPENFRAMEWORKS)
 
 
 class ofThread
@@ -166,8 +157,6 @@ private:
 
     std::thread		mThread;
 };
-#endif // NO_OPENFRAMEWORKS
-
 
 
 
@@ -253,11 +242,7 @@ public:
 	void	startThread(bool blocking=true, bool verbose=true)
 	{
 		ofThread::startThread( blocking, verbose );
-#if defined(NO_OPENFRAMEWORKS)
 		SetThreadName( mThreadName );
-#else
-		SetThreadName( getPocoThread().getName() );
-#endif
 	}
 
 	void		SetThreadName(std::string Name)	{	SetThreadName(Name, GetCurrentThreadNativeHandle()); }

@@ -152,120 +152,6 @@ std::ostream& operator<< (std::ostream &out,const SoyPixelsFormat::Type &in)
 	}
 }
 
-#if defined(OPENFRAMEWORKS)
-bool TPixels::Get(ofImage& Pixels) const		
-{
-	if ( !Get( Pixels.getPixelsRef() ) )
-		return false;
-	//	update image's params to match pixels
-	Pixels.update();
-	return true;
-}
-#endif
-
-#if defined(OPENFRAMEWORKS)
-bool TPixels::Get(ofPixels& Pixels) const
-{
-	if ( !IsValid() )
-	{
-		Pixels.clear();
-		return false;
-	}
-
-	Pixels.allocate( GetWidth(), GetHeight(), GetChannels() );	//	remove log notice
-	Pixels.setFromPixels( mPixels.GetArray(), GetWidth(), GetHeight(), GetChannels() );
-	return true;
-}
-#endif
-
-#if defined(OPENFRAMEWORKS)
-bool TPixels::Get(ofTexture& Pixels) const
-{
-	if ( !IsValid() )
-	{
-		Pixels.clear();
-		return false;
-	}
-
-	int glFormat;
-	if ( !GetMeta().GetOpenglFormat(glFormat) )
-	{
-		Pixels.clear();
-		return false;
-	}
-	
-	Pixels.allocate( GetWidth(), GetHeight(), glFormat );
-	Pixels.loadData( mPixels.GetArray(), GetWidth(), GetHeight(), glFormat );
-	return true;
-}
-#endif
-
-
-#if defined(OPENFRAMEWORKS)
-bool TPixels::Get(ofxCvImage& Pixels) const
-{
-	if ( !IsValid() )
-	{
-		Pixels.clear();
-		return false;
-	}
-
-	Pixels.allocate( GetWidth(), GetHeight() );
-
-	//	check channels
-	if ( Pixels.getPixelsRef().getNumChannels() != GetChannels() )
-	{
-		//	convert number of channels
-		ofPixels PixelsN;
-		if ( !Get( PixelsN ) )
-			return false;
-		PixelsN.setNumChannels( Pixels.getPixelsRef().getNumChannels() );
-		Pixels.setFromPixels( PixelsN );
-	}
-	else
-	{
-		Pixels.setFromPixels( mPixels.GetArray(), GetWidth(), GetHeight() );
-	}
-	return true;
-}
-#endif
-
-#if defined(OPENFRAMEWORKS)
-bool TPixels::Get(ofxCvGrayscaleImage& Pixels,SoyOpenClManager& OpenClManager) const
-{
-	if ( !IsValid() )
-	{
-		Pixels.clear();
-		return false;
-	}
-
-	if ( Pixels.getWidth() != GetWidth() && Pixels.getHeight() != GetHeight() )
-	{
-		Pixels.allocate( GetWidth(), GetHeight() );
-	}
-
-	//	check channels
-	if ( Pixels.getPixelsRef().getNumChannels() != GetChannels() )
-	{
-		//	use shader to convert
-		TPixels Bri;
-		ClShaderRgbToBri RgbToBriShader( OpenClManager );
-		if ( !RgbToBriShader.Run( *this, Bri ) )
-		{
-			//	if failed, use non-shader version
-			return Get( Pixels );
-		}
-
-		Pixels.setFromPixels( Bri.mPixels.GetArray(), GetWidth(), GetHeight() );
-	}
-	else
-	{
-		Pixels.setFromPixels( mPixels.GetArray(), GetWidth(), GetHeight() );
-	}
-	return true;
-}
-#endif
-
 
 #if defined(SOY_OPENCL)
 bool TPixels::Get(msa::OpenCLImage& Pixels,SoyOpenClKernel& Kernel,cl_int clMemMode) const
@@ -788,18 +674,7 @@ bool SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 
 	if ( !UseOfPixels )
 		return false;
-
-#if defined(OPENFRAMEWORKS)
-	int Channels = GetChannels();
-	ofScopeTimerWarning Timer("TPixels::SetChannels",1);
-	ofPixels PixelsX;
-	Get( PixelsX );
-	PixelsX.setNumChannels( Channels );
-	Set( PixelsX );
-	return true;
-#else
 	return false;
-#endif
 }
 
 #if defined(SOY_OPENCL)
@@ -921,27 +796,6 @@ bool TPixels::Set(const msa::OpenCLImage& PixelsConst,cl_command_queue Queue)
 }
 #endif
 
-#if defined(OPENFRAMEWORKS)
-bool TPixels::Set(const ofPixels& Pixels)
-{
-	int w = Pixels.getWidth();
-	int h = Pixels.getHeight();
-	int c = Pixels.getNumChannels();
-	auto* p = Pixels.getPixels();
-
-	auto Format = SoyPixelsFormat::GetFormatFromChannelCount( c );
-	if ( !Init( w, h, Format ) )
-		return false;
-
-	size_t Alloc = w * c * h;
-	auto SrcPixelsData = GetRemoteArray( p, Alloc );
-	mPixels.Copy( SrcPixelsData );
-	return true;
-}
-#endif
-
-
-
 bool SoyPixelsFormat::GetOpenglFormat(int& glFormat,SoyPixelsFormat::Type Format)
 {
 #if defined(SOY_OPENGL)
@@ -1005,52 +859,6 @@ bool SoyPixelsFormat::GetOpenclFormat(int& clFormat,SoyPixelsFormat::Type Format
 	return false;
 }
 #endif
-
-#if defined(OPENFRAMEWORKS)
-bool TPixels::Init(uint16 Width,uint16 Height,uint8 Channels,const ofColour& DefaultColour)
-{
-	auto Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
-	return Init( Width, Height, Format, DefaultColour );
-}
-#endif
-
-
-#if defined(OPENFRAMEWORKS)
-bool TPixels::Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format,const ofColour& DefaultColour)
-{
-	if ( !Init( Width, Height, Format ) )
-		return false;
-
-	int Channels = GetChannels();
-	//	init
-	BufferArray<uint8,255> Components;
-	if ( Channels >= 1 )	Components.PushBack( DefaultColour.r );
-	if ( Channels >= 2 )	Components.PushBack( DefaultColour.g );
-	if ( Channels >= 3 )	Components.PushBack( DefaultColour.b );
-	if ( Channels >= 4 )	Components.PushBack( DefaultColour.a );
-	for ( int c=5;	c<Channels;	c++ )
-		Components.PushBack( DefaultColour.r );
-
-	//	are all the components the same? use SetAll
-	bool AllSame = true;
-	for ( int c=1;	c<Components.GetSize();	c++ )
-		AllSame &= (Components[0] == Components[c]);
-	
-	if ( AllSame )
-	{
-		mPixels.SetAll( Components[0] );
-	}
-	else
-	{
-		for ( int pc=0;	pc<mPixels.GetSize();	pc++ )
-			mPixels[pc] = Components[pc%Components.GetSize()];
-	}
-
-	return true;	
-}
-#endif
-
-
 
 bool SoyPixelsImpl::Init(uint16 Width,uint16 Height,uint8 Channels)
 {

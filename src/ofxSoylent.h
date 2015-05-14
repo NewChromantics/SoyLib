@@ -4,13 +4,6 @@
 #error neither DEBUG or non-DDEBUG preprocessor specified on windows
 #endif
 
-
-#if !defined(NO_OPENFRAMEWORKS)
-#include <ofMain.h>
-#define OPENFRAMEWORKS
-#endif
-
-
 //	gr: this include list is NOT required, just easier to include.
 
 #include "SoyTypes.h"
@@ -31,11 +24,5 @@
 #include "SoyThread.h"
 #include "SoyEvent.h"
 
-
-#if OF_VERSION_MINOR > 7
-	#define SOY_FONT_FILENAME	"NewMedia Fett.ttf"
-#else
-	#define SOY_FONT_FILENAME	"data/NewMedia Fett.ttf"
-#endif
 
 

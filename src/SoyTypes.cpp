@@ -15,7 +15,6 @@
 
 
 
-#if defined(NO_OPENFRAMEWORKS)
 std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeToData)
 {
 #if defined(UNICODE)
@@ -46,7 +45,7 @@ std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeTo
 	return std::string( Buffer.GetArray().GetArray() );
 #endif
 }
-#endif
+
 
 
 

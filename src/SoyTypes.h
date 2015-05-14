@@ -12,41 +12,19 @@ class ArrayInterface;
 
 
 
-#if !defined(NO_OPENFRAMEWORKS)
-
-#include <ofMain.h>
-#include <assert.h>
-#include <type_traits>
-
-typedef ofColor ofColour;
-inline bool operator==(const ofColor& a,const ofColor& b)
-{
-	return (a.r==b.r) && (a.g==b.g) && (a.b==b.b) && (a.a==b.a);
-}
-
-#else
-
-
-
-
-
 #if defined(TARGET_WINDOWS)
 
 //	see ofConstants
 #define WIN32_LEAN_AND_MEAN
 
-#if (_MSC_VER)
 #define NOMINMAX		
 //http://stackoverflow.com/questions/1904635/warning-c4003-and-errors-c2589-and-c2059-on-x-stdnumeric-limitsintmax
-#endif
 
 #include <windows.h>
 #include <process.h>
 #include <vector>
 #include <mmsystem.h>
-#ifdef _MSC_VER
-	#include <direct.h>
-#endif
+#include <direct.h>
 #pragma comment(lib,"winmm.lib")
 
 
@@ -133,8 +111,6 @@ namespace std
 
 
 
-
-//	openframeworks functions
 inline unsigned long long	ofGetSystemTime()
 {
 #if defined(TARGET_WINDOWS)
@@ -205,9 +181,6 @@ template<typename T>
 using ofPtr = std::shared_ptr<T>;
 
 inline std::string ofToDataPath(const std::string& LocalPath,bool FullPath=false)	{	return LocalPath;	}
-
-
-#endif
 
 
 
