@@ -27,8 +27,10 @@ namespace Soy
 	void		StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty=true);
 	void		StringSplitByMatches(ArrayBridge<std::string>&& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty=true);
 
-	void		StringTrimLeft(std::string& String,char TrimChar);
-	
+	bool		StringTrimLeft(std::string& String, char TrimChar);
+	bool		StringTrimRight(std::string& String, const ArrayBridge<char>& TrimAnyChars);
+	inline bool	StringTrimRight(std::string& String, const ArrayBridge<char>&& TrimAnyChars) {	return StringTrimRight(String, TrimAnyChars);	}
+
 	std::string	ArrayToString(const ArrayBridge<char>& Array);
 	void		ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String);
 	
