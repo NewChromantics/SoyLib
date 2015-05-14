@@ -1,7 +1,6 @@
 #pragma once
 
 #include "SoyTypes.h"
-#include "string.hpp"
 #include "SoyTime.h"
 #include <map>
 #include <thread>
@@ -87,7 +86,7 @@ namespace std
 //	gr: move this to... string?
 namespace Soy
 {
-	BufferString<20>	FormatSizeBytes(uint64 bytes);
+	std::string	FormatSizeBytes(uint64 bytes);
 	
 }
 
@@ -158,7 +157,7 @@ public:
 
 	SoyTime				mStartTime;
 	uint64				mWarningTimeMs;
-	BufferString<200>	mName;
+	std::string			mName;
 	bool				mStopped;
 	bool				mReportedOnLastStop;
 	uint64				mAccumulatedTime;

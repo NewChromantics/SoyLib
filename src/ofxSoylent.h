@@ -1,8 +1,5 @@
 #pragma once
 
-#if defined(WIN32) && !defined(_DEBUG) && !defined(NDEBUG)
-#error neither DEBUG or non-DDEBUG preprocessor specified on windows
-#endif
 
 //	gr: this include list is NOT required, just easier to include.
 
@@ -12,7 +9,6 @@
 #include "Array.hpp"
 #include "HeapArray.hpp"
 #include "BufferArray.hpp"
-#include "String.hpp"
 
 #include "SoyEnum.h"
 #include "SoyTime.h"

@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
-#include <SoyDebug.h>
+#include "SoyDebug.h"
 
 template<typename TYPE>
 class ArrayBridge;

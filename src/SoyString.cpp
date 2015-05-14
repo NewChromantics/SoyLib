@@ -4,7 +4,7 @@
 #include "array.hpp"
 #include "bufferarray.hpp"
 #include "heaparray.hpp"
-#include <SoyDebug.h>
+#include "SoyDebug.h"
 #include <regex>
 #include "RemoteArray.h"
 

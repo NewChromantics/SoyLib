@@ -4,7 +4,6 @@
 #include "SoyTypes.h"
 #include "array.hpp"
 #include "bufferarray.hpp"
-#include "string.hpp"
 #include <map>
 #include <queue>
 #include <limits>
@@ -15,7 +14,7 @@
 #endif
 
 #if defined(TARGET_WINDOWS)
-#define ENABLE_STACKTRACE
+//#define ENABLE_STACKTRACE
 #endif
 #define ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION	false	//	catch corruption in constructors
 #define ENABLE_DEBUG_VERIFY_AFTER_DESTRUCTION	false	//	catch corruption in an objects lifetime (kinda)
@@ -29,19 +28,21 @@
 class ofCodeLocation
 {
 public:
-	ofCodeLocation()
+	ofCodeLocation() :
+		mLocation	( "unknown(??)")
 	{
-		mLocation << "Unknown(??)";
 	}
 	ofCodeLocation(const char* Filename,int LineNo)
 	{
-		mLocation << Filename << "(" << LineNo << ")";
+		std::stringstream str;
+		str << Filename << "(" << LineNo << ")";
+		mLocation = str.str();
 	}
-
-	operator const char*() const	{	return mLocation;	}
+	
+	operator const char*() const	{	return mLocation.c_str();	}
 
 public:
-	BufferString<256>	mLocation;
+	std::string	mLocation;
 };
 DECLARE_NONCOMPLEX_TYPE( ofCodeLocation );
 
@@ -60,7 +61,7 @@ DECLARE_NONCOMPLEX_TYPE( ofStackEntry );
 namespace SoyDebug
 {
 	bool	GetCallStack(ArrayBridge<ofStackEntry>& Stack,int StackSkip);
-	bool	GetSymbolName(BufferString<200>& SymbolName,const ofStackEntry& Address,uint64* pSymbolOffset=NULL);
+	bool	GetSymbolName(std::string& SymbolName, const ofStackEntry& Address, uint64* pSymbolOffset = NULL);
 	bool	GetSymbolLocation(ofCodeLocation& Location,const ofStackEntry& Address);
 };
 
@@ -113,7 +114,7 @@ namespace prmem
 		HeapInfo(const char* Name);
 		virtual ~HeapInfo();
 
-		inline const char*		GetName() const					{	return mName;	}
+		inline const std::string&	GetName() const					{	return mName;	}
 #if defined(TARGET_WINDOWS)
 		virtual HANDLE			GetHandle() const=0;			//	get win32 heap handle
 #endif
@@ -155,7 +156,7 @@ namespace prmem
 		void					OnFailedAlloc(std::string TypeName,size_t TypeSize,size_t Elements) const;
 
 	protected:
-		BufferString<100>	mName;	//	name for easy debugging purposes
+		std::string			mName;	//	name for easy debugging purposes
 		size_t				mAllocBytes;	//	number of bytes currently allocated (note; actual mem usage may be greater due to block size & fragmentation)
 		size_t				mAllocCount;	//	number of individual allocations (ie, #blocks in heap)
 		size_t				mAllocBytesPeak;
@@ -171,7 +172,7 @@ namespace prmem
 	public:
 		static const int	CallStackSize = 5;
 	public:
-		BufferString<200>	ToString() const;
+		std::string			ToString() const;
 
 		inline bool			operator==(const void* Object) const	{	return mObject == Object;	}
 
@@ -179,7 +180,7 @@ namespace prmem
 		const void*						mObject;		//	allocated data
 		size_t							mElements;		//	number of elements
 		size_t							mTypeSize;		//	sizeof(T)
-		BufferString<100>				mTypename;		//	gr: this SHOULD be safe, all strings from GetTypeName are either compile-time generated or static.
+		std::string						mTypename;		//	gr: this SHOULD be safe, all strings from GetTypeName are either compile-time generated or static.
 		uint64							mAllocTick;		//	time of allocation (ofGetElapsedTimeMillis())
 		BufferArray<uint64,CallStackSize>	mCallStack;		//	each is an address in the process' symbol data
 	};

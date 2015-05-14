@@ -95,7 +95,7 @@ uint64 FromAlphabetIndexes(const BufferArray<size_t,SoyRef::MaxStringLength>& In
 
 	
 
-uint64 SoyRef::FromString(const SoyRefString& String)
+uint64 SoyRef::FromString(const std::string& String)
 {
 	//	make up indexes
 	uint64Chars Ref64Chars;
@@ -105,7 +105,7 @@ uint64 SoyRef::FromString(const SoyRefString& String)
 
 	for ( int i=0;	i<SoyRef::MaxStringLength;	i++ )
 	{
-		char StringChar = i < String.GetLength() ? String[i] : Alphabet[0];
+		char StringChar = i < String.length() ? String[i] : Alphabet[0];
 		CorrectAlphabetChar( StringChar );
 		Ref64Chars.mChars[i] = StringChar;
 	}
@@ -113,19 +113,19 @@ uint64 SoyRef::FromString(const SoyRefString& String)
 }
 
 
-SoyRefString SoyRef::ToString() const
+std::string SoyRef::ToString() const
 {
 	//	turn integer into alphabet indexes
 	auto AlphabetIndexes = ToAlphabetIndexes( mRef );
 	auto& Alphabet = GetAlphabet();
 
 	//	concat alphabet chars
-	SoyRefString String;
+	std::string String;
 	for ( int i=0;	i<AlphabetIndexes.GetSize();	i++ )
 	{
 		auto Index = AlphabetIndexes[i];
 		char Char = Alphabet[Index];
-		String << Char;
+		String += Char;
 	}
 	return String;
 }

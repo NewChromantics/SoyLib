@@ -6,7 +6,7 @@
 #include "SoyString.h"
 #include "SoyDebug.h"
 #include <atomic>
-
+#include "string.hpp"
 
 #if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
