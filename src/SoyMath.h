@@ -30,6 +30,9 @@ public:
 	vec2x&	operator*=(const TYPE& Scalar)	{	x*=Scalar;		y*=Scalar;	return *this;	}
 	vec2x&	operator*=(const vec2x& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;	return *this;	}
 	
+	bool	operator==(const vec2x& That) const	{	return x==That.x && y==That.y;	}
+	bool	operator!=(const vec2x& That) const	{	return x!=That.x || y!=That.y;	}
+	
 	vec2x	xy() const	{	return vec2x(x,y);	}
 	vec2x	yx() const	{	return vec2x(y,x);	}
 	vec2x	xx() const	{	return vec2x(x,x);	}
