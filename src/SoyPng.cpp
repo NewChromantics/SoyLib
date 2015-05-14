@@ -301,9 +301,9 @@ bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 
 		//	use miniz to compress with deflate
 		auto CompressionLevel = MZ_NO_COMPRESSION;
-		BufferString<100> Debug_TimerName;
+		std::stringstream Debug_TimerName;
 		Debug_TimerName << "Deflate compression; " << Soy::FormatSizeBytes(FilteredPixels.GetDataSize()) << ". Compression level: " << CompressionLevel;
-		ofScopeTimerWarning DeflateCompressTimer( Debug_TimerName, 3 );
+		ofScopeTimerWarning DeflateCompressTimer( Debug_TimerName.str().c_str(), 3 );
 	
 		int DefAllocated = static_cast<int>( 1.2f * FilteredPixels.GetDataSize() );
 		uLong DefUsed = DefAllocated;
