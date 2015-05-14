@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\array.hpp" />
+    <ClInclude Include="..\src\bufferarray.hpp" />
+    <ClInclude Include="..\src\heaparray.hpp" />
+    <ClInclude Include="..\src\memheap.hpp" />
+    <ClInclude Include="..\src\RemoteArray.h" />
+    <ClInclude Include="..\src\SortArray.h" />
+    <ClInclude Include="..\src\SoyDebug.h" />
+    <ClInclude Include="..\src\SoyEvent.h" />
+    <ClInclude Include="..\src\SoyRef.h" />
+    <ClInclude Include="..\src\SoyRingArray.h" />
+    <ClInclude Include="..\src\SoyString.h" />
+    <ClInclude Include="..\src\SoyThread.h" />
+    <ClInclude Include="..\src\SoyTime.h" />
+    <ClInclude Include="..\src\SoyTypes.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\memheap.cpp" />
+    <ClCompile Include="..\src\SoyDebug.cpp" />
+    <ClCompile Include="..\src\SoyEvent.cpp" />
+    <ClCompile Include="..\src\SoyRef.cpp" />
+    <ClCompile Include="..\src\SoyRingArray.cpp" />
+    <ClCompile Include="..\src\SoyString.cpp" />
+    <ClCompile Include="..\src\SoyThread.cpp" />
+    <ClCompile Include="..\src\SoyTime.cpp" />
+    <ClCompile Include="..\src\SoyTypes.cpp" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{D18B3ABF-23BD-42D8-BAB1-DA4921F1033D}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>SoyLib</RootNamespace>
+    <TargetPlatformVersion>8.1</TargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <PlatformToolset>v140</PlatformToolset>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="..\..\PopTrack\PopLib.props" />
+    <Import Project="..\..\PopTrack\PopConfig.props" />
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
