@@ -6,33 +6,6 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\src\array.hpp" />
-    <ClInclude Include="..\src\bufferarray.hpp" />
-    <ClInclude Include="..\src\heaparray.hpp" />
-    <ClInclude Include="..\src\memheap.hpp" />
-    <ClInclude Include="..\src\RemoteArray.h" />
-    <ClInclude Include="..\src\SortArray.h" />
-    <ClInclude Include="..\src\SoyDebug.h" />
-    <ClInclude Include="..\src\SoyEvent.h" />
-    <ClInclude Include="..\src\SoyRef.h" />
-    <ClInclude Include="..\src\SoyRingArray.h" />
-    <ClInclude Include="..\src\SoyString.h" />
-    <ClInclude Include="..\src\SoyThread.h" />
-    <ClInclude Include="..\src\SoyTime.h" />
-    <ClInclude Include="..\src\SoyTypes.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\src\memheap.cpp" />
-    <ClCompile Include="..\src\SoyDebug.cpp" />
-    <ClCompile Include="..\src\SoyEvent.cpp" />
-    <ClCompile Include="..\src\SoyRef.cpp" />
-    <ClCompile Include="..\src\SoyRingArray.cpp" />
-    <ClCompile Include="..\src\SoyString.cpp" />
-    <ClCompile Include="..\src\SoyThread.cpp" />
-    <ClCompile Include="..\src\SoyTime.cpp" />
-    <ClCompile Include="..\src\SoyTypes.cpp" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{D18B3ABF-23BD-42D8-BAB1-DA4921F1033D}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
