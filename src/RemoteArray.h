@@ -57,7 +57,6 @@ public:
 	}
 	
 	size_t		GetSize() const			{	return mDataSize;		}
-	size_t		MaxAllocSize() const	{	return GetSize();	}
 	size_t		MaxSize() const			{	return GetSize();	}
 	const T*	GetArray() const		{	return mData;	}
 	T*			GetArray()				{	return mData;	}

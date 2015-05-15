@@ -435,17 +435,7 @@ public:
 
 	size_t	MaxSize() const
 	{
-		return mmaxsize;
-	}
-
-	size_t	MaxAllocSize() const
-	{
 		return std::numeric_limits<size_t>::max();
-	}
-
-	size_t	MaxDataSize() const
-	{
-		return MaxSize() * sizeof(T);
 	}
 
 	//	simple iterator to find index of an element matching via == operator
@@ -595,6 +585,6 @@ public:
 private:
 	prmem::Heap*	mHeap;		//	where to alloc/free from
 	T*				mdata;
-	size_t			mmaxsize;
+	size_t			mmaxsize;	//	max allocation
 	size_t			moffset;
 };

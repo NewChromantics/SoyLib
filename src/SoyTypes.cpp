@@ -204,7 +204,7 @@ bool Soy::ReadStream(ArrayBridge<char>&& Data,std::istream& Stream,std::stringst
 	while ( !Stream.eof() )
 	{
 		//	read a chunk
-		Buffer.SetSize( Buffer.MaxAllocSize() );
+		Buffer.SetSize( Buffer.MaxSize() );
 		auto BufferBridge = GetArrayBridge( Buffer );
 		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
 		{
@@ -226,7 +226,7 @@ bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::stringstr
 	while ( !Stream.eof() )
 	{
 		//	read a chunk
-		Buffer.SetSize( Buffer.MaxAllocSize() );
+		Buffer.SetSize( Buffer.MaxSize() );
 		auto BufferBridge = GetArrayBridge( Buffer );
 		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
 		{
