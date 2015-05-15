@@ -59,7 +59,7 @@ public:
 	uint8			GetBitDepth() const				{	return 8;	}
 	uint8			GetChannels() const				{	return SoyPixelsFormat::GetChannelCount(mFormat);	}
 	uint16			GetWidth() const				{	return mWidth;	}
-	uint16			GetHeight(size_t DataSize) const	{	return IsValid() && DataSize>0 ? DataSize / (GetChannels()*mWidth) : 0;	}
+	uint16			GetHeight(size_t DataSize) const	{	return IsValid() && DataSize>0 ? size_cast<uint16>(DataSize / (GetChannels()*mWidth)) : 0;	}
 	bool			GetOpenglFormat(int& glFormat) const	{	return SoyPixelsFormat::GetOpenglFormat( glFormat, GetFormat() );	}
 	bool			GetOpenclFormat(int& clFormat) const	{	return SoyPixelsFormat::GetOpenclFormat( clFormat, GetFormat() );	}
 	size_t			GetDataSize(int Height) const	{	return Height * GetChannels() * GetWidth();	}

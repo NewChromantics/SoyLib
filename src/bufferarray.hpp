@@ -335,11 +335,6 @@ public:
 		SetSize(0,false,AllowLess);
 	}
 
-	size_t	MaxAllocSize() const
-	{
-		return MaxSize();
-	}
-
 	size_t	MaxSize() const
 	{
 		return mmaxsize;

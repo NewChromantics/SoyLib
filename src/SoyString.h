@@ -22,8 +22,9 @@ namespace Soy
 	std::string	StringJoin(const std::vector<std::string>& Strings,const std::string& Glue);
 	template<typename TYPE>
 	std::string	StringJoin(const ArrayBridge<TYPE>& Elements,const std::string& Glue);
-	void		StringSplitByString(ArrayBridge<std::string>& Parts,std::string String,std::string Delim,bool IncludeEmpty=true);
-	void		StringSplitByString(ArrayBridge<std::string>&& Parts,std::string String,std::string Delim,bool IncludeEmpty=true);
+	void		StringSplitByString(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& Delim,bool IncludeEmpty=true);
+	void		StringSplitByString(ArrayBridge<std::string>&& Parts,const std::string& String,const std::string& Delim,bool IncludeEmpty=true);
+	bool		StringSplitByString(std::function<bool(const std::string&)> Callback,const std::string& String,const std::string& Delim,bool IncludeEmpty=true);
 	void		StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty=true);
 	void		StringSplitByMatches(ArrayBridge<std::string>&& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty=true);
 
@@ -60,6 +61,9 @@ namespace Soy
 	std::string	NSStringToString(NSString* String);
 };
 #endif
+
+
+
 
 template<typename TYPE>
 inline bool Soy::StringToType(TYPE& Out,const std::string& String)

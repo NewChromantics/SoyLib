@@ -204,7 +204,7 @@ bool Soy::ReadStream(ArrayBridge<char>&& Data,std::istream& Stream,std::stringst
 	while ( !Stream.eof() )
 	{
 		//	read a chunk
-		Buffer.SetSize( Buffer.MaxAllocSize() );
+		Buffer.SetSize( Buffer.MaxSize() );
 		auto BufferBridge = GetArrayBridge( Buffer );
 		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
 		{
@@ -226,7 +226,7 @@ bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::stringstr
 	while ( !Stream.eof() )
 	{
 		//	read a chunk
-		Buffer.SetSize( Buffer.MaxAllocSize() );
+		Buffer.SetSize( Buffer.MaxSize() );
 		auto BufferBridge = GetArrayBridge( Buffer );
 		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
 		{
@@ -339,7 +339,7 @@ void Soy::base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Deco
 		char_array_4[i++] = Encoded[in_]; in_++;
 		if (i ==4) {
 			for (i = 0; i <4; i++)
-				char_array_4[i] = base64_chars.find(char_array_4[i]);
+				char_array_4[i] = size_cast<unsigned char>(base64_chars.find(char_array_4[i]));
 			
 			char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
 			char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
@@ -355,8 +355,8 @@ void Soy::base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Deco
 		for (j = i; j <4; j++)
 			char_array_4[j] = 0;
 		
-		for (j = 0; j <4; j++)
-			char_array_4[j] = base64_chars.find(char_array_4[j]);
+		for (j = 0; j < 4; j++)
+			char_array_4[j] = size_cast<unsigned char>(base64_chars.find(char_array_4[j]));
 		
 		char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
 		char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
