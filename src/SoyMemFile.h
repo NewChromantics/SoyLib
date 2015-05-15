@@ -111,7 +111,7 @@ public:
 
 		if ( Soy::DoComplexCopy<T,T>() )
 		{				
-			for ( size_t i=0; i<left; ++i )
+			for ( ssize_t i=0; i<left; ++i )
 				*dest++ = *src++;
 			mOffset = static_cast<int>(dest - mData);
 		}

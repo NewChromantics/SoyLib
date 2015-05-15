@@ -731,10 +731,10 @@ void prmem::CRTHeap::Update()
 	uint32 AllocBytes = CrtAllocBytes + ProcessHeapAllocBytes;
 
 	//	work out the change from last sample so we can emulate normal Heap behaviour
-	uint32 AllocatedBytes = 0;
-	uint32 AllocatedBlocks = 0;
-	uint32 FreedBytes = 0;
-	uint32 FreedBlocks = 0;
+	size_t AllocatedBytes = 0;
+	size_t AllocatedBlocks = 0;
+	size_t FreedBytes = 0;
+	size_t FreedBlocks = 0;
 
 	//	more blocks have been allocated
 	if ( AllocCount > mAllocCount )
