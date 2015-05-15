@@ -141,7 +141,42 @@ void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
 	Array.PushBackArray( CommandStrArray );
 }
 
-void Soy::StringSplitByString(ArrayBridge<std::string>& Parts,std::string String,std::string Delim,bool IncludeEmpty)
+void Soy::StringSplitByString(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& Delim,bool IncludeEmpty)
+{
+	std::string::size_type Start = 0;
+	while ( Start < String.length() )
+	{
+		auto End = Parts.IsFull() ? String.length() : String.find( Delim, Start );
+		if ( End == std::string::npos )
+			End = String.length();
+		
+		auto Part = String.substr( Start, End-Start );
+		//std::Debug << "found [" << Part << "] in [" << String << "]" << std::endl;
+
+		if ( IncludeEmpty || !Part.empty() )
+		{
+			//	gr: better pre-emptive full required!
+			if ( Parts.IsFull() )
+			{
+				Parts.GetBack() += Part;
+			}
+			else
+			{
+				Parts.PushBack( Part );
+			}
+		}
+		
+		Start = End+Delim.length();
+	}
+}
+
+void Soy::StringSplitByString(ArrayBridge<std::string>&& Parts,const std::string& String,const std::string& Delim,bool IncludeEmpty)
+{
+	StringSplitByString( Parts, String, Delim, IncludeEmpty );
+}
+
+
+bool Soy::StringSplitByString(std::function<bool(const std::string&)> Callback,const std::string& String,const std::string& Delim,bool IncludeEmpty)
 {
 	std::string::size_type Start = 0;
 	while ( Start < String.length() )
@@ -151,19 +186,19 @@ void Soy::StringSplitByString(ArrayBridge<std::string>& Parts,std::string String
 			End = String.length();
 		
 		auto Part = String.substr( Start, End-Start );
-		//std::Debug << "found [" << Part << "] in [" << String << "]" << std::endl;
-
+		
 		if ( IncludeEmpty || !Part.empty() )
-			Parts.PushBack( Part );
-	
-		Start = End+1;
+		{
+			if ( !Callback(Part) )
+				return false;
+		}
+		
+		Start = End+Delim.length();
 	}
+	
+	return true;
 }
 
-void Soy::StringSplitByString(ArrayBridge<std::string>&& Parts,std::string String,std::string Delim,bool IncludeEmpty)
-{
-	StringSplitByString( Parts, String, Delim, IncludeEmpty );
-}
 
 std::string Soy::StreamToString(std::stringstream&& Stream)
 {
