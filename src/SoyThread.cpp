@@ -3,6 +3,9 @@
 
 
 
+std::mutex SoyThread::mCleanupEventLock;
+std::map<std::thread::id,std::shared_ptr<SoyEvent<const std::thread::id>>> SoyThread::mCleanupEvents;
+
 
 ofThread::ofThread() :
 	mIsRunning		( false )
@@ -36,7 +39,14 @@ void ofThread::waitForThread(bool Stop)
 	
 	//	if thread is active, then wait for it to finish and join it
 	if ( mThread.joinable() )
+	{
+		auto ThreadId = mThread.get_id();
+		
 		mThread.join();
+
+		//	gr: before or after join?
+		SoyThread::OnThreadCleanup( ThreadId );
+	}
 
 	mThread = std::thread();
 }
@@ -220,7 +230,65 @@ void SoyWorkerThread::WaitToFinish()
 	
 	//	if thread is active, then wait for it to finish and join it
 	if ( mThread.joinable() )
+	{
+		auto ThreadId = mThread.get_id();
 		mThread.join();
+		
+		//	gr: before or after join?
+		SoyThread::OnThreadCleanup( ThreadId );
+	}
 	mThread = std::thread();
 }
+
+
+std::shared_ptr<SoyEvent<const std::thread::id>> SoyThread::GetOnThreadCleanupEvent()
+{
+	auto ThreadId = SoyThread::GetCurrentThreadId();
+	//	gr: look out for bad thread id's!
+	if ( !Soy::Assert( ThreadId != std::thread::id(), "Adding thread cleanup, but cannot resolve thread id" ) )
+		return nullptr;
+
+	//	create/get map entry for cleanup events
+	std::lock_guard<std::mutex> Lock( mCleanupEventLock );
+	auto& Event = mCleanupEvents[ThreadId];
+	if ( !Event )
+		Event.reset( new SoyEvent<const std::thread::id>() );
+
+	return Event;
+}
+
+bool SoyThread::OnThreadCleanup(std::thread::id Thread)
+{
+	auto ThreadId = SoyThread::GetCurrentThreadId();
+	//	gr: look out for bad thread id's!
+	if ( !Soy::Assert( ThreadId != std::thread::id(), "Cannot resolve thread id during thread cleanup" ) )
+		return false;
+	
+	//	get cleanup event
+	mCleanupEventLock.lock();
+	auto pEvent = mCleanupEvents.find(ThreadId);
+	mCleanupEventLock.unlock();
+
+	//	no callbacks
+	if ( pEvent == mCleanupEvents.end() )
+		return true;
+	
+	auto& Event = pEvent->second;
+	if ( Event )
+	{
+		Event->OnTriggered( Thread );
+		Event.reset();
+	}
+	
+	mCleanupEventLock.lock();
+	mCleanupEvents.erase(pEvent);
+	mCleanupEventLock.unlock();
+	
+	return true;
+}
+
+
+static std::mutex	mCleanupEventLock;
+static std::map<std::thread::id,std::shared_ptr<SoyEvent<std::thread::id>>>	mCleanupEvents;
+
 

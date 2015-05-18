@@ -247,6 +247,13 @@ public:
 
 	void		SetThreadName(std::string Name)	{	SetThreadName(Name, GetCurrentThreadNativeHandle()); }
 	static void	SetThreadName(std::string Name,std::thread::native_handle_type ThreadHandle);
+	
+	
+	static std::shared_ptr<SoyEvent<const std::thread::id>>	GetOnThreadCleanupEvent();
+	static bool	OnThreadCleanup(std::thread::id Thread);	//	call cleanup callbacks
+
+	static std::mutex	mCleanupEventLock;
+	static std::map<std::thread::id,std::shared_ptr<SoyEvent<const std::thread::id>>>	mCleanupEvents;
 };
 
 
