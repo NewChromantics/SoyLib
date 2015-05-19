@@ -7,9 +7,12 @@
 //	gr: adapt this to
 //	a) have an array interface so we can use it as an arraybridge
 //	b) use whatever underlying array type we want
-template<typename TYPE>
+template<typename ARRAY>
 class RingArray
 {
+public:
+	typedef typename ARRAY::TYPE TYPE;
+	
 public:
 	RingArray(size_t InitialSize) :
 		mHead	( 0 ),
@@ -35,7 +38,7 @@ private:
 	std::recursive_mutex	mLock;	//	maybe lock head and tail seperately?
 	size_t			mHead;	//	end of used ring (where to push to)
 	size_t			mTail;	//	start of used ring (where to pop from)
-	Array<TYPE>		mBuffer;
+	ARRAY			mBuffer;
 };
 
 

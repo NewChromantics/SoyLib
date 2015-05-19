@@ -4,7 +4,7 @@
 
 int DoRingArrayTest()
 {
-	RingArray<int> Ring(10);
+	RingArray<Array<int>> Ring(10);
 	
 	//	overflow
 	for ( int i=0;	i<20;	i++ )
