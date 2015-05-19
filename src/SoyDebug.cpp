@@ -65,7 +65,7 @@ std::string Soy::FormatSizeBytes(uint64 bytes)
 
 
 //	static per-thread
-__thread std::string* ThreadBuffer = nullptr;	//	thread_local not supported on OSX
+__thread Soy::HeapString* ThreadBuffer = nullptr;	//	thread_local not supported on OSX
 
 
 //	singleton so the heap is created AFTER the heap register
@@ -76,16 +76,15 @@ prmem::Heap& GetDebugStreamHeap()
 }
 
 
-
-std::string& std::DebugStreamBuf::GetBuffer()
+Soy::HeapString& std::DebugStreamBuf::GetBuffer()
 {
 	if ( !ThreadBuffer )
 	{
 		//auto& Heap = SoyThread::GetHeap( SoyThread::GetCurrentThreadNativeHandle() );
 		auto& Heap = GetDebugStreamHeap();
-		ThreadBuffer = Heap.Alloc<std::string>( Heap.GetAllocator() );
+		ThreadBuffer = Heap.Alloc<Soy::HeapString>( Heap.GetStlAllocator() );
 		
-		std::string* NonTlsThreadBufferPtr = ThreadBuffer;
+		auto* NonTlsThreadBufferPtr = ThreadBuffer;
 		auto Dealloc = [NonTlsThreadBufferPtr](const std::thread::native_handle_type&)
 		{
 			GetDebugStreamHeap().Free( NonTlsThreadBufferPtr );
@@ -132,7 +131,11 @@ void std::DebugStreamBuf::flush()
 		}
 		//NSLog(@"%s", message);
 #endif
-		mOnFlush.OnTriggered( Buffer );
+		if ( mOnFlush.HasListeners() )
+		{
+			std::string BufferStr(Buffer.c_str());
+			mOnFlush.OnTriggered(BufferStr);
+		}
 		Buffer.erase();	// erase message buffer
 	}
 }

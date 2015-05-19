@@ -4,10 +4,27 @@
 #include <vector>
 #include <string>
 #include <sstream>
-#include "SoyDebug.h"
+#include "memheap.hpp"
 
+//	foraward declarations
 template<typename TYPE>
 class ArrayBridge;
+
+namespace Soy
+{
+	class AssertException;
+	//bool	Assert(bool Condition, std::stringstream&& ErrorMessage) throw(AssertException);
+	bool	Assert(bool Condition, std::stringstream&& ErrorMessage);
+};
+
+//	string that uses a prmem::Heap
+//	not compatible with std::string, but maybe we can do an easy conversion func
+//	todo: replace heapbridge, with an arraybridge!
+namespace Soy
+{
+	typedef std::basic_string<char, std::char_traits<char>, prmem::HeapBridge<char> > HeapString;
+};
+
 
 namespace Soy
 {

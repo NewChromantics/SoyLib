@@ -6,7 +6,7 @@
 #include <thread>
 #include "SoyEvent.h"
 #include "SoyScope.h"
-
+#include "SoyString.h"
 
 //	windows complains that I don't need to specify throw exception type?
 #pragma warning(disable:4290)	//	C++ exception specification ignored except to indicate a function is not __declspec(nothrow)
@@ -21,7 +21,7 @@ namespace Soy
 		void	DebugPrint(const std::string& String);
 	}
 
-	//	exception for Soy::Assert
+	//	forward declarations
 	class AssertException;
 };
 
@@ -55,7 +55,7 @@ namespace std
 		DebugStreamBuf(DebugStreamBuf const &);		// disallow copy construction
 		void operator= (DebugStreamBuf const &);	// disallow copy assignment
 
-		std::string&	GetBuffer();
+		Soy::HeapString&	GetBuffer();
 		
 	public:
 		bool			mEnableStdOut;
