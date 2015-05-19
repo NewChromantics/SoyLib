@@ -364,7 +364,7 @@ namespace prmem
 		virtual ~HeapDebug()	{}
 
 		virtual void	OnFree(const void* Object) override;
-		virtual void	OnAlloc(const void* Object,std::string Typename,size_t ElementCount,size_t TypeSize) override;
+		virtual void	OnAlloc(const void* Object,const std::string& Typename,size_t ElementCount,size_t TypeSize) override;
 		virtual void	DumpToOutput(const prmem::HeapInfo& OwnerHeap) const override
         {
             auto Items = GetArrayBridge( mItems );
@@ -433,7 +433,7 @@ prmem::HeapDebug::HeapDebug(const Heap& OwnerHeap) :
 }
 
 
-void prmem::HeapDebug::OnAlloc(const void* Object,std::string Typename,size_t ElementCount,size_t TypeSize)
+void prmem::HeapDebug::OnAlloc(const void* Object,const std::string& Typename,size_t ElementCount,size_t TypeSize)
 {
 	ofMutex::ScopedLock Lock( *this );
 	//	do some prealloc when we get to the edge
@@ -456,7 +456,7 @@ void prmem::HeapDebug::OnAlloc(const void* Object,std::string Typename,size_t El
 	AllocItem.mObject = Object;
 	AllocItem.mElements = ElementCount;
 	AllocItem.mTypeSize = TypeSize;
-	AllocItem.mTypename = Typename;
+	AllocItem.mTypename = &Typename;
 	AllocItem.mAllocTick = ofGetElapsedTimeMillis();
 
 	//	save callstack address
@@ -517,7 +517,8 @@ prmem::Heap::Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t
 #if defined(TARGET_WINDOWS)
 	mHandle			( NULL ),
 #endif
-    mHeapDebug		( NULL )
+    mHeapDebug		( nullptr ),
+	mBridge			( *this )
 {
 	//	check for dodgy params, eg, "true" instead of a byte-limit
 	if ( MaxSize != 0 && MaxSize < 1024*1024 )
