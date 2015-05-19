@@ -89,8 +89,8 @@ namespace prmem
 {
 	//	access all the heaps. 
 	//	Though the access is threadsafe, the data inside (ie. the memcounters) isn't
-	const BufferArray<prmem::HeapInfo*,100>&	GetHeaps();
-	prmem::CRTHeap&										GetCRTHeap();
+	const ArrayInterface<prmem::HeapInfo*>&	GetHeaps();
+	prmem::CRTHeap&							GetCRTHeap();
 
 	//	functor for STD deallocation (eg, with shared_ptr)
 	template<typename T>
@@ -130,7 +130,7 @@ namespace prmem
 		inline size_t			GetAllocatedBytesPeak() const		{	return mAllocBytesPeak;	}
 		inline size_t			GetAllocCountPeak() const			{	return mAllocCountPeak;	}
 
-		void					Debug_DumpInfoToOutput() const;		//	print out name, allocation(peak)
+		void					Debug_DumpInfoToOutput(std::ostream& Output) const;		//	print out name, allocation(peak)
 
 		//	validate the heap. Checks for corruption (out-of-bounds writes). If an object is passed, just that one allocation is checked. 
 		//	"On a system set up for debugging, the HeapValidate function then displays debugging messages that describe the part of the heap or memory block that is invalid, and stops at a hard-coded breakpoint so that you can examine the system to determine the source of the invalidity"
@@ -225,6 +225,11 @@ namespace prmem
 		virtual void					EnableDebug(bool Enable);	//	deletes/allocates the debug tracker so we can toggle it at runtime
 		virtual const HeapDebugBase*	GetDebug() const			{	return mHeapDebug;	}
 
+#if defined(TARGET_WINDOWS)
+		std::allocator<char>&			GetAllocator()				{	return mAllocator;	}
+#elif defined(STD_ALLOC)
+		std::allocator<char>&			GetAllocator()				{	return mAllocator;	}
+#endif
 		/*
 		//	probe the system for the allocation size
 		uint32	GetAllocSize(void* pData) const
@@ -478,21 +483,20 @@ namespace prmem
 	//-----------------------------------------------------------------------
 	//	interface to the hidden default crt heap (where new & delete are)
 	//-----------------------------------------------------------------------
-#if defined(TARGET_WINDOWS)
 	class CRTHeap : public HeapInfo
 	{
 	public:
-		CRTHeap() : 
-			HeapInfo	( "Default CRT Heap" )
-		{
-		}
-
-		virtual HANDLE			GetHandle() const;
+		CRTHeap(bool EnableDebug);
+		
+#if defined(TARGET_WINDOWS)
+		virtual HANDLE			GetHandle() const override;
 		virtual bool			IsValid() const override	{	return GetHandle() != nullptr;	}
+#else
+		virtual bool			IsValid() const override	{	return true;	}
+#endif
 
 		void					Update();			//	update tracking information
 	};
-#endif
 
 
 	//	allocator that can be used to bridge our Heap allocator, and an allocator for STD types

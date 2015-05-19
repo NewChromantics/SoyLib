@@ -325,6 +325,10 @@ Improvement summary
 #include "SoyDebug.h"
 #include "SoyString.h"
 
+#if defined(TARGET_OSX)
+#include <malloc/malloc.h>
+#endif
+
 
 
 namespace prmem
@@ -332,7 +336,9 @@ namespace prmem
 	//	global list of our heaps
 	//	this needs to be before any other global Heap!
 	BufferArray<HeapInfo*,100>		gMemHeapRegister;
+	AtomicArrayBridge<BufferArray<HeapInfo*,100>>	gAtomicMemHeapRegister( gMemHeapRegister );
 }
+
 
 namespace prcore
 {
@@ -345,11 +351,9 @@ namespace prmem
 	//	heap for unit tests
 	//prmem::Heap		gTestHeap( true, true, "Test Heap" );
 
-#if defined(TARGET_WINDOWS)
 	//	crt heap interface
-	prmem::CRTHeap	gCRTHeap;
-#endif
-    
+	prmem::CRTHeap	gCRTHeap(true);
+	
 	//	real debug tracker class. Cannot be declared in header!
 	class HeapDebug : public HeapDebugBase, public ofMutex
 	{
@@ -373,12 +377,10 @@ namespace prmem
 DECLARE_TYPE_NAME( prmem::HeapDebug );
 
 
-#if defined(TARGET_WINDOWS)
 prmem::CRTHeap& prmem::GetCRTHeap()
 {
 	return gCRTHeap;
 }
-#endif
 
 
 bool prmem::HeapInfo::Debug_Validate(const void* Object) const
@@ -414,6 +416,8 @@ bool prmem::HeapInfo::Debug_Validate(const void* Object) const
     return true;
 #endif
 }
+
+
 
 prmem::HeapDebug::HeapDebug(const Heap& OwnerHeap) :
 	mHeap	( true, true, Soy::StreamToString(std::stringstream()<< "DEBUG " << OwnerHeap.GetName()).c_str() , 0, false ),
@@ -474,13 +478,12 @@ void prmem::HeapDebug::OnFree(const void* Object)
 }
 
 
-const BufferArray<prmem::HeapInfo*,100>& prmem::GetHeaps()
+const ArrayInterface<prmem::HeapInfo*>& prmem::GetHeaps()
 {
-#if defined(TARGET_WINDOWS)
 	//	update the CRT heap info on-request
 	gCRTHeap.Update();
-#endif
-	return gMemHeapRegister;
+
+	return gAtomicMemHeapRegister;
 }
 
 
@@ -492,13 +495,15 @@ prmem::HeapInfo::HeapInfo(const char* Name) :
 	mAllocBytesPeak	( 0 ),
 	mAllocCountPeak	( 0 )
 {
-	gMemHeapRegister.PushBack( this );
+	auto& Heaps = gAtomicMemHeapRegister;
+	Heaps.PushBack( this );
 }
 
 prmem::HeapInfo::~HeapInfo()
 {
 	//	unregister
-	gMemHeapRegister.Remove(this);
+	auto& Heaps = gAtomicMemHeapRegister;
+	Heaps.Remove( this );
 }
 
 
@@ -701,21 +706,36 @@ public:
 	float		mStartTime;	//	ofGetElapsedTimef
 };
 
+
+prmem::CRTHeap::CRTHeap(bool EnableDebug) :
+	HeapInfo	( "Default CRT Heap" )
+{
+	//	gr: for malloc this could hook and count allocations
+	if ( EnableDebug )
+	{
+#if defined(TARGET_OSX)
+		//	https://github.com/emeryberger/Heap-Layers/blob/master/wrappers/macwrapper.cpp
+#endif
+	}
+}
+
+#include <mach/mach.h>
+#include <mach/task.h>
 //----------------------------------------------
 //	update tracking information
 //----------------------------------------------
-#if defined(TARGET_WINDOWS)
 void prmem::CRTHeap::Update()
 {
-	//	gr: to hook HeapCreate (ie from external libs) 
-	//	http://src.chromium.org/svn/trunk/src/tools/memory_watcher/memory_hook.cc
-
 	//	gr: for runtime debugging, just turn off this static to avoid the calls
 	static bool EnableHeapUpdate = true;
 	if( !EnableHeapUpdate )
 		return;
 
-	//	gr: I've added a throttle to this, _CrtMemCheckpoint() actually takes between 
+#if defined(TARGET_WINDOWS)
+	//	gr: to hook HeapCreate (ie from external libs)
+	//	http://src.chromium.org/svn/trunk/src/tools/memory_watcher/memory_hook.cc
+
+	//	gr: I've added a throttle to this, _CrtMemCheckpoint() actually takes between
 	//		0 and 1 ticks to execute, but it may be locking the heap which might intefere with other threads.
 	static ofTimer UpdateHeapStatsTimer;
 	if ( UpdateHeapStatsTimer.GetTimeSeconds() < (1.f/30.f) )
@@ -727,32 +747,100 @@ void prmem::CRTHeap::Update()
 	GetProcessHeapUsage( ProcessHeapAllocCount, ProcessHeapAllocBytes );
 	GetCRTHeapUsage( CrtAllocCount, CrtAllocBytes );
 
-	uint32 AllocCount = CrtAllocCount + ProcessHeapAllocCount;
-	uint32 AllocBytes = CrtAllocBytes + ProcessHeapAllocBytes;
+	auto AllocCount = CrtAllocCount + ProcessHeapAllocCount;
+	auto AllocBytes = CrtAllocBytes + ProcessHeapAllocBytes;
+	
+#elif defined(TARGET_OSX)
 
+	
+	//	for accurate measurements, free up unused bytes
+	//	http://stackoverflow.com/questions/25609945/why-does-mstats-and-malloc-zone-statistics-not-show-recovered-memory-after-free
+	auto BytesRelieved = malloc_zone_pressure_relief( nullptr, 0 );
+	if ( BytesRelieved != 0 )
+		std::Debug << "malloc pressure relief free'd " << Soy::FormatSizeBytes(BytesRelieved) << std::endl;
+	
+	size_t AllocCount = 0;
+	size_t AllocBytes = 0;
+	
+	//	gr; zones and mstats seem the same
+	static bool UseZones = true;
+	//	gr: sometimes this is a negative number!?
+	static bool UseBlockCount = false;
+	
+	if ( UseZones )
+	{
+		malloc_statistics_t Stats;
+		malloc_zone_statistics( nullptr, &Stats );
+		
+		AllocBytes += Stats.size_in_use;
+		//AllocBytes += Stats.size_allocated;	//	reserved memory
+		
+		if ( UseBlockCount )
+			AllocCount += Stats.blocks_in_use;
+	}
+	else
+	{
+		auto stats = mstats();
+		if ( UseBlockCount )
+			AllocCount += stats.chunks_used;
+		AllocBytes += stats.bytes_used;
+	}
+	
+	
+
+
+	/*
+	//	iterate through all the zones
+	vm_address_t *zones;
+	uint32_t count;
+	kern_return_t error = malloc_get_all_zones( mach_task_self(), nullptr, &zones, &count);
+	if (error == KERN_SUCCESS)
+	{
+		for (uint64_t index = 0; index < count; index++)
+		{
+			malloc_zone_t *zone = reinterpret_cast<malloc_zone_t*>(zones[index]);
+			if ( !zone )
+				continue;
+			
+			malloc_statistics_t Stats;
+			malloc_zone_statistics( zone, &Stats );
+			
+			AllocBytes += Stats.size_in_use;
+			//AllocBytes += Stats.size_allocated;	//	reserved memory
+			AllocCount += Stats.blocks_in_use;
+			
+			if ( zone->introspect != NULL) {
+			//	zone->introspect->enumerator(mach_task_self(), NULL, MALLOC_PTR_IN_USE_RANGE_TYPE, zone, NULL, &CanHasObjects);
+			}
+		}
+	}
+	*/
+	
+#endif
+	
 	//	work out the change from last sample so we can emulate normal Heap behaviour
 	size_t AllocatedBytes = 0;
 	size_t AllocatedBlocks = 0;
 	size_t FreedBytes = 0;
 	size_t FreedBlocks = 0;
-
+	
 	//	more blocks have been allocated
 	if ( AllocCount > mAllocCount )
 		AllocatedBlocks = AllocCount - mAllocCount;
 	else
 		FreedBlocks = mAllocCount - AllocCount;
-
+	
 	//	more bytes have been allocated (may not match block increase/decrease)
 	if ( AllocBytes > mAllocBytes )
 		AllocatedBytes = AllocBytes - mAllocBytes;
 	else
 		FreedBytes = mAllocBytes - AllocBytes;
-
+	
 	//	call normal heap alloc/free tracker funcs
 	OnAlloc( AllocatedBytes, AllocatedBlocks );
 	OnFree( FreedBytes, FreedBlocks );
+
 }
-#endif
 
 //----------------------------------------------
 //----------------------------------------------
@@ -1181,7 +1269,7 @@ void prmem::HeapInfo::OnFailedAlloc(std::string TypeName,size_t TypeSize,size_t 
 	std::Debug << "Failed to allocate " << TypeName << "x " << ElementCount << " (" << Soy::FormatSizeBytes( TypeSize * ElementCount ) << ")" << std::endl;
 	
 	//	show heap stats
-	Debug_DumpInfoToOutput();
+	Debug_DumpInfoToOutput( std::Debug );
 
 	//	show dump too
 	auto* pHeapDebug = GetDebug();
@@ -1197,17 +1285,17 @@ void prmem::HeapInfo::OnFailedAlloc(std::string TypeName,size_t TypeSize,size_t 
 	for ( int h=0;	h<Heaps.GetSize();	h++ )
 	{
 		auto& Heap = *Heaps[h];
-		Heap.Debug_DumpInfoToOutput();
+		Heap.Debug_DumpInfoToOutput( std::Debug );
 	}
 	
 }
 
 
-void prmem::HeapInfo::Debug_DumpInfoToOutput() const
+void prmem::HeapInfo::Debug_DumpInfoToOutput(std::ostream& Output) const
 {
 	//	print out debug state of current heap
-	std::Debug << "Heap Name: " << GetName() << "\n";
-	std::Debug << "Heap Allocation: " << Soy::FormatSizeBytes( GetAllocatedBytes() ) << " (peak: " << Soy::FormatSizeBytes( GetAllocatedBytesPeak() ) << ")\n";
-	std::Debug << "Heap Alloc Count: " << GetAllocCount() << " (peak: " << GetAllocCountPeak() << ")\n";
-	std::Debug << std::endl;
+	Output << "Heap Name: " << GetName() << "\n";
+	Output << "Heap Allocation: " << Soy::FormatSizeBytes( GetAllocatedBytes() ) << " (peak: " << Soy::FormatSizeBytes( GetAllocatedBytesPeak() ) << ")\n";
+	Output << "Heap Alloc Count: " << GetAllocCount() << " (peak: " << GetAllocCountPeak() << ")\n";
+	Output << std::endl;
 }
