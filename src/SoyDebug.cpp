@@ -6,17 +6,8 @@
 #if defined(TARGET_OSX)
 #include <unistd.h>
 #include <sys/sysctl.h>
+#include <signal.h>
 #endif
-
-
-namespace Soy
-{
-	//	defualt on, but allow build options to change default (or call Soy::EnableAssertThrow)
-#if !defined(SOY_ENABLE_ASSERT_THROW)
-#define SOY_ENABLE_ASSERT_THROW true
-#endif
-	bool	gEnableThrowInAssert = SOY_ENABLE_ASSERT_THROW;
-}
 
 
 std::DebugStream	std::Debug;
@@ -120,7 +111,8 @@ void std::DebugStreamBuf::flush()
 		static bool UseNsLog = false;
 		if ( UseNsLog )
 		{
-			Soy::Platform::DebugPrint( Buffer );
+			std::string BufferStr(Buffer.c_str());
+			Soy::Platform::DebugPrint( BufferStr );
 		}
 		
 		if ( mEnableStdOut )
@@ -151,7 +143,6 @@ int std::DebugStreamBuf::overflow(int c)
 	//	gr: what is -1? std::eof?
     return c == -1 ? -1 : ' ';
 }
-
 
 
 #if defined(TARGET_OSX)
@@ -188,6 +179,7 @@ bool XCodeDebuggerAttached()
 }
 #endif
 
+
 bool Soy::Platform::IsDebuggerAttached()
 {
 #if defined(TARGET_WINDOWS)
@@ -202,30 +194,6 @@ bool Soy::Platform::IsDebuggerAttached()
 }
 
 
-void Soy::EnableThrowInAssert(bool Enable)
-{
-	gEnableThrowInAssert = Enable;
-}
-
-bool Soy::Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException )
-{
-	__thread static std::ostream* LastErrorMessage = nullptr;
-	__thread static Soy::TErrorMessageFunc ErrorFunc = nullptr;
-	
-	if ( !ErrorFunc )
-	{
-		ErrorFunc = []
-		{
-			return Soy::StreamToString( *LastErrorMessage );
-		};
-	}
-	LastErrorMessage = &ErrorMessage;
-
-	return Assert( Condition, ErrorFunc );
-}
-
-
-#include <signal.h>
 bool Soy::Platform::DebugBreak()
 {
 #if defined(TARGET_OSX)
@@ -240,24 +208,5 @@ bool Soy::Platform::DebugBreak()
 	
 	//	not supported
 	return false;
-}
-
-void Soy::Private::Assert_Impl(TErrorMessageFunc ErrorMessageFunc) throw(AssertException)
-{
-	std::string ErrorMessage = ErrorMessageFunc();
-	
-	std::Debug << "Assert: " << ErrorMessage << std::endl;
-	
-	//	if the debugger is attached, try and break the debugger without an exception so we can continue
-	if ( Platform::IsDebuggerAttached() )
-		if ( Soy::Platform::DebugBreak() )
-			return;
-	
-	//	sometimes we disable throwing an exception to stop hosting being taken down
-	if ( !gEnableThrowInAssert )
-		return;
-	
-	//	throw exception
-	throw Soy::AssertException( ErrorMessage );
 }
 
