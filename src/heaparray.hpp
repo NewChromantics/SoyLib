@@ -435,7 +435,7 @@ public:
 
 	size_t	MaxSize() const
 	{
-		return std::numeric_limits<size_t>::max();
+		return GetHeap().GetMaxAlloc();
 	}
 
 	//	simple iterator to find index of an element matching via == operator
@@ -517,7 +517,6 @@ public:
 		
 	prmem::Heap&	GetHeap() const
 	{
-		assert( mHeap );
 		if ( !mHeap )
 		{
 			auto& This = *const_cast<Array<T,HEAP>*>( this );

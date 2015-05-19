@@ -101,7 +101,7 @@ bool MemFileArray::Init(size_t DataSize,bool ReadOnly,std::stringstream& Error)
 #if defined(TARGET_WINDOWS)
 	//	If lpName matches the name of an existing event, semaphore, mutex, waitable timer, or job object, the function fails, and the GetLastError function returns ERROR_INVALID_HANDLE. This occurs because these objects share the same namespace.
 	DWORD MaxSizeHi = 0;
-	DWORD MaxSizeLo = DataSize;
+	DWORD MaxSizeLo = size_cast<DWORD>(DataSize);
 	mHandle = CreateFileMappingA(	INVALID_HANDLE_VALUE,    // use paging file
 									NULL,                    // default security
 									ReadOnly ? PAGE_READONLY : PAGE_READWRITE,          // read/write access

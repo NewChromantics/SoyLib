@@ -76,6 +76,8 @@ namespace prmem
 	class HeapInfo;			//	base type for a heap which just has information and statistics
 	class HeapDebugBase;	//	holds all our debug info for a heap
 	class CRTHeap;
+	template<class T>
+	class HeapBridge;		//	for stl
 };
 
 namespace prcore
@@ -129,6 +131,9 @@ namespace prmem
 		inline float			GetAllocatedMegaBytesPeak() const	{	float b = static_cast<float>(mAllocBytesPeak);	return (b / 1024.f / 1024.f);	}
 		inline size_t			GetAllocatedBytesPeak() const		{	return mAllocBytesPeak;	}
 		inline size_t			GetAllocCountPeak() const			{	return mAllocCountPeak;	}
+
+		//	gr: todo; check heap limits
+		size_t					GetMaxAlloc() const				{	return std::numeric_limits<std::size_t>::max();	}
 
 		void					Debug_DumpInfoToOutput(std::ostream& Output) const;		//	print out name, allocation(peak)
 
@@ -225,11 +230,7 @@ namespace prmem
 		virtual void					EnableDebug(bool Enable);	//	deletes/allocates the debug tracker so we can toggle it at runtime
 		virtual const HeapDebugBase*	GetDebug() const			{	return mHeapDebug;	}
 
-#if defined(TARGET_WINDOWS)
-		std::allocator<char>&			GetAllocator()				{	return mAllocator;	}
-#elif defined(STD_ALLOC)
-		std::allocator<char>&			GetAllocator()				{	return mAllocator;	}
-#endif
+		HeapBridge<char>				GetStlAllocator();
 		/*
 		//	probe the system for the allocation size
 		uint32	GetAllocSize(void* pData) const
@@ -476,7 +477,7 @@ namespace prmem
 #if defined(TARGET_WINDOWS)
 		HANDLE					mHandle;	//	win32 handle to heap
 #elif defined(STD_ALLOC)
-		std::allocator<char>	mAllocator;
+		std::allocator<char>	mAllocator;	//	gr: this just uses new and delete. Repalce this with memory zones
 #endif
 	};
     
@@ -507,7 +508,7 @@ namespace prmem
 	//	see unit tests for usage as it's messy and a bit complicated to example here.
 	//	
 	template <class T>
-	class StdHeap
+	class HeapBridge
 	{
 	public:
 		// type definitions
@@ -524,7 +525,7 @@ namespace prmem
 		template <class U>
 		struct rebind 
 		{
-			typedef StdHeap<U> other;
+			typedef HeapBridge<U> other;
 		};
 
 		// return address of values
@@ -537,58 +538,52 @@ namespace prmem
 			return &value;
 		}
 
-		/* constructors and destructor
-		* - nothing to do because the allocator has no state
-		*/
-		StdHeap(prmem::Heap& Heap=prcore::Heap) throw() :
+		HeapBridge(prmem::Heap& Heap) throw() :
 			mHeap	( &Heap )
 		{
 		}
-		StdHeap(const StdHeap& that) throw() :
+		HeapBridge(const HeapBridge& that) throw() :
 			mHeap	( that.mHeap )
 		{
 		}
 		/*
 		template <class U>
-		StdHeap (const StdHeap<U>&) throw() 
+		HeapBridge (const HeapBridge<U>&) throw() 
 		{
 		}
 		*/
-		~StdHeap() throw() 
+		~HeapBridge() throw()
 		{
 		}
 
 		// return maximum number of elements that can be allocated
 		size_type max_size () const throw()
 		{
-			//	gr: maybe add this to Heap for when there's a heap limit...
-			return std::numeric_limits<std::size_t>::max() / sizeof(T);
+			return mHeap->GetMaxAlloc() / sizeof(T);
 		}
 
 		// allocate but don't initialize num elements of type T
 		pointer allocate (size_type num, const void* = 0) 
 		{
-			return mHeap->AllocArray<T>( static_cast<uint32>(num) );
+			//	gr: note, our Heap type DOES initialise them
+			return mHeap->AllocArray<T>( num );
 		}
 
 		// initialize elements of allocated storage p with value value
 		void construct (pointer p, const T& value) 
 		{
-			// initialize memory with placement new
-			new((void*)p)T(value);
+			//	gr: this is done by Heap's alloc... may need to abstract that
 		}
 
-		// destroy elements of initialized storage p
 		void destroy (pointer p) 
 		{
-			// destroy objects by calling their destructor
-			p->~T();
+			//	gr: this is done by Heap's alloc... may need to abstract that
 		}
 
 		// deallocate storage p of deleted elements
 		void deallocate (pointer p, size_type num) 
 		{
-			mHeap->FreeArray( p, static_cast<uint32>(num) );
+			mHeap->FreeArray<T>( p, num );
 		}
 
 		operator	prmem::Heap&()	{	return *mHeap;	}	//	really easy bodge to get constructors in constructors in constructors working (messy STL!)
@@ -597,17 +592,16 @@ namespace prmem
 		prmem::Heap*	mHeap;
 	};
 
-	// return that all specializations of this allocator are interchangeable
 	template <class T1, class T2>
-	bool operator== (const StdHeap<T1>&,const StdHeap<T2>&) throw() 
+	bool operator== (const HeapBridge<T1>& a,const HeapBridge<T2>& b) throw()
 	{
-		return true;
+		return a.mHeap == b.mHeap;
 	}
 
 	template <class T1, class T2>
-	bool operator!= (const StdHeap<T1>&,const StdHeap<T2>&) throw() 
+	bool operator!= (const HeapBridge<T1>& a,const HeapBridge<T2>& b) throw()
 	{
-		return false;
+		return a.mHeap != b.mHeap;
 	}
 
 
@@ -628,71 +622,31 @@ inline void prmem::HeapFreeFunctor<T>::operator()(T* pObject) const
 //	into
 //		StdMapHeap<A,B> myMap( prcore::Heap );
 template<typename A,typename B,prmem::Heap& HEAP=prcore::Heap>
-class StdMapHeap : public std::map<A,B,std::less<A>,prmem::StdHeap<std::pair<A,B>>>
+class StdMapHeap : public std::map<A,B,std::less<A>,prmem::HeapBridge<std::pair<A,B>>>
 {
 public:
+	typename std::map<A, B, std::less<A>, prmem::HeapBridge<std::pair<A, B>>> SUPER;
+public:
 	StdMapHeap(prmem::Heap& Heap=HEAP) :
-		std::map<A,B,std::less<A>,prmem::StdHeap<std::pair<A,B>>>	( std::less<A>(), prmem::StdHeap<std::pair<A const,B>>( Heap ) )
+		SUPER	( std::less<A>(), prmem::HeapBridge<std::pair<A const,B>>( Heap ) )
 	{
 	}
 };
 
 template<typename A,prmem::Heap& HEAP=prcore::Heap>
-class StdQueueHeap : public std::queue<A,std::deque<A,prmem::StdHeap<A>>>
+class StdQueueHeap : public std::queue<A,std::deque<A,prmem::HeapBridge<A>>>
 {
 public:
+	typename std::queue<A, std::deque<A, prmem::HeapBridge<A>>> SUPER;
+public:
 	StdQueueHeap(prmem::Heap& Heap=HEAP) :
-		std::queue<A,std::deque<A,prmem::StdHeap<A>>>	( std::deque<A,prmem::StdHeap<A>>(Heap) )
+		SUPER	( std::deque<A,prmem::StdHeap<A>>(Heap) )
 	{
 	}
 };
 	
 
-/*
-//-------------------------------------------------
-//	not as a simple replace of new with pr_new
-//		Bitmap* pBitmap = new Bitmap( X, Y, Z );
-//	changes to
-//		Bitmap* pBitmap = prnew<Bitmap>( X, Y, Z );
-//	and 
-//		delete pBitmap;
-//	with
-//		prdelete(pBitmap);
-//-------------------------------------------------
-template<typename TYPE> 
-inline TYPE*	prnew()						
+inline prmem::HeapBridge<char> prmem::Heap::GetStlAllocator()
 {
-	return prcore::Heap.Alloc<TYPE>();
+	return HeapBridge<char>(*this);
 }
-template<typename TYPE,typename ARG1> 
-inline TYPE*	prnew(const ARG1& Arg1)						
-{
-	return prcore::Heap.Alloc<TYPE>( Arg1 );	
-}
-template<typename TYPE,typename ARG1,typename ARG2> 
-inline TYPE*	prnew(const ARG1& Arg1,const ARG2& Arg2)	
-{	
-	return prcore::Heap.Alloc<TYPE>( Arg1, Arg2 );	
-}
-template<typename TYPE,typename ARG1,typename ARG2,typename ARG3> 
-inline TYPE*	prnew(const ARG1& Arg1,const ARG2& Arg2,const ARG3& Arg3)	
-{	
-	return prcore::Heap.Alloc<TYPE>( Arg1, Arg2, Arg3 );	
-}
-template<typename TYPE,typename ARG1,typename ARG2,typename ARG3,typename ARG4> 
-inline TYPE*	prnew(const ARG1& Arg1,const ARG2& Arg2,const ARG3& Arg3,const ARG4& Arg4)	
-{	
-	return prcore::Heap.Alloc<TYPE>( Arg1, Arg2, Arg3, Arg4 );	
-}
-template<typename TYPE,typename ARG1,typename ARG2,typename ARG3,typename ARG4,typename ARG5> 
-inline TYPE*	prnew(const ARG1& Arg1,const ARG2& Arg2,const ARG3& Arg3,const ARG4& Arg4,const ARG5& Arg5)	
-{	
-	return prcore::Heap.Alloc<TYPE>( Arg1, Arg2, Arg3, Arg4, Arg5 );	
-}
-template<typename TYPE>
-inline void	prdelete(TYPE* pObject)	
-{
-	prcore::Heap.Free( pObject );	
-} 
-
-*/
