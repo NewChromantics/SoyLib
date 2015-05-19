@@ -4,7 +4,8 @@
 
 
 std::mutex SoyThread::mCleanupEventLock;
-std::map<std::thread::id,std::shared_ptr<SoyEvent<const std::thread::id>>> SoyThread::mCleanupEvents;
+std::map<std::thread::native_handle_type,std::shared_ptr<SoyEvent<const std::thread::native_handle_type>>> SoyThread::mCleanupEvents;
+std::map<std::thread::native_handle_type,std::shared_ptr<prmem::Heap>> SoyThread::mThreadHeaps;
 
 
 ofThread::ofThread() :
@@ -40,12 +41,12 @@ void ofThread::waitForThread(bool Stop)
 	//	if thread is active, then wait for it to finish and join it
 	if ( mThread.joinable() )
 	{
-		auto ThreadId = mThread.get_id();
+		auto ThreadHandle = mThread.native_handle();
 		
 		mThread.join();
 
 		//	gr: before or after join?
-		SoyThread::OnThreadCleanup( ThreadId );
+		SoyThread::OnThreadCleanup( ThreadHandle );
 	}
 
 	mThread = std::thread();
@@ -154,6 +155,38 @@ void SoyThread::SetThreadName(std::string name,std::thread::native_handle_type T
 #endif
 }
 
+
+
+std::string SoyThread::GetThreadName(std::thread::native_handle_type ThreadId)
+{
+#if defined(TARGET_OSX)
+	
+	char Buffer[255] = {0};
+	auto Result = pthread_getname_np( ThreadId, Buffer, sizeof(Buffer) );
+
+	if ( Result != 0 )
+	{
+		std::Debug << "Failed to get thread name [" << Result << "]" << std::endl;
+		return "Thread??";
+	}
+	
+	std::stringstream Name;
+	Name << Buffer;
+	
+	if ( Name.str().empty() )
+	{
+		if ( pthread_main_np() != 0 )
+			Name << "Main thread";
+		else
+			Name << "?" << reinterpret_cast<std::uintptr_t>(ThreadId);
+	}
+
+	return Name.str();
+#endif
+	
+	return "Thread??";
+}
+
 void SoyWorker::Start()
 {
 	mWorking = true;
@@ -231,42 +264,37 @@ void SoyWorkerThread::WaitToFinish()
 	//	if thread is active, then wait for it to finish and join it
 	if ( mThread.joinable() )
 	{
-		auto ThreadId = mThread.get_id();
+		auto Thread = mThread.native_handle();
 		mThread.join();
 		
 		//	gr: before or after join?
-		SoyThread::OnThreadCleanup( ThreadId );
+		SoyThread::OnThreadCleanup( Thread );
 	}
 	mThread = std::thread();
 }
 
 
-std::shared_ptr<SoyEvent<const std::thread::id>> SoyThread::GetOnThreadCleanupEvent()
+std::shared_ptr<SoyEvent<const std::thread::native_handle_type>> SoyThread::GetOnThreadCleanupEvent()
 {
-	auto ThreadId = SoyThread::GetCurrentThreadId();
+	auto Thread = SoyThread::GetCurrentThreadNativeHandle();
 	//	gr: look out for bad thread id's!
-	if ( !Soy::Assert( ThreadId != std::thread::id(), "Adding thread cleanup, but cannot resolve thread id" ) )
-		return nullptr;
+//	if ( !Soy::Assert( ThreadId != std::thread::id(), "Adding thread cleanup, but cannot resolve thread id" ) )
+//		return nullptr;
 
 	//	create/get map entry for cleanup events
 	std::lock_guard<std::mutex> Lock( mCleanupEventLock );
-	auto& Event = mCleanupEvents[ThreadId];
+	auto& Event = mCleanupEvents[Thread];
 	if ( !Event )
-		Event.reset( new SoyEvent<const std::thread::id>() );
+		Event.reset( new SoyEvent<const std::thread::native_handle_type>() );
 
 	return Event;
 }
 
-bool SoyThread::OnThreadCleanup(std::thread::id Thread)
+bool SoyThread::OnThreadCleanup(std::thread::native_handle_type Thread)
 {
-	auto ThreadId = SoyThread::GetCurrentThreadId();
-	//	gr: look out for bad thread id's!
-	if ( !Soy::Assert( ThreadId != std::thread::id(), "Cannot resolve thread id during thread cleanup" ) )
-		return false;
-	
 	//	get cleanup event
 	mCleanupEventLock.lock();
-	auto pEvent = mCleanupEvents.find(ThreadId);
+	auto pEvent = mCleanupEvents.find(Thread);
 	mCleanupEventLock.unlock();
 
 	//	no callbacks
@@ -284,11 +312,44 @@ bool SoyThread::OnThreadCleanup(std::thread::id Thread)
 	mCleanupEvents.erase(pEvent);
 	mCleanupEventLock.unlock();
 	
+	//	cleanup all memory in thread's heap
+	auto HeapIt = mThreadHeaps.find(Thread);
+	if ( HeapIt != mThreadHeaps.end() )
+	{
+		//	deallocate the heap and all it's allocations
+		HeapIt->second.reset();
+		//	keep map small, but maybe have thread instability
+	//	mThreadHeaps.erase( HeapIt );
+	}
+	
 	return true;
 }
 
 
-static std::mutex	mCleanupEventLock;
-static std::map<std::thread::id,std::shared_ptr<SoyEvent<std::thread::id>>>	mCleanupEvents;
+prmem::Heap& SoyThread::GetHeap(std::thread::native_handle_type Thread)
+{
+	//	grab heap
+	auto HeapIt = mThreadHeaps.find(Thread);
+	
+	if ( HeapIt != mThreadHeaps.end() )
+	{
+		auto pHeap = HeapIt->second;
 
+		//	if key exists, but null, the thread has been cleaned up. issue a warning and return the default heap
+		if ( !pHeap )
+		{
+			Soy::Assert( pHeap!=nullptr, "Getting heap for thread that has been destroyed" );
+			return prcore::Heap;
+		}
+		
+		return *pHeap;
+	}
+
+	//	alloc new heap
+	std::stringstream HeapName;
+	HeapName << "Thread Heap " << GetThreadName(Thread);
+	std::shared_ptr<prmem::Heap> NewHeap( new prmem::Heap( true, true, HeapName.str().c_str() ) );
+	mThreadHeaps[Thread] = NewHeap;
+	return *NewHeap;
+}
 

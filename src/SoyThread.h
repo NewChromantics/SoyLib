@@ -247,13 +247,18 @@ public:
 
 	void		SetThreadName(std::string Name)	{	SetThreadName(Name, GetCurrentThreadNativeHandle()); }
 	static void	SetThreadName(std::string Name,std::thread::native_handle_type ThreadHandle);
+	static std::string	GetThreadName(std::thread::native_handle_type ThreadHandle);
 	
-	
-	static std::shared_ptr<SoyEvent<const std::thread::id>>	GetOnThreadCleanupEvent();
-	static bool	OnThreadCleanup(std::thread::id Thread);	//	call cleanup callbacks
+	static std::shared_ptr<SoyEvent<const std::thread::native_handle_type>>	GetOnThreadCleanupEvent();
+	static bool	OnThreadCleanup(std::thread::native_handle_type Thread);	//	call cleanup callbacks
 
 	static std::mutex	mCleanupEventLock;
-	static std::map<std::thread::id,std::shared_ptr<SoyEvent<const std::thread::id>>>	mCleanupEvents;
+	static std::map<std::thread::native_handle_type,std::shared_ptr<SoyEvent<const std::thread::native_handle_type>>>	mCleanupEvents;
+
+	static prmem::Heap&	GetHeap(std::thread::native_handle_type Thread);
+	
+	//	gr: make a pool of heaps to save the overhead of allocating heaps
+	static std::map<std::thread::native_handle_type,std::shared_ptr<prmem::Heap>>	mThreadHeaps;
 };
 
 
@@ -508,6 +513,10 @@ template<class TYPE>
 class TLockQueue
 {
 public:
+	TLockQueue(prmem::Heap& Heap) :
+		mJobs	( Heap )
+	{
+	}
 	bool			IsEmpty() const			{	return mJobs.IsEmpty();	}
 	TYPE			Pop();
 	bool			Push(const TYPE& Job);
