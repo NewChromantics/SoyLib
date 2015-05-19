@@ -67,10 +67,31 @@ std::string Soy::FormatSizeBytes(uint64 bytes)
 //	static per-thread
 __thread std::string* ThreadBuffer = nullptr;	//	thread_local not supported on OSX
 
+
+//	singleton so the heap is created AFTER the heap register
+prmem::Heap& GetDebugStreamHeap()
+{
+	static prmem::Heap DebugStreamHeap(true, true,"Debug stream heap");
+	return DebugStreamHeap;
+}
+
+
+
 std::string& std::DebugStreamBuf::GetBuffer()
 {
 	if ( !ThreadBuffer )
-		ThreadBuffer = new std::string();
+	{
+		//auto& Heap = SoyThread::GetHeap( SoyThread::GetCurrentThreadNativeHandle() );
+		auto& Heap = GetDebugStreamHeap();
+		ThreadBuffer = Heap.Alloc<std::string>( Heap.GetAllocator() );
+		
+		std::string* NonTlsThreadBufferPtr = ThreadBuffer;
+		auto Dealloc = [NonTlsThreadBufferPtr](const std::thread::native_handle_type&)
+		{
+			GetDebugStreamHeap().Free( NonTlsThreadBufferPtr );
+		};
+		SoyThread::GetOnThreadCleanupEvent()->AddListener( Dealloc );
+	}
 	return *ThreadBuffer;
 }
 
