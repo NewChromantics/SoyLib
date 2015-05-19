@@ -321,7 +321,7 @@ public:
 		{
 			T* src = mdata + moffset - count - 1;
 			T* dest = mdata + moffset - 1;
-			for ( size_t i=0; i<left; ++i )
+			for ( ssize_t i=0; i<left; ++i )
 				*dest-- = *src--;
 		}
 		else if ( left > 0 )
@@ -348,7 +348,7 @@ public:
 
 		if ( Soy::DoComplexCopy<T,T>() )
 		{				
-			for ( size_t i=0; i<left; ++i )
+			for ( ssize_t i=0; i<left; ++i )
 				*dest++ = *src++;
 			moffset = static_cast<int>(dest - mdata);
 		}

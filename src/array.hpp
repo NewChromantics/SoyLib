@@ -6,9 +6,8 @@
 */
 #pragma once
 
-#include <cassert>
-#include <cstddef>
-#include "SoyTypes.h"	//	gr: not sure why I have to include this, when it's included earlier in Soy.hpp...
+#include <mutex>
+#include "SoyTypes.h"
 
 
 //	ArrayTest object forces .cpp to be built and not throw away the unittest symbols
@@ -406,7 +405,7 @@ private:
 	bool		ReadReverse(ArrayBridge<char>& Pop);
 	
 public:
-	int			mOffset;
+	size_t		mOffset;
 	const ArrayBridge<char>&	mArray;
 };
 

@@ -232,8 +232,9 @@ bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char
 		auto&& DecompressedData = Pixels.GetPixelsArray();
 		DecompressedData.PushBlock( 1 * Pixels.GetHeight() );
 
-		mz_ulong DecompressedLength = DecompressedData.GetDataSize();
-		auto Result = mz_uncompress( reinterpret_cast<Byte*>(DecompressedData.GetArray()), &DecompressedLength, reinterpret_cast<Byte*>(Data.GetArray()), Data.GetDataSize() );
+		mz_ulong CompressedLength = size_cast<mz_ulong>(DecompressedData.GetDataSize());
+		mz_ulong DecompressedLength = CompressedLength;
+		auto Result = mz_uncompress( reinterpret_cast<Byte*>(DecompressedData.GetArray()), &DecompressedLength, reinterpret_cast<Byte*>(Data.GetArray()), CompressedLength);
 		if ( Result != MZ_OK )
 		{
 			Error << "Error decompressing PNG data (" << mz_error(Result) << ")";
@@ -305,17 +306,17 @@ bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 		Debug_TimerName << "Deflate compression; " << Soy::FormatSizeBytes(FilteredPixels.GetDataSize()) << ". Compression level: " << CompressionLevel;
 		ofScopeTimerWarning DeflateCompressTimer( Debug_TimerName.str().c_str(), 3 );
 	
-		int DefAllocated = static_cast<int>( 1.2f * FilteredPixels.GetDataSize() );
-		uLong DefUsed = DefAllocated;
+		auto DefAllocated = static_cast<mz_ulong>( 1.2f * FilteredPixels.GetDataSize() );
+		mz_ulong DefUsed = DefAllocated;
 		auto* DefData = PngData.PushBlock(DefAllocated);
-		auto Result = mz_compress2( reinterpret_cast<Byte*>(DefData), &DefUsed, FilteredPixels.GetArray(), FilteredPixels.GetDataSize(), CompressionLevel );
-		assert( Result == MZ_OK );
-		if ( Result != MZ_OK )
+		auto DecompressedSize = size_cast<mz_ulong>(FilteredPixels.GetDataSize());
+		auto Result = mz_compress2( reinterpret_cast<Byte*>(DefData), &DefUsed, FilteredPixels.GetArray(), DecompressedSize, CompressionLevel );
+		if ( !Soy::Assert( Result == MZ_OK, "mz compression failed" ) )
 			return false;
 		if ( !Soy::Assert( DefUsed <= DefAllocated, "miniz compressed reported that it used more memory than we had allocated" ) )
 			return false;
 		//	trim data
-		int Overflow = DefAllocated - static_cast<int>(DefUsed);
+		auto Overflow = DefAllocated - size_cast<int>(DefUsed);
 		PngData.SetSize( PngData.GetSize() - Overflow );
 		return true;
 
@@ -415,7 +416,7 @@ bool TPng::GetDeflateData(Array<char>& DeflateData,const ArrayBridge<uint8>& Pix
 	uint8 Header = 0x0;
 	if ( LastBlock )
 		Header |= 1<<0;
-	uint16 Len = PixelBlock.GetDataSize();
+	uint16 Len = size_cast<uint16>(PixelBlock.GetDataSize());
 	uint16 NLen = 0;	//	compliment
 
 	DeflateData.PushBack( Header );

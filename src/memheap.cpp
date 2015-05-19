@@ -327,6 +327,8 @@ Improvement summary
 
 #if defined(TARGET_OSX)
 #include <malloc/malloc.h>
+#include <mach/mach.h>
+#include <mach/task.h>
 #endif
 
 
@@ -719,8 +721,6 @@ prmem::CRTHeap::CRTHeap(bool EnableDebug) :
 	}
 }
 
-#include <mach/mach.h>
-#include <mach/task.h>
 //----------------------------------------------
 //	update tracking information
 //----------------------------------------------
