@@ -82,6 +82,17 @@ public:
 	template<typename MATCH> T*			Find(const MATCH& Match)		{	auto Index = FindIndex( Match );		return (Index < 0) ? nullptr : &((*this)[Index]);	}
 	template<typename MATCH> const T*	Find(const MATCH& Match) const	{	auto Index = FindIndex( Match );		return (Index < 0) ? nullptr : &((*this)[Index]);	}
 
+	template<typename MATCH>
+	bool				Remove(const MATCH& Match)
+	{
+		auto Index = FindIndex( Match );
+		if ( Index == -1 )
+			return false;
+		
+		RemoveBlock( Index, 1 );
+		return true;
+	}
+	
 	//	this was NOT required before, because of sort array. so that just fails
 	virtual T*			PushBlock(size_t count)=0;
 	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true)=0;
@@ -313,6 +324,10 @@ private:
 	ARRAY&				mArray;
 };
 
+
+
+
+
 //	helper function to make syntax nicer;
 //		auto Bridge = GetArrayBridge( MyArray );
 //	instead of
@@ -323,6 +338,43 @@ inline ArrayBridgeDef<ARRAY> GetArrayBridge(const ARRAY& Array)
 	return ArrayBridgeDef<ARRAY>( Array );
 };
 
+
+//	gr: really hacky, and locks aren't thought out, but this might work well.
+//	may need implementing as a proper array type
+template<class ARRAY>
+class AtomicArrayBridge : public ArrayBridge<typename ARRAY::TYPE>
+{
+public:
+	typedef typename ARRAY::TYPE T;
+public:
+	//	const cast :( but only way to avoid it is to duplicate both ArrayBridge
+	//	types for a const and non-const version...
+	//	...not worth it.
+	explicit AtomicArrayBridge(const ARRAY& Array) :
+	mArray	( const_cast<ARRAY&>(Array) )
+	{
+	}
+	
+	virtual T&			operator [](size_t index) override				{	std::lock_guard<std::recursive_mutex> Lock(mLock);	return mArray[index];	}
+	virtual const T&	operator [](size_t index) const override		{	return mArray[index];	}
+	virtual T&			GetBack() override								{	std::lock_guard<std::recursive_mutex> Lock(mLock);	return mArray[mArray.GetSize()-1];	}
+	virtual size_t		GetSize() const override						{	return mArray.GetSize();	}
+	virtual const T*	GetArray() const override						{	return mArray.GetArray();	}
+	virtual T*			GetArray() override								{	std::lock_guard<std::recursive_mutex> Lock(mLock);	return mArray.GetArray();	}
+	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true) override	{	std::lock_guard<std::recursive_mutex> Lock(mLock);	return mArray.SetSize(size,preserve,AllowLess);	}
+	virtual void		Reserve(size_t size,bool clear=false) override	{	std::lock_guard<std::recursive_mutex> Lock(mLock);	return mArray.Reserve(size,clear);	}
+	virtual T*			PushBlock(size_t count) override				{	std::lock_guard<std::recursive_mutex> Lock(mLock);	return mArray.PushBlock(count);	}
+	virtual T&			PushBack(const T& item) override				{	std::lock_guard<std::recursive_mutex> Lock(mLock);	auto& Tail = PushBack();	Tail = item;	return Tail;	}
+	virtual T&			PushBack() override								{	std::lock_guard<std::recursive_mutex> Lock(mLock);	auto* Tail = PushBlock(1);	return *Tail;	}
+	virtual void		RemoveBlock(size_t index,size_t count) override	{	std::lock_guard<std::recursive_mutex> Lock(mLock);	mArray.RemoveBlock(index,count);	}
+	virtual T*			InsertBlock(size_t index,size_t count) override	{	std::lock_guard<std::recursive_mutex> Lock(mLock);	return mArray.InsertBlock(index,count);	}
+	virtual void		Clear(bool Dealloc) override					{	std::lock_guard<std::recursive_mutex> Lock(mLock);	return mArray.Clear(Dealloc);	}
+	virtual size_t		MaxSize() const override						{	return mArray.MaxSize();	}
+	
+private:
+	std::recursive_mutex	mLock;
+	ARRAY&				mArray;
+};
 
 
 class TArrayReader
