@@ -143,32 +143,23 @@ void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
 
 void Soy::StringSplitByString(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& Delim,bool IncludeEmpty)
 {
-	std::string::size_type Start = 0;
-	while ( Start < String.length() )
+	auto PushBack = [&Parts,&Delim](const std::string& Part)
 	{
-		auto End = Parts.IsFull() ? String.length() : String.find( Delim, Start );
-		if ( End == std::string::npos )
-			End = String.length();
-		
-		auto Part = String.substr( Start, End-Start );
-		//std::Debug << "found [" << Part << "] in [" << String << "]" << std::endl;
-
-		if ( IncludeEmpty || !Part.empty() )
+		if ( Parts.IsFull() )
 		{
-			//	gr: better pre-emptive full required!
-			if ( Parts.IsFull() )
-			{
-				Parts.GetBack() += Part;
-			}
-			else
-			{
-				Parts.PushBack( Part );
-			}
+			Parts.GetBack() += Delim;
+			Parts.GetBack() += Part;
 		}
-		
-		Start = End+Delim.length();
-	}
+		else
+		{
+			Parts.PushBack( Part );
+		}
+		return true;
+	};
+	
+	StringSplitByString( PushBack, String, Delim, IncludeEmpty );
 }
+
 
 void Soy::StringSplitByString(ArrayBridge<std::string>&& Parts,const std::string& String,const std::string& Delim,bool IncludeEmpty)
 {
@@ -196,6 +187,51 @@ bool Soy::StringSplitByString(std::function<bool(const std::string&)> Callback,c
 		Start = End+Delim.length();
 	}
 	
+	return true;
+}
+
+
+void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
+{
+	auto PushBack = [&Parts](const std::string& Part)
+	{
+		Parts.PushBack( Part );
+		return true;
+	};
+
+	StringSplitByMatches( PushBack, String, MatchingChars, IncludeEmpty );
+}
+
+//	gr: merge this and split by string and have a "match" function/policy
+bool Soy::StringSplitByMatches(std::function<bool(const std::string&)> Callback,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
+{
+	//	gr; I think this is the only case where we erroneously return something
+	//		if removed, and we split "", then we get 1 empty case
+	if ( String.empty() )
+		return true;
+	
+	//	gr: dumb approach as regexp is a little fiddly
+	std::stringstream Pending;
+	for ( int i=0;	i<=String.length();	i++ )
+	{
+		bool Eof = ( i >= String.length() );
+		
+		if ( !Eof && MatchingChars.find(String[i]) == MatchingChars.npos )
+		{
+			Pending << String[i];
+			continue;
+		}
+		
+		//	pop part
+		auto Part = Pending.str();
+		Pending.str( std::string() );
+		
+		if ( !IncludeEmpty && Part.empty() )
+			continue;
+		
+		if ( !Callback( Part ) )
+			return false;
+	}
 	return true;
 }
 
@@ -240,36 +276,6 @@ bool Soy::StringTrimRight(std::string& String,const ArrayBridge<char>& TrimChars
 		String.pop_back();
 	}
 	return Changed;
-}
-
-void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
-{
-	//	gr; I think this is the only case where we erroneously return something
-	//		if removed, and we split "", then we get 1 empty case
-	if ( String.empty() )
-		return;
-	
-	//	gr: dumb approach as regexp is a little fiddly
-	std::stringstream Pending;
-	for ( int i=0;	i<=String.length();	i++ )
-	{
-		bool Eof = ( i >= String.length() );
-		
-		if ( !Eof && MatchingChars.find(String[i]) == MatchingChars.npos )
-		{
-			Pending << String[i];
-			continue;
-		}
-		
-		//	pop part
-		auto Part = Pending.str();
-		Pending.str( std::string() );
-		
-		if ( !IncludeEmpty && Part.empty() )
-			continue;
-		
-		Parts.PushBack( Part );
-	}
 }
 
 void Soy::StringSplitByMatches(ArrayBridge<std::string>&& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)

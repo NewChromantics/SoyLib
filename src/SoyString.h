@@ -39,6 +39,7 @@ namespace Soy
 	bool		StringSplitByString(std::function<bool(const std::string&)> Callback,const std::string& String,const std::string& Delim,bool IncludeEmpty=true);
 	void		StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty=true);
 	void		StringSplitByMatches(ArrayBridge<std::string>&& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty=true);
+	bool		StringSplitByMatches(std::function<bool(const std::string&)> Callback,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty=true);
 
 	bool		StringTrimLeft(std::string& String, char TrimChar);
 	bool		StringTrimRight(std::string& String, const ArrayBridge<char>& TrimAnyChars);
