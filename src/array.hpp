@@ -66,7 +66,7 @@ public:
 
 	//	simple iterator to find index of an element matching via == operator
 	template<typename MATCHTYPE>
-	size_t				FindIndex(const MATCHTYPE& Match) const
+	ssize_t				FindIndex(const MATCHTYPE& Match) const
 	{
 		for ( size_t i=0;	i<GetSize();	i++ )
 		{
