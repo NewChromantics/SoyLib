@@ -16,18 +16,21 @@
 //		be able to be replaced by this, but with a default Heap
 //	gr: This should always allocate from a heap now, by default the "pr-global heap"
 //		with the exception of heaparrays that are allocated globally before the prcore::Heap
-template <typename T,prmem::Heap& HEAP=prcore::Heap>
+template <typename T>
 class Array // : public ArrayInterface<T>
 {
 public:
 	typedef T TYPE;	//	in case you ever need to get to T in a template function/class, you can use ARRAYPARAM::TYPE (sometimes need typename ARRAYPARAM::TYPE)
 
+	//	default heap, which can be specialised for different templates
+	inline static prmem::Heap&	GetDefaultHeap()	{	return prcore::Heap;	}
+	
 public:
 
 	Array()
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
-		SetHeap( HEAP );
+		SetHeap( GetDefaultHeap() );
 	}
 
 	explicit Array(prmem::Heap& Heap)
@@ -39,21 +42,21 @@ public:
 	Array(const size_t size)
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
-		SetHeap( HEAP );
+		SetHeap( GetDefaultHeap() );
 		SetSize(size);
 	}
 	
 	Array(const int size)
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
-		SetHeap( HEAP );
+		SetHeap( GetDefaultHeap() );
 		SetSize(size);
 	}
 	
 	Array(unsigned int size)
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
-		SetHeap( HEAP );
+		SetHeap( GetDefaultHeap() );
 		SetSize(size);
 	}
 	
@@ -61,7 +64,7 @@ public:
 	Array(const Array& v)
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
-		SetHeap( HEAP );
+		SetHeap( GetDefaultHeap() );
 		Copy( v );
 	}
 
@@ -70,7 +73,7 @@ public:
 	explicit Array(const ARRAYTYPE& v)
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
-		SetHeap( HEAP );
+		SetHeap( GetDefaultHeap() );
 		Copy( v );
 	}
 
@@ -519,8 +522,8 @@ public:
 	{
 		if ( !mHeap )
 		{
-			auto& This = *const_cast<Array<T,HEAP>*>( this );
-			This.SetHeap( prcore::Heap );
+			auto& This = *const_cast<Array<T>*>( this );
+			This.SetHeap( GetDefaultHeap() );
 		}
 		return mHeap ? *mHeap : prcore::Heap;	
 	}
@@ -583,7 +586,7 @@ public:
 
 private:
 	prmem::Heap*	mHeap;		//	where to alloc/free from
-	T*				mdata;
-	size_t			mmaxsize;	//	max allocation
-	size_t			moffset;
+	T*				mdata;		//	data
+	size_t			mmaxsize;	//	data allocated
+	size_t			moffset;	//	data in use
 };
