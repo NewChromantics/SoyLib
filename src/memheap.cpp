@@ -337,8 +337,8 @@ namespace prmem
 {
 	//	global list of our heaps
 	//	this needs to be before any other global Heap!
-	BufferArray<HeapInfo*,100>		gMemHeapRegister;
-	AtomicArrayBridge<BufferArray<HeapInfo*,100>>	gAtomicMemHeapRegister( gMemHeapRegister );
+	BufferArray<HeapInfo*,10000>		gMemHeapRegister;
+	AtomicArrayBridge<BufferArray<HeapInfo*,10000>>	gAtomicMemHeapRegister( gMemHeapRegister );
 }
 
 
