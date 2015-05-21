@@ -337,10 +337,17 @@ namespace prmem
 {
 	//	global list of our heaps
 	//	this needs to be before any other global Heap!
-	BufferArray<HeapInfo*,10000>		gMemHeapRegister;
-	AtomicArrayBridge<BufferArray<HeapInfo*,10000>>	gAtomicMemHeapRegister( gMemHeapRegister );
+	static AtomicArrayBridge<BufferArray<prmem::HeapInfo*,10000>>&		GetMemHeapRegisterArray();
+//	static AtomicArrayBridge<BufferArray<HeapInfo*,10000>>	gAtomicMemHeapRegister( gMemHeapRegister );
 }
 
+
+AtomicArrayBridge<BufferArray<prmem::HeapInfo*,10000>>& prmem::GetMemHeapRegisterArray()
+{
+	static BufferArray<HeapInfo*,10000> gMemHeapRegister;
+	static AtomicArrayBridge<BufferArray<HeapInfo*,10000>> gAtomicMemHeapRegister( gMemHeapRegister );
+	return gAtomicMemHeapRegister;
+}
 
 namespace prcore
 {
@@ -485,7 +492,7 @@ const ArrayInterface<prmem::HeapInfo*>& prmem::GetHeaps()
 	//	update the CRT heap info on-request
 	gCRTHeap.Update();
 
-	return gAtomicMemHeapRegister;
+	return prmem::GetMemHeapRegisterArray();
 }
 
 
@@ -497,14 +504,14 @@ prmem::HeapInfo::HeapInfo(const char* Name) :
 	mAllocBytesPeak	( 0 ),
 	mAllocCountPeak	( 0 )
 {
-	auto& Heaps = gAtomicMemHeapRegister;
+	auto& Heaps = prmem::GetMemHeapRegisterArray();
 	Heaps.PushBack( this );
 }
 
 prmem::HeapInfo::~HeapInfo()
 {
 	//	unregister
-	auto& Heaps = gAtomicMemHeapRegister;
+	auto& Heaps = prmem::GetMemHeapRegisterArray();
 	Heaps.Remove( this );
 }
 
