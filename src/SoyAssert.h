@@ -1,6 +1,8 @@
 #pragma once
 
 #include "SoyTypes.h"
+#include <functional>
+
 
 //	windows complains that I don't need to specify throw exception type?
 #pragma warning(disable:4290)	//	C++ exception specification ignored except to indicate a function is not __declspec(nothrow)
