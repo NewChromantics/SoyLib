@@ -239,8 +239,28 @@ void SoyWorker::Loop()
 
 		mOnPreIteration.OnTriggered(Dummy);
 		
-		if ( !Iteration() )
-			break;
+		static bool CatchExceptions = true;
+
+		if ( CatchExceptions )
+		{
+			try
+			{
+				if ( !Iteration() )
+					break;
+			} catch ( std::exception& e )
+			{
+				std::Debug << "caught exception in SoyWorker" << e.what() << std::endl;
+				break;
+			} catch ( ... )
+			{
+				std::Debug << "caught unknown-type-of exception in SoyWorker";
+			}
+		}
+		else
+		{
+			if ( !Iteration() )
+				break;
+		}
 	}
 	
 	mOnFinish.OnTriggered(Dummy);
