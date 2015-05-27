@@ -7,10 +7,17 @@
 #include <atomic>
 
 
+
+class SoyEventBase
+{
+public:
+};
+
+//	gr: make a derivitive of this that can un-listen itself by keeping a pointer to the event
 class SoyListenerId
 {
 public:
-	static SoyListenerId	Alloc()		{	return SoyListenerId( mListenerCounter++ );	}
+	static SoyListenerId	Alloc(SoyEventBase& Event) { return SoyListenerId(mListenerCounter++, Event); }
 	
 	SoyListenerId() :
 		mId		( 0 )
@@ -23,18 +30,21 @@ public:
 	inline bool		operator<(const SoyListenerId& That) const	{	return this->mId < That.mId;	}
 	
 private:
-	SoyListenerId(int Id) :
-		mId		( Id )
+	SoyListenerId(int Id,SoyEventBase& Event) :
+		mId		( Id ),
+		mEvent	( &Event )
 	{
 	}
 	
 private:
 	int					mId;
+	SoyEventBase*		mEvent;		//	only for debug atm
 	static std::atomic<int>	mListenerCounter;
 };
 
+
 template<typename PARAM>
-class SoyEvent
+class SoyEvent : public SoyEventBase
 {
 public:
 	typedef std::function<void(PARAM&)> FUNCTION;
@@ -114,7 +124,7 @@ public:
 	bool			HasListeners() const		{	return !mListeners.empty();	}
 	int				GetListenerCount() const	{	return mListeners.size();	}
 
-	SoyListenerId	AllocListenerId()			{	return SoyListenerId::Alloc();	}
+	SoyListenerId	AllocListenerId()			{	return SoyListenerId::Alloc(*this);	}
 	
 public:
 	MUTEX								mListenerLock;
