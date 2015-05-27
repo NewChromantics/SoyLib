@@ -291,13 +291,16 @@ public:
 
 	virtual void		Wake();
 	template<typename TYPE>
-	void				WakeOnEvent(SoyEvent<TYPE>& Event)
+	SoyListenerId		WakeOnEvent(SoyEvent<TYPE>& Event)
 	{
+		//	gr: maybe we can have some global that goes "this is no longer valid"
 		auto HandlerFunc = [this](TYPE& Param)
 		{
 			this->Wake();
 		};
-		Event.AddListener( HandlerFunc );
+
+		//	gr: can't really add a listener and then unsubscribe here... what if the event dies...
+		return Event.AddListener( HandlerFunc );
 	}
 	void				SetWakeMode(SoyWorkerWaitMode::Type WakeMode)	{	mWaitMode = WakeMode;	Wake();	}
 	SoyWorkerWaitMode::Type	GetWakeMode() const	{	return mWaitMode;	}
