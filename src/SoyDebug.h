@@ -42,7 +42,15 @@ namespace std
 			mEnableStdOut	( true )
 		{
 		};
-		~DebugStreamBuf()	{	flush();	}
+		~DebugStreamBuf()	
+		{
+			//	gr: currently WINDOWS on cleanup (OSX can't reach here atm but assume it suffers too)
+			//		the debug heap gets destroyed (as its created later?) before the string that is flushed does
+			//		so on flsh here, pointer still exists, but heap it was allocated from has gone.
+			//		solution: subscribe to heap destruction?
+			//		temp solution: no cleanup!
+			//flush();	
+		}
 
 	protected:
 		virtual int		overflow(int ch);
