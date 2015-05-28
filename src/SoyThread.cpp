@@ -273,8 +273,24 @@ void SoyWorkerThread::Start()
 	if ( !Soy::Assert( !HasThread(), "Thread already created" ) )
 		return;
 	
+	auto StartFunc = [this]
+	{
+		//	enable thread cancellation
+#if defined(TARGET_OSX)
+		auto EnabledCancel = 0 == pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,nullptr);
+		if ( !EnabledCancel )
+			std::Debug << "unable to enable thread cancelling" << std::endl;
+		auto EnabledAsyncCancel = 0 == pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS,nullptr);
+		if ( !EnabledAsyncCancel )
+			std::Debug << "unable to enable async thread cancelling" << std::endl;
+#endif
+		//	name thread!
+		SoyThread::SetThreadName( mThreadName, SoyThread::GetCurrentThreadNativeHandle() );
+		this->SoyWorker::Start();
+	};
+	
 	//	start thread
-	mThread = std::thread( [this]{	this->SoyWorker::Start();	} );
+	mThread = std::thread( StartFunc );
 }
 
 void SoyWorkerThread::WaitToFinish()
