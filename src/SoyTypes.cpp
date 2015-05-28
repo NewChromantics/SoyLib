@@ -186,6 +186,10 @@ bool Soy::ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream)
 	if ( Data.IsEmpty() )
 		return false;
 	
+	auto Peek = Stream.peek();
+	if ( Peek == std::char_traits<char>::eof() )
+		return false;
+	
 	Stream.read( Data.GetArray(), Data.GetDataSize() );
 	
 	if ( Stream.fail() && !Stream.eof() )
