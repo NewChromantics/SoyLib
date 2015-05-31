@@ -91,11 +91,7 @@ inline bool Soy::StringToType(TYPE& Out,const std::string& String)
 
 
 template<>
-inline bool Soy::StringToType(int& Out,const std::string& String)
-{
-	Out = std::stoi( String );
-	return true;
-}
+bool Soy::StringToType(int& Out,const std::string& String);
 
 	
 template<typename TYPE>

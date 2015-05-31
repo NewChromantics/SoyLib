@@ -326,3 +326,21 @@ bool Soy::IsUtf8Char(char c)
 	return true;
 }
 
+
+template<>
+bool Soy::StringToType(int& Out,const std::string& String)
+{
+	try
+	{
+		Out = std::stoi( String );
+		return true;
+	}
+	catch(std::exception& e)
+	{
+		//std::invalid_argument for non int string etc
+		//	std::out_of_range for numbers that need to be 64bit etc
+		std::Debug << "exception converting string to int; \"" << String << "\"; " << e.what() << std::endl;
+	}
+	
+	return false;
+}
