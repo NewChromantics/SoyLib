@@ -75,3 +75,17 @@ inline const STRING& operator>>(const STRING& str,SoyRef& Value)
 	return str;
 }
 
+
+namespace std
+{
+	
+	template<>
+	struct hash<SoyRef>
+	{
+		size_t operator () (const SoyRef& uid) const
+		{
+			return uid.GetInt64();
+		}
+	};
+	
+}
