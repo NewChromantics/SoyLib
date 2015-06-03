@@ -239,7 +239,7 @@ void SoyWorker::Loop()
 
 		mOnPreIteration.OnTriggered(Dummy);
 		
-		static bool CatchExceptions = true;
+		static bool CatchExceptions = !Soy::Platform::IsDebuggerAttached();
 
 		if ( CatchExceptions )
 		{
