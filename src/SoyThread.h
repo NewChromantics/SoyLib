@@ -516,7 +516,7 @@ template<class TYPE>
 class TLockQueue
 {
 public:
-	TLockQueue(prmem::Heap& Heap) :
+	TLockQueue(prmem::Heap& Heap=prcore::Heap) :
 		mJobs	( Heap )
 	{
 	}
