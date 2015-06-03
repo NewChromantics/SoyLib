@@ -182,7 +182,8 @@ std::string Soy::Platform::GetErrorString(int Error)
 bool Soy::ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream)
 {
 	//	dunno how much to read
-	assert( !Data.IsEmpty() );
+	if ( !Soy::Assert( !Data.IsEmpty(), "Soy::ReadStreamChunk no data length specified, resorting to 1byte" ) )
+		Data.SetSize(1);
 	if ( Data.IsEmpty() )
 		return false;
 	
@@ -202,7 +203,7 @@ bool Soy::ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream)
 	return true;
 }
 
-bool Soy::ReadStream(ArrayBridge<char>&& Data,std::istream& Stream,std::stringstream& Error)
+bool Soy::ReadStream(ArrayBridge<char>&& Data,std::istream& Stream,std::ostream& Error)
 {
 	BufferArray<char,5*1024> Buffer;
 	while ( !Stream.eof() )
@@ -223,7 +224,7 @@ bool Soy::ReadStream(ArrayBridge<char>&& Data,std::istream& Stream,std::stringst
 }
 
 
-bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::stringstream& Error)
+bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::ostream& Error)
 {
 	//	gr: todo: re-use function above, just need to send lambda or something for PushBackArary
 	BufferArray<char,5*1024> Buffer;
@@ -244,7 +245,7 @@ bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::stringstr
 	return true;
 }
 
-bool Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename,std::stringstream& Error)
+bool Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename,std::ostream& Error)
 {
 	//	gr: would be nice to have an array! MemFileArray maybe, if it can be cross paltform...
 	std::ifstream Stream( Filename, std::ios::binary|std::ios::in );
@@ -392,7 +393,7 @@ bool Soy::FileToString(std::string Filename,std::string& String)
 	return FileToString( Filename, String, Error );
 }
 
-bool Soy::FileToString(std::string Filename,std::string& String,std::stringstream& Error)
+bool Soy::FileToString(std::string Filename,std::string& String,std::ostream& Error)
 {
 	//	gr: err surely a better way
 	Array<char> StringData;
@@ -416,7 +417,7 @@ bool Soy::FileToString(std::string Filename,std::string& String,std::stringstrea
  */
 }
 
-bool Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::stringstream& Error)
+bool Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::ostream& Error)
 {
 	//	get file as string then parse
 	std::string FileContents;

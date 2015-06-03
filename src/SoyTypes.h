@@ -395,18 +395,18 @@ class ArrayBridge;
 
 namespace Soy
 {
-	bool		FileToArray(ArrayBridge<char>& Data,std::string Filename,std::stringstream& Error);
-	inline bool	FileToArray(ArrayBridge<char>&& Data,std::string Filename,std::stringstream& Error)	{	return FileToArray( Data, Filename, Error );	}
-	inline bool	LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename,std::stringstream& Error)	{	return FileToArray( Data, Filename, Error );	}
-	bool		ReadStream(ArrayBridge<char>& Data, std::istream& Stream, std::stringstream& Error);
-	bool		ReadStream(ArrayBridge<char>&& Data, std::istream& Stream, std::stringstream& Error);
+	bool		FileToArray(ArrayBridge<char>& Data,std::string Filename,std::ostream& Error);
+	inline bool	FileToArray(ArrayBridge<char>&& Data,std::string Filename,std::ostream& Error)	{	return FileToArray( Data, Filename, Error );	}
+	inline bool	LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename,std::ostream& Error)	{	return FileToArray( Data, Filename, Error );	}
+	bool		ReadStream(ArrayBridge<char>& Data, std::istream& Stream, std::ostream& Error);
+	bool		ReadStream(ArrayBridge<char>&& Data, std::istream& Stream, std::ostream& Error);
 	bool		ReadStreamChunk( ArrayBridge<char>& Data, std::istream& Stream );
 	inline bool	ReadStreamChunk( ArrayBridge<char>&& Data, std::istream& Stream )	{	return ReadStreamChunk( Data, Stream );		}
 	bool		StringToFile(std::string Filename,std::string String);
 	bool		FileToString(std::string Filename,std::string& String);
-	bool		FileToString(std::string Filename,std::string& String,std::stringstream& Error);
-	bool		FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::stringstream& Error);
-	inline bool	FileToStringLines(std::string Filename,ArrayBridge<std::string>&& StringLines,std::stringstream& Error)	{	return FileToStringLines( Filename, StringLines, Error );	}
+	bool		FileToString(std::string Filename,std::string& String,std::ostream& Error);
+	bool		FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::ostream& Error);
+	inline bool	FileToStringLines(std::string Filename,ArrayBridge<std::string>&& StringLines,std::ostream& Error)	{	return FileToStringLines( Filename, StringLines, Error );	}
 }
 
 
