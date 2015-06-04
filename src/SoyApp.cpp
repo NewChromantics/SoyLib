@@ -60,7 +60,7 @@ bool TBitReader::ReadBytes(STORAGE& Data,int BitCount)
 	int ComponentBitCount = BitCount;
 	while ( ComponentBitCount > 0 )
 	{
-		if ( !Read( Bytes.PushBack(), ofMin(8,ComponentBitCount) ) )
+		if ( !Read( Bytes.PushBack(), std::min(8,ComponentBitCount) ) )
 			return false;
 		ComponentBitCount -= 8;
 	}
@@ -192,7 +192,7 @@ void TBitWriter::WriteBytes(STORAGE Data,int BitCount)
 			continue;
 		//	write in reverse
 		auto ByteIndex = Bytes.GetSize()-1 - i;
-		Write( Bytes[ByteIndex], ofMin(ComponentBitCount,8) );
+		Write( Bytes[ByteIndex], std::min(ComponentBitCount,8) );
 	}
 }
 

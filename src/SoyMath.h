@@ -8,6 +8,67 @@
 #include "mathfu/vector_4.h"
 #include <cmath>
 
+
+
+
+//	expanded std functions
+namespace std
+{
+	template<typename T>
+	inline const T&	min(const T& a,const T& b,const T& c)
+	{
+		return std::min<T>( a, std::min<T>( b, c ) );
+	}
+	
+	template<typename T>
+	inline const T&	max(const T& a,const T& b,const T& c)
+	{
+		return std::max<T>( a, std::max<T>( b, c ) );
+	}
+	
+	template<typename T>
+	inline void			clamp(T& a,const T& Min,const T& Max)
+	{
+		//	gr: simple comparisons, not min/max funcs in case this is complex
+		if ( a < Min )
+			a = Min;
+		if ( a > Max )
+			a = Max;
+	}
+	
+	template<typename T>
+	inline const T&		clamped(const T& a,const T& Min,const T& Max)
+	{
+		//	gr: simple comparisons, not min/max funcs in case this is complex
+		if ( a < Min )
+			return Min;
+			
+		if ( a > Max )
+			return Max;
+		
+		return a;
+	}
+}
+
+namespace Soy
+{
+	template<typename T>
+	T	Lerp(const T& Start,const T& End,float Time)
+	{
+		return Start + ((End-Start) * Time);
+	}
+
+	//	gr: was "GetMathTime". Range doesn't scream "unlerp" to me, but still, this is the conventional name (I think it's in glsl too)
+	template<typename T>
+	float	Range(const T& Value,const T& Start,const T& End)
+	{
+		return (Value-Start) / (End-Start);
+	}
+}
+
+
+
+
 //	gr: dumb types with nice transparent accessors, then for complex stuff, use mathfu::Vector<float,3>
 #define SWIZZLE2(A,B)	vec2x<TYPE>	A##B()		{	return vec2x<TYPE>(A,B);	}
 #define SWIZZLE3(A,B,C)	vec3x<TYPE>	A##B##C()	{	return vec3x<TYPE>(A,B,C);	}
@@ -131,23 +192,62 @@ DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec4f );
 
 
 
-//	gr: maybe not soymath?
-class TColourHsl
+//	gr: maybe not in Soy
+namespace Soy
+{
+	class THsl;
+	class TRgb;
+};
+
+
+
+
+class Soy::THsl
 {
 public:
-	TColourHsl(float Hue,float Sat,float Lightness) :
-		mHsl	( Hue, Sat, Lightness )
-	{
-	}
+	THsl()					{}
+	THsl(const TRgb& rgb);
 	
-	float		GetHue() const			{	return mHsl.x;	}
-	float		GetSaturation() const	{	return mHsl.y;	}
-	float		GetLightness() const	{	return mHsl.z;	}
-	vec3f		GetHsl() const			{	return mHsl;	}
+	float&			h()			{	return mHsl.x;	}
+	float&			s()			{	return mHsl.y;	}
+	float&			l()			{	return mHsl.z;	}
+	const float&	h() const	{	return mHsl.x;	}
+	const float&	s() const	{	return mHsl.y;	}
+	const float&	l() const	{	return mHsl.z;	}
+	
+	TRgb			rgb() const;
 
 public:
 	vec3f		mHsl;
 };
-DECLARE_NONCOMPLEX_TYPE( TColourHsl );
+DECLARE_NONCOMPLEX_TYPE( Soy::THsl );
+
+
+
+class Soy::TRgb
+{
+public:
+	TRgb();
+	TRgb(const THsl& Hsl);
+	
+	float&			r()			{	return mRgb.x;	}
+	float&			g()			{	return mRgb.y;	}
+	float&			b()			{	return mRgb.z;	}
+	const float&	r() const	{	return mRgb.x;	}
+	const float&	g() const	{	return mRgb.y;	}
+	const float&	b() const	{	return mRgb.z;	}
+	THsl			hsl() const;
+	
+public:
+	vec3f		mRgb;
+};
+DECLARE_NONCOMPLEX_TYPE( Soy::TRgb );
+
+
+namespace Soy
+{
+	inline	TRgb	THsl::rgb() const	{	return TRgb(*this);	}
+	inline	THsl	TRgb::hsl() const	{	return THsl(*this);	}
+}
 
 

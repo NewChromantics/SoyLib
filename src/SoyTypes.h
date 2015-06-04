@@ -156,24 +156,6 @@ public:
 	static std::string		getFileName(const std::string& Filename,bool bRelativeToData=true);
 };
 
-template<typename TYPE>
-class ofEvent
-{
-public:
-};
-
-template<typename TYPE,typename ARG>
-void ofNotifyEvent(ofEvent<TYPE>& Event,ARG& Arg)
-{
-}
-
-class ofTexture
-{
-public:
-	int		getWidth() const	{	return 0;	}
-	int		getHeight() const	{	return 0;	}
-};
-
 //----------------------------------------------------------
 // ofPtr
 //----------------------------------------------------------
@@ -181,54 +163,6 @@ template<typename T>
 using ofPtr = std::shared_ptr<T>;
 
 inline std::string ofToDataPath(const std::string& LocalPath,bool FullPath=false)	{	return LocalPath;	}
-
-
-
-typedef void(*ofDebugPrintFunc)(const std::string&);
-
-
-template<typename T>
-const T& ofMin(const T& a,const T& b)
-{
-	return (a < b) ? a : b;
-}
-template<typename T>
-const T& ofMax(const T& a,const T& b)
-{
-	return (a > b) ? a : b;
-}
-
-template<typename T>
-T ofLimit(const T& v,const T& Min,const T& Max)
-{
-	assert( Min <= Max );
-	if ( v < Min )
-		return Min;
-	else if ( v > Max )
-		return Max;
-	else
-		return v;
-}
-
-template<typename T>
-void ofSwap(T& a,T& b)
-{
-	T Temp = a;
-	a = b;
-	b = Temp;
-}
-
-template<typename T>
-T ofLerp(const T& start,const T& stop, float amt)
-{
-	return start + ((stop-start) * amt);
-}
-
-
-inline float ofGetMathTime(float z,float Min,float Max) 
-{
-	return (z-Min) / (Max-Min);	
-}
 
 
 namespace Soy

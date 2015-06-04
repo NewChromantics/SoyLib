@@ -4,6 +4,7 @@
 #include <functional>
 #include "SoyPng.h"
 #include "RemoteArray.h"
+#include "SoyMath.h"
 
 #if defined(SOY_OPENGL)
 #if defined(TARGET_OSX)
@@ -222,33 +223,33 @@ void SetDepthColour(char& Red,char& Green,char& Blue,float Depth,int PlayerIndex
 	
 	static int MinBrightness = 0;
 	//	gr: invert to distinguish invalid from close
-	uint8 Greyscale = 255 - ofLimit<int>( static_cast<int>(Depth*255.f), MinBrightness, 255 );
+	uint8 Greyscale = 255 - std::clamped<int>( static_cast<int>(Depth*255.f), MinBrightness, 255 );
 
 	static bool UseRainbowScale = true;
 	if ( UseRainbowScale )
 	{
 		if ( Depth < 1.f/3.f )
 		{
-			float d = ofGetMathTime( Depth, 0.f, 1.f/3.f );
+			float d = Soy::Range( Depth, 0.f, 1.f/3.f );
 			//	red to green
-			Red = ofLerp( 0, 255, 1.f-d );
-			Green = ofLerp( 0, 255, d );
+			Red = Soy::Lerp( 0, 255, 1.f-d );
+			Green = Soy::Lerp( 0, 255, d );
 			Blue = 0;
 		}
 		else if ( Depth < 2.f/3.f )
 		{
-			float d = ofGetMathTime( Depth, 1.f/3.f, 2.f/3.f );
+			float d = Soy::Range( Depth, 1.f/3.f, 2.f/3.f );
 			//	yellow to blue
-			Green = ofLerp( 0, 255, 1.f-d );
-			Blue = ofLerp( 0, 255, d );
+			Green = Soy::Lerp( 0, 255, 1.f-d );
+			Blue = Soy::Lerp( 0, 255, d );
 			Red = 0;
 		}
 		else
 		{
-			float d = ofGetMathTime( Depth, 2.f/3.f, 3.f/3.f );
+			float d = Soy::Range( Depth, 2.f/3.f, 3.f/3.f );
 			//	blue to red
-			Blue = ofLerp( 0, 255, 1.f-d );
-			Red = ofLerp( 0, 255, d );
+			Blue = Soy::Lerp( 0, 255, 1.f-d );
+			Red = Soy::Lerp( 0, 255, d );
 			Green = 0;
 		}
 		return;
@@ -287,7 +288,7 @@ bool ConvertFormat_KinectDepthToGreyscale(ArrayInterface<char>& Pixels,SoyPixels
 
 		int PlayerIndex = KinectDepth & ((1<<3)-1);
 		float Depthf = static_cast<float>(KinectDepth >> 3) / static_cast<float>( 1<<13 );
-		Greyscale = ofLimit<int>( static_cast<int>(Depthf*255.f), 0, 255 );
+		Greyscale = std::clamped<int>( static_cast<int>(Depthf*255.f), 0, 255 );
 
 		if ( GreyscaleAlphaFormat )
 		{
@@ -333,7 +334,7 @@ bool ConvertFormat_KinectDepthToRgb(ArrayInterface<char>& Pixels,SoyPixelsMeta& 
 		KinectDepth &= MaxDepth;
 		
 		bool DepthInvalid = (KinectDepth == 0);
-		float Depthf = ofGetMathTime( KinectDepth, MinDepth, MaxDepth );
+		float Depthf = Soy::Range( KinectDepth, MinDepth, MaxDepth );
 		
 		char& Red = Pixels[ p * (Components) + 0 ];
 		char& Green = Pixels[ p * (Components) + 1 ];
@@ -389,7 +390,7 @@ bool DepthToGreyOrRgb(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixels
 		
 
 		bool DepthInvalid = (KinectDepth == InvalidDepth);
-		float Depthf = ofGetMathTime( KinectDepth, MinDepth, MaxDepth );
+		float Depthf = Soy::Range( KinectDepth, MinDepth, MaxDepth );
 		
 		char& Red = Pixels[ p * (Components) + 0 ];
 		
@@ -421,7 +422,7 @@ bool DepthToGreyOrRgb(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixels
 			//	greyscale...
 			static int GreyInvalid = 0;
 			static int GreyMin = 1;
-			uint8 Greyscale = ofLimit<int>( static_cast<int>(Depthf*255.f), GreyMin, 255 );
+			uint8 Greyscale = std::clamped<int>( static_cast<int>(Depthf*255.f), GreyMin, 255 );
 
 			//	set first component to greyscale
 			Red = DepthInvalid ? GreyInvalid : Greyscale;
@@ -490,7 +491,7 @@ bool ConvertFormat_RGBAToGreyscale(ArrayInterface<char>& Pixels,SoyPixelsMeta& M
 		Intensity /= ReadChannels;
 		
 		char& Greyscale = Pixels[ p * GreyscaleChannels ];
-		Greyscale = ofLimit<int>( static_cast<int>(Intensity), 0, 255 );
+		Greyscale = std::clamped<int>( static_cast<int>(Intensity), 0, 255 );
 	}
 
 	//	half the pixels & change format
@@ -545,8 +546,8 @@ bool ConvertDepth16(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFo
 		uint16 Depth16 = DepthValue & ((1<<OldDepthBits)-1);
 		//uint16 Player16 = DepthValue >> OldDepthBits;
 		bool InvalidDepth = (Depth16 == OldInvalid);
-		float Depthf = ofGetMathTime( Depth16, OldMin, OldMax );
-		Depthf = ofLimit<float>( Depthf, 0.f, 1.f );
+		float Depthf = Soy::Range<uint16>( Depth16, OldMin, OldMax );
+		Depthf = std::clamped<float>( Depthf, 0.f, 1.f );
 		
 		if ( OldFrontToBack != NewFrontToBack )
 			Depthf = 1.f - Depthf;
@@ -559,7 +560,7 @@ bool ConvertDepth16(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFo
 		else
 		{
 			//	todo: write player index if both formats have it
-			DepthValue = static_cast<uint16>( ofLerp( NewMin, NewMax, Depthf ) );
+			DepthValue = static_cast<uint16>( Soy::Lerp( NewMin, NewMax, Depthf ) );
 		}
 		
 		if ( Debug )

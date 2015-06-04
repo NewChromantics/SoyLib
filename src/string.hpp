@@ -34,6 +34,7 @@
 #include "array.hpp"
 //#include "heaparray.hpp"
 #include "bufferarray.hpp"
+#include "SoyMath.h"
 
 
 namespace Soy
@@ -48,7 +49,7 @@ namespace Soy
 		int Terminator = sprintf( Buffer, Format, Variable );
 #endif
 		//	force terminator in case of error/overflow
-		Terminator = ofLimit<int>( Terminator, 0, BUFFERSIZE );
+		std::clamp<int>( Terminator, 0, BUFFERSIZE );
 		Buffer[Terminator] = '\0';
 		assert( strlen(Buffer) <= BUFFERSIZE );
 	}
