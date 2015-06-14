@@ -1,15 +1,42 @@
 #pragma once
 
-
-#include "ofxSoylent.h"
+#include "SoyTypes.h"
 #include "mathfu/vector.h"
 #include "mathfu/vector_2.h"
 #include "mathfu/vector_3.h"
 #include "mathfu/vector_4.h"
+#include "mathfu/matrix_4x4.h"
 #include <cmath>
 
 
+namespace Soy
+{
+	template<typename TYPE>
+	bool		IsValidFloat(const TYPE& f)
+	{
+		return std::isfinite(f);	//	not infinite and not nan
+	};
 
+	inline float RadToDeg(float Radians)
+	{
+		return Radians * (180.f/M_PI);
+	}
+	
+	inline float DegToRad(float Degrees)
+	{
+		return Degrees * (M_PI / 180.f);
+	}
+}
+
+//	for soy: optimised/full implementations are called "matrix's"
+//	the simple POD types are called floatX's
+namespace Soy
+{
+	typedef mathfu::Vector<float,2>		Matrix2x1;
+	typedef mathfu::Vector<float,3>		Matrix3x1;
+	typedef mathfu::Vector<float,4>		Matrix4x1;
+	typedef mathfu::Matrix<float,4,4>	Matrix4x4;
+};
 
 //	expanded std functions
 namespace std
@@ -182,17 +209,70 @@ public:
 };
 
 
+
+template<typename TYPE>
+class vec4x4
+{
+public:
+	vec4x4() :
+		rows	{	vec4x<TYPE>(1,0,0,0), vec4x<TYPE>(0,1,0,0), vec4x<TYPE>(0,0,1,0), vec4x<TYPE>(0,0,0,1)	}
+	{
+	}
+	vec4x4(TYPE a,TYPE b,TYPE c,TYPE d,
+		   TYPE e,TYPE f,TYPE g,TYPE h,
+		   TYPE i,TYPE j,TYPE k,TYPE l,
+		   TYPE m,TYPE n,TYPE o,TYPE p) :
+		rows	{	vec4x<TYPE>(a,b,c,d), vec4x<TYPE>(e,f,g,h), vec4x<TYPE>(i,j,k,l), vec4x<TYPE>(m,n,o,p)	}
+	{
+	}
+	
+public:
+	vec4x<TYPE>	rows[4];
+};
+
+
+
+//	gr: rename these types float2, float3, float4
 typedef vec2x<float> vec2f;
 typedef vec3x<float> vec3f;
 typedef vec4x<float> vec4f;
+typedef vec4x4<float> float4x4;
 
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec2f );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec3f );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec4f );
+DECLARE_NONCOMPLEX_TYPE( float4x4 );
+
+
+namespace Soy
+{
+	inline Matrix2x1 VectorToMatrix(const vec2f& v)	{	return Matrix2x1( v.x, v.y );	}
+	inline Matrix3x1 VectorToMatrix(const vec3f& v)	{	return Matrix3x1( v.x, v.y, v.z );	}
+	inline Matrix4x1 VectorToMatrix(const vec4f& v)	{	return Matrix4x1( v.x, v.y, v.z, v.w );	}
+	
+	inline vec2f MatrixToVector(const Matrix2x1& v)	{	return vec2f( v.x(), v.y() );	}
+	inline vec3f MatrixToVector(const Matrix3x1& v)	{	return vec3f( v.x(), v.y(), v.z() );	}
+	inline vec4f MatrixToVector(const Matrix4x1& v)	{	return vec4f( v.x(), v.y(), v.z(), v.w() );	}
+	inline float4x4 MatrixToVector(const Matrix4x4& v)
+	{
+		return float4x4( v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15] );
+	}
+};
 
 
 
-//	gr: maybe not in Soy
+
+
+
+
+
+
+
+
+
+
+
+//	gr: maybe not in SoyMath
 namespace Soy
 {
 	class THsl;
@@ -244,10 +324,16 @@ public:
 DECLARE_NONCOMPLEX_TYPE( Soy::TRgb );
 
 
+
+
+
+
 namespace Soy
 {
 	inline	TRgb	THsl::rgb() const	{	return TRgb(*this);	}
 	inline	THsl	TRgb::hsl() const	{	return THsl(*this);	}
 }
+
+
 
 
