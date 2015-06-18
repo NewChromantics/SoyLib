@@ -36,6 +36,7 @@ namespace Soy
 	typedef mathfu::Vector<float,3>		Matrix3x1;
 	typedef mathfu::Vector<float,4>		Matrix4x1;
 	typedef mathfu::Matrix<float,4,4>	Matrix4x4;
+	typedef mathfu::Matrix<float,3,3>	Matrix3x3;
 };
 
 //	expanded std functions

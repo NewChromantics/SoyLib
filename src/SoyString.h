@@ -222,7 +222,6 @@ inline std::ostream& operator<<(std::ostream &out,const vec2x<TYPE> &in)
 	return out;
 }
 
-template<typename TYPE>
 inline std::ostream& operator<<(std::ostream &out,const Soy::Matrix2x1 &in)
 {
 	out << in.x() << Soy::VecNXDelins[0] << in.y();
@@ -236,7 +235,6 @@ inline std::ostream& operator<<(std::ostream &out,const vec3x<TYPE> &in)
 	return out;
 }
 
-template<typename TYPE>
 inline std::ostream& operator<<(std::ostream &out,const Soy::Matrix3x1 &in)
 {
 	out << in.x() << Soy::VecNXDelins[0] << in.y() << Soy::VecNXDelins[0] << in.z();
@@ -250,14 +248,12 @@ inline std::ostream& operator<<(std::ostream &out,const vec4x<TYPE> &in)
 	return out;
 }
 
-template<typename TYPE>
 inline std::ostream& operator<<(std::ostream &out,const Soy::Matrix4x1 &in)
 {
 	out << in.x() << Soy::VecNXDelins[0] << in.y() << Soy::VecNXDelins[0] << in.z() << Soy::VecNXDelins[0] << in.w();
 	return out;
 }
 
-template<typename TYPE>
 inline std::ostream& operator<<(std::ostream &out,const Soy::Matrix4x4 &in)
 {
 	for ( int i=0;	i<in.kElements;	i++ )
@@ -270,7 +266,6 @@ inline std::ostream& operator<<(std::ostream &out,const Soy::Matrix4x4 &in)
 	return out;
 }
 
-template<typename TYPE>
 inline std::ostream& operator<<(std::ostream &out,const float4x4&in)
 {
 	out << in.rows[0] << Soy::VecNXDelins[0]
