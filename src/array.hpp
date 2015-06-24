@@ -219,6 +219,20 @@ public:
 		
 		return pNewData;
 	}
+	
+	
+	//	if any case of the function returns false, this function breaks and returns false
+	bool		ForEach(std::function<bool(const T&)> Function) const
+	{
+		for ( size_t i=0;	i<GetSize();	i++ )
+		{
+			auto& Element = (*this)[i];
+			if ( !Function( Element ) )
+				return false;
+		}
+		return true;
+	}
+	
 };
 
 
@@ -284,7 +298,6 @@ public:
 			return true;
 		}
 	}
-	
 };
 
 
