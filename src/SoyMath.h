@@ -118,7 +118,12 @@ public:
 
 	vec2x&	operator*=(const TYPE& Scalar)	{	x*=Scalar;		y*=Scalar;	return *this;	}
 	vec2x&	operator*=(const vec2x& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;	return *this;	}
-	
+	vec2x&	operator+=(const vec2x& Scalar)	{	x+=Scalar.x;	y+=Scalar.y;	return *this;	}
+	vec2x&	operator-=(const vec2x& Scalar)	{	x-=Scalar.x;	y-=Scalar.y;	return *this;	}
+	vec2x&	operator/=(const vec2x& Scalar)	{	x/=Scalar.x;	y/=Scalar.y;	return *this;	}
+
+	vec2x	operator*(const vec2x& Scalar) const	{	return vec2x(x*Scalar.x, y* Scalar.y);	}
+
 	bool	operator==(const vec2x& That) const	{	return x==That.x && y==That.y;	}
 	bool	operator!=(const vec2x& That) const	{	return x!=That.x || y!=That.y;	}
 	
@@ -226,6 +231,17 @@ public:
 		rows	{	vec4x<TYPE>(a,b,c,d), vec4x<TYPE>(e,f,g,h), vec4x<TYPE>(i,j,k,l), vec4x<TYPE>(m,n,o,p)	}
 	{
 	}
+
+	const TYPE&	operator()(size_t c,size_t r) const
+	{
+		switch ( c )
+		{
+			default:	return rows[r].x;
+			case 1:		return rows[r].y;
+			case 2:		return rows[r].z;
+			case 3:		return rows[r].w;
+		}
+	}
 	
 public:
 	vec4x<TYPE>	rows[4];
@@ -250,6 +266,13 @@ namespace Soy
 	inline Matrix2x1 VectorToMatrix(const vec2f& v)	{	return Matrix2x1( v.x, v.y );	}
 	inline Matrix3x1 VectorToMatrix(const vec3f& v)	{	return Matrix3x1( v.x, v.y, v.z );	}
 	inline Matrix4x1 VectorToMatrix(const vec4f& v)	{	return Matrix4x1( v.x, v.y, v.z, v.w );	}
+	inline Matrix4x4 VectorToMatrix(const float4x4& v)
+	{
+		return Matrix4x4( v(0,0), v(1,0), v(2,0), v(3,0),
+						  v(0,1), v(1,1), v(2,1), v(3,1),
+						  v(0,2), v(1,2), v(2,2), v(3,2),
+						  v(0,3), v(1,3), v(2,3), v(3,3) );
+	}
 	
 	inline vec2f MatrixToVector(const Matrix2x1& v)	{	return vec2f( v.x(), v.y() );	}
 	inline vec3f MatrixToVector(const Matrix3x1& v)	{	return vec3f( v.x(), v.y(), v.z() );	}
