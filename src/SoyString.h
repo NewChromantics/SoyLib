@@ -266,6 +266,19 @@ inline std::ostream& operator<<(std::ostream &out,const Soy::Matrix4x4 &in)
 	return out;
 }
 
+inline std::ostream& operator<<(std::ostream &out,const Soy::Matrix3x3 &in)
+{
+	for ( int i=0;	i<in.kElements;	i++ )
+	{
+		if ( i > 0 )
+			out << Soy::VecNXDelins[0];
+		out << in[i];
+	}
+	
+	return out;
+}
+
+
 inline std::ostream& operator<<(std::ostream &out,const float4x4&in)
 {
 	out << in.rows[0] << Soy::VecNXDelins[0]
