@@ -1,13 +1,8 @@
 #pragma once
 
 #include "SoyTypes.h"
-#include "mathfu/vector.h"
-#include "mathfu/vector_2.h"
-#include "mathfu/vector_3.h"
-#include "mathfu/vector_4.h"
-#include "mathfu/matrix_4x4.h"
 #include <cmath>
-
+#include "SoyVector.h"
 
 namespace Soy
 {
@@ -27,17 +22,6 @@ namespace Soy
 		return Degrees * (M_PI / 180.f);
 	}
 }
-
-//	for soy: optimised/full implementations are called "matrix's"
-//	the simple POD types are called floatX's
-namespace Soy
-{
-	typedef mathfu::Vector<float,2>		Matrix2x1;
-	typedef mathfu::Vector<float,3>		Matrix3x1;
-	typedef mathfu::Vector<float,4>		Matrix4x1;
-	typedef mathfu::Matrix<float,4,4>	Matrix4x4;
-	typedef mathfu::Matrix<float,3,3>	Matrix3x3;
-};
 
 //	expanded std functions
 namespace std
@@ -97,203 +81,6 @@ namespace Soy
 
 
 
-//	gr: dumb types with nice transparent accessors, then for complex stuff, use mathfu::Vector<float,3>
-#define SWIZZLE2(A,B)	vec2x<TYPE>	A##B()		{	return vec2x<TYPE>(A,B);	}
-#define SWIZZLE3(A,B,C)	vec3x<TYPE>	A##B##C()	{	return vec3x<TYPE>(A,B,C);	}
-
-template<typename TYPE>
-class vec2x
-{
-public:
-	vec2x(TYPE _x,TYPE _y) :
-		x	( _x ),
-		y	( _y )
-	{
-	}
-	vec2x() :
-		x	( 0 ),
-		y	( 0 )
-	{
-	}
-
-	vec2x&	operator*=(const TYPE& Scalar)	{	x*=Scalar;		y*=Scalar;	return *this;	}
-	vec2x&	operator*=(const vec2x& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;	return *this;	}
-	vec2x&	operator+=(const vec2x& Scalar)	{	x+=Scalar.x;	y+=Scalar.y;	return *this;	}
-	vec2x&	operator-=(const vec2x& Scalar)	{	x-=Scalar.x;	y-=Scalar.y;	return *this;	}
-	vec2x&	operator/=(const vec2x& Scalar)	{	x/=Scalar.x;	y/=Scalar.y;	return *this;	}
-
-	vec2x	operator*(const vec2x& Scalar) const	{	return vec2x(x*Scalar.x, y* Scalar.y);	}
-
-	bool	operator==(const vec2x& That) const	{	return x==That.x && y==That.y;	}
-	bool	operator!=(const vec2x& That) const	{	return x!=That.x || y!=That.y;	}
-	
-	vec2x	xy() const	{	return vec2x(x,y);	}
-	vec2x	yx() const	{	return vec2x(y,x);	}
-	vec2x	xx() const	{	return vec2x(x,x);	}
-	vec2x	yy() const	{	return vec2x(y,y);	}
-	
-public:
-	TYPE	x;
-	TYPE	y;
-};
-
-
-template<typename TYPE>
-class vec3x
-{
-public:
-	vec3x(TYPE _x,TYPE _y,TYPE _z) :
-	x	( _x ),
-	y	( _y ),
-	z	( _z )
-	{
-	}
-	vec3x() :
-	x	( 0 ),
-	y	( 0 ),
-	z	( 0 )
-	{
-	}
-	
-	vec3x&	operator*=(const TYPE& Scalar)	{	x*=Scalar;		y*=Scalar;		z*=Scalar;	return *this;	}
-	vec3x&	operator*=(const vec3x& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;	z*=Scalar.z;	return *this;	}
-	
-	SWIZZLE2(x,x);
-	SWIZZLE2(x,y);
-	SWIZZLE2(y,x);
-	SWIZZLE2(y,y);
-	
-	SWIZZLE3(x,x,x);
-	SWIZZLE3(y,y,y);
-	SWIZZLE3(z,z,z);
-	SWIZZLE3(x,y,z);
-	
-public:
-	TYPE	x;
-	TYPE	y;
-	TYPE	z;
-};
-
-
-template<typename TYPE>
-class vec4x
-{
-public:
-	vec4x(TYPE _x,TYPE _y,TYPE _z,TYPE _w) :
-	x	( _x ),
-	y	( _y ),
-	z	( _z ),
-	w	( _w )
-	{
-	}
-	vec4x() :
-	x	( 0 ),
-	y	( 0 ),
-	z	( 0 ),
-	w	( 0 )
-	{
-	}
-	
-	vec4x&	operator*=(const TYPE& Scalar)	{	x*=Scalar;		y*=Scalar;		z*=Scalar;		w*=Scalar;	return *this;	}
-	vec4x&	operator*=(const vec4x& Scalar)	{	x*=Scalar.x;	y*=Scalar.y;	z*=Scalar.z;	w*=Scalar.w;	return *this;	}
-	
-	SWIZZLE2(x,x);
-	SWIZZLE2(x,y);
-	SWIZZLE2(y,x);
-	SWIZZLE2(y,y);
-	
-	SWIZZLE3(x,x,x);
-	SWIZZLE3(y,y,y);
-	SWIZZLE3(z,z,z);
-	SWIZZLE3(x,y,z);
-	
-public:
-	TYPE	x;
-	TYPE	y;
-	TYPE	z;
-	TYPE	w;
-};
-
-
-
-template<typename TYPE>
-class vec4x4
-{
-public:
-	vec4x4() :
-		rows	{	vec4x<TYPE>(1,0,0,0), vec4x<TYPE>(0,1,0,0), vec4x<TYPE>(0,0,1,0), vec4x<TYPE>(0,0,0,1)	}
-	{
-	}
-	vec4x4(TYPE a,TYPE b,TYPE c,TYPE d,
-		   TYPE e,TYPE f,TYPE g,TYPE h,
-		   TYPE i,TYPE j,TYPE k,TYPE l,
-		   TYPE m,TYPE n,TYPE o,TYPE p) :
-		rows	{	vec4x<TYPE>(a,b,c,d), vec4x<TYPE>(e,f,g,h), vec4x<TYPE>(i,j,k,l), vec4x<TYPE>(m,n,o,p)	}
-	{
-	}
-
-	const TYPE&	operator()(size_t c,size_t r) const
-	{
-		switch ( c )
-		{
-			default:	return rows[r].x;
-			case 1:		return rows[r].y;
-			case 2:		return rows[r].z;
-			case 3:		return rows[r].w;
-		}
-	}
-	
-public:
-	vec4x<TYPE>	rows[4];
-};
-
-
-
-//	gr: rename these types float2, float3, float4
-typedef vec2x<float> vec2f;
-typedef vec3x<float> vec3f;
-typedef vec4x<float> vec4f;
-typedef vec4x4<float> float4x4;
-
-DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec2f );
-DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec3f );
-DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec4f );
-DECLARE_NONCOMPLEX_TYPE( float4x4 );
-
-
-namespace Soy
-{
-	inline Matrix2x1 VectorToMatrix(const vec2f& v)	{	return Matrix2x1( v.x, v.y );	}
-	inline Matrix3x1 VectorToMatrix(const vec3f& v)	{	return Matrix3x1( v.x, v.y, v.z );	}
-	inline Matrix4x1 VectorToMatrix(const vec4f& v)	{	return Matrix4x1( v.x, v.y, v.z, v.w );	}
-	inline Matrix4x4 VectorToMatrix(const float4x4& v)
-	{
-		return Matrix4x4( v(0,0), v(1,0), v(2,0), v(3,0),
-						  v(0,1), v(1,1), v(2,1), v(3,1),
-						  v(0,2), v(1,2), v(2,2), v(3,2),
-						  v(0,3), v(1,3), v(2,3), v(3,3) );
-	}
-	
-	inline vec2f MatrixToVector(const Matrix2x1& v)	{	return vec2f( v.x(), v.y() );	}
-	inline vec3f MatrixToVector(const Matrix3x1& v)	{	return vec3f( v.x(), v.y(), v.z() );	}
-	inline vec4f MatrixToVector(const Matrix4x1& v)	{	return vec4f( v.x(), v.y(), v.z(), v.w() );	}
-	inline float4x4 MatrixToVector(const Matrix4x4& v)
-	{
-		return float4x4( v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15] );
-	}
-};
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 //	gr: maybe not in SoyMath
@@ -332,6 +119,10 @@ class Soy::TRgb
 {
 public:
 	TRgb();
+	TRgb(float r,float g,float b) :
+		mRgb	( r,g,b )
+	{		
+	}
 	TRgb(const THsl& Hsl);
 	
 	float&			r()			{	return mRgb.x;	}
