@@ -3,20 +3,6 @@
 
 
 
-namespace Soy
-{
-	//	defualt on, but allow build options to change default (or call Soy::EnableAssertThrow)
-#if !defined(SOY_ENABLE_ASSERT_THROW)
-#define SOY_ENABLE_ASSERT_THROW true
-#endif
-	bool	gEnableThrowInAssert = SOY_ENABLE_ASSERT_THROW;
-}
-
-
-void Soy::EnableThrowInAssert(bool Enable)
-{
-	gEnableThrowInAssert = Enable;
-}
 
 bool Soy::Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException )
 {
@@ -47,10 +33,7 @@ void Soy::Private::Assert_Impl(TErrorMessageFunc ErrorMessageFunc) throw(AssertE
 		if ( Soy::Platform::DebugBreak() )
 			return;
 	
-	//	sometimes we disable throwing an exception to stop hosting being taken down
-	if ( !gEnableThrowInAssert )
-		return;
-	
+
 	//	throw exception
 	throw Soy::AssertException( ErrorMessage );
 }

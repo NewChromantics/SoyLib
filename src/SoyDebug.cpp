@@ -202,7 +202,7 @@ bool Soy::Platform::DebugBreak()
 	
 	//	raise an interrupt
 	//	raise(SIGINT);
-	raise(SIGUSR1);
+	//raise(SIGUSR1);
 	return true;
 #endif
 	

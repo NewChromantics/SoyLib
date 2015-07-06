@@ -23,14 +23,15 @@ public:
 	{
 	}
 	virtual const char* what() const _NOEXCEPT	{	return mError.c_str();	}
-std::string			mError;
+
+public:
+	std::string			mError;
 };
 
 
 
 namespace Soy
 {
-	void		EnableThrowInAssert(bool Enable);		//	use to turn of throwing exceptions (good for plugins so they don't take down the host application)
 	typedef std::string(*TErrorMessageFunc)();
 
 	namespace Private
