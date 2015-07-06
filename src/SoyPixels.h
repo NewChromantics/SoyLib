@@ -9,6 +9,8 @@ namespace SoyPixelsFormat
 {
 	enum Type
 	{
+		UnityUnknown	=-1,	//	gr: temp for this project
+
 		Invalid			= 0,
 		Greyscale		= 1,
 		GreyscaleAlpha	= 2,	//	png has this for 2 channel, so why not us!
@@ -75,6 +77,80 @@ protected:
 	uint16					mWidth;
 };
 DECLARE_NONCOMPLEX_TYPE( SoyPixelsMeta );
+
+
+
+
+class SoyPixelsMetaFull : public SoyPixelsMeta
+{
+public:
+	SoyPixelsMetaFull() :
+	mDataSize	( 0 )
+	{
+	}
+	SoyPixelsMetaFull(int Width,int Height,SoyPixelsFormat::Type Format)
+	{
+		mWidth = Width;
+		mFormat = Format;
+		mDataSize = SoyPixelsMeta::GetDataSize(Height);
+	}
+	
+	uint16		GetHeight() const		{	return SoyPixelsMeta::GetHeight( GetDataSize() );	}
+	size_t		GetDataSize() const		{	return mDataSize;	}
+	
+public:
+	size_t		mDataSize;
+};
+
+/*
+//	meta data for pixels (header when using raw data)
+class SoyPixelsMetaFull
+{
+public:
+	SoyPixelsMeta() :
+		mFormat		( SoyPixelsFormat::Invalid ),
+		mWidth		( 0 ),
+		mHeight		( 0 )
+	{
+	}
+	SoyPixelsMeta(size_t w,size_t h,SoyPixelsFormat::Type Format) :
+		mWidth		( w ),
+		mHeight		( h ),
+		mFormat		( Format )
+	{
+	}
+	
+	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
+	size_t			GetWidth() const		{	return mWidth;	}
+	size_t			GetHeight() const		{	return mHeight;	}
+	
+	bool			IsValid() const					{	return mWidth && mHeight && SoyPixelsFormat::IsValid(mFormat);	}
+	size_t			GetBitDepth() const				{	return 8;	}
+	size_t			GetChannels() const				{	return SoyPixelsFormat::GetChannelCount(mFormat);	}
+	size_t			GetDataSize() const				{	return GetHeight() * GetChannels() * GetWidth();	}
+	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
+	void			DumbSetChannels(int Channels)	{	mFormat = SoyPixelsFormat::GetFormatFromChannelCount(Channels);	}
+	void			DumbSetWidth(size_t Width)		{	mWidth = Width;	}
+	
+	inline bool		operator==(const SoyPixelsMeta& that) const
+	{
+		return this->mWidth == that.mWidth && this->mHeight == that.mHeight && this->mFormat == that.mFormat;
+	}
+	
+protected:
+	//	gr: assuming we will always have a length of data so we can determine height/stride
+	SoyPixelsFormat::Type	mFormat;
+	size_t					mWidth;
+	size_t					mHeight;
+};
+*/
+
+
+inline std::ostream& operator<< (std::ostream &out,const SoyPixelsMetaFull &in)
+{
+	out << in.GetWidth() << 'x' << in.GetHeight() << '^' << in.GetFormat();
+	return out;
+}
 
 
 //	all the image-manipulation functionality, but data is somewhere else (any array you like, in-place image manipulation!)
