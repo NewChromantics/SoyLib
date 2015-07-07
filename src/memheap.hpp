@@ -461,42 +461,42 @@ public:
 	
 	//	alloc into a smart pointer
 	template<typename TYPE>
-	ofPtr<TYPE>	AllocPtr()	
+	std::shared_ptr<TYPE>	AllocPtr()
 	{
 		TYPE* pAlloc = Alloc<TYPE>( );
-		return ofPtr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
+		return std::shared_ptr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
 	}
 
 	//	alloc into a smart pointer
 	template<typename TYPE,typename ARG1>
-	ofPtr<TYPE>	AllocPtr(ARG1& Arg1)	
+	std::shared_ptr<TYPE>	AllocPtr(ARG1& Arg1)
 	{
 		TYPE* pAlloc = Alloc<TYPE>( Arg1 );
-		return ofPtr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
+		return std::shared_ptr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
 	}
 
 	//	alloc into a smart pointer
 	template<typename TYPE,typename ARG1,typename ARG2>
-	ofPtr<TYPE>	AllocPtr(ARG1& Arg1,ARG2& Arg2)	
+	std::shared_ptr<TYPE>	AllocPtr(ARG1& Arg1,ARG2& Arg2)
 	{
 		TYPE* pAlloc = Alloc<TYPE>( Arg1, Arg2 );
-		return ofPtr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
+		return std::shared_ptr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
 	}
 
 	//	alloc into a smart pointer
 	template<typename TYPE,typename ARG1,typename ARG2,typename ARG3,typename ARG4>
-	ofPtr<TYPE>	AllocPtr(ARG1& Arg1,ARG2& Arg2,ARG3& Arg3,ARG4& Arg4)	
+	std::shared_ptr<TYPE>	AllocPtr(ARG1& Arg1,ARG2& Arg2,ARG3& Arg3,ARG4& Arg4)
 	{
 		TYPE* pAlloc = Alloc<TYPE>( Arg1, Arg2, Arg3, Arg4 );
-		return ofPtr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
+		return std::shared_ptr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
 	}
 
 	//	alloc into a smart pointer
 	template<typename TYPE,typename ARG1,typename ARG2,typename ARG3,typename ARG4,typename ARG5>
-	ofPtr<TYPE>	AllocPtr(ARG1& Arg1,ARG2& Arg2,ARG3& Arg3,ARG4& Arg4,ARG5& Arg5)	
+	std::shared_ptr<TYPE>	AllocPtr(ARG1& Arg1,ARG2& Arg2,ARG3& Arg3,ARG4& Arg4,ARG5& Arg5)	
 	{
 		TYPE* pAlloc = Alloc<TYPE>( Arg1, Arg2, Arg3, Arg4, Arg5 );
-		return ofPtr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
+		return std::shared_ptr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
 	}
 
 	template<typename TYPE>

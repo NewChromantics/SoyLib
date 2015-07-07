@@ -4,6 +4,52 @@
 #include <iomanip>
 #include "SoyTypes.h"
 
+#if defined(TARGET_OSX)
+#include <sys/time.h>
+#endif
+
+
+inline unsigned long long	ofGetSystemTime()
+{
+#if defined(TARGET_WINDOWS)
+	return timeGetTime();
+#elif defined(TARGET_OSX)
+	struct timeval now;
+	gettimeofday( &now, NULL );
+	return
+	(unsigned long long) now.tv_usec/1000 +
+	(unsigned long long) now.tv_sec*1000;
+#endif
+}
+inline unsigned long long	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}	//	gr: offrameworks does -StartTime
+inline float				ofGetElapsedTimef()			{	return static_cast<float>(ofGetElapsedTimeMillis()) / 1000.f;	}
+
+
+//	gr: repalce uses of this with SoyTime
+namespace Poco
+{
+	class Timestamp
+	{
+	public:
+		Timestamp(int Value=0)
+		{
+		}
+		inline bool		operator==(const int v) const			{	return false;	}
+		inline bool		operator==(const Timestamp& t) const	{	return false;	}
+		inline bool		operator!=(const Timestamp& t) const	{	return false;	}
+	};
+	class File
+	{
+	public:
+		File(const char* Filename)	{}
+		File(const std::string& Filename)	{}
+		bool		exists() const	{	return false;	}
+		Timestamp	getLastModified() const	{	return Timestamp();	}
+	};
+};
+
+
+
 class SoyTime
 {
 public:

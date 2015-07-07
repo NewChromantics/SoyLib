@@ -198,15 +198,15 @@ public:
 	{
 	}
 
-	ofPtr<MemFileArray>			AllocFile(const ArrayBridge<char>& Data);
-	ofPtr<MemFileArray>			AllocFile(const ArrayBridge<char>&& Data)
+	std::shared_ptr<MemFileArray>			AllocFile(const ArrayBridge<char>& Data);
+	std::shared_ptr<MemFileArray>			AllocFile(const ArrayBridge<char>&& Data)
 	{
 		return AllocFile( Data );
 	}
 
 private:
 	ofMutex						mFileLock;
-	Array<ofPtr<MemFileArray>>	mFiles;
+	Array<std::shared_ptr<MemFileArray>>	mFiles;
 	std::string					mFilenamePrefix;
 	SoyRef						mFilenameRef;
 };

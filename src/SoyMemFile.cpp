@@ -295,7 +295,7 @@ bool MemFileArray::SetSize(size_t size, bool preserve,bool AllowLess)
 
 
 
-ofPtr<MemFileArray> SoyMemFileManager::AllocFile(const ArrayBridge<char>& Data)
+std::shared_ptr<MemFileArray> SoyMemFileManager::AllocFile(const ArrayBridge<char>& Data)
 {
 	ofMutex::ScopedLock Lock(mFileLock);
 
@@ -306,9 +306,9 @@ ofPtr<MemFileArray> SoyMemFileManager::AllocFile(const ArrayBridge<char>& Data)
 	Filename << mFilenameRef;
 	//	todo: see if file already exists?
 	//	alloc new file
-	ofPtr<MemFileArray> File = ofPtr<MemFileArray>( new MemFileArray( Filename, true, Data.GetDataSize(), false ) );
+	std::shared_ptr<MemFileArray> File = std::shared_ptr<MemFileArray>( new MemFileArray( Filename, true, Data.GetDataSize(), false ) );
 	if ( !File->IsValid() )
-		return ofPtr<MemFileArray>();
+		return std::shared_ptr<MemFileArray>();
 	File->Copy( Data );
 
 	//	save

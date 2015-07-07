@@ -711,7 +711,7 @@ bool TPixels::SetChannels(uint8 Channels,SoyOpenClManager& OpenClManager,const c
 
 	
 #if defined(SOY_OPENCL)
-bool TPixels::RgbaToHsla(SoyOpenClManager& OpenClManager,ofPtr<SoyClDataBuffer>& Hsla) const
+bool TPixels::RgbaToHsla(SoyOpenClManager& OpenClManager,std::shared_ptr<SoyClDataBuffer>& Hsla) const
 {
 	if ( !IsValid() )
 		return false;
@@ -725,7 +725,7 @@ bool TPixels::RgbaToHsla(SoyOpenClManager& OpenClManager,ofPtr<SoyClDataBuffer>&
 #endif
 
 #if defined(SOY_OPENCL)
-bool TPixels::RgbaToHsla(SoyOpenClManager& OpenClManager,ofPtr<msa::OpenCLImage>& Hsla) const
+bool TPixels::RgbaToHsla(SoyOpenClManager& OpenClManager,std::shared_ptr<msa::OpenCLImage>& Hsla) const
 {
 	if ( !IsValid() )
 		return false;
@@ -1272,7 +1272,7 @@ template<size_t COMPONENTS>
 void SetPixelComponents(ArrayInterface<char>& Pixels,const ArrayBridge<char>& Components)
 {
 	BufferArray<char,COMPONENTS> BufferComponents;
-	for ( int i=0;	i<BufferComponents.GetSize();	i++ )
+	for ( int i=0;	i<COMPONENTS;	i++ )
 	{
 		if ( i < Components.GetSize() )
 			BufferComponents.PushBack( Components[i] );

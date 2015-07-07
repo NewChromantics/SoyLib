@@ -1,13 +1,12 @@
 #pragma once
 
+
 #include "SoyTypes.h"
 #include "mathfu/vector.h"
 #include "mathfu/vector_2.h"
 #include "mathfu/vector_3.h"
 #include "mathfu/vector_4.h"
 #include "mathfu/matrix_4x4.h"
-
-
 
 
 //	for soy: optimised/full implementations are called "matrix's"
@@ -233,11 +232,19 @@ template<typename TYPE>
 class Soy::Rectx
 {
 public:
+	Rectx() :
+		x	( 0 ),
+		y	( 0 ),
+		w	( 0 ),
+		h	( 0 )
+	{
+	}
+	
 	Rectx(TYPE _x,TYPE _y,TYPE _w,TYPE _h) :
-	x	(_x),
-	y	(_y),
-	w	(_w),
-	h	(_h)
+		x	(_x),
+		y	(_y),
+		w	(_w),
+		h	(_h)
 	{
 	}
 	

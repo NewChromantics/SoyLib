@@ -1,52 +1,36 @@
 #pragma once
 
-
-//	array forward declaration
-template<typename TYPE>
-class ArrayInterface;
+typedef	signed char			int8;
+typedef	unsigned char		uint8;
+typedef	signed short		int16;
+typedef	unsigned short		uint16;
 
 
 #if defined(_MSC_VER)
 #define TARGET_WINDOWS
 #endif
 
-
-
-#if defined(TARGET_WINDOWS)
-
-//	see ofConstants
-#define WIN32_LEAN_AND_MEAN
-
-#define NOMINMAX		
-//http://stackoverflow.com/questions/1904635/warning-c4003-and-errors-c2589-and-c2059-on-x-stdnumeric-limitsintmax
-
-#include <windows.h>
-#include <process.h>
-#include <vector>
-#include <mmsystem.h>
-#include <direct.h>
-#pragma comment(lib,"winmm.lib")
-
-
-#define __func__ __FUNCTION__
-#define __thread __declspec( thread )
-// Attribute to make function be exported from a plugin
-#define STDCALL		__stdcall
-#define EXPORT_API	__declspec(dllexport)
-
-#elif defined(TARGET_OSX)
-
-#include <sys/time.h>
-#include <math.h>
-
-#define MAX_PATH    256
-#define STDCALL		
-#define EXPORT_API
-
+#if defined(TARGET_IOS)
+#include "SoyTypes_Ios.h"
 #elif defined(TARGET_ANDROID)
-
-
+#include "SoyTypes_Android.h"
+#elif defined(TARGET_OSX)
+#include "SoyTypes_Osx.h"
+#elif defined(TARGET_WINDOWS)
+#include "SoyTypes_Windows.h"
+#else
+#error no TARGET_XXX defined
 #endif
+
+
+//	all platforms
+#include <stdio.h>
+#include <assert.h>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <sstream>
+
 
 //	clang(?) macro for testing features missing on android
 #if !defined(__has_feature)
@@ -55,33 +39,15 @@ class ArrayInterface;
 
 
 
-//	all platforms
-#include <stdio.h>
-#include <assert.h>
-#include <stdint.h>
-#include <memory>
-#include <string>
-#include <type_traits>
-#include <sstream>
 
 
 
-typedef	signed char			int8;
-typedef	unsigned char		uint8;
-typedef	signed short		int16;
-typedef	unsigned short		uint16;
-#if defined(TARGET_WINDOWS)
-typedef signed __int32		int32;
-typedef unsigned __int32	uint32;
-typedef signed __int64		int64;
-typedef unsigned __int64	uint64;
-typedef SSIZE_T				ssize_t;
-#else
-typedef int32_t             int32;
-typedef uint32_t             uint32;
-typedef int64_t             int64;
-typedef uint64_t             uint64;
-#endif
+
+//	array forward declaration
+template<typename TYPE>
+class ArrayInterface;
+
+
 
 //	when casting integers down, get rid of warnings using this, so we can add a check later if it EVER comes up as a problem
 template<typename SMALLSIZE,typename BIGSIZE>
@@ -91,11 +57,16 @@ inline SMALLSIZE size_cast(BIGSIZE Size)
 	return static_cast<SMALLSIZE>( Size );
 }
 
+
+
+
 namespace std
 {
 #define DISALLOW_EVIL_CONSTRUCTORS(x)
 //#include "chromium/stack_container.h"
 };
+
+
 #define sizeofarray(ARRAY)	( sizeof(ARRAY)/sizeof((ARRAY)[0]) )
 
 //	set a standard RTTI macro
@@ -103,52 +74,8 @@ namespace std
 #define ENABLE_RTTI
 #endif
 
-#if !defined(_NOEXCEPT)
-#define _NOEXCEPT
-//	_GLIBCXX_USE_NOEXCEPT is something
-#endif
 
 
-
-
-inline unsigned long long	ofGetSystemTime()
-{
-#if defined(TARGET_WINDOWS)
-	return timeGetTime();
-#elif defined(TARGET_OSX)
-    struct timeval now;
-    gettimeofday( &now, NULL );
-    return
-    (unsigned long long) now.tv_usec/1000 +
-    (unsigned long long) now.tv_sec*1000;
-#endif
-}
-inline unsigned long long	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}	//	gr: offrameworks does -StartTime
-inline float				ofGetElapsedTimef()			{	return static_cast<float>(ofGetElapsedTimeMillis()) / 1000.f;	}
-
-
-//	gr: repalce uses of this with SoyTime
-namespace Poco
-{
-	class Timestamp
-	{
-	public:
-		Timestamp(int Value=0)
-		{
-		}
-		inline bool		operator==(const int v) const			{	return false;	}
-		inline bool		operator==(const Timestamp& t) const	{	return false;	}
-		inline bool		operator!=(const Timestamp& t) const	{	return false;	}
-	};
-	class File
-	{
-	public:
-		File(const char* Filename)	{}
-		File(const std::string& Filename)	{}
-		bool		exists() const	{	return false;	}
-		Timestamp	getLastModified() const	{	return Timestamp();	}
-	};
-};
 
 class ofFilePath
 {
@@ -156,11 +83,7 @@ public:
 	static std::string		getFileName(const std::string& Filename,bool bRelativeToData=true);
 };
 
-//----------------------------------------------------------
-// ofPtr
-//----------------------------------------------------------
-template<typename T>
-using ofPtr = std::shared_ptr<T>;
+
 
 inline std::string ofToDataPath(const std::string& LocalPath,bool FullPath=false)	{	return LocalPath;	}
 

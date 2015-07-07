@@ -1,0 +1,14 @@
+#pragma once
+
+
+#include <jni.h>
+#define __func__	__PRETTY_FUNCTION__
+#define __noexcept__	_GLIBCXX_USE_NOEXCEPT
+
+
+typedef int32_t		int32;
+typedef uint32_t	uint32;
+typedef int64_t		int64;
+typedef uint64_t	uint64;
+
+
