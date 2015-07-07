@@ -15,7 +15,6 @@
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
 #include <GLES/glext.h>	//	need for EOS
-static const int GL_ES_VERSION = 3;	// This will be passed to EglSetup() by App.cpp
 #endif
 
 
@@ -23,19 +22,18 @@ static const int GL_ES_VERSION = 3;	// This will be passed to EglSetup() by App.
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <GLES/glext.h>	//	need for EOS
-static const int GL_ES_VERSION = 2;	// This will be passed to EglSetup() by App.cpp
 #endif
 
 #endif
 
 #if defined(TARGET_OSX)
-#include <Opengl/gl.h>
-#include <OpenGL/OpenGL.h>
+#include <Opengl/gl3.h>
+#include <Opengl/gl3ext.h>
 
 #endif
 
 #define GL_ASSET_INVALID	0
-
+#define GL_UNIFORM_INVALID	-1
 
 
 
@@ -45,6 +43,7 @@ namespace Opengl
 	class TUniform;
 	class TAsset;
 	class GlProgram;
+	class TShaderState;
 	class TTexture;
 	class TFbo;
 	class TGeoQuad;
@@ -96,7 +95,7 @@ namespace Opengl
 	GlProgram	BuildProgram( const char * vertexSrc, const char * fragmentSrc );
 	
 	void		DeleteProgram( GlProgram & prog );
-	
+
 	
 	
 	struct VertexAttribs
@@ -118,7 +117,7 @@ namespace Opengl
 	static const int MAX_GEOMETRY_VERTICES	= 1 << ( sizeof( TriangleIndex ) * 8 );
 	static const int MAX_GEOMETRY_INDICES	= 1024 * 1024 * 3;
 	
-	//TGeometry BuildTesselatedQuad( const int horizontal, const int vertical );
+	TGeometry BuildTesselatedQuad( const int horizontal, const int vertical );
 	
 #define Opengl_IsInitialised()	Opengl::IsInitialised(__func__,true)
 #define Opengl_IsOkay()			Opengl::IsOkay(__func__)
@@ -129,70 +128,15 @@ namespace Opengl
 	
 	SoyPixelsFormat::Type	GetPixelFormat(GLuint glFormat);
 	GLuint					GetPixelFormat(SoyPixelsFormat::Type Format);
+
+
+	//	helpers
+	void	ClearColour(Soy::TRgb Colour);
+	void	SetViewport(Soy::Rectf Viewport);
 };
 
 
 
-
-
-enum VertexAttributeLocation
-{
-	VERTEX_ATTRIBUTE_LOCATION_POSITION		= 0,
-	VERTEX_ATTRIBUTE_LOCATION_NORMAL		= 1,
-	VERTEX_ATTRIBUTE_LOCATION_TANGENT		= 2,
-	VERTEX_ATTRIBUTE_LOCATION_BINORMAL		= 3,
-	VERTEX_ATTRIBUTE_LOCATION_COLOR			= 4,
-	VERTEX_ATTRIBUTE_LOCATION_UV0			= 5,
-	VERTEX_ATTRIBUTE_LOCATION_UV1			= 6,
-	VERTEX_ATTRIBUTE_LOCATION_JOINT_INDICES	= 7,
-	VERTEX_ATTRIBUTE_LOCATION_JOINT_WEIGHTS	= 8,
-	VERTEX_ATTRIBUTE_LOCATION_FONT_PARMS	= 9
-};
-
-struct GlProgram
-{
-	GlProgram() :
-	program( 0 ),
-	vertexShader( 0 ),
-	fragmentShader( 0 ),
-	uMvp( 0 ),
-	uModel( 0 ),
-	uView( 0 ),
-	uColor( 0 ),
-	uFadeDirection( 0 ),
-	uTexm( 0 ),
-	uTexm2( 0 ),
-	uJoints( 0 ),
-	uColorTableOffset( 0 ) {};
-	
-	
-	bool		IsValid()
-	{
-		return (program != 0);
-	}
-	
-	
-	// These will always be > 0 after a build, any errors will abort()
-	unsigned	program;
-	unsigned	vertexShader;
-	unsigned	fragmentShader;
-	
-	// Uniforms that aren't found will have a -1 value
-	int		uMvp;				// uniform Mvpm
-	int		uModel;				// uniform Modelm
-	int		uView;				// uniform Viewm
-	int		uColor;				// uniform UniformColor
-	int		uFadeDirection;		// uniform FadeDirection
-	int		uTexm;				// uniform Texm
-	int		uTexm2;				// uniform Texm2
-	int		uJoints;			// uniform Joints
-	int		uColorTableOffset;	// uniform offset to apply to color table index
-};
-
-
-GlProgram	BuildProgram( const char * vertexSrc, const char * fragmentSrc,std::ostream& Error  );
-
-void		DeleteProgram( GlProgram & prog );
 
 
 
@@ -218,13 +162,15 @@ class Opengl::TUniform
 {
 public:
 	TUniform() :
-	mValue	( GL_ASSET_INVALID )
+		mValue	( GL_UNIFORM_INVALID )
 	{
 	}
 	TUniform(GLint Value) :
-	mValue	( GL_ASSET_INVALID )
+		mValue	( Value )
 	{
 	}
+	
+	bool	IsValid() const	{	return mValue != GL_UNIFORM_INVALID;	}
 	
 	GLint	mValue;
 };
@@ -248,14 +194,37 @@ public:
 	GLuint	mName;
 };
 
+//	clever class which does the binding, auto texture mapping, and unbinding
+//	why? so we can use const GlPrograms and share them across threads
+class Opengl::TShaderState
+{
+public:
+	TShaderState(const GlProgram& Shader);
+	~TShaderState();
+	
+	void	SetUniform(const char* Name,const vec4f& v);
+	void	SetUniform(const char* Name,const TTexture& Texture);	//	special case which tracks how many textures are bound
+
+	void	BindTexture(size_t TextureIndex,TTexture Texture);	//	use to unbind too
+	
+public:
+	const GlProgram&	mShader;
+	size_t				mTextureBindCount;
+};
+
 class Opengl::GlProgram
 {
 public:
-	bool		IsValid() const;
+	bool			IsValid() const;
 	
-	TAsset		program;
-	TAsset		vertexShader;
-	TAsset		fragmentShader;
+	TShaderState	Bind();	//	let this go out of scope to unbind
+	
+	TAsset			program;
+	TAsset			vertexShader;
+	TAsset			fragmentShader;
+	
+	std::map<std::string,TUniform>	mUniforms;
+	TUniform		GetUniform(const char* Name) const;
 	
 	// Uniforms that aren't found will have a -1 value
 	TUniform	uMvp;				// uniform Mvpm
@@ -269,7 +238,7 @@ public:
 	TUniform	uColorTableOffset;	// uniform offset to apply to color table index
 };
 
-/*
+
 class Opengl::TGeometry
 {
 public:
@@ -318,7 +287,7 @@ public:
 	int			vertexCount;
 	int 		indexCount;
 };
-*/
+
 
 class Opengl::TTexture
 {

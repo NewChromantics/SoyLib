@@ -5,6 +5,7 @@
 namespace Opengl
 {
 	const char*		ErrorToString(GLenum Error);
+	const std::map<SoyPixelsFormat::Type,GLint>&	GetPixelFormatMap();
 }
 
 
@@ -28,103 +29,6 @@ bool CompileShader( const GLuint shader, const char * src,const std::string& Err
 	return true;
 }
 
-GlProgram BuildProgram( const char * vertexSrc,
-					   const char * fragmentSrc,std::ostream& Error )
-{
-	GlProgram prog;
-
-	bool Success = true;
-	prog.vertexShader = glCreateShader( GL_VERTEX_SHADER );
-	if ( !CompileShader( prog.vertexShader, vertexSrc, "Vertex Shader", Error ) )
-	{
-		Success = false;
-	}
-	
-	prog.fragmentShader = glCreateShader( GL_FRAGMENT_SHADER );
-	if ( !CompileShader( prog.fragmentShader, fragmentSrc, "Fragment Shader", Error ) )
-	{
-		Success = false;
-	}
-	
-	if ( !Success )
-		return GlProgram();
-	
-	prog.program = glCreateProgram();
-	glAttachShader( prog.program, prog.vertexShader );
-	glAttachShader( prog.program, prog.fragmentShader );
-	
-	// set attributes before linking
-	glBindAttribLocation( prog.program, VERTEX_ATTRIBUTE_LOCATION_POSITION,			"Position" );
-	glBindAttribLocation( prog.program, VERTEX_ATTRIBUTE_LOCATION_NORMAL,			"Normal" );
-	glBindAttribLocation( prog.program, VERTEX_ATTRIBUTE_LOCATION_TANGENT,			"Tangent" );
-	glBindAttribLocation( prog.program, VERTEX_ATTRIBUTE_LOCATION_BINORMAL,			"Binormal" );
-	glBindAttribLocation( prog.program, VERTEX_ATTRIBUTE_LOCATION_COLOR,			"VertexColor" );
-	glBindAttribLocation( prog.program, VERTEX_ATTRIBUTE_LOCATION_UV0,				"TexCoord" );
-	glBindAttribLocation( prog.program, VERTEX_ATTRIBUTE_LOCATION_UV1,				"TexCoord1" );
-	glBindAttribLocation( prog.program, VERTEX_ATTRIBUTE_LOCATION_JOINT_WEIGHTS,	"JointWeights" );
-	glBindAttribLocation( prog.program, VERTEX_ATTRIBUTE_LOCATION_JOINT_INDICES,	"JointIndices" );
-	glBindAttribLocation( prog.program, VERTEX_ATTRIBUTE_LOCATION_FONT_PARMS,		"FontParms" );
-	
-	// link and error check
-	glLinkProgram( prog.program );
-	GLint r;
-	glGetProgramiv( prog.program, GL_LINK_STATUS, &r );
-	if ( r == GL_FALSE )
-	{
-		Error << "Linking vertex & fragment shader failed: ";
-		GLchar msg[1024] = {0};
-		glGetProgramInfoLog( prog.program, sizeof( msg ), 0, msg );
-		Error << msg;
-		return GlProgram();
-	}
-	prog.uMvp = glGetUniformLocation( prog.program, "Mvpm" );
-	prog.uModel = glGetUniformLocation( prog.program, "Modelm" );
-	prog.uView = glGetUniformLocation( prog.program, "Viewm" );
-	prog.uColor = glGetUniformLocation( prog.program, "UniformColor" );
-	prog.uFadeDirection = glGetUniformLocation( prog.program, "UniformFadeDirection" );
-	prog.uTexm = glGetUniformLocation( prog.program, "Texm" );
-	prog.uTexm2 = glGetUniformLocation( prog.program, "Texm2" );
-	prog.uJoints = glGetUniformLocation( prog.program, "Joints" );
-	prog.uColorTableOffset = glGetUniformLocation( prog.program, "ColorTableOffset" );
-	
-	glUseProgram( prog.program );
-	
-	// texture and image_external bindings
-	for ( int i = 0; i < 8; i++ )
-	{
-		char name[32];
-		sprintf( name, "Texture%i", i );
-		const GLint uTex = glGetUniformLocation( prog.program, name );
-		if ( uTex != -1 )
-		{
-			glUniform1i( uTex, i );
-		}
-	}
-	
-	glUseProgram( 0 );
-	
-	return prog;
-}
-
-void DeleteProgram( GlProgram & prog )
-{
-	if ( prog.program != 0 )
-	{
-		glDeleteProgram( prog.program );
-	}
-	if ( prog.vertexShader != 0 )
-	{
-		glDeleteShader( prog.vertexShader );
-	}
-	if ( prog.fragmentShader != 0 )
-	{
-		glDeleteShader( prog.fragmentShader );
-	}
-	prog.program = 0;
-	prog.vertexShader = 0;
-	prog.fragmentShader = 0;
-}
-
 
 const char* Opengl::ErrorToString(GLenum Error)
 {
@@ -136,8 +40,14 @@ const char* Opengl::ErrorToString(GLenum Error)
 		case GL_INVALID_OPERATION:	return "GL_INVALID_OPERATION";
 		case GL_INVALID_FRAMEBUFFER_OPERATION:	return "GL_INVALID_FRAMEBUFFER_OPERATION";
 		case GL_OUT_OF_MEMORY:		return "GL_OUT_OF_MEMORY";
+
+			//	opengl < 3 errors
+#if defined(GL_STACK_UNDERFLOW)
 		case GL_STACK_UNDERFLOW:	return "GL_STACK_UNDERFLOW";
+#endif
+#if defined(GL_STACK_OVERFLOW)
 		case GL_STACK_OVERFLOW:		return "GL_STACK_OVERFLOW";
+#endif
 		default:
 			return "Unknown opengl error value";
 	};
@@ -241,10 +151,10 @@ bool Opengl::TFbo::Bind()
 	glViewport( 0, 0, mTarget.mMeta.GetWidth(), mTarget.mMeta.GetHeight() );
 	Opengl_IsOkay();
 	
+	/* debugging
 	glClearColor( 0.5f, 0.5f, 0, 1 );
 	glClear( GL_COLOR_BUFFER_BIT );
 	Opengl_IsOkay();
-	
 	
 	 {
 		glColor3f(1.0f, 1.f, 0.f);
@@ -257,7 +167,7 @@ bool Opengl::TFbo::Bind()
 		glEnd();
 	 }
 	Opengl_IsOkay();
-	
+*/
 	return true;
 }
 
@@ -267,7 +177,7 @@ void Opengl::TFbo::Unbind()
 	Opengl_IsOkay();
 }
 
-/*
+
 Opengl::TGeometry Opengl::BuildTesselatedQuad( const int horizontal, const int vertical )
 {
 	const int vertexCount = ( horizontal + 1 ) * ( vertical + 1 );
@@ -324,7 +234,7 @@ Opengl::TGeometry Opengl::BuildTesselatedQuad( const int horizontal, const int v
 	
 	return TGeometry( attribs, indices );
 }
-
+/*
 Opengl::TGeoQuad::TGeoQuad()
 {
 	mGeometry = BuildTesselatedQuad(1,1);
@@ -341,7 +251,8 @@ bool Opengl::TGeoQuad::Render()
 	mGeometry.Draw();
 	return true;
 }
-
+ */
+/*
 
 Opengl::TShaderEosBlit::TShaderEosBlit()
 {
@@ -614,29 +525,14 @@ void Opengl::TTexture::Copy(const SoyPixels& Pixels,bool Blocking,bool Stretch)
 		}
 		else
 		{
-			GLint TargetFormat = GL_RGB;
-			GLint ValidSourceFormats[] =
-			{
-				GL_COLOR_INDEX,
-				GL_RED,
-				GL_GREEN,
-				GL_BLUE,
-				GL_ALPHA,
-				GL_RGB,
-				GL_RGBA,
-				GL_BGR_EXT,
-				GL_BGR_EXT,
-				GL_BGRA_EXT,
-				GL_LUMINANCE,
-				GL_LUMINANCE_ALPHA,
-			};
-			auto ValidSourceFormatsArray = GetRemoteArray( ValidSourceFormats );
-			Soy::Assert( GetArrayBridge(ValidSourceFormatsArray).Find( GlPixelsFormat ), "using unsupported pixels format for gltexImage2d" );
+			GLint TargetFormat = GL_RGBA;
 			glTexImage2D( GL_TEXTURE_2D, MipLevel, TargetFormat,  Width, Height, Border, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
 		}
 	}
 	Opengl_IsOkay();
 }
+
+
 
 
 // Returns false and logs the ShaderInfoLog on failure.
@@ -662,10 +558,61 @@ bool CompileShader( const Opengl::TAsset& shader, const char * src )
 }
 
 
-bool Opengl::GlProgram::IsValid() const
+Opengl::TShaderState::TShaderState(const Opengl::GlProgram& Shader) :
+	mTextureBindCount	( 0 ),
+	mShader				( Shader )
 {
-	return program.IsValid();
+	glUseProgram( Shader.program.mName );
+	Opengl_IsOkay();
 }
+
+Opengl::TShaderState::~TShaderState()
+{
+	//	unbind textures
+	TTexture NullTexture;
+	while ( mTextureBindCount > 0 )
+	{
+		BindTexture( mTextureBindCount-1, NullTexture );
+		mTextureBindCount--;
+	}
+	
+	//	unbind shader
+	glUseProgram(0);
+}
+
+void Opengl::TShaderState::SetUniform(const char* Name,const vec4f& v)
+{
+	auto Uniform = mShader.GetUniform( Name );
+	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
+	glUniform1fv( Uniform.mValue, 4, &v.x );
+	Opengl_IsOkay();
+}
+
+void Opengl::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
+{
+	auto Uniform = mShader.GetUniform( Name );
+	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
+
+	auto BindTextureIndex = size_cast<GLint>( mTextureBindCount );
+	BindTexture( BindTextureIndex, Texture );
+	glUniform1i( Uniform.mValue, BindTextureIndex );
+	mTextureBindCount++;
+}
+
+void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
+{
+	const GLenum _TexturesBindings[] =
+	{
+		GL_TEXTURE0, GL_TEXTURE1, GL_TEXTURE2, GL_TEXTURE3, GL_TEXTURE4, GL_TEXTURE5, GL_TEXTURE6, GL_TEXTURE7, GL_TEXTURE8, GL_TEXTURE9,
+		GL_TEXTURE10, GL_TEXTURE11, GL_TEXTURE12, GL_TEXTURE13, GL_TEXTURE14, GL_TEXTURE15, GL_TEXTURE16, GL_TEXTURE17, GL_TEXTURE18, GL_TEXTURE19,
+		GL_TEXTURE20, GL_TEXTURE21, GL_TEXTURE22, GL_TEXTURE23, GL_TEXTURE24, GL_TEXTURE25, GL_TEXTURE26, GL_TEXTURE27, GL_TEXTURE28, GL_TEXTURE29,
+	};
+	auto TextureBindings = GetRemoteArray( _TexturesBindings );
+	
+	glActiveTexture( TextureBindings[TextureIndex] );
+	glBindTexture( GL_TEXTURE_2D, Texture.mTexture.mName );
+}
+
 
 
 Opengl::GlProgram Opengl::BuildProgram( const char * vertexSrc,
@@ -884,45 +831,72 @@ bool Opengl::TGeometry::IsValid() const
 */
 
 
+const std::map<SoyPixelsFormat::Type,GLint>& Opengl::GetPixelFormatMap()
+{
+	static std::map<SoyPixelsFormat::Type,GLint> PixelFormatMap =
+	{
+#if defined(TARGET_IOS)
+		std::make_pair( SoyPixelsFormat::RGBA, GL_RGBA ),
+#endif
+#if defined(TARGET_WINDOWS)
+		std::make_pair( SoyPixelsFormat::RGB, GL_RGB ),
+		std::make_pair( SoyPixelsFormat::RGBA, GL_RGBA ),
+		std::make_pair( SoyPixelsFormat::Greyscale, GL_LUMINANCE ),
+#endif
+#if defined(GL_VERSION_3_0)
+		std::make_pair( SoyPixelsFormat::RGB, GL_RGB ),
+		std::make_pair( SoyPixelsFormat::RGBA, GL_RGBA ),
+		std::make_pair( SoyPixelsFormat::BGR, GL_BGR ),
+		std::make_pair( SoyPixelsFormat::Greyscale, GL_RED ),
+		std::make_pair( SoyPixelsFormat::GreyscaleAlpha, GL_RG ),
+#endif
+	};
+	return PixelFormatMap;
+}
+
 GLuint Opengl::GetPixelFormat(SoyPixelsFormat::Type Format)
 {
-	switch ( Format )
-	{
-			//	IOS I think only supports uploading RGBA
-#if defined(TARGET_IOS)
-		case SoyPixelsFormat::RGBA:			return GL_RGBA;
-#else
-		case SoyPixelsFormat::RGB:			return GL_RGB;
-		case SoyPixelsFormat::RGBA:			return GL_RGBA;
-		case SoyPixelsFormat::Greyscale:	return GL_LUMINANCE;
-#endif
-			
-#if defined(TARGET_OSX)
-		case SoyPixelsFormat::BGRA:			return GL_BGRA;
-#endif
-			
-		default:
-			return GL_INVALID_VALUE;
-	}
+	auto& Map = GetPixelFormatMap();
+	auto it = Map.find( Format );
+	if ( it == Map.end() )
+		return GL_INVALID_VALUE;
+	return it->second;
 }
 
 SoyPixelsFormat::Type Opengl::GetPixelFormat(GLuint glFormat)
 {
-#if defined(SOY_OPENGL)
+	//	gr: there was special code here, check it before removing
 	switch ( glFormat )
 	{
-			//	gr: osx returns these values hmmmm
+		//	gr: osx returns these values hmmmm
 		case GL_RGBA8:	return SoyPixelsFormat::RGBA;
 		case GL_RGB8:	return SoyPixelsFormat::RGB;
-			
-		case GL_LUMINANCE:	return SoyPixelsFormat::Greyscale;
 		case GL_RGB:	return SoyPixelsFormat::RGB;
 		case GL_RGBA:	return SoyPixelsFormat::RGBA;
 		case GL_BGRA:	return SoyPixelsFormat::BGRA;
+		default:
+			break;
 	}
-#endif
+
+	//	check the map
+	auto& Map = GetPixelFormatMap();
+	for ( auto it=Map.begin();	it!=Map.end();	it++ )
+	{
+		if ( it->second == glFormat )
+			return it->first;
+	}
 	return SoyPixelsFormat::Invalid;
 }
 
 
+void Opengl::SetViewport(Soy::Rectf Viewport)
+{
+	glViewport( Viewport.x, Viewport.y, Viewport.w, Viewport.h );
+}
 
+void Opengl::ClearColour(Soy::TRgb Colour)
+{
+	float Alpha = 1;
+	glClearColor( Colour.r(), Colour.g(), Colour.b(), Alpha );
+	glClear(GL_COLOR_BUFFER_BIT);
+}
