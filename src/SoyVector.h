@@ -248,6 +248,15 @@ public:
 	{
 	}
 	
+	template<typename OTHERTYPE>
+	Rectx(const Rectx<OTHERTYPE>& r) :
+		x	(r.x),
+		y	(r.y),
+		w	(r.w),
+		h	(r.h)
+	{
+	}
+	
 	TYPE	Left() const	{	return x;	}
 	TYPE	Right() const	{	return x+w;	}
 	TYPE	Top() const		{	return y;	}
@@ -300,6 +309,8 @@ namespace Soy
 	{
 		return float4x4( v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15] );
 	}
+	
+	inline vec4f	RectToVector(const Rectf& v)	{	return vec4f( v.x, v.y, v.w, v.h );	}
 };
 
 
