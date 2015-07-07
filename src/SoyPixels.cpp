@@ -6,12 +6,6 @@
 #include "RemoteArray.h"
 #include "SoyMath.h"
 
-#if defined(SOY_OPENGL)
-#if defined(TARGET_OSX)
-#include <Opengl/gl.h>
-#include <OpenGL/OpenGL.h>
-#endif
-#endif
 
 #define USE_STB
 #if defined(USE_STB)
@@ -796,52 +790,6 @@ bool TPixels::Set(const msa::OpenCLImage& PixelsConst,cl_command_queue Queue)
 	return true;
 }
 #endif
-
-bool SoyPixelsFormat::GetOpenglFormat(int& glFormat,SoyPixelsFormat::Type Format)
-{
-#if defined(SOY_OPENGL)
-
-	glFormat = GL_INVALID_VALUE;
-	//	from ofGetGlInternalFormat(const ofPixels& pix)
-	switch ( Format )
-	{
-			//	IOS I think only supports uploading RGBA
-#if defined(TARGET_IOS)
-		case SoyPixelsFormat::RGBA:			glFormat = GL_RGBA;	return true;
-#else
-		case SoyPixelsFormat::RGB:			glFormat = GL_RGB;		return true;
-		case SoyPixelsFormat::RGBA:			glFormat = GL_RGBA;	return true;
-		case SoyPixelsFormat::Greyscale:	glFormat = GL_LUMINANCE;	return true;
-		case SoyPixelsFormat::BGRA:			glFormat = GL_BGRA;			return true;
-#endif
-			
-		default:
-			glFormat = GL_INVALID_VALUE;
-			return false;
-	}
-#endif
-
-	glFormat = -1;
-	return false;
-}
-
-SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromOpenglFormat(int glFormat)
-{
-#if defined(SOY_OPENGL)
-	switch ( glFormat )
-	{
-		//	gr: osx returns these values hmmmm
-		case GL_RGBA8:	return SoyPixelsFormat::RGBA;
-		case GL_RGB8:	return SoyPixelsFormat::RGB;
-			
-		case GL_LUMINANCE:	return SoyPixelsFormat::Greyscale;
-		case GL_RGB:	return SoyPixelsFormat::RGB;
-		case GL_RGBA:	return SoyPixelsFormat::RGBA;
-		case GL_BGRA:	return SoyPixelsFormat::BGRA;
-	}
-#endif
-	return SoyPixelsFormat::Invalid;
-}
 
 
 #if defined(SOY_OPENCL)
