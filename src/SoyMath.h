@@ -21,6 +21,28 @@ namespace Soy
 	{
 		return Degrees * (M_PI / 180.f);
 	}
+	
+	
+	template<typename T>
+	T	Lerp(const T& Start,const T& End,float Time)
+	{
+		return Start + ((End-Start) * Time);
+	}
+	
+	//	gr: was "GetMathTime". Range doesn't scream "unlerp" to me, but still, this is the conventional name (I think it's in glsl too)
+	template<typename T>
+	float	Range(const T& Value,const T& Start,const T& End)
+	{
+		return (Value-Start) / (End-Start);
+	}
+	
+	
+	//	will probably replace this at some point, but for now, handy for 3D work
+	class TCamera;
+	
+	//	maybe not "math" ?
+	class THsl;
+	class TRgb;
 }
 
 //	expanded std functions
@@ -62,35 +84,27 @@ namespace std
 	}
 }
 
-namespace Soy
+
+class Soy::TCamera
 {
-	template<typename T>
-	T	Lerp(const T& Start,const T& End,float Time)
+public:
+	TCamera() :
+		mProjectionMtx	( Matrix4x4::Identity() ),
+		mModelViewMtx	( Matrix4x4::Identity() ),
+		mDepthNear		( 0.001f ),
+		mDepthFar		( 1000.f )
 	{
-		return Start + ((End-Start) * Time);
 	}
-
-	//	gr: was "GetMathTime". Range doesn't scream "unlerp" to me, but still, this is the conventional name (I think it's in glsl too)
-	template<typename T>
-	float	Range(const T& Value,const T& Start,const T& End)
-	{
-		return (Value-Start) / (End-Start);
-	}
-}
-
-
-
-
-
-
-//	gr: maybe not in SoyMath
-namespace Soy
-{
-	class THsl;
-	class TRgb;
+	
+	Matrix4x4	GetModelViewProjection() const	{	return mProjectionMtx * mModelViewMtx;	}
+	
+public:
+	float		mDepthNear;
+	float		mDepthFar;
+	Matrix4x4	mProjectionMtx;
+	Matrix4x4	mModelViewMtx;
+	
 };
-
-
 
 
 class Soy::THsl
