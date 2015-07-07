@@ -147,7 +147,7 @@ protected:
 	void			destroy();
 	virtual void	threadedFunction() = 0;
 
-	static unsigned int STDCALL	threadFunc(void *args);
+	static unsigned int __stdcall	threadFunc(void *args);
 
 protected:
 	std::string		mThreadName;

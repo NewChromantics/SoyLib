@@ -15,11 +15,10 @@
 #pragma comment(lib,"winmm.lib")
 
 
-#define __func__ __FUNCTION__
-#define __thread __declspec( thread )
+#define __func__	__FUNCTION__
+#define __thread	__declspec( thread )
 // Attribute to make function be exported from a plugin
-#define STDCALL		__stdcall
-#define EXPORT_API	__declspec(dllexport)
+#define __export	__declspec(dllexport)
 
 #elif defined(TARGET_OSX)
 
