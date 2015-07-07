@@ -1,5 +1,5 @@
 #include "SoyOpengl.h"
-
+#include "RemoteArray.h"
 
 
 namespace Opengl
@@ -163,6 +163,10 @@ bool Opengl::IsOkay(const std::string& Context)
 	return Soy::Assert( Error == GL_NONE , ErrorStr.str() );
 }
 
+bool Opengl::IsSupported(const char *ExtensionName)
+{
+	return false;
+}
 
 
 Opengl::TFbo::TFbo(TTexture Texture) :
@@ -451,6 +455,45 @@ bool Opengl::BlitOES(TTexture& Texture,TFbo& Fbo,TGeoQuad& Geo,TShaderEosBlit& S
 }
  */
 
+Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta) :
+	mAutoRelease	( true )
+{
+	Soy::Assert( Meta.IsValid(), "Cannot setup texture with invalid meta" );
+	
+	GLuint Format = Opengl::GetPixelFormat( Meta.GetFormat() );
+	if ( Format == GL_INVALID_VALUE )
+	{
+		std::stringstream Error;
+		Error << "Failed to create texture, unsupported format " << Meta.GetFormat();
+		throw new Soy::AssertException( Error.str() );
+	}
+
+	//	allocate texture
+	glGenTextures( 1, &mTexture.mName );
+	Opengl::IsOkay("glGenTextures");
+	
+	if ( !Bind() )
+		throw  new Soy::AssertException("failed to bind after texture allocation");
+	Opengl::IsOkay("glGenTextures");
+	
+	//	set mip-map levels to 0..0
+	//	gr: change this to glGenerateMipMaps etc
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+
+	//	initialise to set dimensions
+	SoyPixels InitFramePixels;
+	InitFramePixels.Init( Meta.GetWidth(), Meta.GetHeight(), Meta.GetFormat() );
+	auto& PixelsArray = InitFramePixels.GetPixelsArray();
+	glTexImage2D( GL_TEXTURE_2D, 0, Format, Meta.GetWidth(), Meta.GetHeight(), 0, Format, GL_UNSIGNED_BYTE, PixelsArray.GetArray() );
+	//GLint MipLevel = 0;
+	//glTexImage2D( GL_TEXTURE_2D, MipLevel, Format, Meta.GetWidth(), Meta.GetHeight(), 0, Format, GL_UNSIGNED_BYTE, nullptr );
+	Opengl::IsOkay("glTexImage2D");
+	
+	//	built, save meta
+	mMeta = Meta;
+}
+
 bool Opengl::TTexture::IsValid() const
 {
 	if ( !Opengl::IsInitialised(__func__,false) )
@@ -486,6 +529,113 @@ bool Opengl::TTexture::Bind()
 void Opengl::TTexture::Unbind()
 {
 	glBindTexture( GL_TEXTURE_2D, GL_ASSET_INVALID );
+}
+
+void Opengl::TTexture::Copy(const SoyPixels& Pixels,bool Blocking,bool Stretch)
+{
+	Bind();
+	Opengl::IsOkay( std::string(__func__) + " Bind()" );
+	
+	//	if we don't support this format in opengl, convert
+	auto GlPixelsFormat = Opengl::GetPixelFormat( Pixels.GetFormat() );
+	
+	Array<SoyPixelsFormat::Type> TryFormats;
+	TryFormats.PushBack( SoyPixelsFormat::RGB );
+	TryFormats.PushBack( SoyPixelsFormat::RGBA );
+	TryFormats.PushBack( SoyPixelsFormat::Greyscale );
+	SoyPixels TempPixels;
+	const SoyPixelsImpl* UsePixels = &Pixels;
+	while ( GlPixelsFormat == GL_INVALID_VALUE && !TryFormats.IsEmpty() )
+	{
+		auto TryFormat = TryFormats.PopAt(0);
+		auto TryGlFormat = Opengl::GetPixelFormat( TryFormat );
+		if ( TryGlFormat == GL_INVALID_VALUE )
+			continue;
+
+		if ( !TempPixels.Copy(Pixels ) )
+			continue;
+		if ( !TempPixels.SetFormat( TryFormat ) )
+			continue;
+		
+		GlPixelsFormat = TryGlFormat;
+		UsePixels = &TempPixels;
+	}
+	
+	auto& FinalPixels = *UsePixels;
+	
+	int MipLevel = 0;
+	
+	//	grab the texture's width & height so we can clip, if we try and copy pixels bigger than the texture we'll get an error
+	int TextureWidth=0,TextureHeight=0;
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth );
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight );
+	
+	if ( !Stretch && Opengl::IsSupported("GL_APPLE_client_storage") )
+	{
+		//	https://developer.apple.com/library/mac/documentation/graphicsimaging/conceptual/opengl-macprogguide/opengl_texturedata/opengl_texturedata.html
+		glTexParameteri(GL_TEXTURE_2D,
+						GL_TEXTURE_STORAGE_HINT_APPLE,
+						GL_STORAGE_CACHED_APPLE);
+		
+		glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
+		
+		static SoyPixels PixelsBuffer;
+		PixelsBuffer.Copy( FinalPixels );
+		
+		GLint TargetFormat = GL_BGRA;
+		GLenum TargetStorage = GL_UNSIGNED_INT_8_8_8_8_REV;
+		glTexImage2D(GL_TEXTURE_2D, MipLevel, GlPixelsFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, TargetFormat, TargetStorage, PixelsBuffer.GetPixelsArray().GetArray() );
+		
+		Opengl_IsOkay();
+	}
+	else
+	{
+		int Width = FinalPixels.GetWidth();
+		int Height = FinalPixels.GetHeight();
+		int Border = 0;
+		
+		//	if texture doesnt fit we'll get GL_INVALID_VALUE
+		//	if frame is bigger than texture, it will mangle (bad stride)
+		//	if pixels is smaller, we'll just get the sub-image drawn
+		if ( Width > TextureWidth )
+			Width = TextureWidth;
+		if ( Height > TextureHeight )
+			Height = TextureHeight;
+		
+		const ArrayInterface<char>& PixelsArray = FinalPixels.GetPixelsArray();
+		auto* PixelsArrayData = PixelsArray.GetArray();
+		
+		bool UseSubImage = !Stretch;
+		if ( UseSubImage )
+		{
+			int XOffset = 0;
+			int YOffset = 0;
+			glTexSubImage2D( GL_TEXTURE_2D, MipLevel, XOffset, YOffset, Width, Height, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
+		}
+		else
+		{
+			GLint TargetFormat = GL_RGB;
+			GLint ValidSourceFormats[] =
+			{
+				GL_COLOR_INDEX,
+				GL_RED,
+				GL_GREEN,
+				GL_BLUE,
+				GL_ALPHA,
+				GL_RGB,
+				GL_RGBA,
+				GL_BGR_EXT,
+				GL_BGR_EXT,
+				GL_BGRA_EXT,
+				GL_LUMINANCE,
+				GL_LUMINANCE_ALPHA,
+			};
+			auto ValidSourceFormatsArray = GetRemoteArray( ValidSourceFormats );
+			Soy::Assert( GetArrayBridge(ValidSourceFormatsArray).Find( GlPixelsFormat ), "using unsupported pixels format for gltexImage2d" );
+			glTexImage2D( GL_TEXTURE_2D, MipLevel, TargetFormat,  Width, Height, Border, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
+		}
+	}
+	Opengl_IsOkay();
 }
 
 
@@ -732,5 +882,47 @@ bool Opengl::TGeometry::IsValid() const
 	indexCount != GL_ASSET_INVALID;
 }
 */
+
+
+GLuint Opengl::GetPixelFormat(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+			//	IOS I think only supports uploading RGBA
+#if defined(TARGET_IOS)
+		case SoyPixelsFormat::RGBA:			return GL_RGBA;
+#else
+		case SoyPixelsFormat::RGB:			return GL_RGB;
+		case SoyPixelsFormat::RGBA:			return GL_RGBA;
+		case SoyPixelsFormat::Greyscale:	return GL_LUMINANCE;
+#endif
+			
+#if defined(TARGET_OSX)
+		case SoyPixelsFormat::BGRA:			return GL_BGRA;
+#endif
+			
+		default:
+			return GL_INVALID_VALUE;
+	}
+}
+
+SoyPixelsFormat::Type Opengl::GetPixelFormat(GLuint glFormat)
+{
+#if defined(SOY_OPENGL)
+	switch ( glFormat )
+	{
+			//	gr: osx returns these values hmmmm
+		case GL_RGBA8:	return SoyPixelsFormat::RGBA;
+		case GL_RGB8:	return SoyPixelsFormat::RGB;
+			
+		case GL_LUMINANCE:	return SoyPixelsFormat::Greyscale;
+		case GL_RGB:	return SoyPixelsFormat::RGB;
+		case GL_RGBA:	return SoyPixelsFormat::RGBA;
+		case GL_BGRA:	return SoyPixelsFormat::BGRA;
+	}
+#endif
+	return SoyPixelsFormat::Invalid;
+}
+
 
 

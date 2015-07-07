@@ -125,6 +125,10 @@ namespace Opengl
 
 	bool	IsInitialised(const std::string& Context,bool ThrowException);	//	throws exception
 	bool	IsOkay(const std::string& Context);	//	throws exception
+	bool	IsSupported(const char* ExtensionName);
+	
+	SoyPixelsFormat::Type	GetPixelFormat(GLuint glFormat);
+	GLuint					GetPixelFormat(SoyPixelsFormat::Type Format);
 };
 
 
@@ -319,25 +323,61 @@ public:
 class Opengl::TTexture
 {
 public:
-	explicit TTexture()
+	//	invalid
+	explicit TTexture() :
+		mAutoRelease	( false )
 	{
 	}
+	~TTexture()
+	{
+		if ( mAutoRelease )
+			Delete();
+	}
+	
+	
+	
+	TTexture(const TTexture& Weak) :
+		mAutoRelease	( false ),
+		mTexture		( Weak.mTexture ),
+		mMeta			( Weak.mMeta )
+	{
+	}
+	
+	TTexture& operator=(const TTexture& Weak)
+	{
+		if ( this != &Weak )
+		{
+			mAutoRelease = false;
+			mTexture = Weak.mTexture;
+			mMeta = Weak.mMeta;
+		}
+		return *this;
+	}
+	
+	//	alloc
+	explicit TTexture(SoyPixelsMetaFull Meta);
+	
+	//	reference
 	TTexture(void* TexturePtr,const SoyPixelsMetaFull& Meta) :
-	mMeta		( Meta ),
+		mMeta			( Meta ),
+		mAutoRelease	( false ),
 #if defined(TARGET_ANDROID)
-	mTexture	( reinterpret_cast<GLuint>(TexturePtr) )
+		mTexture		( reinterpret_cast<GLuint>(TexturePtr) )
 #elif defined(TARGET_OSX)
-	mTexture	( static_cast<GLuint>(reinterpret_cast<GLuint64>(TexturePtr)) )
+		mTexture		( static_cast<GLuint>(reinterpret_cast<GLuint64>(TexturePtr)) )
 #endif
 	{
 	}
+
 	
 	bool				Bind();
 	static void			Unbind();
 	bool				IsValid() const;
-	void				Delete();	//	no auto delete atm
+	void				Delete();
+	void				Copy(const SoyPixels& Pixels,bool Blocking,bool Stretch);
 	
 public:
+	bool				mAutoRelease;
 	TAsset				mTexture;
 	SoyPixelsMetaFull	mMeta;
 };
