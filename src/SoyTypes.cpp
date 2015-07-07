@@ -13,6 +13,117 @@
 #pragma comment(lib, "Shlwapi.lib")
 #endif
 
+#if defined(TARGET_ANDROID)
+#include <jni.h>
+#include <unistd.h>						// usleep, etc
+#include <sys/syscall.h>
+#include <map>
+#endif
+
+//	gr: I want to remove this dependency
+#if defined(TARGET_ANDROID)
+#include "SoyOpengl.h"
+#endif
+
+
+namespace Soy
+{
+	namespace Platform
+	{
+#if defined(TARGET_ANDROID)
+		JavaVM*		vm = nullptr;
+		JNIEnv*		MainEnv = nullptr;
+		std::map<std::thread::id,JNIEnv*>	ThreadEnv;
+		
+		bool		HasJavaVm()	{	return vm!=nullptr;	}
+		JNIEnv&		Java();
+#endif
+	}
+}
+
+bool Soy::Platform::InitThread()
+{
+#if defined(TARGET_ANDROID)
+#endif
+	return true;
+}
+
+void Soy::Platform::ShutdownThread()
+{
+#if defined(TARGET_ANDROID)
+	//	cleanup java env
+	if ( vm )
+	{
+		auto Thread = std::this_thread::get_id();
+		auto ThreadEnvEntry = Soy::Platform::ThreadEnv.find( Thread );
+		if ( ThreadEnvEntry != Soy::Platform::ThreadEnv.end() )
+		{
+			Soy::Platform::ThreadEnv.erase( ThreadEnvEntry );
+			JNIEnv* env = nullptr;
+			auto EnvId = vm->DetachCurrentThread();
+			Soy::Assert( EnvId == JNI_OK, "Failed to detatch java thread");
+		}
+	}
+#endif
+}
+
+#if defined(TARGET_ANDROID)
+//	called by android OS on lib load
+DLL_EXPORT JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
+{
+	Soy::Platform::vm = vm;
+	
+	if ( vm->GetEnv( reinterpret_cast<void**>(&Soy::Platform::MainEnv), JNI_VERSION_1_6) != JNI_OK)
+	{
+		std::Debug << "Failed to get Java Env" << std::endl;
+		return -1;
+	}
+	
+	return JNI_VERSION_1_6;
+}
+#endif
+
+
+#if defined(TARGET_ANDROID)
+JNIEnv& Soy::Platform::Java()
+{
+	//	gr: better error
+	static JNIEnv Dummy;
+	if ( !Soy::Platform::vm )
+		return Dummy;
+	
+	auto& vm = *Soy::Platform::vm;
+	
+	auto Thread = std::this_thread::get_id();
+	
+	if ( Soy::Platform::ThreadEnv.find( Thread ) == Soy::Platform::ThreadEnv.end() )
+	{
+		std::Debug << "Allocating java env for thread" << std::endl;
+		JNIEnv* env = nullptr;
+		auto EnvId = vm.AttachCurrentThread( &env, nullptr );
+		if ( EnvId != JNI_OK )
+			return Dummy;
+		Soy::Platform::ThreadEnv[Thread] = env;
+	}
+	
+	return *Soy::Platform::ThreadEnv[Thread];
+}
+#endif
+
+
+bool Soy::Platform::Init()
+{
+#if defined(TARGET_ANDROID)
+	if ( !Soy::Platform::HasJavaVm() )
+		return false;
+	
+	//	gr: want to remove this and use a new context instead
+	if ( !Opengl::Init() )
+		return false;
+#endif
+	
+	return true;
+}
 
 
 std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeToData)
@@ -33,7 +144,7 @@ std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeTo
 	return std::string( Filenamew.begin(), Filenamew.end() );
 #else
 	//	copy contents to buffer
-	BufferString<MAX_PATH> Buffer = Filename.c_str();
+	BufferString<256> Buffer = Filename.c_str();
 
 #if defined(TARGET_WINDOWS)
 	//	modify buffer (will alter and move terminator)
@@ -469,4 +580,9 @@ std::string Soy::DemangleTypeName(const char* name)
 }
 
 #endif
+
+
+
+
+
 

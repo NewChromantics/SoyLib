@@ -18,16 +18,13 @@
 #define __func__	__FUNCTION__
 #define __thread	__declspec( thread )
 // Attribute to make function be exported from a plugin
-#define __export	__declspec(dllexport)
+#define __export	extern "C" __declspec(dllexport)
 
 #elif defined(TARGET_OSX)
 
 #include <sys/time.h>
 #include <math.h>
 
-#define MAX_PATH    256
-#define STDCALL
-#define EXPORT_API
 
 
 typedef signed __int32		int32;

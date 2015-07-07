@@ -39,7 +39,11 @@ typedef	unsigned short		uint16;
 
 
 
-
+struct NonCopyable {
+	NonCopyable & operator=(const NonCopyable&) = delete;
+	NonCopyable(const NonCopyable&) = delete;
+	NonCopyable() = default;
+};
 
 
 
@@ -241,6 +245,15 @@ namespace Soy
 {
 	namespace Platform
 	{
+		bool		Init();
+		bool		InitThread();
+		void		ShutdownThread();
+		
+#if defined(TARGET_ANDROID)
+		bool		HasJavaVm();
+		JNIEnv&		Java();
+#endif
+
 		int					GetLastError();
 		std::string			GetErrorString(int Error);
 		inline std::string	GetLastErrorString()	{	return GetErrorString( GetLastError() );	}

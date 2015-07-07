@@ -9,6 +9,16 @@
 #include <signal.h>
 #endif
 
+#if defined(TARGET_ANDROID)
+#include <android/log.h>
+#endif
+
+
+namespace Soy
+{
+	std::string		DebugContext = "Pop";	//	where applicable on platforms a context/tag for debug prints
+};
+
 
 std::DebugStream	std::Debug;
 
@@ -54,23 +64,39 @@ std::string Soy::FormatSizeBytes(uint64 bytes)
 	return out.str();
 }
 
-
 //	static per-thread
+#if defined(TARGET_ANDROID)
+//	gr: on android, having a __thread makes my DLL incompatible with unity's build/load (or androids?)
+Soy::HeapString* ThreadBuffer = nullptr;
+#else
 __thread Soy::HeapString* ThreadBuffer = nullptr;	//	thread_local not supported on OSX
+#endif
 
 
+
+
+#if defined(TARGET_ANDROID)
+void Soy::Platform::DebugPrint(const std::string& Message)
+{
+	__android_log_print( ANDROID_LOG_INFO, Soy::DebugContext.c_str(), "pop: %s\n", Message.c_str() );
+}
+#endif
+
+#if defined(USE_HEAP_STRING)
 //	singleton so the heap is created AFTER the heap register
 prmem::Heap& GetDebugStreamHeap()
 {
 	static prmem::Heap DebugStreamHeap(true, true,"Debug stream heap");
 	return DebugStreamHeap;
 }
+#endif
 
 
 Soy::HeapString& std::DebugStreamBuf::GetBuffer()
 {
 	if ( !ThreadBuffer )
 	{
+#if defined(USE_HEAP_STRING)
 		//auto& Heap = SoyThread::GetHeap( SoyThread::GetCurrentThreadNativeHandle() );
 		auto& Heap = GetDebugStreamHeap();
 		ThreadBuffer = Heap.Alloc<Soy::HeapString>( Heap.GetStlAllocator() );
@@ -81,6 +107,9 @@ Soy::HeapString& std::DebugStreamBuf::GetBuffer()
 			GetDebugStreamHeap().Free( NonTlsThreadBufferPtr );
 		};
 		SoyThread::GetOnThreadCleanupEvent()->AddListener( Dealloc );
+#else
+		ThreadBuffer = new std::string();
+#endif
 	}
 	return *ThreadBuffer;
 }
@@ -94,40 +123,40 @@ void std::DebugStreamBuf::flush()
 	if ( Buffer.length() > 0 )
 	{
 		//	gr: change these to be OS/main defined callbacks in OnFlush
-		
+		bool PlatformDebugPrint = true;
+		bool PlatformStdout = mEnableStdOut;
+	
 #if defined(TARGET_WINDOWS)
+
 		//	if there's a debugger attached output to that, otherwise to-screen
-		if ( Soy::Platform::IsDebuggerAttached() )
-		{
-			OutputDebugStringA( Buffer.c_str() );
-		}
-		else if ( mEnableStdOut )
+		PlatformStdout &= !Soy::Platform::IsDebuggerAttached();
+		PlatformDebugPrint = Soy::Platform::IsDebuggerAttached();
+
+#elif defined(TARGET_OSX)
+
+		static bool UseNsLog = false;
+		PlatformDebugPrint = UseNsLog;
+
+#endif
+		if ( PlatformStdout )
 		{
 			std::lock_guard<std::mutex> lock(CoutLock);
 			std::cout << Buffer.c_str();
 			std::cout << std::flush;
 		}
-#elif defined(TARGET_OSX)
-		static bool UseNsLog = false;
-		if ( UseNsLog )
+		
+		if ( PlatformDebugPrint )
 		{
 			std::string BufferStr(Buffer.c_str());
 			Soy::Platform::DebugPrint( BufferStr );
 		}
 		
-		if ( mEnableStdOut )
-		{
-			std::lock_guard<std::mutex> lock(CoutLock);
-			std::cout << Buffer.c_str();
-			std::cout << std::flush;
-		}
-		//NSLog(@"%s", message);
-#endif
 		if ( mOnFlush.HasListeners() )
 		{
 			std::string BufferStr(Buffer.c_str());
 			mOnFlush.OnTriggered(BufferStr);
 		}
+		
 		Buffer.erase();	// erase message buffer
 	}
 }

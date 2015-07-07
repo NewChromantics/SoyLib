@@ -9,6 +9,5 @@ typedef uint64_t	uint64;
 
 
 //	todo: remove this, only depend in win32 specific code
-#define MAX_PATH	256
 #define __stdcall
-#define __export
+#define __export	extern "C"

@@ -8,7 +8,9 @@
 #include "SoyScope.h"
 #include "SoyString.h"
 
-
+#if !defined(TARGET_ANDROID)
+#define USE_HEAP_STRING
+#endif
 
 namespace std
 {
@@ -28,6 +30,10 @@ namespace Soy
 		bool	IsDebuggerAttached();
 		void	DebugPrint(const std::string& String);
 	}
+	
+#if !defined USE_HEAP_STRING
+	typedef std::string HeapString;
+#endif
 };
 
 

@@ -493,7 +493,7 @@ public:
 
 	//	alloc into a smart pointer
 	template<typename TYPE,typename ARG1,typename ARG2,typename ARG3,typename ARG4,typename ARG5>
-	std::shared_ptr<TYPE>	AllocPtr(ARG1& Arg1,ARG2& Arg2,ARG3& Arg3,ARG4& Arg4,ARG5& Arg5)	
+	std::shared_ptr<TYPE>	AllocPtr(ARG1& Arg1,ARG2& Arg2,ARG3& Arg3,ARG4& Arg4,ARG5& Arg5)
 	{
 		TYPE* pAlloc = Alloc<TYPE>( Arg1, Arg2, Arg3, Arg4, Arg5 );
 		return std::shared_ptr<TYPE>( pAlloc, HeapFreeFunctor<TYPE>(*this) );
