@@ -1,11 +1,54 @@
 #include "SoyOpengl.h"
 #include "RemoteArray.h"
 
-
 namespace Opengl
 {
 	const char*		ErrorToString(GLenum Error);
 	const std::map<SoyPixelsFormat::Type,GLint>&	GetPixelFormatMap();
+	std::string		GetTypeName(GLenum Type);
+}
+
+std::string Opengl::GetTypeName(GLenum Type)
+{
+	switch ( Type )
+	{
+		case GL_BYTE:			return Soy::GetTypeName<int8>();
+		case GL_UNSIGNED_BYTE:	return Soy::GetTypeName<uint8>();
+		case GL_SHORT:			return Soy::GetTypeName<int16>();
+		case GL_UNSIGNED_SHORT:	return Soy::GetTypeName<uint16>();
+		case GL_INT:			return Soy::GetTypeName<int>();
+		case GL_UNSIGNED_INT:	return Soy::GetTypeName<unsigned int>();
+		case GL_FLOAT:			return Soy::GetTypeName<float>();
+		case GL_DOUBLE:			return Soy::GetTypeName<double>();
+		case GL_FLOAT_VEC2:		return Soy::GetTypeName<vec2f>();
+		case GL_FLOAT_VEC3:		return Soy::GetTypeName<vec3f>();
+		case GL_FLOAT_VEC4:		return Soy::GetTypeName<vec4f>();
+		case GL_INT_VEC2:		return Soy::GetTypeName<vec2x<int>>();
+		case GL_INT_VEC3:		return Soy::GetTypeName<vec3x<int>>();
+		case GL_INT_VEC4:		return Soy::GetTypeName<vec4x<int>>();
+		case GL_BOOL:			return Soy::GetTypeName<bool>();
+		case GL_SAMPLER_1D:		return "sampler1d";
+		case GL_SAMPLER_2D:		return "sampler2d";
+		case GL_SAMPLER_3D:		return "sampler3d";
+		case GL_SAMPLER_CUBE:	return "samplercube";
+		case GL_FLOAT_MAT2:		return "float2x2";
+		case GL_FLOAT_MAT3:		return "float3x3";
+		case GL_FLOAT_MAT4:		return "float4x4";
+	};
+	
+	std::stringstream Unknown;
+	Unknown << "Unknown GL type 0x" << std::hex << Type;
+	return Unknown.str();
+}
+
+std::ostream& Opengl::operator<<(std::ostream &out,const Opengl::TUniform& in)
+{
+	out << "#" << in.mIndex << " ";
+	out << Opengl::GetTypeName(in.mType);
+	if ( in.mArraySize != 1 )
+		out << "[" << in.mArraySize << "]";
+	out << " " << in.mName;
+	return out;
 }
 
 
@@ -369,6 +412,7 @@ bool Opengl::BlitOES(TTexture& Texture,TFbo& Fbo,TGeoQuad& Geo,TShaderEosBlit& S
 Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta) :
 	mAutoRelease	( true )
 {
+	Opengl_IsInitialised();
 	Soy::Assert( Meta.IsValid(), "Cannot setup texture with invalid meta" );
 	
 	GLuint Format = Opengl::GetPixelFormat( Meta.GetFormat() );
@@ -541,7 +585,7 @@ bool CompileShader( const Opengl::TAsset& shader, const char * src )
 	if ( !Opengl_IsInitialised() )
 		return false;
 	
-	glShaderSource( shader.mName, 1, &src, 0 );
+	glShaderSource( shader.mName, 1, &src, nullptr );
 	glCompileShader( shader.mName );
 	
 	GLint r;
@@ -584,7 +628,7 @@ void Opengl::TShaderState::SetUniform(const char* Name,const vec4f& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
 	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
-	glUniform1fv( Uniform.mValue, 4, &v.x );
+	glUniform1fv( Uniform.mIndex, 4, &v.x );
 	Opengl_IsOkay();
 }
 
@@ -595,7 +639,7 @@ void Opengl::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
 
 	auto BindTextureIndex = size_cast<GLint>( mTextureBindCount );
 	BindTexture( BindTextureIndex, Texture );
-	glUniform1i( Uniform.mValue, BindTextureIndex );
+	glUniform1i( Uniform.mIndex, BindTextureIndex );
 	mTextureBindCount++;
 }
 
@@ -613,24 +657,72 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
 	glBindTexture( GL_TEXTURE_2D, Texture.mTexture.mName );
 }
 
+namespace Soy
+{
+	//	returns if changed
+	bool	StringReplace(std::string& str,const std::string& from,const std::string& to)
+	{
+		if ( from.empty() )
+			return false;
+		size_t Changes = 0;
+		size_t start_pos = 0;
+		while((start_pos = str.find(from, start_pos)) != std::string::npos) {
+			str.replace(start_pos, from.length(), to);
+			start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
+		
+			Changes++;
+		}
+		return (Changes!=0);
+	}
+}
 
-
-Opengl::GlProgram Opengl::BuildProgram( const char * vertexSrc,
-									   const char * fragmentSrc )
+Opengl::GlProgram Opengl::BuildProgram(std::string vertexSrc,std::string fragmentSrc,const ArrayBridge<TUniform>&& GeometryAttributes)
 {
 	if ( !Opengl_IsInitialised() )
 		return GlProgram();
 	
 	GlProgram prog;
 	
+	bool ShaderVersion30 = true;
+	
+	if ( ShaderVersion30 )
+	{
+		const char* Version_3_2 = "#version 150";
+
+		//	auto-replace/insert the new fragment output
+		//	https://www.opengl.org/wiki/Fragment_Shader#Outputs
+		const char* AutoFragColorName = "FragColor";
+		
+		//	in 3.2, attribute/varying is now in/out
+		Soy::StringReplace( vertexSrc, "attribute", "in" );
+		Soy::StringReplace( fragmentSrc, "attribute", "in" );
+		Soy::StringReplace( vertexSrc, "varying", "out" );
+		Soy::StringReplace( fragmentSrc, "varying", "out" );
+		Soy::StringReplace( fragmentSrc, "gl_FragColor", AutoFragColorName );
+		Soy::StringReplace( fragmentSrc, "texture2D(", "texture(" );
+
+		//	need a version
+		std::stringstream InsertVert;
+		InsertVert << Version_3_2 << std::endl;
+		vertexSrc.insert( 0, InsertVert.str() );
+	
+		//	insert some stuff into frag
+		std::stringstream InsertFrag;
+		InsertFrag << Version_3_2 << std::endl;
+		
+		//	auto declare the new gl_FragColor variable
+		InsertFrag << "out vec4 " << AutoFragColorName << ";" << std::endl;
+		fragmentSrc.insert( 0, InsertFrag.str() );
+	}
+	
 	prog.vertexShader.mName = glCreateShader( GL_VERTEX_SHADER );
-	if ( !CompileShader( prog.vertexShader, vertexSrc ) )
+	if ( !CompileShader( prog.vertexShader, vertexSrc.c_str() ) )
 	{
 		Soy::Assert( false, "Failed to compile vertex shader" );
 		return GlProgram();
 	}
 	prog.fragmentShader.mName = glCreateShader( GL_FRAGMENT_SHADER );
-	if ( !CompileShader( prog.fragmentShader, fragmentSrc ) )
+	if ( !CompileShader( prog.fragmentShader, fragmentSrc.c_str() ) )
 	{
 		Soy::Assert( false, "Failed to compile fragment shader" );
 		return GlProgram();
@@ -641,17 +733,12 @@ Opengl::GlProgram Opengl::BuildProgram( const char * vertexSrc,
 	glAttachShader( ProgramName, prog.vertexShader.mName );
 	glAttachShader( ProgramName, prog.fragmentShader.mName );
 	
-	// set attributes before linking
-	glBindAttribLocation( ProgramName, VERTEX_ATTRIBUTE_LOCATION_POSITION,			"Position" );
-	glBindAttribLocation( ProgramName, VERTEX_ATTRIBUTE_LOCATION_NORMAL,			"Normal" );
-	glBindAttribLocation( ProgramName, VERTEX_ATTRIBUTE_LOCATION_TANGENT,			"Tangent" );
-	glBindAttribLocation( ProgramName, VERTEX_ATTRIBUTE_LOCATION_BINORMAL,			"Binormal" );
-	glBindAttribLocation( ProgramName, VERTEX_ATTRIBUTE_LOCATION_COLOR,			"VertexColor" );
-	glBindAttribLocation( ProgramName, VERTEX_ATTRIBUTE_LOCATION_UV0,				"TexCoord" );
-	glBindAttribLocation( ProgramName, VERTEX_ATTRIBUTE_LOCATION_UV1,				"TexCoord1" );
-	//glBindAttribLocation( ProgramName, VERTEX_ATTRIBUTE_LOCATION_JOINT_WEIGHTS,	"JointWeights" );
-	//glBindAttribLocation( ProgramName, VERTEX_ATTRIBUTE_LOCATION_JOINT_INDICES,	"JointIndices" );
-	//glBindAttribLocation( ProgramName, VERTEX_ATTRIBUTE_LOCATION_FONT_PARMS,		"FontParms" );
+	//	bind attributes before linking to match geometry
+	for ( int i=0;	i<GeometryAttributes.GetSize();	i++ )
+	{
+		auto& Attrib = GeometryAttributes[i];
+		glBindAttribLocation( ProgramName, Attrib.mIndex, Attrib.mName.c_str() );
+	}
 	
 	// link and error check
 	glLinkProgram( ProgramName );
@@ -666,16 +753,77 @@ Opengl::GlProgram Opengl::BuildProgram( const char * vertexSrc,
 		Soy::Assert( false, Error.str() );
 		return GlProgram();
 	}
-	prog.uMvp = glGetUniformLocation( ProgramName, "Mvpm" );
-	prog.uModel = glGetUniformLocation( ProgramName, "Modelm" );
-	prog.uView = glGetUniformLocation( ProgramName, "Viewm" );
-	prog.uColor = glGetUniformLocation( ProgramName, "UniformColor" );
-	prog.uFadeDirection = glGetUniformLocation( ProgramName, "UniformFadeDirection" );
-	prog.uTexm = glGetUniformLocation( ProgramName, "Texm" );
-	prog.uTexm2 = glGetUniformLocation( ProgramName, "Texm2" );
-	prog.uJoints = glGetUniformLocation( ProgramName, "Joints" );
-	prog.uColorTableOffset = glGetUniformLocation( ProgramName, "ColorTableOffset" );
 	
+	glGetProgramiv( ProgramName, GL_VALIDATE_STATUS, &r );
+	if ( r == GL_FALSE )
+	{
+		GLchar msg[1024];
+		glGetProgramInfoLog( ProgramName, sizeof( msg ), 0, msg );
+		std::stringstream Error;
+		Error << "Failed to validate vertex and fragment shader: " << msg;
+		std::Debug << Error.str() << std::endl;
+		//Soy::Assert( false, Error.str() );
+		//return GlProgram();
+	}
+	
+	//	enum attribs and uniforms
+	//	lookout for new version;	http://stackoverflow.com/a/12611619/355753
+	GLint numActiveAttribs = 0;
+	GLint numActiveUniforms = 0;
+	glGetProgramiv( ProgramName, GL_ACTIVE_ATTRIBUTES, &numActiveAttribs);
+	glGetProgramiv( ProgramName, GL_ACTIVE_UNIFORMS, &numActiveUniforms);
+	//	gr: look out for driver bugs: http://stackoverflow.com/a/12611619/355753
+	numActiveUniforms = std::min( numActiveUniforms, 256 );
+
+	GLint MaxNameLength = 0;
+	glGetProgramiv( ProgramName, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &MaxNameLength );
+
+	for( GLint attrib=0;	attrib<numActiveAttribs;	++attrib )
+	{
+		std::vector<GLchar> nameData( MaxNameLength );
+		
+		TUniform Uniform;
+		Uniform.mIndex = attrib;
+		
+		GLsizei actualLength = 0;
+		glGetActiveAttrib( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Uniform.mType, &nameData[0]);
+		Uniform.mName = std::string( nameData.data(), actualLength );
+		
+		//	check is valid type etc
+		
+		prog.mAttributes.PushBack( Uniform );
+	}
+	
+	for( GLint attrib=0;	attrib<numActiveUniforms;	++attrib )
+	{
+		std::vector<GLchar> nameData( MaxNameLength );
+		
+		TUniform Uniform;
+		Uniform.mIndex = attrib;
+		
+		GLsizei actualLength = 0;
+		glGetActiveUniform( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Uniform.mType, &nameData[0]);
+		Uniform.mName = std::string( nameData.data(), actualLength );
+		
+		//	check is valid type etc
+		
+		prog.mUniforms.PushBack( Uniform );
+	}
+
+	std::Debug << "Shader has " << prog.mAttributes.GetSize() << " attributes; " << std::endl;
+	std::Debug << Soy::StringJoin( GetArrayBridge(prog.mAttributes), "\n" );
+	std::Debug << std::endl;
+
+	std::Debug << "Shader has " << prog.mUniforms.GetSize() << " uniforms; " << std::endl;
+	std::Debug << Soy::StringJoin( GetArrayBridge(prog.mUniforms), "\n" );
+	std::Debug << std::endl;
+	
+	Opengl_IsOkay();
+	glValidateProgram( ProgramName );
+	Opengl_IsOkay();
+	
+	//	gr: runtime binding!
+	/*
 	glUseProgram( ProgramName );
 	
 	// texture and image_external bindings
@@ -691,29 +839,137 @@ Opengl::GlProgram Opengl::BuildProgram( const char * vertexSrc,
 	}
 	
 	glUseProgram( 0 );
+	 */
 	
 	return prog;
 }
 
-void Opengl::DeleteProgram( GlProgram & prog )
+
+bool Opengl::GlProgram::IsValid() const
 {
-	if ( prog.program.mName != GL_ASSET_INVALID )
+	return program.IsValid() && vertexShader.IsValid() && fragmentShader.IsValid();
+}
+
+Opengl::TShaderState Opengl::GlProgram::Bind()
+{
+	Opengl_IsOkay();
+	glUseProgram( program.mName );
+	Opengl_IsOkay();
+	
+	TShaderState ShaderState( *this );
+	return ShaderState;
+}
+
+void Opengl::GlProgram::Destroy()
+{
+	if ( program.mName != GL_ASSET_INVALID )
 	{
-		glDeleteProgram( prog.program.mName );
-		prog.program.mName = GL_ASSET_INVALID;
+		glDeleteProgram( program.mName );
+		program.mName = GL_ASSET_INVALID;
 	}
-	if ( prog.vertexShader.mName != GL_ASSET_INVALID )
+	if ( vertexShader.mName != GL_ASSET_INVALID )
 	{
-		glDeleteShader( prog.vertexShader.mName );
-		prog.vertexShader.mName = GL_ASSET_INVALID;
+		glDeleteShader( vertexShader.mName );
+		vertexShader.mName = GL_ASSET_INVALID;
 	}
-	if ( prog.fragmentShader.mName != GL_ASSET_INVALID )
+	if ( fragmentShader.mName != GL_ASSET_INVALID )
 	{
-		glDeleteShader( prog.fragmentShader.mName );
-		prog.fragmentShader.mName = GL_ASSET_INVALID;
+		glDeleteShader( fragmentShader.mName );
+		fragmentShader.mName = GL_ASSET_INVALID;
 	}
 }
 
+
+#if defined(TARGET_ANDROID)
+#define glBindVertexArray	glBindVertexArrayOES_
+#define glGenVertexArrays	glGenVertexArraysOES_
+#endif
+
+
+
+Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<uint16>&& Indexes,const ArrayBridge<Opengl::TGeometryVertex>&& Attribs)
+{
+	Soy::Assert( Attribs.GetSize() == AttribDataOffsets.GetSize(), "Attrib layout mismatch" );
+
+	glGenBuffers( 1, &Geo.vertexBuffer );
+	glGenBuffers( 1, &Geo.indexBuffer );
+
+	//	fill vertex array
+	glGenVertexArrays( 1, &vertexArrayObject );
+	glBindVertexArray( vertexArrayObject );
+	glBindBuffer( GL_ARRAY_BUFFER, vertexBuffer );
+
+	//	calc stuff
+	Array<size_t> VertexOffsets;
+	Array<size_t> VertexStrides;
+	size_t VertexSize = 0;
+	{
+		size_t VertexOffset = 0;
+		for ( int v=0;	v<Attribs.GetSize();	v++ )
+		{
+			//	this changes if we have interleaved attribs
+			VertexOffsets.PushBack( VertexOffset );
+			VertexStrides.PushBack( Attribs[v].mElementDataSize );
+			
+			VertexOffset += Attribs[v].mElementDataSize;
+			VertexSize += Attribs[v].mElementDataSize;
+		}
+	}
+	
+	for ( int a=0;	at<Attribs.GetSize();	at++ )
+	{
+		auto& Attrib = Attribs[at];
+		auto AttribOffset = VertexOffsets[at];
+		GLsizei stride = VertexStrides[at];
+		GLboolean Normalised = Attrib.mNormalised;
+		
+		void* ElementPointer = AttribOffset;
+		
+		glEnableVertexAttribArray( Attrib.mIndex );
+		glVertexAttribPointer( Attrib.mIndex, Attrib.mArraySize, Attrib.mType, Normalised, Stride, ElementPointer );
+	}
+	
+	//	push data
+	glBufferData( GL_ARRAY_BUFFER, Data.GetDataLength(), Data.GetArray(), GL_STATIC_DRAW );
+
+	//	push indexes
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, indexBuffer );
+	glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes.GetDataSize(), Indexes.GetArray(), GL_STATIC_DRAW );
+
+	
+	//	unbind
+	glBindBuffer( GL_ARRAY_BUFFER, 0 );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+	glBindVertexArray( 0 );
+	
+	for ( int a=0;	at<Attribs.GetSize();	at++ )
+	{
+		auto& Attrib = Attribs[at];
+		glDisableVertexAttribArray( Attrib.mIndex );
+	}
+
+}
+
+template< typename _attrib_type_ >
+void PackVertexAttribute( std::vector< uint8_t > & packed, const std::vector< _attrib_type_ > & attrib,
+						 const int glLocation, const int glType, const int glComponents )
+{
+	if ( attrib.size() > 0 )
+	{
+		const size_t offset = packed.size();
+		const size_t size = attrib.size() * sizeof( attrib[0] );
+		
+		packed.resize( offset + size );
+		memcpy( &packed[offset], attrib.data(), size );
+		
+		glEnableVertexAttribArray( glLocation );
+		glVertexAttribPointer( glLocation, glComponents, glType, false, sizeof( attrib[0] ), (void *)( offset ) );
+	}
+	else
+	{
+		glDisableVertexAttribArray( glLocation );
+	}
+}
 
 /*
 void Opengl::TGeometry::Create( const VertexAttribs & attribs, const std::vector< TriangleIndex > & indices )
@@ -721,18 +977,20 @@ void Opengl::TGeometry::Create( const VertexAttribs & attribs, const std::vector
 	if ( !Opengl_IsInitialised() )
 		return;
 	
-	vertexCount = attribs.position.size();
-	indexCount = indices.size();
+	vertexCount = size_cast<GLsizei>(attribs.position.size());
+	indexCount = size_cast<GLsizei>(indices.size());
 	
 	std::Debug << "glGenBuffers" << std::endl;
 	glGenBuffers( 1, &vertexBuffer );
+	Opengl::IsOkay("glGenBuffers");
 	glGenBuffers( 1, &indexBuffer );
+	Opengl::IsOkay("glGenBuffers");
 	
-	std::Debug << "glGenVertexArraysOES_" << std::endl;
-	glGenVertexArraysOES_( 1, &vertexArrayObject );
-	std::Debug << "glBindVertexArrayOES_" << std::endl;
-	glBindVertexArrayOES_( vertexArrayObject );
-	std::Debug << "glBindBuffer" << std::endl;
+	glGenVertexArrays( 1, &vertexArrayObject );
+	Opengl::IsOkay("glGenVertexArrays");
+	
+	glBindVertexArray( vertexArrayObject );
+	Opengl::IsOkay("glBindVertexArray");
 	glBindBuffer( GL_ARRAY_BUFFER, vertexBuffer );
 	Opengl::IsOkay("glBindBuffer vertex");
 	
@@ -760,7 +1018,7 @@ void Opengl::TGeometry::Create( const VertexAttribs & attribs, const std::vector
 	
 	glBindBuffer( GL_ARRAY_BUFFER, 0 );
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
-	glBindVertexArrayOES_( 0 );
+	glBindVertexArray( 0 );
 	
 	glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_POSITION );
 	glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_NORMAL );
@@ -771,15 +1029,15 @@ void Opengl::TGeometry::Create( const VertexAttribs & attribs, const std::vector
 	glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_UV1 );
 	//glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_JOINT_INDICES );
 	//glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_JOINT_WEIGHTS );
-	
 	std::Debug << "TGeometry::Create finished" << std::endl;
+	Opengl_IsOkay();
 }
 
 void Opengl::TGeometry::Update( const VertexAttribs & attribs )
 {
 	vertexCount = attribs.position.size();
 	
-	glBindVertexArrayOES_( vertexArrayObject );
+	glBindVertexArray( vertexArrayObject );
 	
 	glBindBuffer( GL_ARRAY_BUFFER, vertexBuffer );
 	
@@ -796,19 +1054,20 @@ void Opengl::TGeometry::Update( const VertexAttribs & attribs )
 	
 	glBufferData( GL_ARRAY_BUFFER, packed.size() * sizeof( packed[0] ), packed.data(), GL_STATIC_DRAW );
 }
+ */
 
 void Opengl::TGeometry::Draw() const
 {
 	if ( !Opengl_IsInitialised() )
 		return;
 	
-	glBindVertexArrayOES_( vertexArrayObject );
+	glBindVertexArray( vertexArrayObject );
 	glDrawElements( GL_TRIANGLES, indexCount, ( sizeof( TriangleIndex ) == 2 ) ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, NULL );
 }
 
 void Opengl::TGeometry::Free()
 {
-	glDeleteVertexArraysOES_( 1, &vertexArrayObject );
+	glDeleteVertexArrays( 1, &vertexArrayObject );
 	glDeleteBuffers( 1, &indexBuffer );
 	glDeleteBuffers( 1, &vertexBuffer );
 	
@@ -828,7 +1087,7 @@ bool Opengl::TGeometry::IsValid() const
 	vertexCount != GL_ASSET_INVALID &&
 	indexCount != GL_ASSET_INVALID;
 }
-*/
+
 
 
 const std::map<SoyPixelsFormat::Type,GLint>& Opengl::GetPixelFormatMap()

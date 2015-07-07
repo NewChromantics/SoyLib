@@ -1,6 +1,5 @@
 #pragma once
 
-#include <ostream>
 #include <SoyEvent.h>
 #include <SoyMath.h>
 #include <SoyPixels.h>
@@ -49,22 +48,7 @@ namespace Opengl
 	class TGeoQuad;
 	class TShaderEosBlit;
 	class TGeometry;
-	
-	
-	
-	enum VertexAttributeLocation
-	{
-		VERTEX_ATTRIBUTE_LOCATION_POSITION		= 0,
-		VERTEX_ATTRIBUTE_LOCATION_NORMAL		= 1,
-		VERTEX_ATTRIBUTE_LOCATION_TANGENT		= 2,
-		VERTEX_ATTRIBUTE_LOCATION_BINORMAL		= 3,
-		VERTEX_ATTRIBUTE_LOCATION_COLOR			= 4,
-		VERTEX_ATTRIBUTE_LOCATION_UV0			= 5,
-		VERTEX_ATTRIBUTE_LOCATION_UV1			= 6,
-		//	VERTEX_ATTRIBUTE_LOCATION_JOINT_INDICES	= 7,
-		//	VERTEX_ATTRIBUTE_LOCATION_JOINT_WEIGHTS	= 8,
-		//	VERTEX_ATTRIBUTE_LOCATION_FONT_PARMS	= 9
-	};
+	class TGeometryVertex;
 	
 	
 	// It probably isn't worth keeping these shared here, each user
@@ -92,11 +76,9 @@ namespace Opengl
 	
 	// Will abort() after logging an error if either compiles or the link status
 	// fails, but not if uniforms are missing.
-	GlProgram	BuildProgram( const char * vertexSrc, const char * fragmentSrc );
+	GlProgram	BuildProgram(std::string vertexSrc,std::string fragmentSrc,const ArrayBridge<TUniform>&& GeometryAttributes);
 	
-	void		DeleteProgram( GlProgram & prog );
 
-	
 	
 	struct VertexAttribs
 	{
@@ -118,7 +100,8 @@ namespace Opengl
 	static const int MAX_GEOMETRY_INDICES	= 1024 * 1024 * 3;
 	
 	TGeometry BuildTesselatedQuad( const int horizontal, const int vertical );
-	
+	TGeometry	CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<uint16>&& Indexes,const ArrayBridge<TGeometryVertex>&& Attribs);
+
 #define Opengl_IsInitialised()	Opengl::IsInitialised(__func__,true)
 #define Opengl_IsOkay()			Opengl::IsOkay(__func__)
 
@@ -134,8 +117,6 @@ namespace Opengl
 	void	ClearColour(Soy::TRgb Colour);
 	void	SetViewport(Soy::Rectf Viewport);
 };
-
-
 
 
 
@@ -162,17 +143,32 @@ class Opengl::TUniform
 {
 public:
 	TUniform() :
-		mValue	( GL_UNIFORM_INVALID )
-	{
-	}
-	TUniform(GLint Value) :
-		mValue	( Value )
+		mIndex		( GL_UNIFORM_INVALID ),
+		mType		( GL_ASSET_INVALID ),
+		mArraySize	( 0 )
 	{
 	}
 	
-	bool	IsValid() const	{	return mValue != GL_UNIFORM_INVALID;	}
+	bool		IsValid() const	{	return mIndex != GL_UNIFORM_INVALID;	}
+	bool		operator==(const std::string& Name) const	{	return mName == Name;	}
 	
-	GLint	mValue;
+	std::string	mName;
+	GLenum		mType;
+	GLsizei		mArraySize;	//	for arrays of mType
+	GLint		mIndex;		//	attrib index
+};
+namespace Opengl
+{
+std::ostream& operator<<(std::ostream &out,const Opengl::TUniform& in);
+}
+
+
+class Opengl::TGeometryVertex
+{
+public:
+	TUniform	mAttrib;
+	size_t		mElementDataSize;
+	bool		mNormalised;
 };
 
 
@@ -216,27 +212,29 @@ class Opengl::GlProgram
 {
 public:
 	bool			IsValid() const;
+	void			Destroy();
 	
 	TShaderState	Bind();	//	let this go out of scope to unbind
-	
+	TUniform		GetUniform(const char* Name) const
+	{
+		auto* Uniform = mUniforms.Find( Name );
+		return Uniform ? *Uniform : TUniform();
+	}
+	TUniform		GetAttribute(const char* Name) const
+	{
+		auto* Uniform = mAttributes.Find( Name );
+		return Uniform ? *Uniform : TUniform();
+	}
+
+public:
 	TAsset			program;
 	TAsset			vertexShader;
 	TAsset			fragmentShader;
 	
-	std::map<std::string,TUniform>	mUniforms;
-	TUniform		GetUniform(const char* Name) const;
-	
-	// Uniforms that aren't found will have a -1 value
-	TUniform	uMvp;				// uniform Mvpm
-	TUniform	uModel;				// uniform Modelm
-	TUniform	uView;				// uniform Viewm
-	TUniform	uColor;				// uniform UniformColor
-	TUniform	uFadeDirection;		// uniform FadeDirection
-	TUniform	uTexm;				// uniform Texm
-	TUniform	uTexm2;				// uniform Texm2
-	TUniform	uJoints;			// uniform Joints
-	TUniform	uColorTableOffset;	// uniform offset to apply to color table index
+	Array<TUniform>	mUniforms;
+	Array<TUniform>	mAttributes;
 };
+
 
 
 class Opengl::TGeometry
@@ -281,11 +279,11 @@ public:
 	bool	IsValid() const;
 	
 public:
-	unsigned 	vertexBuffer;
-	unsigned 	indexBuffer;
-	unsigned 	vertexArrayObject;
-	int			vertexCount;
-	int 		indexCount;
+	GLuint		vertexBuffer;
+	GLuint		indexBuffer;
+	GLuint		vertexArrayObject;
+	GLsizei		vertexCount;
+	GLsizei 	indexCount;
 };
 
 
