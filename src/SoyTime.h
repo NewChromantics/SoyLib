@@ -89,7 +89,7 @@ public:
 	inline SoyTime&	operator-=(const uint64& Step) 			{	mTime -= Step;	return *this;	}
 	inline SoyTime&	operator-=(const SoyTime& Step)			{	mTime -= Step.GetTime();	return *this;	}
 
-private:
+public:	//	gr: temporarily public during android/ios merge
 	uint64	mTime;
 };
 DECLARE_TYPE_NAME( SoyTime );
