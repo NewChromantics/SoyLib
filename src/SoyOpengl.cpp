@@ -732,10 +732,11 @@ Opengl::GlProgram Opengl::BuildProgram(std::string vertexSrc,std::string fragmen
 		const char* AutoFragColorName = "FragColor";
 		
 		//	in 3.2, attribute/varying is now in/out
+		//			varying is Vert OUT, and INPUT for a frag (it becomes an attribute of the pixel)
 		Soy::StringReplace( vertexSrc, "attribute", "in" );
 		Soy::StringReplace( fragmentSrc, "attribute", "in" );
 		Soy::StringReplace( vertexSrc, "varying", "out" );
-		Soy::StringReplace( fragmentSrc, "varying", "out" );
+		Soy::StringReplace( fragmentSrc, "varying", "in" );
 		Soy::StringReplace( fragmentSrc, "gl_FragColor", AutoFragColorName );
 		Soy::StringReplace( fragmentSrc, "texture2D(", "texture(" );
 
