@@ -3,7 +3,6 @@
 
 namespace Opengl
 {
-	const char*		ErrorToString(GLenum Error);
 	const std::map<SoyPixelsFormat::Type,GLint>&	GetPixelFormatMap();
 	std::string		GetTypeName(GLenum Type);
 	
