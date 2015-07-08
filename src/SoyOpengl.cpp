@@ -6,7 +6,26 @@ namespace Opengl
 	const char*		ErrorToString(GLenum Error);
 	const std::map<SoyPixelsFormat::Type,GLint>&	GetPixelFormatMap();
 	std::string		GetTypeName(GLenum Type);
+	
+	template<typename TYPE>
+	GLenum			GetTypeEnum()
+	{
+		throw new Soy::AssertException( std::string("Unhandled Get Gl enum from type case ")+__func__ );
+		return GL_INVALID_ENUM;
+	}
+	
+	template<typename TYPE>
+	void			SetUniform(const TUniform& Uniform,const TYPE& Value)
+	{
+		std::stringstream Error;
+		Error << __func__ << " not overloaded for " << Soy::GetTypeName<TYPE>();
+		throw new Soy::AssertException( Error.str() );
+	}
+
 }
+
+template<> GLenum Opengl::GetTypeEnum<uint16>()		{	return GL_UNSIGNED_SHORT;	}
+template<> GLenum Opengl::GetTypeEnum<GLshort>()	{	return GL_UNSIGNED_SHORT;	}
 
 std::string Opengl::GetTypeName(GLenum Type)
 {
@@ -51,6 +70,16 @@ std::ostream& Opengl::operator<<(std::ostream &out,const Opengl::TUniform& in)
 	return out;
 }
 
+
+
+template<>
+void Opengl::SetUniform(const TUniform& Uniform,const vec4f& Value)
+{
+	GLsizei ArraySize = 1;
+	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
+	glUniform4fv( Uniform.mIndex, ArraySize, &Value.x );
+	Opengl_IsOkay();
+}
 
 
 // Returns false and logs the ShaderInfoLog on failure.
@@ -220,7 +249,7 @@ void Opengl::TFbo::Unbind()
 	Opengl_IsOkay();
 }
 
-
+/*
 Opengl::TGeometry Opengl::BuildTesselatedQuad( const int horizontal, const int vertical )
 {
 	const int vertexCount = ( horizontal + 1 ) * ( vertical + 1 );
@@ -277,6 +306,7 @@ Opengl::TGeometry Opengl::BuildTesselatedQuad( const int horizontal, const int v
 	
 	return TGeometry( attribs, indices );
 }
+ */
 /*
 Opengl::TGeoQuad::TGeoQuad()
 {
@@ -624,12 +654,13 @@ Opengl::TShaderState::~TShaderState()
 	glUseProgram(0);
 }
 
+
+
 void Opengl::TShaderState::SetUniform(const char* Name,const vec4f& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
 	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
-	glUniform1fv( Uniform.mIndex, 4, &v.x );
-	Opengl_IsOkay();
+	Opengl::SetUniform( Uniform, v );
 }
 
 void Opengl::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
@@ -640,6 +671,7 @@ void Opengl::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
 	auto BindTextureIndex = size_cast<GLint>( mTextureBindCount );
 	BindTexture( BindTextureIndex, Texture );
 	glUniform1i( Uniform.mIndex, BindTextureIndex );
+	Opengl_IsOkay();
 	mTextureBindCount++;
 }
 
@@ -653,8 +685,11 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
 	};
 	auto TextureBindings = GetRemoteArray( _TexturesBindings );
 	
+	Opengl_IsOkay();
 	glActiveTexture( TextureBindings[TextureIndex] );
+	Opengl_IsOkay();
 	glBindTexture( GL_TEXTURE_2D, Texture.mTexture.mName );
+	Opengl_IsOkay();
 }
 
 namespace Soy
@@ -676,7 +711,7 @@ namespace Soy
 	}
 }
 
-Opengl::GlProgram Opengl::BuildProgram(std::string vertexSrc,std::string fragmentSrc,const ArrayBridge<TUniform>&& GeometryAttributes)
+Opengl::GlProgram Opengl::BuildProgram(std::string vertexSrc,std::string fragmentSrc,const TGeometryVertex& Vertex)
 {
 	if ( !Opengl_IsInitialised() )
 		return GlProgram();
@@ -687,8 +722,11 @@ Opengl::GlProgram Opengl::BuildProgram(std::string vertexSrc,std::string fragmen
 	
 	if ( ShaderVersion30 )
 	{
+#if defined(TARGET_ANDROID)
+		const char* Version_3_2 = "#version 300 es";
+#else
 		const char* Version_3_2 = "#version 150";
-
+#endif
 		//	auto-replace/insert the new fragment output
 		//	https://www.opengl.org/wiki/Fragment_Shader#Outputs
 		const char* AutoFragColorName = "FragColor";
@@ -734,10 +772,10 @@ Opengl::GlProgram Opengl::BuildProgram(std::string vertexSrc,std::string fragmen
 	glAttachShader( ProgramName, prog.fragmentShader.mName );
 	
 	//	bind attributes before linking to match geometry
-	for ( int i=0;	i<GeometryAttributes.GetSize();	i++ )
+	for ( int i=0;	i<Vertex.mElements.GetSize();	i++ )
 	{
-		auto& Attrib = GeometryAttributes[i];
-		glBindAttribLocation( ProgramName, Attrib.mIndex, Attrib.mName.c_str() );
+		auto& Attrib = Vertex.mElements[i];
+	//	glBindAttribLocation( ProgramName, Attrib.mIndex, Attrib.mName.c_str() );
 	}
 	
 	// link and error check
@@ -886,68 +924,122 @@ void Opengl::GlProgram::Destroy()
 #endif
 
 
-
-Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<uint16>&& Indexes,const ArrayBridge<Opengl::TGeometryVertex>&& Attribs)
+size_t Opengl::TGeometryVertex::GetDataSize() const
 {
-	Soy::Assert( Attribs.GetSize() == AttribDataOffsets.GetSize(), "Attrib layout mismatch" );
+	size_t Size = 0;
+	for ( int e=0;	e<mElements.GetSize();	e++ )
+		Size += mElements[e].mElementDataSize;
+	return Size;
+}
 
-	glGenBuffers( 1, &Geo.vertexBuffer );
-	glGenBuffers( 1, &Geo.indexBuffer );
+size_t Opengl::TGeometryVertex::GetOffset(size_t ElementIndex) const
+{
+	size_t Size = 0;
+	for ( int e=0;	e<ElementIndex;	e++ )
+		Size += mElements[e].mElementDataSize;
+	return Size;
+}
 
-	//	fill vertex array
-	glGenVertexArrays( 1, &vertexArrayObject );
-	glBindVertexArray( vertexArrayObject );
-	glBindBuffer( GL_ARRAY_BUFFER, vertexBuffer );
+size_t Opengl::TGeometryVertex::GetStride(size_t ElementIndex) const
+{
+	//	gr: this is for interleaved vertexes
+	//	todo: handle serial elements AND mixed interleaved & serial
+	//	serial elements would be 0
+	size_t Stride = GetDataSize();
+	Stride -= mElements[ElementIndex].mElementDataSize;
+	return Stride;
+}
 
-	//	calc stuff
+
+/*
+ //	calc stuff
 	Array<size_t> VertexOffsets;
 	Array<size_t> VertexStrides;
 	size_t VertexSize = 0;
 	{
-		size_t VertexOffset = 0;
-		for ( int v=0;	v<Attribs.GetSize();	v++ )
-		{
-			//	this changes if we have interleaved attribs
-			VertexOffsets.PushBack( VertexOffset );
-			VertexStrides.PushBack( Attribs[v].mElementDataSize );
-			
-			VertexOffset += Attribs[v].mElementDataSize;
-			VertexSize += Attribs[v].mElementDataSize;
-		}
+ size_t VertexOffset = 0;
+ for ( int v=0;	v<Attribs.GetSize();	v++ )
+ {
+ //	this changes if we have interleaved attribs
+ VertexOffsets.PushBack( VertexOffset );
+ VertexStrides.PushBack( Attribs[v].mElementDataSize );
+ 
+ VertexOffset += Attribs[v].mElementDataSize;
+ VertexSize += Attribs[v].mElementDataSize;
+ }
 	}
-	
-	for ( int a=0;	at<Attribs.GetSize();	at++ )
+ */
+
+void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
+{
+	for ( int at=0;	at<mElements.GetSize();	at++ )
 	{
-		auto& Attrib = Attribs[at];
-		auto AttribOffset = VertexOffsets[at];
-		GLsizei stride = VertexStrides[at];
-		GLboolean Normalised = Attrib.mNormalised;
+		auto& Element = mElements[at];
+		auto AttribIndex = Element.mIndex;
 		
-		void* ElementPointer = AttribOffset;
+		if ( Enable )
+			glEnableVertexAttribArray( AttribIndex );
+		else
+			glDisableVertexAttribArray( AttribIndex );
+		Opengl_IsOkay();
+	}
+}
+
+Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex)
+{
+	TGeometry Geo;
+	Geo.mVertexDescription = Vertex;
+	
+	glGenBuffers( 1, &Geo.vertexBuffer );
+	glGenBuffers( 1, &Geo.indexBuffer );
+
+	//	fill vertex array
+	glGenVertexArrays( 1, &Geo.vertexArrayObject );
+	glBindVertexArray( Geo.vertexArrayObject );
+	glBindBuffer( GL_ARRAY_BUFFER, Geo.vertexBuffer );
+	Opengl_IsOkay();
+
+	
+	for ( int at=0;	at<Vertex.mElements.GetSize();	at++ )
+	{
+		auto& Element = Vertex.mElements[at];
+		auto ElementOffset = Vertex.GetOffset(at);
+		GLsizei Stride = Vertex.GetStride(at);
+		GLboolean Normalised = Element.mNormalised;
 		
-		glEnableVertexAttribArray( Attrib.mIndex );
-		glVertexAttribPointer( Attrib.mIndex, Attrib.mArraySize, Attrib.mType, Normalised, Stride, ElementPointer );
+		void* ElementPointer = (void*)ElementOffset;
+		auto AttribIndex = Element.mIndex;
+		
+		glEnableVertexAttribArray( AttribIndex );
+		glVertexAttribPointer( AttribIndex, Element.mArraySize, Element.mType, Normalised, Stride, ElementPointer );
+		Opengl_IsOkay();
 	}
 	
 	//	push data
-	glBufferData( GL_ARRAY_BUFFER, Data.GetDataLength(), Data.GetArray(), GL_STATIC_DRAW );
+	glBufferData( GL_ARRAY_BUFFER, Data.GetDataSize(), Data.GetArray(), GL_STATIC_DRAW );
+	Geo.vertexCount = size_cast<GLsizei>( Data.GetDataSize() / Vertex.GetDataSize() );
+	Opengl_IsOkay();
+	
+	//	gr: don't need to do this?
+	Vertex.DisableAttribs();
 
 	//	push indexes
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, indexBuffer );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, Geo.indexBuffer );
 	glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes.GetDataSize(), Indexes.GetArray(), GL_STATIC_DRAW );
+	Geo.indexCount = size_cast<GLsizei>( Indexes.GetSize() );
+	Geo.mIndexType = Opengl::GetTypeEnum<GLshort>();
+	Opengl_IsOkay();
 
 	
 	//	unbind
 	glBindBuffer( GL_ARRAY_BUFFER, 0 );
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
 	glBindVertexArray( 0 );
+	Opengl_IsOkay();
 	
-	for ( int a=0;	at<Attribs.GetSize();	at++ )
-	{
-		auto& Attrib = Attribs[at];
-		glDisableVertexAttribArray( Attrib.mIndex );
-	}
 
+	
+	return Geo;
 }
 
 template< typename _attrib_type_ >
@@ -1061,8 +1153,23 @@ void Opengl::TGeometry::Draw() const
 	if ( !Opengl_IsInitialised() )
 		return;
 	
+	//	null to draw from indexes in vertex array
 	glBindVertexArray( vertexArrayObject );
-	glDrawElements( GL_TRIANGLES, indexCount, ( sizeof( TriangleIndex ) == 2 ) ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, NULL );
+	Opengl_IsOkay();
+	glBindBuffer( GL_ARRAY_BUFFER, vertexBuffer );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, indexBuffer );
+	
+	mVertexDescription.EnableAttribs();
+	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+	//glBindBuffer(GL_ARRAY_BUFFER,0);
+	Opengl_IsOkay();
+
+	glDrawArrays( GL_TRIANGLES, 0, 2 );
+	Opengl_IsOkay();
+	
+	
+	glDrawElements( GL_TRIANGLES, indexCount, mIndexType, nullptr );
+	Opengl::IsOkay("glDrawElements");
 }
 
 void Opengl::TGeometry::Free()
@@ -1151,6 +1258,11 @@ SoyPixelsFormat::Type Opengl::GetPixelFormat(GLuint glFormat)
 void Opengl::SetViewport(Soy::Rectf Viewport)
 {
 	glViewport( Viewport.x, Viewport.y, Viewport.w, Viewport.h );
+}
+
+void Opengl::ClearDepth()
+{
+	glClear(GL_DEPTH_BUFFER_BIT);
 }
 
 void Opengl::ClearColour(Soy::TRgb Colour)

@@ -49,6 +49,7 @@ namespace Opengl
 	class TShaderEosBlit;
 	class TGeometry;
 	class TGeometryVertex;
+	class TGeometryVertexElement;
 	
 	
 	// It probably isn't worth keeping these shared here, each user
@@ -76,7 +77,7 @@ namespace Opengl
 	
 	// Will abort() after logging an error if either compiles or the link status
 	// fails, but not if uniforms are missing.
-	GlProgram	BuildProgram(std::string vertexSrc,std::string fragmentSrc,const ArrayBridge<TUniform>&& GeometryAttributes);
+	GlProgram	BuildProgram(std::string vertexSrc,std::string fragmentSrc,const TGeometryVertex& GeometryVertex);
 	
 
 	
@@ -100,7 +101,7 @@ namespace Opengl
 	static const int MAX_GEOMETRY_INDICES	= 1024 * 1024 * 3;
 	
 	TGeometry BuildTesselatedQuad( const int horizontal, const int vertical );
-	TGeometry	CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<uint16>&& Indexes,const ArrayBridge<TGeometryVertex>&& Attribs);
+	TGeometry	CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const TGeometryVertex& Vertex);
 
 #define Opengl_IsInitialised()	Opengl::IsInitialised(__func__,true)
 #define Opengl_IsOkay()			Opengl::IsOkay(__func__)
@@ -115,6 +116,7 @@ namespace Opengl
 
 	//	helpers
 	void	ClearColour(Soy::TRgb Colour);
+	void	ClearDepth();
 	void	SetViewport(Soy::Rectf Viewport);
 };
 
@@ -163,12 +165,25 @@ std::ostream& operator<<(std::ostream &out,const Opengl::TUniform& in);
 }
 
 
+class Opengl::TGeometryVertexElement : public TUniform
+{
+public:
+	size_t		mElementDataSize;
+	bool		mNormalised;
+};
+
 class Opengl::TGeometryVertex
 {
 public:
-	TUniform	mAttrib;
-	size_t		mElementDataSize;
-	bool		mNormalised;
+	size_t							GetDataSize() const;	//	size of vertex struct
+	size_t							GetOffset(size_t ElementIndex) const;
+	size_t							GetStride(size_t ElementIndex) const;
+
+	void							EnableAttribs(bool Enable=true) const;
+	void							DisableAttribs() const				{	EnableAttribs(false);	}
+	
+public:
+	Array<TGeometryVertexElement>	mElements;
 };
 
 
@@ -245,10 +260,11 @@ public:
 	indexBuffer( GL_ASSET_INVALID ),
 	vertexArrayObject( GL_ASSET_INVALID ),
 	vertexCount( GL_ASSET_INVALID ),
-	indexCount( GL_ASSET_INVALID )
+	indexCount( GL_ASSET_INVALID ),
+	mIndexType(GL_ASSET_INVALID)
 	{
 	}
-	
+	/*
 	TGeometry( const VertexAttribs & attribs, const std::vector< TriangleIndex > & indices ) :
 	vertexBuffer( GL_ASSET_INVALID ),
 	indexBuffer( GL_ASSET_INVALID ),
@@ -258,10 +274,11 @@ public:
 	{
 		Create( attribs, indices );
 	}
+	 */
 	
 	// Create the VAO and vertex and index buffers from arrays of data.
-	void	Create( const VertexAttribs & attribs, const std::vector< TriangleIndex > & indices );
-	void	Update( const VertexAttribs & attribs );
+//	void	Create( const VertexAttribs & attribs, const std::vector< TriangleIndex > & indices );
+//	void	Update( const VertexAttribs & attribs );
 	
 	// Assumes the correct program, uniforms, textures, etc, are all bound.
 	// Leaves the VAO bound for efficiency, be careful not to inadvertently
@@ -279,11 +296,14 @@ public:
 	bool	IsValid() const;
 	
 public:
-	GLuint		vertexBuffer;
-	GLuint		indexBuffer;
+	TGeometryVertex	mVertexDescription;
 	GLuint		vertexArrayObject;
+	GLuint		vertexBuffer;
 	GLsizei		vertexCount;
+	
+	GLuint		indexBuffer;
 	GLsizei 	indexCount;
+	GLenum		mIndexType;		//	short/int etc data stored in index buffer
 };
 
 
