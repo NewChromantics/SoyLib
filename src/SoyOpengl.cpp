@@ -515,28 +515,42 @@ void Opengl::TTexture::Unbind()
 	glBindTexture( GL_TEXTURE_2D, GL_ASSET_INVALID );
 }
 
-void Opengl::TTexture::Copy(const SoyPixels& Pixels,bool Blocking,bool Stretch)
+void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch)
 {
 	Bind();
 	Opengl::IsOkay( std::string(__func__) + " Bind()" );
+
+	int MipLevel = 0;
+
 	
-	//	if we don't support this format in opengl, convert
-	auto GlPixelsFormat = Opengl::GetPixelFormat( Pixels.GetFormat() );
+	//	grab the texture's width & height so we can clip, if we try and copy pixels bigger than the texture we'll get an error
+	//	gr: wrap this into a "get meta"
+	GLint TextureWidth = 0;
+	GLint TextureHeight = 0;
+	GLint TextureInternalFormat = 0;
+	glGetTexLevelParameteriv (GL_TEXTURE_2D, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth);
+	glGetTexLevelParameteriv (GL_TEXTURE_2D, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight);
+	glGetTexLevelParameteriv (GL_TEXTURE_2D, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &TextureInternalFormat);
+
+	//	pixel data format
+	auto GlPixelsFormat = Opengl::GetPixelFormat( SourcePixels.GetFormat() );
+
 	
+	//	convert to upload-compatible type
 	Array<SoyPixelsFormat::Type> TryFormats;
 	TryFormats.PushBack( SoyPixelsFormat::RGB );
 	TryFormats.PushBack( SoyPixelsFormat::RGBA );
 	TryFormats.PushBack( SoyPixelsFormat::Greyscale );
 	SoyPixels TempPixels;
-	const SoyPixelsImpl* UsePixels = &Pixels;
+	const SoyPixelsImpl* UsePixels = &SourcePixels;
 	while ( GlPixelsFormat == GL_INVALID_VALUE && !TryFormats.IsEmpty() )
 	{
 		auto TryFormat = TryFormats.PopAt(0);
 		auto TryGlFormat = Opengl::GetPixelFormat( TryFormat );
 		if ( TryGlFormat == GL_INVALID_VALUE )
 			continue;
-
-		if ( !TempPixels.Copy(Pixels ) )
+		
+		if ( !TempPixels.Copy(SourcePixels ) )
 			continue;
 		if ( !TempPixels.SetFormat( TryFormat ) )
 			continue;
@@ -547,61 +561,68 @@ void Opengl::TTexture::Copy(const SoyPixels& Pixels,bool Blocking,bool Stretch)
 	
 	auto& FinalPixels = *UsePixels;
 	
-	int MipLevel = 0;
 	
-	//	grab the texture's width & height so we can clip, if we try and copy pixels bigger than the texture we'll get an error
-	int TextureWidth=0,TextureHeight=0;
-	glGetTexLevelParameteriv(GL_TEXTURE_2D, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth );
-	glGetTexLevelParameteriv(GL_TEXTURE_2D, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight );
+	//	only for "new" textures
+	GLuint TargetFormat = GL_RGBA;
 	
-	if ( !Stretch && Opengl::IsSupported("GL_APPLE_client_storage") )
+	
+	//	todo: find when we NEED to make a new texture (uninitialised)
+	bool SubImage = !Stretch;
+
+	if ( !SubImage && Opengl::IsSupported("GL_APPLE_client_storage") )
 	{
 		//	https://developer.apple.com/library/mac/documentation/graphicsimaging/conceptual/opengl-macprogguide/opengl_texturedata/opengl_texturedata.html
 		glTexParameteri(GL_TEXTURE_2D,
 						GL_TEXTURE_STORAGE_HINT_APPLE,
 						GL_STORAGE_CACHED_APPLE);
-		
+			
 		glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
 		
+		//	gr: need a buffering system to save a buffer per texture then just update the pixels
 		static SoyPixels PixelsBuffer;
 		PixelsBuffer.Copy( FinalPixels );
-		
-		GLint TargetFormat = GL_BGRA;
+			
+		TargetFormat = GL_BGRA;
 		GLenum TargetStorage = GL_UNSIGNED_INT_8_8_8_8_REV;
 		glTexImage2D(GL_TEXTURE_2D, MipLevel, GlPixelsFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, TargetFormat, TargetStorage, PixelsBuffer.GetPixelsArray().GetArray() );
-		
 		Opengl_IsOkay();
 	}
-	else
+	else if ( !SubImage )
 	{
-		int Width = FinalPixels.GetWidth();
-		int Height = FinalPixels.GetHeight();
 		int Border = 0;
 		
 		//	if texture doesnt fit we'll get GL_INVALID_VALUE
 		//	if frame is bigger than texture, it will mangle (bad stride)
 		//	if pixels is smaller, we'll just get the sub-image drawn
-		if ( Width > TextureWidth )
-			Width = TextureWidth;
-		if ( Height > TextureHeight )
-			Height = TextureHeight;
+		auto Width = std::min<GLsizei>( TextureWidth, FinalPixels.GetWidth() );
+		auto Height = std::min<GLsizei>( TextureHeight, FinalPixels.GetHeight() );
 		
 		const ArrayInterface<char>& PixelsArray = FinalPixels.GetPixelsArray();
 		auto* PixelsArrayData = PixelsArray.GetArray();
-		
-		bool UseSubImage = !Stretch;
-		if ( UseSubImage )
-		{
-			int XOffset = 0;
-			int YOffset = 0;
-			glTexSubImage2D( GL_TEXTURE_2D, MipLevel, XOffset, YOffset, Width, Height, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
-		}
-		else
-		{
-			GLint TargetFormat = GL_RGBA;
-			glTexImage2D( GL_TEXTURE_2D, MipLevel, TargetFormat,  Width, Height, Border, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
-		}
+
+		glTexImage2D( GL_TEXTURE_2D, MipLevel, TargetFormat,  Width, Height, Border, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
+		Opengl_IsOkay();
 	}
+	else
+	{
+		int XOffset = 0;
+		int YOffset = 0;
+		
+		auto Width = std::min<GLsizei>( TextureWidth, FinalPixels.GetWidth() );
+		auto Height = std::min<GLsizei>( TextureHeight, FinalPixels.GetHeight() );
+
+		const ArrayInterface<char>& PixelsArray = FinalPixels.GetPixelsArray();
+		auto* PixelsArrayData = PixelsArray.GetArray();
+		
+		//	invalid operation here means the unity pixel format is probably different to the pixel data we're trying to push now
+		glTexSubImage2D( GL_TEXTURE_2D, MipLevel, XOffset, YOffset, Width, Height, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
+		Opengl_IsOkay();
+	}
+
+	glGenerateMipmap( GL_TEXTURE_2D );
+	Opengl_IsOkay();
+	
+	Unbind();
 	Opengl_IsOkay();
 }
 

@@ -362,7 +362,7 @@ public:
 	static void			Unbind();
 	bool				IsValid() const;
 	void				Delete();
-	void				Copy(const SoyPixels& Pixels,bool Blocking,bool Stretch);
+	void				Copy(const SoyPixelsImpl& Pixels,bool Stretch);
 	
 public:
 	bool				mAutoRelease;
