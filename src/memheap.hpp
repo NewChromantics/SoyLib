@@ -29,7 +29,7 @@ class ofCodeLocation
 {
 public:
 	ofCodeLocation() :
-		mLocation	( "unknown(??)")
+		mLocation	( "unknown(?)")
 	{
 	}
 	ofCodeLocation(const char* Filename,int LineNo)
