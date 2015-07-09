@@ -1,0 +1,15 @@
+//
+//  PopApp.xcconfig
+//  PopCapture
+//
+//  Created by Graham Reeves on 12/2/14.
+//  Copyright (c) 2014 NewChromantics. All rights reserved.
+//
+
+GCC_PREPROCESSOR_DEFINITIONS = TARGET_IOS MATHFU_COMPILE_WITHOUT_SIMD_SUPPORT
+HEADER_SEARCH_PATHS = $(inherited) $(SOY_PATH)/src/** $(POP_PATH)/src/**
+
+
+//	unity compatible settings
+ARCHS = armv7
+SUPPORTED_PLATFORMS = iphoneos

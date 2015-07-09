@@ -1,9 +1,12 @@
 #pragma once
 
+
+#if defined(__OBJC__)
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
+#endif
 
-
+#include <stdint.h>
 typedef int32_t		int32;
 typedef uint32_t	uint32;
 typedef int64_t		int64;
@@ -17,6 +20,9 @@ typedef uint64_t	uint64;
 #endif
 
 #define __noexcept__	_NOEXCEPT
+#define __stdcall
+#define __export	extern "C"
+#define __thread				//	thread local not supported on IOS devices. todo: make a TLS class!
 
 //	smart pointer for core foundation instances
 //	gr: note, TYPE for CF types is already a pointer, hence no *'s on types
@@ -96,6 +102,7 @@ public:
 
 
 //	smart pointer for objective c instances
+#if defined(__OBJC__)
 template<typename TYPE>
 class ObjcPtr : public NonCopyable
 {
@@ -155,3 +162,6 @@ public:
 public:
 	TYPE*	mObject;
 };
+#endif
+
+

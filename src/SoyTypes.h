@@ -5,6 +5,13 @@ typedef	unsigned char		uint8;
 typedef	signed short		int16;
 typedef	unsigned short		uint16;
 
+//	earlier as used by some TARGET_X specific smart pointers
+struct NonCopyable {
+	NonCopyable & operator=(const NonCopyable&) = delete;
+	NonCopyable(const NonCopyable&) = delete;
+	NonCopyable() = default;
+};
+
 
 #if defined(_MSC_VER)
 #define TARGET_WINDOWS
@@ -37,13 +44,6 @@ typedef	unsigned short		uint16;
 #define __has_feature(x)	FALSE
 #endif
 
-
-
-struct NonCopyable {
-	NonCopyable & operator=(const NonCopyable&) = delete;
-	NonCopyable(const NonCopyable&) = delete;
-	NonCopyable() = default;
-};
 
 
 

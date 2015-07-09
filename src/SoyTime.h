@@ -4,7 +4,7 @@
 #include <iomanip>
 #include "SoyTypes.h"
 
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX)||defined(TARGET_IOS)
 #include <sys/time.h>
 #endif
 
@@ -13,12 +13,14 @@ inline unsigned long long	ofGetSystemTime()
 {
 #if defined(TARGET_WINDOWS)
 	return timeGetTime();
-#elif defined(TARGET_OSX)
+#elif defined(TARGET_OSX)||defined(TARGET_IOS)
 	struct timeval now;
 	gettimeofday( &now, NULL );
 	return
 	(unsigned long long) now.tv_usec/1000 +
 	(unsigned long long) now.tv_sec*1000;
+#else 
+#error GetSystemTime undefined on target
 #endif
 }
 inline unsigned long long	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}	//	gr: offrameworks does -StartTime

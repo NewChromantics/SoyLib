@@ -74,7 +74,6 @@ __thread Soy::HeapString* ThreadBuffer = nullptr;	//	thread_local not supported 
 
 
 
-
 #if defined(TARGET_ANDROID)
 void Soy::Platform::DebugPrint(const std::string& Message)
 {

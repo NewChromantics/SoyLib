@@ -8,7 +8,7 @@
 #include <queue>
 #include <limits>
 
-#if defined(TARGET_OSX)||defined(TARGET_ANDROID)
+#if defined(TARGET_OSX)||defined(TARGET_ANDROID)||defined(TARGET_IOS)
 #include <memory>
 #define STD_ALLOC
 #endif

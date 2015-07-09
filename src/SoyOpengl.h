@@ -4,32 +4,43 @@
 #include <SoyMath.h>
 #include <SoyPixels.h>
 
-//	opengl stuff
-#if defined(TARGET_ANDROID)
 
-#define OPENGL_ES_3	//	need 3 for FBO's
+#if defined(TARGET_ANDROID) || defined(TARGET_IOS)
+	#define OPENGL_ES_3		//	need 3 for FBO's
+#elif defined(TARGET_OSX)
+	#define OPENGL_CORE_3	//	need 3 for VBA's
+#endif
+
 //#define GL_NONE				GL_NO_ERROR	//	declared in GLES3
 
-#if defined(OPENGL_ES_3)
+#if defined(TARGET_ANDROID) && defined(OPENGL_ES_3)
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
 #include <GLES/glext.h>	//	need for EOS
 #endif
 
 
-#if defined(OPENGL_ES_2)
+#if defined(TARGET_ANDROID) && defined(OPENGL_ES_2)
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <GLES/glext.h>	//	need for EOS
 #endif
 
-#endif
-
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX) && defined(OPENGL_CORE_3)
 #include <Opengl/gl3.h>
 #include <Opengl/gl3ext.h>
-
 #endif
+
+#if defined(TARGET_IOS) && defined(OPENGL_ES_3)
+#include <OpenGLES/ES3/gl.h>
+#include <OpenGLES/ES3/glext.h>
+#endif
+
+#if defined(TARGET_IOS) && defined(OPENGL_ES_2)
+#include <OpenGLES/ES2/gl.h>
+#include <OpenGLES/ES2/glext.h>
+#endif
+
 
 #define GL_ASSET_INVALID	0
 #define GL_UNIFORM_INVALID	-1
@@ -353,6 +364,8 @@ public:
 		mTexture		( reinterpret_cast<GLuint>(TexturePtr) )
 #elif defined(TARGET_OSX)
 		mTexture		( static_cast<GLuint>(reinterpret_cast<GLuint64>(TexturePtr)) )
+#elif defined(TARGET_IOS)
+		mTexture		( static_cast<GLuint>( reinterpret_cast<intptr_t>(TexturePtr) ) )
 #endif
 	{
 	}

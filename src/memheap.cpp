@@ -824,6 +824,11 @@ void prmem::CRTHeap::Update()
 	}
 	*/
 	
+#elif defined(TARGET_IOS)
+	
+	size_t AllocCount = 0;
+	size_t AllocBytes = 0;
+	
 #endif
 	
 	//	work out the change from last sample so we can emulate normal Heap behaviour

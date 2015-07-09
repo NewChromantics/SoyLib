@@ -230,7 +230,7 @@ public:
 	{
 #if defined(TARGET_WINDOWS)
 		return ::GetCurrentThread();
-#elif defined(TARGET_OSX)
+#elif defined(TARGET_OSX)||defined(TARGET_IOS)
 		return ::pthread_self();
 #endif
 	}

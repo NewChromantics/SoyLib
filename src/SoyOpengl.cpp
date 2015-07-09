@@ -37,7 +37,6 @@ std::string Opengl::GetTypeName(GLenum Type)
 		case GL_INT:			return Soy::GetTypeName<int>();
 		case GL_UNSIGNED_INT:	return Soy::GetTypeName<unsigned int>();
 		case GL_FLOAT:			return Soy::GetTypeName<float>();
-		case GL_DOUBLE:			return Soy::GetTypeName<double>();
 		case GL_FLOAT_VEC2:		return Soy::GetTypeName<vec2f>();
 		case GL_FLOAT_VEC3:		return Soy::GetTypeName<vec3f>();
 		case GL_FLOAT_VEC4:		return Soy::GetTypeName<vec4f>();
@@ -45,13 +44,17 @@ std::string Opengl::GetTypeName(GLenum Type)
 		case GL_INT_VEC3:		return Soy::GetTypeName<vec3x<int>>();
 		case GL_INT_VEC4:		return Soy::GetTypeName<vec4x<int>>();
 		case GL_BOOL:			return Soy::GetTypeName<bool>();
-		case GL_SAMPLER_1D:		return "sampler1d";
 		case GL_SAMPLER_2D:		return "sampler2d";
-		case GL_SAMPLER_3D:		return "sampler3d";
 		case GL_SAMPLER_CUBE:	return "samplercube";
 		case GL_FLOAT_MAT2:		return "float2x2";
 		case GL_FLOAT_MAT3:		return "float3x3";
 		case GL_FLOAT_MAT4:		return "float4x4";
+
+#if defined(OPENGL_CORE_3)
+		case GL_DOUBLE:			return Soy::GetTypeName<double>();
+		case GL_SAMPLER_1D:		return "sampler1d";
+		case GL_SAMPLER_3D:		return "sampler3d";
+#endif
 	};
 	
 	std::stringstream Unknown;
@@ -528,10 +531,18 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch)
 	GLint TextureWidth = 0;
 	GLint TextureHeight = 0;
 	GLint TextureInternalFormat = 0;
+	
+	//	opengl es doesn't have access!
+#if defined(OPENGL_ES_3)
+	TextureWidth = SourcePixels.GetWidth();
+	TextureHeight = SourcePixels.GetHeight();
+	TextureInternalFormat = GL_RGBA;
+#else
 	glGetTexLevelParameteriv (GL_TEXTURE_2D, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth);
 	glGetTexLevelParameteriv (GL_TEXTURE_2D, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight);
 	glGetTexLevelParameteriv (GL_TEXTURE_2D, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &TextureInternalFormat);
-
+#endif
+	
 	//	pixel data format
 	auto GlPixelsFormat = Opengl::GetPixelFormat( SourcePixels.GetFormat() );
 
@@ -569,6 +580,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch)
 	//	todo: find when we NEED to make a new texture (uninitialised)
 	bool SubImage = !Stretch;
 
+#if defined(TARGET_OSX)
 	if ( !SubImage && Opengl::IsSupported("GL_APPLE_client_storage") )
 	{
 		//	https://developer.apple.com/library/mac/documentation/graphicsimaging/conceptual/opengl-macprogguide/opengl_texturedata/opengl_texturedata.html
@@ -587,7 +599,9 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch)
 		glTexImage2D(GL_TEXTURE_2D, MipLevel, GlPixelsFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, TargetFormat, TargetStorage, PixelsBuffer.GetPixelsArray().GetArray() );
 		Opengl_IsOkay();
 	}
-	else if ( !SubImage )
+	else
+#endif
+	if ( !SubImage )
 	{
 		int Border = 0;
 		
