@@ -486,9 +486,15 @@ bool Opengl::TTexture::IsValid() const
 	if ( !Opengl::IsInitialised(__func__,false) )
 		return false;
 	
-	//	gr: this is returning false from other threads :/
-	//	other funcs are working though
 	auto IsTexture = glIsTexture( mTexture.mName );
+
+	//	gr: on IOS this is nice and reliable and NEEDED to distinguish from metal textures!
+#if defined(TARGET_IOS)
+	return IsTexture;
+#else
+	
+	//	gr: this is returning false [on OSX] from other threads :/ even though they have a context
+	//	other funcs are working though
 	if ( IsTexture )
 		return true;
 	
@@ -496,6 +502,7 @@ bool Opengl::TTexture::IsValid() const
 		return true;
 	
 	return false;
+#endif
 }
 
 void Opengl::TTexture::Delete()
