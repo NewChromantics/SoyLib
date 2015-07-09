@@ -13,3 +13,9 @@ HEADER_SEARCH_PATHS = $(inherited) $(SOY_PATH)/src/** $(POP_PATH)/src/**
 //	unity compatible settings
 ARCHS = armv7
 SUPPORTED_PLATFORMS = iphoneos
+
+//	symbols please!
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+STRIP_INSTALLED_PRODUCT = NO
+DEPLOYMENT_POSTPROCESSING = NO
+COPY_PHASE_STRIP = NO
