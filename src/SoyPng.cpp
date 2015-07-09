@@ -58,6 +58,13 @@ std::ostream& operator<< (std::ostream &out,const TPng::TFilterNone_ScanlineFilt
 	}
 }
 
+void TPng::GetMagic(ArrayBridge<char>&& Magic)
+{
+	const unsigned char _Magic[] = { 0xD3, 'P', 'N', 'G', 13, 10, 26, 10 };
+	auto MagicSigned = GetRemoteArray( reinterpret_cast<const char*>(_Magic), 8 );
+	Magic.Copy( MagicSigned );
+}
+
 
 bool TPng::CheckMagic(ArrayBridge<char>&& PngData)
 {
@@ -67,11 +74,10 @@ bool TPng::CheckMagic(ArrayBridge<char>&& PngData)
 
 bool TPng::CheckMagic(TArrayReader& ArrayReader)
 {
-	//uint8 Magic[] = { 137, 80, 78, 71, 13, 10, 26, 10 };
-	char _Magic[] = { 211, 'P', 'N', 'G', 13, 10, 26, 10 };
-	BufferArray<char,8> __Magic( _Magic );
-	auto Magic = GetArrayBridge( __Magic );
-	if ( !ArrayReader.ReadCompare( Magic ) )
+	BufferArray<char,8> Magic;
+	GetMagic( GetArrayBridge(Magic) );
+	
+	if ( !ArrayReader.ReadCompare( GetArrayBridge(Magic) ) )
 	{
 		//	if we failed here and not at the start of the data, that might be the problem
 		Soy::Assert( ArrayReader.mOffset == 0, "TPng::CheckMagic failed, and data is not at start... could be the issue" );

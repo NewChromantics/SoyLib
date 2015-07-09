@@ -19,7 +19,7 @@ typedef uint64_t	uint64;
 #endif
 #endif
 
-#define __noexcept__	_NOEXCEPT
+#define __noexcept	_NOEXCEPT
 #define __stdcall
 #define __export	extern "C"
 #define __thread				//	thread local not supported on IOS devices. todo: make a TLS class!

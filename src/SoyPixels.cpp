@@ -1074,10 +1074,11 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 
 	//\211 P N G \r \n \032 \n (89 50 4E 47 0D 0A 1A 0A
 	//uint8 Magic[] = { 137, 80, 78, 71, 13, 10, 26, 10 };
-	char Magic[] = { 211, 'P', 'N', 'G', '\r', '\n', 26, 10 };
+	BufferArray<char,8> Magic;
+	TPng::GetMagic( GetArrayBridge(Magic) );
 	char IHDR[] = { 73, 72, 68, 82 };	//'I', 'H', 'D', 'R'
 	const char IEND[] = { 73, 69, 78, 68 }; //("IEND")
-	const char IDAT[] = { 73, 68, 65, 84 };// ("IDAT") 
+	const char IDAT[] = { 73, 68, 65, 84 };// ("IDAT")
 
 	//	write header chunk
 	uint32 Width = GetWidth();

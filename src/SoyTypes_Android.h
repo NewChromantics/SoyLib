@@ -3,8 +3,8 @@
 
 #include <jni.h>
 
-#define __func__		__PRETTY_FUNCTION__
-#define __noexcept__	_GLIBCXX_USE_NOEXCEPT
+#define __func__	__PRETTY_FUNCTION__
+#define __noexcept	_GLIBCXX_USE_NOEXCEPT
 #define __export	extern "C"
 #define __thread				//	thread local not supported on android
 #define __stdcall

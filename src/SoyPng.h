@@ -62,6 +62,7 @@ namespace TPng
 		TInterlace::Type	mInterlace;
 	};
 	
+	void		GetMagic(ArrayBridge<char>&& Magic);
 	bool		CheckMagic(TArrayReader& ArrayReader);
 	bool		CheckMagic(ArrayBridge<char>&& PngData);
 

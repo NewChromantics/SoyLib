@@ -40,7 +40,7 @@ bool TArrayReader::Read(ArrayBridge<char>& Pop)
 	return true;
 }
 */
-bool TArrayReader::ReadCompare(ArrayBridge<char>& Match)
+bool TArrayReader::ReadCompare(ArrayBridge<char>&& Match)
 {
 	Array<char> Pop( Match.GetSize() );
 	auto PopBridge = GetArrayBridge( Pop );

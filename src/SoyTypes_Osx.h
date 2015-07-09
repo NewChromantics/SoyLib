@@ -11,3 +11,4 @@ typedef uint64_t	uint64;
 //	todo: remove this, only depend in win32 specific code
 #define __stdcall
 #define __export	extern "C"
+#define __noexcept	_NOEXCEPT

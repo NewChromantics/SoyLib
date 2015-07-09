@@ -401,7 +401,7 @@ public:
 	size_t		GetRemainingBytes() const	{	return mArray.GetDataSize() - mOffset;	}
 	bool		Eod() const					{	return GetRemainingBytes() <= 0;	}
 	//bool		ReadArray(ArrayBridge<char>& Pop);			//	copy this-length of data
-	bool		ReadCompare(ArrayBridge<char>& Match);	//	read array and make sure it matches Pop
+	bool		ReadCompare(ArrayBridge<char>&& Match);	//	read array and make sure it matches Pop
 	
 	template<typename TYPE>
 	bool		Read(TYPE& Pop);
