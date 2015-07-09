@@ -824,7 +824,7 @@ void prmem::CRTHeap::Update()
 	}
 	*/
 	
-#elif defined(TARGET_IOS)
+#elif defined(TARGET_IOS) || defined(TARGET_ANDROID)
 	
 	size_t AllocCount = 0;
 	size_t AllocBytes = 0;

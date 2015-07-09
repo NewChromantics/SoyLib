@@ -1072,8 +1072,9 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 
 	//	http://stackoverflow.com/questions/7942635/write-png-quickly
 
+	//\211 P N G \r \n \032 \n (89 50 4E 47 0D 0A 1A 0A
 	//uint8 Magic[] = { 137, 80, 78, 71, 13, 10, 26, 10 };
-	char Magic[] = { -119, 80, 78, 71, 13, 10, 26, 10 };
+	char Magic[] = { 211, 'P', 'N', 'G', '\r', '\n', 26, 10 };
 	char IHDR[] = { 73, 72, 68, 82 };	//'I', 'H', 'D', 'R'
 	const char IEND[] = { 73, 69, 78, 68 }; //("IEND")
 	const char IDAT[] = { 73, 68, 65, 84 };// ("IDAT") 
@@ -1305,7 +1306,7 @@ void SoyPixelsImpl::RotateFlip()
 	
 	//	buffer a line so we don't need to realloc for the temp line
 	auto LineSize = GetWidth() * GetChannels();
-	Array<char> TempLine( LineSize );
+	Array<char> TempLine( size_cast<size_t>(LineSize) );
 	auto* Pixels = const_cast<char*>( GetPixelsArray().GetArray() );
 	
 	auto Height = GetHeight();

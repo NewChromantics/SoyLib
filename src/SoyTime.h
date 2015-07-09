@@ -13,7 +13,7 @@ inline unsigned long long	ofGetSystemTime()
 {
 #if defined(TARGET_WINDOWS)
 	return timeGetTime();
-#elif defined(TARGET_OSX)||defined(TARGET_IOS)
+#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
 	struct timeval now;
 	gettimeofday( &now, NULL );
 	return

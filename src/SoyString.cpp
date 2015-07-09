@@ -330,17 +330,22 @@ bool Soy::IsUtf8Char(char c)
 template<>
 bool Soy::StringToType(int& Out,const std::string& String)
 {
+#if defined(TARGET_ANDROID)
+	if ( sscanf( String.c_str(), "%d", &Out) == EOF )
+		return false;
+	return true;
+#else
 	try
 	{
 		Out = std::stoi( String );
-		return true;
 	}
 	catch(std::exception& e)
 	{
 		//std::invalid_argument for non int string etc
 		//	std::out_of_range for numbers that need to be 64bit etc
 		std::Debug << "exception converting string to int; \"" << String << "\"; " << e.what() << std::endl;
+		return false;
 	}
-	
-	return false;
+	return true;
+#endif
 }

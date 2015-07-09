@@ -16,7 +16,13 @@
 #if defined(TARGET_ANDROID) && defined(OPENGL_ES_3)
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
+
+//	include EOS in header
+#define GL_GLEXT_PROTOTYPES
+#define glBindVertexArray	glBindVertexArrayOES
+#define glGenVertexArrays	glGenVertexArraysOES
 #include <GLES/glext.h>	//	need for EOS
+
 #endif
 
 
@@ -227,7 +233,6 @@ public:
 	
 	void	SetUniform(const char* Name,const vec4f& v);
 	void	SetUniform(const char* Name,const TTexture& Texture);	//	special case which tracks how many textures are bound
-
 	void	BindTexture(size_t TextureIndex,TTexture Texture);	//	use to unbind too
 	
 public:
@@ -324,7 +329,8 @@ class Opengl::TTexture
 public:
 	//	invalid
 	explicit TTexture() :
-		mAutoRelease	( false )
+		mAutoRelease	( false ),
+		mType			( GL_TEXTURE_2D )
 	{
 	}
 	~TTexture()
@@ -338,7 +344,8 @@ public:
 	TTexture(const TTexture& Weak) :
 		mAutoRelease	( false ),
 		mTexture		( Weak.mTexture ),
-		mMeta			( Weak.mMeta )
+		mMeta			( Weak.mMeta ),
+		mType			( Weak.mType )
 	{
 	}
 	
@@ -349,12 +356,13 @@ public:
 			mAutoRelease = false;
 			mTexture = Weak.mTexture;
 			mMeta = Weak.mMeta;
+			mType = Weak.mType;
 		}
 		return *this;
 	}
 	
 	//	alloc
-	explicit TTexture(SoyPixelsMetaFull Meta);
+	explicit TTexture(SoyPixelsMetaFull Meta,GLenum Type);
 	
 	//	reference
 	TTexture(void* TexturePtr,const SoyPixelsMetaFull& Meta) :
@@ -370,9 +378,10 @@ public:
 	{
 	}
 
-	
+	size_t				GetWidth() const	{	return mMeta.GetWidth();	}
+	size_t				GetHeight() const	{	return mMeta.GetHeight();	}
 	bool				Bind();
-	static void			Unbind();
+	void				Unbind();
 	bool				IsValid() const;
 	void				Delete();
 	void				Copy(const SoyPixelsImpl& Pixels,bool Stretch);
@@ -381,6 +390,7 @@ public:
 	bool				mAutoRelease;
 	TAsset				mTexture;
 	SoyPixelsMetaFull	mMeta;
+	GLenum				mType;		//	GL_TEXTURE_2D by default. gr: "type" may be the wrong nomenclature here
 };
 
 class Opengl::TFbo

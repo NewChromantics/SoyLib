@@ -7,7 +7,10 @@
 #define __noexcept__	_GLIBCXX_USE_NOEXCEPT
 #define __export	extern "C"
 #define __thread				//	thread local not supported on android
+#define __stdcall
 
+
+#include <stdint.h>
 
 typedef int32_t		int32;
 typedef uint32_t	uint32;

@@ -45,21 +45,7 @@ public:
 		SetHeap( GetDefaultHeap() );
 		SetSize(size);
 	}
-	
-	Array(const int size)
-	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
-	{
-		SetHeap( GetDefaultHeap() );
-		SetSize(size);
-	}
-	
-	Array(unsigned int size)
-	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
-	{
-		SetHeap( GetDefaultHeap() );
-		SetSize(size);
-	}
-	
+
 	//	need an explicit constructor of self-type
 	Array(const Array& v)
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)

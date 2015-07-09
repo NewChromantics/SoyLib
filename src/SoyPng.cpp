@@ -68,7 +68,7 @@ bool TPng::CheckMagic(ArrayBridge<char>&& PngData)
 bool TPng::CheckMagic(TArrayReader& ArrayReader)
 {
 	//uint8 Magic[] = { 137, 80, 78, 71, 13, 10, 26, 10 };
-	char _Magic[] = { -119, 'P', 'N', 'G', 13, 10, 26, 10 };
+	char _Magic[] = { 211, 'P', 'N', 'G', 13, 10, 26, 10 };
 	BufferArray<char,8> __Magic( _Magic );
 	auto Magic = GetArrayBridge( __Magic );
 	if ( !ArrayReader.ReadCompare( Magic ) )

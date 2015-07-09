@@ -67,9 +67,9 @@ std::string Soy::FormatSizeBytes(uint64 bytes)
 //	static per-thread
 #if defined(TARGET_ANDROID)
 //	gr: on android, having a __thread makes my DLL incompatible with unity's build/load (or androids?)
-Soy::HeapString* ThreadBuffer = nullptr;
+std::DebugBufferString* ThreadBuffer = nullptr;
 #else
-__thread Soy::HeapString* ThreadBuffer = nullptr;	//	thread_local not supported on OSX
+__thread std::DebugBufferString* ThreadBuffer = nullptr;	//	thread_local not supported on OSX
 #endif
 
 
@@ -91,7 +91,7 @@ prmem::Heap& GetDebugStreamHeap()
 #endif
 
 
-Soy::HeapString& std::DebugStreamBuf::GetBuffer()
+std::DebugBufferString& std::DebugStreamBuf::GetBuffer()
 {
 	if ( !ThreadBuffer )
 	{

@@ -102,7 +102,7 @@ public:
 class Opengl::TRenderTargetFbo : public Opengl::TRenderTarget
 {
 public:
-	TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context);
+	TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context,Opengl::TTexture ExistingTexture=Opengl::TTexture());
 	~TRenderTargetFbo()
 	{
 		mFbo.reset();

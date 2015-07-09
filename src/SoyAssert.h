@@ -22,7 +22,7 @@ public:
 	mError	( Message )
 	{
 	}
-	virtual const char* what() const _NOEXCEPT	{	return mError.c_str();	}
+	virtual const char* what() const __noexcept__	{	return mError.c_str();	}
 
 public:
 	std::string			mError;

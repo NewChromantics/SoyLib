@@ -160,18 +160,18 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	Soy::Assert( Texture.IsValid(), "invalid texture" );
 	
 	auto& mFboTextureName = mTarget.mTexture.mName;
+	auto& mType = mTarget.mTexture.mName;
 	auto& mFboMeta = mTarget.mMeta;
 	
 	std::Debug << "Creating FBO " << mFboMeta << ", texture name: " << mFboTextureName << std::endl;
 	
 	//	initialise new texture
 	
+	/*
 	//	gr: get format from meta
 	auto FboTexureFormat = GL_RGBA;
-	//glActiveTexture( GL_TEXTURE1 );
-	glBindTexture( GL_TEXTURE_2D, mFboTextureName );
+	glBindTexture( mType, mFboTextureName );
 	Opengl::IsOkay("FBO glBindTexture");
-	
 	
 	//GL_INVALID_OPERATION is generated if format does not match internalformat.
 	auto DataFormat = FboTexureFormat;
@@ -179,21 +179,24 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	//GL_INVALID_OPERATION is generated if type is GL_UNSIGNED_SHORT_5_6_5 and format is not GL_RGB.
 	//GL_INVALID_OPERATION is generated if type is GL_UNSIGNED_SHORT_4_4_4_4 or GL_UNSIGNED_SHORT_5_5_5_1 and format is not GL_RGBA.
 	
-	glTexImage2D( GL_TEXTURE_2D, 0, FboTexureFormat, mFboMeta.GetWidth(), mFboMeta.GetHeight(), 0, DataFormat, DataType, NULL );
+	glTexImage2D( mType, 0, FboTexureFormat, mFboMeta.GetWidth(), mFboMeta.GetHeight(), 0, DataFormat, DataType, NULL );
 	Opengl::IsOkay("FBO glTexImage2D");
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-	glBindTexture( GL_TEXTURE_2D, 0 );
+	glTexParameteri( mType, GL_TEXTURE_WRAP_S, GL_REPEAT );
+	glTexParameteri( mType, GL_TEXTURE_WRAP_T, GL_REPEAT );
+	glTexParameteri( mType, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
+	glTexParameteri( mType, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	glBindTexture( mType, 0 );
 	Opengl::IsOkay("FBO UN glBindTexture");
-	//glActiveTexture( GL_TEXTURE0 );
+	*/
 	
 	glGenFramebuffers( 1, &mFbo.mName );
 	Opengl::IsOkay("FBO glGenFramebuffers");
 	glBindFramebuffer( GL_FRAMEBUFFER, mFbo.mName );
 	Opengl::IsOkay("FBO glBindFramebuffer2");
-	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mFboTextureName, 0 );
+	if ( mType == GL_TEXTURE_2D )
+		glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, 0 );
+	else
+		throw new Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
 	
 	//	gr: init? or render?
@@ -441,8 +444,9 @@ bool Opengl::BlitOES(TTexture& Texture,TFbo& Fbo,TGeoQuad& Geo,TShaderEosBlit& S
 }
  */
 
-Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta) :
-	mAutoRelease	( true )
+Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
+	mAutoRelease	( true ),
+	mType			( Type )
 {
 	Opengl_IsInitialised();
 	Soy::Assert( Meta.IsValid(), "Cannot setup texture with invalid meta" );
@@ -465,16 +469,16 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta) :
 	
 	//	set mip-map levels to 0..0
 	//	gr: change this to glGenerateMipMaps etc
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, 0);
+	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, 0);
 
 	//	initialise to set dimensions
 	SoyPixels InitFramePixels;
 	InitFramePixels.Init( Meta.GetWidth(), Meta.GetHeight(), Meta.GetFormat() );
 	auto& PixelsArray = InitFramePixels.GetPixelsArray();
-	glTexImage2D( GL_TEXTURE_2D, 0, Format, Meta.GetWidth(), Meta.GetHeight(), 0, Format, GL_UNSIGNED_BYTE, PixelsArray.GetArray() );
+	glTexImage2D( mType, 0, Format, Meta.GetWidth(), Meta.GetHeight(), 0, Format, GL_UNSIGNED_BYTE, PixelsArray.GetArray() );
 	//GLint MipLevel = 0;
-	//glTexImage2D( GL_TEXTURE_2D, MipLevel, Format, Meta.GetWidth(), Meta.GetHeight(), 0, Format, GL_UNSIGNED_BYTE, nullptr );
+	//glTexImage2D( mType, MipLevel, Format, Meta.GetWidth(), Meta.GetHeight(), 0, Format, GL_UNSIGNED_BYTE, nullptr );
 	Opengl::IsOkay("glTexImage2D");
 	
 	//	built, save meta
@@ -516,13 +520,13 @@ void Opengl::TTexture::Delete()
 
 bool Opengl::TTexture::Bind()
 {
-	glBindTexture( GL_TEXTURE_2D, mTexture.mName );
+	glBindTexture( mType, mTexture.mName );
 	return Opengl_IsOkay();
 }
 
 void Opengl::TTexture::Unbind()
 {
-	glBindTexture( GL_TEXTURE_2D, GL_ASSET_INVALID );
+	glBindTexture( mType, GL_ASSET_INVALID );
 }
 
 void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch)
@@ -545,9 +549,9 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch)
 	TextureHeight = SourcePixels.GetHeight();
 	TextureInternalFormat = GL_RGBA;
 #else
-	glGetTexLevelParameteriv (GL_TEXTURE_2D, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth);
-	glGetTexLevelParameteriv (GL_TEXTURE_2D, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight);
-	glGetTexLevelParameteriv (GL_TEXTURE_2D, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &TextureInternalFormat);
+	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth);
+	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight);
+	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &TextureInternalFormat);
 #endif
 	
 	//	pixel data format
@@ -591,7 +595,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch)
 	if ( !SubImage && Opengl::IsSupported("GL_APPLE_client_storage") )
 	{
 		//	https://developer.apple.com/library/mac/documentation/graphicsimaging/conceptual/opengl-macprogguide/opengl_texturedata/opengl_texturedata.html
-		glTexParameteri(GL_TEXTURE_2D,
+		glTexParameteri(mType,
 						GL_TEXTURE_STORAGE_HINT_APPLE,
 						GL_STORAGE_CACHED_APPLE);
 			
@@ -603,7 +607,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch)
 			
 		TargetFormat = GL_BGRA;
 		GLenum TargetStorage = GL_UNSIGNED_INT_8_8_8_8_REV;
-		glTexImage2D(GL_TEXTURE_2D, MipLevel, GlPixelsFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, TargetFormat, TargetStorage, PixelsBuffer.GetPixelsArray().GetArray() );
+		glTexImage2D(mType, MipLevel, GlPixelsFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, TargetFormat, TargetStorage, PixelsBuffer.GetPixelsArray().GetArray() );
 		Opengl_IsOkay();
 	}
 	else
@@ -621,7 +625,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch)
 		const ArrayInterface<char>& PixelsArray = FinalPixels.GetPixelsArray();
 		auto* PixelsArrayData = PixelsArray.GetArray();
 
-		glTexImage2D( GL_TEXTURE_2D, MipLevel, TargetFormat,  Width, Height, Border, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
+		glTexImage2D( mType, MipLevel, TargetFormat,  Width, Height, Border, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
 		Opengl_IsOkay();
 	}
 	else
@@ -636,11 +640,11 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch)
 		auto* PixelsArrayData = PixelsArray.GetArray();
 		
 		//	invalid operation here means the unity pixel format is probably different to the pixel data we're trying to push now
-		glTexSubImage2D( GL_TEXTURE_2D, MipLevel, XOffset, YOffset, Width, Height, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
+		glTexSubImage2D( mType, MipLevel, XOffset, YOffset, Width, Height, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
 		Opengl_IsOkay();
 	}
 
-	glGenerateMipmap( GL_TEXTURE_2D );
+	glGenerateMipmap( mType );
 	Opengl_IsOkay();
 	
 	Unbind();
@@ -729,7 +733,7 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
 	Opengl_IsOkay();
 	glActiveTexture( TextureBindings[TextureIndex] );
 	Opengl_IsOkay();
-	glBindTexture( GL_TEXTURE_2D, Texture.mTexture.mName );
+	glBindTexture( Texture.mType, Texture.mTexture.mName );
 	Opengl_IsOkay();
 }
 
@@ -961,8 +965,6 @@ void Opengl::GlProgram::Destroy()
 
 
 #if defined(TARGET_ANDROID)
-#define glBindVertexArray	glBindVertexArrayOES_
-#define glGenVertexArrays	glGenVertexArraysOES_
 #endif
 
 
@@ -1281,7 +1283,9 @@ SoyPixelsFormat::Type Opengl::GetPixelFormat(GLuint glFormat)
 		case GL_RGB8:	return SoyPixelsFormat::RGB;
 		case GL_RGB:	return SoyPixelsFormat::RGB;
 		case GL_RGBA:	return SoyPixelsFormat::RGBA;
+#if !defined(TARGET_ANDROID)
 		case GL_BGRA:	return SoyPixelsFormat::BGRA;
+#endif
 		default:
 			break;
 	}

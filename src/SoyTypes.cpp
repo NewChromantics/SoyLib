@@ -20,10 +20,6 @@
 #include <map>
 #endif
 
-//	gr: I want to remove this dependency
-#if defined(TARGET_ANDROID)
-#include "SoyOpengl.h"
-#endif
 
 
 namespace Soy
@@ -69,7 +65,7 @@ void Soy::Platform::ShutdownThread()
 
 #if defined(TARGET_ANDROID)
 //	called by android OS on lib load
-DLL_EXPORT JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
+__export JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 {
 	Soy::Platform::vm = vm;
 	
@@ -115,10 +111,6 @@ bool Soy::Platform::Init()
 {
 #if defined(TARGET_ANDROID)
 	if ( !Soy::Platform::HasJavaVm() )
-		return false;
-	
-	//	gr: want to remove this and use a new context instead
-	if ( !Opengl::Init() )
 		return false;
 #endif
 	

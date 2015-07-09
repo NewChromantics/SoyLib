@@ -96,6 +96,7 @@ private:
 };
 
 
+#if !defined(TARGET_ANDROID)
 class ofMutexTimed
 {
 public:
@@ -111,7 +112,7 @@ public:
 private:
     std::recursive_timed_mutex	mMutex;
 };
-
+#endif
 
 class ofThread
 {
@@ -230,7 +231,7 @@ public:
 	{
 #if defined(TARGET_WINDOWS)
 		return ::GetCurrentThread();
-#elif defined(TARGET_OSX)||defined(TARGET_IOS)
+#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
 		return ::pthread_self();
 #endif
 	}

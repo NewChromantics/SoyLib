@@ -31,9 +31,6 @@ namespace Soy
 		void	DebugPrint(const std::string& String);
 	}
 	
-#if !defined USE_HEAP_STRING
-	typedef std::string HeapString;
-#endif
 };
 
 
@@ -41,6 +38,12 @@ namespace Soy
 
 namespace std
 {
+#if defined USE_HEAP_STRING
+	typedef Soy::HeapString DebugBufferString;
+#else
+	typedef std::string DebugBufferString;
+#endif
+
 	class DebugStreamBuf : public streambuf
 	{
 	public:
@@ -66,7 +69,7 @@ namespace std
 		DebugStreamBuf(DebugStreamBuf const &);		// disallow copy construction
 		void operator= (DebugStreamBuf const &);	// disallow copy assignment
 
-		Soy::HeapString&	GetBuffer();
+		DebugBufferString&	GetBuffer();
 		
 	public:
 		bool			mEnableStdOut;

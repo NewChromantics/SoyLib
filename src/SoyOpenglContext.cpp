@@ -58,23 +58,30 @@ void Opengl::TContext::PushJob(std::function<bool ()> Function)
 
 
 
-Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context) :
-	TRenderTarget	( Meta.mName )
+Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context,Opengl::TTexture ExistingTexture) :
+	TRenderTarget	( Meta.mName ),
+	mTexture		( ExistingTexture )
 {
 	auto CreateFbo = [this,Meta]()
 	{
-		//	make a texture
-		glGenTextures(1, &mTexture.mTexture.mName );
-		//	set mip-map levels to 0..0
-		mTexture.Bind();
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-
 		Opengl_IsOkay();
 
-		//	set texture params and it's reset in the TFbo constructr (this is wrong!)
-		mTexture.mMeta = SoyPixelsMetaFull( Meta.mSize.x, Meta.mSize.y, SoyPixelsFormat::RGBA );
+		//	create texture
+		if ( !mTexture.IsValid() )
+		{
+			SoyPixelsMetaFull TextureMeta( Meta.mSize.x, Meta.mSize.y, SoyPixelsFormat::RGBA );
+			mTexture = TTexture( TextureMeta, GL_TEXTURE_2D );
+			/*
+			 glGenTextures(1, &mTexture.mTexture.mName );
+			 //	set mip-map levels to 0..0
+			 mTexture.Bind();
+			 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+			 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 
+			 Opengl_IsOkay();
+			 */
+		}
+		
 		try
 		{
 			mFbo.reset( new TFbo( mTexture ) );

@@ -13,13 +13,12 @@
 template<typename TYPE>
 class ArrayBridge;
 
-
 namespace Soy
 {
 	//	Soy::lf
 	//	like std::endl without the implicit flush. I prefer this over \n's
 	template <class _CharT, class _Traits>
-	inline _LIBCPP_INLINE_VISIBILITY std::basic_ostream<_CharT, _Traits>& lf(std::basic_ostream<_CharT, _Traits>& __os)
+	inline std::basic_ostream<_CharT, _Traits>& lf(std::basic_ostream<_CharT, _Traits>& __os)
 	{
 		__os.put(__os.widen('\n'));
 		return __os;
