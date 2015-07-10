@@ -157,37 +157,14 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	mFbo		( GL_ASSET_INVALID ),
 	mTarget		( Texture )
 {
+	//	todo: if invalid texture, make one!
 	Soy::Assert( Texture.IsValid(), "invalid texture" );
 	
 	auto& mFboTextureName = mTarget.mTexture.mName;
-	auto& mType = mTarget.mTexture.mName;
+	auto& mType = mTarget.mType;
 	auto& mFboMeta = mTarget.mMeta;
 	
 	std::Debug << "Creating FBO " << mFboMeta << ", texture name: " << mFboTextureName << std::endl;
-	
-	//	initialise new texture
-	
-	/*
-	//	gr: get format from meta
-	auto FboTexureFormat = GL_RGBA;
-	glBindTexture( mType, mFboTextureName );
-	Opengl::IsOkay("FBO glBindTexture");
-	
-	//GL_INVALID_OPERATION is generated if format does not match internalformat.
-	auto DataFormat = FboTexureFormat;
-	auto DataType = GL_UNSIGNED_BYTE;
-	//GL_INVALID_OPERATION is generated if type is GL_UNSIGNED_SHORT_5_6_5 and format is not GL_RGB.
-	//GL_INVALID_OPERATION is generated if type is GL_UNSIGNED_SHORT_4_4_4_4 or GL_UNSIGNED_SHORT_5_5_5_1 and format is not GL_RGBA.
-	
-	glTexImage2D( mType, 0, FboTexureFormat, mFboMeta.GetWidth(), mFboMeta.GetHeight(), 0, DataFormat, DataType, NULL );
-	Opengl::IsOkay("FBO glTexImage2D");
-	glTexParameteri( mType, GL_TEXTURE_WRAP_S, GL_REPEAT );
-	glTexParameteri( mType, GL_TEXTURE_WRAP_T, GL_REPEAT );
-	glTexParameteri( mType, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
-	glTexParameteri( mType, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-	glBindTexture( mType, 0 );
-	Opengl::IsOkay("FBO UN glBindTexture");
-	*/
 	
 	glGenFramebuffers( 1, &mFbo.mName );
 	Opengl::IsOkay("FBO glGenFramebuffers");
@@ -480,6 +457,8 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 	//GLint MipLevel = 0;
 	//glTexImage2D( mType, MipLevel, Format, Meta.GetWidth(), Meta.GetHeight(), 0, Format, GL_UNSIGNED_BYTE, nullptr );
 	Opengl::IsOkay("glTexImage2D");
+	
+	Unbind();
 	
 	//	built, save meta
 	mMeta = Meta;

@@ -333,21 +333,16 @@ public:
 		mType			( GL_TEXTURE_2D )
 	{
 	}
+	TTexture(TTexture&& Move)			{	*this = std::move(Move);	}
+	TTexture(const TTexture& Reference)	{	*this = Reference;	}
+	explicit TTexture(SoyPixelsMetaFull Meta,GLenum Type);	//	alloc
+
 	~TTexture()
 	{
 		if ( mAutoRelease )
 			Delete();
 	}
 	
-	
-	
-	TTexture(const TTexture& Weak) :
-		mAutoRelease	( false ),
-		mTexture		( Weak.mTexture ),
-		mMeta			( Weak.mMeta ),
-		mType			( Weak.mType )
-	{
-	}
 	
 	TTexture& operator=(const TTexture& Weak)
 	{
@@ -360,9 +355,22 @@ public:
 		}
 		return *this;
 	}
-	
-	//	alloc
-	explicit TTexture(SoyPixelsMetaFull Meta,GLenum Type);
+
+	TTexture& operator=(TTexture&& Move)
+	{
+		if ( this != &Move )
+		{
+			mAutoRelease = Move.mAutoRelease;
+			mTexture = Move.mTexture;
+			mMeta = Move.mMeta;
+			mType = Move.mType;
+			
+			//	stolen the resource
+			Move.mAutoRelease = false;
+		}
+		return *this;
+	}
+
 	
 	//	reference
 	TTexture(void* TexturePtr,const SoyPixelsMetaFull& Meta) :
