@@ -545,6 +545,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 	auto GlPixelsFormat = Opengl::GetUploadPixelFormat( *this, SourcePixels.GetFormat() );
 
 	//	gr: take IOS's target-must-match-source requirement into consideration here (replace GetUploadPixelFormat)
+	SoyPixels ConvertedPixels;
 	const SoyPixelsImpl* UsePixels = &SourcePixels;
 	if ( DoConversion )
 	{
@@ -553,7 +554,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 		TryFormats.PushBack( SoyPixelsFormat::RGB );
 		TryFormats.PushBack( SoyPixelsFormat::RGBA );
 		TryFormats.PushBack( SoyPixelsFormat::Greyscale );
-		SoyPixels TempPixels;
+		
 		while ( GlPixelsFormat == GL_INVALID_VALUE && !TryFormats.IsEmpty() )
 		{
 			auto TryFormat = TryFormats.PopAt(0);
@@ -561,16 +562,33 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 			if ( TryGlFormat == GL_INVALID_VALUE )
 				continue;
 			
-			if ( !TempPixels.Copy(SourcePixels ) )
+			if ( !ConvertedPixels.Copy(SourcePixels ) )
 				continue;
-			if ( !TempPixels.SetFormat( TryFormat ) )
+			if ( !ConvertedPixels.SetFormat( TryFormat ) )
 				continue;
 			
 			GlPixelsFormat = TryGlFormat;
-			UsePixels = &TempPixels;
+			UsePixels = &ConvertedPixels;
 		}
 		
 	}
+	
+	//	we CANNOT go from big to small, only small to big, so to avoid corrupted textures, lets shrink
+	SoyPixels Resized;
+	static bool AllowResize = true;
+	if ( AllowResize )
+	{
+		auto PixelsWidth = UsePixels->GetWidth();
+		auto PixelsHeight = UsePixels->GetHeight();
+		if ( TextureWidth < PixelsWidth || TextureHeight < PixelsHeight )
+		{
+			std::Debug << "Warning, pixels(" << PixelsWidth << "x" << PixelsHeight << ") too large for texture(" << TextureWidth << "x" << TextureHeight << "), resizing on CPU" << std::endl;
+			Resized.Copy( *UsePixels );
+			Resized.ResizeClip( std::min<uint16>(TextureWidth,PixelsWidth), std::min<uint16>(TextureHeight,PixelsHeight) );
+			UsePixels = &Resized;
+		}
+	}
+	
 	auto& FinalPixels = *UsePixels;
 	
 	
