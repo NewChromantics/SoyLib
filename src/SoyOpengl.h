@@ -124,12 +124,13 @@ namespace Opengl
 #define Opengl_IsOkay()			Opengl::IsOkay(__func__)
 
 	bool	IsInitialised(const std::string& Context,bool ThrowException);	//	throws exception
-	bool	IsOkay(const std::string& Context);	//	throws exception
+	bool	IsOkay(const std::string& Context,bool ThrowException=true);	//	throws exception
 	bool	IsSupported(const char* ExtensionName);
 	const char*		ErrorToString(GLenum Error);
 
-	SoyPixelsFormat::Type	GetPixelFormat(GLuint glFormat);
-	GLuint					GetPixelFormat(SoyPixelsFormat::Type Format);
+	SoyPixelsFormat::Type	GetPixelFormat(GLenum glFormat);
+	GLenum					GetPixelFormat(SoyPixelsFormat::Type Format);
+	GLenum					GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format);
 
 
 	//	helpers
@@ -336,6 +337,21 @@ public:
 	TTexture(TTexture&& Move)			{	*this = std::move(Move);	}
 	TTexture(const TTexture& Reference)	{	*this = Reference;	}
 	explicit TTexture(SoyPixelsMetaFull Meta,GLenum Type);	//	alloc
+	
+	//	reference from external
+	TTexture(void* TexturePtr,const SoyPixelsMetaFull& Meta,GLenum Type) :
+		mMeta			( Meta ),
+		mType			( Type ),
+		mAutoRelease	( false ),
+#if defined(TARGET_ANDROID)
+		mTexture		( reinterpret_cast<GLuint>(TexturePtr) )
+#elif defined(TARGET_OSX)
+		mTexture		( static_cast<GLuint>(reinterpret_cast<GLuint64>(TexturePtr)) )
+#elif defined(TARGET_IOS)
+		mTexture		( static_cast<GLuint>( reinterpret_cast<intptr_t>(TexturePtr) ) )
+#endif
+	{
+	}
 
 	~TTexture()
 	{
@@ -372,27 +388,16 @@ public:
 	}
 
 	
-	//	reference
-	TTexture(void* TexturePtr,const SoyPixelsMetaFull& Meta) :
-		mMeta			( Meta ),
-		mAutoRelease	( false ),
-#if defined(TARGET_ANDROID)
-		mTexture		( reinterpret_cast<GLuint>(TexturePtr) )
-#elif defined(TARGET_OSX)
-		mTexture		( static_cast<GLuint>(reinterpret_cast<GLuint64>(TexturePtr)) )
-#elif defined(TARGET_IOS)
-		mTexture		( static_cast<GLuint>( reinterpret_cast<intptr_t>(TexturePtr) ) )
-#endif
-	{
-	}
 
 	size_t				GetWidth() const	{	return mMeta.GetWidth();	}
 	size_t				GetHeight() const	{	return mMeta.GetHeight();	}
+	SoyPixelsFormat::Type	GetFormat() const	{	return mMeta.GetFormat();	}
+
 	bool				Bind();
 	void				Unbind();
 	bool				IsValid() const;
 	void				Delete();
-	void				Copy(const SoyPixelsImpl& Pixels,bool Stretch);
+	void				Copy(const SoyPixelsImpl& Pixels,bool Stretch,bool DoConversion);
 	
 public:
 	bool				mAutoRelease;
