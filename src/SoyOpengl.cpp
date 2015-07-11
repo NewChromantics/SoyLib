@@ -4,7 +4,6 @@
 namespace Opengl
 {
 	const std::map<SoyPixelsFormat::Type,GLenum>&	GetPixelFormatMap();
-	std::string		GetTypeName(GLenum Type);
 	
 	template<typename TYPE>
 	GLenum			GetTypeEnum()
@@ -26,46 +25,70 @@ namespace Opengl
 template<> GLenum Opengl::GetTypeEnum<uint16>()		{	return GL_UNSIGNED_SHORT;	}
 template<> GLenum Opengl::GetTypeEnum<GLshort>()	{	return GL_UNSIGNED_SHORT;	}
 
-std::string Opengl::GetTypeName(GLenum Type)
+std::string Opengl::GetEnumString(GLenum Type)
 {
+#define CASE_ENUM_STRING(e)	case (e):	return #e;
 	switch ( Type )
 	{
-		case GL_BYTE:			return Soy::GetTypeName<int8>();
-		case GL_UNSIGNED_BYTE:	return Soy::GetTypeName<uint8>();
-		case GL_SHORT:			return Soy::GetTypeName<int16>();
-		case GL_UNSIGNED_SHORT:	return Soy::GetTypeName<uint16>();
-		case GL_INT:			return Soy::GetTypeName<int>();
-		case GL_UNSIGNED_INT:	return Soy::GetTypeName<unsigned int>();
-		case GL_FLOAT:			return Soy::GetTypeName<float>();
-		case GL_FLOAT_VEC2:		return Soy::GetTypeName<vec2f>();
-		case GL_FLOAT_VEC3:		return Soy::GetTypeName<vec3f>();
-		case GL_FLOAT_VEC4:		return Soy::GetTypeName<vec4f>();
-		case GL_INT_VEC2:		return Soy::GetTypeName<vec2x<int>>();
-		case GL_INT_VEC3:		return Soy::GetTypeName<vec3x<int>>();
-		case GL_INT_VEC4:		return Soy::GetTypeName<vec4x<int>>();
-		case GL_BOOL:			return Soy::GetTypeName<bool>();
-		case GL_SAMPLER_2D:		return "sampler2d";
-		case GL_SAMPLER_CUBE:	return "samplercube";
-		case GL_FLOAT_MAT2:		return "float2x2";
-		case GL_FLOAT_MAT3:		return "float3x3";
-		case GL_FLOAT_MAT4:		return "float4x4";
-
-#if defined(OPENGL_CORE_3)
-		case GL_DOUBLE:			return Soy::GetTypeName<double>();
-		case GL_SAMPLER_1D:		return "sampler1d";
-		case GL_SAMPLER_3D:		return "sampler3d";
+			//	errors
+			CASE_ENUM_STRING( GL_NO_ERROR );
+			CASE_ENUM_STRING( GL_INVALID_ENUM );
+			CASE_ENUM_STRING( GL_INVALID_VALUE );
+			CASE_ENUM_STRING( GL_INVALID_OPERATION );
+			CASE_ENUM_STRING( GL_INVALID_FRAMEBUFFER_OPERATION );
+			CASE_ENUM_STRING( GL_OUT_OF_MEMORY );
+#if defined(GL_STACK_UNDERFLOW)
+			CASE_ENUM_STRING( GL_STACK_UNDERFLOW );
 #endif
+#if defined(GL_STACK_OVERFLOW)
+			CASE_ENUM_STRING( GL_STACK_OVERFLOW );
+#endif
+			
+			//	types
+			CASE_ENUM_STRING( GL_BYTE );
+			CASE_ENUM_STRING( GL_UNSIGNED_BYTE );
+			CASE_ENUM_STRING( GL_SHORT );
+			CASE_ENUM_STRING( GL_UNSIGNED_SHORT );
+			CASE_ENUM_STRING( GL_INT );
+			CASE_ENUM_STRING( GL_UNSIGNED_INT );
+			CASE_ENUM_STRING( GL_FLOAT );
+			CASE_ENUM_STRING( GL_FLOAT_VEC2 );
+			CASE_ENUM_STRING( GL_FLOAT_VEC3 );
+			CASE_ENUM_STRING( GL_FLOAT_VEC4 );
+			CASE_ENUM_STRING( GL_INT_VEC2 );
+			CASE_ENUM_STRING( GL_INT_VEC3 );
+			CASE_ENUM_STRING( GL_INT_VEC4 );
+			CASE_ENUM_STRING( GL_BOOL );
+			CASE_ENUM_STRING( GL_SAMPLER_2D );
+			CASE_ENUM_STRING( GL_SAMPLER_CUBE );
+			CASE_ENUM_STRING( GL_FLOAT_MAT2 );
+			CASE_ENUM_STRING( GL_FLOAT_MAT3 );
+			CASE_ENUM_STRING( GL_FLOAT_MAT4 );
+#if defined(OPENGL_CORE_3)
+			CASE_ENUM_STRING( GL_DOUBLE );
+			CASE_ENUM_STRING( GL_SAMPLER_1D );
+			CASE_ENUM_STRING( GL_SAMPLER_3D );
+#endif
+			
+			//	colours
+#if !defined(TARGET_ANDROID)
+			CASE_ENUM_STRING( GL_BGRA );
+#endif
+			CASE_ENUM_STRING( GL_RGBA );
+			CASE_ENUM_STRING( GL_RGB );
+			CASE_ENUM_STRING( GL_RGB8 );
+			CASE_ENUM_STRING( GL_RED );
 	};
-	
+#undef CASE_ENUM_STRING
 	std::stringstream Unknown;
-	Unknown << "Unknown GL type 0x" << std::hex << Type;
+	Unknown << "Unknown GL enum 0x" << std::hex << Type;
 	return Unknown.str();
 }
 
 std::ostream& Opengl::operator<<(std::ostream &out,const Opengl::TUniform& in)
 {
 	out << "#" << in.mIndex << " ";
-	out << Opengl::GetTypeName(in.mType);
+	out << Opengl::GetEnumString(in.mType);
 	if ( in.mArraySize != 1 )
 		out << "[" << in.mArraySize << "]";
 	out << " " << in.mName;
@@ -103,30 +126,6 @@ bool CompileShader( const GLuint shader, const char * src,const std::string& Err
 	return true;
 }
 
-
-const char* Opengl::ErrorToString(GLenum Error)
-{
-	switch ( Error )
-	{
-		case GL_NO_ERROR:			return "GL_NO_ERROR";
-		case GL_INVALID_ENUM:		return "GL_INVALID_ENUM";
-		case GL_INVALID_VALUE:		return "GL_INVALID_VALUE";
-		case GL_INVALID_OPERATION:	return "GL_INVALID_OPERATION";
-		case GL_INVALID_FRAMEBUFFER_OPERATION:	return "GL_INVALID_FRAMEBUFFER_OPERATION";
-		case GL_OUT_OF_MEMORY:		return "GL_OUT_OF_MEMORY";
-
-			//	opengl < 3 errors
-#if defined(GL_STACK_UNDERFLOW)
-		case GL_STACK_UNDERFLOW:	return "GL_STACK_UNDERFLOW";
-#endif
-#if defined(GL_STACK_OVERFLOW)
-		case GL_STACK_OVERFLOW:		return "GL_STACK_OVERFLOW";
-#endif
-		default:
-			return "Unknown opengl error value";
-	};
-}
-
 bool Opengl::IsInitialised(const std::string &Context,bool ThrowException)
 {
 	return true;
@@ -142,7 +141,7 @@ bool Opengl::IsOkay(const std::string& Context,bool ThrowException)
 		return true;
 	
 	std::stringstream ErrorStr;
-	ErrorStr << "Opengl error in " << Context << ": " << Opengl::ErrorToString(Error) << std::endl;
+	ErrorStr << "Opengl error in " << Context << ": " << Opengl::GetEnumString(Error) << std::endl;
 	
 	if ( !ThrowException )
 	{
@@ -655,7 +654,11 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 		
 		//	invalid operation here means the unity pixel format is probably different to the pixel data we're trying to push now
 		glTexSubImage2D( mType, MipLevel, XOffset, YOffset, Width, Height, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
-		if ( !Opengl::IsOkay("glTexSubImage2D",false) )
+		
+		std::stringstream Context;
+		Context << __func__ << "glTexSubImage2D(" << Opengl::GetEnumString(GlPixelsFormat) << ")";
+		
+		if ( !Opengl::IsOkay( Context.str(),false) )
 		{
 			//	on ios the internal format must match the pixel format. No conversion!
 			GLenum TargetFormat = GlPixelsFormat;
@@ -663,7 +666,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 			
 			//	gr: first copy needs to initialise the texture... before we can use subimage
 			glTexImage2D( GL_TEXTURE_2D, MipLevel, TargetFormat, Width, Height, Border, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
-			Opengl_IsOkay();
+			Opengl::IsOkay("glTexImage2D",false);
 		}
 	}
 
@@ -1268,19 +1271,16 @@ const std::map<SoyPixelsFormat::Type,GLenum>& Opengl::GetPixelFormatMap()
 {
 	static std::map<SoyPixelsFormat::Type,GLenum> PixelFormatMap =
 	{
-#if defined(TARGET_IOS)
 		std::make_pair( SoyPixelsFormat::RGB, GL_RGB ),
-		std::make_pair( SoyPixelsFormat::BGRA, GL_BGRA ),
 		std::make_pair( SoyPixelsFormat::RGBA, GL_RGBA ),
+
+#if defined(TARGET_IOS)
+		std::make_pair( SoyPixelsFormat::BGRA, GL_BGRA ),
 #endif
 #if defined(TARGET_WINDOWS)
-		std::make_pair( SoyPixelsFormat::RGB, GL_RGB ),
-		std::make_pair( SoyPixelsFormat::RGBA, GL_RGBA ),
 		std::make_pair( SoyPixelsFormat::Greyscale, GL_LUMINANCE ),
 #endif
 #if defined(GL_VERSION_3_0)
-		std::make_pair( SoyPixelsFormat::RGB, GL_RGB ),
-		std::make_pair( SoyPixelsFormat::RGBA, GL_RGBA ),
 		std::make_pair( SoyPixelsFormat::BGR, GL_BGR ),
 		std::make_pair( SoyPixelsFormat::Greyscale, GL_RED ),
 		std::make_pair( SoyPixelsFormat::GreyscaleAlpha, GL_RG ),

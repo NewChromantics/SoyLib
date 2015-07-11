@@ -126,7 +126,7 @@ namespace Opengl
 	bool	IsInitialised(const std::string& Context,bool ThrowException);	//	throws exception
 	bool	IsOkay(const std::string& Context,bool ThrowException=true);	//	throws exception
 	bool	IsSupported(const char* ExtensionName);
-	const char*		ErrorToString(GLenum Error);
+	std::string		GetEnumString(GLenum Type);
 
 	SoyPixelsFormat::Type	GetPixelFormat(GLenum glFormat);
 	GLenum					GetPixelFormat(SoyPixelsFormat::Type Format);
