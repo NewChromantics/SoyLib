@@ -92,10 +92,8 @@ namespace Opengl
 	extern const char * ReflectionMappedSkinned1VertexShaderSrc;
 	extern const char * ReflectionMappedFragmentShaderSrc;
 	
-	// Will abort() after logging an error if either compiles or the link status
-	// fails, but not if uniforms are missing.
-	GlProgram	BuildProgram(std::string vertexSrc,std::string fragmentSrc,const TGeometryVertex& GeometryVertex);
-	
+	GlProgram	BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName);
+
 
 	
 	struct VertexAttribs
@@ -132,6 +130,8 @@ namespace Opengl
 	GLenum					GetPixelFormat(SoyPixelsFormat::Type Format);
 	GLenum					GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format);
 
+	void	UpgradeVertShader(ArrayBridge<std::string>&& Shader,size_t Version);
+	void	UpgradeFragShader(ArrayBridge<std::string>&& Shader,size_t Version);
 
 	//	helpers
 	void	ClearColour(Soy::TRgb Colour);

@@ -107,20 +107,30 @@ void Opengl::SetUniform(const TUniform& Uniform,const vec4f& Value)
 }
 
 
-// Returns false and logs the ShaderInfoLog on failure.
-bool CompileShader( const GLuint shader, const char * src,const std::string& ErrorPrefix,std::ostream& Error)
+
+bool CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLines,const std::string& ErrorPrefix,std::ostream& Error)
 {
-	glShaderSource( shader, 1, &src, 0 );
-	glCompileShader( shader );
+	Array<const GLchar*> Lines;
+	for ( int i=0;	i<SrcLines.GetSize();	i++ )
+	{
+		SrcLines[i] += "\n";
+		Lines.PushBack( SrcLines[i].c_str() );
+	}
+	const GLint* LineLengths = nullptr;
+	glShaderSource( Shader.mName, size_cast<GLsizei>(Lines.GetSize()), Lines.GetArray(), LineLengths );
+	Opengl::IsOkay("glShaderSource");
+	glCompileShader( Shader.mName );
+	Opengl::IsOkay("glCompileShader");
 	
-	GLint r;
-	glGetShaderiv( shader, GL_COMPILE_STATUS, &r );
+	GLint r = GL_FALSE;
+	glGetShaderiv( Shader.mName, GL_COMPILE_STATUS, &r );
+	Opengl::IsOkay("glGetShaderiv(GL_COMPILE_STATUS)");
 	if ( r == GL_FALSE )
 	{
 		Error << ErrorPrefix << " Compiling shader error: ";
 		GLchar msg[4096] = {0};
-		glGetShaderInfoLog( shader, sizeof( msg ), 0, msg );
-		Error << msg;
+		glGetShaderInfoLog( Shader.mName, sizeof( msg ), 0, msg );
+		Error << msg << std::endl;
 		return false;
 	}
 	return true;
@@ -608,7 +618,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 		static SoyPixels PixelsBuffer;
 		PixelsBuffer.Copy( FinalPixels );
 			
-		TargetFormat = GL_BGRA;
+		GLenum TargetFormat = GL_BGRA;
 		GLenum TargetStorage = GL_UNSIGNED_INT_8_8_8_8_REV;
 		glTexImage2D(mType, MipLevel, GlPixelsFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, TargetFormat, TargetStorage, PixelsBuffer.GetPixelsArray().GetArray() );
 		Opengl_IsOkay();
@@ -678,29 +688,6 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 }
 
 
-
-
-// Returns false and logs the ShaderInfoLog on failure.
-bool CompileShader( const Opengl::TAsset& shader, const char * src )
-{
-	if ( !Opengl_IsInitialised() )
-		return false;
-	
-	glShaderSource( shader.mName, 1, &src, nullptr );
-	glCompileShader( shader.mName );
-	
-	GLint r;
-	glGetShaderiv( shader.mName, GL_COMPILE_STATUS, &r );
-	if ( r == GL_FALSE )
-	{
-		std::Debug << "Compiling shader:\n" << src << "\n****** failed ******\n";
-		GLchar msg[4096];
-		glGetShaderInfoLog( shader.mName, sizeof( msg ), 0, msg );
-		std::Debug << msg << std::endl;;
-		return false;
-	}
-	return true;
-}
 
 
 Opengl::TShaderState::TShaderState(const Opengl::GlProgram& Shader) :
@@ -775,64 +762,125 @@ namespace Soy
 		while((start_pos = str.find(from, start_pos)) != std::string::npos) {
 			str.replace(start_pos, from.length(), to);
 			start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
-		
+			
 			Changes++;
 		}
 		return (Changes!=0);
 	}
+	
+	//	returns if changed
+	bool	StringReplace(ArrayBridge<std::string>& str,const std::string& from,const std::string& to)
+	{
+		bool Changed = false;
+		for ( int i=0;	i<str.GetSize();	i++ )
+		{
+			Changed |= StringReplace( str[i], from, to );
+		}
+		return Changed;
+	}
+
+	bool	StringReplace(ArrayBridge<std::string>&& str,const std::string& from,const std::string& to)
+	{
+		return StringReplace(str,from,to);
+	}
 }
 
-Opengl::GlProgram Opengl::BuildProgram(std::string vertexSrc,std::string fragmentSrc,const TGeometryVertex& Vertex)
+//	vert & frag changes
+void UpgradeShader(ArrayBridge<std::string>& Shader,size_t Version)
+{
+	//	insert version if there isn't one there
+	if ( !Soy::StringBeginsWith(Shader[0],"#version",true) )
+	{
+		std::stringstream VersionStr;
+		VersionStr << "#version " << Version;
+		
+		//	append ES/Core suffix
+		if ( Version == 300 )
+			VersionStr << " es";
+		else
+			VersionStr << " core";
+		
+		VersionStr<<std::endl;
+		Shader.InsertAt( 0, VersionStr.str() );
+	}
+}
+
+void Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,size_t Version)
+{
+	UpgradeShader( Shader, Version );
+	
+	//	in 3.2, attribute/varying is now in/out
+	//			varying is Vert OUT, and INPUT for a frag (it becomes an attribute of the pixel)
+	Soy::StringReplace( Shader, "attribute", "in" );
+	Soy::StringReplace( Shader, "varying", "out" );
+}
+
+void Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,size_t Version)
+{
+	int LastProcessorDirectiveLine = 0;
+	for ( int i=0;	i<Shader.GetSize();	i++ )
+	{
+		if ( Shader[i][0] == '#' )
+			LastProcessorDirectiveLine = i;
+	}
+
+	UpgradeShader( Shader, Version );
+
+	//	auto-replace/insert the new fragment output
+	//	https://www.opengl.org/wiki/Fragment_Shader#Outputs
+	const char* AutoFragColorName = "FragColor";
+	
+	//	in 3.2, attribute/varying is now in/out
+	//			varying is Vert OUT, and INPUT for a frag (it becomes an attribute of the pixel)
+	Soy::StringReplace( Shader, "attribute", "in" );
+	Soy::StringReplace( Shader, "varying", "in" );
+	Soy::StringReplace( Shader, "gl_FragColor", AutoFragColorName );
+	Soy::StringReplace( Shader, "texture2D(", "texture(" );
+	
+
+	//	auto declare the new gl_FragColor variable after all processor directives
+	std::stringstream FragVariable;
+	FragVariable << "out vec4 " << AutoFragColorName << ";" << std::endl;
+	Shader.InsertAt( LastProcessorDirectiveLine+1, FragVariable.str() );
+
+}
+
+Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName)
 {
 	if ( !Opengl_IsInitialised() )
 		return GlProgram();
 	
 	GlProgram prog;
 	
-	bool ShaderVersion30 = true;
+	Array<std::string> VertShader;
+	Array<std::string> FragShader;
+	Soy::SplitStringLines( GetArrayBridge(VertShader), vertexSrc );
+	Soy::SplitStringLines( GetArrayBridge(FragShader), fragmentSrc );
 	
-	if ( ShaderVersion30 )
-	{
-#if defined(TARGET_ANDROID)
-		const char* Version_3_2 = "#version 300 es";
-#else
-		const char* Version_3_2 = "#version 150";
+	size_t UpgradeVersion = 0;
+	
+#if defined(OPENGL_ES_3)
+	UpgradeVersion = 300;
 #endif
-		//	auto-replace/insert the new fragment output
-		//	https://www.opengl.org/wiki/Fragment_Shader#Outputs
-		const char* AutoFragColorName = "FragColor";
-		
-		//	in 3.2, attribute/varying is now in/out
-		//			varying is Vert OUT, and INPUT for a frag (it becomes an attribute of the pixel)
-		Soy::StringReplace( vertexSrc, "attribute", "in" );
-		Soy::StringReplace( fragmentSrc, "attribute", "in" );
-		Soy::StringReplace( vertexSrc, "varying", "out" );
-		Soy::StringReplace( fragmentSrc, "varying", "in" );
-		Soy::StringReplace( fragmentSrc, "gl_FragColor", AutoFragColorName );
-		Soy::StringReplace( fragmentSrc, "texture2D(", "texture(" );
-
-		//	need a version
-		std::stringstream InsertVert;
-		InsertVert << Version_3_2 << std::endl;
-		vertexSrc.insert( 0, InsertVert.str() );
 	
-		//	insert some stuff into frag
-		std::stringstream InsertFrag;
-		InsertFrag << Version_3_2 << std::endl;
-		
-		//	auto declare the new gl_FragColor variable
-		InsertFrag << "out vec4 " << AutoFragColorName << ";" << std::endl;
-		fragmentSrc.insert( 0, InsertFrag.str() );
+#if defined(OPENGL_CORE_3)
+	UpgradeVersion = 150;
+#endif
+	
+	if ( UpgradeVersion != 0 )
+	{
+		UpgradeVertShader( GetArrayBridge(VertShader), UpgradeVersion );
+		UpgradeFragShader( GetArrayBridge(FragShader), UpgradeVersion );
 	}
 	
 	prog.vertexShader.mName = glCreateShader( GL_VERTEX_SHADER );
-	if ( !CompileShader( prog.vertexShader, vertexSrc.c_str() ) )
+	if ( !CompileShader( prog.vertexShader, GetArrayBridge(VertShader), ShaderName + " (vert)", std::Debug ) )
 	{
 		Soy::Assert( false, "Failed to compile vertex shader" );
 		return GlProgram();
 	}
 	prog.fragmentShader.mName = glCreateShader( GL_FRAGMENT_SHADER );
-	if ( !CompileShader( prog.fragmentShader, fragmentSrc.c_str() ) )
+	if ( !CompileShader( prog.fragmentShader, GetArrayBridge(FragShader), ShaderName + " (frag)", std::Debug ) )
 	{
 		Soy::Assert( false, "Failed to compile fragment shader" );
 		return GlProgram();
@@ -860,7 +908,7 @@ Opengl::GlProgram Opengl::BuildProgram(std::string vertexSrc,std::string fragmen
 		glGetProgramInfoLog( ProgramName, sizeof( msg ), 0, msg );
 		std::stringstream Error;
 		Error << "Failed to link vertex and fragment shader: " << msg;
-		Soy::Assert( false, Error.str() );
+		throw new Soy::AssertException( Error.str() );
 		return GlProgram();
 	}
 	
