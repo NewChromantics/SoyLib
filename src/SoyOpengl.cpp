@@ -815,15 +815,23 @@ void Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,size_t Version)
 	Soy::StringReplace( Shader, "varying", "out" );
 }
 
-void Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,size_t Version)
+size_t GetNonProcessorFirstLine(ArrayBridge<std::string>& Shader)
 {
-	int LastProcessorDirectiveLine = 0;
+	size_t LastProcessorDirectiveLine = 0;
 	for ( int i=0;	i<Shader.GetSize();	i++ )
 	{
-		if ( Shader[i][0] == '#' )
+		auto& Line = Shader[i];
+		if ( Line.empty() )
+			continue;
+
+		if ( Line[0] == '#' )
 			LastProcessorDirectiveLine = i;
 	}
+	return LastProcessorDirectiveLine+1;
+}
 
+void Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,size_t Version)
+{
 	UpgradeShader( Shader, Version );
 
 	//	auto-replace/insert the new fragment output
@@ -841,8 +849,15 @@ void Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,size_t Version)
 	//	auto declare the new gl_FragColor variable after all processor directives
 	std::stringstream FragVariable;
 	FragVariable << "out vec4 " << AutoFragColorName << ";" << std::endl;
-	Shader.InsertAt( LastProcessorDirectiveLine+1, FragVariable.str() );
+	Shader.InsertAt( GetNonProcessorFirstLine(Shader), FragVariable.str() );
 
+	std::Debug << "upgraded frag shader:" << std::endl;
+	for ( int i=0;	i<Shader.GetSize();	i++ )
+	{
+		std::Debug << "Frag[" << i << "]" << Shader[i] << std::endl;
+	}
+	std::Debug << "<<EOF" << std::endl;
+	
 }
 
 Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName)
@@ -912,6 +927,7 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 		return GlProgram();
 	}
 	
+	glValidateProgram( ProgramName );
 	glGetProgramiv( ProgramName, GL_VALIDATE_STATUS, &r );
 	if ( r == GL_FALSE )
 	{
