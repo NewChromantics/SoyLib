@@ -415,6 +415,7 @@ public:
 	bool		IsValid() const	{	return mFbo.IsValid() && mTarget.IsValid();	}
 	bool		Bind();
 	void		Unbind();
+	void		InvalidateContent();
 	
 	TAsset		mFbo;
 	TTexture	mTarget;

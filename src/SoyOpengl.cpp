@@ -213,13 +213,36 @@ Opengl::TFbo::~TFbo()
 	}
 }
 
+void Opengl::TFbo::InvalidateContent()
+{
+	//	gr: not needed, but I think is a performance boost?
+	//		maybe a proper performance boost would be AFTER using it to copy to texture
+	const GLenum fboAttachments[1] = { GL_COLOR_ATTACHMENT0 };
+	glInvalidateFramebuffer( GL_FRAMEBUFFER, 1, fboAttachments );
+	Opengl_IsOkay();
+}
+
 bool Opengl::TFbo::Bind()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, mFbo.mName );
 	Opengl_IsOkay();
-	glViewport( 0, 0, mTarget.mMeta.GetWidth(), mTarget.mMeta.GetHeight() );
+	
+	
+	//	not needed on other platforms?
+#if defined(TARGET_ANDROID)
+	//glDisable( GL_DEPTH_TEST );
+	//glDisable( GL_SCISSOR_TEST );
+	//glDisable( GL_STENCIL_TEST );
+	glDisable( GL_CULL_FACE );
+	//glDisable( GL_BLEND );
+	Opengl_IsOkay();
+#endif
+	
+	Soy::Rectf FrameBufferRect( 0, 0, mTarget.mMeta.GetWidth(), mTarget.mMeta.GetHeight() );
+	Opengl::SetViewport( FrameBufferRect );
 	Opengl_IsOkay();
 	
+
 	/* debugging
 	glClearColor( 0.5f, 0.5f, 0, 1 );
 	glClear( GL_COLOR_BUFFER_BIT );
@@ -865,6 +888,9 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 	if ( !Opengl_IsInitialised() )
 		return GlProgram();
 	
+	std::string ShaderNameVert = ShaderName + " (vert)";
+	std::string ShaderNameFrag = ShaderName + " (frag)";
+	
 	GlProgram prog;
 	
 	Array<std::string> VertShader;
@@ -875,7 +901,7 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 	size_t UpgradeVersion = 0;
 	
 #if defined(OPENGL_ES_3)
-	UpgradeVersion = 300;
+	//UpgradeVersion = 300;
 #endif
 	
 #if defined(OPENGL_CORE_3)
@@ -889,13 +915,13 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 	}
 	
 	prog.vertexShader.mName = glCreateShader( GL_VERTEX_SHADER );
-	if ( !CompileShader( prog.vertexShader, GetArrayBridge(VertShader), ShaderName + " (vert)", std::Debug ) )
+	if ( !CompileShader( prog.vertexShader, GetArrayBridge(VertShader), ShaderNameVert, std::Debug ) )
 	{
 		Soy::Assert( false, "Failed to compile vertex shader" );
 		return GlProgram();
 	}
 	prog.fragmentShader.mName = glCreateShader( GL_FRAGMENT_SHADER );
-	if ( !CompileShader( prog.fragmentShader, GetArrayBridge(FragShader), ShaderName + " (frag)", std::Debug ) )
+	if ( !CompileShader( prog.fragmentShader, GetArrayBridge(FragShader), ShaderNameFrag, std::Debug ) )
 	{
 		Soy::Assert( false, "Failed to compile fragment shader" );
 		return GlProgram();
@@ -984,36 +1010,14 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 		prog.mUniforms.PushBack( Uniform );
 	}
 
-	std::Debug << "Shader has " << prog.mAttributes.GetSize() << " attributes; " << std::endl;
+	std::Debug << ShaderName << " has " << prog.mAttributes.GetSize() << " attributes; " << std::endl;
 	std::Debug << Soy::StringJoin( GetArrayBridge(prog.mAttributes), "\n" );
 	std::Debug << std::endl;
 
-	std::Debug << "Shader has " << prog.mUniforms.GetSize() << " uniforms; " << std::endl;
+	std::Debug << ShaderName << " has " << prog.mUniforms.GetSize() << " uniforms; " << std::endl;
 	std::Debug << Soy::StringJoin( GetArrayBridge(prog.mUniforms), "\n" );
 	std::Debug << std::endl;
-	
-	Opengl_IsOkay();
-	glValidateProgram( ProgramName );
-	Opengl_IsOkay();
-	
-	//	gr: runtime binding!
-	/*
-	glUseProgram( ProgramName );
-	
-	// texture and image_external bindings
-	for ( int i = 0; i < 8; i++ )
-	{
-		char name[32];
-		sprintf( name, "Texture%i", i );
-		const GLint uTex = glGetUniformLocation( ProgramName, name );
-		if ( uTex != -1 )
-		{
-			glUniform1i( uTex, i );
-		}
-	}
-	
-	glUseProgram( 0 );
-	 */
+
 	
 	return prog;
 }
@@ -1298,7 +1302,7 @@ void Opengl::TGeometry::Draw() const
 	//glBindBuffer(GL_ARRAY_BUFFER,0);
 	Opengl_IsOkay();
 
-	glDrawArrays( GL_TRIANGLES, 0, 2 );
+	//glDrawArrays( GL_TRIANGLES, 0, 2 );
 	Opengl_IsOkay();
 	
 	
