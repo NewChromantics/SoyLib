@@ -259,6 +259,13 @@ public:
 	virtual T*			InsertBlock(size_t index,size_t count)=0;
 	virtual void		Clear(bool Dealloc=true)=0;
 
+	inline T&			InsertAt(size_t index,const T& item)
+	{
+		auto* Block = InsertBlock( index, 1 );
+		*Block = item;
+		return *Block;
+	}
+
 	//	compare two arrays of the same type
 	//	gr: COULD turn this into a compare for sorting, but that would invoke a < and > operator call for each type.
 	//		this is also why we don't use the != operator, only ==
