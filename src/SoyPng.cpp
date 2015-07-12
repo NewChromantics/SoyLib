@@ -60,7 +60,8 @@ std::ostream& operator<< (std::ostream &out,const TPng::TFilterNone_ScanlineFilt
 
 void TPng::GetMagic(ArrayBridge<char>&& Magic)
 {
-	const unsigned char _Magic[] = { 0xD3, 'P', 'N', 'G', 13, 10, 26, 10 };
+	//const unsigned char _Magic[] = { 0xD3, 'P', 'N', 'G', 13, 10, 26, 10 };
+	const unsigned char _Magic[] = { 0x89, 'P', 'N', 'G', 13, 10, 26, 10 };
 	auto MagicSigned = GetRemoteArray( reinterpret_cast<const char*>(_Magic), 8 );
 	Magic.Copy( MagicSigned );
 }
