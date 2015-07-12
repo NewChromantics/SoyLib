@@ -98,11 +98,12 @@ public:
 };
 
 
-//	create any time, but calls are immediate
 class Opengl::TRenderTargetFbo : public Opengl::TRenderTarget
 {
 public:
+	//	provide context for non-immediate construction
 	TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context,Opengl::TTexture ExistingTexture=Opengl::TTexture());
+	TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture ExistingTexture=Opengl::TTexture());
 	~TRenderTargetFbo()
 	{
 		mFbo.reset();

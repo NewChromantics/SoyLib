@@ -101,7 +101,33 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Conte
 	//	check result of fbo
 	Soy::Assert( mFbo!=nullptr, "Failed to create FBO" );
 }
-	
+
+
+Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture ExistingTexture) :
+	TRenderTarget	( Meta.mName ),
+	mTexture		( ExistingTexture )
+{
+	Opengl_IsOkay();
+		
+	//	create texture
+	if ( !mTexture.IsValid() )
+	{
+		SoyPixelsMetaFull TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
+		mTexture = TTexture( TextureMeta, GL_TEXTURE_2D );
+	}
+
+	//	re-throw errors
+	try
+	{
+		mFbo.reset( new TFbo( mTexture ) );
+	}
+	catch ( std::exception& e )
+	{
+		throw;
+	};
+}
+
+
 bool Opengl::TRenderTargetFbo::Bind()
 {
 	if ( !mFbo )
