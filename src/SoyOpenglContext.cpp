@@ -114,6 +114,10 @@ void Opengl::TRenderTargetFbo::Unbind()
 	if ( !mFbo )
 		return;
 	
+	//	needed?
+	glFlush();
+	glFinish();
+	
 	mFbo->Unbind();
 }
 

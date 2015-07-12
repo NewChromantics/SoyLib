@@ -215,11 +215,19 @@ Opengl::TFbo::~TFbo()
 
 void Opengl::TFbo::InvalidateContent()
 {
+#if defined(OPENGL_ES_3)
 	//	gr: not needed, but I think is a performance boost?
 	//		maybe a proper performance boost would be AFTER using it to copy to texture
 	const GLenum fboAttachments[1] = { GL_COLOR_ATTACHMENT0 };
 	glInvalidateFramebuffer( GL_FRAMEBUFFER, 1, fboAttachments );
 	Opengl_IsOkay();
+#endif
+	
+	/*
+	 const GLenum discards[]  = {GL_DEPTH_ATTACHMENT};
+	 glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+	 glDiscardFramebufferEXT(GL_FRAMEBUFFER,1,discards);
+	 */
 }
 
 bool Opengl::TFbo::Bind()
@@ -227,39 +235,19 @@ bool Opengl::TFbo::Bind()
 	glBindFramebuffer(GL_FRAMEBUFFER, mFbo.mName );
 	Opengl_IsOkay();
 	
-	
 	//	not needed on other platforms?
-#if defined(TARGET_ANDROID)
-	//glDisable( GL_DEPTH_TEST );
-	//glDisable( GL_SCISSOR_TEST );
-	//glDisable( GL_STENCIL_TEST );
+#if defined(TARGET_ANDROID)||defined(TARGET_IOS)
+	glDisable( GL_DEPTH_TEST );
+	glDisable( GL_SCISSOR_TEST );
+	glDisable( GL_STENCIL_TEST );
 	glDisable( GL_CULL_FACE );
-	//glDisable( GL_BLEND );
+	glDisable( GL_BLEND );
 	Opengl_IsOkay();
 #endif
-	
 	Soy::Rectf FrameBufferRect( 0, 0, mTarget.mMeta.GetWidth(), mTarget.mMeta.GetHeight() );
 	Opengl::SetViewport( FrameBufferRect );
 	Opengl_IsOkay();
 	
-
-	/* debugging
-	glClearColor( 0.5f, 0.5f, 0, 1 );
-	glClear( GL_COLOR_BUFFER_BIT );
-	Opengl_IsOkay();
-	
-	 {
-		glColor3f(1.0f, 1.f, 0.f);
-		glBegin(GL_TRIANGLES);
-		{
-	 glVertex3f(  0.0,  0.6, 0.0);
-	 glVertex3f( -0.2, -0.3, 0.0);
-	 glVertex3f(  0.2, -0.3 ,0.0);
-		}
-		glEnd();
-	 }
-	Opengl_IsOkay();
-*/
 	return true;
 }
 
@@ -808,6 +796,32 @@ namespace Soy
 	}
 }
 
+
+size_t GetNonProcessorFirstLine(ArrayBridge<std::string>& Shader)
+{
+	size_t LastProcessorDirectiveLine = 0;
+	for ( int i=0;	i<Shader.GetSize();	i++ )
+	{
+		auto& Line = Shader[i];
+		if ( Line.empty() )
+			continue;
+		
+		bool IsHeader = false;
+		
+		if ( Line[0] == '#' )
+			IsHeader = true;
+
+		if ( Soy::StringBeginsWith(Line,"precision ",true) )
+			IsHeader = true;
+		
+		if ( !IsHeader )
+			continue;
+
+		LastProcessorDirectiveLine = i;
+	}
+	return LastProcessorDirectiveLine+1;
+}
+
 //	vert & frag changes
 void UpgradeShader(ArrayBridge<std::string>& Shader,size_t Version)
 {
@@ -826,6 +840,16 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,size_t Version)
 		VersionStr<<std::endl;
 		Shader.InsertAt( 0, VersionStr.str() );
 	}
+	
+#if defined(TARGET_IOS)
+	if ( Version == 300 )
+	{
+		//	ios requires precision
+		//	gr: add something to check if this is already declared
+		Shader.InsertAt( GetNonProcessorFirstLine(Shader), "precision highp float;\n" );
+	}
+#endif
+
 }
 
 void Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,size_t Version)
@@ -838,20 +862,6 @@ void Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,size_t Version)
 	Soy::StringReplace( Shader, "varying", "out" );
 }
 
-size_t GetNonProcessorFirstLine(ArrayBridge<std::string>& Shader)
-{
-	size_t LastProcessorDirectiveLine = 0;
-	for ( int i=0;	i<Shader.GetSize();	i++ )
-	{
-		auto& Line = Shader[i];
-		if ( Line.empty() )
-			continue;
-
-		if ( Line[0] == '#' )
-			LastProcessorDirectiveLine = i;
-	}
-	return LastProcessorDirectiveLine+1;
-}
 
 void Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,size_t Version)
 {
@@ -900,8 +910,9 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 	
 	size_t UpgradeVersion = 0;
 	
+	//	not required for android
 #if defined(OPENGL_ES_3)
-	//UpgradeVersion = 300;
+	UpgradeVersion = 300;
 #endif
 	
 #if defined(OPENGL_CORE_3)
@@ -1057,9 +1068,6 @@ void Opengl::GlProgram::Destroy()
 	}
 }
 
-
-#if defined(TARGET_ANDROID)
-#endif
 
 
 size_t Opengl::TGeometryVertex::GetDataSize() const
@@ -1302,7 +1310,7 @@ void Opengl::TGeometry::Draw() const
 	//glBindBuffer(GL_ARRAY_BUFFER,0);
 	Opengl_IsOkay();
 
-	//glDrawArrays( GL_TRIANGLES, 0, 2 );
+	glDrawArrays( GL_TRIANGLES, 0, 2 );
 	Opengl_IsOkay();
 	
 	
