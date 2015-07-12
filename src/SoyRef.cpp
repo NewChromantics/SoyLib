@@ -1,4 +1,5 @@
-#include "ofxSoylent.h"
+#include "SoyRef.h"
+#include "bufferarray.hpp"
 
 namespace Private
 {

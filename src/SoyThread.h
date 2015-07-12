@@ -1,9 +1,10 @@
 #pragma once
 
-#include "ofxSoylent.h"
+#include "SoyTypes.h"
 #include "SoyEvent.h"
 #include <condition_variable>
-
+#include "MemHeap.hpp"
+#include "HeapArray.hpp"
 
 //	c++11 threads are better!
 //	gr: if mscv > 2012?

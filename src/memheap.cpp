@@ -307,7 +307,7 @@ Improvement summary
 	* Declare memcpy'able structs & clases with DECLARE_NON_COMPLEX and DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE whenever possible.
 	* When constructing very large strings (eg. html/xml output) build it up with smaller bufferstrings rather than continually building one giant String to reduce allocations)
 */
-#include "ofxSoylent.h"
+#include "SoyTypes.h"
 
 
 #if defined(TARGET_WINDOWS)

@@ -1,6 +1,8 @@
 #pragma once
 
 
+#include "SoyTypes.h"
+
 //--------------------------------------------
 //	a string<->int identifier. This is NOT packet (not like tootle's TRef)
 //--------------------------------------------

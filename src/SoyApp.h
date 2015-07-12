@@ -1,7 +1,6 @@
 #pragma once
 
-#include "ofxSoylent.h"
-
+#include "SoyThread.h"
 
 class SoyApp
 {
