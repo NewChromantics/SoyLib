@@ -1150,7 +1150,7 @@ Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const A
 	{
 		auto& Element = Vertex.mElements[at];
 		auto ElementOffset = Vertex.GetOffset(at);
-		GLsizei Stride = Vertex.GetStride(at);
+		GLsizei Stride = size_cast<GLsizei>(Vertex.GetStride(at));
 		GLboolean Normalised = Element.mNormalised;
 		
 		void* ElementPointer = (void*)ElementOffset;

@@ -69,7 +69,7 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Conte
 		//	create texture
 		if ( !mTexture.IsValid() )
 		{
-			SoyPixelsMetaFull TextureMeta( Meta.mSize.x, Meta.mSize.y, SoyPixelsFormat::RGBA );
+			SoyPixelsMetaFull TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
 			mTexture = TTexture( TextureMeta, GL_TEXTURE_2D );
 			/*
 			 glGenTextures(1, &mTexture.mTexture.mName );
