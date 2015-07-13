@@ -8,7 +8,7 @@ namespace Opengl
 	template<typename TYPE>
 	GLenum			GetTypeEnum()
 	{
-		throw new Soy::AssertException( std::string("Unhandled Get Gl enum from type case ")+__func__ );
+		throw Soy::AssertException( std::string("Unhandled Get Gl enum from type case ")+__func__ );
 		return GL_INVALID_ENUM;
 	}
 	
@@ -17,7 +17,7 @@ namespace Opengl
 	{
 		std::stringstream Error;
 		Error << __func__ << " not overloaded for " << Soy::GetTypeName<TYPE>();
-		throw new Soy::AssertException( Error.str() );
+		throw Soy::AssertException( Error.str() );
 	}
 
 }
@@ -208,7 +208,7 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	if ( mType == GL_TEXTURE_2D )
 		glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, MipLevel );
 	else
-		throw new Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
+		throw Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
 	
 	//	gr: init? or render?
@@ -477,7 +477,7 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 	{
 		std::stringstream Error;
 		Error << "Failed to create texture, unsupported format " << Meta.GetFormat();
-		throw new Soy::AssertException( Error.str() );
+		throw Soy::AssertException( Error.str() );
 	}
 
 	//	allocate texture
@@ -485,7 +485,7 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 	Opengl::IsOkay("glGenTextures");
 	
 	if ( !Bind() )
-		throw  new Soy::AssertException("failed to bind after texture allocation");
+		throw Soy::AssertException("failed to bind after texture allocation");
 	Opengl::IsOkay("glGenTextures");
 	
 	//	set mip-map levels to 0..0
@@ -987,7 +987,7 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 		glGetProgramInfoLog( ProgramName, sizeof( msg ), 0, msg );
 		std::stringstream Error;
 		Error << "Failed to link vertex and fragment shader: " << msg;
-		throw new Soy::AssertException( Error.str() );
+		throw Soy::AssertException( Error.str() );
 		return GlProgram();
 	}
 	
@@ -1013,8 +1013,10 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 	//	gr: look out for driver bugs: http://stackoverflow.com/a/12611619/355753
 	numActiveUniforms = std::min( numActiveUniforms, 256 );
 
-	GLint MaxNameLength = 0;
-	glGetProgramiv( ProgramName, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &MaxNameLength );
+	GLint MaxAttribNameLength=0,MaxUniformNameLength=0;
+	glGetProgramiv( ProgramName, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &MaxAttribNameLength );
+	glGetProgramiv( ProgramName, GL_ACTIVE_UNIFORM_MAX_LENGTH, &MaxUniformNameLength );
+	auto MaxNameLength = std::max( MaxAttribNameLength, MaxUniformNameLength );
 
 	for( GLint attrib=0;	attrib<numActiveAttribs;	++attrib )
 	{

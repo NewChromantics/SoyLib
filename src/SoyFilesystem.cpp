@@ -28,7 +28,7 @@ SoyTime Soy::GetFileTimestamp(const std::string& Filename)
 	//return Time.
 #endif
 	 */
-	throw new Soy::AssertException( std::string(__func__)+" not implemented");
+	throw Soy::AssertException( std::string(__func__)+" not implemented");
 	return SoyTime();
 }
 
