@@ -79,7 +79,7 @@ public:
 	 }
 	 */
 	
-	int			GetRetainCount() const
+	long		GetRetainCount() const
 	{
 		return CFGetRetainCount(mObject);
 	}
