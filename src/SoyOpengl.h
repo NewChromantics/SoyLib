@@ -232,6 +232,7 @@ public:
 	TShaderState(const GlProgram& Shader);
 	~TShaderState();
 	
+	bool	IsValid() const;
 	void	SetUniform(const char* Name,const vec4f& v);
 	void	SetUniform(const char* Name,const TTexture& Texture);	//	special case which tracks how many textures are bound
 	void	BindTexture(size_t TextureIndex,TTexture Texture);	//	use to unbind too
@@ -340,19 +341,27 @@ public:
 	
 	//	reference from external
 	TTexture(void* TexturePtr,const SoyPixelsMetaFull& Meta,GLenum Type) :
-		mMeta			( Meta ),
-		mType			( Type ),
-		mAutoRelease	( false ),
+	mMeta			( Meta ),
+	mType			( Type ),
+	mAutoRelease	( false ),
 #if defined(TARGET_ANDROID)
-		mTexture		( reinterpret_cast<GLuint>(TexturePtr) )
+	mTexture		( reinterpret_cast<GLuint>(TexturePtr) )
 #elif defined(TARGET_OSX)
-		mTexture		( static_cast<GLuint>(reinterpret_cast<GLuint64>(TexturePtr)) )
+	mTexture		( static_cast<GLuint>(reinterpret_cast<GLuint64>(TexturePtr)) )
 #elif defined(TARGET_IOS)
-		mTexture		( static_cast<GLuint>( reinterpret_cast<intptr_t>(TexturePtr) ) )
+	mTexture		( static_cast<GLuint>( reinterpret_cast<intptr_t>(TexturePtr) ) )
 #endif
 	{
 	}
-
+	
+	TTexture(GLuint TextureName,const SoyPixelsMetaFull& Meta,GLenum Type) :
+		mMeta			( Meta ),
+		mType			( Type ),
+		mAutoRelease	( false ),
+		mTexture		( TextureName )
+	{
+	}
+	
 	~TTexture()
 	{
 		if ( mAutoRelease )
