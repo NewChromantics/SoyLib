@@ -106,6 +106,15 @@ void Opengl::SetUniform(const TUniform& Uniform,const vec4f& Value)
 	Opengl_IsOkay();
 }
 
+template<>
+void Opengl::SetUniform(const TUniform& Uniform,const vec2f& Value)
+{
+	GLsizei ArraySize = 1;
+	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
+	glUniform2fv( Uniform.mIndex, ArraySize, &Value.x );
+	Opengl_IsOkay();
+}
+
 
 
 bool CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLines,const std::string& ErrorPrefix,std::ostream& Error)
@@ -734,14 +743,22 @@ Opengl::TShaderState::~TShaderState()
 
 
 
-void Opengl::TShaderState::SetUniform(const char* Name,const vec4f& v)
+void Opengl::TShaderState::SetUniform(const std::string& Name,const vec4f& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
 	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
 	Opengl::SetUniform( Uniform, v );
 }
 
-void Opengl::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
+
+void Opengl::TShaderState::SetUniform(const std::string& Name,const vec2f& v)
+{
+	auto Uniform = mShader.GetUniform( Name );
+	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
+	Opengl::SetUniform( Uniform, v );
+}
+
+void Opengl::TShaderState::SetUniform(const std::string& Name,const TTexture& Texture)
 {
 	auto Uniform = mShader.GetUniform( Name );
 	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
@@ -956,7 +973,7 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 	//	bind attributes before linking to match geometry
 	for ( int i=0;	i<Vertex.mElements.GetSize();	i++ )
 	{
-		auto& Attrib = Vertex.mElements[i];
+	//	auto& Attrib = Vertex.mElements[i];
 	//	glBindAttribLocation( ProgramName, Attrib.mIndex, Attrib.mName.c_str() );
 	}
 	

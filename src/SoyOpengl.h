@@ -163,10 +163,11 @@ public:
 class Opengl::TUniform
 {
 public:
-	TUniform() :
+	TUniform(const std::string& Name=std::string()) :
 		mIndex		( GL_UNIFORM_INVALID ),
 		mType		( GL_ASSET_INVALID ),
-		mArraySize	( 0 )
+		mArraySize	( 0 ),
+		mName		( Name )
 	{
 	}
 	
@@ -233,8 +234,9 @@ public:
 	~TShaderState();
 	
 	bool	IsValid() const;
-	void	SetUniform(const char* Name,const vec4f& v);
-	void	SetUniform(const char* Name,const TTexture& Texture);	//	special case which tracks how many textures are bound
+	void	SetUniform(const std::string& Name,const vec2f& v);
+	void	SetUniform(const std::string& Name,const vec4f& v);
+	void	SetUniform(const std::string& Name,const TTexture& Texture);	//	special case which tracks how many textures are bound
 	void	BindTexture(size_t TextureIndex,TTexture Texture);	//	use to unbind too
 	
 public:
@@ -249,12 +251,12 @@ public:
 	void			Destroy();
 	
 	TShaderState	Bind();	//	let this go out of scope to unbind
-	TUniform		GetUniform(const char* Name) const
+	TUniform		GetUniform(const std::string& Name) const
 	{
 		auto* Uniform = mUniforms.Find( Name );
 		return Uniform ? *Uniform : TUniform();
 	}
-	TUniform		GetAttribute(const char* Name) const
+	TUniform		GetAttribute(const std::string& Name) const
 	{
 		auto* Uniform = mAttributes.Find( Name );
 		return Uniform ? *Uniform : TUniform();
