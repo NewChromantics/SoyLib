@@ -33,8 +33,8 @@ SoyTime Soy::GetFileTimestamp(const std::string& Filename)
 }
 
 
-
-void mycallback(
+#if defined(TARGET_OSX)
+void OnFileChanged(
     ConstFSEventStreamRef streamRef,
     void *clientCallBackInfo,
     size_t numEvents,
@@ -54,6 +54,7 @@ void mycallback(
 		FileWatch.mOnChanged.OnTriggered( Filename );
 	}
 }
+#endif
 
 
 Soy::TFileWatch::TFileWatch(const std::string& Filename)
@@ -71,12 +72,12 @@ Soy::TFileWatch::TFileWatch(const std::string& Filename)
 	mPathString.Retain( CFStringCreateWithCString( nullptr, Filename.c_str(), kCFStringEncodingUTF8 ) );
 	CFArrayRef pathsToWatch = CFArrayCreate(NULL, (const void **)&mPathString.mObject, 1, NULL);
 	
-	CFAbsoluteTime latency = 1.0; /* Latency in seconds */
+	CFAbsoluteTime latency = 0.2; /* Latency in seconds */
 	FSEventStreamContext Context = {0, this, NULL, NULL, NULL};
 	
 	/* Create the stream, passing in a callback */
 	mStream.mObject = FSEventStreamCreate(NULL,
-										  &mycallback,
+										  &OnFileChanged,
 										  &Context,
 										  pathsToWatch,
 										  kFSEventStreamEventIdSinceNow,
