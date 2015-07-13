@@ -178,6 +178,15 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	auto& mFboTextureName = mTarget.mTexture.mName;
 	auto& mType = mTarget.mType;
 	auto& mFboMeta = mTarget.mMeta;
+
+	//	gr: added to try and get IOS working
+#if defined(TARGET_IOS)
+	//	remove other mip levels
+	glBindTexture( mType, mFboTextureName );
+	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, 0);
+	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, 0);
+	glBindTexture( mType, 0 );
+#endif
 	
 	std::Debug << "Creating FBO " << mFboMeta << ", texture name: " << mFboTextureName << std::endl;
 	
@@ -185,8 +194,10 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	Opengl::IsOkay("FBO glGenFramebuffers");
 	glBindFramebuffer( GL_FRAMEBUFFER, mFbo.mName );
 	Opengl::IsOkay("FBO glBindFramebuffer2");
+	
+	GLint MipLevel = 0;
 	if ( mType == GL_TEXTURE_2D )
-		glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, 0 );
+		glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, MipLevel );
 	else
 		throw new Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
@@ -235,15 +246,13 @@ bool Opengl::TFbo::Bind()
 	glBindFramebuffer(GL_FRAMEBUFFER, mFbo.mName );
 	Opengl_IsOkay();
 	
-	//	not needed on other platforms?
-#if defined(TARGET_ANDROID)||defined(TARGET_IOS)
 	glDisable( GL_DEPTH_TEST );
 	glDisable( GL_SCISSOR_TEST );
 	glDisable( GL_STENCIL_TEST );
 	glDisable( GL_CULL_FACE );
 	glDisable( GL_BLEND );
 	Opengl_IsOkay();
-#endif
+
 	Soy::Rectf FrameBufferRect( 0, 0, mTarget.mMeta.GetWidth(), mTarget.mMeta.GetHeight() );
 	Opengl::SetViewport( FrameBufferRect );
 	Opengl_IsOkay();
@@ -883,14 +892,14 @@ void Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,size_t Version)
 	std::stringstream FragVariable;
 	FragVariable << "out vec4 " << AutoFragColorName << ";" << std::endl;
 	Shader.InsertAt( GetNonProcessorFirstLine(Shader), FragVariable.str() );
-
+/*
 	std::Debug << "upgraded frag shader:" << std::endl;
 	for ( int i=0;	i<Shader.GetSize();	i++ )
 	{
 		std::Debug << "Frag[" << i << "]" << Shader[i] << std::endl;
 	}
 	std::Debug << "<<EOF" << std::endl;
-	
+	*/
 }
 
 Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName)
@@ -943,6 +952,7 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 	glAttachShader( ProgramName, prog.vertexShader.mName );
 	glAttachShader( ProgramName, prog.fragmentShader.mName );
 	
+	//	gr: this is not required. We cache the links that the compiler generates AFTERwards
 	//	bind attributes before linking to match geometry
 	for ( int i=0;	i<Vertex.mElements.GetSize();	i++ )
 	{
@@ -1068,6 +1078,10 @@ void Opengl::GlProgram::Destroy()
 	}
 }
 
+bool Opengl::TShaderState::IsValid() const
+{
+	return mShader.IsValid();
+}
 
 
 size_t Opengl::TGeometryVertex::GetDataSize() const
@@ -1145,6 +1159,11 @@ Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const A
 	glBindBuffer( GL_ARRAY_BUFFER, Geo.vertexBuffer );
 	Opengl_IsOkay();
 
+	//	gr: buffer data before setting attrib pointer (needed for ios)
+	//	push data
+	glBufferData( GL_ARRAY_BUFFER, Data.GetDataSize(), Data.GetArray(), GL_STATIC_DRAW );
+	Geo.vertexCount = size_cast<GLsizei>( Data.GetDataSize() / Vertex.GetDataSize() );
+	Opengl_IsOkay();
 	
 	for ( int at=0;	at<Vertex.mElements.GetSize();	at++ )
 	{
@@ -1155,19 +1174,15 @@ Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const A
 		
 		void* ElementPointer = (void*)ElementOffset;
 		auto AttribIndex = Element.mIndex;
-		
+
+		std::Debug << "Pushing attrib " << AttribIndex << ", arraysize " << Element.mArraySize << ", stride " << Stride << std::endl;
 		glEnableVertexAttribArray( AttribIndex );
 		glVertexAttribPointer( AttribIndex, Element.mArraySize, Element.mType, Normalised, Stride, ElementPointer );
 		Opengl_IsOkay();
 	}
 	
-	//	push data
-	glBufferData( GL_ARRAY_BUFFER, Data.GetDataSize(), Data.GetArray(), GL_STATIC_DRAW );
-	Geo.vertexCount = size_cast<GLsizei>( Data.GetDataSize() / Vertex.GetDataSize() );
-	Opengl_IsOkay();
-	
-	//	gr: don't need to do this?
-	Vertex.DisableAttribs();
+	//	gr: disabling vertex attribs stops rendering on ios
+	//Vertex.DisableAttribs();
 
 	//	push indexes
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, Geo.indexBuffer );
@@ -1178,8 +1193,9 @@ Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const A
 
 	
 	//	unbind
-	glBindBuffer( GL_ARRAY_BUFFER, 0 );
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+	//	gr: don't unbind, leave bound for life of VAO (maybe for GL 3 only)
+	//glBindBuffer( GL_ARRAY_BUFFER, 0 );
+	//glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
 	glBindVertexArray( 0 );
 	Opengl_IsOkay();
 	
@@ -1188,111 +1204,6 @@ Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const A
 	return Geo;
 }
 
-template< typename _attrib_type_ >
-void PackVertexAttribute( std::vector< uint8_t > & packed, const std::vector< _attrib_type_ > & attrib,
-						 const int glLocation, const int glType, const int glComponents )
-{
-	if ( attrib.size() > 0 )
-	{
-		const size_t offset = packed.size();
-		const size_t size = attrib.size() * sizeof( attrib[0] );
-		
-		packed.resize( offset + size );
-		memcpy( &packed[offset], attrib.data(), size );
-		
-		glEnableVertexAttribArray( glLocation );
-		glVertexAttribPointer( glLocation, glComponents, glType, false, sizeof( attrib[0] ), (void *)( offset ) );
-	}
-	else
-	{
-		glDisableVertexAttribArray( glLocation );
-	}
-}
-
-/*
-void Opengl::TGeometry::Create( const VertexAttribs & attribs, const std::vector< TriangleIndex > & indices )
-{
-	if ( !Opengl_IsInitialised() )
-		return;
-	
-	vertexCount = size_cast<GLsizei>(attribs.position.size());
-	indexCount = size_cast<GLsizei>(indices.size());
-	
-	std::Debug << "glGenBuffers" << std::endl;
-	glGenBuffers( 1, &vertexBuffer );
-	Opengl::IsOkay("glGenBuffers");
-	glGenBuffers( 1, &indexBuffer );
-	Opengl::IsOkay("glGenBuffers");
-	
-	glGenVertexArrays( 1, &vertexArrayObject );
-	Opengl::IsOkay("glGenVertexArrays");
-	
-	glBindVertexArray( vertexArrayObject );
-	Opengl::IsOkay("glBindVertexArray");
-	glBindBuffer( GL_ARRAY_BUFFER, vertexBuffer );
-	Opengl::IsOkay("glBindBuffer vertex");
-	
-	std::Debug << "PackVertexAttribute..." << std::endl;
-	std::vector< uint8_t > packed;
-	PackVertexAttribute( packed, attribs.position,		VERTEX_ATTRIBUTE_LOCATION_POSITION,			GL_FLOAT,	3 );
-	PackVertexAttribute( packed, attribs.normal,		VERTEX_ATTRIBUTE_LOCATION_NORMAL,			GL_FLOAT,	3 );
-	PackVertexAttribute( packed, attribs.tangent,		VERTEX_ATTRIBUTE_LOCATION_TANGENT,			GL_FLOAT,	3 );
-	PackVertexAttribute( packed, attribs.binormal,		VERTEX_ATTRIBUTE_LOCATION_BINORMAL,			GL_FLOAT,	3 );
-	PackVertexAttribute( packed, attribs.color,			VERTEX_ATTRIBUTE_LOCATION_COLOR,			GL_FLOAT,	4 );
-	PackVertexAttribute( packed, attribs.uv0,			VERTEX_ATTRIBUTE_LOCATION_UV0,				GL_FLOAT,	2 );
-	PackVertexAttribute( packed, attribs.uv1,			VERTEX_ATTRIBUTE_LOCATION_UV1,				GL_FLOAT,	2 );
-	//PackVertexAttribute( packed, attribs.jointIndices,	VERTEX_ATTRIBUTE_LOCATION_JOINT_INDICES,	GL_INT,		4 );
-	//PackVertexAttribute( packed, attribs.jointWeights,	VERTEX_ATTRIBUTE_LOCATION_JOINT_WEIGHTS,	GL_FLOAT,	4 );
-	
-	std::Debug << "glBufferData" << std::endl;
-	glBufferData( GL_ARRAY_BUFFER, packed.size() * sizeof( packed[0] ), packed.data(), GL_STATIC_DRAW );
-	Opengl::IsOkay("glBufferData vertex");
-	
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, indexBuffer );
-	Opengl::IsOkay("glBindBuffer initidies");
-	
-	glBufferData( GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof( indices[0] ), indices.data(), GL_STATIC_DRAW );
-	Opengl::IsOkay("glBufferData indicies");
-	
-	glBindBuffer( GL_ARRAY_BUFFER, 0 );
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
-	glBindVertexArray( 0 );
-	
-	glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_POSITION );
-	glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_NORMAL );
-	glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_TANGENT );
-	glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_BINORMAL );
-	glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_COLOR );
-	glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_UV0 );
-	glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_UV1 );
-	//glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_JOINT_INDICES );
-	//glDisableVertexAttribArray( VERTEX_ATTRIBUTE_LOCATION_JOINT_WEIGHTS );
-	std::Debug << "TGeometry::Create finished" << std::endl;
-	Opengl_IsOkay();
-}
-
-void Opengl::TGeometry::Update( const VertexAttribs & attribs )
-{
-	vertexCount = attribs.position.size();
-	
-	glBindVertexArray( vertexArrayObject );
-	
-	glBindBuffer( GL_ARRAY_BUFFER, vertexBuffer );
-	
-	std::vector< uint8_t > packed;
-	PackVertexAttribute( packed, attribs.position,		VERTEX_ATTRIBUTE_LOCATION_POSITION,			GL_FLOAT,	3 );
-	PackVertexAttribute( packed, attribs.normal,		VERTEX_ATTRIBUTE_LOCATION_NORMAL,			GL_FLOAT,	3 );
-	PackVertexAttribute( packed, attribs.tangent,		VERTEX_ATTRIBUTE_LOCATION_TANGENT,			GL_FLOAT,	3 );
-	PackVertexAttribute( packed, attribs.binormal,		VERTEX_ATTRIBUTE_LOCATION_BINORMAL,			GL_FLOAT,	3 );
-	PackVertexAttribute( packed, attribs.color,			VERTEX_ATTRIBUTE_LOCATION_COLOR,			GL_FLOAT,	4 );
-	PackVertexAttribute( packed, attribs.uv0,			VERTEX_ATTRIBUTE_LOCATION_UV0,				GL_FLOAT,	2 );
-	PackVertexAttribute( packed, attribs.uv1,			VERTEX_ATTRIBUTE_LOCATION_UV1,				GL_FLOAT,	2 );
-	//PackVertexAttribute( packed, attribs.jointIndices,	VERTEX_ATTRIBUTE_LOCATION_JOINT_INDICES,	GL_INT,		4 );
-	//PackVertexAttribute( packed, attribs.jointWeights,	VERTEX_ATTRIBUTE_LOCATION_JOINT_WEIGHTS,	GL_FLOAT,	4 );
-	
-	glBufferData( GL_ARRAY_BUFFER, packed.size() * sizeof( packed[0] ), packed.data(), GL_STATIC_DRAW );
-}
- */
 
 void Opengl::TGeometry::Draw() const
 {
@@ -1305,17 +1216,24 @@ void Opengl::TGeometry::Draw() const
 	glBindBuffer( GL_ARRAY_BUFFER, vertexBuffer );
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, indexBuffer );
 	
+#if !defined(TARGET_IOS)
+	//	should be left enabled
 	mVertexDescription.EnableAttribs();
-	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
-	//glBindBuffer(GL_ARRAY_BUFFER,0);
 	Opengl_IsOkay();
-
-	glDrawArrays( GL_TRIANGLES, 0, 2 );
-	Opengl_IsOkay();
+#endif
+	
+	//	gr: shouldn't use this, only for debug
+	//glDrawArrays( GL_TRIANGLES, 0, this->vertexCount );
+	//Opengl_IsOkay();
 	
 	
 	glDrawElements( GL_TRIANGLES, indexCount, mIndexType, nullptr );
 	Opengl::IsOkay("glDrawElements");
+
+	//	unbinding so nothing alters it
+#if defined(TARGET_IOS)
+	glBindVertexArray( 0 );
+#endif
 }
 
 void Opengl::TGeometry::Free()
