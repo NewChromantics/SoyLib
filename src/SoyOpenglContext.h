@@ -107,7 +107,6 @@ public:
 	~TRenderTargetFbo()
 	{
 		mFbo.reset();
-		mTexture.Delete();
 	}
 	
 	virtual bool				Bind();
