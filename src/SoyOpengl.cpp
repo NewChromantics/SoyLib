@@ -1257,15 +1257,25 @@ void Opengl::TGeometry::Draw() const
 
 void Opengl::TGeometry::Free()
 {
-	glDeleteVertexArrays( 1, &vertexArrayObject );
-	glDeleteBuffers( 1, &indexBuffer );
-	glDeleteBuffers( 1, &vertexBuffer );
+	if ( vertexArrayObject != GL_ASSET_INVALID )
+	{
+		glDeleteVertexArrays( 1, &vertexArrayObject );
+		vertexArrayObject = GL_ASSET_INVALID;
+	}
 	
-	indexBuffer = 0;
-	vertexBuffer = 0;
-	vertexArrayObject = 0;
-	vertexCount = 0;
-	indexCount = 0;
+	if ( indexBuffer != GL_ASSET_INVALID )
+	{
+		glDeleteBuffers( 1, &indexBuffer );
+		indexBuffer = GL_ASSET_INVALID;
+		indexCount = 0;
+	}
+	
+	if ( vertexBuffer != GL_ASSET_INVALID )
+	{
+		glDeleteBuffers( 1, &vertexBuffer );
+		vertexBuffer = GL_ASSET_INVALID;
+		vertexCount = 0;
+	}
 }
 
 
