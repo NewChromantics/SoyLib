@@ -1,5 +1,6 @@
 #include "SoyOpengl.h"
 #include "RemoteArray.h"
+#include "SoyOpenglContext.h"
 
 namespace Opengl
 {
@@ -275,195 +276,6 @@ void Opengl::TFbo::Unbind()
 	Opengl_IsOkay();
 }
 
-/*
-Opengl::TGeometry Opengl::BuildTesselatedQuad( const int horizontal, const int vertical )
-{
-	const int vertexCount = ( horizontal + 1 ) * ( vertical + 1 );
-	
-	VertexAttribs attribs;
-	attribs.position.resize( vertexCount );
-	attribs.uv0.resize( vertexCount );
-	attribs.color.resize( vertexCount );
-	
-	for ( int y = 0; y <= vertical; y++ )
-	{
-		const float yf = (float) y / (float) vertical;
-		for ( int x = 0; x <= horizontal; x++ )
-		{
-			const float xf = (float) x / (float) horizontal;
-			const int index = y * ( horizontal + 1 ) + x;
-			attribs.position[index].x = -1 + xf * 2;
-			attribs.position[index].z = 0;
-			attribs.position[index].y = -1 + yf * 2;
-			attribs.uv0[index].x = xf;
-			attribs.uv0[index].y = 1.0 - yf;
-			for ( int i = 0; i < 4; i++ )
-			{
-				attribs.color[index][i] = 1.0f;
-			}
-			// fade to transparent on the outside
-			if ( x == 0 || x == horizontal || y == 0 || y == vertical )
-			{
-				attribs.color[index][3] = 0.0f;
-			}
-		}
-	}
-	
-	std::vector< TriangleIndex > indices;
-	indices.resize( horizontal * vertical * 6 );
-	
-	// If this is to be used to draw a linear format texture, like
-	// a surface texture, it is better for cache performance that
-	// the triangles be drawn to follow the side to side linear order.
-	int index = 0;
-	for ( int y = 0; y < vertical; y++ )
-	{
-		for ( int x = 0; x < horizontal; x++ )
-		{
-			indices[index + 0] = y * (horizontal + 1) + x;
-			indices[index + 1] = y * (horizontal + 1) + x + 1;
-			indices[index + 2] = (y + 1) * (horizontal + 1) + x;
-			indices[index + 3] = (y + 1) * (horizontal + 1) + x;
-			indices[index + 4] = y * (horizontal + 1) + x + 1;
-			indices[index + 5] = (y + 1) * (horizontal + 1) + x + 1;
-			index += 6;
-		}
-	}
-	
-	return TGeometry( attribs, indices );
-}
- */
-/*
-Opengl::TGeoQuad::TGeoQuad()
-{
-	mGeometry = BuildTesselatedQuad(1,1);
-}
-
-Opengl::TGeoQuad::~TGeoQuad()
-{
-	mGeometry.Free();
-}
-
-
-bool Opengl::TGeoQuad::Render()
-{
-	mGeometry.Draw();
-	return true;
-}
- */
-/*
-
-Opengl::TShaderEosBlit::TShaderEosBlit()
-{
-	mProgram = Opengl::BuildProgram(
-									"uniform highp mat4 Mvpm;\n"
-									"attribute vec4 Position;\n"
-									//"attribute vec2 TexCoord;\n"
-									//"varying  highp vec2 oTexCoord;\n"
-									"void main()\n"
-									"{\n"
-									"   gl_Position = Position;\n"
-									//"   oTexCoord = TexCoord;\n"
-									"}\n"
-									,
-									//"#extension GL_OES_EGL_image_external : require\n"
-									//"uniform samplerExternalOES Texture0;\n"
-									//"varying highp vec2 oTexCoord;\n"
-									"void main()\n"
-									"{\n"
-									"	gl_FragColor = vec4(1,0,0,1);\n"
-									//"	gl_FragColor = texture2D( Texture0, oTexCoord );\n"
-									"}\n"
-									);
-}
-
-Opengl::TShaderEosBlit::~TShaderEosBlit()
-{
-	DeleteProgram( mProgram );
-}
-
-
-bool Opengl::BlitOES(TTexture& Texture,TFbo& Fbo,TGeoQuad& Geo,TShaderEosBlit& Shader)
-{
-	Opengl::IsOkay("start of BlitOES");
-	if ( !Opengl_IsInitialised() )
-		return false;
-	if ( !Texture.IsValid() )
-	{
-		std::Debug << __func__ << " texture invalid" << std::endl;
-		Soy::Assert(false,"texture invalid");
-		return false;
-	}
-	std::Debug << __func__ << " texture ok" << std::endl;
-	
-	if ( !Fbo.IsValid() )
-	{
-		std::Debug << __func__ << " Fbo invalid" << std::endl;
-		Soy::Assert(false,"Fbo invalid");
-		return false;
-	}
-	std::Debug << __func__ << " fbo ok" << std::endl;
-	
-	if ( !Geo.IsValid() )
-	{
-		std::Debug << __func__ << " Geo invalid" << std::endl;
-		Soy::Assert(false,"Geo invalid");
-		return false;
-	}
-	std::Debug << __func__ << " Geo ok" << std::endl;
-	
-	if ( !Shader.IsValid() )
-	{
-		std::Debug << __func__ << " Shader invalid" << std::endl;
-		Soy::Assert(false,"Shader invalid");
-		return false;
-	}
-	std::Debug << __func__ << " shader ok" << std::endl;
-	
-	std::Debug << __func__ << " bind texture" << std::endl;
-	//	copy surface texture to FBO which is bound to target texture
-	glActiveTexture( GL_TEXTURE0 );
-	Opengl::IsOkay("glActiveTexture");
-	glBindTexture( GL_TEXTURE_EXTERNAL_OES, Texture.mTexture.mName );
-	Opengl::IsOkay("glBindTexture");
-	
-	std::Debug << __func__ << " bind fbo" << std::endl;
-	glBindFramebuffer( GL_FRAMEBUFFER, Fbo.mFbo.mName );
-	Opengl::IsOkay("glBindFramebuffer");
-	glDisable( GL_DEPTH_TEST );
-	glDisable( GL_SCISSOR_TEST );
-	glDisable( GL_STENCIL_TEST );
-	glDisable( GL_CULL_FACE );
-	glDisable( GL_BLEND );
-	
-	std::Debug << __func__ << " glInvalidateFramebuffer" << std::endl;
-	const GLenum fboAttachments[1] = { GL_COLOR_ATTACHMENT0 };
-	glInvalidateFramebuffer_( GL_FRAMEBUFFER, 1, fboAttachments );
-	Opengl::IsOkay("glInvalidateFramebuffer_");
-	
-	glViewport( 0, 0, Texture.mMeta.GetWidth(), Texture.mMeta.GetHeight() );
-	std::Debug << __func__ << " glUseProgram" << std::endl;
-	glUseProgram( Shader.mProgram.program.mName );
-	Opengl::IsOkay("glUseProgram");
-	
-	std::Debug << __func__ << " Geo.Render" << std::endl;
-	Geo.Render();
-	Opengl::IsOkay("Geo.Render");
-	std::Debug << __func__ << " finished render" << std::endl;
-	glUseProgram( 0 );
-	glBindTexture( GL_TEXTURE_EXTERNAL_OES, 0 );
-	glBindFramebuffer( GL_FRAMEBUFFER, 0 );
-	
-	glBindTexture( GL_TEXTURE_2D, Fbo.mTarget.mTexture.mName );
-	glGenerateMipmap( GL_TEXTURE_2D );
-	glBindTexture( GL_TEXTURE_2D, 0 );
-	
-	std::Debug << __func__ << " finished" << std::endl;
-	
-	return true;
-	
-}
- */
 
 Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 	mAutoRelease	( true ),
@@ -1130,25 +942,6 @@ size_t Opengl::TGeometryVertex::GetStride(size_t ElementIndex) const
 }
 
 
-/*
- //	calc stuff
-	Array<size_t> VertexOffsets;
-	Array<size_t> VertexStrides;
-	size_t VertexSize = 0;
-	{
- size_t VertexOffset = 0;
- for ( int v=0;	v<Attribs.GetSize();	v++ )
- {
- //	this changes if we have interleaved attribs
- VertexOffsets.PushBack( VertexOffset );
- VertexStrides.PushBack( Attribs[v].mElementDataSize );
- 
- VertexOffset += Attribs[v].mElementDataSize;
- VertexSize += Attribs[v].mElementDataSize;
- }
-	}
- */
-
 void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
 {
 	for ( int at=0;	at<mElements.GetSize();	at++ )
@@ -1164,17 +957,27 @@ void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
 	}
 }
 
-Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex)
+Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex,TContext& Context)
 {
+	Opengl::IsOkay("Opengl::CreateGeometry flush", false);
+	
+#if defined(TARGET_OSX)
+	if ( !Soy::Assert( Context.mVersion.mMajor >= 3, "VAO not supported" ) )
+		return TGeometry();
+#endif
+	
 	TGeometry Geo;
 	Geo.mVertexDescription = Vertex;
 	
 	glGenBuffers( 1, &Geo.vertexBuffer );
 	glGenBuffers( 1, &Geo.indexBuffer );
+	Opengl::IsOkay( std::string(__func__) + " glGenBuffers" );
 
 	//	fill vertex array
 	glGenVertexArrays( 1, &Geo.vertexArrayObject );
+	Opengl::IsOkay( std::string(__func__) + " glGenVertexArrays" );
 	glBindVertexArray( Geo.vertexArrayObject );
+	Opengl::IsOkay( std::string(__func__) + " glBindVertexArray" );
 	glBindBuffer( GL_ARRAY_BUFFER, Geo.vertexBuffer );
 	Opengl_IsOkay();
 

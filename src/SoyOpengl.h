@@ -67,6 +67,7 @@ namespace Opengl
 	class TGeometry;
 	class TGeometryVertex;
 	class TGeometryVertexElement;
+	class TContext;
 	
 	
 	// It probably isn't worth keeping these shared here, each user
@@ -116,7 +117,7 @@ namespace Opengl
 	static const int MAX_GEOMETRY_INDICES	= 1024 * 1024 * 3;
 	
 	TGeometry BuildTesselatedQuad( const int horizontal, const int vertical );
-	TGeometry	CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const TGeometryVertex& Vertex);
+	TGeometry	CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const TGeometryVertex& Vertex,TContext& Context);
 
 #define Opengl_IsInitialised()	Opengl::IsInitialised(__func__,true)
 #define Opengl_IsOkay()			Opengl::IsOkay(__func__)
