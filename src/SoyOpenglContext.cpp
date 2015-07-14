@@ -22,7 +22,6 @@ Opengl::TVersion::TVersion(const std::string& VersionStr) :
 	};
 	
 	Soy::StringSplitByMatches( PushVersions, VersionStr, " ." );
-	std::Debug << "Decoded Opengl version " << VersionStr << " to " << (*this) << std::endl;
 }
 
 
@@ -71,6 +70,22 @@ void Opengl::TJobQueue::Flush(TContext& Context)
 			break;
 		}
 	}
+}
+
+
+Opengl::TContext::TContext()
+{
+}
+
+void Opengl::TContext::Init()
+{
+	//	init version
+	auto* VersionString = reinterpret_cast<const char*>( glGetString( GL_VERSION ) );
+	Soy::Assert( VersionString!=nullptr, "Version string invalid. Context not valid? Not on opengl thread?" );
+
+	mVersion = Opengl::TVersion( std::string( VersionString ) );
+	
+	std::Debug << "Opengl version: " << mVersion << std::endl;
 }
 
 

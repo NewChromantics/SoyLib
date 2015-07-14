@@ -98,11 +98,10 @@ private:
 class Opengl::TContext
 {
 public:
-	TContext()
-	{
-	};
+	TContext();
 	virtual ~TContext()				{}
 
+	void			Init();
 	void			Iteration()		{	FlushJobs();	}
 	virtual bool	Lock()			{	return true;	}
 	virtual void	Unlock()		{	}
