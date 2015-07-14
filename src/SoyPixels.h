@@ -34,12 +34,10 @@ namespace SoyPixelsFormat
 		//HSLA,
 	};
 
-	int			GetChannelCount(Type Format);
-	Type		GetFormatFromChannelCount(int ChannelCount);
+	size_t		GetChannelCount(Type Format);
+	Type		GetFormatFromChannelCount(size_t ChannelCount);
 	inline bool	IsValid(Type Format)			{	return GetChannelCount( Format ) > 0;	}
 	
-	bool		GetOpenglFormat(int& glFormat,Type Format);
-	Type		GetFormatFromOpenglFormat(int glFormat);
 	bool		GetOpenclFormat(int& ChannelOrder,Type Format);
 	
 	int			GetMaxValue(SoyPixelsFormat::Type Format);
@@ -67,11 +65,10 @@ public:
 	uint8			GetChannels() const				{	return SoyPixelsFormat::GetChannelCount(mFormat);	}
 	uint16			GetWidth() const				{	return mWidth;	}
 	uint16			GetHeight(size_t DataSize) const	{	return IsValid() && DataSize>0 ? size_cast<uint16>(DataSize / (GetChannels()*mWidth)) : 0;	}
-	bool			GetOpenglFormat(int& glFormat) const	{	return SoyPixelsFormat::GetOpenglFormat( glFormat, GetFormat() );	}
 	bool			GetOpenclFormat(int& clFormat) const	{	return SoyPixelsFormat::GetOpenclFormat( clFormat, GetFormat() );	}
-	size_t			GetDataSize(int Height) const	{	return Height * GetChannels() * GetWidth();	}
+	size_t			GetDataSize(size_t Height) const	{	return Height * GetChannels() * GetWidth();	}
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
-	void			DumbSetChannels(int Channels)	{	mFormat = SoyPixelsFormat::GetFormatFromChannelCount(Channels);	}
+	void			DumbSetChannels(size_t Channels)	{	mFormat = SoyPixelsFormat::GetFormatFromChannelCount(Channels);	}
 	void			DumbSetWidth(uint16 Width)		{	mWidth = Width;	}
 	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
 
@@ -93,7 +90,7 @@ public:
 	mDataSize	( 0 )
 	{
 	}
-	SoyPixelsMetaFull(int Width,int Height,SoyPixelsFormat::Type Format)
+	SoyPixelsMetaFull(size_t Width,size_t Height,SoyPixelsFormat::Type Format)
 	{
 		mWidth = Width;
 		mFormat = Format;

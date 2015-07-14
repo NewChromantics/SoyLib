@@ -97,7 +97,7 @@ int SoyPixelsFormat::GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format)
 
 
 
-int SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
+size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
 	{
@@ -115,7 +115,7 @@ int SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	}
 }
 
-SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(int ChannelCount)
+SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(size_t ChannelCount)
 {
 	switch ( ChannelCount )
 	{
@@ -306,7 +306,7 @@ bool ConvertFormat_KinectDepthToRgb(ArrayInterface<char>& Pixels,SoyPixelsMeta& 
 	DepthPixels.SetSize( Pixels.GetSize() / 2 );
 	memcpy( DepthPixels.GetArray(), Pixels.GetArray(), DepthPixels.GetDataSize() );
 	
-	int Components = SoyPixelsFormat::GetChannelCount( NewFormat );
+	auto Components = SoyPixelsFormat::GetChannelCount( NewFormat );
 	int Height = Meta.GetHeight( Pixels.GetDataSize() );
 	int PixelCount = Meta.GetWidth() * Height;
 	
@@ -359,9 +359,9 @@ bool DepthToGreyOrRgb(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixels
 	DepthPixels.SetSize( Pixels.GetSize() / 2 );
 	memcpy( DepthPixels.GetArray(), Pixels.GetArray(), DepthPixels.GetDataSize() );
 	
-	int Components = SoyPixelsFormat::GetChannelCount( NewFormat );
-	int Height = Meta.GetHeight( Pixels.GetDataSize() );
-	int PixelCount = Meta.GetWidth() * Height;
+	auto Components = SoyPixelsFormat::GetChannelCount( NewFormat );
+	auto Height = Meta.GetHeight( Pixels.GetDataSize() );
+	auto PixelCount = Meta.GetWidth() * Height;
 	
 	//	realloc
 	Pixels.SetSize( Components * PixelCount );
@@ -443,10 +443,10 @@ bool DepthToGreyOrRgb(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixels
 
 bool ConvertFormat_BgrToRgb(ArrayInterface<char>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
-	int Height = Meta.GetHeight( Pixels.GetDataSize() );
-	int PixelCount = Meta.GetWidth() * Height;
-	int SrcChannels = Meta.GetChannels();
-	int DestChannels = SoyPixelsFormat::GetChannelCount( NewFormat );
+	auto Height = Meta.GetHeight( Pixels.GetDataSize() );
+	auto PixelCount = Meta.GetWidth() * Height;
+	auto SrcChannels = Meta.GetChannels();
+	auto DestChannels = SoyPixelsFormat::GetChannelCount( NewFormat );
 	if ( SrcChannels != DestChannels )
 		return false;
 
@@ -471,7 +471,7 @@ bool ConvertFormat_RGBAToGreyscale(ArrayInterface<char>& Pixels,SoyPixelsMeta& M
 	int Height = Meta.GetHeight( Pixels.GetDataSize() );
 	int PixelCount = Meta.GetWidth() * Height;
 	int Channels = Meta.GetChannels();
-	int GreyscaleChannels = SoyPixelsFormat::GetChannelCount(NewFormat);
+	auto GreyscaleChannels = SoyPixelsFormat::GetChannelCount(NewFormat);
 
 	//	todo: store alpha in loop
 	assert( GreyscaleChannels == 1 );
