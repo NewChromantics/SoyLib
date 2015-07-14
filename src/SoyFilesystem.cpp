@@ -48,8 +48,8 @@ void OnFileChanged(
 	for ( int e=0;	e<numEvents;	e++ )
 	{
 		std::string Filename( paths[e] );
-		const FSEventStreamEventFlags& EventFlags( eventFlags[e] );
-		const FSEventStreamEventId EventIds( eventIds[e] );
+		//const FSEventStreamEventFlags& EventFlags( eventFlags[e] );
+		//const FSEventStreamEventId EventIds( eventIds[e] );
 		
 		FileWatch.mOnChanged.OnTriggered( Filename );
 	}
