@@ -90,3 +90,70 @@ public:
 public:
 	TYPE	mObject;
 };
+
+
+
+
+//	smart pointer for objective c instances
+#if defined(__OBJC__)
+template<typename TYPE>
+class ObjcPtr : public NonCopyable
+{
+public:
+	ObjcPtr(TYPE* Object=nullptr) :
+	mObject	( nullptr )
+	{
+		Retain(Object);
+	}
+	template<typename THAT>
+	explicit ObjcPtr(const ObjcPtr<THAT>& That) :
+	mObject	( nullptr )
+	{
+		Retain( static_cast<THAT*>(That.mObject) );
+	}
+	
+	~ObjcPtr()
+	{
+		Release();
+	}
+	
+	void		Retain(TYPE* Object)
+	{
+		Release();
+		mObject = Object;
+#if !defined(ARC_ENABLED)
+		if ( mObject )
+			[mObject retain];
+#endif
+	}
+	
+	void		Release()
+	{
+#if !defined(ARC_ENABLED)
+		if ( mObject )
+			[mObject release];
+#endif
+		mObject = nullptr;
+	}
+	
+	/*
+	 template<typename THAT>
+	 ObjcPtr&	operator=(const ObjcPtr<THAT>& That)
+	 {
+		Retain( static_cast<THAT*>(That.mObject) );
+		return *this;
+	 }
+	 */
+	
+	//TYPE*		operator->() const	{	return mObject; }
+	operator	TYPE*() const	{	return mObject; }
+#if defined(ARC_ENABLED)
+	operator	bool() const	{	return mObject ? (mObject!=nullptr) : false; }
+#else
+	operator	bool() const	{	return mObject ? ([mObject retainCount]>0) : false; }
+#endif
+public:
+	TYPE*	mObject;
+};
+#endif
+
