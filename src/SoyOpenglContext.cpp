@@ -1,5 +1,29 @@
 #include "SoyOpenglContext.h"
+#include "SoyEnum.h"
 
+
+
+Opengl::TVersion::TVersion(const std::string& VersionStr) :
+	mMajor	( 0 ),
+	mMinor	( 0 )
+{
+	int PartCounter = 0;
+	auto PushVersions = [&PartCounter,this](const std::string& PartStr)
+	{
+		//	got all we need
+		if ( PartCounter >= 2 )
+			return false;
+		
+		auto& PartInt = (PartCounter==0) ? mMajor : mMinor;
+		Soy::StringToType( PartInt, PartStr );
+		
+		PartCounter++;
+		return true;
+	};
+	
+	Soy::StringSplitByMatches( PushVersions, VersionStr, " ." );
+	std::Debug << "Decoded Opengl version " << VersionStr << " to " << (*this) << std::endl;
+}
 
 
 void Opengl::TJobQueue::Push(std::shared_ptr<TJob>& Job)

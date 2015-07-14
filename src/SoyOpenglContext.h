@@ -2,13 +2,14 @@
 #pragma once
 
 #include "SoyOpengl.h"
-
+#include "SoyEnum.h"
 
 
 namespace Opengl
 {
 	class TContext;			//	opengl context abstraction - contexts are not thread safe, but can share objects
 	class TRenderTarget;	//	PBO/FBO, but sometimes with additional stuff (buffer flip etc depending on source)
+	class TVersion;
 
 	class TRenderTargetFbo;
 	
@@ -16,10 +17,38 @@ namespace Opengl
 	class TJobQueue;
 	class TJob;
 	class TJob_Function;
+	
 };
 
 
+class Opengl::TVersion
+{
+public:
+	TVersion() :
+		mMajor	( 0 ),
+		mMinor	( 0 )
+	{
+	}
+	TVersion(size_t Major,size_t Minor) :
+		mMajor	( Major ),
+		mMinor	( Minor )
+	{
+	}
+	explicit TVersion(const std::string& VersionStr);
+	
+public:
+	size_t	mMajor;
+	size_t	mMinor;
+};
 
+namespace Opengl
+{
+	inline std::ostream& operator<<(std::ostream &out,const Opengl::TVersion& in)
+	{
+		out << in.mMajor << '.' << in.mMinor;
+		return out;
+	}
+}
 
 class Opengl::TJob
 {
@@ -64,9 +93,14 @@ private:
 	std::recursive_mutex				mLock;
 };
 
+
+
 class Opengl::TContext
 {
 public:
+	TContext()
+	{
+	};
 	virtual ~TContext()				{}
 
 	void			Iteration()		{	FlushJobs();	}
@@ -77,6 +111,7 @@ public:
 	void			FlushJobs()		{	mJobQueue.Flush( *this );	}
 	
 	TJobQueue		mJobQueue;
+	TVersion		mVersion;
 };
 
 
