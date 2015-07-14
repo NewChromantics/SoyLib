@@ -25,6 +25,11 @@ namespace SoyPixelsFormat
 		FreenectDepth11bit	= 9,	//	16 bit
 		FreenectDepthmm	= 10,	//	16 bit
 	
+
+		//	special cases for AVF decoder handling
+		YCBCR8_Full		= 11,
+		YCBCR8_Video	= 12,
+
 		//HSL,
 		//HSLA,
 	};
