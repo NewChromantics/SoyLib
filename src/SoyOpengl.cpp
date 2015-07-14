@@ -1297,6 +1297,7 @@ const std::map<SoyPixelsFormat::Type,GLenum>& Opengl::GetPixelFormatMap()
 		std::make_pair( SoyPixelsFormat::BGR, GL_BGR ),
 		std::make_pair( SoyPixelsFormat::Greyscale, GL_RED ),
 		std::make_pair( SoyPixelsFormat::GreyscaleAlpha, GL_RG ),
+		std::make_pair( SoyPixelsFormat::BGRA, GL_BGRA ),
 #endif
 	};
 	return PixelFormatMap;
