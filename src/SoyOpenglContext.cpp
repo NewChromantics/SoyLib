@@ -34,8 +34,10 @@ void Opengl::TJobQueue::Push(std::shared_ptr<TJob>& Job)
 
 void Opengl::TJobQueue::Flush(TContext& Context)
 {
+	ofScopeTimerWarning LockTimer("Waiting for job lock",4,false);
 	while ( true )
 	{
+		LockTimer.Start();
 		//	pop task
 		mLock.lock();
 		std::shared_ptr<TJob> Job;
@@ -47,6 +49,7 @@ void Opengl::TJobQueue::Flush(TContext& Context)
 		}
 		//bool MoreJobs = !mJobs.empty();
 		mLock.unlock();
+		LockTimer.Stop();
 		
 		if ( !Job )
 			break;
@@ -133,12 +136,8 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Conte
 		return true;
 	};
 	
-	//	create fbo object in the context, flush the commands and wait for the result. then throw if it fails!
+	std::Debug << "Deffering FBO rendertarget creation to " << ExistingTexture.mMeta << std::endl;
 	Context.PushJob( CreateFbo );
-	Context.FlushJobs();
-	
-	//	check result of fbo
-	Soy::Assert( mFbo!=nullptr, "Failed to create FBO" );
 }
 
 
@@ -179,10 +178,13 @@ void Opengl::TRenderTargetFbo::Unbind()
 	if ( !mFbo )
 		return;
 	
-	//	needed?
-	glFlush();
-	glFinish();
-	
+	static bool Flush = false;
+	if ( Flush )
+	{
+		//	needed?
+		glFlush();
+		glFinish();
+	}
 	mFbo->Unbind();
 }
 
