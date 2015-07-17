@@ -21,7 +21,40 @@ namespace Opengl
 		throw Soy::AssertException( Error.str() );
 	}
 
+	//	get some CPU-persistent-storage for a texture
+	//	todo: some way to clean this up. We WOULD keep it on a texture... IF that texture was persistent (ie. not from unity)
+	std::shared_ptr<SoyPixels>	GetClientStorage(TTexture& Texture);
 }
+
+std::shared_ptr<SoyPixels> Opengl::GetClientStorage(TTexture& Texture)
+{
+	if ( !Texture.IsValid() )
+		return nullptr;
+	
+	static bool AllowOnTextureStorage = false;
+	if ( AllowOnTextureStorage )
+	{
+		//	can store it on the texture, if we own the texture
+		if ( Texture.mAutoRelease )
+		{
+			if ( !Texture.mClientBuffer )
+				Texture.mClientBuffer.reset( new SoyPixels );
+			return Texture.mClientBuffer;
+		}
+	}
+	
+	//	look in a map
+	//	gr: assume texture ID is persistent... may need to change if we do multiple contexts, and caller can check if the data is not appropriate (if it'll re-alloc, maybe we can return a const storage?)
+	//	gr: does map need locking?
+	static std::map<GLuint,std::shared_ptr<SoyPixels>> gTextureClientStorage;
+	
+	std::shared_ptr<SoyPixels>& Storage = gTextureClientStorage[Texture.mTexture.mName];
+	if ( !Storage )
+		Storage.reset( new SoyPixels );
+	
+	return Storage;
+}
+
 
 template<> GLenum Opengl::GetTypeEnum<uint16>()		{	return GL_UNSIGNED_SHORT;	}
 template<> GLenum Opengl::GetTypeEnum<GLshort>()	{	return GL_UNSIGNED_SHORT;	}
@@ -426,6 +459,47 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()" );
 #endif
 
+	const SoyPixelsImpl* UsePixels = &SourcePixels;
+
+	
+	//	we CANNOT go from big to small, only small to big, so to avoid corrupted textures, lets shrink
+	SoyPixels Resized;
+	static bool AllowClipResize = true;
+	if ( AllowClipResize )
+	{
+		auto PixelsWidth = UsePixels->GetWidth();
+		auto PixelsHeight = UsePixels->GetHeight();
+		if ( TextureWidth < PixelsWidth || TextureHeight < PixelsHeight )
+		{
+			std::Debug << "Warning, pixels(" << PixelsWidth << "x" << PixelsHeight << ") too large for texture(" << TextureWidth << "x" << TextureHeight << "), resizing on CPU" << std::endl;
+			Resized.Copy( *UsePixels );
+			Resized.ResizeClip( std::min<uint16>(TextureWidth,PixelsWidth), std::min<uint16>(TextureHeight,PixelsHeight) );
+			UsePixels = &Resized;
+		}
+	}
+
+	bool IsSameDimensions = (UsePixels->GetWidth()==TextureWidth) && (UsePixels->GetHeight()==TextureHeight);
+	bool SubImage = !Stretch;
+	bool UsingAppleStorage = (!SubImage || IsSameDimensions) && Opengl::TContext::IsSupported( OpenglExtensions::AppleClientStorage );
+
+	if ( UsingAppleStorage )
+	{
+		static bool AllowAppleStorage = false;
+		if ( !AllowAppleStorage )
+			UsingAppleStorage = false;
+	}
+
+	//	fetch our client storage
+	std::shared_ptr<SoyPixels> ClientStorage;
+	if ( UsingAppleStorage )
+	{
+		ClientStorage = Opengl::GetClientStorage( *this );
+		if ( !ClientStorage )
+			UsingAppleStorage = false;
+	}
+	
+	if ( UsingAppleStorage )
+		DoOpenglConversion = false;
 	
 	//	pixel data format
 	auto GlPixelsFormat = Opengl::GetUploadPixelFormat( *this, SourcePixels.GetFormat() );
@@ -434,7 +508,6 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 
 	//	gr: take IOS's target-must-match-source requirement into consideration here (replace GetUploadPixelFormat)
 	SoyPixels ConvertedPixels;
-	const SoyPixelsImpl* UsePixels = &SourcePixels;
 	if ( DoSoyConversion )
 	{
 		//	convert to upload-compatible type
@@ -461,31 +534,13 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 		
 	}
 	
-	//	we CANNOT go from big to small, only small to big, so to avoid corrupted textures, lets shrink
-	SoyPixels Resized;
-	static bool AllowClipResize = true;
-	if ( AllowClipResize )
-	{
-		auto PixelsWidth = UsePixels->GetWidth();
-		auto PixelsHeight = UsePixels->GetHeight();
-		if ( TextureWidth < PixelsWidth || TextureHeight < PixelsHeight )
-		{
-			std::Debug << "Warning, pixels(" << PixelsWidth << "x" << PixelsHeight << ") too large for texture(" << TextureWidth << "x" << TextureHeight << "), resizing on CPU" << std::endl;
-			Resized.Copy( *UsePixels );
-			Resized.ResizeClip( std::min<uint16>(TextureWidth,PixelsWidth), std::min<uint16>(TextureHeight,PixelsHeight) );
-			UsePixels = &Resized;
-		}
-	}
 	
 	auto& FinalPixels = *UsePixels;
 	
-	bool IsSameDimensions = (UsePixels->GetWidth()==TextureWidth) && (UsePixels->GetHeight()==TextureHeight);
-	
-	//	todo: find when we NEED to make a new texture (uninitialised)
-	bool SubImage = !Stretch;
+
 
 #if defined(TARGET_OSX)
-	if ( (!SubImage || IsSameDimensions) && Opengl::TContext::IsSupported( OpenglExtensions::AppleClientStorage ) )
+	if ( UsingAppleStorage )
 	{
 		std::Debug << "Using apple storage" << std::endl;
 		
@@ -496,19 +551,9 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 			
 		glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
 		
-		//	persistent storage on CPU. given weak & strong references to this texture, this should be quite safe
-		//	but make sure there is never a reallocation!
-		if ( !mClientBuffer )
-		{
-			mClientBuffer.reset( new SoyPixels() );
-			mClientBuffer->Copy( FinalPixels, true );
-		}
-		else
-		{
-			mClientBuffer->Copy( FinalPixels, false );
-		}
-		
-		auto& PixelsBuffer = *mClientBuffer;
+		//	make sure there is never a reallocation, unless it's the first
+		auto& PixelsBuffer = *ClientStorage;
+		PixelsBuffer.Copy( FinalPixels, PixelsBuffer.IsValid() ? false : true );
 		
 		GLenum TargetFormat = GL_BGRA;
 		GLenum TargetStorage = GL_UNSIGNED_INT_8_8_8_8_REV;
