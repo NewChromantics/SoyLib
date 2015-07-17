@@ -173,7 +173,7 @@ public:
 	bool			Init(uint16 Width,uint16 Height,uint8 Channels);
 	void			Clear(bool Dealloc=false);
 
-	virtual bool	Copy(const SoyPixelsImpl& that);
+	virtual bool	Copy(const SoyPixelsImpl& that,bool AllowReallocation=true);
 	
 	uint16			GetHeight() const				{	return GetMeta().GetHeight( GetPixelsArray().GetSize() );	}
 	bool			IsValid() const					{	return GetMeta().IsValid();	}

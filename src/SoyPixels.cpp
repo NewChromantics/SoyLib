@@ -1325,10 +1325,20 @@ void SoyPixelsImpl::RotateFlip()
 	}
 }
 
-bool SoyPixelsImpl::Copy(const SoyPixelsImpl &that)
+bool SoyPixelsImpl::Copy(const SoyPixelsImpl &that,bool AllowReallocation)
 {
 	if ( &that == this )
 		return true;
+
+	if ( !AllowReallocation )
+	{
+		//	gr: add a "pre-allocated-datasize" func
+		if ( this->GetPixelsArray().GetDataSize() != that.GetPixelsArray().GetDataSize() )
+		{
+			//	warning here?
+			return false;
+		}
+	}
 	
 	this->GetMeta() = that.GetMeta();
 	this->GetPixelsArray().Copy( that.GetPixelsArray() );
