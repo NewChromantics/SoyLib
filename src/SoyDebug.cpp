@@ -227,7 +227,11 @@ bool Soy::Platform::DebugBreak()
 #if defined(TARGET_OSX)
 	//	gr: supposedly this works, if you enable it in the scheme, but I don't know where it's declared
 	//Debugger();
-	__asm__("int $3");
+	static bool AssemblerBreak = true;
+	if ( AssemblerBreak )
+	{
+		__asm__("int $3");
+	}
 	//	raise an interrupt
 	//	raise(SIGINT);
 	//raise(SIGUSR1);
