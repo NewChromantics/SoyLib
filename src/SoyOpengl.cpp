@@ -172,11 +172,6 @@ bool Opengl::IsOkay(const std::string& Context,bool ThrowException)
 	return Soy::Assert( Error == GL_NONE , ErrorStr.str() );
 }
 
-bool Opengl::IsSupported(const char *ExtensionName)
-{
-	return false;
-}
-
 
 Opengl::TFbo::TFbo(TTexture Texture) :
 	mFbo		( GL_ASSET_INVALID ),
@@ -227,10 +222,35 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 
 Opengl::TFbo::~TFbo()
 {
+	Delete();
+}
+
+void Opengl::TFbo::Delete(Opengl::TContext &Context)
+{
+	if ( !mFbo.IsValid() )
+		return;
+
+	GLuint FboName = mFbo.mName;
+	auto DefferedDelete = [FboName]
+	{
+		glDeleteFramebuffers( 1, &FboName );
+		Opengl_IsOkay();
+		return true;
+	};
+
+	Context.PushJob( DefferedDelete );
+
+	//	dont-auto delete later
+	mFbo.mName = GL_ASSET_INVALID;
+}
+
+void Opengl::TFbo::Delete()
+{
 	if ( mFbo.mName != GL_ASSET_INVALID )
 	{
 		glDeleteFramebuffers( 1, &mFbo.mName );
 		mFbo.mName = GL_ASSET_INVALID;
+		Opengl_IsOkay();
 	}
 }
 
@@ -276,6 +296,15 @@ void Opengl::TFbo::Unbind()
 	Opengl_IsOkay();
 }
 
+size_t Opengl::TFbo::GetAlphaBits() const
+{
+	GLint AlphaSize = -1;
+	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE, &AlphaSize );
+	Opengl::IsOkay("Get FBO GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE");
+	std::Debug << "FBO has " << AlphaSize << " alpha bits" << std::endl;
+
+	return AlphaSize < 0 ? 0 :AlphaSize;
+}
 
 Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 	mAutoRelease	( true ),
@@ -355,6 +384,7 @@ void Opengl::TTexture::Delete()
 
 bool Opengl::TTexture::Bind()
 {
+	Opengl::IsOkay("Texture bind flush",false);
 	glBindTexture( mType, mTexture.mName );
 	return Opengl_IsOkay();
 }
@@ -364,8 +394,14 @@ void Opengl::TTexture::Unbind()
 	glBindTexture( mType, GL_ASSET_INVALID );
 }
 
-void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool DoConversion)
+void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool DoSoyConversion,bool DoOpenglConversion)
 {
+	if ( !IsValid() )
+	{
+		std::Debug << "Trying to upload to invalid texture " << std::endl;
+		return;
+	}
+	
 	Bind();
 	Opengl::IsOkay( std::string(__func__) + " Bind()" );
 
@@ -393,11 +429,13 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 	
 	//	pixel data format
 	auto GlPixelsFormat = Opengl::GetUploadPixelFormat( *this, SourcePixels.GetFormat() );
+	if ( !DoOpenglConversion )
+		GlPixelsFormat = GetPixelFormat( this->GetFormat() );
 
 	//	gr: take IOS's target-must-match-source requirement into consideration here (replace GetUploadPixelFormat)
 	SoyPixels ConvertedPixels;
 	const SoyPixelsImpl* UsePixels = &SourcePixels;
-	if ( DoConversion )
+	if ( DoSoyConversion )
 	{
 		//	convert to upload-compatible type
 		Array<SoyPixelsFormat::Type> TryFormats;
@@ -425,8 +463,8 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 	
 	//	we CANNOT go from big to small, only small to big, so to avoid corrupted textures, lets shrink
 	SoyPixels Resized;
-	static bool AllowResize = true;
-	if ( AllowResize )
+	static bool AllowClipResize = true;
+	if ( AllowClipResize )
 	{
 		auto PixelsWidth = UsePixels->GetWidth();
 		auto PixelsHeight = UsePixels->GetHeight();
@@ -441,13 +479,16 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 	
 	auto& FinalPixels = *UsePixels;
 	
+	bool IsSameDimensions = (UsePixels->GetWidth()==TextureWidth) && (UsePixels->GetHeight()==TextureHeight);
 	
 	//	todo: find when we NEED to make a new texture (uninitialised)
 	bool SubImage = !Stretch;
 
 #if defined(TARGET_OSX)
-	if ( !SubImage && Opengl::IsSupported("GL_APPLE_client_storage") )
+	if ( (!SubImage || IsSameDimensions) && Opengl::TContext::IsSupported( OpenglExtensions::AppleClientStorage ) )
 	{
+		std::Debug << "Using apple storage" << std::endl;
+		
 		//	https://developer.apple.com/library/mac/documentation/graphicsimaging/conceptual/opengl-macprogguide/opengl_texturedata/opengl_texturedata.html
 		glTexParameteri(mType,
 						GL_TEXTURE_STORAGE_HINT_APPLE,
@@ -455,18 +496,29 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 			
 		glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
 		
-		//	gr: need a buffering system to save a buffer per texture then just update the pixels
-		static SoyPixels PixelsBuffer;
-		PixelsBuffer.Copy( FinalPixels );
-			
+		//	persistent storage on CPU. given weak & strong references to this texture, this should be quite safe
+		//	but make sure there is never a reallocation!
+		if ( !mClientBuffer )
+		{
+			mClientBuffer.reset( new SoyPixels() );
+			mClientBuffer->Copy( FinalPixels, true );
+		}
+		else
+		{
+			mClientBuffer->Copy( FinalPixels, false );
+		}
+		
+		auto& PixelsBuffer = *mClientBuffer;
+		
 		GLenum TargetFormat = GL_BGRA;
 		GLenum TargetStorage = GL_UNSIGNED_INT_8_8_8_8_REV;
+		ofScopeTimerWarning Timer("glTexImage2D(GL_APPLE_client_storage)", 10 );
 		glTexImage2D(mType, MipLevel, GlPixelsFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, TargetFormat, TargetStorage, PixelsBuffer.GetPixelsArray().GetArray() );
 		Opengl_IsOkay();
 	}
 	else
 #endif
-	if ( !SubImage )
+	if ( !SubImage )	//	gr: if we find glTexImage2D faster add || IsSameDimensions
 	{
 		int Border = 0;
 		
@@ -482,6 +534,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 		//	only for "new" textures
 		GLuint TargetFormat = GL_RGBA;
 	
+		ofScopeTimerWarning Timer("glTexImage2D", 10 );
 		glTexImage2D( mType, MipLevel, TargetFormat,  Width, Height, Border, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
 		Opengl_IsOkay();
 	}
@@ -504,7 +557,9 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 		}
 		
 		//	invalid operation here means the unity pixel format is probably different to the pixel data we're trying to push now
+		ofScopeTimerWarning Timer("glTexSubImage2D", 10 );
 		glTexSubImage2D( mType, MipLevel, XOffset, YOffset, Width, Height, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
+		Timer.Stop();
 		
 		std::stringstream Context;
 		Context << __func__ << "glTexSubImage2D(" << Opengl::GetEnumString(GlPixelsFormat) << ")";
@@ -516,6 +571,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 			int Border = 0;
 			
 			//	gr: first copy needs to initialise the texture... before we can use subimage
+			ofScopeTimerWarning Timer2("glTexImage2D fallback", 10 );
 			glTexImage2D( GL_TEXTURE_2D, MipLevel, TargetFormat, Width, Height, Border, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
 			Opengl::IsOkay("glTexImage2D",false);
 		}
@@ -1178,9 +1234,8 @@ void Opengl::ClearDepth()
 	glClear(GL_DEPTH_BUFFER_BIT);
 }
 
-void Opengl::ClearColour(Soy::TRgb Colour)
+void Opengl::ClearColour(Soy::TRgb Colour,float Alpha)
 {
-	float Alpha = 1;
 	glClearColor( Colour.r(), Colour.g(), Colour.b(), Alpha );
 	glClear(GL_COLOR_BUFFER_BIT);
 }

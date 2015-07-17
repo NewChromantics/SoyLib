@@ -124,7 +124,6 @@ namespace Opengl
 
 	bool	IsInitialised(const std::string& Context,bool ThrowException);	//	throws exception
 	bool	IsOkay(const std::string& Context,bool ThrowException=true);	//	throws exception
-	bool	IsSupported(const char* ExtensionName);
 	std::string		GetEnumString(GLenum Type);
 
 	SoyPixelsFormat::Type	GetPixelFormat(GLenum glFormat);
@@ -135,7 +134,7 @@ namespace Opengl
 	void	UpgradeFragShader(ArrayBridge<std::string>&& Shader,size_t Version);
 
 	//	helpers
-	void	ClearColour(Soy::TRgb Colour);
+	void	ClearColour(Soy::TRgb Colour,float Alpha=1);
 	void	ClearDepth();
 	void	SetViewport(Soy::Rectf Viewport);
 };
@@ -380,6 +379,7 @@ public:
 			mTexture = Weak.mTexture;
 			mMeta = Weak.mMeta;
 			mType = Weak.mType;
+			mClientBuffer = Weak.mClientBuffer;
 		}
 		return *this;
 	}
@@ -392,6 +392,7 @@ public:
 			mTexture = Move.mTexture;
 			mMeta = Move.mMeta;
 			mType = Move.mType;
+			mClientBuffer = Move.mClientBuffer;
 			
 			//	stolen the resource
 			Move.mAutoRelease = false;
@@ -409,13 +410,14 @@ public:
 	void				Unbind();
 	bool				IsValid() const;
 	void				Delete();
-	void				Copy(const SoyPixelsImpl& Pixels,bool Stretch,bool DoConversion);
+	void				Copy(const SoyPixelsImpl& Pixels,bool Stretch,bool DoSoyConversion,bool DoOpenglConversion);
 	
 public:
-	bool				mAutoRelease;
-	TAsset				mTexture;
-	SoyPixelsMetaFull	mMeta;
-	GLenum				mType;		//	GL_TEXTURE_2D by default. gr: "type" may be the wrong nomenclature here
+	bool						mAutoRelease;
+	std::shared_ptr<SoyPixels>	mClientBuffer;	//	for CPU-buffered textures, it's kept here. ownership should go with mAutoRelease, but shared_ptr maybe takes care of that?
+	TAsset						mTexture;
+	SoyPixelsMetaFull			mMeta;
+	GLenum						mType;		//	GL_TEXTURE_2D by default. gr: "type" may be the wrong nomenclature here
 };
 
 class Opengl::TFbo
@@ -428,6 +430,11 @@ public:
 	bool		Bind();
 	void		Unbind();
 	void		InvalidateContent();
+	
+	void		Delete(Opengl::TContext& Context);	//	deffered delete
+	void		Delete();
+	
+	size_t		GetAlphaBits() const;
 	
 	TAsset		mFbo;
 	TTexture	mTarget;

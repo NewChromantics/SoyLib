@@ -5,6 +5,17 @@
 #include "SoyEnum.h"
 
 
+namespace OpenglExtensions
+{
+	enum Type
+	{
+		Invalid,
+		AppleClientStorage,
+	};
+	
+	DECLARE_SOYENUM( OpenglExtensions );
+}
+
 namespace Opengl
 {
 	class TContext;			//	opengl context abstraction - contexts are not thread safe, but can share objects
@@ -108,6 +119,8 @@ public:
 	void			PushJob(std::function<bool(void)> Lambda);
 	void			PushJob(std::shared_ptr<TJob>& Job)			{	mJobQueue.Push( Job );	}
 	void			FlushJobs()		{	mJobQueue.Flush( *this );	}
+	
+	static bool		IsSupported(OpenglExtensions::Type Extension);
 	
 	TJobQueue		mJobQueue;
 	TVersion		mVersion;
