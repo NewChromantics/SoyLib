@@ -14,8 +14,13 @@ HEADER_SEARCH_PATHS = $(inherited) $(SOY_PATH)/src/** $(POP_PATH)/src/**
 ARCHS = armv7
 SUPPORTED_PLATFORMS = iphoneos
 
+//	gr: reduce this as much as possible
+IPHONEOS_DEPLOYMENT_TARGET = 8.3
+
 //	symbols please!
 DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
 STRIP_INSTALLED_PRODUCT = NO
 DEPLOYMENT_POSTPROCESSING = NO
 COPY_PHASE_STRIP = NO
+
+
