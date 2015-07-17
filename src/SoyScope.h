@@ -15,11 +15,13 @@ namespace Soy
 		TScopeCall(ENTER_FUNCTION EnterFunc,EXIT_FUNCTION ExitFunc) :
 		mExitFunc		( ExitFunc )
 		{
-			EnterFunc();
+			if ( EnterFunc )
+				EnterFunc();
 		}
 		~TScopeCall()
 		{
-			mExitFunc();
+			if ( mExitFunc )
+				mExitFunc();
 		}
 		
 		EXIT_FUNCTION	mExitFunc;
