@@ -1,20 +1,31 @@
 #pragma once
 
-#include <stdint.h>
 
+#if defined(__OBJC__)
+#import <Foundation/Foundation.h>
+#import <AVFoundation/AVFoundation.h>
+#endif
+
+#include <stdint.h>
 typedef int32_t		int32;
 typedef uint32_t	uint32;
 typedef int64_t		int64;
 typedef uint64_t	uint64;
 
 
-//	todo: remove this, only depend in win32 specific code
+#if defined(TARGET_IOS)
+#if __has_feature(objc_arc)
+#define ARC_ENABLED
+#endif
+#endif
+
+#define __noexcept	_NOEXCEPT
 #define __stdcall
 #define __export	extern "C"
-#define __noexcept	_NOEXCEPT
 
-
-
+#if defined(TARGET_IOS)
+#define __thread				//	thread local not supported on IOS devices. todo: make a TLS class!
+#endif
 
 //	smart pointer for core foundation instances
 //	gr: note, TYPE for CF types is already a pointer, hence no *'s on types
@@ -50,6 +61,13 @@ public:
 	{
 		Release();
 	}
+
+	//	explicitly increment retention
+	void		Retain()
+	{
+		if ( mObject )
+			CFRetain(mObject);
+	}
 	
 	void		Retain(TYPE Object)
 	{
@@ -79,9 +97,9 @@ public:
 	 }
 	 */
 	
-	long		GetRetainCount() const
+	int			GetRetainCount() const
 	{
-		return CFGetRetainCount(mObject);
+		return static_cast<int>( CFGetRetainCount(mObject) );
 	}
 	
 	//TYPE*		operator->() const	{	return mObject; }
@@ -90,7 +108,6 @@ public:
 public:
 	TYPE	mObject;
 };
-
 
 
 
@@ -156,4 +173,5 @@ public:
 	TYPE*	mObject;
 };
 #endif
+
 

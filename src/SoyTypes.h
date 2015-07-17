@@ -18,11 +18,11 @@ struct NonCopyable {
 #endif
 
 #if defined(TARGET_IOS)
-#include "SoyTypes_Ios.h"
+#include "SoyTypes_CoreFoundation.h"
 #elif defined(TARGET_ANDROID)
 #include "SoyTypes_Android.h"
 #elif defined(TARGET_OSX)
-#include "SoyTypes_Osx.h"
+#include "SoyTypes_CoreFoundation.h"
 #elif defined(TARGET_WINDOWS)
 #include "SoyTypes_Windows.h"
 #else
