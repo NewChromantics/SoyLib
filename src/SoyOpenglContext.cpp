@@ -123,37 +123,73 @@ void Opengl::TContext::PushJob(std::function<bool ()> Function)
 	PushJob( Job );
 }
 
+bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName)
+{
+	auto ExtensionType = OpenglExtensions::ToType( ExtensionName );
+	
+	//	not one we explicitly support
+	if ( ExtensionType == OpenglExtensions::Invalid )
+	{
+		std::Debug << "Unhandled/ignored extension: " << ExtensionName << std::endl;
+		return true;
+	}
+	
+	//	set support in the map
+	SupportedExtensions[ExtensionType] = true;
+	std::Debug << "Extension supported: " << OpenglExtensions::ToString( ExtensionType ) << std::endl;
+	
+	return true;
+}
+
+//	pre-opengl 3 we have a string to parse
+void ParseExtensions(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionsList)
+{
+	//	pump split's into map
+	auto ParseExtension = [&SupportedExtensions](const std::string& ExtensionName)
+	{
+		return PushExtension( SupportedExtensions, ExtensionName );
+	};
+	
+	//	parse extensions string
+	std::string AllExtensions( ExtensionsList );
+	Soy::StringSplitByString( ParseExtension, AllExtensions, " " );
+	
+
+}
+
 bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension)
 {
 	//	first parse of extensions
 	if ( SupportedExtensions.empty() )
 	{
+		//	deprecated in opengl 3 so this returns null in that version
+		//	could do a version check, or just handle it nicely :)
 		auto* pAllExtensions = glGetString( GL_EXTENSIONS );
-		if ( !Soy::Assert( pAllExtensions != nullptr, "GL_EXTENSIONS not returned... outside opengl thread?" ) )
-			return false;
-		
-		//	pump split's into map
-		auto ParseExtension = [](const std::string& ExtensionName)
+		if ( pAllExtensions )
 		{
-			auto ExtensionType = OpenglExtensions::ToType( ExtensionName );
-
-			//	not one we explicitly support
-			if ( ExtensionType == OpenglExtensions::Invalid )
+			std::string AllExtensions( reinterpret_cast<const char*>(pAllExtensions) );
+			ParseExtensions( SupportedExtensions, AllExtensions );
+		}
+		else
+		{
+			Opengl_IsOkayFlush();
+			//	opengl 3 safe way
+			GLint ExtensionCount = -1;
+			glGetIntegerv( GL_NUM_EXTENSIONS, &ExtensionCount );
+			Opengl::IsOkay( "GL_NUM_EXTENSIONS" );
+			for ( int i=0;	i<ExtensionCount;	i++ )
 			{
-				std::Debug << "Unhandled/ignored extension: " << ExtensionName << std::endl;
-				return true;
+				auto* pExtensionName = glGetStringi( GL_EXTENSIONS, i );
+				if ( pExtensionName == nullptr )
+				{
+					std::Debug << "GL_Extension #" << i << " returned null" << std::endl;
+					continue;
+				}
+				
+				std::string ExtensionName( reinterpret_cast<const char*>(pExtensionName) );
+				PushExtension( SupportedExtensions, ExtensionName );
 			}
-			
-			//	set support in the map
-			SupportedExtensions[ExtensionType] = true;
-			std::Debug << "Extension supported: " << OpenglExtensions::ToString( ExtensionType ) << std::endl;
-			
-			return true;
-		};
-
-		//	parse extensions string
-		std::string AllExtensions( reinterpret_cast<const char*>(pAllExtensions) );
-		Soy::StringSplitByString( ParseExtension, AllExtensions, " " );
+		}
 		
 		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
 		SupportedExtensions[OpenglExtensions::Invalid] = false;

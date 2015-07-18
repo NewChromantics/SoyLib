@@ -121,6 +121,7 @@ namespace Opengl
 
 #define Opengl_IsInitialised()	Opengl::IsInitialised(__func__,true)
 #define Opengl_IsOkay()			Opengl::IsOkay(__func__)
+#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__) + " flush", false )
 
 	bool	IsInitialised(const std::string& Context,bool ThrowException);	//	throws exception
 	bool	IsOkay(const std::string& Context,bool ThrowException=true);	//	throws exception
