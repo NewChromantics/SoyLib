@@ -86,7 +86,8 @@ namespace std
 	{
 		size_t operator () (const SoyRef& uid) const
 		{
-			return uid.GetInt64();
+			//	gr: this is bad, because surely the hashing won't be unique? or maybe it doesn't matter...
+			return size_cast<size_t>( uid.GetInt64() );
 		}
 	};
 	
