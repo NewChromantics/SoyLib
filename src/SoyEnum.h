@@ -1,6 +1,10 @@
 #pragma once
 
 
+#include <string>
+#include <map>
+#include "SoyAssert.h"
+
 /*
 	gr: new SoyEnum system, usage:
 
@@ -69,22 +73,13 @@ inline std::string SoyEnum::ToString(ENUMTYPE Type,const ENUMMAP& EnumMap)
 	//	stop bad cases being created in the map
 	auto it = EnumMap.find( Type );
 
-	__thread static ENUMTYPE LastErrorType;
-	__thread static Soy::TErrorMessageFunc Error = nullptr;
-	if ( !Error )
+	if ( it == EnumMap.end() )
 	{
-		Error = []
-		{
-			std::stringstream Error;
-			Error << "unhandled enum" << (int)LastErrorType;
-			return Error.str();
-		};
+		std::stringstream Error;
+		Error << "Value missing from enum map for " << Soy::GetTypeName<ENUMTYPE>() << ": " << static_cast<int>(Type);
+		throw Soy::AssertException( Error.str() );
 	}
-	LastErrorType = Type;
 
-	if ( !Soy::Assert( it != EnumMap.end(), Error ) )
-		it = EnumMap.begin();
-	
 	return it->second;
 };
 
