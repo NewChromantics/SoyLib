@@ -1,6 +1,8 @@
 #include "SoyOpengl.h"
 #include "RemoteArray.h"
 #include "SoyOpenglContext.h"
+#include "SoyShader.h"
+#include <regex>
 
 namespace Opengl
 {
@@ -149,7 +151,47 @@ void Opengl::SetUniform(const TUniform& Uniform,const vec2f& Value)
 	Opengl_IsOkay();
 }
 
+std::string ParseLog(const std::string& ErrorLog,const ArrayBridge<std::string>& SrcLines)
+{
+	std::stringstream NewLog;
 
+	std::string LogHaystack = ErrorLog;
+	
+	//	todo: extract everything up to the first line with a regex
+	auto FirstMatchIndex = LogHaystack.find("ERROR");
+	if ( FirstMatchIndex != std::string::npos && FirstMatchIndex > 0 )
+	{
+		std::string Intro = LogHaystack.substr( 0, FirstMatchIndex );
+		NewLog << Intro << std::endl;
+		LogHaystack.erase( 0, FirstMatchIndex );
+	}
+	
+	std::smatch Match;
+	while ( std::regex_search( LogHaystack, Match, std::regex("(ERROR): ([0-9]+):([0-9]+): (.*)[\n$]") ) )
+	{
+		//	(wholestring)(key)(=)
+		std::string LogLevel = Match[1].str();
+		std::string CharacterIndex = Match[2].str();
+		std::string LineIndexStr = Match[3].str();
+		std::string Message = Match[4].str();
+		LogHaystack = Match.suffix().str();
+		
+		int LineIndex = 0;
+		Soy::StringToType( LineIndex, LineIndexStr );
+		
+		NewLog << LogLevel << ": " << Message << std::endl;
+		//	grab line
+		NewLog << "Line " << LineIndex << "# " << SrcLines[LineIndex] << std::endl;
+		NewLog << std::endl;
+	}
+
+	if ( !LogHaystack.empty() )
+	{
+		NewLog << LogHaystack << std::endl;
+	}
+	
+	return NewLog.str();
+}
 
 bool CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLines,const std::string& ErrorPrefix,std::ostream& Error)
 {
@@ -173,7 +215,12 @@ bool CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLi
 		Error << ErrorPrefix << " Compiling shader error: ";
 		GLchar msg[4096] = {0};
 		glGetShaderInfoLog( Shader.mName, sizeof( msg ), 0, msg );
-		Error << msg << std::endl;
+		std::string ErrorLog( msg );
+		
+		//	re-process log in case we can get some extended info out of it
+		ErrorLog = ParseLog( ErrorLog, SrcLines );
+		
+		Error << ErrorLog << std::endl;
 		return false;
 	}
 	return true;
@@ -226,7 +273,7 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	glBindTexture( mType, 0 );
 #endif
 	
-	std::Debug << "Creating FBO " << mFboMeta << ", texture name: " << mFboTextureName << std::endl;
+	//std::Debug << "Creating FBO " << mFboMeta << ", texture name: " << mFboTextureName << std::endl;
 	
 	glGenFramebuffers( 1, &mFbo.mName );
 	Opengl::IsOkay("FBO glGenFramebuffers");
@@ -267,7 +314,7 @@ void Opengl::TFbo::Delete(Opengl::TContext &Context)
 	auto DefferedDelete = [FboName]
 	{
 		glDeleteFramebuffers( 1, &FboName );
-		Opengl_IsOkay();
+		Opengl::IsOkay("Deffered FBO delete");
 		return true;
 	};
 
@@ -700,138 +747,6 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
 	Opengl_IsOkay();
 }
 
-namespace Soy
-{
-	//	returns if changed
-	bool	StringReplace(std::string& str,const std::string& from,const std::string& to)
-	{
-		if ( from.empty() )
-			return false;
-		size_t Changes = 0;
-		size_t start_pos = 0;
-		while((start_pos = str.find(from, start_pos)) != std::string::npos) {
-			str.replace(start_pos, from.length(), to);
-			start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
-			
-			Changes++;
-		}
-		return (Changes!=0);
-	}
-	
-	//	returns if changed
-	bool	StringReplace(ArrayBridge<std::string>& str,const std::string& from,const std::string& to)
-	{
-		bool Changed = false;
-		for ( int i=0;	i<str.GetSize();	i++ )
-		{
-			Changed |= StringReplace( str[i], from, to );
-		}
-		return Changed;
-	}
-
-	bool	StringReplace(ArrayBridge<std::string>&& str,const std::string& from,const std::string& to)
-	{
-		return StringReplace(str,from,to);
-	}
-}
-
-
-size_t GetNonProcessorFirstLine(ArrayBridge<std::string>& Shader)
-{
-	size_t LastProcessorDirectiveLine = 0;
-	for ( int i=0;	i<Shader.GetSize();	i++ )
-	{
-		auto& Line = Shader[i];
-		if ( Line.empty() )
-			continue;
-		
-		bool IsHeader = false;
-		
-		if ( Line[0] == '#' )
-			IsHeader = true;
-
-		if ( Soy::StringBeginsWith(Line,"precision ",true) )
-			IsHeader = true;
-		
-		if ( !IsHeader )
-			continue;
-
-		LastProcessorDirectiveLine = i;
-	}
-	return LastProcessorDirectiveLine+1;
-}
-
-//	vert & frag changes
-void UpgradeShader(ArrayBridge<std::string>& Shader,size_t Version)
-{
-	//	insert version if there isn't one there
-	if ( !Soy::StringBeginsWith(Shader[0],"#version",true) )
-	{
-		std::stringstream VersionStr;
-		VersionStr << "#version " << Version;
-		
-		//	append ES/Core suffix
-		if ( Version == 300 )
-			VersionStr << " es";
-		else
-			VersionStr << " core";
-		
-		VersionStr<<std::endl;
-		Shader.InsertAt( 0, VersionStr.str() );
-	}
-	
-#if defined(TARGET_IOS)
-	if ( Version == 300 )
-	{
-		//	ios requires precision
-		//	gr: add something to check if this is already declared
-		Shader.InsertAt( GetNonProcessorFirstLine(Shader), "precision highp float;\n" );
-	}
-#endif
-
-}
-
-void Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,size_t Version)
-{
-	UpgradeShader( Shader, Version );
-	
-	//	in 3.2, attribute/varying is now in/out
-	//			varying is Vert OUT, and INPUT for a frag (it becomes an attribute of the pixel)
-	Soy::StringReplace( Shader, "attribute", "in" );
-	Soy::StringReplace( Shader, "varying", "out" );
-}
-
-
-void Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,size_t Version)
-{
-	UpgradeShader( Shader, Version );
-
-	//	auto-replace/insert the new fragment output
-	//	https://www.opengl.org/wiki/Fragment_Shader#Outputs
-	const char* AutoFragColorName = "FragColor";
-	
-	//	in 3.2, attribute/varying is now in/out
-	//			varying is Vert OUT, and INPUT for a frag (it becomes an attribute of the pixel)
-	Soy::StringReplace( Shader, "attribute", "in" );
-	Soy::StringReplace( Shader, "varying", "in" );
-	Soy::StringReplace( Shader, "gl_FragColor", AutoFragColorName );
-	Soy::StringReplace( Shader, "texture2D(", "texture(" );
-	
-
-	//	auto declare the new gl_FragColor variable after all processor directives
-	std::stringstream FragVariable;
-	FragVariable << "out vec4 " << AutoFragColorName << ";" << std::endl;
-	Shader.InsertAt( GetNonProcessorFirstLine(Shader), FragVariable.str() );
-/*
-	std::Debug << "upgraded frag shader:" << std::endl;
-	for ( int i=0;	i<Shader.GetSize();	i++ )
-	{
-		std::Debug << "Frag[" << i << "]" << Shader[i] << std::endl;
-	}
-	std::Debug << "<<EOF" << std::endl;
-	*/
-}
-
 Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName)
 {
 	if ( !Opengl_IsInitialised() )
@@ -847,21 +762,21 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 	Soy::SplitStringLines( GetArrayBridge(VertShader), vertexSrc );
 	Soy::SplitStringLines( GetArrayBridge(FragShader), fragmentSrc );
 	
-	size_t UpgradeVersion = 0;
+	OpenglShaderVersion::Type UpgradeVersion = OpenglShaderVersion::Invalid;
 	
 	//	not required for android
 #if defined(OPENGL_ES_3)
-	UpgradeVersion = 300;
+	UpgradeVersion = OpenglShaderVersion::glsl300;
 #endif
 	
 #if defined(OPENGL_CORE_3)
-	UpgradeVersion = 150;
+	UpgradeVersion = OpenglShaderVersion::glsl150;
 #endif
 	
 	if ( UpgradeVersion != 0 )
 	{
-		UpgradeVertShader( GetArrayBridge(VertShader), UpgradeVersion );
-		UpgradeFragShader( GetArrayBridge(FragShader), UpgradeVersion );
+		SoyShader::Opengl::UpgradeVertShader( GetArrayBridge(VertShader), UpgradeVersion );
+		SoyShader::Opengl::UpgradeFragShader( GetArrayBridge(FragShader), UpgradeVersion );
 	}
 	
 	prog.vertexShader.mName = glCreateShader( GL_VERTEX_SHADER );

@@ -131,9 +131,6 @@ namespace Opengl
 	GLenum					GetPixelFormat(SoyPixelsFormat::Type Format);
 	GLenum					GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format);
 
-	void	UpgradeVertShader(ArrayBridge<std::string>&& Shader,size_t Version);
-	void	UpgradeFragShader(ArrayBridge<std::string>&& Shader,size_t Version);
-
 	//	helpers
 	void	ClearColour(Soy::TRgb Colour,float Alpha=1);
 	void	ClearDepth();
