@@ -349,3 +349,38 @@ bool Soy::StringToType(int& Out,const std::string& String)
 	return true;
 #endif
 }
+
+
+
+//	returns if changed
+bool Soy::StringReplace(std::string& str,const std::string& from,const std::string& to)
+{
+	if ( from.empty() )
+		return false;
+	size_t Changes = 0;
+	size_t start_pos = 0;
+	while((start_pos = str.find(from, start_pos)) != std::string::npos) {
+		str.replace(start_pos, from.length(), to);
+		start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
+		
+		Changes++;
+	}
+	return (Changes!=0);
+}
+
+//	returns if changed
+bool Soy::StringReplace(ArrayBridge<std::string>& str,const std::string& from,const std::string& to)
+{
+	bool Changed = false;
+	for ( int i=0;	i<str.GetSize();	i++ )
+	{
+		Changed |= StringReplace( str[i], from, to );
+	}
+	return Changed;
+}
+
+bool Soy::StringReplace(ArrayBridge<std::string>&& str,const std::string& from,const std::string& to)
+{
+	return StringReplace(str,from,to);
+}
+

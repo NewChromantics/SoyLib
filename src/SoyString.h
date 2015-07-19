@@ -61,6 +61,10 @@ namespace Soy
 	bool		StringTrimRight(std::string& String, const ArrayBridge<char>& TrimAnyChars);
 	inline bool	StringTrimRight(std::string& String, const ArrayBridge<char>&& TrimAnyChars) {	return StringTrimRight(String, TrimAnyChars);	}
 
+	bool		StringReplace(std::string& str,const std::string& from,const std::string& to);
+	bool		StringReplace(ArrayBridge<std::string>& str,const std::string& from,const std::string& to);
+	bool		StringReplace(ArrayBridge<std::string>&& str,const std::string& from,const std::string& to);
+
 	std::string	ArrayToString(const ArrayBridge<char>& Array);
 	void		ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String);
 	
@@ -289,4 +293,5 @@ inline std::ostream& operator<<(std::ostream &out,const float4x4&in)
 	<< in.rows[3];
 	return out;
 }
+
 
