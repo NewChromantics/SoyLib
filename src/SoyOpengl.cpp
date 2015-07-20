@@ -483,6 +483,8 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
 {
 	Soy::Assert( IsValid(), "Trying to read from invalid texture" );
 	
+	Bind();
+	
 	//	resolve GL & soy pixel formats
 	SoyPixelsFormat::Type PixelFormat = GetFormat();
 	GLenum GlFormat = Opengl::GetDownloadPixelFormat( *this, PixelFormat );
@@ -502,6 +504,19 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
 	GLenum PixelStorage = GL_UNSIGNED_BYTE;
 	auto* PixelBytes = Pixels.GetPixelsArray().GetArray();
 	glGetTexImage( mType, MipLevel, GlFormat, PixelStorage, PixelBytes );
+	Opengl_IsOkay();
+	
+	static int DebugPixelCount_ = 1000;
+	auto DebugPixelCount = std::min<size_t>( DebugPixelCount_, Pixels.GetPixelsArray().GetDataSize() );
+	std::Debug << "Read pixels; x" << DebugPixelCount;
+	for ( int i=0;	i<DebugPixelCount;	i++ )
+	{
+		uint8 pb = *reinterpret_cast<uint8*>( &PixelBytes[i] );
+		std::Debug << ' ' << static_cast<int>(pb);
+	}
+	std::Debug << std::endl;
+	
+	Unbind();
 	Opengl_IsOkay();
 }
 
