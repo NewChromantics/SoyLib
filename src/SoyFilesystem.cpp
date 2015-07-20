@@ -32,6 +32,18 @@ SoyTime Soy::GetFileTimestamp(const std::string& Filename)
 	return SoyTime();
 }
 
+#if defined(TARGET_OSX)
+auto StreamRelease = [](FSEventStreamRef& Stream)
+{
+	FSEventStreamFlushSync( Stream );
+	FSEventStreamUnscheduleFromRunLoop( Stream, CFRunLoopGetMain(), kCFRunLoopDefaultMode );
+	FSEventStreamStop( Stream );
+	FSEventStreamInvalidate( Stream );
+	FSEventStreamRelease( Stream );
+	Stream = nullptr;
+};
+#endif
+
 
 #if defined(TARGET_OSX)
 void OnFileChanged(
@@ -57,7 +69,8 @@ void OnFileChanged(
 #endif
 
 
-Soy::TFileWatch::TFileWatch(const std::string& Filename)
+Soy::TFileWatch::TFileWatch(const std::string& Filename) :
+	mStream	( StreamRelease )
 {
 	//	debug callback
 	auto DebugOnChanged = [](const std::string& Filename)
@@ -74,6 +87,7 @@ Soy::TFileWatch::TFileWatch(const std::string& Filename)
 	
 	CFAbsoluteTime latency = 0.2; /* Latency in seconds */
 	FSEventStreamContext Context = {0, this, NULL, NULL, NULL};
+
 	
 	/* Create the stream, passing in a callback */
 	mStream.mObject = FSEventStreamCreate(NULL,
@@ -94,15 +108,5 @@ Soy::TFileWatch::TFileWatch(const std::string& Filename)
 
 Soy::TFileWatch::~TFileWatch()
 {
-#if defined(TARGET_OSX)
-	if ( mStream )
-	{
-		FSEventStreamUnscheduleFromRunLoop( mStream.mObject, CFRunLoopGetMain(), kCFRunLoopDefaultMode );
-		FSEventStreamStop( mStream.mObject );
-		//	make sure all queued events are gone
-		FSEventStreamFlushSync( mStream.mObject );
-		mStream.Release();
-	}
-#endif
 }
 

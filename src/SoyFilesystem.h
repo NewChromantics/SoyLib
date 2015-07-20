@@ -3,6 +3,8 @@
 #include "SoyEvent.h"
 #include "SoyTime.h"
 #include <CoreServices/CoreServices.h>
+#include <scope_ptr.h>
+
 
 namespace Soy
 {
@@ -17,6 +19,8 @@ namespace Soy
 	class TFileWatch;
 };
 
+
+
 class Soy::TFileWatch
 {
 public:
@@ -26,8 +30,8 @@ public:
 	SoyEvent<const std::string>	mOnChanged;
 	
 #if defined(TARGET_OSX)
-	CFPtr<CFStringRef>		mPathString;
-	CFPtr<FSEventStreamRef>	mStream;
+	CFPtr<CFStringRef>			mPathString;
+	scope_ptr<FSEventStreamRef>	mStream;
 #endif
 };
 
