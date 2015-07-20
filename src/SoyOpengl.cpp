@@ -153,6 +153,10 @@ void Opengl::SetUniform(const TUniform& Uniform,const vec2f& Value)
 
 std::string ParseLog(const std::string& ErrorLog,const ArrayBridge<std::string>& SrcLines)
 {
+	static bool EnableParsing = false;
+	if ( !EnableParsing )
+		return ErrorLog;
+	
 	std::stringstream NewLog;
 
 	std::string LogHaystack = ErrorLog;
