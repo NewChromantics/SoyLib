@@ -478,13 +478,36 @@ void Opengl::TTexture::Unbind()
 	glBindTexture( mType, GL_ASSET_INVALID );
 }
 
+
+void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
+{
+	Soy::Assert( IsValid(), "Trying to read from invalid texture" );
+	
+	//	resolve GL & soy pixel formats
+	SoyPixelsFormat::Type PixelFormat = GetFormat();
+	GLenum GlFormat = Opengl::GetDownloadPixelFormat( *this, PixelFormat );
+	if ( GlFormat == GL_INVALID_ENUM || PixelFormat == SoyPixelsFormat::Invalid )
+	{
+		std::stringstream Error;
+		Error << "Failed to resolve pixel(" << PixelFormat << ") and opengl(" << GetEnumString(GlFormat) << ") for downloading texture (" << mMeta << ")";
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	//	pre-alloc data
+	if ( !Pixels.Init( GetWidth(), GetHeight(), PixelFormat ) )
+		throw Soy::AssertException("Failed to allocate pixels for texture read");
+	
+	//
+	GLint MipLevel = 0;
+	GLenum PixelStorage = GL_UNSIGNED_BYTE;
+	auto* PixelBytes = Pixels.GetPixelsArray().GetArray();
+	glGetTexImage( mType, MipLevel, GlFormat, PixelStorage, PixelBytes );
+	Opengl_IsOkay();
+}
+
 void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool DoSoyConversion,bool DoOpenglConversion)
 {
-	if ( !IsValid() )
-	{
-		std::Debug << "Trying to upload to invalid texture " << std::endl;
-		return;
-	}
+	Soy::Assert( IsValid(), "Trying to upload to invalid texture ");
 	
 	Bind();
 	Opengl::IsOkay( std::string(__func__) + " Bind()" );
@@ -1160,6 +1183,15 @@ GLenum Opengl::GetUploadPixelFormat(const Opengl::TTexture& Texture,SoyPixelsFor
 	
 	//	let callee do conversion
 	return GetPixelFormat( Format );
+}
+
+
+GLenum Opengl::GetDownloadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat)
+{
+	auto Enum = GetPixelFormat( PixelFormat );
+	//	gotta resolve the pixel format after getting the best gl format
+	PixelFormat = GetPixelFormat( Enum );
+	return Enum;
 }
 
 

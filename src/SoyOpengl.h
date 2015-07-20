@@ -130,6 +130,7 @@ namespace Opengl
 	SoyPixelsFormat::Type	GetPixelFormat(GLenum glFormat);
 	GLenum					GetPixelFormat(SoyPixelsFormat::Type Format);
 	GLenum					GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format);
+	GLenum					GetDownloadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat);
 
 	//	helpers
 	void	ClearColour(Soy::TRgb Colour,float Alpha=1);
@@ -409,6 +410,7 @@ public:
 	bool				IsValid() const;
 	void				Delete();
 	void				Copy(const SoyPixelsImpl& Pixels,bool Stretch,bool DoSoyConversion,bool DoOpenglConversion);
+	void				Read(SoyPixelsImpl& Pixels);
 	
 public:
 	bool						mAutoRelease;
