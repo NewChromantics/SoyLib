@@ -69,7 +69,7 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,OpenglShaderVersion::Type Ve
 	}
 	
 #if defined(TARGET_IOS)
-	if ( Version == OpenglShaderVersion::Glsl300 )
+	if ( Version == OpenglShaderVersion::glsl300 )
 	{
 		//	ios requires precision
 		//	gr: add something to check if this is already declared
