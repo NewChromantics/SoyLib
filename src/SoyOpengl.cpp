@@ -531,7 +531,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 
 	if ( UsingAppleStorage )
 	{
-		static bool AllowAppleStorage = false;
+		static bool AllowAppleStorage = true;
 		if ( !AllowAppleStorage )
 			UsingAppleStorage = false;
 	}
@@ -583,12 +583,13 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 	
 	
 	auto& FinalPixels = *UsePixels;
-	
+	GLenum GlPixelsStorage = GL_UNSIGNED_BYTE;
 
 
 #if defined(TARGET_OSX)
 	if ( UsingAppleStorage )
 	{
+		ofScopeTimerWarning Timer("glTexImage2D(GL_APPLE_client_storage)", 10 );
 		std::Debug << "Using apple storage" << std::endl;
 		
 		//	https://developer.apple.com/library/mac/documentation/graphicsimaging/conceptual/opengl-macprogguide/opengl_texturedata/opengl_texturedata.html
@@ -602,10 +603,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 		auto& PixelsBuffer = *ClientStorage;
 		PixelsBuffer.Copy( FinalPixels, PixelsBuffer.IsValid() ? false : true );
 		
-		GLenum TargetFormat = GL_BGRA;
-		GLenum TargetStorage = GL_UNSIGNED_INT_8_8_8_8_REV;
-		ofScopeTimerWarning Timer("glTexImage2D(GL_APPLE_client_storage)", 10 );
-		glTexImage2D(mType, MipLevel, GlPixelsFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, TargetFormat, TargetStorage, PixelsBuffer.GetPixelsArray().GetArray() );
+		glTexImage2D(mType, MipLevel, TextureInternalFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, GlPixelsFormat, GlPixelsStorage, PixelsBuffer.GetPixelsArray().GetArray() );
 		Opengl_IsOkay();
 	}
 	else
@@ -627,7 +625,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 		GLuint TargetFormat = GL_RGBA;
 	
 		ofScopeTimerWarning Timer("glTexImage2D", 10 );
-		glTexImage2D( mType, MipLevel, TargetFormat,  Width, Height, Border, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
+		glTexImage2D( mType, MipLevel, TargetFormat,  Width, Height, Border, GlPixelsFormat, GlPixelsStorage, PixelsArrayData );
 		Opengl_IsOkay();
 	}
 	else
@@ -650,7 +648,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 		
 		//	invalid operation here means the unity pixel format is probably different to the pixel data we're trying to push now
 		ofScopeTimerWarning Timer("glTexSubImage2D", 10 );
-		glTexSubImage2D( mType, MipLevel, XOffset, YOffset, Width, Height, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
+		glTexSubImage2D( mType, MipLevel, XOffset, YOffset, Width, Height, GlPixelsFormat, GlPixelsStorage, PixelsArrayData );
 		Timer.Stop();
 		
 		std::stringstream Context;
@@ -819,17 +817,22 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 		return GlProgram();
 	}
 	
-	glValidateProgram( ProgramName );
-	glGetProgramiv( ProgramName, GL_VALIDATE_STATUS, &r );
-	if ( r == GL_FALSE )
+	//	gr: validate only if we have VAO bound
+	bool DoValidate = false;
+	if ( DoValidate )
 	{
-		GLchar msg[1024];
-		glGetProgramInfoLog( ProgramName, sizeof( msg ), 0, msg );
-		std::stringstream Error;
-		Error << "Failed to validate vertex and fragment shader: " << msg;
-		std::Debug << Error.str() << std::endl;
-		//Soy::Assert( false, Error.str() );
-		//return GlProgram();
+		glValidateProgram( ProgramName );
+		glGetProgramiv( ProgramName, GL_VALIDATE_STATUS, &r );
+		if ( r == GL_FALSE )
+		{
+			GLchar msg[1024];
+			glGetProgramInfoLog( ProgramName, sizeof( msg ), 0, msg );
+			std::stringstream Error;
+			Error << "Failed to validate vertex and fragment shader: " << msg;
+			std::Debug << Error.str() << std::endl;
+			//Soy::Assert( false, Error.str() );
+			//return GlProgram();
+		}
 	}
 	
 	//	enum attribs and uniforms
