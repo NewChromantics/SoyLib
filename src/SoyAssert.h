@@ -18,8 +18,8 @@ namespace Soy
 class Soy::AssertException : public std::exception
 {
 public:
-	AssertException(std::string Message) :
-	mError	( Message )
+	AssertException(const std::string& Message) :
+		mError	( Message )
 	{
 	}
 	virtual const char* what() const __noexcept	{	return mError.c_str();	}
