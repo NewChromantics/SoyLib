@@ -120,8 +120,29 @@ void Opengl::TContext::Init()
 void Opengl::TContext::PushJob(std::function<bool ()> Function)
 {
 	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
-	PushJob( Job );
+	PushJob( Job, nullptr );
 }
+
+void Opengl::TContext::PushJob(std::function<bool ()> Function,TJobSempahore& Semaphore)
+{
+	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
+	PushJob( Job, &Semaphore );
+}
+
+void Opengl::TContext::PushJob(std::shared_ptr<TJob>& Job,TJobSempahore* Semaphore)
+{
+	Soy::Assert( Job!=nullptr, "Job expected" );
+	
+	if ( Semaphore )
+		if ( !Soy::Assert( !Semaphore->mCompleted, "Semaphore not initialised" ) )
+			Semaphore->mCompleted = false;
+	
+	Job->mSemaphore = Semaphore;
+	
+	//	todo: assign and reset semaphore
+	mJobQueue.Push( Job );
+}
+
 
 bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName)
 {

@@ -27,7 +27,8 @@ namespace Opengl
 	//	gr: renamed this to job to replace with SoyJob's later
 	class TJobQueue;
 	class TJob;
-	class TJob_Function;
+	class TJob_Function;	//	simple job for lambda's
+	class TJobSempahore;
 	
 };
 
@@ -64,11 +65,17 @@ namespace Opengl
 class Opengl::TJob
 {
 public:
+	TJob() :
+		mSemaphore	( nullptr )
+	{
+	}
+	
 	//	returns "im finished"
 	//	return false to stop any more tasks being run and re-insert this in the queue
 	virtual bool		Run(std::ostream& Error)=0;
 	
-	//	todo:
+	//	todo: event, or sempahore? or OS semaphore?
+	TJobSempahore*			mSemaphore;
 	//SoyEvent<bool>		mOnFinished;
 };
 
@@ -104,7 +111,24 @@ private:
 	std::recursive_mutex				mLock;
 };
 
+class Opengl::TJobSempahore
+{
+public:
+	TJobSempahore() :
+		mCompleted	( false )
+	{
+	}
+	void			Wait()
+	{
+		//	gr: use conditonal_wait here?
+		while ( !mCompleted )
+		{
+		}
+	}
 
+public:
+	volatile bool		mCompleted;
+};
 
 class Opengl::TContext
 {
@@ -117,11 +141,17 @@ public:
 	virtual bool	Lock()			{	return true;	}
 	virtual void	Unlock()		{	}
 	void			PushJob(std::function<bool(void)> Lambda);
-	void			PushJob(std::shared_ptr<TJob>& Job)			{	mJobQueue.Push( Job );	}
+	void			PushJob(std::function<bool(void)> Lambda,TJobSempahore& Semaphore);
+	void			PushJob(std::shared_ptr<TJob>& Job)								{	PushJob( Job, nullptr );	}
+	void			PushJob(std::shared_ptr<TJob>& Job,TJobSempahore& Semaphore)	{	PushJob( Job, &Semaphore );	}
 	void			FlushJobs()		{	mJobQueue.Flush( *this );	}
 	
 	static bool		IsSupported(OpenglExtensions::Type Extension);
 	
+private:
+	void			PushJob(std::shared_ptr<TJob>& Job,TJobSempahore* Semaphore);
+
+public:
 	TJobQueue		mJobQueue;
 	TVersion		mVersion;
 };
