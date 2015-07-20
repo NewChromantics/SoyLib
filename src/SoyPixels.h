@@ -188,6 +188,8 @@ public:
 	const uint8&	GetPixel(uint16 x,uint16 y,uint16 Channel) const;
 	bool			SetPixel(uint16 x,uint16 y,uint16 Channel,const uint8& Component);
 	void			SetColour(const ArrayBridge<char>& Components);
+	vec2f			GetUv(size_t PixelIndex) const;
+	vec2x<size_t>	GetXy(size_t PixelIndex) const;
 
 	bool			SetFormat(SoyPixelsFormat::Type Format);
 	bool			SetChannels(uint8 Channels);

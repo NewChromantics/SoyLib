@@ -1254,6 +1254,20 @@ void SoyPixelsImpl::SetColour(const ArrayBridge<char>& Components)
 	};
 }
 
+vec2f SoyPixelsImpl::GetUv(size_t PixelIndex) const
+{
+	auto xy = GetXy( PixelIndex );
+	float u = xy.x / static_cast<float>( GetWidth() );
+	float v = xy.y / static_cast<float>( GetHeight() );
+	return vec2f( u, v );
+}
+
+vec2x<size_t> SoyPixelsImpl::GetXy(size_t PixelIndex) const
+{
+	auto x = PixelIndex % GetWidth();
+	auto y = PixelIndex / GetWidth();
+	return vec2x<size_t>( x, y );
+}
 
 void SoyPixelsImpl::ResizeFastSample(uint16 NewWidth, uint16 NewHeight)
 {
