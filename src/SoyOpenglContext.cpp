@@ -97,6 +97,10 @@ void Opengl::TJobQueue::Flush(TContext& Context)
 			mLock.unlock();
 			break;
 		}
+		
+		//	mark job as finished
+		if ( Job->mSemaphore )
+			Job->mSemaphore->mCompleted = true;
 	}
 }
 
