@@ -24,7 +24,10 @@ size_t GetNonProcessorFirstLine(ArrayBridge<std::string>& Shader)
 		bool IsHeader = false;
 		
 		if ( Line[0] == '#' )
-			IsHeader = true;
+		{
+			if ( !Soy::StringBeginsWith( Line, "#define", true ) )
+				IsHeader = true;
+		}
 		
 		if ( Soy::StringBeginsWith(Line,"precision ",true) )
 			IsHeader = true;
