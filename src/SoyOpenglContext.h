@@ -142,14 +142,14 @@ public:
 	virtual void	Unlock()		{	}
 	void			PushJob(std::function<bool(void)> Lambda);
 	void			PushJob(std::function<bool(void)> Lambda,TJobSempahore& Semaphore);
-	void			PushJob(std::shared_ptr<TJob>& Job)								{	PushJob( Job, nullptr );	}
-	void			PushJob(std::shared_ptr<TJob>& Job,TJobSempahore& Semaphore)	{	PushJob( Job, &Semaphore );	}
+	void			PushJob(std::shared_ptr<TJob>& Job)								{	InternalPushJob( Job, nullptr );	}
+	void			PushJob(std::shared_ptr<TJob>& Job,TJobSempahore& Semaphore)	{	InternalPushJob( Job, &Semaphore );	}
 	void			FlushJobs()		{	mJobQueue.Flush( *this );	}
 	
 	static bool		IsSupported(OpenglExtensions::Type Extension);
 	
-private:
-	void			PushJob(std::shared_ptr<TJob>& Job,TJobSempahore* Semaphore);
+protected:
+	virtual void	InternalPushJob(std::shared_ptr<TJob>& Job,TJobSempahore* Semaphore);
 
 public:
 	TJobQueue		mJobQueue;

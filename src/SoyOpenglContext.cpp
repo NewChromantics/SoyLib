@@ -124,16 +124,16 @@ void Opengl::TContext::Init()
 void Opengl::TContext::PushJob(std::function<bool ()> Function)
 {
 	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
-	PushJob( Job, nullptr );
+	InternalPushJob( Job, nullptr );
 }
 
 void Opengl::TContext::PushJob(std::function<bool ()> Function,TJobSempahore& Semaphore)
 {
 	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
-	PushJob( Job, &Semaphore );
+	InternalPushJob( Job, &Semaphore );
 }
 
-void Opengl::TContext::PushJob(std::shared_ptr<TJob>& Job,TJobSempahore* Semaphore)
+void Opengl::TContext::InternalPushJob(std::shared_ptr<TJob>& Job,TJobSempahore* Semaphore)
 {
 	Soy::Assert( Job!=nullptr, "Job expected" );
 	
