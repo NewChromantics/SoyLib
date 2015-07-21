@@ -506,15 +506,15 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
 	glGetTexImage( mType, MipLevel, GlFormat, PixelStorage, PixelBytes );
 	Opengl_IsOkay();
 	
-	static int DebugPixelCount_ = 1000;
-	auto DebugPixelCount = std::min<size_t>( DebugPixelCount_, Pixels.GetPixelsArray().GetDataSize() );
-	std::Debug << "Read pixels; x" << DebugPixelCount;
-	for ( int i=0;	i<DebugPixelCount;	i++ )
+	static int DebugPixelCount_ = 0;
+	if ( DebugPixelCount_ > 0 )
 	{
-		uint8 pb = *reinterpret_cast<uint8*>( &PixelBytes[i] );
-		std::Debug << ' ' << static_cast<int>(pb);
+		auto DebugPixelCount = std::min<size_t>( DebugPixelCount_, Pixels.GetPixelsArray().GetDataSize() );
+		std::Debug << "Read pixels; x" << DebugPixelCount;
+		for ( int i=0;	i<DebugPixelCount;	i++ )
+			std::Debug << ' ' << static_cast<int>(PixelBytes[i]);
+		std::Debug << std::endl;
 	}
-	std::Debug << std::endl;
 	
 	Unbind();
 	Opengl_IsOkay();
@@ -660,7 +660,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 		auto Width = std::min<GLsizei>( TextureWidth, FinalPixels.GetWidth() );
 		auto Height = std::min<GLsizei>( TextureHeight, FinalPixels.GetHeight() );
 		
-		const ArrayInterface<char>& PixelsArray = FinalPixels.GetPixelsArray();
+		const ArrayInterface<uint8>& PixelsArray = FinalPixels.GetPixelsArray();
 		auto* PixelsArrayData = PixelsArray.GetArray();
 	
 		//	only for "new" textures
@@ -678,7 +678,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 		auto Width = std::min<GLsizei>( TextureWidth, FinalPixels.GetWidth() );
 		auto Height = std::min<GLsizei>( TextureHeight, FinalPixels.GetHeight() );
 
-		const ArrayInterface<char>& PixelsArray = FinalPixels.GetPixelsArray();
+		const ArrayInterface<uint8>& PixelsArray = FinalPixels.GetPixelsArray();
 		auto* PixelsArrayData = PixelsArray.GetArray();
 
 		static bool ForceSize = 0;

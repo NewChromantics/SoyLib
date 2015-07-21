@@ -187,7 +187,7 @@ public:
 	bool			GetRawSoyPixels(ArrayBridge<char>&& RawData) const	{	return GetRawSoyPixels( RawData );	}
 	const uint8&	GetPixel(uint16 x,uint16 y,uint16 Channel) const;
 	bool			SetPixel(uint16 x,uint16 y,uint16 Channel,const uint8& Component);
-	void			SetColour(const ArrayBridge<char>& Components);
+	void			SetColour(const ArrayBridge<uint8>& Components);
 	vec2f			GetUv(size_t PixelIndex) const;
 	vec2x<size_t>	GetXy(size_t PixelIndex) const;
 
@@ -203,10 +203,10 @@ public:
 	void			RotateFlip();
 	
 
-	virtual SoyPixelsMeta&				GetMeta()=0;
-	virtual const SoyPixelsMeta&		GetMeta() const=0;
-	virtual ArrayInterface<char>&		GetPixelsArray()=0;
-	virtual const ArrayInterface<char>&	GetPixelsArray() const=0;
+	virtual SoyPixelsMeta&					GetMeta()=0;
+	virtual const SoyPixelsMeta&			GetMeta() const=0;
+	virtual ArrayInterface<uint8>&			GetPixelsArray()=0;
+	virtual const ArrayInterface<uint8>&	GetPixelsArray() const=0;
 };
 
 template<class TARRAY>
@@ -222,8 +222,8 @@ public:
 
 	virtual SoyPixelsMeta&				GetMeta()			{	return mMeta;	}
 	virtual const SoyPixelsMeta&		GetMeta() const		{	return mMeta;	}
-	virtual ArrayInterface<char>&		GetPixelsArray()	{	return mArrayBridge;	}
-	virtual const ArrayInterface<char>&	GetPixelsArray() const	{	return mArrayBridge;	}
+	virtual ArrayInterface<uint8>&		GetPixelsArray()	{	return mArrayBridge;	}
+	virtual const ArrayInterface<uint8>&	GetPixelsArray() const	{	return mArrayBridge;	}
 
 public:
 	ArrayBridgeDef<TARRAY>	mArrayBridge;
@@ -232,12 +232,12 @@ public:
 };
 
 
-class SoyPixels : public SoyPixelsDef<Array<char>>
+class SoyPixels : public SoyPixelsDef<Array<uint8>>
 {
 public:
 	SoyPixels(prmem::Heap& Heap=prcore::Heap) :
 		mArray						( Heap ),
-		SoyPixelsDef<Array<char>>	( mArray, mMeta )
+		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{
 	}
 	
@@ -245,7 +245,7 @@ public:
 
 public:
 	SoyPixelsMeta	mMeta;
-	Array<char>		mArray;
+	Array<uint8>	mArray;
 };
 DECLARE_TYPE_NAME( SoyPixels );
 

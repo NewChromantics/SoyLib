@@ -208,7 +208,7 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
 }
  */
 
-bool DeFilterScanline(TPng::TFilterNone_ScanlineFilter::Type Filter,const ArrayBridge<char>&& Scanline,int ByteWidth,ArrayBridge<uint8>& DeFilteredData,std::stringstream& Error)
+bool DeFilterScanline(TPng::TFilterNone_ScanlineFilter::Type Filter,const ArrayBridge<uint8>&& Scanline,int ByteWidth,ArrayBridge<uint8>& DeFilteredData,std::stringstream& Error)
 {
 	if ( Filter == TPng::TFilterNone_ScanlineFilter::None )
 	{
