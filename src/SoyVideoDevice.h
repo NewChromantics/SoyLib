@@ -129,24 +129,24 @@ public:
 	{
 	}
 	
-	virtual bool						Copy(const SoyPixelsImpl& that) override
+	virtual bool						Copy(const SoyPixelsImpl& that,bool AllowReallocation=true) override
 	{
-		if ( !SoyPixelsImpl::Copy( that ) )
+		if ( !SoyPixelsImpl::Copy( that, AllowReallocation ) )
 			return false;
 		
 		//	update memfile
 		return GetRawSoyPixels( GetArrayBridge( mMemFileArray ) );
 	}
 	
-	virtual SoyPixelsMeta&				GetMeta()						{	return mMeta;	}
-	virtual const SoyPixelsMeta&		GetMeta() const					{	return mMeta;	}
-	virtual ArrayInterface<char>&		GetPixelsArray() override		{	return mPixelBufferBridge;	}
-	virtual const ArrayInterface<char>&	GetPixelsArray() const override	{	return mPixelBufferBridge;	}
+	virtual SoyPixelsMeta&					GetMeta()						{	return mMeta;	}
+	virtual const SoyPixelsMeta&			GetMeta() const					{	return mMeta;	}
+	virtual ArrayInterface<uint8>&			GetPixelsArray() override		{	return mPixelBufferBridge;	}
+	virtual const ArrayInterface<uint8>&	GetPixelsArray() const override	{	return mPixelBufferBridge;	}
 	
 public:
 	SoyPixelsMeta		mMeta;
-	Array<char>			mPixelBuffer;
-	ArrayBridgeDef<Array<char>>	mPixelBufferBridge;
+	Array<uint8>		mPixelBuffer;
+	ArrayBridgeDef<Array<uint8>>	mPixelBufferBridge;
 	
 	//	gr: we need to have some sub-array type where Meta sits at the start of the memfile...
 	MemFileArray		mMemFileArray;
@@ -173,12 +173,12 @@ public:
 class TVideoDevice
 {
 public:
-	TVideoDevice(const TVideoDeviceMeta& Meta,std::stringstream& Error);
+	TVideoDevice(const TVideoDeviceMeta& Meta);
 	virtual ~TVideoDevice();
 	
 	virtual TVideoDeviceMeta	GetMeta() const=0;		//	gr: make this dynamic so other states might change
 	std::string					GetSerial() const		{	return GetMeta().mSerial;	}
-	const TVideoFrameMemFile&		GetLastFrame(std::stringstream& Error) const	{	Error << mLastError;	return mLastFrame;	}
+	const TVideoFrameMemFile&	GetLastFrame(std::stringstream& Error) const	{	Error << mLastError;	return mLastFrame;	}
 	float						GetFps() const;			//	how many frames per sec are we averaging?
 	int							GetFrameMs() const;		//	how long does each frame take to recieve
 	void						ResetFrameCounter();	//	reset the fps counter
@@ -221,7 +221,7 @@ public:
 };
 
 
-class SoyVideoCapture //: public EventReceiver
+class SoyVideoCapture
 {
 public:
 	SoyVideoCapture();

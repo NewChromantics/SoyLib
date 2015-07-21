@@ -33,7 +33,7 @@ std::ostream& operator<< (std::ostream &out,const TVideoDeviceMeta &in)
 }
 
 
-TVideoDevice::TVideoDevice(const TVideoDeviceMeta& Meta,std::stringstream& Error) :
+TVideoDevice::TVideoDevice(const TVideoDeviceMeta& Meta) :
 	mLastFrame		( Meta.mSerial, Soy::StreamToString(std::stringstream() << "frame_" << Meta.mSerial), true ),
 	mLastError		( "waiting for first frame" ),
 	mFrameCount		( 0 )
