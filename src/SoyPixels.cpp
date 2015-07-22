@@ -857,7 +857,11 @@ bool SoyPixelsImpl::GetRawSoyPixels(ArrayBridge<char>& RawData) const
 	
 	if ( !RawData.PushBackReinterpret( Meta ) )
 		return false;
-	if ( !RawData.PushBackArray( Pixels ) )
+	
+	//	gr: not sure how safe this is... vtables etc...
+	auto& CastArray = *reinterpret_cast<ArrayInterface<uint8>*>( &RawData );
+	if ( !CastArray.PushBackArray( Pixels ) )
+	//if ( !RawData.PushBackArray( Pixels ) )
 		return false;
 	
 	return true;
@@ -1022,7 +1026,8 @@ bool SoyPixelsImpl::SetRawSoyPixels(const ArrayBridge<char>& RawData)
 
 	//	rest of the data as an array
 	const size_t PixelDataSize = RawData.GetDataSize()-HeaderSize;
-	auto Pixels = GetRemoteArray( RawData.GetArray()+HeaderSize, PixelDataSize );
+	auto* RawData8 = reinterpret_cast<const uint8*>(RawData.GetArray());
+	auto Pixels = GetRemoteArray( RawData8+HeaderSize, PixelDataSize );
 	
 	//	todo: verify size! (alignment!)
 	GetMeta() = Header;
