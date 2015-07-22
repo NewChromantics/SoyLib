@@ -482,6 +482,12 @@ void Opengl::TTexture::Unbind()
 void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
 {
 	Soy::Assert( IsValid(), "Trying to read from invalid texture" );
+
+	//	not currently supported directly in opengl ES (need to make a pixel buffer, copy to it and read, I think)
+#if defined(TARGET_ANDROID) || defined(TARGET_IOS)
+	throw Soy::AssertException( std::string(__func__) + " not supported on opengl es yet");
+	return;
+#else
 	
 	Bind();
 	
@@ -518,6 +524,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
 	
 	Unbind();
 	Opengl_IsOkay();
+#endif
 }
 
 void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool DoSoyConversion,bool DoOpenglConversion)
