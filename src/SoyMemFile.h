@@ -42,7 +42,7 @@ public:
 
 	virtual T&			operator[](size_t index) override		{	return GetArray()[index];	}
 	virtual const T&	operator[](size_t index) const override	{	return GetArray()[index];	}
-	virtual T&			GetBack()						{	return (*this)[GetSize()-1];	}
+	virtual T&			GetBack() override				{	return (*this)[GetSize()-1];	}
 	virtual const T&	GetBack() const override		{	return (*this)[GetSize()-1];	}
 	virtual size_t		GetSize() const override		{	return mOffset;	}
 	virtual const T*	GetArray() const override		{	return CreateMap();	}
@@ -94,7 +94,7 @@ public:
 		return mData + index;
 	}
 
-	virtual void		RemoveBlock(size_t index,size_t count)
+	virtual void		RemoveBlock(size_t index,size_t count) override
 	{
 		T*& mData = reinterpret_cast<T*&>(mMap);
 

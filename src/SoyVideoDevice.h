@@ -138,8 +138,8 @@ public:
 		return GetRawSoyPixels( GetArrayBridge( mMemFileArray ) );
 	}
 	
-	virtual SoyPixelsMeta&					GetMeta()						{	return mMeta;	}
-	virtual const SoyPixelsMeta&			GetMeta() const					{	return mMeta;	}
+	virtual SoyPixelsMeta&					GetMeta() override				{	return mMeta;	}
+	virtual const SoyPixelsMeta&			GetMeta() const override		{	return mMeta;	}
 	virtual ArrayInterface<uint8>&			GetPixelsArray() override		{	return mPixelBufferBridge;	}
 	virtual const ArrayInterface<uint8>&	GetPixelsArray() const override	{	return mPixelBufferBridge;	}
 	
