@@ -192,6 +192,8 @@ public:
 protected:
 	void						OnFailedFrame(const std::string& Error);
 	void						OnNewFrame(const SoyPixelsImpl& Pixels,SoyTime Timecode);
+	SoyPixelsImpl&				LockNewFrame();
+	void						UnlockNewFrame(SoyTime Timecode);
 	
 public:
 	SoyEvent<TVideoDevice>		mOnNewFrame;

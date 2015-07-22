@@ -79,6 +79,28 @@ void TVideoDevice::OnFailedFrame(const std::string &Error)
 	mLastError = Error;
 }
 
+SoyPixelsImpl& TVideoDevice::LockNewFrame()
+{
+	mLastError.clear();
+	return mLastFrame.mPixels;
+}
+
+void TVideoDevice::UnlockNewFrame(SoyTime Timecode)
+{
+	//	gr: might want to reject earlier timecodes here
+	//	gr^^ nope! this class is dumb
+	mLastFrame.mTimecode = Timecode;
+	
+	//	update frame/rate counting
+	mFrameCount++;
+	mLastFrameTime = SoyTime(true);
+	if ( !mFirstFrameTime.IsValid() )
+		mFirstFrameTime = mLastFrameTime;
+	
+	mOnNewFrame.OnTriggered( *this );
+}
+
+
 void TVideoDevice::OnNewFrame(const SoyPixelsImpl& Pixels,SoyTime Timecode)
 {
 	mLastError.clear();
@@ -89,16 +111,7 @@ void TVideoDevice::OnNewFrame(const SoyPixelsImpl& Pixels,SoyTime Timecode)
 		return;
 	}
 	
-	//	gr: might want to reject earlier timecodes here
-	mLastFrame.mTimecode = Timecode;
-	
-	//	update frame/rate counting
-	mFrameCount++;
-	mLastFrameTime = SoyTime(true);
-	if ( !mFirstFrameTime.IsValid() )
-		mFirstFrameTime = mLastFrameTime;
-	
-	mOnNewFrame.OnTriggered( *this );
+	UnlockNewFrame( Timecode );
 }
 
 
