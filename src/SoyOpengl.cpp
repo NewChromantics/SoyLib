@@ -266,7 +266,7 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	
 	auto& mFboTextureName = mTarget.mTexture.mName;
 	auto& mType = mTarget.mType;
-	auto& mFboMeta = mTarget.mMeta;
+	//auto& mFboMeta = mTarget.mMeta;
 
 	//	gr: added to try and get IOS working
 #if defined(TARGET_IOS)

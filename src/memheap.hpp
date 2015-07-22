@@ -328,8 +328,8 @@ public:
 #elif defined(STD_ALLOC)
 	virtual bool					IsValid() const override	{	return true;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
 #endif
-	virtual void					EnableDebug(bool Enable);	//	deletes/allocates the debug tracker so we can toggle it at runtime
-	virtual const HeapDebugBase*	GetDebug() const			{	return mHeapDebug;	}
+	virtual void					EnableDebug(bool Enable) override;	//	deletes/allocates the debug tracker so we can toggle it at runtime
+	virtual const HeapDebugBase*	GetDebug() const override	{	return mHeapDebug;	}
 
 	Soy::HeapBridge<char>&			GetStlAllocator()			{	return mBridge;	}
 	/*
