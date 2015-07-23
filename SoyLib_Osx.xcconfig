@@ -22,13 +22,17 @@ ARCHS = $(ARCHS_STANDARD_32_64_BIT)
 ONLY_ACTIVE_ARCH = NO
 
 //	latest SDK
-SDKROOT = macosx
+//	gr: 10.10 sdk otherwise unity plugin won't (ApplicationServices.framework version incompatibility 1(unity) vs 64)
+SDKROOT = macosx10.10
+
 
 //	objective C auto reference counting... needed? (need to increase min SDK if we do)
 //CLANG_ENABLE_OBJC_ARC = YES
 
 //	set debug info to dwarf by default for faster build
-DEBUG_INFORMATION_FORMAT = dwarf
+//	gr: debug with symbols otherwise breakpoints don't work when attaching
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+COPY_PHASE_STRIP = NO
 
 
 //	manage obj-c auto release ourselves so we can use the pointers in c++ classes
