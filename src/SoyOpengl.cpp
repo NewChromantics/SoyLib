@@ -527,7 +527,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
 #endif
 }
 
-void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool DoSoyConversion,bool DoOpenglConversion)
+void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUploadParams Params)
 {
 	Soy::Assert( IsValid(), "Trying to upload to invalid texture ");
 	
@@ -575,13 +575,12 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 	}
 
 	bool IsSameDimensions = (UsePixels->GetWidth()==TextureWidth) && (UsePixels->GetHeight()==TextureHeight);
-	bool SubImage = !Stretch;
+	bool SubImage = !(Params.mStretch);
 	bool UsingAppleStorage = (!SubImage || IsSameDimensions) && Opengl::TContext::IsSupported( OpenglExtensions::AppleClientStorage, nullptr );
 
 	if ( UsingAppleStorage )
 	{
-		static bool AllowAppleStorage = false;
-		if ( !AllowAppleStorage )
+		if ( !Params.mAllowClientStorage )
 			UsingAppleStorage = false;
 	}
 
@@ -595,16 +594,16 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 	}
 	
 	if ( UsingAppleStorage )
-		DoOpenglConversion = false;
+		Params.mAllowOpenglConversion = false;
 	
 	//	pixel data format
 	auto GlPixelsFormat = Opengl::GetUploadPixelFormat( *this, SourcePixels.GetFormat() );
-	if ( !DoOpenglConversion )
+	if ( !Params.mAllowOpenglConversion )
 		GlPixelsFormat = GetPixelFormat( this->GetFormat() );
 
 	//	gr: take IOS's target-must-match-source requirement into consideration here (replace GetUploadPixelFormat)
 	SoyPixels ConvertedPixels;
-	if ( DoSoyConversion )
+	if ( Params.mAllowCpuConversion )
 	{
 		//	convert to upload-compatible type
 		Array<SoyPixelsFormat::Type> TryFormats;
@@ -687,13 +686,6 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 
 		const ArrayInterface<uint8>& PixelsArray = FinalPixels.GetPixelsArray();
 		auto* PixelsArrayData = PixelsArray.GetArray();
-
-		static bool ForceSize = 0;
-		if ( ForceSize != 0 )
-		{
-			Width = ForceSize;
-			Height = ForceSize;
-		}
 		
 		//	invalid operation here means the unity pixel format is probably different to the pixel data we're trying to push now
 		ofScopeTimerWarning Timer("glTexSubImage2D", 10 );

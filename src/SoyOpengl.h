@@ -61,6 +61,7 @@ namespace Opengl
 	class GlProgram;
 	class TShaderState;
 	class TTexture;
+	class TTextureUploadParams;
 	class TFbo;
 	class TGeoQuad;
 	class TShaderEosBlit;
@@ -327,6 +328,23 @@ public:
 };
 
 
+class Opengl::TTextureUploadParams
+{
+public:
+	TTextureUploadParams() :
+		mStretch				( false ),
+		mAllowCpuConversion		( true ),
+		mAllowOpenglConversion	( true ),
+		mAllowClientStorage		( false )		//	currently unstable on texture release?
+	{
+	};
+	
+	bool	mStretch;				//	if smaller, should we stretch (subimage vs teximage)
+	bool	mAllowCpuConversion;
+	bool	mAllowOpenglConversion;
+	bool	mAllowClientStorage;
+};
+
 class Opengl::TTexture
 {
 public:
@@ -409,7 +427,7 @@ public:
 	void				Unbind();
 	bool				IsValid() const;
 	void				Delete();
-	void				Copy(const SoyPixelsImpl& Pixels,bool Stretch,bool DoSoyConversion,bool DoOpenglConversion);
+	void				Copy(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
 	void				Read(SoyPixelsImpl& Pixels);
 	
 public:
