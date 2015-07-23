@@ -11,6 +11,7 @@ namespace OpenglExtensions
 	{
 		Invalid,
 		AppleClientStorage,
+		VertexArrayObjects,
 	};
 	
 	DECLARE_SOYENUM( OpenglExtensions );
@@ -146,7 +147,8 @@ public:
 	void			PushJob(std::shared_ptr<TJob>& Job,TJobSempahore& Semaphore)	{	InternalPushJob( Job, &Semaphore );	}
 	void			FlushJobs()		{	mJobQueue.Flush( *this );	}
 	
-	static bool		IsSupported(OpenglExtensions::Type Extension);
+	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
+	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
 	
 protected:
 	virtual void	InternalPushJob(std::shared_ptr<TJob>& Job,TJobSempahore* Semaphore);

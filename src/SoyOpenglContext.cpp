@@ -14,6 +14,7 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 {
 	{	OpenglExtensions::Invalid,				"Invalid"	},
 	{	OpenglExtensions::AppleClientStorage,	"GL_APPLE_client_storage"	},
+	{	OpenglExtensions::VertexArrayObjects,	"GL_APPLE_vertex_array_object"	},
 };
 
 
@@ -116,6 +117,9 @@ void Opengl::TContext::Init()
 	Soy::Assert( VersionString!=nullptr, "Version string invalid. Context not valid? Not on opengl thread?" );
 
 	mVersion = Opengl::TVersion( std::string( VersionString ) );
+
+	//	trigger extensions init early
+	IsSupported( OpenglExtensions::Invalid );
 	
 	std::Debug << "Opengl version: " << mVersion << std::endl;
 }
@@ -182,13 +186,15 @@ void ParseExtensions(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,
 
 }
 
-bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension)
+bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TContext* pContext)
 {
 	//	first parse of extensions
-	if ( SupportedExtensions.empty() )
+	if ( SupportedExtensions.empty() && pContext )
 	{
 		//	deprecated in opengl 3 so this returns null in that version
 		//	could do a version check, or just handle it nicely :)
+		//	debug full string in lldb;
+		//		set set target.max-string-summary-length 10000
 		auto* pAllExtensions = glGetString( GL_EXTENSIONS );
 		if ( pAllExtensions )
 		{
@@ -214,6 +220,21 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension)
 				std::string ExtensionName( reinterpret_cast<const char*>(pExtensionName) );
 				PushExtension( SupportedExtensions, ExtensionName );
 			}
+		}
+
+		//	if this is asupported as an EXTENSION, then it needs setting up
+		if ( SupportedExtensions.find(OpenglExtensions::VertexArrayObjects) != SupportedExtensions.end() )
+		{
+			//	todo wrapper for original function
+			SupportedExtensions[OpenglExtensions::VertexArrayObjects] = false;
+			std::Debug << "Disabled support for OpenglExtensions::VertexArrayObjects until wrapper implemented" << std::endl;
+		}
+		else
+		{
+			//	might be supported implicitly in opengl 4 etc (test this!)
+			bool ImplicitlySupported = (pContext->mVersion.mMajor >= 3);
+			SupportedExtensions[OpenglExtensions::VertexArrayObjects] = ImplicitlySupported;
+			std::Debug << "Assumed implicit support for OpenglExtensions::VertexArrayObjects is " << (ImplicitlySupported?"true":"false") << std::endl;
 		}
 		
 		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
@@ -278,15 +299,7 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture Existi
 		mTexture = TTexture( TextureMeta, GL_TEXTURE_2D );
 	}
 
-	//	re-throw errors
-	try
-	{
-		mFbo.reset( new TFbo( mTexture ) );
-	}
-	catch ( std::exception& e )
-	{
-		throw;
-	};
+	mFbo.reset( new TFbo( mTexture ) );
 }
 
 

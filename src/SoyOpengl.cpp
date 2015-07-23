@@ -576,11 +576,11 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,bool Stretch,bool 
 
 	bool IsSameDimensions = (UsePixels->GetWidth()==TextureWidth) && (UsePixels->GetHeight()==TextureHeight);
 	bool SubImage = !Stretch;
-	bool UsingAppleStorage = (!SubImage || IsSameDimensions) && Opengl::TContext::IsSupported( OpenglExtensions::AppleClientStorage );
+	bool UsingAppleStorage = (!SubImage || IsSameDimensions) && Opengl::TContext::IsSupported( OpenglExtensions::AppleClientStorage, nullptr );
 
 	if ( UsingAppleStorage )
 	{
-		static bool AllowAppleStorage = true;
+		static bool AllowAppleStorage = false;
 		if ( !AllowAppleStorage )
 			UsingAppleStorage = false;
 	}
