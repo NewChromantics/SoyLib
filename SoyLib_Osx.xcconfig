@@ -6,7 +6,7 @@
 //  Copyright (c) 2014 NewChromantics. All rights reserved.
 //
 
-GCC_PREPROCESSOR_DEFINITIONS = TARGET_OSX MATHFU_COMPILE_WITHOUT_SIMD_SUPPORT
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) TARGET_OSX MATHFU_COMPILE_WITHOUT_SIMD_SUPPORT
 HEADER_SEARCH_PATHS = $(inherited) $(SOY_PATH)/src/** $(POP_PATH)/src/**
 //	gr: not sure what we want for c yet
 //GCC_C_LANGUAGE_STANDARD = c11
@@ -26,8 +26,10 @@ ONLY_ACTIVE_ARCH = NO
 SDKROOT = macosx10.10
 
 
-//	objective C auto reference counting... needed? (need to increase min SDK if we do)
-//CLANG_ENABLE_OBJC_ARC = YES
+//	manage obj-c auto release ourselves so we can use the pointers in c++ classes
+//	ie. without needing @property(strong) NSWindow* window;
+//	gr: ARC is 10.7 onwards so won't be availible when targetting 10.6 anyway
+CLANG_ENABLE_OBJC_ARC = NO
 
 //	set debug info to dwarf by default for faster build
 //	gr: debug with symbols otherwise breakpoints don't work when attaching
