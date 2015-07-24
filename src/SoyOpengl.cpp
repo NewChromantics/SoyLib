@@ -708,7 +708,8 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 		}
 	}
 
-	glGenerateMipmap( mType );
+	//	gr: crashes often on OSX... only on NPOT textures?
+	//glGenerateMipmap( mType );
 	Opengl_IsOkay();
 	
 	Unbind();
