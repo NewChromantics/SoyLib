@@ -49,15 +49,13 @@ void Opengl::TJobQueue::Push(std::shared_ptr<TJob>& Job)
 
 void Opengl::TJobQueue::Flush(TContext& Context)
 {
-	//	flush errors
-	Opengl::IsOkay("JobQueue flush flush",false);
-	
 	auto AutoUnlockContext = [&Context]
 	{
 		Opengl::IsOkay("Post job flush",false);
 		Context.Unlock();
 	};
 
+	bool FlushError = true;
 	
 	ofScopeTimerWarning LockTimer("Waiting for job lock",4,false);
 	while ( true )
@@ -86,6 +84,13 @@ void Opengl::TJobQueue::Flush(TContext& Context)
 			mJobs.insert( mJobs.begin(), Job );
 			mLock.unlock();
 			break;
+		}
+	
+		//	flush errors from before iteration
+		if ( FlushError )
+		{
+			Opengl::IsOkay("JobQueue flush flush",false);
+			FlushError = false;
 		}
 		
 		auto ContextLock = SoyScope( nullptr, AutoUnlockContext );
