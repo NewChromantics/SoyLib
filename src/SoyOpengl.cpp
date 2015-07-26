@@ -4,9 +4,36 @@
 #include "SoyShader.h"
 #include <regex>
 
+class TPixelFormatMapping
+{
+public:
+	TPixelFormatMapping() :
+	mPixelFormat		( SoyPixelsFormat::Invalid ),
+		mDownloadFormat		( GL_INVALID_ENUM ),
+		mUploadFormat		( GL_INVALID_ENUM ),
+		mNewTextureFormat	( GL_INVALID_ENUM )
+	{
+	}
+	TPixelFormatMapping(SoyPixelsFormat::Type PixelFormat,GLenum DownloadFormat,GLenum UploadFormat,GLenum NewTextureFormat) :
+		mPixelFormat		( PixelFormat ),
+		mDownloadFormat		( DownloadFormat ),
+		mUploadFormat		( UploadFormat ),
+		mNewTextureFormat	( NewTextureFormat )
+	{
+	}
+	
+	bool					operator==(const SoyPixelsFormat::Type Format) const	{	return mPixelFormat == Format;	}
+	
+	SoyPixelsFormat::Type	mPixelFormat;
+	GLenum					mDownloadFormat;
+	GLenum					mUploadFormat;
+	GLenum					mNewTextureFormat;
+};
+
 namespace Opengl
 {
-	const std::map<SoyPixelsFormat::Type,GLenum>&	GetPixelFormatMap();
+	const Array<TPixelFormatMapping>&	GetPixelFormatMap();
+	TPixelFormatMapping					GetPixelMapping(SoyPixelsFormat::Type Format);
 	
 	template<typename TYPE>
 	GLenum			GetTypeEnum()
@@ -113,7 +140,13 @@ std::string Opengl::GetEnumString(GLenum Type)
 			CASE_ENUM_STRING( GL_RGBA );
 			CASE_ENUM_STRING( GL_RGB );
 			CASE_ENUM_STRING( GL_RGB8 );
+			CASE_ENUM_STRING( GL_RGBA8 );
 			CASE_ENUM_STRING( GL_RED );
+			
+			CASE_ENUM_STRING( GL_TEXTURE_1D );
+			CASE_ENUM_STRING( GL_TEXTURE_2D );
+			CASE_ENUM_STRING( GL_TEXTURE_3D );
+			
 	};
 #undef CASE_ENUM_STRING
 	std::stringstream Unknown;
@@ -397,8 +430,10 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 	Opengl_IsInitialised();
 	Soy::Assert( Meta.IsValid(), "Cannot setup texture with invalid meta" );
 	
-	GLuint Format = Opengl::GetPixelFormat( Meta.GetFormat() );
-	if ( Format == GL_INVALID_VALUE )
+	bool AllowOpenglConversion = true;
+	GLuint PixelsFormat = Opengl::GetUploadPixelFormat(*this, Meta.GetFormat(), AllowOpenglConversion );
+	GLuint InternalPixelFormat = Opengl::GetNewTexturePixelFormat( Meta.GetFormat() );
+	if ( PixelsFormat == GL_INVALID_VALUE )
 	{
 		std::stringstream Error;
 		Error << "Failed to create texture, unsupported format " << Meta.GetFormat();
@@ -414,18 +449,44 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 	Opengl::IsOkay("glGenTextures");
 	
 	//	set mip-map levels to 0..0
+	GLint MipLevel = 0;
+	GLenum GlPixelsStorage = GL_UNSIGNED_BYTE;
+	GLint Border = 0;
+	
 	//	gr: change this to glGenerateMipMaps etc
-	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, 0);
-	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, 0);
-
+	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, MipLevel );
+	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, MipLevel );
+	Opengl::IsOkay("glTexParameteri set mip levels");
+	
+	std::Debug << "glTexImage2D(" << Opengl::GetEnumString( mType ) << "," << Opengl::GetEnumString( InternalPixelFormat ) << "," << Opengl::GetEnumString( PixelsFormat ) << "," << Opengl::GetEnumString(GlPixelsStorage) << ")" << std::endl;
+	
 	//	initialise to set dimensions
-	SoyPixels InitFramePixels;
-	InitFramePixels.Init( Meta.GetWidth(), Meta.GetHeight(), Meta.GetFormat() );
-	auto& PixelsArray = InitFramePixels.GetPixelsArray();
-	glTexImage2D( mType, 0, Format, Meta.GetWidth(), Meta.GetHeight(), 0, Format, GL_UNSIGNED_BYTE, PixelsArray.GetArray() );
-	//GLint MipLevel = 0;
-	//glTexImage2D( mType, MipLevel, Format, Meta.GetWidth(), Meta.GetHeight(), 0, Format, GL_UNSIGNED_BYTE, nullptr );
+	static bool InitialiseNull = true;
+	if ( InitialiseNull )
+	{
+		glTexImage2D( mType, MipLevel, InternalPixelFormat, Meta.GetWidth(), Meta.GetHeight(), Border, PixelsFormat, GlPixelsStorage, nullptr );
+	}
+	else
+	{
+		SoyPixels InitFramePixels;
+		InitFramePixels.Init( Meta.GetWidth(), Meta.GetHeight(), Meta.GetFormat() );
+		auto& PixelsArray = InitFramePixels.GetPixelsArray();
+		glTexImage2D( mType, MipLevel, InternalPixelFormat, Meta.GetWidth(), Meta.GetHeight(), Border, PixelsFormat, GlPixelsStorage, PixelsArray.GetArray() );
+	}
 	Opengl::IsOkay("glTexImage2D");
+	
+	//	verify params
+	GLint TextureWidth = -1;
+	GLint TextureHeight = -1;
+	GLint TextureInternalFormat = -1;
+	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth);
+	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight);
+	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &TextureInternalFormat);
+	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()" );
+	Soy::Assert( TextureWidth==Meta.GetWidth(), "Texture width doesn't match initialisation");
+	Soy::Assert( TextureHeight==Meta.GetHeight(), "Texture height doesn't match initialisation");
+	//Soy::Assert( TextureInternalFormat==InternalPixelFormat, "Texture format doesn't match initialisation");
+	//std::Debug << "new texture format "  << Opengl::GetEnumString(TextureInternalFormat) << std::endl;
 	
 	Unbind();
 	
@@ -597,9 +658,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 		Params.mAllowOpenglConversion = false;
 	
 	//	pixel data format
-	auto GlPixelsFormat = Opengl::GetUploadPixelFormat( *this, SourcePixels.GetFormat() );
-	if ( !Params.mAllowOpenglConversion )
-		GlPixelsFormat = GetPixelFormat( this->GetFormat() );
+	auto GlPixelsFormat = Opengl::GetUploadPixelFormat( *this, SourcePixels.GetFormat(), Params.mAllowOpenglConversion );
 
 	//	gr: take IOS's target-must-match-source requirement into consideration here (replace GetUploadPixelFormat)
 	SoyPixels ConvertedPixels;
@@ -614,7 +673,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 		while ( GlPixelsFormat == GL_INVALID_VALUE && !TryFormats.IsEmpty() )
 		{
 			auto TryFormat = TryFormats.PopAt(0);
-			auto TryGlFormat = Opengl::GetUploadPixelFormat( *this, TryFormat );
+			auto TryGlFormat = Opengl::GetUploadPixelFormat( *this, TryFormat, Params.mAllowOpenglConversion );
 			if ( TryGlFormat == GL_INVALID_VALUE )
 				continue;
 			
@@ -1154,62 +1213,71 @@ bool Opengl::TGeometry::IsValid() const
 
 
 
-const std::map<SoyPixelsFormat::Type,GLenum>& Opengl::GetPixelFormatMap()
+const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 {
-	static std::map<SoyPixelsFormat::Type,GLenum> PixelFormatMap =
+	static TPixelFormatMapping _PixelFormatMap[] =
 	{
-		std::make_pair( SoyPixelsFormat::RGB, GL_RGB ),
-		std::make_pair( SoyPixelsFormat::RGBA, GL_RGBA ),
+		TPixelFormatMapping( SoyPixelsFormat::RGB, GL_RGB, GL_RGB, GL_RGB ),
+		TPixelFormatMapping( SoyPixelsFormat::RGBA, GL_RGBA, GL_RGBA, GL_RGBA ),
 
 #if defined(TARGET_IOS)
-		std::make_pair( SoyPixelsFormat::BGRA, GL_BGRA ),
+		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_BGRA, GL_BGRA, GL_BGRA ),
 #endif
 #if defined(TARGET_WINDOWS)
-		std::make_pair( SoyPixelsFormat::Greyscale, GL_LUMINANCE ),
+		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
 #endif
 #if defined(GL_VERSION_3_0)
-		std::make_pair( SoyPixelsFormat::BGR, GL_BGR ),
-		std::make_pair( SoyPixelsFormat::Greyscale, GL_RED ),
-		std::make_pair( SoyPixelsFormat::GreyscaleAlpha, GL_RG ),
-		std::make_pair( SoyPixelsFormat::BGRA, GL_BGRA ),
+		TPixelFormatMapping( SoyPixelsFormat::BGR, GL_BGR, GL_BGR, GL_BGR ),
+		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_RED, GL_RED, GL_RED ),
+		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha, GL_RG, GL_RG, GL_RG ),
+		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_RGBA, GL_BGRA, GL_RGBA ),
 #endif
 	};
+	static Array<TPixelFormatMapping> PixelFormatMap( _PixelFormatMap );
 	return PixelFormatMap;
 }
 
-GLenum Opengl::GetPixelFormat(SoyPixelsFormat::Type Format)
+
+TPixelFormatMapping Opengl::GetPixelMapping(SoyPixelsFormat::Type PixelFormat)
 {
-	auto& Map = GetPixelFormatMap();
-	auto it = Map.find( Format );
-	if ( it == Map.end() )
-		return GL_INVALID_VALUE;
-	return it->second;
+	auto* Mapping = GetPixelFormatMap().Find( PixelFormat );
+	if ( !Mapping )
+		return TPixelFormatMapping();
+	return *Mapping;
+}
+
+GLenum Opengl::GetUploadPixelFormat(const Opengl::TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion)
+{
+	if ( Texture.IsValid() )
+	{
+		//	ios requires formats to match, no internal conversion
+	#if defined(TARGET_IOS)
+		Soy::Assert( Texture.GetFormat() == Format, "IOS requires texture upload format to match" );
+		auto Mapping = GetPixelMapping( Texture.GetFormat() );
+		return Mapping.mUploadFormat;
+	#endif
+	}
+	
+	auto Mapping = GetPixelMapping( Format );
+	return Mapping.mUploadFormat;
 }
 
 
-//	gr: seperate function until I've figured all these out
-GLenum Opengl::GetUploadPixelFormat(const Opengl::TTexture& Texture,SoyPixelsFormat::Type Format)
+GLenum Opengl::GetNewTexturePixelFormat(SoyPixelsFormat::Type Format)
 {
-	//	ios requires formats to match, no internal conversion
-#if defined(TARGET_IOS)
-	Soy::Assert( Texture.GetFormat() == Format, "IOS requires texture upload format to match" );
-	return GetPixelFormat( Texture.GetFormat() );
-#endif
-	
-	//	let callee do conversion
-	return GetPixelFormat( Format );
+	auto Mapping = GetPixelMapping( Format );
+	return Mapping.mNewTextureFormat;
 }
 
 
 GLenum Opengl::GetDownloadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat)
 {
-	auto Enum = GetPixelFormat( PixelFormat );
-	//	gotta resolve the pixel format after getting the best gl format
-	PixelFormat = GetPixelFormat( Enum );
-	return Enum;
+	auto Mapping = GetPixelMapping( PixelFormat );
+	return Mapping.mNewTextureFormat;
 }
 
 
+/*
 SoyPixelsFormat::Type Opengl::GetPixelFormat(GLenum glFormat)
 {
 	//	gr: there was special code here, check it before removing
@@ -1236,7 +1304,7 @@ SoyPixelsFormat::Type Opengl::GetPixelFormat(GLenum glFormat)
 	}
 	return SoyPixelsFormat::Invalid;
 }
-
+*/
 
 void Opengl::SetViewport(Soy::Rectf Viewport)
 {

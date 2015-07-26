@@ -128,10 +128,9 @@ namespace Opengl
 	bool	IsOkay(const std::string& Context,bool ThrowException=true);	//	throws exception
 	std::string		GetEnumString(GLenum Type);
 
-	SoyPixelsFormat::Type	GetPixelFormat(GLenum glFormat);
-	GLenum					GetPixelFormat(SoyPixelsFormat::Type Format);
-	GLenum					GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format);
-	GLenum					GetDownloadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat);
+	GLenum	GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
+	GLenum	GetNewTexturePixelFormat(SoyPixelsFormat::Type Format);
+	GLenum	GetDownloadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat);
 
 	//	helpers
 	void	ClearColour(Soy::TRgb Colour,float Alpha=1);
