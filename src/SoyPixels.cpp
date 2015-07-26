@@ -1218,8 +1218,12 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 		GetMeta().DumbSetWidth( Width );
 	}
 	
-	assert( Height == GetHeight() );
-	assert( Width = GetWidth() );
+	if ( Height != GetHeight() || Width != GetWidth() )
+	{
+		std::stringstream Error;
+		Error << "Wrong height(" << Height << " not " << GetHeight() << ") width (" << Width << " not " << GetWidth() << ") after " << __func__;
+		throw Soy::AssertException( Error.str() );
+	}
 }
 
 
