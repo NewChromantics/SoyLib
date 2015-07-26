@@ -101,7 +101,7 @@ void Opengl::TJobQueue::Flush(TContext& Context)
 		
 		//	mark job as finished
 		if ( Job->mSemaphore )
-			Job->mSemaphore->mCompleted = true;
+			Job->mSemaphore->OnCompleted();
 	}
 }
 
@@ -128,22 +128,18 @@ void Opengl::TContext::Init()
 void Opengl::TContext::PushJob(std::function<bool ()> Function)
 {
 	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
-	InternalPushJob( Job, nullptr );
+	PushJobImpl( Job, nullptr );
 }
 
-void Opengl::TContext::PushJob(std::function<bool ()> Function,TJobSempahore& Semaphore)
+void Opengl::TContext::PushJob(std::function<bool ()> Function,Soy::TSemaphore& Semaphore)
 {
 	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
-	InternalPushJob( Job, &Semaphore );
+	PushJobImpl( Job, &Semaphore );
 }
 
-void Opengl::TContext::InternalPushJob(std::shared_ptr<TJob>& Job,TJobSempahore* Semaphore)
+void Opengl::TContext::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore)
 {
 	Soy::Assert( Job!=nullptr, "Job expected" );
-	
-	if ( Semaphore )
-		if ( !Soy::Assert( !Semaphore->mCompleted, "Semaphore not initialised" ) )
-			Semaphore->mCompleted = false;
 	
 	Job->mSemaphore = Semaphore;
 	

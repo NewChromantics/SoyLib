@@ -3,6 +3,7 @@
 
 #include "SoyOpengl.h"
 #include "SoyEnum.h"
+#include "SoyThread.h"
 
 
 namespace OpenglExtensions
@@ -29,8 +30,6 @@ namespace Opengl
 	class TJobQueue;
 	class TJob;
 	class TJob_Function;	//	simple job for lambda's
-	class TJobSempahore;
-	
 };
 
 
@@ -76,7 +75,7 @@ public:
 	virtual bool		Run(std::ostream& Error)=0;
 	
 	//	todo: event, or sempahore? or OS semaphore?
-	TJobSempahore*			mSemaphore;
+	Soy::TSemaphore*		mSemaphore;
 	//SoyEvent<bool>		mOnFinished;
 };
 
@@ -112,24 +111,6 @@ private:
 	std::recursive_mutex				mLock;
 };
 
-class Opengl::TJobSempahore
-{
-public:
-	TJobSempahore() :
-		mCompleted	( false )
-	{
-	}
-	void			Wait()
-	{
-		//	gr: use conditonal_wait here?
-		while ( !mCompleted )
-		{
-		}
-	}
-
-public:
-	volatile bool		mCompleted;
-};
 
 class Opengl::TContext
 {
@@ -142,16 +123,16 @@ public:
 	virtual bool	Lock()			{	return true;	}
 	virtual void	Unlock()		{	}
 	void			PushJob(std::function<bool(void)> Lambda);
-	void			PushJob(std::function<bool(void)> Lambda,TJobSempahore& Semaphore);
-	void			PushJob(std::shared_ptr<TJob>& Job)								{	InternalPushJob( Job, nullptr );	}
-	void			PushJob(std::shared_ptr<TJob>& Job,TJobSempahore& Semaphore)	{	InternalPushJob( Job, &Semaphore );	}
+	void			PushJob(std::function<bool(void)> Lambda,Soy::TSemaphore& Semaphore);
+	void			PushJob(std::shared_ptr<TJob>& Job)								{	PushJobImpl( Job, nullptr );	}
+	void			PushJob(std::shared_ptr<TJob>& Job,Soy::TSemaphore& Semaphore)	{	PushJobImpl( Job, &Semaphore );	}
 	void			FlushJobs()		{	mJobQueue.Flush( *this );	}
 	
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
 	
 protected:
-	virtual void	InternalPushJob(std::shared_ptr<TJob>& Job,TJobSempahore* Semaphore);
+	virtual void	PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore);
 
 public:
 	TJobQueue		mJobQueue;
