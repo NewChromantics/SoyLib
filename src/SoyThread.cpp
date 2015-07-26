@@ -8,6 +8,23 @@ std::map<std::thread::native_handle_type,std::shared_ptr<SoyEvent<const std::thr
 std::map<std::thread::native_handle_type,std::shared_ptr<prmem::Heap>> SoyThread::mThreadHeaps;
 
 
+void Soy::TSemaphore::OnCompleted()
+{
+	mCompleted = true;
+	mConditional.notify_all();
+}
+
+void Soy::TSemaphore::Wait()
+{
+	std::unique_lock<std::mutex> Lock( mLock );
+	
+	while ( !mCompleted )
+	{
+		mConditional.wait( Lock );
+	}
+}
+
+
 ofThread::ofThread() :
 	mIsRunning		( false )
 {

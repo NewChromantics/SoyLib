@@ -6,6 +6,33 @@
 #include "MemHeap.hpp"
 #include "HeapArray.hpp"
 
+
+
+namespace Soy
+{
+	class TSemaphore;
+}
+
+class Soy::TSemaphore
+{
+public:
+	TSemaphore() :
+		mCompleted	( false )
+	{
+	}
+	
+	void		Wait();
+	void		OnCompleted();
+	
+private:
+	std::mutex				mLock;
+	std::condition_variable	mConditional;
+	volatile bool			mCompleted;
+};
+
+
+
+
 //	c++11 threads are better!
 //	gr: if mscv > 2012?
 
