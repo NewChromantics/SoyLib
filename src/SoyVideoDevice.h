@@ -100,6 +100,7 @@ public:
 	bool							IsValid() const		{	return GetPixelsConst().IsValid();	}
 	virtual SoyPixelsImpl&			GetPixels() =0;
 	virtual const SoyPixelsImpl&	GetPixelsConst() const=0;
+	const SoyTime&					GetTime() const		{	return mTimecode;	}
 	
 public:
 	std::string			mSerial;
@@ -178,7 +179,7 @@ public:
 	
 	virtual TVideoDeviceMeta	GetMeta() const=0;		//	gr: make this dynamic so other states might change
 	std::string					GetSerial() const		{	return GetMeta().mSerial;	}
-	const TVideoFrameMemFile&	GetLastFrame(std::stringstream& Error) const	{	Error << mLastError;	return mLastFrame;	}
+	const TVideoFrameMemFile&	GetLastFrame(std::ostream& Error) const	{	Error << mLastError;	return mLastFrame;	}
 	float						GetFps() const;			//	how many frames per sec are we averaging?
 	int							GetFrameMs() const;		//	how long does each frame take to recieve
 	void						ResetFrameCounter();	//	reset the fps counter
