@@ -25,7 +25,10 @@ namespace Opengl
 	class TVersion;
 
 	class TRenderTargetFbo;
+	class TSync;			//	uses fences to sync
 };
+
+
 class Opengl::TVersion
 {
 public:
@@ -66,7 +69,8 @@ public:
 	void			Iteration()			{	Flush(*this);	}
 	virtual bool	Lock() override		{	return true;	}
 	virtual void	Unlock() override	{	}
-	
+	virtual std::shared_ptr<Opengl::TContext>	CreateSharedContext()	{	return nullptr;	}
+
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
 	
@@ -113,4 +117,16 @@ public:
 	
 	std::shared_ptr<TFbo>	mFbo;
 	TTexture				mTexture;
+};
+
+class Opengl::TSync
+{
+public:
+	TSync(Opengl::TContext& Context);
+	
+	void	Wait();
+	
+private:
+	GLsync				mSyncObject;
+	Opengl::TContext&	mContext;
 };

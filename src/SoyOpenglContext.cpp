@@ -248,3 +248,35 @@ Opengl::TTexture Opengl::TRenderTargetFbo::GetTexture()
 }
 
 
+
+Opengl::TSync::TSync(Opengl::TContext& Context) :
+	mContext	( Context ),
+	mSyncObject	( nullptr )
+{
+	//	make object
+	auto MakeSync = [this]
+	{
+		mSyncObject = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+		Opengl::IsOkay("glFenceSync");
+		return true;
+	};
+	Soy::TSemaphore Semaphore;
+	mContext.PushJob( MakeSync, Semaphore );
+	Semaphore.Wait();
+}
+
+void Opengl::TSync::Wait()
+{
+	//	make object
+	auto WaitSync = [this]
+	{
+		glWaitSync( mSyncObject, 0, GL_TIMEOUT_IGNORED );
+		Opengl::IsOkay("glWaitSync");
+		mSyncObject = nullptr;
+		return true;
+	};
+	Soy::TSemaphore Semaphore;
+	mContext.PushJob( WaitSync, Semaphore );
+	Semaphore.Wait("glWaitSync");
+}
+
