@@ -272,6 +272,7 @@ void Opengl::TSync::Wait()
 	{
 		glWaitSync( mSyncObject, 0, GL_TIMEOUT_IGNORED );
 		Opengl::IsOkay("glWaitSync");
+		glDeleteSync( mSyncObject );
 		mSyncObject = nullptr;
 		return true;
 	};
