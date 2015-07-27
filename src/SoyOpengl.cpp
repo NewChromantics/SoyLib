@@ -458,7 +458,8 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, MipLevel );
 	Opengl::IsOkay("glTexParameteri set mip levels");
 	
-	std::Debug << "glTexImage2D(" << Opengl::GetEnumString( mType ) << "," << Opengl::GetEnumString( InternalPixelFormat ) << "," << Opengl::GetEnumString( PixelsFormat ) << "," << Opengl::GetEnumString(GlPixelsStorage) << ")" << std::endl;
+	//	debug construction
+	//std::Debug << "glTexImage2D(" << Opengl::GetEnumString( mType ) << "," << Opengl::GetEnumString( InternalPixelFormat ) << "," << Opengl::GetEnumString( PixelsFormat ) << "," << Opengl::GetEnumString(GlPixelsStorage) << ")" << std::endl;
 	
 	//	initialise to set dimensions
 	static bool InitialiseNull = true;
