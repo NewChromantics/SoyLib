@@ -14,13 +14,24 @@ void Soy::TSemaphore::OnCompleted()
 	mConditional.notify_all();
 }
 
-void Soy::TSemaphore::Wait()
+void Soy::TSemaphore::Wait(const char* TimerName)
 {
+	if ( mCompleted )
+		return;
+	
 	std::unique_lock<std::mutex> Lock( mLock );
 	
-	while ( !mCompleted )
+	if ( TimerName )
 	{
-		mConditional.wait( Lock );
+		ofScopeTimerWarning Timer( TimerName, 0 );
+	
+		while ( !mCompleted )
+			mConditional.wait( Lock );
+	}
+	else
+	{
+		while ( !mCompleted )
+			mConditional.wait( Lock );
 	}
 }
 

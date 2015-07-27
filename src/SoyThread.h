@@ -21,7 +21,7 @@ public:
 	{
 	}
 	
-	void		Wait();
+	void		Wait(const char* TimerName=nullptr);
 	void		OnCompleted();
 	
 private:
