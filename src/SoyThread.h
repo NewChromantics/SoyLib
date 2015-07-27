@@ -32,6 +32,92 @@ private:
 
 
 
+//	dumb, but simple "jobs to execute" system. Used to force operations on main thread or opengl thread
+//	merge this with pop job and soy worker systems!
+namespace PopWorker
+{
+	class TContext;
+	class TJobQueue;
+	class TJob;
+	class TJob_Function;	//	simple job for lambda's
+};
+
+
+
+class PopWorker::TJob
+{
+public:
+	TJob() :
+	mSemaphore	( nullptr )
+	{
+	}
+	
+	//	returns "im finished"
+	//	return false to stop any more tasks being run and re-insert this in the queue
+	virtual bool		Run(std::ostream& Error)=0;
+	
+	//	todo: event, or sempahore? or OS semaphore?
+	Soy::TSemaphore*		mSemaphore;
+	//SoyEvent<bool>		mOnFinished;
+};
+
+
+
+class PopWorker::TJob_Function : public TJob
+{
+public:
+	TJob_Function(std::function<bool ()> Function) :
+	mFunction	( Function )
+	{
+	}
+	
+	virtual bool		Run(std::ostream& Error)
+	{
+		return mFunction();
+	}
+	
+	std::function<bool ()>	mFunction;
+};
+
+
+class PopWorker::TContext
+{
+public:
+	virtual bool	Lock()=0;
+	virtual void	Unlock()=0;
+};
+
+
+class PopWorker::TJobQueue
+{
+public:
+	void			Flush(TContext& Context);
+	bool			HasJobs() const			{	return !mJobs.empty();	}
+	void			PushJob(std::function<bool(void)> Lambda);
+	void			PushJob(std::function<bool(void)> Lambda,Soy::TSemaphore& Semaphore);
+	void			PushJob(std::shared_ptr<TJob>& Job)									{	PushJobImpl( Job, nullptr );	}
+	void			PushJob(std::shared_ptr<TJob>& Job,Soy::TSemaphore& Semaphore)		{	PushJobImpl( Job, &Semaphore );	}
+	
+protected:
+	virtual void	PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore);
+	
+public:
+	SoyEvent<std::shared_ptr<TJob>>		mOnJobPushed;
+	
+private:
+	std::vector<std::shared_ptr<TJob>>	mJobs;		//	gr: change this to a nice soy ringbuffer
+	std::recursive_mutex				mLock;
+};
+
+
+
+
+
+
+
+
+
+
 
 //	c++11 threads are better!
 //	gr: if mscv > 2012?

@@ -25,6 +25,98 @@ void Soy::TSemaphore::Wait()
 }
 
 
+
+void PopWorker::TJobQueue::Flush(TContext& Context)
+{
+	auto AutoUnlockContext = [&Context]
+	{
+		Context.Unlock();
+	};
+	
+	bool FlushError = true;
+	
+	ofScopeTimerWarning LockTimer("Waiting for job lock",4,false);
+	while ( true )
+	{
+		LockTimer.Start();
+		//	pop task
+		mLock.lock();
+		std::shared_ptr<TJob> Job;
+		auto NextJob = mJobs.begin();
+		if ( NextJob != mJobs.end() )
+		{
+			Job = *NextJob;
+			mJobs.erase( NextJob );
+		}
+		//bool MoreJobs = !mJobs.empty();
+		mLock.unlock();
+		LockTimer.Stop();
+		
+		if ( !Job )
+			break;
+		
+		//	lock the context
+		if ( !Context.Lock() )
+		{
+			mLock.lock();
+			mJobs.insert( mJobs.begin(), Job );
+			mLock.unlock();
+			break;
+		}
+		
+		//	flush errors from before iteration
+		if ( FlushError )
+		{
+			//Opengl::IsOkay("JobQueue flush flush",false);
+			FlushError = false;
+		}
+		
+		auto ContextLock = SoyScope( nullptr, AutoUnlockContext );
+		
+		//	execute task, if it returns false, we don't run any more this time and re-insert
+		if ( !Job->Run( std::Debug ) )
+		{
+			mLock.lock();
+			mJobs.insert( mJobs.begin(), Job );
+			mLock.unlock();
+			break;
+		}
+		
+		//	mark job as finished
+		if ( Job->mSemaphore )
+			Job->mSemaphore->OnCompleted();
+	}
+}
+
+
+void PopWorker::TJobQueue::PushJob(std::function<bool ()> Function)
+{
+	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
+	PushJobImpl( Job, nullptr );
+}
+
+void PopWorker::TJobQueue::PushJob(std::function<bool ()> Function,Soy::TSemaphore& Semaphore)
+{
+	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
+	PushJobImpl( Job, &Semaphore );
+}
+
+void PopWorker::TJobQueue::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore)
+{
+	Soy::Assert( Job!=nullptr, "Job expected" );
+	
+	Job->mSemaphore = Semaphore;
+	
+	mLock.lock();
+	mJobs.push_back( Job );
+	mLock.unlock();
+	
+	mOnJobPushed.OnTriggered( Job );
+}
+
+
+
+
 ofThread::ofThread() :
 	mIsRunning		( false )
 {
