@@ -475,6 +475,25 @@ private:
 };
 
 
+
+class SoyWorkerJobThread : public SoyWorkerThread, public PopWorker::TJobQueue, public PopWorker::TContext
+{
+public:
+	SoyWorkerJobThread(const std::string& Name) :
+		SoyWorkerThread	( Name, SoyWorkerWaitMode::Wake )
+	{
+		WakeOnEvent( PopWorker::TJobQueue::mOnJobPushed );
+	}
+	
+	//	thread
+	virtual bool		Iteration() override	{	PopWorker::TJobQueue::Flush(*this);	return true;	}
+	virtual bool		CanSleep() override		{	return !PopWorker::TJobQueue::HasJobs();	}	//	break out of conditional with this
+	
+	//	context
+	virtual bool		Lock() override			{	return true;	}
+	virtual void		Unlock() override		{}
+};
+
 /*
 class SoyFunctionId
 {
