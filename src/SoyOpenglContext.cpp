@@ -40,18 +40,10 @@ Opengl::TVersion::TVersion(const std::string& VersionStr) :
 }
 
 
-void Opengl::TJobQueue::Push(std::shared_ptr<TJob>& Job)
-{
-	mLock.lock();
-	mJobs.push_back( Job );
-	mLock.unlock();
-}
-
-void Opengl::TJobQueue::Flush(TContext& Context)
+void PopWorker::TJobQueue::Flush(TContext& Context)
 {
 	auto AutoUnlockContext = [&Context]
 	{
-		Opengl::IsOkay("Post job flush",false);
 		Context.Unlock();
 	};
 
@@ -134,28 +126,31 @@ void Opengl::TContext::Init()
 }
 
 
-void Opengl::TContext::PushJob(std::function<bool ()> Function)
+void PopWorker::TJobQueue::PushJob(std::function<bool ()> Function)
 {
 	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
 	PushJobImpl( Job, nullptr );
 }
 
-void Opengl::TContext::PushJob(std::function<bool ()> Function,Soy::TSemaphore& Semaphore)
+void PopWorker::TJobQueue::PushJob(std::function<bool ()> Function,Soy::TSemaphore& Semaphore)
 {
 	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
 	PushJobImpl( Job, &Semaphore );
 }
 
-void Opengl::TContext::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore)
+void PopWorker::TJobQueue::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore)
 {
 	Soy::Assert( Job!=nullptr, "Job expected" );
 	
 	Job->mSemaphore = Semaphore;
 	
-	mJobQueue.Push( Job );
+	mLock.lock();
+	mJobs.push_back( Job );
+	mLock.unlock();
 	
 	mOnJobPushed.OnTriggered( Job );
 }
+
 
 
 bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName)

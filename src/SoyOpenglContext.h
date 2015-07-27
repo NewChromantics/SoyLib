@@ -25,8 +25,11 @@ namespace Opengl
 	class TVersion;
 
 	class TRenderTargetFbo;
-	
-	//	gr: renamed this to job to replace with SoyJob's later
+};
+
+namespace PopWorker
+{
+	class TContext;
 	class TJobQueue;
 	class TJob;
 	class TJob_Function;	//	simple job for lambda's
@@ -62,7 +65,7 @@ namespace Opengl
 	}
 }
 
-class Opengl::TJob
+class PopWorker::TJob
 {
 public:
 	TJob() :
@@ -81,7 +84,7 @@ public:
 
 
 
-class Opengl::TJob_Function : public TJob
+class PopWorker::TJob_Function : public TJob
 {
 public:
 	TJob_Function(std::function<bool ()> Function) :
@@ -98,49 +101,53 @@ public:
 };
 
 
-
-class Opengl::TJobQueue
+class PopWorker::TContext
 {
 public:
-	void		Push(std::shared_ptr<TJob>& Job);
-	void		Flush(TContext& Context);
-	bool		HasJobs() const			{	return !mJobs.empty();	}
+	virtual bool	Lock()=0;
+	virtual void	Unlock()=0;
+};
+
+class PopWorker::TJobQueue
+{
+public:
+	void			Flush(TContext& Context);
+	bool			HasJobs() const			{	return !mJobs.empty();	}
+	void			PushJob(std::function<bool(void)> Lambda);
+	void			PushJob(std::function<bool(void)> Lambda,Soy::TSemaphore& Semaphore);
+	void			PushJob(std::shared_ptr<TJob>& Job)									{	PushJobImpl( Job, nullptr );	}
+	void			PushJob(std::shared_ptr<TJob>& Job,Soy::TSemaphore& Semaphore)		{	PushJobImpl( Job, &Semaphore );	}
+
+protected:
+	virtual void	PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore);
+
+public:
+	SoyEvent<std::shared_ptr<TJob>>		mOnJobPushed;
 
 private:
-	//	gr: change this to a nice soy ringbuffer
-	std::vector<std::shared_ptr<TJob>>	mJobs;
+	std::vector<std::shared_ptr<TJob>>	mJobs;		//	gr: change this to a nice soy ringbuffer
 	std::recursive_mutex				mLock;
 };
 
 
-class Opengl::TContext
+class Opengl::TContext : public PopWorker::TJobQueue, public PopWorker::TContext
 {
 public:
 	TContext();
 	virtual ~TContext()				{}
 
 	void			Init();
-	void			Iteration()		{	FlushJobs();	}
-	virtual bool	Lock()			{	return true;	}
-	virtual void	Unlock()		{	}
-	void			PushJob(std::function<bool(void)> Lambda);
-	void			PushJob(std::function<bool(void)> Lambda,Soy::TSemaphore& Semaphore);
-	void			PushJob(std::shared_ptr<TJob>& Job)								{	PushJobImpl( Job, nullptr );	}
-	void			PushJob(std::shared_ptr<TJob>& Job,Soy::TSemaphore& Semaphore)	{	PushJobImpl( Job, &Semaphore );	}
-	void			FlushJobs()		{	mJobQueue.Flush( *this );	}
-	bool			HasJobs() const	{	return mJobQueue.HasJobs();	}
+	void			Iteration()			{	Flush(*this);	}
+	virtual bool	Lock() override		{	return true;	}
+	virtual void	Unlock() override	{	}
 	
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
 	
-protected:
-	virtual void	PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore);
 
 public:
-	TJobQueue		mJobQueue;
 	TVersion		mVersion;
 	std::string		mDeviceName;
-	SoyEvent<std::shared_ptr<TJob>>	mOnJobPushed;
 };
 
 
