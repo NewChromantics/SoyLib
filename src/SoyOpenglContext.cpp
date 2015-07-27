@@ -123,10 +123,14 @@ void Opengl::TContext::Init()
 
 	mVersion = Opengl::TVersion( std::string( VersionString ) );
 
+	auto* DeviceString = reinterpret_cast<const char*>( glGetString( GL_VERSION ) );
+	Soy::Assert( DeviceString!=nullptr, "device string invalid. Context not valid? Not on opengl thread?" );
+	mDeviceName = std::string( DeviceString );
+
 	//	trigger extensions init early
 	IsSupported( OpenglExtensions::Invalid );
 	
-	std::Debug << "Opengl version: " << mVersion << std::endl;
+	std::Debug << "Opengl version: " << mVersion << " on " << mDeviceName << std::endl;
 }
 
 
@@ -148,8 +152,9 @@ void Opengl::TContext::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* S
 	
 	Job->mSemaphore = Semaphore;
 	
-	//	todo: assign and reset semaphore
 	mJobQueue.Push( Job );
+	
+	mOnJobPushed.OnTriggered( Job );
 }
 
 

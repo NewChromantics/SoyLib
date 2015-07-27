@@ -104,6 +104,7 @@ class Opengl::TJobQueue
 public:
 	void		Push(std::shared_ptr<TJob>& Job);
 	void		Flush(TContext& Context);
+	bool		HasJobs() const			{	return !mJobs.empty();	}
 
 private:
 	//	gr: change this to a nice soy ringbuffer
@@ -127,6 +128,7 @@ public:
 	void			PushJob(std::shared_ptr<TJob>& Job)								{	PushJobImpl( Job, nullptr );	}
 	void			PushJob(std::shared_ptr<TJob>& Job,Soy::TSemaphore& Semaphore)	{	PushJobImpl( Job, &Semaphore );	}
 	void			FlushJobs()		{	mJobQueue.Flush( *this );	}
+	bool			HasJobs() const	{	return mJobQueue.HasJobs();	}
 	
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
@@ -137,6 +139,8 @@ protected:
 public:
 	TJobQueue		mJobQueue;
 	TVersion		mVersion;
+	std::string		mDeviceName;
+	SoyEvent<std::shared_ptr<TJob>>	mOnJobPushed;
 };
 
 
