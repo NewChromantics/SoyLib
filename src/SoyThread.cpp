@@ -35,12 +35,17 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 	{
 		ofScopeTimerWarning Timer( TimerName, 0 );
 
-		mConditional.wait_for( Lock, std::chrono::milliseconds(TimeoutMs), IsCompleted );
+		while ( !IsCompleted() )
+			mConditional.wait_for( Lock, std::chrono::milliseconds(TimeoutMs), IsCompleted );
 	}
 	else
 	{
-		mConditional.wait_for( Lock, std::chrono::milliseconds(TimeoutMs), IsCompleted );
+		while ( !IsCompleted() )
+			mConditional.wait_for( Lock, std::chrono::milliseconds(TimeoutMs), IsCompleted );
 	}
+	
+	if ( !mCompleted )
+		throw Soy::AssertException("Broke out of semaphore");
 }
 
 
