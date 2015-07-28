@@ -265,7 +265,7 @@ Opengl::TSync::TSync(Opengl::TContext& Context) :
 	Semaphore.Wait();
 }
 
-void Opengl::TSync::Wait()
+void Opengl::TSync::Wait(const char* TimerName)
 {
 	//	make object
 	auto WaitSync = [this]
@@ -278,6 +278,6 @@ void Opengl::TSync::Wait()
 	};
 	Soy::TSemaphore Semaphore;
 	mContext.PushJob( WaitSync, Semaphore );
-	Semaphore.Wait("glWaitSync");
+	Semaphore.Wait(TimerName);
 }
 

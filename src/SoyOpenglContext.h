@@ -124,7 +124,7 @@ class Opengl::TSync
 public:
 	TSync(Opengl::TContext& Context);
 	
-	void	Wait();
+	void	Wait(const char* TimerName=nullptr);
 	
 private:
 	GLsync				mSyncObject;
