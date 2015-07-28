@@ -10,11 +10,7 @@ std::map<std::thread::native_handle_type,std::shared_ptr<prmem::Heap>> SoyThread
 
 void Soy::TSemaphore::OnCompleted()
 {
-	//	gr: don't think I should need this, but it's helping?
-	//	gr: if not, change wait()'s to wait_for so it auto awakes and re-checks predicate
-	mLock.lock();
 	mCompleted = true;
-	mLock.unlock();
 	
 	mConditional.notify_all();
 }
@@ -26,6 +22,10 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 	
 	std::unique_lock<std::mutex> Lock( mLock );
 	
+	//	gr: sometimes this gets stuck... so timeout and re-read IsCompleted...
+	//		seems to only happen with multiple opengl contexts... but I don't see how that's relaveant
+	static int TimeoutMs = 1000;
+
 	auto IsCompleted = [this]
 	{
 		return mCompleted;
@@ -34,12 +34,12 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 	if ( TimerName )
 	{
 		ofScopeTimerWarning Timer( TimerName, 0 );
-	
-		mConditional.wait( Lock, IsCompleted );
+
+		mConditional.wait_for( Lock, std::chrono::milliseconds(TimeoutMs), IsCompleted );
 	}
 	else
 	{
-		mConditional.wait( Lock, IsCompleted );
+		mConditional.wait_for( Lock, std::chrono::milliseconds(TimeoutMs), IsCompleted );
 	}
 }
 
