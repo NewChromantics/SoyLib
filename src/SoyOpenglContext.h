@@ -122,11 +122,10 @@ public:
 class Opengl::TSync
 {
 public:
-	TSync(Opengl::TContext& Context);
+	TSync();
 	
 	void	Wait(const char* TimerName=nullptr);
 	
 private:
 	GLsync				mSyncObject;
-	Opengl::TContext&	mContext;
 };

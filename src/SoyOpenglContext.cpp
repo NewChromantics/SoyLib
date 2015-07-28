@@ -249,35 +249,33 @@ Opengl::TTexture Opengl::TRenderTargetFbo::GetTexture()
 
 
 
-Opengl::TSync::TSync(Opengl::TContext& Context) :
-	mContext	( Context ),
+Opengl::TSync::TSync() :
 	mSyncObject	( nullptr )
 {
-	//	make object
-	auto MakeSync = [this]
-	{
-		mSyncObject = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
-		Opengl::IsOkay("glFenceSync");
-		return true;
-	};
-	Soy::TSemaphore Semaphore;
-	mContext.PushJob( MakeSync, Semaphore );
-	Semaphore.Wait();
+	mSyncObject = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+	Opengl::IsOkay("glFenceSync");
 }
 
 void Opengl::TSync::Wait(const char* TimerName)
 {
-	//	make object
-	auto WaitSync = [this]
+	if ( !glIsSync( mSyncObject ) )
+		return;
+
+	//glWaitSync( mSyncObject, 0, GL_TIMEOUT_IGNORED );
+	GLbitfield Flags = GL_SYNC_FLUSH_COMMANDS_BIT;
+	GLuint64 TimeoutMs = 1000;
+	GLuint64 TimeoutNs = TimeoutMs * 1000000;
+	GLenum Result = GL_INVALID_ENUM;
+	do
 	{
-		glWaitSync( mSyncObject, 0, GL_TIMEOUT_IGNORED );
-		Opengl::IsOkay("glWaitSync");
-		glDeleteSync( mSyncObject );
-		mSyncObject = nullptr;
-		return true;
-	};
-	Soy::TSemaphore Semaphore;
-	mContext.PushJob( WaitSync, Semaphore );
-	Semaphore.Wait(TimerName);
+		Result = glClientWaitSync( mSyncObject, Flags, TimeoutNs );
+	}
+	while ( Result == GL_TIMEOUT_EXPIRED );
+	
+	if ( Result == GL_WAIT_FAILED )
+		Opengl::IsOkay("glClientWaitSync GL_WAIT_FAILED");
+
+	glDeleteSync( mSyncObject );
+	mSyncObject = nullptr;
 }
 
