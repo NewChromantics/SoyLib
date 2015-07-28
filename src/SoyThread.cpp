@@ -10,7 +10,12 @@ std::map<std::thread::native_handle_type,std::shared_ptr<prmem::Heap>> SoyThread
 
 void Soy::TSemaphore::OnCompleted()
 {
+	//	gr: don't think I should need this, but it's helping?
+	//	gr: if not, change wait()'s to wait_for so it auto awakes and re-checks predicate
+	mLock.lock();
 	mCompleted = true;
+	mLock.unlock();
+	
 	mConditional.notify_all();
 }
 
@@ -21,17 +26,20 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 	
 	std::unique_lock<std::mutex> Lock( mLock );
 	
+	auto IsCompleted = [this]
+	{
+		return mCompleted;
+	};
+	
 	if ( TimerName )
 	{
 		ofScopeTimerWarning Timer( TimerName, 0 );
 	
-		while ( !mCompleted )
-			mConditional.wait( Lock );
+		mConditional.wait( Lock, IsCompleted );
 	}
 	else
 	{
-		while ( !mCompleted )
-			mConditional.wait( Lock );
+		mConditional.wait( Lock, IsCompleted );
 	}
 }
 
