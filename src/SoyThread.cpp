@@ -24,7 +24,7 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 	
 	//	gr: sometimes this gets stuck... so timeout and re-read IsCompleted...
 	//		seems to only happen with multiple opengl contexts... but I don't see how that's relaveant
-	static int TimeoutMs = 1000;
+	static int TimeoutMs = 666;
 
 	auto IsCompleted = [this]
 	{
