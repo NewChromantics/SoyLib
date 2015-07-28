@@ -52,15 +52,15 @@ namespace Opengl
 
 	//	get some CPU-persistent-storage for a texture
 	//	todo: some way to clean this up. We WOULD keep it on a texture... IF that texture was persistent (ie. not from unity)
-	std::shared_ptr<SoyPixels>	GetClientStorage(TTexture& Texture);
+	std::shared_ptr<SoyPixelsImpl>	GetClientStorage(TTexture& Texture);
 }
 
-std::shared_ptr<SoyPixels> Opengl::GetClientStorage(TTexture& Texture)
+std::shared_ptr<SoyPixelsImpl> Opengl::GetClientStorage(TTexture& Texture)
 {
 	if ( !Texture.IsValid() )
 		return nullptr;
 	
-	static bool AllowOnTextureStorage = false;
+	static bool AllowOnTextureStorage = true;
 	if ( AllowOnTextureStorage )
 	{
 		//	can store it on the texture, if we own the texture
@@ -75,9 +75,9 @@ std::shared_ptr<SoyPixels> Opengl::GetClientStorage(TTexture& Texture)
 	//	look in a map
 	//	gr: assume texture ID is persistent... may need to change if we do multiple contexts, and caller can check if the data is not appropriate (if it'll re-alloc, maybe we can return a const storage?)
 	//	gr: does map need locking?
-	static std::map<GLuint,std::shared_ptr<SoyPixels>> gTextureClientStorage;
+	static std::map<GLuint,std::shared_ptr<SoyPixelsImpl>> gTextureClientStorage;
 	
-	std::shared_ptr<SoyPixels>& Storage = gTextureClientStorage[Texture.mTexture.mName];
+	std::shared_ptr<SoyPixelsImpl>& Storage = gTextureClientStorage[Texture.mTexture.mName];
 	if ( !Storage )
 		Storage.reset( new SoyPixels );
 	
@@ -474,7 +474,7 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 		auto& PixelsArray = InitFramePixels.GetPixelsArray();
 		glTexImage2D( mType, MipLevel, InternalPixelFormat, Meta.GetWidth(), Meta.GetHeight(), Border, PixelsFormat, GlPixelsStorage, PixelsArray.GetArray() );
 	}
-	Opengl::IsOkay("glTexImage2D");
+	Opengl::IsOkay("glTexImage2D texture construction");
 	
 	//	verify params
 	GLint TextureWidth = -1;
@@ -642,12 +642,14 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 
 	if ( UsingAppleStorage )
 	{
+		//	https://developer.apple.com/library/mac/documentation/GraphicsImaging/Conceptual/OpenGL-MacProgGuide/opengl_texturedata/opengl_texturedata.html
+		//	. Note that a texture width must be a multiple of 32 bytes for OpenGL to bypass the copy operation from the application to the OpenGL framework.
 		if ( !Params.mAllowClientStorage )
 			UsingAppleStorage = false;
 	}
 
 	//	fetch our client storage
-	std::shared_ptr<SoyPixels> ClientStorage;
+	std::shared_ptr<SoyPixelsImpl> ClientStorage;
 	if ( UsingAppleStorage )
 	{
 		ClientStorage = Opengl::GetClientStorage( *this );
@@ -697,22 +699,29 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 #if defined(TARGET_OSX)
 	if ( UsingAppleStorage )
 	{
-		ofScopeTimerWarning Timer("glTexImage2D(GL_APPLE_client_storage)", 10 );
-		std::Debug << "Using apple storage" << std::endl;
+		ofScopeTimerWarning Timer("glTexImage2D(GL_APPLE_client_storage)", 4 );
 		
 		//	https://developer.apple.com/library/mac/documentation/graphicsimaging/conceptual/opengl-macprogguide/opengl_texturedata/opengl_texturedata.html
 		glTexParameteri(mType,
 						GL_TEXTURE_STORAGE_HINT_APPLE,
-						GL_STORAGE_CACHED_APPLE);
+						GL_STORAGE_SHARED_APPLE);
 			
 		glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
 		
 		//	make sure there is never a reallocation, unless it's the first
 		auto& PixelsBuffer = *ClientStorage;
-		PixelsBuffer.Copy( FinalPixels, PixelsBuffer.IsValid() ? false : true );
+		bool NewTexture = !PixelsBuffer.IsValid();
+		PixelsBuffer.Copy( FinalPixels, NewTexture );
 		
-		glTexImage2D(mType, MipLevel, TextureInternalFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, GlPixelsFormat, GlPixelsStorage, PixelsBuffer.GetPixelsArray().GetArray() );
-		Opengl_IsOkay();
+		//	need to work out if it's new to the GPU in case pixels were already allocated
+		//if ( NewTexture )
+		{
+			//GLuint InternalPixelFormat = Opengl::GetNewTexturePixelFormat( Meta.GetFormat() );
+			glTexImage2D(mType, MipLevel, TextureInternalFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, GlPixelsFormat, GlPixelsStorage, PixelsBuffer.GetPixelsArray().GetArray() );
+			Opengl::IsOkay("glTexImage2D(GL_APPLE_client_storage) glTexImage2D");
+		}
+		glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
+		Opengl::IsOkay("glTexImage2D(GL_APPLE_client_storage) glPixelStorei");
 	}
 	else
 #endif
@@ -730,6 +739,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 		auto* PixelsArrayData = PixelsArray.GetArray();
 	
 		//	only for "new" textures
+		
 		GLuint TargetFormat = GL_RGBA;
 	
 		ofScopeTimerWarning Timer("glTexImage2D", 10 );

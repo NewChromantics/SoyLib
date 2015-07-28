@@ -100,6 +100,7 @@ public:
 	bool							IsValid() const		{	return GetPixelsConst().IsValid();	}
 	virtual SoyPixelsImpl&			GetPixels() =0;
 	virtual const SoyPixelsImpl&	GetPixelsConst() const=0;
+	virtual std::shared_ptr<SoyPixelsImpl>	GetPixelsShared()	{	return nullptr;	}
 	const SoyTime&					GetTime() const		{	return mTimecode;	}
 	
 public:
@@ -159,15 +160,16 @@ class TVideoFrameMemFile : public TVideoFrameImpl
 public:
 	TVideoFrameMemFile(const std::string& Serial,std::string Filename,bool AllowOtherFilenames) :
 		TVideoFrameImpl	( Serial ),
-		mPixels			( Filename, AllowOtherFilenames )
+		mPixels			( new SoyPixelsMemFile(Filename, AllowOtherFilenames) )
 	{
 	}
 	
-	virtual SoyPixelsImpl&			GetPixels() override			{	return mPixels;	}
-	virtual const SoyPixelsImpl&	GetPixelsConst() const override	{	return mPixels;	}
+	virtual SoyPixelsImpl&			GetPixels() override			{	return *mPixels;	}
+	virtual const SoyPixelsImpl&	GetPixelsConst() const override	{	return *mPixels;	}
+	virtual std::shared_ptr<SoyPixelsImpl>	GetPixelsShared() override	{	return mPixels;	}
 	
 public:
-	SoyPixelsMemFile	mPixels;
+	std::shared_ptr<SoyPixelsMemFile>	mPixels;
 };
 
 //	gr: currently RAII so no play/pause virtuals...
@@ -179,7 +181,7 @@ public:
 	
 	virtual TVideoDeviceMeta	GetMeta() const=0;		//	gr: make this dynamic so other states might change
 	std::string					GetSerial() const		{	return GetMeta().mSerial;	}
-	const TVideoFrameMemFile&	GetLastFrame(std::ostream& Error) const	{	Error << mLastError;	return mLastFrame;	}
+	TVideoFrameMemFile&			GetLastFrame(std::ostream& Error) 	{	Error << mLastError;	return mLastFrame;	}
 	float						GetFps() const;			//	how many frames per sec are we averaging?
 	int							GetFrameMs() const;		//	how long does each frame take to recieve
 	void						ResetFrameCounter();	//	reset the fps counter

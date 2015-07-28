@@ -431,7 +431,7 @@ public:
 	
 public:
 	bool						mAutoRelease;
-	std::shared_ptr<SoyPixels>	mClientBuffer;	//	for CPU-buffered textures, it's kept here. ownership should go with mAutoRelease, but shared_ptr maybe takes care of that?
+	std::shared_ptr<SoyPixelsImpl>	mClientBuffer;	//	for CPU-buffered textures, it's kept here. ownership should go with mAutoRelease, but shared_ptr maybe takes care of that?
 	TAsset						mTexture;
 	SoyPixelsMetaFull			mMeta;
 	GLenum						mType;		//	GL_TEXTURE_2D by default. gr: "type" may be the wrong nomenclature here

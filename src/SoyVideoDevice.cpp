@@ -82,7 +82,7 @@ void TVideoDevice::OnFailedFrame(const std::string &Error)
 SoyPixelsImpl& TVideoDevice::LockNewFrame()
 {
 	mLastError.clear();
-	return mLastFrame.mPixels;
+	return *mLastFrame.mPixels;
 }
 
 void TVideoDevice::UnlockNewFrame(SoyTime Timecode)
@@ -105,7 +105,7 @@ void TVideoDevice::OnNewFrame(const SoyPixelsImpl& Pixels,SoyTime Timecode)
 {
 	mLastError.clear();
 	
-	if ( !mLastFrame.mPixels.Copy( Pixels ) )
+	if ( !mLastFrame.mPixels->Copy( Pixels ) )
 	{
 		mLastError = "Failed to copy pixels";
 		return;

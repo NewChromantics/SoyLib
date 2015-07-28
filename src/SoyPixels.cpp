@@ -1352,6 +1352,9 @@ bool SoyPixelsImpl::Copy(const SoyPixelsImpl &that,bool AllowReallocation)
 {
 	if ( &that == this )
 		return true;
+	
+	if ( that.GetPixelsArray().GetArray() == this->GetPixelsArray().GetArray() )
+		return true;
 
 	if ( !AllowReallocation )
 	{
