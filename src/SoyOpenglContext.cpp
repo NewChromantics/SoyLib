@@ -18,6 +18,21 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 };
 
 
+//	gr: only expose extensions here
+#if defined(GL_GLEXT_FUNCTION_POINTERS)
+#undef GL_GLEXT_FUNCTION_POINTERS
+#endif
+#include <Opengl/glext.h>
+
+namespace Opengl
+{
+	std::function<void(GLuint)>					BindVertexArray;
+	std::function<void(GLsizei,GLuint*)>		GenVertexArrays;
+	std::function<void(GLsizei,const GLuint*)>	DeleteVertexArrays;
+	std::function<GLboolean(GLuint)>			IsVertexArray;
+}
+
+
 Opengl::TVersion::TVersion(std::string VersionStr) :
 	mMajor	( 0 ),
 	mMinor	( 0 )
@@ -143,17 +158,27 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		//	if this is asupported as an EXTENSION, then it needs setting up
 		if ( SupportedExtensions.find(OpenglExtensions::VertexArrayObjects) != SupportedExtensions.end() )
 		{
-			//	todo wrapper for original function
-			SupportedExtensions[OpenglExtensions::VertexArrayObjects] = false;
-			std::Debug << "Disabled support for OpenglExtensions::VertexArrayObjects until wrapper implemented" << std::endl;
+			BindVertexArray = glBindVertexArrayAPPLE;
+			GenVertexArrays = glGenVertexArraysAPPLE;
+			DeleteVertexArrays = glDeleteVertexArraysAPPLE;
+			IsVertexArray = glIsVertexArrayAPPLE;
 		}
 		else
 		{
 			//	gr: implicitly supported in IOS, version should be correct here
 			//	might be supported implicitly in opengl 4 etc (test this!)
 			bool ImplicitlySupported = (pContext->mVersion.mMajor >= 3);
+			
 			SupportedExtensions[OpenglExtensions::VertexArrayObjects] = ImplicitlySupported;
 			std::Debug << "Assumed implicit support for OpenglExtensions::VertexArrayObjects is " << (ImplicitlySupported?"true":"false") << std::endl;
+
+			if ( ImplicitlySupported )
+			{
+				BindVertexArray = glBindVertexArray;
+				GenVertexArrays = glGenVertexArrays;
+				DeleteVertexArrays = glDeleteVertexArrays;
+				IsVertexArray = glIsVertexArray;
+			}
 		}
 		
 		//	force an entry so this won't be initialised again (for platforms with no extensions specified)

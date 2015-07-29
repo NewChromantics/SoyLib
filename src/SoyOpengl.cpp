@@ -143,7 +143,7 @@ std::string Opengl::GetEnumString(GLenum Type)
 			CASE_ENUM_STRING( GL_RGBA8 );
 			CASE_ENUM_STRING( GL_RED );
 			
-#if !defined(TARGET_IOS)
+#if defined(OPENGL_CORE_3)
 			CASE_ENUM_STRING( GL_TEXTURE_1D );
 #endif
 			CASE_ENUM_STRING( GL_TEXTURE_2D );
@@ -1112,15 +1112,11 @@ void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
 	}
 }
 
+
 Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex,TContext& Context)
 {
 	Opengl::IsOkay("Opengl::CreateGeometry flush", false);
-	
-#if defined(TARGET_OSX)
-	if ( !Soy::Assert( Context.mVersion.mMajor >= 3, "VAO not supported" ) )
-		return TGeometry();
-#endif
-	
+		
 	TGeometry Geo;
 	Geo.mVertexDescription = Vertex;
 	
@@ -1129,9 +1125,9 @@ Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const A
 	Opengl::IsOkay( std::string(__func__) + " glGenBuffers" );
 
 	//	fill vertex array
-	glGenVertexArrays( 1, &Geo.vertexArrayObject );
+	Opengl::GenVertexArrays( 1, &Geo.vertexArrayObject );
 	Opengl::IsOkay( std::string(__func__) + " glGenVertexArrays" );
-	glBindVertexArray( Geo.vertexArrayObject );
+	Opengl::BindVertexArray( Geo.vertexArrayObject );
 	Opengl::IsOkay( std::string(__func__) + " glBindVertexArray" );
 	glBindBuffer( GL_ARRAY_BUFFER, Geo.vertexBuffer );
 	Opengl_IsOkay();
@@ -1173,7 +1169,7 @@ Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const A
 	//	gr: don't unbind, leave bound for life of VAO (maybe for GL 3 only)
 	//glBindBuffer( GL_ARRAY_BUFFER, 0 );
 	//glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
-	glBindVertexArray( 0 );
+	Opengl::BindVertexArray( 0 );
 	Opengl_IsOkay();
 	
 
@@ -1188,7 +1184,7 @@ void Opengl::TGeometry::Draw() const
 		return;
 	
 	//	null to draw from indexes in vertex array
-	glBindVertexArray( vertexArrayObject );
+	Opengl::BindVertexArray( vertexArrayObject );
 	Opengl_IsOkay();
 	glBindBuffer( GL_ARRAY_BUFFER, vertexBuffer );
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, indexBuffer );
@@ -1209,7 +1205,7 @@ void Opengl::TGeometry::Draw() const
 
 	//	unbinding so nothing alters it
 #if defined(TARGET_IOS)
-	glBindVertexArray( 0 );
+	Opengl::BindVertexArray( 0 );
 #endif
 }
 

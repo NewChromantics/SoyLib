@@ -26,6 +26,13 @@ namespace Opengl
 
 	class TRenderTargetFbo;
 	class TSync;			//	uses fences to sync
+	
+	
+	//	extension bindings
+	extern std::function<void(GLuint)>					BindVertexArray;
+	extern std::function<void(GLsizei,GLuint*)>			GenVertexArrays;
+	extern std::function<void(GLsizei,const GLuint*)>	DeleteVertexArrays;
+	extern std::function<GLboolean(GLuint)>				IsVertexArray;
 };
 
 
