@@ -15,12 +15,16 @@ ARCHS = armv7
 SUPPORTED_PLATFORMS = iphoneos
 
 //	gr: reduce this as much as possible
-IPHONEOS_DEPLOYMENT_TARGET = 8.3
+//	gr: 6 is missing type_traits, maybe other c++11 features.
+IPHONEOS_DEPLOYMENT_TARGET = 7.0
 
 //	symbols please!
 DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
 STRIP_INSTALLED_PRODUCT = NO
 DEPLOYMENT_POSTPROCESSING = NO
 COPY_PHASE_STRIP = NO
+
+//	disabled bitcode for now (incompatibilities with unity ios stuff)
+ENABLE_BITCODE = NO
 
 
