@@ -18,10 +18,16 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 };
 
 
-Opengl::TVersion::TVersion(const std::string& VersionStr) :
+Opengl::TVersion::TVersion(std::string VersionStr) :
 	mMajor	( 0 ),
 	mMinor	( 0 )
 {
+	//	strip off prefix's
+	//	iphone says: "OpenGL ES 3.0 Apple A7 GPU - 53.13"
+	std::string OpenglEsPrefix = "OpenGL ES ";
+	if ( Soy::StringBeginsWith(VersionStr,OpenglEsPrefix, false ) )
+		VersionStr.erase(0, OpenglEsPrefix.length() );
+	
 	int PartCounter = 0;
 	auto PushVersions = [&PartCounter,this](const std::string& PartStr)
 	{
@@ -36,7 +42,7 @@ Opengl::TVersion::TVersion(const std::string& VersionStr) :
 		return true;
 	};
 	
-	Soy::StringSplitByMatches( PushVersions, VersionStr, " ." );
+	Soy::StringSplitByMatches( PushVersions, VersionStr, " .", false );
 }
 
 
@@ -143,6 +149,7 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		}
 		else
 		{
+			//	gr: implicitly supported in IOS, version should be correct here
 			//	might be supported implicitly in opengl 4 etc (test this!)
 			bool ImplicitlySupported = (pContext->mVersion.mMajor >= 3);
 			SupportedExtensions[OpenglExtensions::VertexArrayObjects] = ImplicitlySupported;

@@ -42,7 +42,7 @@ public:
 		mMinor	( Minor )
 	{
 	}
-	explicit TVersion(const std::string& VersionStr);
+	explicit TVersion(std::string VersionStr);
 	
 public:
 	size_t	mMajor;
