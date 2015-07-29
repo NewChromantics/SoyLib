@@ -233,6 +233,7 @@ public:
 	~TShaderState();
 	
 	bool	IsValid() const;
+	void	SetUniform(const std::string& Name,const float& v);
 	void	SetUniform(const std::string& Name,const vec2f& v);
 	void	SetUniform(const std::string& Name,const vec4f& v);
 	void	SetUniform(const std::string& Name,const TTexture& Texture);	//	special case which tracks how many textures are bound

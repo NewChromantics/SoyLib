@@ -143,7 +143,9 @@ std::string Opengl::GetEnumString(GLenum Type)
 			CASE_ENUM_STRING( GL_RGBA8 );
 			CASE_ENUM_STRING( GL_RED );
 			
+#if !defined(TARGET_IOS)
 			CASE_ENUM_STRING( GL_TEXTURE_1D );
+#endif
 			CASE_ENUM_STRING( GL_TEXTURE_2D );
 			CASE_ENUM_STRING( GL_TEXTURE_3D );
 			
@@ -181,6 +183,15 @@ void Opengl::SetUniform(const TUniform& Uniform,const vec2f& Value)
 	GLsizei ArraySize = 1;
 	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
 	glUniform2fv( Uniform.mIndex, ArraySize, &Value.x );
+	Opengl_IsOkay();
+}
+
+template<>
+void Opengl::SetUniform(const TUniform& Uniform,const float& Value)
+{
+	GLsizei ArraySize = 1;
+	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
+	glUniform1fv( Uniform.mIndex, ArraySize, &Value );
 	Opengl_IsOkay();
 }
 
@@ -477,6 +488,7 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 	Opengl::IsOkay("glTexImage2D texture construction");
 	
 	//	verify params
+#if !defined(OPENGL_ES_3)
 	GLint TextureWidth = -1;
 	GLint TextureHeight = -1;
 	GLint TextureInternalFormat = -1;
@@ -486,8 +498,11 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()" );
 	Soy::Assert( TextureWidth==Meta.GetWidth(), "Texture width doesn't match initialisation");
 	Soy::Assert( TextureHeight==Meta.GetHeight(), "Texture height doesn't match initialisation");
+
+	//	gr: internal format comes out as RGBA8 even if we specify RGBA. Need to have some "is same format" func
 	//Soy::Assert( TextureInternalFormat==InternalPixelFormat, "Texture format doesn't match initialisation");
 	//std::Debug << "new texture format "  << Opengl::GetEnumString(TextureInternalFormat) << std::endl;
+#endif
 	
 	Unbind();
 	
@@ -609,7 +624,8 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 #if defined(OPENGL_ES_3)
 	TextureWidth = this->GetWidth();
 	TextureHeight = this->GetHeight();
-	TextureInternalFormat = GetPixelFormat( this->GetFormat() );
+	//	gr: errr what should this be now?
+	TextureInternalFormat = GetNewTexturePixelFormat( this->GetFormat() );
 #else
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth);
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight);
@@ -811,6 +827,14 @@ Opengl::TShaderState::~TShaderState()
 	glUseProgram(0);
 }
 
+
+
+void Opengl::TShaderState::SetUniform(const std::string& Name,const float& v)
+{
+	auto Uniform = mShader.GetUniform( Name );
+	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
+	Opengl::SetUniform( Uniform, v );
+}
 
 
 void Opengl::TShaderState::SetUniform(const std::string& Name,const vec4f& v)
