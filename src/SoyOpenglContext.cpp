@@ -19,10 +19,13 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 
 
 //	gr: only expose extensions here
+#if defined(TARGET_OSX)
 #if defined(GL_GLEXT_FUNCTION_POINTERS)
 #undef GL_GLEXT_FUNCTION_POINTERS
 #endif
 #include <Opengl/glext.h>
+#endif
+
 
 namespace Opengl
 {
@@ -119,6 +122,79 @@ void ParseExtensions(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,
 
 }
 
+template<class FUNCTION>
+void SetUnsupportedFunction(FUNCTION& Function,const char* Name)
+{
+	Function = [Name](...)
+	{
+		std::stringstream Error;
+		Error << "Calling unsupported extension " << Name;
+		throw Soy::AssertException( Error.str() );
+
+		//	gr: see if we can find a way to set an Opengl IsError for when exceptions aren't enabled
+	};
+}
+
+//	gr: find a way to merge with above
+template<typename RETURN,class FUNCTION>
+void SetUnsupportedFunction(FUNCTION& Function,const char* Name,RETURN Return)
+{
+	Function = [Name,Return](...)
+	{
+		std::stringstream Error;
+		Error << "Calling unsupported extension " << Name;
+		throw Soy::AssertException( Error.str() );
+		return Return;
+	};
+}
+
+void Opengl::TContext::BindVertexArrayObjectsExtension()
+{
+	//	implicitly supported in opengl 3 & 4 (ES and CORE)
+	bool ImplicitlySupported = (mVersion.mMajor >= 3);
+	
+	if ( ImplicitlySupported )
+	{
+		SupportedExtensions[OpenglExtensions::VertexArrayObjects] = true;
+		std::Debug << "Assumed implicit support for OpenglExtensions::VertexArrayObjects" << std::endl;
+
+		BindVertexArray = glBindVertexArray;
+		GenVertexArrays = glGenVertexArrays;
+		DeleteVertexArrays = glDeleteVertexArrays;
+		IsVertexArray = glIsVertexArray;
+		return;
+	}
+	
+	bool IsSupported = SupportedExtensions.find(OpenglExtensions::VertexArrayObjects) != SupportedExtensions.end();
+	
+	//	extension supported, set functions
+	if ( IsSupported )
+	{
+#if defined(TARGET_OSX)
+		BindVertexArray = glBindVertexArrayAPPLE;
+		GenVertexArrays = glGenVertexArraysAPPLE;
+		DeleteVertexArrays = glDeleteVertexArraysAPPLE;
+		IsVertexArray = glIsVertexArrayAPPLE;
+#else
+		IsSupported = false;
+#endif
+	}
+
+	//	not supported (or has been unset due to implementation)
+	if ( !IsSupported )
+	{
+		SupportedExtensions[OpenglExtensions::VertexArrayObjects] = false;
+		//	gr: set error/throw function wrappers
+		SetUnsupportedFunction(BindVertexArray, "glBindVertexArray" );
+		SetUnsupportedFunction(GenVertexArrays, "GenVertexArrays" );
+		SetUnsupportedFunction(DeleteVertexArrays, "DeleteVertexArrays" );
+		SetUnsupportedFunction(IsVertexArray, "IsVertexArray", (GLboolean)false );
+		return;
+	}
+
+}
+
+
 bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TContext* pContext)
 {
 	//	first parse of extensions
@@ -155,31 +231,7 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 			}
 		}
 
-		//	if this is asupported as an EXTENSION, then it needs setting up
-		if ( SupportedExtensions.find(OpenglExtensions::VertexArrayObjects) != SupportedExtensions.end() )
-		{
-			BindVertexArray = glBindVertexArrayAPPLE;
-			GenVertexArrays = glGenVertexArraysAPPLE;
-			DeleteVertexArrays = glDeleteVertexArraysAPPLE;
-			IsVertexArray = glIsVertexArrayAPPLE;
-		}
-		else
-		{
-			//	gr: implicitly supported in IOS, version should be correct here
-			//	might be supported implicitly in opengl 4 etc (test this!)
-			bool ImplicitlySupported = (pContext->mVersion.mMajor >= 3);
-			
-			SupportedExtensions[OpenglExtensions::VertexArrayObjects] = ImplicitlySupported;
-			std::Debug << "Assumed implicit support for OpenglExtensions::VertexArrayObjects is " << (ImplicitlySupported?"true":"false") << std::endl;
-
-			if ( ImplicitlySupported )
-			{
-				BindVertexArray = glBindVertexArray;
-				GenVertexArrays = glGenVertexArrays;
-				DeleteVertexArrays = glDeleteVertexArrays;
-				IsVertexArray = glIsVertexArray;
-			}
-		}
+		pContext->BindVertexArrayObjectsExtension();
 		
 		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
 		SupportedExtensions[OpenglExtensions::Invalid] = false;

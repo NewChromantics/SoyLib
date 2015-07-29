@@ -81,6 +81,7 @@ public:
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
 	
+	void			BindVertexArrayObjectsExtension();
 
 public:
 	TVersion		mVersion;
