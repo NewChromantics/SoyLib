@@ -104,7 +104,10 @@ namespace Soy
 	
 }
 
+//#define ENABLE_SCOPE_TIMER
 
+
+#if defined(ENABLE_SCOPE_TIMER)
 class ofScopeTimerWarning
 {
 public:
@@ -177,6 +180,27 @@ public:
 	uint64				mAccumulatedTime;
 	std::ostream&		mOutputStream;
 };
+#else
+class ofScopeTimerWarning
+{
+public:
+	ofScopeTimerWarning(const char* Name,uint64 WarningTimeMs,bool AutoStart=true,std::ostream& Output=std::Debug)
+	{
+	}
 
+	bool				Stop(bool DoReport=true)
+	{
+		return false;
+	}
+	bool				Report(bool Force=false)
+	{
+		return false;
+	}
+	
+	void				Start(bool Reset=false)
+	{
+	}
+};
+#endif
 
 
