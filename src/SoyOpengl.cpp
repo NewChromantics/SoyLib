@@ -148,8 +148,12 @@ std::string Opengl::GetEnumString(GLenum Type)
 #endif
 			CASE_ENUM_STRING( GL_TEXTURE_2D );
 			CASE_ENUM_STRING( GL_TEXTURE_3D );
+#if defined(OPENGL_CORE_3)
 			CASE_ENUM_STRING( GL_TEXTURE_RECTANGLE );
-			
+#endif
+#if defined(TARGET_ANDROID)
+			CASE_ENUM_STRING( GL_TEXTURE_EXTERNAL_OES );
+#endif
 	};
 #undef CASE_ENUM_STRING
 	std::stringstream Unknown;
