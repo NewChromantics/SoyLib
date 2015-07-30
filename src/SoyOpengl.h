@@ -94,7 +94,7 @@ namespace Opengl
 	extern const char * ReflectionMappedSkinned1VertexShaderSrc;
 	extern const char * ReflectionMappedFragmentShaderSrc;
 	
-	GlProgram	BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName);
+	GlProgram	BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context);
 
 
 	
@@ -131,6 +131,7 @@ namespace Opengl
 	GLenum	GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
 	GLenum	GetNewTexturePixelFormat(SoyPixelsFormat::Type Format);
 	GLenum	GetDownloadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat);
+	SoyPixelsFormat::Type	GetDownloadPixelFormat(GLenum Format);
 
 	//	helpers
 	void	ClearColour(Soy::TRgb Colour,float Alpha=1);
@@ -417,7 +418,7 @@ public:
 		return *this;
 	}
 
-	
+	SoyPixelsMetaFull	GetInternalMeta() const;	//	read meta from opengl
 
 	size_t				GetWidth() const	{	return mMeta.GetWidth();	}
 	size_t				GetHeight() const	{	return mMeta.GetHeight();	}

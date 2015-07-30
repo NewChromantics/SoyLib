@@ -148,6 +148,7 @@ std::string Opengl::GetEnumString(GLenum Type)
 #endif
 			CASE_ENUM_STRING( GL_TEXTURE_2D );
 			CASE_ENUM_STRING( GL_TEXTURE_3D );
+			CASE_ENUM_STRING( GL_TEXTURE_RECTANGLE );
 			
 	};
 #undef CASE_ENUM_STRING
@@ -612,10 +613,8 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 	Opengl::IsOkay( std::string(__func__) + " Bind()" );
 
 	int MipLevel = 0;
-
 	
 	//	grab the texture's width & height so we can clip, if we try and copy pixels bigger than the texture we'll get an error
-	//	gr: wrap this into a "get meta"
 	GLint TextureWidth = 0;
 	GLint TextureHeight = 0;
 	GLint TextureInternalFormat = 0;
@@ -632,7 +631,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &TextureInternalFormat);
 	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()" );
 #endif
-
+	
 	const SoyPixelsImpl* UsePixels = &SourcePixels;
 
 	
@@ -802,8 +801,24 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 	Opengl_IsOkay();
 }
 
+SoyPixelsMetaFull Opengl::TTexture::GetInternalMeta() const
+{
+#if defined(OPENGL_ES_3)
+	std::Debug << "Warning, using " << __func__ << " on opengl es (no such info)" << std::endl;
+	return mMeta;
+#else
+	GLint MipLevel = 0;
+	GLint Width = 0;
+	GLint Height = 0;
+	GLint Format = 0;
+	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_WIDTH, &Width);
+	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_HEIGHT, &Height);
+	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &Format );
+	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()" );
 
-
+	return SoyPixelsMetaFull( Width, Height, GetDownloadPixelFormat( Format ) );
+#endif
+}
 
 Opengl::TShaderState::TShaderState(const Opengl::GlProgram& Shader) :
 	mTextureBindCount	( 0 ),
@@ -881,7 +896,7 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
 	Opengl_IsOkay();
 }
 
-Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName)
+Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context)
 {
 	if ( !Opengl_IsInitialised() )
 		return GlProgram();
@@ -900,14 +915,16 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 	
 	//	not required for android
 #if defined(OPENGL_ES_3)
-	UpgradeVersion = OpenglShaderVersion::glsl300;
+	if ( Context.mVersion.mMajor >= 3 )
+		UpgradeVersion = OpenglShaderVersion::glsl300;
 #endif
 	
 #if defined(OPENGL_CORE_3)
-	UpgradeVersion = OpenglShaderVersion::glsl150;
+	if ( Context.mVersion.mMajor >= 3 )
+		UpgradeVersion = OpenglShaderVersion::glsl150;
 #endif
 	
-	if ( UpgradeVersion != 0 )
+	if ( UpgradeVersion != OpenglShaderVersion::Invalid )
 	{
 		SoyShader::Opengl::UpgradeVertShader( GetArrayBridge(VertShader), UpgradeVersion );
 		SoyShader::Opengl::UpgradeFragShader( GetArrayBridge(FragShader), UpgradeVersion );
@@ -1251,6 +1268,10 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::RGB, GL_RGB, GL_RGB, GL_RGB ),
 		TPixelFormatMapping( SoyPixelsFormat::RGBA, GL_RGBA, GL_RGBA, GL_RGBA ),
 
+		//	alternatives for GL -> soy
+		TPixelFormatMapping( SoyPixelsFormat::RGB, GL_RGB8, GL_RGB8, GL_RGB8 ),
+		TPixelFormatMapping( SoyPixelsFormat::RGBA, GL_RGBA8, GL_RGBA8, GL_RGBA8 ),
+
 #if defined(TARGET_IOS)
 		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_BGRA, GL_BGRA, GL_BGRA ),
 #endif
@@ -1305,6 +1326,22 @@ GLenum Opengl::GetDownloadPixelFormat(const TTexture& Texture,SoyPixelsFormat::T
 {
 	auto Mapping = GetPixelMapping( PixelFormat );
 	return Mapping.mNewTextureFormat;
+}
+
+
+SoyPixelsFormat::Type Opengl::GetDownloadPixelFormat(GLenum PixelFormat)
+{
+	auto& FormatMaps = GetPixelFormatMap();
+	for ( int i=0;	i<FormatMaps.GetSize();	i++ )
+	{
+		auto& FormatMap = FormatMaps[i];
+		
+		if ( PixelFormat == FormatMap.mDownloadFormat )
+			return FormatMap.mPixelFormat;
+	}
+
+	std::Debug << "Failed to convert glpixelformat " << PixelFormat << " to soy pixel format" << std::endl;
+	return SoyPixelsFormat::Invalid;
 }
 
 
