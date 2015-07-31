@@ -142,7 +142,7 @@ std::string Opengl::GetEnumString(GLenum Type)
 			CASE_ENUM_STRING( GL_RGB8 );
 			CASE_ENUM_STRING( GL_RGBA8 );
 			CASE_ENUM_STRING( GL_RED );
-			
+	
 #if defined(OPENGL_CORE_3)
 			CASE_ENUM_STRING( GL_TEXTURE_1D );
 #endif
@@ -153,6 +153,7 @@ std::string Opengl::GetEnumString(GLenum Type)
 #endif
 #if defined(TARGET_ANDROID)
 			CASE_ENUM_STRING( GL_TEXTURE_EXTERNAL_OES );
+			CASE_ENUM_STRING( GL_SAMPLER_EXTERNAL_OES );
 #endif
 	};
 #undef CASE_ENUM_STRING
