@@ -70,6 +70,8 @@ namespace Soy
 	
 	void		StringToArray(std::string String,ArrayBridge<char>& Array);
 	inline void	StringToArray(std::string String,ArrayBridge<char>&& Array)	{	StringToArray( String, Array );	}
+	template <size_t BUFFERSIZE>
+	void		StringToBuffer(const char* Source,char (& Buffer)[BUFFERSIZE]);
 
 	std::string	StreamToString(std::ostream& Stream);	//	windows
 	std::string	StreamToString(std::stringstream&& Stream);	//	osx
@@ -294,4 +296,16 @@ inline std::ostream& operator<<(std::ostream &out,const float4x4&in)
 	return out;
 }
 
+template<size_t BUFFERSIZE>
+inline void Soy::StringToBuffer(const char* Source,char (& Buffer)[BUFFERSIZE])
+{
+	int Len = 0;
+	for ( Len=0;	Len<BUFFERSIZE-1;	Len++ )
+	{
+		if ( Source[Len] == '\0' )
+			break;
+		Buffer[Len] = Source[Len];
+	}
+	Buffer[Len] = '\0';
+}
 
