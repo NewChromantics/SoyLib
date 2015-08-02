@@ -6,6 +6,277 @@
 
 
 
+namespace Opencl
+{
+#define Opencl_IsOkay(Error)	Opencl::IsOkay( (Error), __func__, true )
+	bool	IsOkay(cl_int Error,const std::string& Context,bool ThrowException=true);
+}
+
+
+
+
+std::map<OpenclDevice::Type,std::string> OpenclDevice::EnumMap =
+{
+	{ OpenclDevice::Invalid,	"Invalid" },
+	{ OpenclDevice::CPU,	"CPU" },
+	{ OpenclDevice::GPU,	"GPU" },
+	{ OpenclDevice::ANY,	"ANY" },
+};
+
+
+
+
+bool Opencl::IsOkay(cl_int Error,const std::string& Context,bool ThrowException)
+{
+	if ( Error == CL_SUCCESS )
+		return true;
+	
+	std::stringstream ErrorStr;
+	ErrorStr << "Opencl error in " << Context << ": " << Opencl::GetErrorString(Error) << std::endl;
+	
+	if ( !ThrowException )
+	{
+		std::Debug << ErrorStr.str() << std::endl;
+		return false;
+	}
+	
+	throw Soy::AssertException( ErrorStr.str() );
+}
+
+
+std::string Opencl::GetErrorString(cl_int Error)
+{
+#define CASE_ENUM_STRING(e)	case (e):	return #e;
+	switch ( Error )
+	{
+		CASE_ENUM_STRING( CL_SUCCESS );
+			CASE_ENUM_STRING( CL_DEVICE_NOT_FOUND );
+			CASE_ENUM_STRING( CL_DEVICE_NOT_AVAILABLE );
+			CASE_ENUM_STRING( CL_COMPILER_NOT_AVAILABLE );
+			CASE_ENUM_STRING( CL_MEM_OBJECT_ALLOCATION_FAILURE );
+			CASE_ENUM_STRING( CL_OUT_OF_RESOURCES );
+			CASE_ENUM_STRING( CL_OUT_OF_HOST_MEMORY );
+			CASE_ENUM_STRING( CL_PROFILING_INFO_NOT_AVAILABLE );
+			CASE_ENUM_STRING( CL_MEM_COPY_OVERLAP );
+			CASE_ENUM_STRING( CL_IMAGE_FORMAT_MISMATCH );
+			CASE_ENUM_STRING( CL_IMAGE_FORMAT_NOT_SUPPORTED );
+			CASE_ENUM_STRING( CL_BUILD_PROGRAM_FAILURE );
+			CASE_ENUM_STRING( CL_MAP_FAILURE );
+			CASE_ENUM_STRING( CL_MISALIGNED_SUB_BUFFER_OFFSET );
+			CASE_ENUM_STRING( CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST );
+			CASE_ENUM_STRING( CL_COMPILE_PROGRAM_FAILURE );
+			CASE_ENUM_STRING( CL_LINKER_NOT_AVAILABLE );
+			CASE_ENUM_STRING( CL_LINK_PROGRAM_FAILURE );
+			CASE_ENUM_STRING( CL_DEVICE_PARTITION_FAILED );
+			CASE_ENUM_STRING( CL_KERNEL_ARG_INFO_NOT_AVAILABLE );
+	}
+#undef CASE_ENUM_STRING
+	std::stringstream Unknown;
+	Unknown << "Unknown cl error " << Error;
+	return Unknown.str();
+}
+
+void GetPlatforms(ArrayBridge<cl_platform_id>&& Platforms)
+{
+	cl_platform_id PlatformBuffer[100];
+	cl_uint PlatformCount = 0;
+	auto Error = clGetPlatformIDs( sizeofarray(PlatformBuffer), PlatformBuffer, &PlatformCount );
+	if ( !Opencl::IsOkay( Error, "Failed to get opencl platforms" ) )
+		return;
+
+	PlatformCount = std::min<cl_uint>( sizeof(PlatformBuffer), PlatformCount );
+	
+	for ( int p=0;	p<PlatformCount;	p++ )
+		Platforms.PushBack( PlatformBuffer[p] );
+}
+
+std::string GetString(cl_platform_id Platform,cl_platform_info Info)
+{
+	cl_char Buffer[100] = {'\0'};
+	auto Error = clGetPlatformInfo( Platform, Info, sizeof(Buffer), Buffer, nullptr );
+	Opencl_IsOkay( Error );
+	return std::string( reinterpret_cast<char*>(Buffer) );
+}
+
+std::string GetString(cl_device_id Device,cl_device_info Info)
+{
+	cl_char Buffer[100] = {'\0'};
+	auto Error = clGetDeviceInfo( Device, Info, sizeof(Buffer), Buffer, nullptr );
+	Opencl_IsOkay( Error );
+	return std::string( reinterpret_cast<char*>(Buffer) );
+}
+
+template<typename TYPE>
+void GetValue(cl_device_id Device,cl_device_info Info,TYPE& Value)
+{
+	size_t RealSize = 0;
+	auto Error = clGetDeviceInfo( Device, Info, sizeof(TYPE), &Value, &RealSize );
+	Opencl_IsOkay( Error );
+}
+
+
+Opencl::TDeviceMeta::TDeviceMeta(cl_device_id Device) :
+	mDevice		( Device )
+{
+	mVendor = GetString( Device, CL_DEVICE_VENDOR );
+	mName = GetString( Device, CL_DEVICE_NAME );
+	mDriverVersion = GetString( Device, CL_DRIVER_VERSION );
+	mDeviceVersion = GetString( Device, CL_DEVICE_VERSION );
+	mProfile = GetString( Device, CL_DEVICE_PROFILE );
+	mExtensions = GetString( Device, CL_DEVICE_EXTENSIONS );
+
+	cl_device_type Type = OpenclDevice::Invalid;
+	GetValue( Device, CL_DEVICE_TYPE, Type );
+	mType = OpenclDevice::Validate( static_cast<OpenclDevice::Type>(Type) );
+	
+	GetValue( Device, CL_DEVICE_MAX_COMPUTE_UNITS, maxComputeUnits );
+	GetValue( Device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, maxWorkItemDimensions );
+	GetValue( Device, CL_DEVICE_MAX_WORK_ITEM_SIZES, maxWorkItemSizes );
+	GetValue( Device, CL_DEVICE_MAX_WORK_GROUP_SIZE, maxWorkGroupSize );
+	GetValue( Device, CL_DEVICE_MAX_CLOCK_FREQUENCY, maxClockFrequency );
+	GetValue( Device, CL_DEVICE_MAX_MEM_ALLOC_SIZE, maxMemAllocSize );
+	GetValue( Device, CL_DEVICE_IMAGE_SUPPORT, imageSupport );
+	GetValue( Device, CL_DEVICE_MAX_READ_IMAGE_ARGS, maxReadImageArgs );
+	GetValue( Device, CL_DEVICE_MAX_WRITE_IMAGE_ARGS, maxWriteImageArgs );
+	GetValue( Device, CL_DEVICE_IMAGE2D_MAX_WIDTH, image2dMaxWidth );
+	GetValue( Device, CL_DEVICE_IMAGE2D_MAX_HEIGHT, image2dMaxHeight );
+	GetValue( Device, CL_DEVICE_IMAGE3D_MAX_WIDTH, image3dMaxWidth );
+	GetValue( Device, CL_DEVICE_IMAGE3D_MAX_HEIGHT, image3dMaxHeight );
+	GetValue( Device, CL_DEVICE_IMAGE3D_MAX_DEPTH, image3dMaxDepth );
+	GetValue( Device, CL_DEVICE_MAX_SAMPLERS, maxSamplers );
+	GetValue( Device, CL_DEVICE_MAX_PARAMETER_SIZE, maxParameterSize );
+	GetValue( Device, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE, globalMemCacheSize );
+	GetValue( Device, CL_DEVICE_GLOBAL_MEM_SIZE, globalMemSize );
+	GetValue( Device, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, maxConstantBufferSize );
+	GetValue( Device, CL_DEVICE_MAX_CONSTANT_ARGS, maxConstantArgs );
+	GetValue( Device, CL_DEVICE_LOCAL_MEM_SIZE, localMemSize );
+	GetValue( Device, CL_DEVICE_ERROR_CORRECTION_SUPPORT, errorCorrectionSupport );
+	GetValue( Device, CL_DEVICE_PROFILING_TIMER_RESOLUTION, profilingTimerResolution );
+	GetValue( Device, CL_DEVICE_ENDIAN_LITTLE, endianLittle );
+	GetValue( Device, CL_DEVICE_ADDRESS_BITS, deviceAddressBits );
+}
+
+
+Opencl::TPlatform::TPlatform(cl_platform_id Platform) :
+	mPlatform	( Platform )
+{
+	mVersion = GetString( Platform, CL_PLATFORM_VERSION );
+	mName = GetString( Platform, CL_PLATFORM_NAME );
+	mVendor = GetString( Platform, CL_PLATFORM_VENDOR );
+}
+
+
+void Opencl::TPlatform::GetDevices(ArrayBridge<TDeviceMeta>& Metas,OpenclDevice::Type Filter)
+{
+	cl_device_id DeviceBuffer[100];
+	cl_uint DeviceCount = 0;
+	auto err = clGetDeviceIDs( mPlatform, Filter, sizeofarray(DeviceBuffer), DeviceBuffer, &DeviceCount );
+	
+	if ( err != CL_SUCCESS )
+	{
+		std::stringstream Error;
+		Error << "Failed to get devices on " << (*this) << ": " << Opencl::GetErrorString(err);
+		throw Soy::AssertException( Error.str() );
+		return;
+	}
+		
+	for ( int d=0;	d<DeviceCount;	d++ )
+	{
+		TDeviceMeta Meta( DeviceBuffer[d] );
+		Metas.PushBack( Meta );
+	}
+}
+	
+
+void Opencl::GetDevices(ArrayBridge<TDeviceMeta>&& Metas,OpenclDevice::Type Filter)
+{
+	//	windows AMD sdk/ati radeon driver implementation doesn't accept NULL as a platform ID, so fetch the list of platforms first
+	Array<cl_platform_id> Platforms;
+	GetPlatforms( GetArrayBridge(Platforms) );
+
+	//	collect devices
+	for ( int p=0;	p<Platforms.GetSize();	p++ )
+	{
+		TPlatform Platform(Platforms[p]);
+		
+		Platform.GetDevices( Metas, Filter );
+	}
+}
+
+
+
+Opencl::TDevice::TDevice(const ArrayBridge<cl_device_id>& Devices) :
+	mContext	( nullptr )
+{
+	if ( Devices.IsEmpty() )
+		throw Soy::AssertException("No devices provided");
+
+	//	create context
+	cl_int err;
+	cl_context_properties* Properties = nullptr;
+	mContext = clCreateContext( Properties, size_cast<cl_uint>(Devices.GetSize()), Devices.GetArray(), nullptr, nullptr, &err );
+	Opencl::IsOkay( err, "clCreateContext failed" );
+	Soy::Assert( mContext != nullptr, "clCreateContext failed to return a context" );
+}
+
+
+Opencl::TDevice::TDevice(const ArrayBridge<TDeviceMeta>& Devices) :
+	mContext	( nullptr )
+{
+	Array<cl_device_id> DeviceIds;
+	Devices.ForEach( [&DeviceIds](const TDeviceMeta& Device)	{	DeviceIds.PushBack( Device.mDevice );	return true;	} );
+
+	TDevice( GetArrayBridge(DeviceIds) );
+}
+
+
+Opencl::TDevice::~TDevice()
+{
+	if ( mContext )
+	{
+		clReleaseContext( mContext );
+		mContext = nullptr;
+	}
+}
+
+std::shared_ptr<Opencl::TContext> Opencl::TDevice::CreateContext()
+{
+	if ( mDevices.IsEmpty() )
+		return nullptr;
+	
+	//	pick a device
+	cl_device_id Device = mDevices[0].mDevice;
+	
+	//	create a queue
+	std::shared_ptr<TContext> Context( new TContext( *this, Device ) );
+	return Context;
+}
+
+
+Opencl::TContext::TContext(TDevice& Device,cl_device_id SubDevice) :
+	mQueue	( nullptr ),
+	mDevice	( SubDevice )
+{
+	
+}
+
+Opencl::TContext::~TContext()
+{
+	
+}
+
+bool Opencl::TContext::Lock()
+{
+	//	need to set thread for queue?
+	return true;
+}
+
+void Opencl::TContext::Unlock()
+{
+	
+}
+
+
 /*
 
 //	default settings

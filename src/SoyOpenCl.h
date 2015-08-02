@@ -3,6 +3,7 @@
 #include "SoyThread.h"
 #include "SortArray.h"
 #include "SoyString.h"
+#include "SoyEnum.h"
 
 
 #if defined(TARGET_WINDOWS)
@@ -29,13 +30,15 @@ namespace OpenclDevice
 		GPU = CL_DEVICE_TYPE_GPU,
 		ANY = CL_DEVICE_TYPE_CPU|CL_DEVICE_TYPE_GPU,
 	};
+	DECLARE_SOYENUM(OpenclDevice);
 }
 
 //	new interface to match new Opengl interface
 namespace Opencl
 {
+	class TPlatform;	//	API, has multiple devices
 	class TDeviceMeta;
-	class TDevice;		//	top level, GPU/CPU opencl device (cl context)
+	class TDevice;		//	context to interface with 1 or more devices (one cl context)
 	class TContext;		//	a command queue/thread on a device (cl queue)
 	class TProgram;		//	compilable shader with multiple kernels
 	class TKernel;		//	individual kernel from a program
@@ -43,19 +46,48 @@ namespace Opencl
 	
 	class TBuffer;
 	class TBufferImage;
+	
+	void		GetDevices(ArrayBridge<TDeviceMeta>&& Metas,OpenclDevice::Type Filter);
+	std::string	GetErrorString(cl_int Error);
 };
+
+
+class Opencl::TPlatform
+{
+public:
+	TPlatform(cl_platform_id Platform);
+	
+	void			GetDevices(ArrayBridge<TDeviceMeta>& Metas,OpenclDevice::Type Filter);
+	
+	std::string		mName;
+	std::string		mVersion;
+	std::string		mVendor;
+	cl_platform_id	mPlatform;
+};
+std::ostream& operator<<(std::ostream &out,const Opencl::TPlatform& in);
 
 
 class Opencl::TDeviceMeta
 {
 public:
-	std::string			mName;
-	OpenclDevice::Type	mType;
+	TDeviceMeta() :
+		mDevice		( nullptr )
+	{
+	}
+	TDeviceMeta(cl_device_id Device);
 	
-	cl_char		vendorName[1024];
-	cl_char		deviceName[1024];
-	cl_char		driverVersion[1024];
-	cl_char		deviceVersion[1024];
+	bool				IsValid() const		{	return mDevice != nullptr;	}
+	
+	cl_device_id		mDevice;
+	std::string			mVendor;
+	std::string			mName;
+	std::string			mDriverVersion;
+	std::string			mDeviceVersion;
+	std::string			mProfile;
+	std::string			mExtensions;
+	OpenclDevice::Type	mType;
+protected:
+	
 	cl_uint		maxComputeUnits;
 	cl_uint		maxWorkItemDimensions;
 	size_t		maxWorkItemSizes[32];
@@ -80,35 +112,40 @@ public:
 	cl_bool		errorCorrectionSupport;
 	size_t		profilingTimerResolution;
 	cl_bool		endianLittle;
-	cl_char		profile[1024];
-	cl_char		extensions[1024];
-	cl_device_type		type;
 	cl_uint		deviceAddressBits;
 };
+std::ostream& operator<<(std::ostream &out,const Opencl::TDeviceMeta& in);
 
 
 class Opencl::TDevice
 {
 public:
-	TDevice(const TDeviceMeta& Meta);
+	TDevice(const ArrayBridge<cl_device_id>& Devices);
+	TDevice(const ArrayBridge<TDeviceMeta>& Devices);
 	~TDevice();
 	
 	std::shared_ptr<TContext>		CreateContext();
-	std::shared_ptr<TBuffer>		CreateBuffer();
-	std::shared_ptr<TBufferImage>	CreateBufferImage();
 	
 protected:
-	cl_context		mContext;	//	binding to a device
+	Array<TDeviceMeta>	mDevices;	//	devices attached to this context
+	cl_context			mContext;	//	binding to a device
 };
 
 
 class Opencl::TContext : PopWorker::TContext
 {
 public:
-	TContext(TDevice& Device);
+	TContext(TDevice& Device,cl_device_id SubDevice);
 	~TContext();
 	
+	std::shared_ptr<TBuffer>		CreateBuffer();
+	std::shared_ptr<TBufferImage>	CreateBufferImage();
+
+	virtual bool	Lock() override;
+	virtual void	Unlock() override;
+
 protected:
+	TDeviceMeta			mDevice;	//	useful to cache to read vars
 	cl_command_queue	mQueue;
 };
 
@@ -116,7 +153,7 @@ protected:
 class Opencl::TProgram
 {
 public:
-	TProgram(const std::string& Source,TDevice& Device);
+	TProgram(const std::string& Source,TContext& Context);
 	~TProgram();
 };
 
