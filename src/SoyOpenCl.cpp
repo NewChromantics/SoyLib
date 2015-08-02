@@ -1,9 +1,12 @@
-#include "ofxSoylent.h"
 #include "SoyOpenCl.h"
 //#include "SoyApp.h"
 #include <SoyDebug.h>
 #include <SoyString.h>
 
+
+
+
+/*
 
 //	default settings
 bool SoyOpenCl::DefaultReadBlocking = true;
@@ -746,3 +749,5 @@ int SoyOpenClKernel::GetMaxLocalWorkGroupSize() const
 {
 	return mDeviceInfo.maxWorkGroupSize;	
 }
+
+*/

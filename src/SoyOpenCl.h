@@ -1,15 +1,150 @@
 #pragma once
 
-#include "ofxSoylent.h"
 #include "SoyThread.h"
-#include "MSAOpenCL.h"
 #include "SortArray.h"
 #include "SoyString.h"
-#include "SoyFilesytem.h"
+
+
+#if defined(TARGET_WINDOWS)
+//	gr: amd APP sdk, other includes/libs may be different?
+#include <cl/Opencl.h>
+#pragma comment( lib, "OpenCL.lib" )
+#endif
+
+#if defined(TARGET_OSX)
+//	add the OpenCL.framework
+#include <opencl/opencl.h>
+#endif
+
+
+#define CL_DEVICE_TYPE_INVALID	0
+
+
+namespace OpenclDevice
+{
+	enum Type
+	{
+		Invalid = CL_DEVICE_TYPE_INVALID,
+		CPU = CL_DEVICE_TYPE_CPU,
+		GPU = CL_DEVICE_TYPE_GPU,
+		ANY = CL_DEVICE_TYPE_CPU|CL_DEVICE_TYPE_GPU,
+	};
+}
+
+//	new interface to match new Opengl interface
+namespace Opencl
+{
+	class TDeviceMeta;
+	class TDevice;		//	top level, GPU/CPU opencl device (cl context)
+	class TContext;		//	a command queue/thread on a device (cl queue)
+	class TProgram;		//	compilable shader with multiple kernels
+	class TKernel;		//	individual kernel from a program
+	class TJob;			//	execute a kernel, on a context
+	
+	class TBuffer;
+	class TBufferImage;
+};
+
+
+class Opencl::TDeviceMeta
+{
+public:
+	std::string			mName;
+	OpenclDevice::Type	mType;
+	
+	cl_char		vendorName[1024];
+	cl_char		deviceName[1024];
+	cl_char		driverVersion[1024];
+	cl_char		deviceVersion[1024];
+	cl_uint		maxComputeUnits;
+	cl_uint		maxWorkItemDimensions;
+	size_t		maxWorkItemSizes[32];
+	size_t		maxWorkGroupSize;
+	cl_uint		maxClockFrequency;
+	cl_ulong	maxMemAllocSize;
+	cl_bool		imageSupport;
+	cl_uint		maxReadImageArgs;
+	cl_uint		maxWriteImageArgs;
+	size_t		image2dMaxWidth;
+	size_t		image2dMaxHeight;
+	size_t		image3dMaxWidth;
+	size_t		image3dMaxHeight;
+	size_t		image3dMaxDepth;
+	cl_uint		maxSamplers;
+	size_t		maxParameterSize;
+	cl_ulong	globalMemCacheSize;
+	cl_ulong	globalMemSize;
+	cl_ulong	maxConstantBufferSize;
+	cl_uint		maxConstantArgs;
+	cl_ulong	localMemSize;
+	cl_bool		errorCorrectionSupport;
+	size_t		profilingTimerResolution;
+	cl_bool		endianLittle;
+	cl_char		profile[1024];
+	cl_char		extensions[1024];
+	cl_device_type		type;
+	cl_uint		deviceAddressBits;
+};
+
+
+class Opencl::TDevice
+{
+public:
+	TDevice(const TDeviceMeta& Meta);
+	~TDevice();
+	
+	std::shared_ptr<TContext>		CreateContext();
+	std::shared_ptr<TBuffer>		CreateBuffer();
+	std::shared_ptr<TBufferImage>	CreateBufferImage();
+	
+protected:
+	cl_context		mContext;	//	binding to a device
+};
+
+
+class Opencl::TContext : PopWorker::TContext
+{
+public:
+	TContext(TDevice& Device);
+	~TContext();
+	
+protected:
+	cl_command_queue	mQueue;
+};
+
+
+class Opencl::TProgram
+{
+public:
+	TProgram(const std::string& Source,TDevice& Device);
+	~TProgram();
+};
+
+
+class Opencl::TKernel
+{
+public:
+	TKernel(const std::string& Kernel,TProgram& Program);
+	~TKernel();
+};
+
+
+class Opencl::TJob : public PopWorker::TJob
+{
+public:
+	TJob(TKernel& Kernel,TContext& Context);	//	should be able to get context from run()
+
+protected:
+	TKernel&	mKernel;
+	TContext&	mContext;
+};
+
+
+
+/*
 
 class SoyOpenClManager;
 class SoyOpenClShader;
-
 
 namespace SoyOpenCl
 {
@@ -567,5 +702,5 @@ public:
 };
 
 
-
+*/
 
