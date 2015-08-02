@@ -40,6 +40,7 @@ namespace Opencl
 	class TDeviceMeta;
 	class TDevice;		//	context to interface with 1 or more devices (one cl context)
 	class TContext;		//	a command queue/thread on a device (cl queue)
+	class TContextThread;	//	context with a built in thread for processing jobs
 	class TProgram;		//	compilable shader with multiple kernels
 	class TKernel;		//	individual kernel from a program
 	class TJob;			//	execute a kernel, on a context
@@ -126,6 +127,7 @@ public:
 	~TDevice();
 	
 	std::shared_ptr<TContext>		CreateContext();
+	std::shared_ptr<TContextThread>	CreateContextThread(const std::string& Name);
 	cl_context						GetClContext()		{	return mContext;	}
 	
 private:
@@ -137,7 +139,7 @@ protected:
 };
 
 
-class Opencl::TContext : PopWorker::TContext
+class Opencl::TContext : public PopWorker::TContext
 {
 public:
 	TContext(TDevice& Device,cl_device_id SubDevice);
@@ -156,6 +158,24 @@ protected:
 	TDevice&			mDevice;
 	TDeviceMeta			mDeviceMeta;	//	useful to cache to read vars
 	cl_command_queue	mQueue;
+};
+
+
+
+class Opencl::TContextThread : public SoyWorkerThread, public PopWorker::TJobQueue, public Opencl::TContext
+{
+public:
+	TContextThread(const std::string& Name,TDevice& Device,cl_device_id SubDevice) :
+		SoyWorkerThread		( Name, SoyWorkerWaitMode::Wake ),
+		Opencl::TContext	( Device, SubDevice )
+	{
+		WakeOnEvent( PopWorker::TJobQueue::mOnJobPushed );
+		Start();
+	}
+	
+	//	thread
+	virtual bool		Iteration() override	{	PopWorker::TJobQueue::Flush(*this);	return true;	}
+	virtual bool		CanSleep() override		{	return !PopWorker::TJobQueue::HasJobs();	}	//	break out of conditional with this
 };
 
 

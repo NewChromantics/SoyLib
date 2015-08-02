@@ -333,18 +333,39 @@ std::shared_ptr<Opencl::TContext> Opencl::TDevice::CreateContext()
 	return Context;
 }
 
+std::shared_ptr<Opencl::TContextThread> Opencl::TDevice::CreateContextThread(const std::string& Name)
+{
+	if ( mDevices.IsEmpty() )
+		return nullptr;
+	
+	//	pick a device
+	cl_device_id Device = mDevices.GetBack().mDevice;
+	
+	//	create a queue
+	std::shared_ptr<TContextThread> Context( new TContextThread( Name, *this, Device ) );
+	return Context;
+}
+
 
 Opencl::TContext::TContext(TDevice& Device,cl_device_id SubDevice) :
 	mQueue		( nullptr ),
 	mDeviceMeta	( SubDevice ),
 	mDevice		( Device )
 {
-	
+	cl_command_queue_properties Properties = 0;
+	cl_int Error;
+	mQueue = clCreateCommandQueue( mDevice.GetClContext(), mDeviceMeta.mDevice, Properties, &Error );
+	Opencl_IsOkay( Error );
+	Soy::Assert( mQueue != nullptr, "Failed to create opencl command queue" );
 }
 
 Opencl::TContext::~TContext()
 {
-	
+	if ( mQueue )
+	{
+		clReleaseCommandQueue( mQueue );
+		mQueue = nullptr;
+	}
 }
 
 bool Opencl::TContext::Lock()
