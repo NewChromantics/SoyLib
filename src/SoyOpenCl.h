@@ -43,6 +43,7 @@ namespace Opencl
 	class TProgram;		//	compilable shader with multiple kernels
 	class TKernel;		//	individual kernel from a program
 	class TJob;			//	execute a kernel, on a context
+	class TSync;		//	cl_wait_event
 	
 	class TBuffer;
 	class TBufferImage;
@@ -125,7 +126,11 @@ public:
 	~TDevice();
 	
 	std::shared_ptr<TContext>		CreateContext();
+	cl_context						GetClContext()		{	return mContext;	}
 	
+private:
+	void				CreateContext(const ArrayBridge<cl_device_id>& Devices);
+
 protected:
 	Array<TDeviceMeta>	mDevices;	//	devices attached to this context
 	cl_context			mContext;	//	binding to a device
@@ -144,8 +149,12 @@ public:
 	virtual bool	Lock() override;
 	virtual void	Unlock() override;
 
+	const TDeviceMeta&	GetDevice() const	{	return mDeviceMeta;		}
+	cl_context			GetContext()	{	return mDevice.GetClContext();	}	//	get the opencl context
+
 protected:
-	TDeviceMeta			mDevice;	//	useful to cache to read vars
+	TDevice&			mDevice;
+	TDeviceMeta			mDeviceMeta;	//	useful to cache to read vars
 	cl_command_queue	mQueue;
 };
 
@@ -155,6 +164,9 @@ class Opencl::TProgram
 public:
 	TProgram(const std::string& Source,TContext& Context);
 	~TProgram();
+	
+public:
+	cl_program	mProgram;
 };
 
 
@@ -163,6 +175,9 @@ class Opencl::TKernel
 public:
 	TKernel(const std::string& Kernel,TProgram& Program);
 	~TKernel();
+	
+protected:
+	cl_kernel	mKernel;
 };
 
 
@@ -176,6 +191,18 @@ protected:
 	TContext&	mContext;
 };
 
+
+class Opencl::TSync
+{
+public:
+	TSync();
+	~TSync();
+	
+	void	Wait();
+	
+private:
+	cl_event	mEvent;
+};
 
 
 /*

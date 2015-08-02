@@ -281,15 +281,7 @@ void Opencl::GetDevices(ArrayBridge<TDeviceMeta>&& Metas,OpenclDevice::Type Filt
 Opencl::TDevice::TDevice(const ArrayBridge<cl_device_id>& Devices) :
 	mContext	( nullptr )
 {
-	if ( Devices.IsEmpty() )
-		throw Soy::AssertException("No devices provided");
-
-	//	create context
-	cl_int err;
-	cl_context_properties* Properties = nullptr;
-	mContext = clCreateContext( Properties, size_cast<cl_uint>(Devices.GetSize()), Devices.GetArray(), nullptr, nullptr, &err );
-	Opencl::IsOkay( err, "clCreateContext failed" );
-	Soy::Assert( mContext != nullptr, "clCreateContext failed to return a context" );
+	CreateContext( Devices );
 }
 
 
@@ -297,9 +289,25 @@ Opencl::TDevice::TDevice(const ArrayBridge<TDeviceMeta>& Devices) :
 	mContext	( nullptr )
 {
 	Array<cl_device_id> DeviceIds;
-	Devices.ForEach( [&DeviceIds](const TDeviceMeta& Device)	{	DeviceIds.PushBack( Device.mDevice );	return true;	} );
+	for ( int i=0;	i<Devices.GetSize();	i++ )
+		DeviceIds.PushBack( Devices[i].mDevice );
 
-	TDevice( GetArrayBridge(DeviceIds) );
+	CreateContext( GetArrayBridge(DeviceIds) );
+}
+
+void Opencl::TDevice::CreateContext(const ArrayBridge<cl_device_id>& Devices)
+{
+	if ( Devices.IsEmpty() )
+		throw Soy::AssertException("No devices provided");
+	
+	//	create context
+	cl_int err;
+	cl_context_properties* Properties = nullptr;
+	mContext = clCreateContext( Properties, size_cast<cl_uint>(Devices.GetSize()), Devices.GetArray(), nullptr, nullptr, &err );
+	Opencl::IsOkay( err, "clCreateContext failed" );
+	Soy::Assert( mContext != nullptr, "clCreateContext failed to return a context" );
+	
+	mDevices.Copy( Devices );
 }
 
 
@@ -318,7 +326,7 @@ std::shared_ptr<Opencl::TContext> Opencl::TDevice::CreateContext()
 		return nullptr;
 	
 	//	pick a device
-	cl_device_id Device = mDevices[0].mDevice;
+	cl_device_id Device = mDevices.GetBack().mDevice;
 	
 	//	create a queue
 	std::shared_ptr<TContext> Context( new TContext( *this, Device ) );
@@ -327,8 +335,9 @@ std::shared_ptr<Opencl::TContext> Opencl::TDevice::CreateContext()
 
 
 Opencl::TContext::TContext(TDevice& Device,cl_device_id SubDevice) :
-	mQueue	( nullptr ),
-	mDevice	( SubDevice )
+	mQueue		( nullptr ),
+	mDeviceMeta	( SubDevice ),
+	mDevice		( Device )
 {
 	
 }
@@ -349,6 +358,142 @@ void Opencl::TContext::Unlock()
 	
 }
 
+
+
+void GetBuildLog(cl_program Program,cl_device_id Device,std::ostream& Log)
+{
+	size_t Length = 0;
+	auto LengthError = clGetProgramBuildInfo( Program, Device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &Length );
+	Opencl_IsOkay(LengthError);
+	
+	//	no error?
+	if ( Length == 0 )
+	{
+		Log << "<no build log>";
+		return;
+	}
+	
+	Array<char> Buffer( Length+1 );
+	auto BuildLogError = clGetProgramBuildInfo( Program, Device, CL_PROGRAM_BUILD_LOG, Buffer.GetSize(), Buffer.GetArray(), nullptr );
+	Opencl_IsOkay(BuildLogError);
+	Buffer[Length] = '\0';
+	
+	//	errors might contain % symbols, which will screw up the va_args system when it tries to parse them...
+	//std::replace( buffer.begin(), buffer.end(), '%', '@' );
+	
+	Log << Buffer.GetArray();
+}
+
+Opencl::TProgram::TProgram(const std::string& Source,TContext& Context) :
+	mProgram	( nullptr )
+{
+	const char* Lines[] =
+	{
+		Source.c_str(),
+	};
+	cl_int Error = 0;
+	mProgram = clCreateProgramWithSource( Context.GetContext(), sizeofarray(Lines), Lines, nullptr, &Error );
+	Opencl_IsOkay(Error);
+	Soy::Assert( mProgram != nullptr, "creating program failed" );
+	
+	//	now compile
+	std::stringstream BuildArguments;
+	
+	Array<std::string> Paths;
+	for ( int p=0;	p<Paths.GetSize();	p++)
+	{
+		auto Path = Paths[p];
+		//	amd APP sdk on windows requires paths with forward slashes
+		std::replace( Path.begin(), Path.end(), '\\', '/' );
+		BuildArguments << "-I \"" << Path << "\" ";
+	}
+
+	//	build for context's device
+	BufferArray<cl_device_id,1> Devices;
+	Devices.PushBack( Context.GetDevice().mDevice );
+	cl_int Err = clBuildProgram( mProgram, size_cast<cl_uint>(Devices.GetSize()), Devices.GetArray(), BuildArguments.str().c_str(), nullptr, nullptr );
+	
+	//	get log
+	std::stringstream BuildLog;
+	GetBuildLog( mProgram, Devices[0], BuildLog );
+
+	//	throw if error
+	if ( Err != CL_SUCCESS )
+	{
+		std::stringstream Error;
+		Error << "Failed to compile kernel; " << BuildLog.str();
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	//	print any warnings
+	if ( !BuildLog.str().empty() )
+		std::Debug << "Opencl kernel build log: " << BuildLog.str() << std::endl;
+
+}
+
+Opencl::TProgram::~TProgram()
+{
+	if ( mProgram )
+	{
+		clReleaseProgram( mProgram );
+		mProgram = nullptr;
+	}
+}
+
+
+Opencl::TKernel::TKernel(const std::string& Kernel,TProgram& Program) :
+	mKernel	( nullptr )
+{
+	cl_int Error;
+	mKernel = clCreateKernel( Program.mProgram, Kernel.c_str(), &Error );
+	Opencl_IsOkay( Error );
+	Soy::Assert( mKernel!=nullptr, "Expected kernel" );
+}
+
+Opencl::TKernel::~TKernel()
+{
+	if ( mKernel )
+	{
+		clReleaseKernel( mKernel );
+		mKernel = nullptr;
+	}
+}
+
+Opencl::TSync::TSync() :
+mEvent	( nullptr )
+{
+	clReleaseEvent( mEvent );
+}
+
+Opencl::TSync::~TSync()
+{
+	if ( mEvent )
+	{
+		clReleaseEvent( mEvent );
+		mEvent = nullptr;
+	}
+}
+
+void Opencl::TSync::Wait()
+{
+	if ( !mEvent )
+		return;
+	
+	auto WaitError = clWaitForEvents( 1, &mEvent );
+
+	//	there was an error in execution, let's find what it was
+	if ( WaitError == CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST )
+	{
+		cl_int ExecutionError = CL_SUCCESS;
+		auto GetEventInfoErr = clGetEventInfo( mEvent, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(ExecutionError), &ExecutionError, nullptr );
+		Opencl::IsOkay( GetEventInfoErr, "Get clWaitForEvents info-error" );
+		Opencl::IsOkay( ExecutionError, "Error in execution which we're waiting on" );
+	}
+	else
+	{
+		Opencl_IsOkay( WaitError );
+	}
+}
 
 /*
 
