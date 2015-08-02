@@ -69,6 +69,46 @@ std::string Opencl::GetErrorString(cl_int Error)
 			CASE_ENUM_STRING( CL_LINK_PROGRAM_FAILURE );
 			CASE_ENUM_STRING( CL_DEVICE_PARTITION_FAILED );
 			CASE_ENUM_STRING( CL_KERNEL_ARG_INFO_NOT_AVAILABLE );
+			
+			CASE_ENUM_STRING( CL_INVALID_VALUE );
+			CASE_ENUM_STRING( CL_INVALID_DEVICE_TYPE );
+			CASE_ENUM_STRING( CL_INVALID_PLATFORM );
+			CASE_ENUM_STRING( CL_INVALID_DEVICE );
+			CASE_ENUM_STRING( CL_INVALID_CONTEXT );
+			CASE_ENUM_STRING( CL_INVALID_QUEUE_PROPERTIES );
+			CASE_ENUM_STRING( CL_INVALID_COMMAND_QUEUE );
+			CASE_ENUM_STRING( CL_INVALID_HOST_PTR );
+			CASE_ENUM_STRING( CL_INVALID_MEM_OBJECT );
+			CASE_ENUM_STRING( CL_INVALID_IMAGE_FORMAT_DESCRIPTOR );
+			CASE_ENUM_STRING( CL_INVALID_IMAGE_SIZE );
+			CASE_ENUM_STRING( CL_INVALID_SAMPLER );
+			CASE_ENUM_STRING( CL_INVALID_BINARY );
+			CASE_ENUM_STRING( CL_INVALID_BUILD_OPTIONS );
+			CASE_ENUM_STRING( CL_INVALID_PROGRAM );
+			CASE_ENUM_STRING( CL_INVALID_PROGRAM_EXECUTABLE );
+			CASE_ENUM_STRING( CL_INVALID_KERNEL_NAME );
+			CASE_ENUM_STRING( CL_INVALID_KERNEL_DEFINITION );
+			CASE_ENUM_STRING( CL_INVALID_KERNEL );
+			CASE_ENUM_STRING( CL_INVALID_ARG_INDEX );
+			CASE_ENUM_STRING( CL_INVALID_ARG_VALUE );
+			CASE_ENUM_STRING( CL_INVALID_ARG_SIZE );
+			CASE_ENUM_STRING( CL_INVALID_KERNEL_ARGS );
+			CASE_ENUM_STRING( CL_INVALID_WORK_DIMENSION );
+			CASE_ENUM_STRING( CL_INVALID_WORK_GROUP_SIZE );
+			CASE_ENUM_STRING( CL_INVALID_WORK_ITEM_SIZE );
+			CASE_ENUM_STRING( CL_INVALID_GLOBAL_OFFSET );
+			CASE_ENUM_STRING( CL_INVALID_EVENT_WAIT_LIST );
+			CASE_ENUM_STRING( CL_INVALID_EVENT );
+			CASE_ENUM_STRING( CL_INVALID_OPERATION );
+			CASE_ENUM_STRING( CL_INVALID_GL_OBJECT );
+			CASE_ENUM_STRING( CL_INVALID_BUFFER_SIZE );
+			CASE_ENUM_STRING( CL_INVALID_MIP_LEVEL );
+			CASE_ENUM_STRING( CL_INVALID_GLOBAL_WORK_SIZE );
+			CASE_ENUM_STRING( CL_INVALID_PROPERTY );
+			CASE_ENUM_STRING( CL_INVALID_IMAGE_DESCRIPTOR );
+			CASE_ENUM_STRING( CL_INVALID_COMPILER_OPTIONS );
+			CASE_ENUM_STRING( CL_INVALID_LINKER_OPTIONS );
+			CASE_ENUM_STRING( CL_INVALID_DEVICE_PARTITION_COUNT );
 	}
 #undef CASE_ENUM_STRING
 	std::stringstream Unknown;
@@ -94,15 +134,31 @@ std::string GetString(cl_platform_id Platform,cl_platform_info Info)
 {
 	cl_char Buffer[100] = {'\0'};
 	auto Error = clGetPlatformInfo( Platform, Info, sizeof(Buffer), Buffer, nullptr );
-	Opencl_IsOkay( Error );
+	if ( !Opencl_IsOkay( Error ) )
+		return "Error";
 	return std::string( reinterpret_cast<char*>(Buffer) );
 }
 
 std::string GetString(cl_device_id Device,cl_device_info Info)
 {
 	cl_char Buffer[100] = {'\0'};
-	auto Error = clGetDeviceInfo( Device, Info, sizeof(Buffer), Buffer, nullptr );
-	Opencl_IsOkay( Error );
+	size_t RealSize = 0;
+	auto Error = clGetDeviceInfo( Device, Info, sizeof(Buffer), Buffer, &RealSize );
+
+	//	gr: this can return invalid value if the string is larger than the buffer
+	if ( RealSize > sizeof(Buffer ) && Error == CL_INVALID_VALUE )
+	{
+		Array<cl_char> BigBuffer(RealSize);
+		auto Error = clGetDeviceInfo( Device, Info, BigBuffer.GetDataSize(), BigBuffer.GetArray(), &RealSize );
+
+		if ( !Opencl_IsOkay( Error ) )
+			return "Error";
+		return std::string( reinterpret_cast<char*>( BigBuffer.GetArray() ) );
+	}
+	
+	if ( !Opencl_IsOkay( Error ) )
+		return "Error";
+
 	return std::string( reinterpret_cast<char*>(Buffer) );
 }
 
@@ -112,6 +168,15 @@ void GetValue(cl_device_id Device,cl_device_info Info,TYPE& Value)
 	size_t RealSize = 0;
 	auto Error = clGetDeviceInfo( Device, Info, sizeof(TYPE), &Value, &RealSize );
 	Opencl_IsOkay( Error );
+}
+
+
+std::ostream& operator<<(std::ostream &out,const Opencl::TDeviceMeta& in)
+{
+	out << in.mName << " ";
+	out << in.mVendor << " ";
+	out << OpenclDevice::ToString(in.mType) << " ";
+	return out;
 }
 
 
@@ -154,6 +219,14 @@ Opencl::TDeviceMeta::TDeviceMeta(cl_device_id Device) :
 	GetValue( Device, CL_DEVICE_PROFILING_TIMER_RESOLUTION, profilingTimerResolution );
 	GetValue( Device, CL_DEVICE_ENDIAN_LITTLE, endianLittle );
 	GetValue( Device, CL_DEVICE_ADDRESS_BITS, deviceAddressBits );
+}
+
+
+std::ostream& operator<<(std::ostream &out,const Opencl::TPlatform& in)
+{
+	out << in.mName << " ";
+	out << in.mVendor << " ";
+	return out;
 }
 
 
