@@ -383,8 +383,8 @@ void Opengl::TFbo::Delete()
 	if ( mFbo.mName != GL_ASSET_INVALID )
 	{
 		glDeleteFramebuffers( 1, &mFbo.mName );
+		Opengl::IsOkay("glDeleteFramebuffers", false);
 		mFbo.mName = GL_ASSET_INVALID;
-		Opengl_IsOkay();
 	}
 }
 
@@ -609,6 +609,8 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
 	Opengl_IsOkay();
 #endif
 }
+
+
 
 void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUploadParams Params)
 {
