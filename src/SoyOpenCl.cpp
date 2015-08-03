@@ -219,6 +219,16 @@ Opencl::TDeviceMeta::TDeviceMeta(cl_device_id Device) :
 	GetValue( Device, CL_DEVICE_PROFILING_TIMER_RESOLUTION, profilingTimerResolution );
 	GetValue( Device, CL_DEVICE_ENDIAN_LITTLE, endianLittle );
 	GetValue( Device, CL_DEVICE_ADDRESS_BITS, deviceAddressBits );
+
+
+	//	some explicit checks
+	if ( maxWorkGroupSize < 1 )
+	{
+		std::stringstream Error;
+		Error << "Max work group size (" << maxWorkGroupSize << ") < 1";
+		maxWorkGroupSize = 1;
+		throw Soy::AssertException( Error.str() );
+	}
 }
 
 
@@ -227,6 +237,19 @@ std::ostream& operator<<(std::ostream &out,const Opencl::TPlatform& in)
 	out << in.mName << " ";
 	out << in.mVendor << " ";
 	return out;
+}
+
+size_t Opencl::TDeviceMeta::GetMaxGlobalWorkGroupSize() const
+{
+	//	gr: old code used below, but this looks right. need to figure out why I used the device address bits!?
+	return maxWorkGroupSize;
+	/*
+	int DeviceAddressBits = mDeviceInfo.deviceAddressBits;
+	int MaxSize = (1<<(DeviceAddressBits-1))-1;
+	//	gr: if this is negative opencl kernels lock up (or massive loops?), code should bail out beforehand
+	assert( MaxSize > 0 );
+	return MaxSize;
+	 */
 }
 
 
@@ -480,10 +503,31 @@ Opencl::TKernel::~TKernel()
 	}
 }
 
-Opencl::TSync::TSync() :
-mEvent	( nullptr )
+Opencl::TKernelState Opencl::TKernel::Lock(TContext& Context)
 {
-	clReleaseEvent( mEvent );
+	mLock.lock();
+	Soy::Assert( mLockedContext == nullptr, "Expecting null locked context" );
+	mLockedContext = &Context;
+	return TKernelState(*this);
+}
+
+void Opencl::TKernel::Unlock()
+{
+	mLockedContext = nullptr;
+	mLock.unlock();
+}
+
+Opencl::TContext& Opencl::TKernel::GetContext()
+{
+	Soy::Assert( mLockedContext != nullptr, "Expecting locked context" );
+	return *mLockedContext;
+}
+
+
+
+Opencl::TSync::TSync() :
+	mEvent	( nullptr )
+{
 }
 
 Opencl::TSync::~TSync()
@@ -515,6 +559,203 @@ void Opencl::TSync::Wait()
 		Opencl_IsOkay( WaitError );
 	}
 }
+
+Opencl::TKernelState::TKernelState(TKernel& Kernel) :
+	mKernel	( Kernel )
+{
+}
+
+Opencl::TKernelState::~TKernelState()
+{
+	mKernel.Unlock();
+}
+
+template<typename TYPE>
+void SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Value)
+{
+	auto Error = clSetKernelArgByNameAPPLE( Kernel.mKernel.mKernel, Name, sizeof(TYPE), &Value );
+	Opencl_IsOkay(Error);
+}
+
+void Opencl::TKernelState::SetUniform(const char* Name,SoyPixelsImpl& Pixels)
+{
+	//	make image buffer and set that
+	//clSetKernelArgByNameAPPLE( mKernel, Name, ma, const void *)
+}
+
+void Opencl::TKernelState::SetUniform(const char* Name,cl_int Value)
+{
+	SetKernelArg( *this, Name, Value );
+}
+
+const Opencl::TDeviceMeta& Opencl::TKernelState::GetDevice()
+{
+	return mKernel.GetContext().GetDevice();
+}
+
+
+void Opencl::TKernelState::GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations)
+{
+	auto& Device = GetDevice();
+	
+	BufferArray<size_t,3> Exec(3);
+	auto& Execa = Exec[0];
+	auto& Execb = Exec[1];
+	auto& Execc = Exec[2];
+	Execa = (Iterations.GetSize() >= 1) ? Iterations[0] : 0;
+	Execb = (Iterations.GetSize() >= 2) ? Iterations[1] : 0;
+	Execc = (Iterations.GetSize() >= 3) ? Iterations[2] : 0;
+	
+	auto KernelWorkGroupMax = Device.GetMaxGlobalWorkGroupSize();
+	if ( KernelWorkGroupMax < 1 )
+		KernelWorkGroupMax = std::max( Execa, Execb, Execc );
+	
+	bool Overflowa = (Execa % KernelWorkGroupMax) > 0;
+	bool Overflowb = (Execb % KernelWorkGroupMax) > 0;
+	bool Overflowc = (Execc % KernelWorkGroupMax) > 0;
+	auto Iterationsa = (Execa / KernelWorkGroupMax) + Overflowa;
+	auto Iterationsb = (Execb / KernelWorkGroupMax) + Overflowb;
+	auto Iterationsc = (Execc / KernelWorkGroupMax) + Overflowc;
+
+	for ( int ita=0;	ita<Iterationsa;	ita++ )
+	{
+		for ( int itb=0;	itb<Iterationsb;	itb++ )
+		{
+			for ( int itc=0;	itc<Iterationsc;	itc++ )
+			{
+				Opencl::TKernelIteration Iteration;
+				int it[3] = { ita, itb, itc };
+				
+				int TotalCount = 0;
+				for ( int wave=0;	wave<Iterations.GetSize();	wave++ )
+				{
+					auto Count = std::min( KernelWorkGroupMax, Exec[wave] - Iteration.mFirst[wave] );
+					TotalCount += Count;
+					if ( Count <= 0 )
+						break;
+					
+					Iteration.mFirst.PushBack( it[wave] * KernelWorkGroupMax );
+					Iteration.mCount.PushBack( Count );
+				}
+				
+				if ( TotalCount > 0 )
+					IterationSplits.PushBack( Iteration );
+			}
+		}
+	}
+}
+
+void Opencl::TKernelState::QueueIteration(const TKernelIteration& Iteration)
+{
+	QueueIterationImpl( Iteration, nullptr );
+}
+void Opencl::TKernelState::QueueIteration(const TKernelIteration& Iteration,TSync& Semaphore)
+{
+	QueueIterationImpl( Iteration, &Semaphore );
+}
+
+void Opencl::TKernelState::QueueIterationImpl(const TKernelIteration& Iteration,TSync* Semaphore)
+{
+	BufferArray<size_t,3> GlobalExec( Iteration.mCount );
+	BufferArray<size_t,6> LocalExec;
+
+/*
+	for ( int i=0;	i<GlobalExec.GetSize();	i++ )
+	{
+		auto& ExecCount = GlobalExec[i];
+		
+		//	dimensions need to be at least 1, zero size is not a failure, just don't execute
+		if ( ExecCount <= 0 )
+			return true;
+		
+		if ( IsValidGlobalExecCount(ExecCount) )
+			continue;
+		
+		BufferString<1000> Debug;
+		Debug << GetName() << ": Too many iterations for kernel: " << ExecCount << "/" << GetMaxWorkGroupSize() << "... execution count truncated.";
+		ofLogWarning( Debug.c_str() );
+		ExecCount = std::min( ExecCount, GetMaxGlobalWorkGroupSize() );
+	}
+*/
+
+	if ( !LocalExec.IsEmpty() )
+	{
+		Soy_AssertTodo();
+		/*
+		
+		if ( LocalExec.GetSize() != GlobalExec.GetSize() )
+		{
+			std::stringstream Error;
+			Error << "Local execution size must match global execution size if specified";
+			throw Soy::AssertException( Error.str() );
+		}
+	
+		if ( !IsValidLocalExecCount( GetArrayBridge(LocalExec), true ) )
+			return false;
+	
+		//	CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and
+		//			the total number of work-items in the work-group computed as
+		//			local_work_size[0] *... local_work_size[work_dim - 1] is greater than
+		//			the value specified by CL_DEVICE_MAX_WORK_GROUP_SIZE in the table of OpenCL Device Queries for clGetDeviceInfo.
+		int TotalLocalWorkGroupSize = LocalExec[0];
+		for ( int d=1;	d<LocalExec.GetSize();	d++ )
+			TotalLocalWorkGroupSize *= LocalExec[d];
+		
+		if ( TotalLocalWorkGroupSize > GetMaxLocalWorkGroupSize() )
+		{
+			std::stringstream Error;
+			Error << "Too many local work items for device: " << TotalLocalWorkGroupSize << "/" << GetMaxLocalWorkGroupSize();
+			throw Soy::AssertException( Error.str() );
+		}
+
+		
+		//	CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and number of work-items specified by
+		//	global_work_size is not evenly divisable by size of work-group given by local_work_size
+		{
+			std::stringstream Error;
+			for ( int Dim=0;	Dim<LocalExec.GetSize();	Dim++ )
+			{
+				int Local = LocalExec[Dim];
+				int Global = GlobalExec[Dim];
+				int Remainer = Global % Local;
+				if ( Remainer != 0 )
+				{
+					Error << "Local work items[" << Dim << "] " << Local << " not divisible by global size " << Global << std::endl;
+				}
+			}
+			
+			if ( !Error.str().empty() )
+				throw Soy::AssertException( Error.str() );
+		}
+		*/
+	}
+	
+	//	if we're about to execute, make sure all writes are done
+	//	gr: only if ( Blocking ) ?
+	//if ( !WaitForPendingWrites() )
+	//	return false;
+	
+	//	pad out local exec in case it's not specified
+	LocalExec.PushBack(0);
+	LocalExec.PushBack(0);
+	LocalExec.PushBack(0);
+
+	auto& Kernel = mKernel.mKernel;
+	auto Queue = mKernel.GetContext().GetQueue();
+	auto Dimensions = size_cast<cl_uint>(GlobalExec.GetSize());
+	const size_t* GlobalWorkOffset = nullptr;
+	const size_t* GlobalWorkSize = GlobalExec.GetArray();
+	const size_t* LocalWorkSize = LocalExec.GetArray();
+	cl_event* WaitEvent = Semaphore ? &Semaphore->mEvent : nullptr;
+	
+	cl_int Err = clEnqueueNDRangeKernel( Queue, Kernel, Dimensions, GlobalWorkOffset, GlobalWorkSize, LocalWorkSize, 0, nullptr, WaitEvent );
+
+	Opencl::IsOkay( Err, "clEnqueueNDRangeKernel" );
+	
+	if ( Semaphore )
+		Semaphore->Wait();
+}
+
 
 /*
 

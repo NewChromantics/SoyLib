@@ -20,6 +20,8 @@
 
 #define CL_DEVICE_TYPE_INVALID	0
 
+class SoyPixelsImpl;
+
 
 namespace OpenclDevice
 {
@@ -48,7 +50,10 @@ namespace Opencl
 	
 	class TBuffer;
 	class TBufferImage;
-	
+
+	class TKernelState;	//	current binding to a kernel
+	class TKernelIteration;
+
 	void		GetDevices(ArrayBridge<TDeviceMeta>&& Metas,OpenclDevice::Type Filter);
 	std::string	GetErrorString(cl_int Error);
 };
@@ -79,7 +84,11 @@ public:
 	TDeviceMeta(cl_device_id Device);
 	
 	bool				IsValid() const		{	return mDevice != nullptr;	}
+
 	
+	size_t				GetMaxGlobalWorkGroupSize() const;
+
+public:
 	cl_device_id		mDevice;
 	std::string			mVendor;
 	std::string			mName;
@@ -88,6 +97,7 @@ public:
 	std::string			mProfile;
 	std::string			mExtensions;
 	OpenclDevice::Type	mType;
+	
 protected:
 	
 	cl_uint		maxComputeUnits;
@@ -139,7 +149,7 @@ protected:
 };
 
 
-class Opencl::TContext : public PopWorker::TContext
+class Opencl::TContext : public PopWorker::TJobQueue, public PopWorker::TContext
 {
 public:
 	TContext(TDevice& Device,cl_device_id SubDevice);
@@ -152,7 +162,8 @@ public:
 	virtual void	Unlock() override;
 
 	const TDeviceMeta&	GetDevice() const	{	return mDeviceMeta;		}
-	cl_context			GetContext()	{	return mDevice.GetClContext();	}	//	get the opencl context
+	cl_context			GetContext()		{	return mDevice.GetClContext();	}	//	get the opencl context
+	cl_command_queue	GetQueue() const	{	return mQueue;	}
 
 protected:
 	TDevice&			mDevice;
@@ -162,7 +173,7 @@ protected:
 
 
 
-class Opencl::TContextThread : public SoyWorkerThread, public PopWorker::TJobQueue, public Opencl::TContext
+class Opencl::TContextThread : public SoyWorkerThread, public Opencl::TContext
 {
 public:
 	TContextThread(const std::string& Name,TDevice& Device,cl_device_id SubDevice) :
@@ -190,14 +201,102 @@ public:
 };
 
 
+
+
+class Opencl::TKernelIteration
+{
+	const static size_t DIMENSIONS=3;
+public:
+	TKernelIteration() :
+		mFirst		( 0 ),
+		mCount		( 0 ),
+		mBlocking	( true )
+	{
+		mFirst.SetAll(0);
+		mCount.SetAll(0);
+	}
+	explicit TKernelIteration(size_t Exec1,bool Blocking) :
+		mFirst		( 1 ),
+		mCount		( 1 ),
+		mBlocking	( Blocking )
+	{
+		mFirst.SetAll(0);
+		assert( DIMENSIONS == 1 );
+		mCount[0] = Exec1;
+	}
+	explicit TKernelIteration(size_t Exec1,size_t Exec2,bool Blocking) :
+		mFirst		( 2 ),
+		mCount		( 2 ),
+		mBlocking	( Blocking )
+	{
+		mFirst.SetAll(0);
+		mCount[0] = Exec1;
+		mCount[1] = Exec2;
+	}
+	explicit TKernelIteration(size_t Exec1,size_t Exec2,size_t Exec3,bool Blocking) :
+		mFirst		( 3 ),
+		mCount		( 3 ),
+		mBlocking	( Blocking )
+	{
+		mFirst.SetAll(0);
+		mCount[0] = Exec1;
+		mCount[1] = Exec2;
+		mCount[2] = Exec3;
+	}
+public:
+	BufferArray<size_t,DIMENSIONS>		mFirst;
+	BufferArray<size_t,DIMENSIONS>		mCount;
+	bool								mBlocking;
+};
+
+
+
+class Opencl::TKernelState
+{
+	friend class TKernel;
+protected:
+	TKernelState(TKernel& Kernel);
+public:
+	~TKernelState();
+	
+	//	gr: not uniforms, but matching name of opengl
+	void			SetUniform(const char* Name,SoyPixelsImpl& Pixels);
+	void			SetUniform(const char* Name,cl_int Value);
+	
+	void			GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations);
+
+	void			QueueIteration(const TKernelIteration& Iteration);
+	void			QueueIteration(const TKernelIteration& Iteration,TSync& Semaphore);
+
+	const TDeviceMeta&	GetDevice();
+
+private:
+	void			QueueIterationImpl(const TKernelIteration& Iteration,TSync* Semaphore);
+	
+public:
+	TKernel&		mKernel;
+};
+
+
+
 class Opencl::TKernel
 {
 public:
 	TKernel(const std::string& Kernel,TProgram& Program);
 	~TKernel();
+
+	//	cl_kernel's are the only things that aren't thread safe(re-entrant safe)
+	//	when setting arguments
+	TKernelState	Lock(TContext& Context);
+	void			Unlock();
+	TContext&		GetContext();
+
+public:
+	cl_kernel	mKernel;
 	
 protected:
-	cl_kernel	mKernel;
+	std::mutex	mLock;
+	TContext*	mLockedContext;	//	kernels need to be locked to a queue
 };
 
 
@@ -220,114 +319,14 @@ public:
 	
 	void	Wait();
 	
-private:
+public:
 	cl_event	mEvent;
 };
 
 
+
+
 /*
-
-class SoyOpenClManager;
-class SoyOpenClShader;
-
-namespace SoyOpenCl
-{
-	extern bool						DefaultReadBlocking;
-	extern bool						DefaultWriteBlocking;
-	extern bool						DefaultExecuteBlocking;
-	extern msa::OpenClDevice::Type	DefaultDeviceType;
-}
-
-class SoyFileChangeDetector
-{
-public:
-	SoyFileChangeDetector(std::string Filename);
-
-	bool						HasChanged();
-	SoyFilesystem::Timestamp	GetCurrentTimestamp()	{	return mFile.GetModified();	};	//	get the file's current timestamp
-	void						SetLastModified(SoyFilesystem::Timestamp Timestamp);
-	std::string					GetFilename() const		{	return mFile.GetFilename();	}
-
-private:
-	SoyFilesystem::Timestamp	mLastModified;
-	SoyFilesystem::File			mFile;
-};
-
-
-class SoyOpenClKernelRef
-{
-public:
-	SoyOpenClKernelRef()
-	{
-	}
-	SoyOpenClKernelRef(SoyRef Shader,std::string Kernel) :
-		mShader	( Shader ),
-		mKernel	( Kernel )
-	{
-	}
-
-	std::string			Debug_GetName() const	{	return (std::stringstream() << mShader << "[" << mKernel << "]").str();	}
-
-public:
-	SoyRef				mShader;
-	std::string			mKernel;
-};
-
-
-
-template<int DIMENSIONS>
-class SoyOpenclKernelIteration
-{
-public:
-	SoyOpenclKernelIteration() :
-		mFirst		( DIMENSIONS ),
-		mCount		( DIMENSIONS ),
-		mBlocking	( true )
-	{
-		mFirst.SetAll(0);
-		mCount.SetAll(0);
-	}
-	explicit SoyOpenclKernelIteration(int Exec1,bool Blocking) :
-		mFirst		( DIMENSIONS ),
-		mCount		( DIMENSIONS ),
-		mBlocking	( Blocking )
-	{
-		mFirst.SetAll(0);
-		assert( DIMENSIONS == 1 );
-		mCount[0] = Exec1;
-	}
-	explicit SoyOpenclKernelIteration(int Exec1,int Exec2,bool Blocking) :
-		mFirst		( DIMENSIONS ),
-		mCount		( DIMENSIONS ),
-		mBlocking	( Blocking )
-	{
-		mFirst.SetAll(0);
-		assert( DIMENSIONS == 2 );
-		mCount[0] = Exec1;
-		mCount[1] = Exec2;
-	}
-	explicit SoyOpenclKernelIteration(int Exec1,int Exec2,int Exec3,bool Blocking) :
-		mFirst		( DIMENSIONS ),
-		mCount		( DIMENSIONS ),
-		mBlocking	( Blocking )
-	{
-		mFirst.SetAll(0);
-		assert( DIMENSIONS == 3 );
-		mCount[0] = Exec1;
-		mCount[1] = Exec2;
-		mCount[2] = Exec3;
-	}
-public:
-	BufferArray<int,DIMENSIONS>		mFirst;
-	BufferArray<int,DIMENSIONS>		mCount;
-	bool							mBlocking;
-};
-DECLARE_NONCOMPLEX_TYPE( SoyOpenclKernelIteration<1> );
-DECLARE_NONCOMPLEX_TYPE( SoyOpenclKernelIteration<2> );
-DECLARE_NONCOMPLEX_TYPE( SoyOpenclKernelIteration<3> );
-
-
-
 class SoyOpenClKernel
 {
 public:
@@ -397,6 +396,8 @@ public:
 	SoyOpenClKernelRef	mKernelRef;
 };
 
+
+/*
 
 template<typename ARRAYTYPE>
 inline bool SoyOpenClKernel::CheckPaddingChecksum(const ArrayBridgeDef<ARRAYTYPE>& ObjectArray)	
