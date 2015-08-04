@@ -4,6 +4,7 @@
 #include "SortArray.h"
 #include "SoyString.h"
 #include "SoyEnum.h"
+#include "SoyPixels.h"
 
 
 #if defined(TARGET_WINDOWS)
@@ -37,7 +38,16 @@ namespace OpenclDevice
 	DECLARE_SOYENUM(OpenclDevice);
 }
 
-//	new interface to match new Opengl interface
+namespace OpenclBufferReadWrite
+{
+	enum Type
+	{
+		ReadWrite = CL_MEM_READ_WRITE,
+		ReadOnly = CL_MEM_READ_ONLY,
+		WriteOnly = CL_MEM_WRITE_ONLY,
+	};
+}
+
 namespace Opencl
 {
 	class TPlatform;	//	API, has multiple devices
@@ -59,8 +69,9 @@ namespace Opencl
 	class TKernelState;	//	current binding to a kernel
 	class TKernelIteration;
 
-	void		GetDevices(ArrayBridge<TDeviceMeta>&& Metas,OpenclDevice::Type Filter);
-	std::string	GetErrorString(cl_int Error);
+	void				GetDevices(ArrayBridge<TDeviceMeta>&& Metas,OpenclDevice::Type Filter);
+	std::string			GetErrorString(cl_int Error);
+	cl_image_format		GetImageFormat(SoyPixelsFormat::Type Format);
 	
 	static const char*	BuildOption_KernelInfo = "-cl-kernel-arg-info";
 
@@ -315,6 +326,9 @@ private:
 	
 public:
 	TKernel&		mKernel;
+	
+private:
+	Array<std::shared_ptr<TBuffer>>	mBuffers;	//	temporarily allocated buffers
 };
 
 
@@ -357,6 +371,7 @@ public:
 	TContext&		GetContext();
 
 public:
+	std::string		mKernelName;		//	only for debug
 	cl_kernel		mKernel;
 	Array<TUniform>	mUniforms;
 	
@@ -389,6 +404,37 @@ public:
 	cl_event	mEvent;
 };
 
+
+
+
+
+
+class Opencl::TBuffer
+{
+public:
+	TBuffer();
+	~TBuffer();
+	
+	cl_mem		GetMemBuffer()	{	return mMem;	}
+	
+protected:
+	cl_mem		mMem;
+};
+
+
+
+class Opencl::TBufferImage : public TBuffer
+{
+public:
+	TBufferImage(const SoyPixelsMetaFull& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
+	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
+	
+	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
+	
+private:
+	//	store meta like with Opengl::TTexture to stop bad writes/hardware lookups
+	TContext&	mContext;
+};
 
 
 

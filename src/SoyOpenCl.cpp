@@ -2,20 +2,16 @@
 //#include "SoyApp.h"
 #include <SoyDebug.h>
 #include <SoyString.h>
-#include <SoyPixels.h>
 
 
 namespace Opencl
 {
 #define Opencl_IsOkay(Error)	Opencl::IsOkay( (Error), __func__, true )
-	bool	IsOkay(cl_int Error,const std::string& Context,bool ThrowException=true);
+	bool				IsOkay(cl_int Error,const std::string& Context,bool ThrowException=true);
+	
+	
+	cl_channel_order	GetImageChannelOrder(SoyPixelsFormat::Type Format,cl_channel_type& DataType);
 }
-
-cl_float2 Soy::VectorToCl(const vec2f& v)
-{
-	return cl_float2{ .s={ v.x, v.y } };
-}
-
 
 
 std::map<OpenclDevice::Type,std::string> OpenclDevice::EnumMap =
@@ -25,6 +21,15 @@ std::map<OpenclDevice::Type,std::string> OpenclDevice::EnumMap =
 	{ OpenclDevice::GPU,	"GPU" },
 	{ OpenclDevice::ANY,	"ANY" },
 };
+
+
+
+cl_float2 Soy::VectorToCl(const vec2f& v)
+{
+	return cl_float2{ .s={ v.x, v.y } };
+}
+
+
 
 
 
@@ -547,7 +552,9 @@ std::string GetArgValue(cl_kernel Kernel,cl_uint ArgIndex,cl_kernel_arg_info Inf
 }
 
 Opencl::TKernel::TKernel(const std::string& Kernel,TProgram& Program) :
-	mKernel	( nullptr )
+	mKernelName		( Kernel ),
+	mKernel			( nullptr ),
+	mLockedContext	( nullptr )
 {
 	cl_int Error;
 	mKernel = clCreateKernel( Program.mProgram, Kernel.c_str(), &Error );
@@ -656,49 +663,6 @@ void SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Valu
 	Opencl::IsOkay(Error, ErrorString.str() );
 }
 
-namespace Opencl
-{
-	class TBufferImage;
-
-	
-	cl_image_format		GetImageFormat(SoyPixelsFormat::Type Format);
-	cl_channel_order	GetImageChannelOrder(SoyPixelsFormat::Type Format,cl_channel_type& DataType);
-}
-
-namespace OpenclBufferReadWrite
-{
-	enum Type
-	{
-		ReadWrite = CL_MEM_READ_WRITE,
-		ReadOnly = CL_MEM_READ_ONLY,
-		WriteOnly = CL_MEM_WRITE_ONLY,
-	};
-}
-
-class Opencl::TBuffer
-{
-public:
-	TBuffer();
-	~TBuffer();
-	
-	cl_mem		GetMemBuffer()	{	return mMem;	}
-	
-protected:
-	cl_mem		mMem;
-};
-
-class Opencl::TBufferImage : public TBuffer
-{
-public:
-	TBufferImage(const SoyPixelsMetaFull& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
-	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
-	
-	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
-	
-private:
-	//	store meta like with Opengl::TTexture to stop bad writes/hardware lookups
-	TContext&	mContext;
-};
 
 
 cl_channel_order Opencl::GetImageChannelOrder(SoyPixelsFormat::Type Format,cl_channel_type& DataType)
@@ -817,10 +781,11 @@ void Opencl::TKernelState::SetUniform(const char* Name,SoyPixelsImpl& Pixels)
 	//	make image buffer and set that
 	//	gr: do we need to store the buffer for the life time of the execution?
 	Opencl::TSync Sync;
-	TBufferImage Buffer( Pixels, GetContext(), false, OpenclBufferReadWrite::ReadWrite, &Sync );
+	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, OpenclBufferReadWrite::ReadWrite, &Sync ) );
+	mBuffers.PushBack( Buffer );
 
 	//	set kernel arg
-	SetKernelArg( *this, Name, Buffer.GetMemBuffer() );
+	SetKernelArg( *this, Name, Buffer->GetMemBuffer() );
 	
 	
 	//	we can't tell when caller is going to release the pixels, so wait for it to finish
