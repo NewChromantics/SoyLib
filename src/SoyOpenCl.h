@@ -313,6 +313,8 @@ public:
 	void			SetUniform(const char* Name,cl_int Value);
 	void			SetUniform(const char* Name,vec2f Value);
 	
+	void			ReadUniform(const char* Name,SoyPixelsImpl& Pixels);	//	read back data from a buffer that was used as a uniform
+	
 	void			GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations);
 
 	void			QueueIteration(const TKernelIteration& Iteration);
@@ -328,7 +330,7 @@ public:
 	TKernel&		mKernel;
 	
 private:
-	Array<std::shared_ptr<TBuffer>>	mBuffers;	//	temporarily allocated buffers
+	std::map<std::string,std::shared_ptr<TBuffer>>	mBuffers;	//	temporarily allocated buffers for uniforms
 };
 
 
@@ -413,7 +415,7 @@ class Opencl::TBuffer
 {
 public:
 	TBuffer();
-	~TBuffer();
+	virtual ~TBuffer();
 	
 	cl_mem		GetMemBuffer()	{	return mMem;	}
 	
@@ -430,6 +432,7 @@ public:
 	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
 	
 	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
+	void		Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
 	
 private:
 	//	store meta like with Opengl::TTexture to stop bad writes/hardware lookups

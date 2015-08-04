@@ -369,9 +369,24 @@ void Opencl::TDevice::CreateContext(const ArrayBridge<cl_device_id>& Devices)
 		throw Soy::AssertException("No devices provided");
 	
 	//	create context
+	//	if we specify any properties we need a platform (and a terminator)
+	Array<cl_context_properties> Properties;
+
+#if defined(TARGET_OSX)
+	/* opengl interop
+	CGLContextObj kCGLContext = CGLGetCurrentContext();
+	CGLShareGroupObj kCGLShareGroup = CGLGetShareGroup(kCGLContext);
+	Properties.PushBack( CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE );
+	Properties.PushBack( (cl_context_properties)kCGLShareGroup );
+	 */
+#endif
+
+	//	c-array style list terminator
+	if ( !Properties.IsEmpty() )
+		Properties.PushBack(0);
+
 	cl_int err;
-	cl_context_properties* Properties = nullptr;
-	mContext = clCreateContext( Properties, size_cast<cl_uint>(Devices.GetSize()), Devices.GetArray(), nullptr, nullptr, &err );
+	mContext = clCreateContext( Properties.GetArray(), size_cast<cl_uint>(Devices.GetSize()), Devices.GetArray(), nullptr, nullptr, &err );
 	Opencl::IsOkay( err, "clCreateContext failed" );
 	Soy::Assert( mContext != nullptr, "clCreateContext failed to return a context" );
 	
@@ -764,7 +779,6 @@ void Opencl::TBufferImage::Write(const SoyPixelsImpl& Image,Opencl::TSync* Semap
 	size_t Origin[] = { 0,0,0 };
 	size_t Region[] = { Image.GetWidth(), Image.GetHeight(), 1 };
 	auto Queue = mContext.GetQueue();
-	
 	cl_bool Block = CL_TRUE;
 	int image_row_pitch = 0;	// TODO
 	int image_slice_pitch = 0;
@@ -775,6 +789,23 @@ void Opencl::TBufferImage::Write(const SoyPixelsImpl& Image,Opencl::TSync* Semap
 	Opencl::IsOkay( Error, __func__ );
 }
 
+void Opencl::TBufferImage::Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
+{
+	size_t Origin[] = { 0,0,0 };
+	size_t Region[] = { Image.GetWidth(), Image.GetHeight(), 1 };
+	auto Queue = mContext.GetQueue();
+	cl_bool Block = CL_TRUE;
+	int image_row_pitch = 0;	// TODO
+	int image_slice_pitch = 0;
+
+	auto* Data = Image.GetPixelsArray().GetArray();
+	auto* Event = Semaphore ? &Semaphore->mEvent : nullptr;
+
+	auto Error = clEnqueueReadImage( Queue, mMem, Block, Origin, Region, image_row_pitch, image_slice_pitch, Data, 0, nullptr, Event );
+	Opencl::IsOkay( Error, __func__ );
+}
+
+
 void Opencl::TKernelState::SetUniform(const char* Name,SoyPixelsImpl& Pixels)
 {
 	//	todo: get uniform and check type is image_2D_t
@@ -782,11 +813,14 @@ void Opencl::TKernelState::SetUniform(const char* Name,SoyPixelsImpl& Pixels)
 	//	gr: do we need to store the buffer for the life time of the execution?
 	Opencl::TSync Sync;
 	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, OpenclBufferReadWrite::ReadWrite, &Sync ) );
-	mBuffers.PushBack( Buffer );
+
+	if ( mBuffers.find(Name) != mBuffers.end() )
+		std::Debug << "Warning, setting buffer for uniform " << Name << " which already has a buffer..." << std::endl;
+
+	mBuffers[Name] = Buffer;
 
 	//	set kernel arg
 	SetKernelArg( *this, Name, Buffer->GetMemBuffer() );
-	
 	
 	//	we can't tell when caller is going to release the pixels, so wait for it to finish
 	Sync.Wait();
@@ -803,6 +837,34 @@ void Opencl::TKernelState::SetUniform(const char* Name,cl_int Value)
 {
 	SetKernelArg( *this, Name, Value );
 }
+
+
+void Opencl::TKernelState::ReadUniform(const char* Name,SoyPixelsImpl& Pixels)
+{
+	//	see if there's a buffer
+	auto BufferIt = mBuffers.find( Name );
+	if ( BufferIt == mBuffers.end() )
+	{
+		std::stringstream Error;
+		Error << "No buffer for uniform " << Name;
+		throw Soy::AssertException( Error.str() );
+	}
+
+	auto& pBuffer = BufferIt->second;
+	if ( !pBuffer )
+	{
+		std::stringstream Error;
+		Error << "Missing data buffer for uniform " << Name;
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	//	check types etc!
+	Opencl::TSync Semaphore;
+	auto& BufferImage = dynamic_cast<TBufferImage&>( *pBuffer );
+	BufferImage.Read( Pixels, &Semaphore );
+	Semaphore.Wait();
+}
+
 
 const Opencl::TDeviceMeta& Opencl::TKernelState::GetDevice()
 {
