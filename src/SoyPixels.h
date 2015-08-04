@@ -181,6 +181,7 @@ public:
 	uint8			GetChannels() const				{	return GetMeta().GetChannels();	}
 	uint16			GetWidth() const				{	return GetMeta().GetWidth();	}
 	SoyPixelsFormat::Type	GetFormat() const		{	return GetMeta().GetFormat();	}
+	void			PrintPixels(const std::string& Prefix,std::ostream& Stream) const;
 
 	bool			GetPng(ArrayBridge<char>& PngData) const;
 	bool			GetRawSoyPixels(ArrayBridge<char>& RawData) const;

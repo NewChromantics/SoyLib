@@ -1377,3 +1377,21 @@ SoyPixelsMetaFull SoyPixelsImpl::GetMetaFull() const
 	return SoyPixelsMetaFull( GetWidth(), GetHeight(), GetFormat() );
 }
 
+void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream) const
+{
+	auto Meta = GetMetaFull();
+	Stream << Prefix << " " << Meta << std::endl;
+	auto ComponentCount = GetChannels();
+	auto Stride = ComponentCount * Meta.GetWidth();
+	auto* Pixels = GetPixelsArray().GetArray();
+	
+	for ( int p=0;	p<Meta.GetDataSize();	p++ )
+	{
+		Stream << std::hex << Pixels[p] << " ";
+		
+		if ( p % Stride == 0 )
+			Stream << std::endl;
+	}
+	Stream << std::endl;
+}
+
