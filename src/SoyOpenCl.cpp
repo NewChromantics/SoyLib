@@ -2,8 +2,7 @@
 //#include "SoyApp.h"
 #include <SoyDebug.h>
 #include <SoyString.h>
-
-
+#include <SoyPixels.h>
 
 
 namespace Opencl
@@ -12,6 +11,10 @@ namespace Opencl
 	bool	IsOkay(cl_int Error,const std::string& Context,bool ThrowException=true);
 }
 
+cl_float2 Soy::VectorToCl(const vec2f& v)
+{
+	return cl_float2{ .s={ v.x, v.y } };
+}
 
 
 
@@ -653,10 +656,182 @@ void SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Valu
 	Opencl::IsOkay(Error, ErrorString.str() );
 }
 
+namespace Opencl
+{
+	class TBufferImage;
+
+	
+	cl_image_format		GetImageFormat(SoyPixelsFormat::Type Format);
+	cl_channel_order	GetImageChannelOrder(SoyPixelsFormat::Type Format,cl_channel_type& DataType);
+}
+
+namespace OpenclBufferReadWrite
+{
+	enum Type
+	{
+		ReadWrite = CL_MEM_READ_WRITE,
+		ReadOnly = CL_MEM_READ_ONLY,
+		WriteOnly = CL_MEM_WRITE_ONLY,
+	};
+}
+
+class Opencl::TBuffer
+{
+public:
+	TBuffer();
+	~TBuffer();
+	
+	cl_mem		GetMemBuffer()	{	return mMem;	}
+	
+protected:
+	cl_mem		mMem;
+};
+
+class Opencl::TBufferImage : public TBuffer
+{
+public:
+	TBufferImage(const SoyPixelsMetaFull& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
+	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
+	
+	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
+	
+private:
+	//	store meta like with Opengl::TTexture to stop bad writes/hardware lookups
+	TContext&	mContext;
+};
+
+
+cl_channel_order Opencl::GetImageChannelOrder(SoyPixelsFormat::Type Format,cl_channel_type& DataType)
+{
+	switch ( Format )
+	{
+		case SoyPixelsFormat::Greyscale:		return CL_R;
+		case SoyPixelsFormat::GreyscaleAlpha:	return CL_RA;
+		case SoyPixelsFormat::RGB:				return CL_RGB;
+		case SoyPixelsFormat::RGBA:				return CL_RGBA;
+		case SoyPixelsFormat::BGRA:				return CL_BGRA;
+	//	case SoyPixelsFormat::BGR:				return CL_BGR;
+			
+		case SoyPixelsFormat::KinectDepth:
+		case SoyPixelsFormat::FreenectDepth10bit:
+		case SoyPixelsFormat::FreenectDepth11bit:
+		case SoyPixelsFormat::FreenectDepthmm:
+			DataType = CL_UNORM_INT16;
+			return CL_R;
+			
+		default:
+		{
+			std::stringstream Error;
+			Error << "Unsupported pixelformat for opencl; " << Format;
+			throw Soy::AssertException( Error.str() );
+		}
+	}
+}
+
+cl_image_format Opencl::GetImageFormat(SoyPixelsFormat::Type Format)
+{
+	cl_image_format FormatCl;
+	FormatCl.image_channel_data_type = CL_UNORM_INT8;
+	FormatCl.image_channel_order = Opencl::GetImageChannelOrder( Format, FormatCl.image_channel_data_type );
+	return FormatCl;
+}
+
+Opencl::TBuffer::TBuffer() :
+	mMem	( nullptr )
+{
+	
+}
+
+Opencl::TBuffer::~TBuffer()
+{
+	if ( mMem )
+	{
+		clReleaseMemObject( mMem );
+		mMem = nullptr;
+	}
+}
+
+
+Opencl::TBufferImage::TBufferImage(const SoyPixelsMetaFull& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
+	mContext	( Context )
+{
+	auto& Device = Context.GetDevice();
+	Soy::Assert( Device.imageSupport, "Device doesn't support images" );
+	if ( Device.image2dMaxWidth < Meta.GetWidth() || Device.image2dMaxHeight < Meta.GetHeight() )
+	{
+		std::stringstream Error;
+		Error << "Image(" << Meta << ") is too big for device(" << Device.image2dMaxWidth << "x" << Device.image2dMaxHeight << ")";
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	auto Format = Opencl::GetImageFormat( Meta.GetFormat() );
+	cl_image_desc Description;
+	Description.image_type = CL_MEM_OBJECT_IMAGE2D;
+	Description.image_width = Meta.GetWidth();
+	Description.image_height = Meta.GetHeight();
+	Description.image_depth = 1;
+	Description.image_array_size = 1;
+	Description.image_row_pitch = 0;
+	Description.image_slice_pitch = 0;
+	Description.num_mip_levels = 0;
+	Description.num_samples = 0;
+	Description.buffer = nullptr;
+	
+	cl_mem_flags Flags = ReadWrite;
+	Flags |= ClientStorage ? CL_MEM_USE_HOST_PTR : CL_MEM_ALLOC_HOST_PTR;
+
+	//	note: should combine const & read only flags
+	const void* DataConst = ClientStorage ? static_cast<const void*>(ClientStorage->GetPixelsArray().GetArray()) : nullptr;
+	void* Data = const_cast<void*>( DataConst );
+	cl_int Error;
+	mMem = clCreateImage( Context.GetContext(), Flags, &Format, &Description, Data, &Error );
+	Opencl::IsOkay( Error, "clCreateImage" );
+}
+
+Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore) :
+	TBufferImage	( Image.GetMetaFull(), Context, ClientStorage ? &Image : nullptr, ReadWrite, Semaphore )
+{
+	Write( Image, Semaphore );
+}
+
+
+void Opencl::TBufferImage::Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
+{
+	size_t Origin[] = { 0,0,0 };
+	size_t Region[] = { Image.GetWidth(), Image.GetHeight(), 1 };
+	auto Queue = mContext.GetQueue();
+	
+	cl_bool Block = CL_TRUE;
+	int image_row_pitch = 0;	// TODO
+	int image_slice_pitch = 0;
+	auto* Data = Image.GetPixelsArray().GetArray();
+	auto* Event = Semaphore ? &Semaphore->mEvent : nullptr;
+
+	cl_int Error = clEnqueueWriteImage( Queue, mMem, Block, Origin, Region, image_row_pitch, image_slice_pitch, Data, 0, nullptr, Event );
+	Opencl::IsOkay( Error, __func__ );
+}
+
 void Opencl::TKernelState::SetUniform(const char* Name,SoyPixelsImpl& Pixels)
 {
+	//	todo: get uniform and check type is image_2D_t
 	//	make image buffer and set that
-	//clSetKernelArgByNameAPPLE( mKernel, Name, ma, const void *)
+	//	gr: do we need to store the buffer for the life time of the execution?
+	Opencl::TSync Sync;
+	TBufferImage Buffer( Pixels, GetContext(), false, OpenclBufferReadWrite::ReadWrite, &Sync );
+
+	//	set kernel arg
+	SetKernelArg( *this, Name, Buffer.GetMemBuffer() );
+	
+	
+	//	we can't tell when caller is going to release the pixels, so wait for it to finish
+	Sync.Wait();
+}
+
+
+void Opencl::TKernelState::SetUniform(const char* Name,vec2f Value)
+{
+	auto Value2 = Soy::VectorToCl( Value );
+	SetKernelArg( *this, Name, Value2 );
 }
 
 void Opencl::TKernelState::SetUniform(const char* Name,cl_int Value)
@@ -666,7 +841,12 @@ void Opencl::TKernelState::SetUniform(const char* Name,cl_int Value)
 
 const Opencl::TDeviceMeta& Opencl::TKernelState::GetDevice()
 {
-	return mKernel.GetContext().GetDevice();
+	return GetContext().GetDevice();
+}
+
+Opencl::TContext& Opencl::TKernelState::GetContext()
+{
+	return mKernel.GetContext();
 }
 
 

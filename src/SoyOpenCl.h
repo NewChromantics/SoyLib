@@ -63,7 +63,18 @@ namespace Opencl
 	std::string	GetErrorString(cl_int Error);
 	
 	static const char*	BuildOption_KernelInfo = "-cl-kernel-arg-info";
+
 };
+
+
+//	type conversions
+namespace Soy
+{
+	cl_float2	VectorToCl(const vec2f& v);
+	cl_float3	VectorToCl(const vec3f& v);
+	cl_float4	VectorToCl(const vec4f& v);
+}
+
 
 
 
@@ -126,8 +137,6 @@ public:
 	std::string			mProfile;
 	std::string			mExtensions;
 	OpenclDevice::Type	mType;
-	
-protected:
 	
 	cl_uint		maxComputeUnits;
 	cl_uint		maxWorkItemDimensions;
@@ -291,6 +300,7 @@ public:
 	//	gr: not uniforms, but matching name of opengl
 	void			SetUniform(const char* Name,SoyPixelsImpl& Pixels);
 	void			SetUniform(const char* Name,cl_int Value);
+	void			SetUniform(const char* Name,vec2f Value);
 	
 	void			GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations);
 
@@ -298,6 +308,7 @@ public:
 	void			QueueIteration(const TKernelIteration& Iteration,TSync& Semaphore);
 
 	const TDeviceMeta&	GetDevice();
+	TContext&		GetContext();
 
 private:
 	void			QueueIterationImpl(const TKernelIteration& Iteration,TSync* Semaphore);
@@ -452,7 +463,7 @@ public:
 };
 
 
-/*
+
 
 template<typename ARRAYTYPE>
 inline bool SoyOpenClKernel::CheckPaddingChecksum(const ArrayBridgeDef<ARRAYTYPE>& ObjectArray)	
