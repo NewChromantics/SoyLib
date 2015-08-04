@@ -741,7 +741,7 @@ void Opencl::TKernelState::QueueIteration(const TKernelIteration& Iteration,TSyn
 void Opencl::TKernelState::QueueIterationImpl(const TKernelIteration& Iteration,TSync* Semaphore)
 {
 	BufferArray<size_t,3> GlobalExec( Iteration.mCount );
-	BufferArray<size_t,6> LocalExec;
+	BufferArray<size_t,3> LocalExec;
 
 /*
 	for ( int i=0;	i<GlobalExec.GetSize();	i++ )
@@ -819,11 +819,6 @@ void Opencl::TKernelState::QueueIterationImpl(const TKernelIteration& Iteration,
 	//if ( !WaitForPendingWrites() )
 	//	return false;
 	
-	//	pad out local exec in case it's not specified
-	LocalExec.PushBack(0);
-	LocalExec.PushBack(0);
-	LocalExec.PushBack(0);
-
 	auto& Kernel = mKernel.mKernel;
 	auto Queue = mKernel.GetContext().GetQueue();
 	auto Dimensions = size_cast<cl_uint>(GlobalExec.GetSize());
@@ -835,9 +830,6 @@ void Opencl::TKernelState::QueueIterationImpl(const TKernelIteration& Iteration,
 	cl_int Err = clEnqueueNDRangeKernel( Queue, Kernel, Dimensions, GlobalWorkOffset, GlobalWorkSize, LocalWorkSize, 0, nullptr, WaitEvent );
 
 	Opencl::IsOkay( Err, "clEnqueueNDRangeKernel" );
-	
-	if ( Semaphore )
-		Semaphore->Wait();
 }
 
 
