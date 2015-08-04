@@ -49,6 +49,9 @@ std::string Opencl::GetErrorString(cl_int Error)
 #define CASE_ENUM_STRING(e)	case (e):	return #e;
 	switch ( Error )
 	{
+		//	extension errors
+			CASE_ENUM_STRING(CL_INVALID_ARG_NAME_APPLE);
+			
 		CASE_ENUM_STRING( CL_SUCCESS );
 			CASE_ENUM_STRING( CL_DEVICE_NOT_FOUND );
 			CASE_ENUM_STRING( CL_DEVICE_NOT_AVAILABLE );
@@ -115,6 +118,35 @@ std::string Opencl::GetErrorString(cl_int Error)
 	Unknown << "Unknown cl error " << Error;
 	return Unknown.str();
 }
+
+
+
+Opencl::TVersion::TVersion(std::string VersionStr) :
+	mMajor	( 0 ),
+	mMinor	( 0 )
+{
+	//	strip off prefix's
+	std::string Prefix = "OpenCL ";
+	if ( Soy::StringBeginsWith(VersionStr,Prefix, false ) )
+		VersionStr.erase(0, Prefix.length() );
+	
+	int PartCounter = 0;
+	auto PushVersions = [&PartCounter,this](const std::string& PartStr)
+	{
+		//	got all we need
+		if ( PartCounter >= 2 )
+			return false;
+		
+		auto& PartInt = (PartCounter==0) ? mMajor : mMinor;
+		Soy::StringToType( PartInt, PartStr );
+		
+		PartCounter++;
+		return true;
+	};
+	
+	Soy::StringSplitByMatches( PushVersions, VersionStr, " .", false );
+}
+
 
 void GetPlatforms(ArrayBridge<cl_platform_id>&& Platforms)
 {
@@ -186,9 +218,14 @@ Opencl::TDeviceMeta::TDeviceMeta(cl_device_id Device) :
 	mVendor = GetString( Device, CL_DEVICE_VENDOR );
 	mName = GetString( Device, CL_DEVICE_NAME );
 	mDriverVersion = GetString( Device, CL_DRIVER_VERSION );
-	mDeviceVersion = GetString( Device, CL_DEVICE_VERSION );
+	std::string DeviceVersion = GetString( Device, CL_DEVICE_VERSION );
 	mProfile = GetString( Device, CL_DEVICE_PROFILE );
 	mExtensions = GetString( Device, CL_DEVICE_EXTENSIONS );
+
+	//	extract version
+	mVersion = TVersion( DeviceVersion );
+	
+	std::Debug << "Device " << mName << "(" << mDriverVersion << ") extensions: " << mExtensions << std::endl;
 
 	cl_device_type Type = OpenclDevice::Invalid;
 	GetValue( Device, CL_DEVICE_TYPE, Type );
@@ -443,6 +480,9 @@ Opencl::TProgram::TProgram(const std::string& Source,TContext& Context) :
 	//	now compile
 	std::stringstream BuildArguments;
 	
+	//	add kernel info
+	BuildArguments << BuildOption_KernelInfo << ' ';
+	
 	Array<std::string> Paths;
 	for ( int p=0;	p<Paths.GetSize();	p++)
 	{
@@ -485,6 +525,24 @@ Opencl::TProgram::~TProgram()
 }
 
 
+std::string GetArgValue(cl_kernel Kernel,cl_uint ArgIndex,cl_kernel_arg_info Info)
+{
+	//	gr: this returns an empty string, but no error (length = 1) if -cl-kernel-arg-info is missing
+	
+	//	get string length
+	size_t NameLength = 0;
+	auto Error = clGetKernelArgInfo( Kernel, ArgIndex, Info, 0, nullptr, &NameLength );
+	Opencl_IsOkay( Error );
+	
+	Array<char> NameBuffer( NameLength + 1 );
+	Error = clGetKernelArgInfo( Kernel, ArgIndex, Info, NameBuffer.GetDataSize(), NameBuffer.GetArray(), nullptr );
+	Opencl_IsOkay( Error );
+
+	//	just in case
+	NameBuffer.GetBack() = '\0';
+	return std::string( NameBuffer.GetArray() );
+}
+
 Opencl::TKernel::TKernel(const std::string& Kernel,TProgram& Program) :
 	mKernel	( nullptr )
 {
@@ -492,6 +550,19 @@ Opencl::TKernel::TKernel(const std::string& Kernel,TProgram& Program) :
 	mKernel = clCreateKernel( Program.mProgram, Kernel.c_str(), &Error );
 	Opencl_IsOkay( Error );
 	Soy::Assert( mKernel!=nullptr, "Expected kernel" );
+	
+	//	enum kernel args
+	cl_uint ArgCount = 0;
+	Error = clGetKernelInfo( mKernel, CL_KERNEL_NUM_ARGS, sizeof(ArgCount), &ArgCount, nullptr );
+	Opencl::IsOkay( Error, "CL_KERNEL_NUM_ARGS" );
+
+	for ( int i=0;	i<ArgCount;	i++ )
+	{
+		auto Name = GetArgValue( mKernel, i, CL_KERNEL_ARG_NAME );
+		auto Type = GetArgValue( mKernel, i, CL_KERNEL_ARG_TYPE_NAME );
+		TUniform Uniform( Name, Type, i );
+		mUniforms.PushBack( Uniform );
+	}
 }
 
 Opencl::TKernel::~TKernel()
@@ -573,8 +644,13 @@ Opencl::TKernelState::~TKernelState()
 template<typename TYPE>
 void SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Value)
 {
+	//	gr: ByNameAPPLE will fail if we haven't compiled kernel info
+	//		Opencl::BuildOption_KernelInfo
 	auto Error = clSetKernelArgByNameAPPLE( Kernel.mKernel.mKernel, Name, sizeof(TYPE), &Value );
-	Opencl_IsOkay(Error);
+	
+	std::stringstream ErrorString;
+	ErrorString << "SetKernelArg(" << Name << ", " << Soy::GetTypeName<TYPE>() << ")";
+	Opencl::IsOkay(Error, ErrorString.str() );
 }
 
 void Opencl::TKernelState::SetUniform(const char* Name,SoyPixelsImpl& Pixels)
@@ -594,6 +670,44 @@ const Opencl::TDeviceMeta& Opencl::TKernelState::GetDevice()
 }
 
 
+void ExpandIterations(ArrayBridge<Opencl::TKernelIteration>& IterationSplits,size_t Executions,size_t KernelWorkGroupMax)
+{
+	if ( Executions == 0 )
+		return;
+	
+	//	copy originals
+	Array<Opencl::TKernelIteration> OriginalIteraions( IterationSplits );
+	
+	//	first instance
+	if ( OriginalIteraions.IsEmpty() )
+		OriginalIteraions.PushBack( Opencl::TKernelIteration() );
+	
+	//	clear output
+	IterationSplits.Clear();
+
+	bool Overflow = (Executions % KernelWorkGroupMax) > 0;
+	auto Iterations = (Executions / KernelWorkGroupMax) + Overflow;
+	
+	
+	for ( int it=0;	it<Iterations;	it++ )
+	{
+		for ( int oit=0;	oit<OriginalIteraions.GetSize();	oit++ )
+		{
+			auto Iteration = OriginalIteraions[oit];
+		
+			//	add next dimension
+			auto First = it * KernelWorkGroupMax;
+			auto Count = std::min( KernelWorkGroupMax, Executions - First );
+			Iteration.mFirst.PushBack( First );
+			Iteration.mCount.PushBack( Count );
+			
+			//
+			IterationSplits.PushBack( Iteration );
+		}
+	}
+}
+
+
 void Opencl::TKernelState::GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations)
 {
 	auto& Device = GetDevice();
@@ -609,40 +723,10 @@ void Opencl::TKernelState::GetIterations(ArrayBridge<TKernelIteration>&& Iterati
 	auto KernelWorkGroupMax = Device.GetMaxGlobalWorkGroupSize();
 	if ( KernelWorkGroupMax < 1 )
 		KernelWorkGroupMax = std::max( Execa, Execb, Execc );
-	
-	bool Overflowa = (Execa % KernelWorkGroupMax) > 0;
-	bool Overflowb = (Execb % KernelWorkGroupMax) > 0;
-	bool Overflowc = (Execc % KernelWorkGroupMax) > 0;
-	auto Iterationsa = (Execa / KernelWorkGroupMax) + Overflowa;
-	auto Iterationsb = (Execb / KernelWorkGroupMax) + Overflowb;
-	auto Iterationsc = (Execc / KernelWorkGroupMax) + Overflowc;
 
-	for ( int ita=0;	ita<Iterationsa;	ita++ )
-	{
-		for ( int itb=0;	itb<Iterationsb;	itb++ )
-		{
-			for ( int itc=0;	itc<Iterationsc;	itc++ )
-			{
-				Opencl::TKernelIteration Iteration;
-				int it[3] = { ita, itb, itc };
-				
-				int TotalCount = 0;
-				for ( int wave=0;	wave<Iterations.GetSize();	wave++ )
-				{
-					auto Count = std::min( KernelWorkGroupMax, Exec[wave] - Iteration.mFirst[wave] );
-					TotalCount += Count;
-					if ( Count <= 0 )
-						break;
-					
-					Iteration.mFirst.PushBack( it[wave] * KernelWorkGroupMax );
-					Iteration.mCount.PushBack( Count );
-				}
-				
-				if ( TotalCount > 0 )
-					IterationSplits.PushBack( Iteration );
-			}
-		}
-	}
+	ExpandIterations( IterationSplits, Execa, KernelWorkGroupMax );
+	ExpandIterations( IterationSplits, Execb, KernelWorkGroupMax );
+	ExpandIterations( IterationSplits, Execc, KernelWorkGroupMax );
 }
 
 void Opencl::TKernelState::QueueIteration(const TKernelIteration& Iteration)

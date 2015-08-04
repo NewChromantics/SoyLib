@@ -18,7 +18,9 @@
 #endif
 
 
-#define CL_DEVICE_TYPE_INVALID	0
+#define CL_DEVICE_TYPE_INVALID		0
+#define CL_UNIFORM_INVALID_INDEX	CL_UINT_MAX
+
 
 class SoyPixelsImpl;
 
@@ -45,8 +47,11 @@ namespace Opencl
 	class TContextThread;	//	context with a built in thread for processing jobs
 	class TProgram;		//	compilable shader with multiple kernels
 	class TKernel;		//	individual kernel from a program
-	class TJob;			//	execute a kernel, on a context
+	class TUniform;
 	class TSync;		//	cl_wait_event
+
+	class TJob;			//	execute a kernel, on a context
+	class TVersion;
 	
 	class TBuffer;
 	class TBufferImage;
@@ -56,8 +61,31 @@ namespace Opencl
 
 	void		GetDevices(ArrayBridge<TDeviceMeta>&& Metas,OpenclDevice::Type Filter);
 	std::string	GetErrorString(cl_int Error);
+	
+	static const char*	BuildOption_KernelInfo = "-cl-kernel-arg-info";
 };
 
+
+
+class Opencl::TVersion
+{
+public:
+	TVersion() :
+		mMajor	( 0 ),
+		mMinor	( 0 )
+	{
+	}
+	TVersion(size_t Major,size_t Minor) :
+		mMajor	( Major ),
+		mMinor	( Minor )
+	{
+	}
+	explicit TVersion(std::string VersionStr);
+	
+public:
+	size_t	mMajor;
+	size_t	mMinor;
+};
 
 class Opencl::TPlatform
 {
@@ -89,6 +117,7 @@ public:
 	size_t				GetMaxGlobalWorkGroupSize() const;
 
 public:
+	TVersion			mVersion;
 	cl_device_id		mDevice;
 	std::string			mVendor;
 	std::string			mName;
@@ -279,6 +308,31 @@ public:
 
 
 
+class Opencl::TUniform
+{
+public:
+	TUniform() :
+		mIndex		( CL_UNIFORM_INVALID_INDEX )
+	{
+	}
+	TUniform(const std::string& Name,const std::string& Type,cl_uint Index) :
+		mIndex		( Index ),
+		mName		( Name ),
+		mType		( Type )
+	{
+	}
+	
+	bool		IsValid() const	{	return mIndex != CL_UNIFORM_INVALID_INDEX;	}
+	bool		operator==(const std::string& Name) const	{	return mName == Name;	}
+	
+public:
+	std::string	mName;
+	std::string	mType;
+	cl_uint		mIndex;
+};
+std::ostream& operator<<(std::ostream &out,const Opencl::TUniform& in);
+
+
 class Opencl::TKernel
 {
 public:
@@ -292,7 +346,8 @@ public:
 	TContext&		GetContext();
 
 public:
-	cl_kernel	mKernel;
+	cl_kernel		mKernel;
+	Array<TUniform>	mUniforms;
 	
 protected:
 	std::mutex	mLock;
