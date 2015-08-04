@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <ofxSoylent.h>
 
 //#define ENABLE_OPENCL_RELEASE_LOCK
 

@@ -3,7 +3,6 @@
 #include "MSAOpenCLKernel.h"
 #include <SoyApp.h>
 #include <SoyDebug.h>
-#include <SoyFilesytem.h>
 
 
 namespace msa { 

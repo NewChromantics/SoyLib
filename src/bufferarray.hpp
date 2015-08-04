@@ -100,8 +100,8 @@ public:
 
 	T&			GetBack()				{	return (*this)[GetSize()-1];	}
 	const T&	GetBack() const			{	return (*this)[GetSize()-1];	}
-	const T*	GetArray() const		{	return mdata;	}
-	T*			GetArray()				{	return mdata;	}
+	const T*	GetArray() const		{	return IsEmpty() ? nullptr : mdata;	}
+	T*			GetArray()				{	return IsEmpty() ? nullptr : mdata;	}
 	bool		IsEmpty() const			{	return GetSize() == 0;		}
 	bool		IsFull() const			{	return GetSize() >= MaxSize();		}
 	size_t		GetSize() const			{	return moffset;		}

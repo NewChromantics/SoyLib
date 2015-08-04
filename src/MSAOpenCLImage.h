@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include <ofxSoylent.h>
 #include "MSAOpenCLMemoryObject.h"
 
 

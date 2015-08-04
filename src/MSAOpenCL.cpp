@@ -73,13 +73,11 @@ bool OpenClDevice::Init()
 			
 	if(err != CL_SUCCESS) 
 	{
-		BufferString<1000> Debug;
-		Debug << "Error getting clDevice information: " << OpenCL::getErrorAsString(err);
-		ofLogError( Debug.c_str() );
+		std::Debug << "Error getting clDevice information: " << OpenCL::getErrorAsString(err) << std::endl;
 		return false;
 	}
 			
-	ofLogNotice( OpenCL::getInfoAsString(info) );
+	std::Debug << OpenCL::getInfoAsString(info) << std::endl;
 	return true;
 }
 
@@ -146,7 +144,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 	{
 		if( isInitialised() )
 		{
-			ofLogNotice("... already setup. returning");
+			std::Debug << "... already setup. returning" << std::endl;
 			return true;
 		}
 		
@@ -165,10 +163,7 @@ clPlatformInfo::clPlatformInfo(cl_platform_id Platform)
 		mContext = clCreateContext(NULL, DeviceCount, DeviceBuffer, NULL, NULL, &err);
 		if( !mContext || err != CL_SUCCESS )
 		{
-			BufferString<1000> Debug;
-			Debug << "Error creating clContext:" << getErrorAsString(err);
-			ofLogError( Debug.c_str() );
-			assert(false);
+			std::Debug << "Error creating clContext:" << getErrorAsString(err) << std::endl;
 			return false;
 		}		
 		

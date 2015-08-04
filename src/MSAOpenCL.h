@@ -1,25 +1,28 @@
 #pragma once
 
-#include "ofxSoylent.h"
 #include "SoyThread.h"
 
-#if defined(TARGET_WINDOWS) && defined(ENABLE_OPENCL)
+#if defined(TARGET_WINDOWS)
 //	gr: amd APP sdk, other includes/libs may be different?
 #include <cl/Opencl.h>
 #pragma comment( lib, "OpenCL.lib" )
 #endif
 
-#if defined(TARGET_OSX) && defined(ENABLE_OPENCL)
+#if defined(TARGET_OSX)
 //	add the OpenCL.framework
 #include <opencl/opencl.h>
 #endif
 
 
 
-#include "MSAOpenCLKernel.h"
-#include "MSAOpenCLProgram.h"
-#include "MSAOpenCLBuffer.h"
-#include "MSAOpenCLImage.h"
+class OpenClDevice;
+class OpenCLProgram;
+class OpenCLKernel;
+class OpenCLBuffer;
+class OpenCLImage;
+class OpenCLMemoryObject;
+
+
 
 #define CL_DEVICE_TYPE_INVALID	0	//	unused in CL_DEVICE_*
 
@@ -173,7 +176,7 @@ namespace msa {
 												 cl_mem_flags memFlags = CL_MEM_READ_WRITE);
 #endif
 		void			deleteBuffer(OpenCLMemoryObject& Buffer);
-		int				getMemObjectCount() const		{	return memObjects.GetSize();	}
+		size_t			getMemObjectCount() const		{	return memObjects.GetSize();	}
 		
 		// create OpenCL image memory objects
 		// if dataPtr parameter is passed in, data is uploaded immediately
@@ -188,7 +191,7 @@ namespace msa {
 										  cl_mem_flags memFlags = CL_MEM_READ_WRITE,
 										  void *dataPtr = NULL,
 										  bool blockingWrite = CL_FALSE);
-		
+		/*
 		// create a 2D Image from the ofTexture passed in (they share memory space on device)
 		// parameters with default values can be omited
 		OpenCLImage*		createImageFromTexture(ofTexture &tex,
@@ -204,7 +207,7 @@ namespace msa {
 												   int glType = GL_RGBA,
 												   cl_mem_flags memFlags = CL_MEM_READ_WRITE);
 #endif
-		
+		*/
 		
 		// parameters with default values can be omited
 		OpenCLImage*		createImage3D(cl_command_queue Queue,int width,
