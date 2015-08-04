@@ -202,7 +202,7 @@ public:
 	
 	void			RotateFlip();
 	
-
+	SoyPixelsMetaFull						GetMetaFull() const;
 	virtual SoyPixelsMeta&					GetMeta()=0;
 	virtual const SoyPixelsMeta&			GetMeta() const=0;
 	virtual ArrayInterface<uint8>&			GetPixelsArray()=0;

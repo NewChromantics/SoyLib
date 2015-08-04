@@ -1370,3 +1370,10 @@ bool SoyPixelsImpl::Copy(const SoyPixelsImpl &that,bool AllowReallocation)
 	this->GetPixelsArray().Copy( that.GetPixelsArray() );
 	return true;
 }
+
+
+SoyPixelsMetaFull SoyPixelsImpl::GetMetaFull() const
+{
+	return SoyPixelsMetaFull( GetWidth(), GetHeight(), GetFormat() );
+}
+
