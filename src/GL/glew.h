@@ -15006,7 +15006,7 @@ typedef void (GLAPIENTRY * PFNGLTEXCOORD4FVERTEX4FVSUNPROC) (const GLfloat* tc, 
 
 #define GLEW_WIN_specular_fog GLEW_GET_VAR(__GLEW_WIN_specular_fog)
 
-#endif /* GL_WIN_specular_fog */
+#endif /* GL_WIN_speGLEW_FUN_EXPORTcular_fog */
 
 /* ---------------------------- GL_WIN_swap_hint --------------------------- */
 
