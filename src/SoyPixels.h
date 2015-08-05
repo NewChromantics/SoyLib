@@ -62,7 +62,7 @@ public:
 
 	bool			IsValid() const					{	return (mWidth>0) && SoyPixelsFormat::IsValid(mFormat);	}
 	uint8			GetBitDepth() const				{	return 8;	}
-	uint8			GetChannels() const				{	return SoyPixelsFormat::GetChannelCount(mFormat);	}
+	uint8			GetChannels() const				{	return size_cast<uint8>(SoyPixelsFormat::GetChannelCount(mFormat));	}
 	uint16			GetWidth() const				{	return mWidth;	}
 	uint16			GetHeight(size_t DataSize) const	{	return IsValid() && DataSize>0 ? size_cast<uint16>(DataSize / (GetChannels()*mWidth)) : 0;	}
 	bool			GetOpenclFormat(int& clFormat) const	{	return SoyPixelsFormat::GetOpenclFormat( clFormat, GetFormat() );	}
@@ -92,7 +92,7 @@ public:
 	}
 	SoyPixelsMetaFull(size_t Width,size_t Height,SoyPixelsFormat::Type Format)
 	{
-		mWidth = Width;
+		mWidth = size_cast<uint16>(Width);
 		mFormat = Format;
 		mDataSize = SoyPixelsMeta::GetDataSize(Height);
 	}
@@ -169,8 +169,8 @@ class SoyPixelsImpl
 public:
 	virtual ~SoyPixelsImpl()	{}
 
-	bool			Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format);
-	bool			Init(uint16 Width,uint16 Height,uint8 Channels);
+	bool			Init(size_t Width,size_t Height,SoyPixelsFormat::Type Format);
+	bool			Init(size_t Width,size_t Height,size_t Channels);
 	void			Clear(bool Dealloc=false);
 
 	virtual bool	Copy(const SoyPixelsImpl& that,bool AllowReallocation=true);
@@ -178,7 +178,7 @@ public:
 	uint16			GetHeight() const				{	return GetMeta().GetHeight( GetPixelsArray().GetSize() );	}
 	bool			IsValid() const					{	return GetMeta().IsValid();	}
 	uint8			GetBitDepth() const				{	return GetMeta().GetBitDepth();	}
-	uint8			GetChannels() const				{	return GetMeta().GetChannels();	}
+	uint8			GetChannels() const				{	return size_cast<uint8>( GetMeta().GetChannels() );	}
 	uint16			GetWidth() const				{	return GetMeta().GetWidth();	}
 	SoyPixelsFormat::Type	GetFormat() const		{	return GetMeta().GetFormat();	}
 	void			PrintPixels(const std::string& Prefix,std::ostream& Stream) const;

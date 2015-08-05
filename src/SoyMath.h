@@ -1,8 +1,18 @@
 #pragma once
 
+//	include defines in cmath
+#define _USE_MATH_DEFINES
+
 #include "SoyTypes.h"
 #include <cmath>
 #include "SoyVector.h"
+
+#if defined(TARGET_WINDOWS)
+//	turn the double into a float - todo: make sure this is done at compile time
+#define PIf	static_cast<float>(M_PI)
+#else
+	#define PIf	M_PI
+#endif
 
 namespace Soy
 {
@@ -14,26 +24,26 @@ namespace Soy
 
 	inline float RadToDeg(float Radians)
 	{
-		return Radians * (180.f/M_PI);
+		return Radians * (180.f/ PIf);
 	}
 	
 	inline float DegToRad(float Degrees)
 	{
-		return Degrees * (M_PI / 180.f);
+		return Degrees * (PIf / 180.f);
 	}
 	
 	
 	template<typename T>
 	T	Lerp(const T& Start,const T& End,float Time)
 	{
-		return Start + ((End-Start) * Time);
+		return Start + static_cast<T>(static_cast<float>(End-Start) * Time);
 	}
 	
 	//	gr: was "GetMathTime". Range doesn't scream "unlerp" to me, but still, this is the conventional name (I think it's in glsl too)
 	template<typename T>
 	float	Range(const T& Value,const T& Start,const T& End)
 	{
-		return (Value-Start) / (End-Start);
+		return static_cast<float>(Value-Start) / static_cast<float>(End-Start);
 	}
 	
 	

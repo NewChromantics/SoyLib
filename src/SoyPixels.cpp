@@ -10,7 +10,13 @@
 #define USE_STB
 #if defined(USE_STB)
 #define STB_IMAGE_IMPLEMENTATION
+
+//	gr: on windows we currently get a whole load of extra stb warnings
+#pragma warning(push)
+#pragma warning(disable: 4312)
 #include "stb/stb_image.h"
+#pragma warning(pop)
+
 #endif
 
 /// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED frame callbacks
@@ -809,18 +815,18 @@ bool SoyPixelsFormat::GetOpenclFormat(int& clFormat,SoyPixelsFormat::Type Format
 }
 #endif
 
-bool SoyPixelsImpl::Init(uint16 Width,uint16 Height,uint8 Channels)
+bool SoyPixelsImpl::Init(size_t Width, size_t Height, size_t Channels)
 {
 	auto Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
 	return Init( Width, Height, Format );
 }
 
-bool SoyPixelsImpl::Init(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format)
+bool SoyPixelsImpl::Init(size_t Width, size_t Height,SoyPixelsFormat::Type Format)
 {
 	//	alloc
-	GetMeta().DumbSetWidth( Width );
+	GetMeta().DumbSetWidth( size_cast<uint16>(Width) );
 	GetMeta().DumbSetFormat( Format );
-	int Alloc = GetWidth() * GetChannels() * Height;
+	size_t Alloc = GetWidth() * GetChannels() * Height;
 	auto& Pixels = GetPixelsArray();
 	Pixels.SetSize( Alloc, false );
 	assert( this->GetHeight() == Height );
@@ -1230,7 +1236,7 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 template<size_t COMPONENTS>
 void SetPixelComponents(ArrayInterface<uint8>& Pixels,const ArrayBridge<uint8>& Components)
 {
-	BufferArray<char,COMPONENTS> BufferComponents;
+	BufferArray<uint8,COMPONENTS> BufferComponents;
 	for ( int i=0;	i<COMPONENTS;	i++ )
 	{
 		if ( i < Components.GetSize() )
