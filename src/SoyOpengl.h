@@ -50,7 +50,11 @@
 #endif
 
 #if defined(TARGET_WINDOWS) && defined(OPENGL_CORE_1)
-#include <glew/glew.h>
+#if !defined(GLEW_STATIC)
+#error expected GLEW_STATIC to be defined
+#endif
+#pragma comment(lib,"opengl32.lib")
+#include <GL/glew.h>
 #endif
 
 #define GL_ASSET_INVALID	0
