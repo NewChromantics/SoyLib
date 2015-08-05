@@ -98,12 +98,20 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 		auto ContextLock = SoyScope( nullptr, AutoUnlockContext );
 		
 		//	execute task, if it returns false, we don't run any more this time and re-insert
-		if ( !Job->Run( std::Debug ) )
+		//	gr: remove this and make the jobs more dumb. Throw exceptions on error, caller can re-insert jobs as neccessary
+		try
 		{
-			mLock.lock();
-			mJobs.insert( mJobs.begin(), Job );
-			mLock.unlock();
-			break;
+			if (!Job->Run(std::Debug))
+			{
+				mLock.lock();
+				mJobs.insert(mJobs.begin(), Job);
+				mLock.unlock();
+				break;
+			}
+		}
+		catch (std::exception& e)
+		{
+			std::Debug << "Error executing job " << e.what() << std::endl;
 		}
 		
 		//	mark job as finished
