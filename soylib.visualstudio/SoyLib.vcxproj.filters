@@ -5,6 +5,12 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
+    <Filter Include="src\stb">
+      <UniqueIdentifier>{e8da48af-f906-4bee-923f-31eeb46976a6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\glew">
+      <UniqueIdentifier>{6f9baf9e-f687-4dd1-a8d7-9abf088f0a1b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\SoyThread.cpp">
@@ -47,6 +53,27 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\SoyPixels.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\memheap.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\GL\glew.c">
+      <Filter>src\glew</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\GL\glewinfo.c">
+      <Filter>src\glew</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\GL\visualinfo.c">
+      <Filter>src\glew</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\SoyEvent.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\SoyMath.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\SoyPng.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
@@ -106,6 +133,48 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\SoyPixels.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\stb\stb_image.h">
+      <Filter>src\stb</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\array.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\bufferarray.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\chartype.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\configure.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\heaparray.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\memheap.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\GL\glew.h">
+      <Filter>src\glew</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\GL\glxew.h">
+      <Filter>src\glew</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\GL\wglew.h">
+      <Filter>src\glew</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyEnum.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyEvent.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\soymath.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyPng.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
