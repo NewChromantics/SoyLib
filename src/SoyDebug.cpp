@@ -247,7 +247,7 @@ bool Soy::Platform::DebugBreak()
 #endif
 
 #if defined(TARGET_WINDOWS)
-	DebugBreak();
+	::DebugBreak();
 	return true;
 #endif
 
