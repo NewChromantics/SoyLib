@@ -9,7 +9,9 @@
   <ItemGroup>
     <ClCompile Include="..\src\GL\glew.c" />
     <ClCompile Include="..\src\GL\glewinfo.c" />
-    <ClCompile Include="..\src\GL\visualinfo.c" />
+    <ClCompile Include="..\src\GL\visualinfo.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\src\memheap.cpp" />
     <ClCompile Include="..\src\SoyArray.cpp" />
     <ClCompile Include="..\src\SoyAssert.cpp" />
@@ -23,6 +25,7 @@
     <ClCompile Include="..\src\SoyRef.cpp" />
     <ClCompile Include="..\src\SoyRingArray.cpp" />
     <ClCompile Include="..\src\SoyScope.cpp" />
+    <ClCompile Include="..\src\SoyShader.cpp" />
     <ClCompile Include="..\src\SoyString.cpp" />
     <ClCompile Include="..\src\SoyThread.cpp" />
     <ClCompile Include="..\src\SoyTime.cpp" />
@@ -54,6 +57,7 @@
     <ClInclude Include="..\src\SoyRef.h" />
     <ClInclude Include="..\src\SoyRingArray.h" />
     <ClInclude Include="..\src\SoyScope.h" />
+    <ClInclude Include="..\src\SoyShader.h" />
     <ClInclude Include="..\src\SoyString.h" />
     <ClInclude Include="..\src\SoyThread.h" />
     <ClInclude Include="..\src\SoyTime.h" />
