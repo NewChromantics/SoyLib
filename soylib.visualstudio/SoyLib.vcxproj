@@ -6,6 +6,68 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\GL\glew.c" />
+    <ClCompile Include="..\src\GL\glewinfo.c" />
+    <ClCompile Include="..\src\GL\visualinfo.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\src\memheap.cpp" />
+    <ClCompile Include="..\src\SoyArray.cpp" />
+    <ClCompile Include="..\src\SoyAssert.cpp" />
+    <ClCompile Include="..\src\SoyDebug.cpp" />
+    <ClCompile Include="..\src\SoyEvent.cpp" />
+    <ClCompile Include="..\src\SoyMath.cpp" />
+    <ClCompile Include="..\src\SoyOpengl.cpp" />
+    <ClCompile Include="..\src\SoyOpenglContext.cpp" />
+    <ClCompile Include="..\src\SoyPixels.cpp" />
+    <ClCompile Include="..\src\SoyPng.cpp" />
+    <ClCompile Include="..\src\SoyRef.cpp" />
+    <ClCompile Include="..\src\SoyRingArray.cpp" />
+    <ClCompile Include="..\src\SoyScope.cpp" />
+    <ClCompile Include="..\src\SoyShader.cpp" />
+    <ClCompile Include="..\src\SoyString.cpp" />
+    <ClCompile Include="..\src\SoyThread.cpp" />
+    <ClCompile Include="..\src\SoyTime.cpp" />
+    <ClCompile Include="..\src\SoyTypes.cpp" />
+    <ClCompile Include="..\src\SoyVector.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\array.hpp" />
+    <ClInclude Include="..\src\bufferarray.hpp" />
+    <ClInclude Include="..\src\chartype.hpp" />
+    <ClInclude Include="..\src\configure.hpp" />
+    <ClInclude Include="..\src\GL\glew.h" />
+    <ClInclude Include="..\src\GL\glxew.h" />
+    <ClInclude Include="..\src\GL\wglew.h" />
+    <ClInclude Include="..\src\heaparray.hpp" />
+    <ClInclude Include="..\src\memheap.hpp" />
+    <ClInclude Include="..\src\scope_ptr.h" />
+    <ClInclude Include="..\src\SortArray.h" />
+    <ClInclude Include="..\src\SoyArray.h" />
+    <ClInclude Include="..\src\SoyAssert.h" />
+    <ClInclude Include="..\src\SoyDebug.h" />
+    <ClInclude Include="..\src\SoyEnum.h" />
+    <ClInclude Include="..\src\SoyEvent.h" />
+    <ClInclude Include="..\src\soymath.h" />
+    <ClInclude Include="..\src\SoyOpengl.h" />
+    <ClInclude Include="..\src\SoyOpenglContext.h" />
+    <ClInclude Include="..\src\SoyPixels.h" />
+    <ClInclude Include="..\src\SoyPng.h" />
+    <ClInclude Include="..\src\SoyRef.h" />
+    <ClInclude Include="..\src\SoyRingArray.h" />
+    <ClInclude Include="..\src\SoyScope.h" />
+    <ClInclude Include="..\src\SoyShader.h" />
+    <ClInclude Include="..\src\SoyString.h" />
+    <ClInclude Include="..\src\SoyThread.h" />
+    <ClInclude Include="..\src\SoyTime.h" />
+    <ClInclude Include="..\src\SoyTypes.h" />
+    <ClInclude Include="..\src\SoyTypes_Android.h" />
+    <ClInclude Include="..\src\SoyTypes_CoreFoundation.h" />
+    <ClInclude Include="..\src\SoyTypes_Windows.h" />
+    <ClInclude Include="..\src\SoyVector.h" />
+    <ClInclude Include="..\src\stb\stb_image.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{D18B3ABF-23BD-42D8-BAB1-DA4921F1033D}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>

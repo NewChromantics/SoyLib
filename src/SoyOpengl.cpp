@@ -1383,7 +1383,11 @@ SoyPixelsFormat::Type Opengl::GetPixelFormat(GLenum glFormat)
 
 void Opengl::SetViewport(Soy::Rectf Viewport)
 {
-	glViewport( Viewport.x, Viewport.y, Viewport.w, Viewport.h );
+	auto x = size_cast<GLint>(Viewport.x);
+	auto y = size_cast<GLint>(Viewport.y);
+	auto w = size_cast<GLsizei>(Viewport.w);
+	auto h = size_cast<GLsizei>(Viewport.h);
+	glViewport( x, y, w, h );
 }
 
 void Opengl::ClearDepth()

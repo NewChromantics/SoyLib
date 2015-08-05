@@ -9,6 +9,8 @@
 	#define OPENGL_ES_3		//	need 3 for FBO's
 #elif defined(TARGET_OSX)
 	#define OPENGL_CORE_3	//	need 3 for VBA's
+#elif defined(TARGET_WINDOWS)
+	#define OPENGL_CORE_1
 #endif
 
 //#define GL_NONE				GL_NO_ERROR	//	declared in GLES3
@@ -47,6 +49,13 @@
 #include <OpenGLES/ES2/glext.h>
 #endif
 
+#if defined(TARGET_WINDOWS) && defined(OPENGL_CORE_1)
+#if !defined(GLEW_STATIC)
+#error expected GLEW_STATIC to be defined
+#endif
+#pragma comment(lib,"opengl32.lib")
+#include <GL/glew.h>
+#endif
 
 #define GL_ASSET_INVALID	0
 #define GL_UNIFORM_INVALID	-1
@@ -370,6 +379,8 @@ public:
 	mTexture		( static_cast<GLuint>(reinterpret_cast<GLuint64>(TexturePtr)) )
 #elif defined(TARGET_IOS)
 	mTexture		( static_cast<GLuint>( reinterpret_cast<intptr_t>(TexturePtr) ) )
+#elif defined(TARGET_WINDOWS)
+	mTexture		( static_cast<GLuint>(reinterpret_cast<intptr_t>(TexturePtr)) )
 #endif
 	{
 	}

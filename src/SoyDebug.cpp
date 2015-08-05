@@ -81,6 +81,14 @@ void Soy::Platform::DebugPrint(const std::string& Message)
 }
 #endif
 
+
+#if defined(TARGET_WINDOWS)
+void Soy::Platform::DebugPrint(const std::string& Message)
+{
+	OutputDebugStringA( Message.c_str() );
+}
+#endif
+
 #if defined(USE_HEAP_STRING)
 //	singleton so the heap is created AFTER the heap register
 prmem::Heap& GetDebugStreamHeap()
@@ -237,7 +245,12 @@ bool Soy::Platform::DebugBreak()
 	//raise(SIGUSR1);
 	return true;
 #endif
-	
+
+#if defined(TARGET_WINDOWS)
+	::DebugBreak();
+	return true;
+#endif
+
 	//	not supported
 	return false;
 }
