@@ -8,7 +8,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\GL\glew.c" />
-    <ClCompile Include="..\src\GL\glewinfo.c" />
+    <ClCompile Include="..\src\GL\glewinfo.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\src\GL\visualinfo.c">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -83,8 +85,8 @@
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Import Project="..\..\PopTrack\PopLib.props" />
-    <Import Project="..\..\PopTrack\PopConfig.props" />
+    <Import Project="..\Soy_Windows.props" />
+    <Import Project="..\SoyLib_Windows.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
