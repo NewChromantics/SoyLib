@@ -99,6 +99,7 @@ public:
 	
 	uint16		GetHeight() const		{	return SoyPixelsMeta::GetHeight( GetDataSize() );	}
 	size_t		GetDataSize() const		{	return mDataSize;	}
+	bool		IsValid() const			{	return SoyPixelsMeta::IsValid() && GetDataSize() != 0;	}
 	
 	inline bool	operator==(const SoyPixelsMetaFull& that) const
 	{
