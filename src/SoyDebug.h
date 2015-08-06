@@ -112,13 +112,15 @@ class ofScopeTimerWarning
 {
 public:
 	ofScopeTimerWarning(const char* Name,uint64 WarningTimeMs,bool AutoStart=true,std::ostream& Output=std::Debug) :
-		mName				( "" ),
 		mWarningTimeMs		( WarningTimeMs ),
 		mStopped			( true ),
 		mReportedOnLastStop	( false ),
 		mAccumulatedTime	( 0 ),
 		mOutputStream		( Output )
 	{
+		//	visual studio 2013 won't let me user initialiser
+		mName[0] = '\0';
+		
 		Soy::StringToBuffer( Name, mName );
 		if ( AutoStart )
 			Start( true );

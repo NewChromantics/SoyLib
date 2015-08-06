@@ -189,8 +189,11 @@ public:
 	vec4x4(TYPE a,TYPE b,TYPE c,TYPE d,
 		   TYPE e,TYPE f,TYPE g,TYPE h,
 		   TYPE i,TYPE j,TYPE k,TYPE l,
-		   TYPE m,TYPE n,TYPE o,TYPE p) :
+		   TYPE m,TYPE n,TYPE o,TYPE p)
+#if !defined(OLD_VISUAL_STUDIO)
+		   :
 		rows	{	vec4x<TYPE>(a,b,c,d), vec4x<TYPE>(e,f,g,h), vec4x<TYPE>(i,j,k,l), vec4x<TYPE>(m,n,o,p)	}
+#endif
 	{
 	}
 
