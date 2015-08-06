@@ -314,7 +314,12 @@ Improvement summary
 //	for stack tracing
 #include <windows.h>
 #include <tlhelp32.h>
+
+#pragma warning(push)
+#pragma warning(disable:4091)
 #include <dbghelp.h>
+#pragma warning(pop)
+
 #include <errorrep.h>
 //#include <time.h>
 //#pragma comment(lib,"version.lib")	//for VerQueryValue, GetFileVersionInfo and GetFileVersioInfoSize

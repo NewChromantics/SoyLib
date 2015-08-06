@@ -13,7 +13,7 @@ struct NonCopyable {
 };
 
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(TARGET_WINDOWS)
 #define TARGET_WINDOWS
 #endif
 
