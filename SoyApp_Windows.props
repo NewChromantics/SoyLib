@@ -9,29 +9,14 @@
     <IncludePath>$(SOY_PATH)/src;$(AMDAPPSDKROOT)\include;$(KINECTSDK10_DIR)\inc;$(IncludePath)</IncludePath>
     <ReferencePath>D:\gstreamer-sdk\0.10\x86\bin;$(VCInstallDir)atlmfc\lib;$(VCInstallDir)lib</ReferencePath>
     <LibraryPath>$(SOY_PATH)\soylib.visualstudio\bin;$(AMDAPPSDKROOT)\lib\x86;$(KINECTSDK10_DIR)\lib\x86;$(LibraryPath)</LibraryPath>
-    <LinkIncremental>true</LinkIncremental>
     <IntDir>$(Configuration)\$(MSBuildProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);..\..\..\addons\ofxXmlSettings\libs;..\..\..\addons\ofxXmlSettings\src;..\..\..\addons\ofxUI\src;..\..\..\addons\ofxSoylent\src;..\..\..\addons\ofxNetwork\src;..\..\..\addons\ofxOpencv\src;../../../addons/ofxOpenCv/libs/opencv/include;../../../addons/ofxOpenCv/libs/opencv/include/opencv;..\..\..\addons\ofxMSAOpenCL\ofxMSAOpenCL\src;..\..\..\addons\ofxKinect\src;..\..\..\addons\ofxKinect\libs\libfreenect;D:\ofxKinectNui\src;D:\ofxKinectNui\src\kinect\nui</AdditionalIncludeDirectories>
-      <WarningLevel>Level3</WarningLevel>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <Optimization>Disabled</Optimization>
-      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <MinimalRebuild>false</MinimalRebuild>
-      <SDLCheck>true</SDLCheck>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
     </ClCompile>
     <Link>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>$(TargetDir)$(TargetName)_debugInfo.pdb</ProgramDatabaseFile>
-      <StackReserveSize>8388608</StackReserveSize>
       <SubSystem>Console</SubSystem>
-      <LargeAddressAware>true</LargeAddressAware>
-      <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <AdditionalDependencies>soylib_debug.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Lib>
