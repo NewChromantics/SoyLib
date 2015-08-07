@@ -70,6 +70,22 @@ Opengl::TContext::TContext()
 
 void Opengl::TContext::Init()
 {
+	//	windows needs Glew to initialise all it's extension stuff
+//	#define glewInit() glewContextInit(glewGetContext())
+//#define glewIsSupported(x) glewContextIsSupported(glewGetContext(), x)
+//#define glewIsExtensionSupported(x) glewIsSupported(x)
+#if defined(TARGET_WINDOWS)
+	{
+		auto Error = glewInit();
+		if ( Error != GL_NO_ERROR )
+		{
+			std::stringstream ErrorStr;
+			ErrorStr << "Error initialising opengl: " << GetEnumString( Error );
+			throw Soy::AssertException( ErrorStr.str() );
+		}
+	}
+#endif
+
 	//	init version
 	auto* VersionString = reinterpret_cast<const char*>( glGetString( GL_VERSION ) );
 	Soy::Assert( VersionString!=nullptr, "Version string invalid. Context not valid? Not on opengl thread?" );
