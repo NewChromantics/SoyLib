@@ -35,6 +35,7 @@ namespace SoyPixelsFormat
 		YUV_420			= 13,
 		YUV_422			= 14,
 		YUV_444			= 15,
+		NV12			= 16,
 
 		//HSL,
 		//HSLA,
