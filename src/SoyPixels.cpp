@@ -148,6 +148,12 @@ std::ostream& operator<< (std::ostream &out,const SoyPixelsFormat::Type &in)
 		case SoyPixelsFormat::FreenectDepth11bit:	return out << "FreenectDepth11bit";
 		case SoyPixelsFormat::FreenectDepth10bit:	return out << "FreenectDepth10bit";
 		case SoyPixelsFormat::FreenectDepthmm:	return out << "FreenectDepthmm";
+		case SoyPixelsFormat::YCBCR8_Full:		return out << "YCBCR8_Full";
+		case SoyPixelsFormat::YCBCR8_Video:		return out << "YCBCR8_Video";
+		case SoyPixelsFormat::YUV_420:			return out << "YUV_420";
+		case SoyPixelsFormat::YUV_422:			return out << "YUV_422";
+		case SoyPixelsFormat::YUV_444:			return out << "YUV_444";
+
 		default:
 			return out << "<unknown SoyPixelsFormat:: " << static_cast<int>(in) << ">";
 	}

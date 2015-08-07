@@ -30,6 +30,12 @@ namespace SoyPixelsFormat
 		YCBCR8_Full		= 11,
 		YCBCR8_Video	= 12,
 
+		//	for Cuvid
+		//	gr: todo: enforce pixel bit size
+		YUV_420			= 13,
+		YUV_422			= 14,
+		YUV_444			= 15,
+
 		//HSL,
 		//HSLA,
 	};
@@ -87,18 +93,19 @@ class SoyPixelsMetaFull : public SoyPixelsMeta
 {
 public:
 	SoyPixelsMetaFull() :
-	mDataSize	( 0 )
+		mHeight	( 0 )
 	{
 	}
-	SoyPixelsMetaFull(size_t Width,size_t Height,SoyPixelsFormat::Type Format)
+	SoyPixelsMetaFull(size_t Width,size_t Height,SoyPixelsFormat::Type Format) :
+		mHeight	( 0 )
 	{
 		mWidth = size_cast<uint16>(Width);
 		mFormat = Format;
-		mDataSize = SoyPixelsMeta::GetDataSize(Height);
+		mHeight = Height;
 	}
 	
-	uint16		GetHeight() const		{	return SoyPixelsMeta::GetHeight( GetDataSize() );	}
-	size_t		GetDataSize() const		{	return mDataSize;	}
+	uint16		GetHeight() const		{	return mHeight;	}
+	size_t		GetDataSize() const		{	return SoyPixelsMeta::GetDataSize(mHeight);	}
 	bool		IsValid() const			{	return SoyPixelsMeta::IsValid() && GetDataSize() != 0;	}
 	
 	inline bool	operator==(const SoyPixelsMetaFull& that) const
@@ -110,7 +117,7 @@ public:
 	}
 	
 public:
-	size_t		mDataSize;
+	size_t		mHeight;
 };
 
 /*
