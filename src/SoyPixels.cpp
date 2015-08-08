@@ -134,30 +134,23 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(size_t ChannelC
 }
 
 
-std::ostream& operator<< (std::ostream &out,const SoyPixelsFormat::Type &in)
+std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 {
-	switch ( in )
-	{
-		case SoyPixelsFormat::Greyscale:		return out << "Greyscale";
-		case SoyPixelsFormat::GreyscaleAlpha:	return out << "GreyscaleAlpha";
-		case SoyPixelsFormat::RGB:				return out << "RGB";
-		case SoyPixelsFormat::RGBA:				return out << "RGBA";
-		case SoyPixelsFormat::BGRA:				return out << "BGRA";
-		case SoyPixelsFormat::BGR:				return out << "BGR";
-		case SoyPixelsFormat::KinectDepth:		return out << "KinectDepth";
-		case SoyPixelsFormat::FreenectDepth11bit:	return out << "FreenectDepth11bit";
-		case SoyPixelsFormat::FreenectDepth10bit:	return out << "FreenectDepth10bit";
-		case SoyPixelsFormat::FreenectDepthmm:	return out << "FreenectDepthmm";
-		case SoyPixelsFormat::YCBCR8_Full:		return out << "YCBCR8_Full";
-		case SoyPixelsFormat::YCBCR8_Video:		return out << "YCBCR8_Video";
-		case SoyPixelsFormat::YUV_420:			return out << "YUV_420";
-		case SoyPixelsFormat::YUV_422:			return out << "YUV_422";
-		case SoyPixelsFormat::YUV_444:			return out << "YUV_444";
-
-		default:
-			return out << "<unknown SoyPixelsFormat:: " << static_cast<int>(in) << ">";
-	}
-}
+	{ SoyPixelsFormat::Invalid,				"Invalid" },
+	{ SoyPixelsFormat::UnityUnknown,		"UnityUnknown" },
+	{ SoyPixelsFormat::Greyscale,			"Greyscale" },
+	{ SoyPixelsFormat::GreyscaleAlpha,		"GreyscaleAlpha"	},
+	{ SoyPixelsFormat::RGB,					"RGB"	},
+	{ SoyPixelsFormat::RGBA,				"RGBA"	},
+	{ SoyPixelsFormat::BGRA,				"BGRA"	},
+	{ SoyPixelsFormat::BGR,					"BGR"	},
+	{ SoyPixelsFormat::KinectDepth,			"KinectDepth"	},
+	{ SoyPixelsFormat::FreenectDepth10bit,	"FreenectDepth10bit"	},
+	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},
+	{ SoyPixelsFormat::FreenectDepthmm,		"FreenectDepthmm"	},
+	{ SoyPixelsFormat::Yuv420_Biplanar_Full,	"Yuv420_Biplanar_Full"	},
+	{ SoyPixelsFormat::Yuv420_Biplanar_Video,	"Yuv420_Biplanar_Video"	}
+};
 
 
 #if defined(SOY_OPENCL)
@@ -804,22 +797,6 @@ bool TPixels::Set(const msa::OpenCLImage& PixelsConst,cl_command_queue Queue)
 #endif
 
 
-#if defined(SOY_OPENCL)
-bool SoyPixelsFormat::GetOpenclFormat(int& clFormat,SoyPixelsFormat::Type Format)
-{
-	//	from ofGetGlInternalFormat(const ofPixels& pix)
-	switch ( Format )
-	{
-		//	clSURF code uses CL_R...
-	case SoyPixelsFormat::Greyscale:	clFormat = CL_R;	return true;
-//	case SoyPixelsFormat::Greyscale:	clFormat = CL_LUMINANCE;	return true;
-	case SoyPixelsFormat::RGB:			clFormat = CL_RGB;			return true;
-	case SoyPixelsFormat::RGBA:			clFormat = CL_RGBA;			return true;
-	case SoyPixelsFormat::BGRA:			clFormat = treatbgrasrgb ? CL_RGBA : CL_BGRA;			return true;
-	}
-	return false;
-}
-#endif
 
 bool SoyPixelsImpl::Init(size_t Width, size_t Height, size_t Channels)
 {

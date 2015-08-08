@@ -3,6 +3,8 @@
 #include "SoyTypes.h"
 #include "Array.hpp"
 #include "HeapArray.hpp"
+#include "SoyEnum.h"
+
 
 
 namespace SoyPixelsFormat
@@ -26,34 +28,29 @@ namespace SoyPixelsFormat
 		FreenectDepthmm	= 10,	//	16 bit
 	
 
-		//	special cases for AVF decoder handling
-		YCBCR8_Full		= 11,
-		YCBCR8_Video	= 12,
-
-		//	for Cuvid
-		//	gr: todo: enforce pixel bit size
-		YUV_420			= 13,
-		YUV_422			= 14,
-		YUV_444			= 15,
-		NV12			= 16,
-
-		//HSL,
-		//HSLA,
+		//	http://stackoverflow.com/a/6315159/355753
+		//	bi planar is luma followed by chroma.
+		//	Full range is 0..255
+		//	video range 16-235
+		Yuv420_Biplanar_Full	= 16,
+		Yuv420_Biplanar_Video	= 17,
+	
+		
+		//	shorthand names for different platforms
+		Nv12			= Yuv420_Biplanar_Full,
 	};
 
 	size_t		GetChannelCount(Type Format);
 	Type		GetFormatFromChannelCount(size_t ChannelCount);
-	inline bool	IsValid(Type Format)			{	return GetChannelCount( Format ) > 0;	}
-	
-	bool		GetOpenclFormat(int& ChannelOrder,Type Format);
 	
 	int			GetMaxValue(SoyPixelsFormat::Type Format);
 	int			GetMinValue(SoyPixelsFormat::Type Format);
 	int			GetInvalidValue(SoyPixelsFormat::Type Format);
 	int			GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format);
 	bool		GetIsFrontToBackDepth(SoyPixelsFormat::Type Format);
+
+	DECLARE_SOYENUM( SoyPixelsFormat );
 };
-std::ostream& operator<< ( std::ostream &out, const SoyPixelsFormat::Type &in );
 
 
 //	meta data for pixels (header when using raw data)
@@ -72,7 +69,6 @@ public:
 	uint8			GetChannels() const				{	return size_cast<uint8>(SoyPixelsFormat::GetChannelCount(mFormat));	}
 	uint16			GetWidth() const				{	return mWidth;	}
 	uint16			GetHeight(size_t DataSize) const	{	return IsValid() && DataSize>0 ? size_cast<uint16>(DataSize / (GetChannels()*mWidth)) : 0;	}
-	bool			GetOpenclFormat(int& clFormat) const	{	return SoyPixelsFormat::GetOpenclFormat( clFormat, GetFormat() );	}
 	size_t			GetDataSize(size_t Height) const	{	return Height * GetChannels() * GetWidth();	}
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
 	void			DumbSetChannels(size_t Channels)	{	mFormat = SoyPixelsFormat::GetFormatFromChannelCount(Channels);	}
