@@ -4,6 +4,7 @@
 #include "Array.hpp"
 #include "HeapArray.hpp"
 #include "SoyEnum.h"
+#include "RemoteArray.h"
 
 
 
@@ -31,7 +32,8 @@ namespace SoyPixelsFormat
 		//	http://stackoverflow.com/a/6315159/355753
 		//	bi planar is luma followed by chroma.
 		//	Full range is 0..255
-		//	video range 16-235
+		//	video LUMA range 16-235 (chroma is still 0-255)	http://stackoverflow.com/a/10129300/355753
+		
 		Yuv420_Biplanar_Full	= 16,
 		Yuv420_Biplanar_Video	= 17,
 	
@@ -116,49 +118,6 @@ public:
 public:
 	size_t		mHeight;
 };
-
-/*
-//	meta data for pixels (header when using raw data)
-class SoyPixelsMetaFull
-{
-public:
-	SoyPixelsMeta() :
-		mFormat		( SoyPixelsFormat::Invalid ),
-		mWidth		( 0 ),
-		mHeight		( 0 )
-	{
-	}
-	SoyPixelsMeta(size_t w,size_t h,SoyPixelsFormat::Type Format) :
-		mWidth		( w ),
-		mHeight		( h ),
-		mFormat		( Format )
-	{
-	}
-	
-	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
-	size_t			GetWidth() const		{	return mWidth;	}
-	size_t			GetHeight() const		{	return mHeight;	}
-	
-	bool			IsValid() const					{	return mWidth && mHeight && SoyPixelsFormat::IsValid(mFormat);	}
-	size_t			GetBitDepth() const				{	return 8;	}
-	size_t			GetChannels() const				{	return SoyPixelsFormat::GetChannelCount(mFormat);	}
-	size_t			GetDataSize() const				{	return GetHeight() * GetChannels() * GetWidth();	}
-	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
-	void			DumbSetChannels(int Channels)	{	mFormat = SoyPixelsFormat::GetFormatFromChannelCount(Channels);	}
-	void			DumbSetWidth(size_t Width)		{	mWidth = Width;	}
-	
-	inline bool		operator==(const SoyPixelsMeta& that) const
-	{
-		return this->mWidth == that.mWidth && this->mHeight == that.mHeight && this->mFormat == that.mFormat;
-	}
-	
-protected:
-	//	gr: assuming we will always have a length of data so we can determine height/stride
-	SoyPixelsFormat::Type	mFormat;
-	size_t					mWidth;
-	size_t					mHeight;
-};
-*/
 
 
 inline std::ostream& operator<< (std::ostream &out,const SoyPixelsMetaFull &in)
@@ -254,6 +213,53 @@ public:
 	Array<uint8>	mArray;
 };
 DECLARE_TYPE_NAME( SoyPixels );
+
+
+
+class SoyPixelsRemote : public SoyPixelsImpl
+{
+public:
+	typedef FixedRemoteArray<uint8> TARRAY;
+public:
+	SoyPixelsRemote(uint8* Array,size_t Width,size_t Height,size_t DataSize,SoyPixelsFormat::Type Format) :
+		mArray	( Array, DataSize ),
+		mMeta	( Width, Height, Format ),
+		mArrayBridge	( mArray )
+	{
+	}
+	SoyPixelsRemote() :
+		mArrayBridge	( mArray ),
+		mArray			( nullptr, 0 )
+	{
+		Soy::Assert( !IsValid(), "should be invalid" );
+	}
+	explicit SoyPixelsRemote(SoyPixelsImpl& Pixels) :
+		mArrayBridge	( mArray ),
+		mArray			( Pixels.GetPixelsArray().GetArray(), Pixels.GetPixelsArray().GetDataSize() ),
+		mMeta			( Pixels.GetWidth(), Pixels.GetHeight(), Pixels.GetFormat() )
+	{
+	}
+	explicit SoyPixelsRemote(ArrayBridge<uint8>&& Pixels,const SoyPixelsMetaFull& Meta) :
+		mArrayBridge	( mArray ),
+		mArray			( Pixels.GetArray(), Pixels.GetDataSize() ),
+		mMeta			( Meta )
+	{
+	}
+	
+	virtual SoyPixelsMeta&				GetMeta() override					{	return mMeta;	}
+	virtual const SoyPixelsMeta&		GetMeta() const override			{	return mMeta;	}
+	virtual ArrayInterface<uint8>&		GetPixelsArray() override			{	return mArrayBridge;	}
+	virtual const ArrayInterface<uint8>&	GetPixelsArray() const override	{	return mArrayBridge;	}
+	
+public:
+	ArrayBridgeDef<TARRAY>	mArrayBridge;
+	TARRAY					mArray;
+	SoyPixelsMetaFull		mMeta;
+};
+
+
+
+
 
 //	gr; unsupported for now... 
 #if defined(TARGET_WINDOWS)
