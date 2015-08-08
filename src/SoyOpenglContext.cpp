@@ -241,7 +241,7 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Conte
 		//	create texture
 		if ( !mTexture.IsValid() )
 		{
-			SoyPixelsMetaFull TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
+			SoyPixelsMeta TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
 			mTexture = TTexture( TextureMeta, GL_TEXTURE_2D );
 			/*
 			 glGenTextures(1, &mTexture.mTexture.mName );
@@ -280,7 +280,7 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture Existi
 	//	create texture
 	if ( !mTexture.IsValid() )
 	{
-		SoyPixelsMetaFull TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
+		SoyPixelsMeta TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
 		mTexture = TTexture( TextureMeta, GL_TEXTURE_2D );
 	}
 

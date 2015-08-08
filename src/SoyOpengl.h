@@ -366,10 +366,10 @@ public:
 	}
 	TTexture(TTexture&& Move)			{	*this = std::move(Move);	}
 	TTexture(const TTexture& Reference)	{	*this = Reference;	}
-	explicit TTexture(SoyPixelsMetaFull Meta,GLenum Type);	//	alloc
+	explicit TTexture(SoyPixelsMeta Meta,GLenum Type);	//	alloc
 	
 	//	reference from external
-	TTexture(void* TexturePtr,const SoyPixelsMetaFull& Meta,GLenum Type) :
+	TTexture(void* TexturePtr,const SoyPixelsMeta& Meta,GLenum Type) :
 	mMeta			( Meta ),
 	mType			( Type ),
 	mAutoRelease	( false ),
@@ -385,7 +385,7 @@ public:
 	{
 	}
 	
-	TTexture(GLuint TextureName,const SoyPixelsMetaFull& Meta,GLenum Type) :
+	TTexture(GLuint TextureName,const SoyPixelsMeta& Meta,GLenum Type) :
 		mMeta			( Meta ),
 		mType			( Type ),
 		mAutoRelease	( false ),
@@ -429,7 +429,7 @@ public:
 		return *this;
 	}
 
-	SoyPixelsMetaFull	GetInternalMeta() const;	//	read meta from opengl
+	SoyPixelsMeta	GetInternalMeta() const;	//	read meta from opengl
 
 	size_t				GetWidth() const	{	return mMeta.GetWidth();	}
 	size_t				GetHeight() const	{	return mMeta.GetHeight();	}
@@ -446,7 +446,7 @@ public:
 	bool						mAutoRelease;
 	std::shared_ptr<SoyPixelsImpl>	mClientBuffer;	//	for CPU-buffered textures, it's kept here. ownership should go with mAutoRelease, but shared_ptr maybe takes care of that?
 	TAsset						mTexture;
-	SoyPixelsMetaFull			mMeta;
+	SoyPixelsMeta			mMeta;
 	GLenum						mType;		//	GL_TEXTURE_2D by default. gr: "type" may be the wrong nomenclature here
 };
 

@@ -406,7 +406,7 @@ protected:
 class Opencl::TBufferImage : public TBuffer
 {
 public:
-	TBufferImage(const SoyPixelsMetaFull& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
+	TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
 	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
 	
 	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);

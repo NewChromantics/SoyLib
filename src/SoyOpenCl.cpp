@@ -703,7 +703,7 @@ Opencl::TBuffer::~TBuffer()
 }
 
 
-Opencl::TBufferImage::TBufferImage(const SoyPixelsMetaFull& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
+Opencl::TBufferImage::TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
 	mContext	( Context )
 {
 	auto& Device = Context.GetDevice();
@@ -740,7 +740,7 @@ Opencl::TBufferImage::TBufferImage(const SoyPixelsMetaFull& Meta,TContext& Conte
 }
 
 Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore) :
-	TBufferImage	( Image.GetMetaFull(), Context, ClientStorage ? &Image : nullptr, ReadWrite, Semaphore )
+	TBufferImage	( Image.GetMeta(), Context, ClientStorage ? &Image : nullptr, ReadWrite, Semaphore )
 {
 	Write( Image, Semaphore );
 }

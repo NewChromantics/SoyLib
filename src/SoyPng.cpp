@@ -257,7 +257,7 @@ bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char
 		auto DeFilteredData = GetArrayBridge( _DeFilteredData );
 		
 		//	de-filter the pixels
-		int Stride = Pixels.GetChannels()*Pixels.GetWidth();
+		auto Stride = Pixels.GetChannels()*Pixels.GetWidth();
 		//	decompressed data stride includes filter
 		Stride += 1;
 		for ( int i=0;	i<DecompressedData.GetSize();	i+=Stride )
@@ -298,7 +298,7 @@ bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 		Array<uint8> FilteredPixels;
 		FilteredPixels.Reserve( OrigPixels.GetDataSize() + Image.GetHeight() );
 		FilteredPixels.PushBackArray( OrigPixels );
-		int Stride = Image.GetChannels()*Image.GetWidth();
+		auto Stride = Image.GetChannels()*Image.GetWidth();
 		for ( ssize_t i=OrigPixels.GetSize()-Stride;	i>=0;	i-=Stride )
 		{
 			//	insert filter value/code

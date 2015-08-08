@@ -440,7 +440,7 @@ size_t Opengl::TFbo::GetAlphaBits() const
 	return AlphaSize < 0 ? 0 :AlphaSize;
 }
 
-Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
+Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	mAutoRelease	( true ),
 	mType			( Type )
 {
@@ -808,7 +808,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 	Opengl_IsOkay();
 }
 
-SoyPixelsMetaFull Opengl::TTexture::GetInternalMeta() const
+SoyPixelsMeta Opengl::TTexture::GetInternalMeta() const
 {
 #if defined(OPENGL_ES_3)
 	std::Debug << "Warning, using " << __func__ << " on opengl es (no such info)" << std::endl;
@@ -823,7 +823,7 @@ SoyPixelsMetaFull Opengl::TTexture::GetInternalMeta() const
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &Format );
 	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()" );
 
-	return SoyPixelsMetaFull( Width, Height, GetDownloadPixelFormat( Format ) );
+	return SoyPixelsMeta( Width, Height, GetDownloadPixelFormat( Format ) );
 #endif
 }
 

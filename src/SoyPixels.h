@@ -61,66 +61,41 @@ class SoyPixelsMeta
 public:
 	SoyPixelsMeta() :
 		mFormat		( SoyPixelsFormat::Invalid ),
-		mWidth		( 0 )
+		mWidth		( 0 ),
+		mHeight		( 0 )
 	{
-		assert( sizeof(mFormat)==sizeof(uint32) );
 	}
-
-	bool			IsValid() const					{	return (mWidth>0) && SoyPixelsFormat::IsValid(mFormat);	}
+	SoyPixelsMeta(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format) :
+		mWidth	( Width ),
+		mHeight	( Height ),
+		mFormat	( Format )
+	{
+	}
+	
+	bool			IsValid() const					{	return (mWidth>0) && (mHeight>0) && SoyPixelsFormat::IsValid(mFormat);	}
 	uint8			GetBitDepth() const				{	return 8;	}
 	uint8			GetChannels() const				{	return size_cast<uint8>(SoyPixelsFormat::GetChannelCount(mFormat));	}
 	uint16			GetWidth() const				{	return mWidth;	}
-	uint16			GetHeight(size_t DataSize) const	{	return IsValid() && DataSize>0 ? size_cast<uint16>(DataSize / (GetChannels()*mWidth)) : 0;	}
-	size_t			GetDataSize(size_t Height) const	{	return Height * GetChannels() * GetWidth();	}
+	uint16			GetHeight() const				{	return mHeight;	}
+	size_t			GetDataSize() const				{	return GetWidth() * GetChannels() * GetWidth();	}
+	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
+	
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
 	void			DumbSetChannels(size_t Channels)	{	mFormat = SoyPixelsFormat::GetFormatFromChannelCount(Channels);	}
 	void			DumbSetWidth(uint16 Width)		{	mWidth = Width;	}
-	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
-
+	void			DumbSetHeight(uint16 Height)	{	mHeight = Height;	}
 
 protected:
 	//	gr: assuming we will always have a length of data so we can determine height/stride
 	SoyPixelsFormat::Type	mFormat;
 	uint16					mWidth;
+	uint16					mHeight;
 };
 DECLARE_NONCOMPLEX_TYPE( SoyPixelsMeta );
 
 
 
-
-class SoyPixelsMetaFull : public SoyPixelsMeta
-{
-public:
-	SoyPixelsMetaFull() :
-		mHeight	( 0 )
-	{
-	}
-	SoyPixelsMetaFull(size_t Width,size_t Height,SoyPixelsFormat::Type Format) :
-		mHeight	( 0 )
-	{
-		mWidth = size_cast<uint16>(Width);
-		mFormat = Format;
-		mHeight = Height;
-	}
-	
-	uint16		GetHeight() const		{	return mHeight;	}
-	size_t		GetDataSize() const		{	return SoyPixelsMeta::GetDataSize(mHeight);	}
-	bool		IsValid() const			{	return SoyPixelsMeta::IsValid() && GetDataSize() != 0;	}
-	
-	inline bool	operator==(const SoyPixelsMetaFull& that) const
-	{
-		return	this->GetHeight() == that.GetHeight() &&
-				this->GetWidth() == that.GetWidth() &&
-		this->GetFormat() == that.GetFormat();
-		
-	}
-	
-public:
-	size_t		mHeight;
-};
-
-
-inline std::ostream& operator<< (std::ostream &out,const SoyPixelsMetaFull &in)
+inline std::ostream& operator<< (std::ostream &out,const SoyPixelsMeta &in)
 {
 	out << in.GetWidth() << 'x' << in.GetHeight() << '^' << in.GetFormat();
 	return out;
@@ -133,17 +108,18 @@ class SoyPixelsImpl
 public:
 	virtual ~SoyPixelsImpl()	{}
 
+	bool			Init(const SoyPixelsMeta& Meta);
 	bool			Init(size_t Width,size_t Height,SoyPixelsFormat::Type Format);
 	bool			Init(size_t Width,size_t Height,size_t Channels);
 	void			Clear(bool Dealloc=false);
 
 	virtual bool	Copy(const SoyPixelsImpl& that,bool AllowReallocation=true);
 	
-	uint16			GetHeight() const				{	return GetMeta().GetHeight( GetPixelsArray().GetSize() );	}
 	bool			IsValid() const					{	return GetMeta().IsValid();	}
 	uint8			GetBitDepth() const				{	return GetMeta().GetBitDepth();	}
 	uint8			GetChannels() const				{	return size_cast<uint8>( GetMeta().GetChannels() );	}
 	uint16			GetWidth() const				{	return GetMeta().GetWidth();	}
+	uint16			GetHeight() const				{	return GetMeta().GetHeight();	}
 	SoyPixelsFormat::Type	GetFormat() const		{	return GetMeta().GetFormat();	}
 	void			PrintPixels(const std::string& Prefix,std::ostream& Stream) const;
 
@@ -167,7 +143,6 @@ public:
 	
 	void			RotateFlip();
 	
-	SoyPixelsMetaFull						GetMetaFull() const;
 	virtual SoyPixelsMeta&					GetMeta()=0;
 	virtual const SoyPixelsMeta&			GetMeta() const=0;
 	virtual ArrayInterface<uint8>&			GetPixelsArray()=0;
@@ -185,10 +160,10 @@ public:
 	{
 	}
 
-	virtual SoyPixelsMeta&				GetMeta()			{	return mMeta;	}
-	virtual const SoyPixelsMeta&		GetMeta() const		{	return mMeta;	}
-	virtual ArrayInterface<uint8>&		GetPixelsArray()	{	return mArrayBridge;	}
-	virtual const ArrayInterface<uint8>&	GetPixelsArray() const	{	return mArrayBridge;	}
+	virtual SoyPixelsMeta&				GetMeta() override					{	return mMeta;	}
+	virtual const SoyPixelsMeta&		GetMeta() const override			{	return mMeta;	}
+	virtual ArrayInterface<uint8>&		GetPixelsArray() override			{	return mArrayBridge;	}
+	virtual const ArrayInterface<uint8>&	GetPixelsArray() const override	{	return mArrayBridge;	}
 
 public:
 	ArrayBridgeDef<TARRAY>	mArrayBridge;
@@ -221,29 +196,42 @@ class SoyPixelsRemote : public SoyPixelsImpl
 public:
 	typedef FixedRemoteArray<uint8> TARRAY;
 public:
-	SoyPixelsRemote(uint8* Array,size_t Width,size_t Height,size_t DataSize,SoyPixelsFormat::Type Format) :
-		mArray	( Array, DataSize ),
-		mMeta	( Width, Height, Format ),
-		mArrayBridge	( mArray )
-	{
-	}
 	SoyPixelsRemote() :
-		mArrayBridge	( mArray ),
-		mArray			( nullptr, 0 )
+		mArray			( nullptr, 0 ),
+		mArrayBridge	( mArray )
 	{
 		Soy::Assert( !IsValid(), "should be invalid" );
 	}
+	SoyPixelsRemote(const SoyPixelsRemote& that) :
+		mArray			( nullptr, 0 ),
+		mArrayBridge	( mArray )
+	{
+		*this = that;
+	}
+	SoyPixelsRemote(uint8* Array,size_t Width,size_t Height,size_t DataSize,SoyPixelsFormat::Type Format) :
+		mArray			( Array, DataSize ),
+		mMeta			( Width, Height, Format ),
+		mArrayBridge	( mArray )
+	{
+	}
 	explicit SoyPixelsRemote(SoyPixelsImpl& Pixels) :
-		mArrayBridge	( mArray ),
 		mArray			( Pixels.GetPixelsArray().GetArray(), Pixels.GetPixelsArray().GetDataSize() ),
+		mArrayBridge	( mArray ),
 		mMeta			( Pixels.GetWidth(), Pixels.GetHeight(), Pixels.GetFormat() )
 	{
 	}
-	explicit SoyPixelsRemote(ArrayBridge<uint8>&& Pixels,const SoyPixelsMetaFull& Meta) :
-		mArrayBridge	( mArray ),
+	explicit SoyPixelsRemote(ArrayBridge<uint8>&& Pixels,const SoyPixelsMeta& Meta) :
 		mArray			( Pixels.GetArray(), Pixels.GetDataSize() ),
+		mArrayBridge	( mArray ),
 		mMeta			( Meta )
 	{
+	}
+	
+	SoyPixelsRemote&	operator=(const SoyPixelsRemote& that)
+	{
+		this->mArray = that.mArray;
+		this->mMeta = that.mMeta;
+		return *this;
 	}
 	
 	virtual SoyPixelsMeta&				GetMeta() override					{	return mMeta;	}
@@ -252,9 +240,9 @@ public:
 	virtual const ArrayInterface<uint8>&	GetPixelsArray() const override	{	return mArrayBridge;	}
 	
 public:
-	ArrayBridgeDef<TARRAY>	mArrayBridge;
 	TARRAY					mArray;
-	SoyPixelsMetaFull		mMeta;
+	ArrayBridgeDef<TARRAY>	mArrayBridge;
+	SoyPixelsMeta			mMeta;
 };
 
 
