@@ -38,11 +38,12 @@ std::map<TDeviceType::Type,std::string> TDeviceType::EnumMap =
 
 #define DECLARE_SOYENUM(Namespace)	\
 	extern std::map<Namespace::Type,std::string> EnumMap;	\
-	inline Type			ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap, Invalid );	}	\
-	inline std::string	ToString(Type type)					{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
-	inline bool			IsValid(Type type)					{	return SoyEnum::Validate<Type>( type, EnumMap, Invalid ) != Invalid;	}	\
-	template<typename T>inline Type			Validate(T type)	{	return SoyEnum::Validate<Type>( static_cast<Type>(type), EnumMap, Invalid );	}	\
-	template<>inline Type					Validate(Type type)	{	return SoyEnum::Validate<Type>( type, EnumMap, Invalid );	}	\
+	inline Type						ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap, Invalid );	}	\
+	inline std::string				ToString(Type type)			{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
+	template<typename T>inline bool	IsValid(T type)				{	return SoyEnum::Validate<Type>( type, EnumMap, Invalid ) != Invalid;	}	\
+	template<typename T>inline Type	Validate(T type)			{	return SoyEnum::Validate<Type>( static_cast<Type>(type), EnumMap, Invalid );	}	\
+	template<>inline Type			Validate(Type type)			{	return SoyEnum::Validate<Type>( type, EnumMap, Invalid );	}	\
+	inline std::ostream& operator<<(std::ostream &out,const Namespace::Type &in)	{	out << ToString(in);	return out;	}	\
 \
 
 
