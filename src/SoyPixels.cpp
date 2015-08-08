@@ -133,6 +133,20 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(size_t ChannelC
 	}
 }
 
+void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats)
+{
+	switch ( Format )
+	{
+		case Yuv420_Biplanar_Full:
+			PlaneFormats.PushBack( LumaFull );
+			PlaneFormats.PushBack( Chroma2 );
+			break;
+			
+		default:
+			break;
+	};
+}
+
 
 std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 {

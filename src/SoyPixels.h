@@ -33,10 +33,13 @@ namespace SoyPixelsFormat
 		//	bi planar is luma followed by chroma.
 		//	Full range is 0..255
 		//	video LUMA range 16-235 (chroma is still 0-255)	http://stackoverflow.com/a/10129300/355753
-		
+		//	Y=luma	uv=ChromaUv
 		Yuv420_Biplanar_Full	= 16,
 		Yuv420_Biplanar_Video	= 17,
 	
+		LumaFull		= Greyscale,	//	Luma plane of a YUV
+		//LumaVideo		= 18,			//	Video-range luma plane
+		Chroma2			= GreyscaleAlpha,	//	16 bit chroma plane
 		
 		//	shorthand names for different platforms
 		Nv12			= Yuv420_Biplanar_Full,
@@ -44,6 +47,7 @@ namespace SoyPixelsFormat
 
 	size_t		GetChannelCount(Type Format);
 	Type		GetFormatFromChannelCount(size_t ChannelCount);
+	void		GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats);
 	
 	int			GetMaxValue(SoyPixelsFormat::Type Format);
 	int			GetMinValue(SoyPixelsFormat::Type Format);
@@ -85,6 +89,17 @@ public:
 	void			DumbSetWidth(uint16 Width)		{	mWidth = Width;	}
 	void			DumbSetHeight(uint16 Height)	{	mHeight = Height;	}
 
+	bool			operator==(const SoyPixelsMeta& that) const
+	{
+		return this->mWidth == that.mWidth &&
+		this->mHeight == that.mHeight &&
+		this->mFormat == that.mFormat;
+	}
+	bool			operator!=(const SoyPixelsMeta& that) const
+	{
+		return !(*this == that);
+	}
+	
 protected:
 	//	gr: assuming we will always have a length of data so we can determine height/stride
 	SoyPixelsFormat::Type	mFormat;
