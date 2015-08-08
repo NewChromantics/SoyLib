@@ -36,34 +36,6 @@ namespace Opengl
 }
 
 
-Opengl::TVersion::TVersion(std::string VersionStr) :
-	mMajor	( 0 ),
-	mMinor	( 0 )
-{
-	//	strip off prefix's
-	//	iphone says: "OpenGL ES 3.0 Apple A7 GPU - 53.13"
-	std::string OpenglEsPrefix = "OpenGL ES ";
-	if ( Soy::StringBeginsWith(VersionStr,OpenglEsPrefix, false ) )
-		VersionStr.erase(0, OpenglEsPrefix.length() );
-	
-	int PartCounter = 0;
-	auto PushVersions = [&PartCounter,this](const std::string& PartStr)
-	{
-		//	got all we need
-		if ( PartCounter >= 2 )
-			return false;
-		
-		auto& PartInt = (PartCounter==0) ? mMajor : mMinor;
-		Soy::StringToType( PartInt, PartStr );
-		
-		PartCounter++;
-		return true;
-	};
-	
-	Soy::StringSplitByMatches( PushVersions, VersionStr, " .", false );
-}
-
-
 Opengl::TContext::TContext()
 {
 }
@@ -90,7 +62,8 @@ void Opengl::TContext::Init()
 	auto* VersionString = reinterpret_cast<const char*>( glGetString( GL_VERSION ) );
 	Soy::Assert( VersionString!=nullptr, "Version string invalid. Context not valid? Not on opengl thread?" );
 	
-	mVersion = Opengl::TVersion( std::string( VersionString ) );
+	//	iphone says: "OpenGL ES 3.0 Apple A7 GPU - 53.13"
+	mVersion = Soy::TVersion( std::string( VersionString ), "OpenGL ES " );
 	
 	auto* DeviceString = reinterpret_cast<const char*>( glGetString( GL_VERSION ) );
 	Soy::Assert( DeviceString!=nullptr, "device string invalid. Context not valid? Not on opengl thread?" );

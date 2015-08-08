@@ -22,7 +22,6 @@ namespace Opengl
 {
 	class TContext;			//	opengl context abstraction - contexts are not thread safe, but can share objects
 	class TRenderTarget;	//	PBO/FBO, but sometimes with additional stuff (buffer flip etc depending on source)
-	class TVersion;
 
 	class TRenderTargetFbo;
 	class TSync;			//	uses fences to sync
@@ -35,35 +34,6 @@ namespace Opengl
 	extern std::function<GLboolean(GLuint)>				IsVertexArray;
 };
 
-
-class Opengl::TVersion
-{
-public:
-	TVersion() :
-		mMajor	( 0 ),
-		mMinor	( 0 )
-	{
-	}
-	TVersion(size_t Major,size_t Minor) :
-		mMajor	( Major ),
-		mMinor	( Minor )
-	{
-	}
-	explicit TVersion(std::string VersionStr);
-	
-public:
-	size_t	mMajor;
-	size_t	mMinor;
-};
-
-namespace Opengl
-{
-	inline std::ostream& operator<<(std::ostream &out,const Opengl::TVersion& in)
-	{
-		out << in.mMajor << '.' << in.mMinor;
-		return out;
-	}
-}
 
 
 class Opengl::TContext : public PopWorker::TJobQueue, public PopWorker::TContext
@@ -84,7 +54,7 @@ public:
 	void			BindVertexArrayObjectsExtension();
 
 public:
-	TVersion		mVersion;
+	Soy::TVersion	mVersion;
 	std::string		mDeviceName;
 };
 

@@ -61,7 +61,6 @@ namespace Opencl
 	class TSync;		//	cl_wait_event
 
 	class TJob;			//	execute a kernel, on a context
-	class TVersion;
 	
 	class TBuffer;
 	class TBufferImage;
@@ -87,27 +86,6 @@ namespace Soy
 }
 
 
-
-
-class Opencl::TVersion
-{
-public:
-	TVersion() :
-		mMajor	( 0 ),
-		mMinor	( 0 )
-	{
-	}
-	TVersion(size_t Major,size_t Minor) :
-		mMajor	( Major ),
-		mMinor	( Minor )
-	{
-	}
-	explicit TVersion(std::string VersionStr);
-	
-public:
-	size_t	mMajor;
-	size_t	mMinor;
-};
 
 class Opencl::TPlatform
 {
@@ -139,7 +117,7 @@ public:
 	size_t				GetMaxGlobalWorkGroupSize() const;
 
 public:
-	TVersion			mVersion;
+	Soy::TVersion		mVersion;
 	cl_device_id		mDevice;
 	std::string			mVendor;
 	std::string			mName;

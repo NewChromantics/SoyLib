@@ -575,5 +575,29 @@ std::string Soy::DemangleTypeName(const char* name)
 
 
 
+Soy::TVersion::TVersion(std::string VersionStr,const std::string& Prefix) :
+	mMajor	( 0 ),
+	mMinor	( 0 )
+{
+	//	strip off prefix's
+	if ( Soy::StringBeginsWith(VersionStr,Prefix, false ) )
+		VersionStr.erase(0, Prefix.length() );
+	
+	int PartCounter = 0;
+	auto PushVersions = [&PartCounter,this](const std::string& PartStr)
+	{
+		//	got all we need
+		if ( PartCounter >= 2 )
+			return false;
+		
+		auto& PartInt = (PartCounter==0) ? mMajor : mMinor;
+		Soy::StringToType( PartInt, PartStr );
+		
+		PartCounter++;
+		return true;
+	};
+	
+	Soy::StringSplitByMatches( PushVersions, VersionStr, " .", false );
+}
 
 

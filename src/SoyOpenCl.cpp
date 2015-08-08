@@ -128,34 +128,6 @@ std::string Opencl::GetErrorString(cl_int Error)
 }
 
 
-
-Opencl::TVersion::TVersion(std::string VersionStr) :
-	mMajor	( 0 ),
-	mMinor	( 0 )
-{
-	//	strip off prefix's
-	std::string Prefix = "OpenCL ";
-	if ( Soy::StringBeginsWith(VersionStr,Prefix, false ) )
-		VersionStr.erase(0, Prefix.length() );
-	
-	int PartCounter = 0;
-	auto PushVersions = [&PartCounter,this](const std::string& PartStr)
-	{
-		//	got all we need
-		if ( PartCounter >= 2 )
-			return false;
-		
-		auto& PartInt = (PartCounter==0) ? mMajor : mMinor;
-		Soy::StringToType( PartInt, PartStr );
-		
-		PartCounter++;
-		return true;
-	};
-	
-	Soy::StringSplitByMatches( PushVersions, VersionStr, " .", false );
-}
-
-
 void GetPlatforms(ArrayBridge<cl_platform_id>&& Platforms)
 {
 	cl_platform_id PlatformBuffer[100];
@@ -231,7 +203,7 @@ Opencl::TDeviceMeta::TDeviceMeta(cl_device_id Device) :
 	mExtensions = GetString( Device, CL_DEVICE_EXTENSIONS );
 
 	//	extract version
-	mVersion = TVersion( DeviceVersion );
+	mVersion = Soy::TVersion( DeviceVersion, "OpenCL " );
 	
 	std::Debug << "Device " << mName << "(" << mDriverVersion << ") extensions: " << mExtensions << std::endl;
 
