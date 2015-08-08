@@ -111,7 +111,12 @@ void Cuda::GetDevices(ArrayBridge<Cuda::TDevice>&& Metas)
 		Error = cuDeviceGetName( Buffer, sizeof(Buffer), Device );
 		Cuda::IsOkay( Error, "cuDeviceGetName" );
 
-		Metas.PushBack( TDevice(i, Device, Buffer ) );
+		int Major=0,Minor=0;
+		Error = cuDeviceComputeCapability( &Major, &Minor, Device );
+		Cuda::IsOkay( Error, "cuDeviceComputeCapability" );
+		Soy::TVersion Version( Major, Minor );
+		
+		Metas.PushBack( TDevice(i, Device, Buffer, Version ) );
 	}
 }
 

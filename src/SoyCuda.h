@@ -41,17 +41,19 @@ public:
 	{
 	}
 	
-	TDevice(size_t DeviceIndex,CUdevice Handle,const std::string& Name) :
-		mIndex	( DeviceIndex),
-		mHandle	( Handle ),
-		mName	( Name )
+	TDevice(size_t DeviceIndex,CUdevice Handle,const std::string& Name,Soy::TVersion Version) :
+		mIndex		( DeviceIndex),
+		mHandle		( Handle ),
+		mName		( Name ),
+		mVersion	( Version )
 	{
 	}
 
 public:
-	ssize_t		mIndex;
-	CUdevice	mHandle;
-	std::string	mName;
+	ssize_t			mIndex;
+	CUdevice		mHandle;
+	std::string		mName;
+	Soy::TVersion	mVersion;
 };
 
 
