@@ -247,8 +247,9 @@ std::string ParseLog(const std::string& ErrorLog,const ArrayBridge<std::string>&
 	return NewLog.str();
 }
 
-bool CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLines,const std::string& ErrorPrefix,std::ostream& Error)
+void CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLines,const std::string& ErrorPrefix)
 {
+	//	turn into explicit lines to aid with parsing erros later
 	Array<const GLchar*> Lines;
 	for ( int i=0;	i<SrcLines.GetSize();	i++ )
 	{
@@ -266,6 +267,7 @@ bool CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLi
 	Opengl::IsOkay("glGetShaderiv(GL_COMPILE_STATUS)");
 	if ( r == GL_FALSE )
 	{
+		std::stringstream Error;
 		Error << ErrorPrefix << " Compiling shader error: ";
 		GLchar msg[4096] = {0};
 		glGetShaderInfoLog( Shader.mName, sizeof( msg ), 0, msg );
@@ -274,10 +276,9 @@ bool CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLi
 		//	re-process log in case we can get some extended info out of it
 		ErrorLog = ParseLog( ErrorLog, SrcLines );
 		
-		Error << ErrorLog << std::endl;
-		return false;
+		Error << ErrorLog;
+		throw Soy::AssertException( Error.str() );
 	}
-	return true;
 }
 
 bool Opengl::IsInitialised(const std::string &Context,bool ThrowException)
@@ -827,11 +828,11 @@ SoyPixelsMeta Opengl::TTexture::GetInternalMeta() const
 #endif
 }
 
-Opengl::TShaderState::TShaderState(const Opengl::GlProgram& Shader) :
+Opengl::TShaderState::TShaderState(const Opengl::TShader& Shader) :
 	mTextureBindCount	( 0 ),
 	mShader				( Shader )
 {
-	glUseProgram( Shader.program.mName );
+	glUseProgram( Shader.mProgram.mName );
 	Opengl_IsOkay();
 }
 
@@ -903,15 +904,10 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
 	Opengl_IsOkay();
 }
 
-Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context)
+Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context)
 {
-	if ( !Opengl_IsInitialised() )
-		return GlProgram();
-	
 	std::string ShaderNameVert = ShaderName + " (vert)";
 	std::string ShaderNameFrag = ShaderName + " (frag)";
-	
-	GlProgram prog;
 	
 	Array<std::string> VertShader;
 	Array<std::string> FragShader;
@@ -937,23 +933,16 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 		SoyShader::Opengl::UpgradeFragShader( GetArrayBridge(FragShader), UpgradeVersion );
 	}
 	
-	prog.vertexShader.mName = glCreateShader( GL_VERTEX_SHADER );
-	if ( !CompileShader( prog.vertexShader, GetArrayBridge(VertShader), ShaderNameVert, std::Debug ) )
-	{
-		Soy::Assert( false, "Failed to compile vertex shader" );
-		return GlProgram();
-	}
-	prog.fragmentShader.mName = glCreateShader( GL_FRAGMENT_SHADER );
-	if ( !CompileShader( prog.fragmentShader, GetArrayBridge(FragShader), ShaderNameFrag, std::Debug ) )
-	{
-		Soy::Assert( false, "Failed to compile fragment shader" );
-		return GlProgram();
-	}
+	mVertexShader.mName = glCreateShader( GL_VERTEX_SHADER );
+	CompileShader( mVertexShader, GetArrayBridge(VertShader), ShaderNameVert );
+
+	mFragmentShader.mName = glCreateShader( GL_FRAGMENT_SHADER );
+	CompileShader( mFragmentShader, GetArrayBridge(FragShader), ShaderNameFrag );
 	
-	prog.program.mName = glCreateProgram();
-	auto& ProgramName = prog.program.mName;
-	glAttachShader( ProgramName, prog.vertexShader.mName );
-	glAttachShader( ProgramName, prog.fragmentShader.mName );
+	mProgram.mName = glCreateProgram();
+	auto& ProgramName = mProgram.mName;
+	glAttachShader( ProgramName, mVertexShader.mName );
+	glAttachShader( ProgramName, mFragmentShader.mName );
 	
 	//	gr: this is not required. We cache the links that the compiler generates AFTERwards
 	//	bind attributes before linking to match geometry
@@ -974,7 +963,6 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 		std::stringstream Error;
 		Error << "Failed to link vertex and fragment shader: " << msg;
 		throw Soy::AssertException( Error.str() );
-		return GlProgram();
 	}
 	
 	//	gr: validate only if we have VAO bound
@@ -991,7 +979,7 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 			Error << "Failed to validate vertex and fragment shader: " << msg;
 			std::Debug << Error.str() << std::endl;
 			//Soy::Assert( false, Error.str() );
-			//return GlProgram();
+			//return TShader();
 		}
 	}
 	
@@ -1020,9 +1008,8 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 		glGetActiveAttrib( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Uniform.mType, &nameData[0]);
 		Uniform.mName = std::string( nameData.data(), actualLength );
 		
-		//	check is valid type etc
-		
-		prog.mAttributes.PushBack( Uniform );
+		//	todo: check is valid type etc
+		mAttributes.PushBack( Uniform );
 	}
 	
 	for( GLint attrib=0;	attrib<numActiveUniforms;	++attrib )
@@ -1036,61 +1023,47 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 		glGetActiveUniform( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Uniform.mType, &nameData[0]);
 		Uniform.mName = std::string( nameData.data(), actualLength );
 		
-		//	check is valid type etc
-		
-		prog.mUniforms.PushBack( Uniform );
+		//	todo: check is valid type etc
+		mUniforms.PushBack( Uniform );
 	}
 
-	std::Debug << ShaderName << " has " << prog.mAttributes.GetSize() << " attributes; " << std::endl;
-	std::Debug << Soy::StringJoin( GetArrayBridge(prog.mAttributes), "\n" );
+	std::Debug << ShaderName << " has " << mAttributes.GetSize() << " attributes; " << std::endl;
+	std::Debug << Soy::StringJoin( GetArrayBridge(mAttributes), "\n" );
 	std::Debug << std::endl;
 
-	std::Debug << ShaderName << " has " << prog.mUniforms.GetSize() << " uniforms; " << std::endl;
-	std::Debug << Soy::StringJoin( GetArrayBridge(prog.mUniforms), "\n" );
+	std::Debug << ShaderName << " has " << mUniforms.GetSize() << " uniforms; " << std::endl;
+	std::Debug << Soy::StringJoin( GetArrayBridge(mUniforms), "\n" );
 	std::Debug << std::endl;
-
-	
-	return prog;
 }
 
 
-bool Opengl::GlProgram::IsValid() const
-{
-	return program.IsValid() && vertexShader.IsValid() && fragmentShader.IsValid();
-}
-
-Opengl::TShaderState Opengl::GlProgram::Bind()
+Opengl::TShaderState Opengl::TShader::Bind()
 {
 	Opengl_IsOkay();
-	glUseProgram( program.mName );
+	glUseProgram( mProgram.mName );
 	Opengl_IsOkay();
 	
 	TShaderState ShaderState( *this );
 	return ShaderState;
 }
 
-void Opengl::GlProgram::Destroy()
+Opengl::TShader::~TShader()
 {
-	if ( program.mName != GL_ASSET_INVALID )
+	if ( mProgram.mName != GL_ASSET_INVALID )
 	{
-		glDeleteProgram( program.mName );
-		program.mName = GL_ASSET_INVALID;
+		glDeleteProgram( mProgram.mName );
+		mProgram.mName = GL_ASSET_INVALID;
 	}
-	if ( vertexShader.mName != GL_ASSET_INVALID )
+	if ( mVertexShader.mName != GL_ASSET_INVALID )
 	{
-		glDeleteShader( vertexShader.mName );
-		vertexShader.mName = GL_ASSET_INVALID;
+		glDeleteShader( mVertexShader.mName );
+		mVertexShader.mName = GL_ASSET_INVALID;
 	}
-	if ( fragmentShader.mName != GL_ASSET_INVALID )
+	if ( mFragmentShader.mName != GL_ASSET_INVALID )
 	{
-		glDeleteShader( fragmentShader.mName );
-		fragmentShader.mName = GL_ASSET_INVALID;
+		glDeleteShader( mFragmentShader.mName );
+		mFragmentShader.mName = GL_ASSET_INVALID;
 	}
-}
-
-bool Opengl::TShaderState::IsValid() const
-{
-	return mShader.IsValid();
 }
 
 
@@ -1136,30 +1109,33 @@ void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
 	}
 }
 
-
-Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex,TContext& Context)
+Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex,TContext& Context) :
+	mVertexBuffer( GL_ASSET_INVALID ),
+	mIndexBuffer( GL_ASSET_INVALID ),
+	mVertexArrayObject( GL_ASSET_INVALID ),
+	mVertexCount( GL_ASSET_INVALID ),
+	mIndexCount( GL_ASSET_INVALID ),
+	mIndexType(GL_ASSET_INVALID),
+	mVertexDescription	( Vertex )
 {
 	Opengl::IsOkay("Opengl::CreateGeometry flush", false);
 		
-	TGeometry Geo;
-	Geo.mVertexDescription = Vertex;
-	
-	glGenBuffers( 1, &Geo.vertexBuffer );
-	glGenBuffers( 1, &Geo.indexBuffer );
+	glGenBuffers( 1, &mVertexBuffer );
+	glGenBuffers( 1, &mIndexBuffer );
 	Opengl::IsOkay( std::string(__func__) + " glGenBuffers" );
 
 	//	fill vertex array
-	Opengl::GenVertexArrays( 1, &Geo.vertexArrayObject );
+	Opengl::GenVertexArrays( 1, &mVertexArrayObject );
 	Opengl::IsOkay( std::string(__func__) + " glGenVertexArrays" );
-	Opengl::BindVertexArray( Geo.vertexArrayObject );
+	Opengl::BindVertexArray( mVertexArrayObject );
 	Opengl::IsOkay( std::string(__func__) + " glBindVertexArray" );
-	glBindBuffer( GL_ARRAY_BUFFER, Geo.vertexBuffer );
+	glBindBuffer( GL_ARRAY_BUFFER, mVertexBuffer );
 	Opengl_IsOkay();
 
 	//	gr: buffer data before setting attrib pointer (needed for ios)
 	//	push data
 	glBufferData( GL_ARRAY_BUFFER, Data.GetDataSize(), Data.GetArray(), GL_STATIC_DRAW );
-	Geo.vertexCount = size_cast<GLsizei>( Data.GetDataSize() / Vertex.GetDataSize() );
+	mVertexCount = size_cast<GLsizei>( Data.GetDataSize() / Vertex.GetDataSize() );
 	Opengl_IsOkay();
 	
 	for ( int at=0;	at<Vertex.mElements.GetSize();	at++ )
@@ -1182,10 +1158,10 @@ Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const A
 	//Vertex.DisableAttribs();
 
 	//	push indexes
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, Geo.indexBuffer );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
 	glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes.GetDataSize(), Indexes.GetArray(), GL_STATIC_DRAW );
-	Geo.indexCount = size_cast<GLsizei>( Indexes.GetSize() );
-	Geo.mIndexType = Opengl::GetTypeEnum<GLshort>();
+	mIndexCount = size_cast<GLsizei>( Indexes.GetSize() );
+	mIndexType = Opengl::GetTypeEnum<GLshort>();
 	Opengl_IsOkay();
 
 	
@@ -1195,23 +1171,16 @@ Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const A
 	//glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
 	Opengl::BindVertexArray( 0 );
 	Opengl_IsOkay();
-	
-
-	
-	return Geo;
 }
 
 
 void Opengl::TGeometry::Draw() const
 {
-	if ( !Opengl_IsInitialised() )
-		return;
-	
 	//	null to draw from indexes in vertex array
-	Opengl::BindVertexArray( vertexArrayObject );
+	Opengl::BindVertexArray( mVertexArrayObject );
 	Opengl_IsOkay();
-	glBindBuffer( GL_ARRAY_BUFFER, vertexBuffer );
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, indexBuffer );
+	glBindBuffer( GL_ARRAY_BUFFER, mVertexBuffer );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
 	
 #if !defined(TARGET_IOS)
 	//	should be left enabled
@@ -1224,7 +1193,7 @@ void Opengl::TGeometry::Draw() const
 	//Opengl_IsOkay();
 	
 	
-	glDrawElements( GL_TRIANGLES, indexCount, mIndexType, nullptr );
+	glDrawElements( GL_TRIANGLES, mIndexCount, mIndexType, nullptr );
 	Opengl::IsOkay("glDrawElements");
 
 	//	unbinding so nothing alters it
@@ -1233,37 +1202,27 @@ void Opengl::TGeometry::Draw() const
 #endif
 }
 
-void Opengl::TGeometry::Free()
+Opengl::TGeometry::~TGeometry()
 {
-	if ( vertexArrayObject != GL_ASSET_INVALID )
+	if ( mVertexArrayObject != GL_ASSET_INVALID )
 	{
-		glDeleteVertexArrays( 1, &vertexArrayObject );
-		vertexArrayObject = GL_ASSET_INVALID;
+		glDeleteVertexArrays( 1, &mVertexArrayObject );
+		mVertexArrayObject = GL_ASSET_INVALID;
 	}
 	
-	if ( indexBuffer != GL_ASSET_INVALID )
+	if ( mIndexBuffer != GL_ASSET_INVALID )
 	{
-		glDeleteBuffers( 1, &indexBuffer );
-		indexBuffer = GL_ASSET_INVALID;
-		indexCount = 0;
+		glDeleteBuffers( 1, &mIndexBuffer );
+		mIndexBuffer = GL_ASSET_INVALID;
+		mIndexCount = 0;
 	}
 	
-	if ( vertexBuffer != GL_ASSET_INVALID )
+	if ( mVertexBuffer != GL_ASSET_INVALID )
 	{
-		glDeleteBuffers( 1, &vertexBuffer );
-		vertexBuffer = GL_ASSET_INVALID;
-		vertexCount = 0;
+		glDeleteBuffers( 1, &mVertexBuffer );
+		mVertexBuffer = GL_ASSET_INVALID;
+		mVertexCount = 0;
 	}
-}
-
-
-bool Opengl::TGeometry::IsValid() const
-{
-	return	vertexBuffer != GL_ASSET_INVALID &&
-	indexBuffer != GL_ASSET_INVALID &&
-	vertexArrayObject != GL_ASSET_INVALID &&
-	vertexCount != GL_ASSET_INVALID &&
-	indexCount != GL_ASSET_INVALID;
 }
 
 

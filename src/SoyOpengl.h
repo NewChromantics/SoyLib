@@ -67,7 +67,7 @@ namespace Opengl
 	class TFboMeta;
 	class TUniform;
 	class TAsset;
-	class GlProgram;
+	class TShader;
 	class TShaderState;
 	class TTexture;
 	class TTextureUploadParams;
@@ -103,31 +103,6 @@ namespace Opengl
 	extern const char * ReflectionMappedSkinned1VertexShaderSrc;
 	extern const char * ReflectionMappedFragmentShaderSrc;
 	
-	GlProgram	BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context);
-
-
-	
-	struct VertexAttribs
-	{
-		std::vector<vec3f> position;
-		std::vector<vec3f> normal;
-		std::vector<vec3f> tangent;
-		std::vector<vec3f> binormal;
-		std::vector<vec4f> color;
-		std::vector<vec2f> uv0;
-		std::vector<vec2f> uv1;
-		//Array< Vector4i > jointIndices;
-		//Array< Vector4f > jointWeights;
-	};
-	
-	typedef unsigned short TriangleIndex;
-	//typedef unsigned int TriangleIndex;
-	
-	static const int MAX_GEOMETRY_VERTICES	= 1 << ( sizeof( TriangleIndex ) * 8 );
-	static const int MAX_GEOMETRY_INDICES	= 1024 * 1024 * 3;
-	
-	TGeometry BuildTesselatedQuad( const int horizontal, const int vertical );
-	TGeometry	CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const TGeometryVertex& Vertex,TContext& Context);
 
 #define Opengl_IsInitialised()	Opengl::IsInitialised(__func__,true)
 #define Opengl_IsOkay()			Opengl::IsOkay(__func__)
@@ -235,14 +210,13 @@ public:
 };
 
 //	clever class which does the binding, auto texture mapping, and unbinding
-//	why? so we can use const GlPrograms and share them across threads
+//	why? so we can use const TShaders and share them across threads
 class Opengl::TShaderState
 {
 public:
-	TShaderState(const GlProgram& Shader);
+	TShaderState(const TShader& Shader);
 	~TShaderState();
 	
-	bool	IsValid() const;
 	void	SetUniform(const std::string& Name,const float& v);
 	void	SetUniform(const std::string& Name,const vec2f& v);
 	void	SetUniform(const std::string& Name,const vec4f& v);
@@ -250,15 +224,15 @@ public:
 	void	BindTexture(size_t TextureIndex,TTexture Texture);	//	use to unbind too
 	
 public:
-	const GlProgram&	mShader;
-	size_t				mTextureBindCount;
+	const TShader&	mShader;
+	size_t			mTextureBindCount;
 };
 
-class Opengl::GlProgram
+class Opengl::TShader
 {
 public:
-	bool			IsValid() const;
-	void			Destroy();
+	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context);
+	~TShader();
 	
 	TShaderState	Bind();	//	let this go out of scope to unbind
 	TUniform		GetUniform(const std::string& Name) const
@@ -273,9 +247,9 @@ public:
 	}
 
 public:
-	TAsset			program;
-	TAsset			vertexShader;
-	TAsset			fragmentShader;
+	TAsset			mProgram;
+	TAsset			mVertexShader;
+	TAsset			mFragmentShader;
 	
 	Array<TUniform>	mUniforms;
 	Array<TUniform>	mAttributes;
@@ -286,55 +260,20 @@ public:
 class Opengl::TGeometry
 {
 public:
-	TGeometry() :
-	vertexBuffer( GL_ASSET_INVALID ),
-	indexBuffer( GL_ASSET_INVALID ),
-	vertexArrayObject( GL_ASSET_INVALID ),
-	vertexCount( GL_ASSET_INVALID ),
-	indexCount( GL_ASSET_INVALID ),
-	mIndexType(GL_ASSET_INVALID)
-	{
-	}
-	/*
-	TGeometry( const VertexAttribs & attribs, const std::vector< TriangleIndex > & indices ) :
-	vertexBuffer( GL_ASSET_INVALID ),
-	indexBuffer( GL_ASSET_INVALID ),
-	vertexArrayObject( GL_ASSET_INVALID ),
-	vertexCount( GL_ASSET_INVALID ),
-	indexCount( GL_ASSET_INVALID )
-	{
-		Create( attribs, indices );
-	}
-	 */
-	
-	// Create the VAO and vertex and index buffers from arrays of data.
-//	void	Create( const VertexAttribs & attribs, const std::vector< TriangleIndex > & indices );
-//	void	Update( const VertexAttribs & attribs );
-	
-	// Assumes the correct program, uniforms, textures, etc, are all bound.
-	// Leaves the VAO bound for efficiency, be careful not to inadvertently
-	// modify any of the state.
-	// You need to manually bind and draw if you want to use GL_LINES / GL_POINTS / GL_TRISTRIPS,
-	// or only draw a subset of the indices.
+	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex,TContext& Context);
+	~TGeometry();
+
 	void	Draw() const;
-	
-	// Free the buffers and VAO, assuming that they are strictly for this geometry.
-	// We could save some overhead by packing an entire model into a single buffer, but
-	// it would add more coupling to the structures.
-	// This is not in the destructor to allow objects of this class to be passed by value.
-	void	Free();
-	
 	bool	IsValid() const;
 	
 public:
-	TGeometryVertex	mVertexDescription;
-	GLuint		vertexArrayObject;
-	GLuint		vertexBuffer;
-	GLsizei		vertexCount;
-	
-	GLuint		indexBuffer;
-	GLsizei 	indexCount;
-	GLenum		mIndexType;		//	short/int etc data stored in index buffer
+	TGeometryVertex	mVertexDescription;	//	for attrib binding info
+	GLuint			mVertexArrayObject;
+	GLuint			mVertexBuffer;
+	GLsizei			mVertexCount;
+	GLuint			mIndexBuffer;
+	GLsizei			mIndexCount;
+	GLenum			mIndexType;		//	short/int etc data stored in index buffer
 };
 
 
@@ -492,7 +431,7 @@ public:
 	
 	bool		IsValid() const	{	return mProgram.IsValid();	}
 	
-	Opengl::GlProgram	mProgram;
+	Opengl::TShader	mProgram;
 };
 */
 
