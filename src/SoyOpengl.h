@@ -104,12 +104,11 @@ namespace Opengl
 	extern const char * ReflectionMappedFragmentShaderSrc;
 	
 
-#define Opengl_IsInitialised()	Opengl::IsInitialised(__func__,true)
 #define Opengl_IsOkay()			Opengl::IsOkay(__func__)
-#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__) + " flush", false )
+#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__)+ " flush", false )
 
-	bool	IsInitialised(const std::string& Context,bool ThrowException);	//	throws exception
-	bool	IsOkay(const std::string& Context,bool ThrowException=true);	//	throws exception
+	bool			IsOkay(const char* Context,bool ThrowException=true);
+	inline bool		IsOkay(const std::string& Context,bool ThrowException=true)	{	return IsOkay( Context.c_str(), ThrowException );	}
 	std::string		GetEnumString(GLenum Type);
 
 	GLenum	GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
@@ -369,7 +368,7 @@ public:
 		return *this;
 	}
 
-	SoyPixelsMeta	GetInternalMeta() const;	//	read meta from opengl
+	SoyPixelsMeta		GetInternalMeta(GLenum& Type);	//	read meta from opengl
 
 	size_t				GetWidth() const	{	return mMeta.GetWidth();	}
 	size_t				GetHeight() const	{	return mMeta.GetHeight();	}
@@ -383,11 +382,11 @@ public:
 	void				Read(SoyPixelsImpl& Pixels);
 	
 public:
-	bool						mAutoRelease;
+	bool				mAutoRelease;
 	std::shared_ptr<SoyPixelsImpl>	mClientBuffer;	//	for CPU-buffered textures, it's kept here. ownership should go with mAutoRelease, but shared_ptr maybe takes care of that?
-	TAsset						mTexture;
-	SoyPixelsMeta			mMeta;
-	GLenum						mType;		//	GL_TEXTURE_2D by default. gr: "type" may be the wrong nomenclature here
+	TAsset				mTexture;
+	SoyPixelsMeta		mMeta;
+	GLenum				mType;		//	GL_TEXTURE_2D by default. gr: "type" may be the wrong nomenclature here
 };
 
 class Opengl::TFbo

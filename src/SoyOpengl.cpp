@@ -285,16 +285,9 @@ void CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLi
 	}
 }
 
-bool Opengl::IsInitialised(const std::string &Context,bool ThrowException)
-{
-	return true;
-}
 
-bool Opengl::IsOkay(const std::string& Context,bool ThrowException)
+bool Opengl::IsOkay(const char* Context,bool ThrowException)
 {
-	if ( !IsInitialised(std::string("CheckIsOkay") + Context, false ) )
-		return false;
-	
 	auto Error = glGetError();
 	if ( Error == GL_NONE )
 		return true;
@@ -449,7 +442,6 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	mAutoRelease	( true ),
 	mType			( Type )
 {
-	Opengl_IsInitialised();
 	Soy::Assert( Meta.IsValid(), "Cannot setup texture with invalid meta" );
 	
 	bool AllowOpenglConversion = true;
@@ -523,9 +515,6 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 
 bool Opengl::TTexture::IsValid() const
 {
-	if ( !Opengl::IsInitialised(__func__,false) )
-		return false;
-	
 	auto IsTexture = glIsTexture( mTexture.mName );
 
 	//	gr: on IOS this is nice and reliable and NEEDED to distinguish from metal textures!
@@ -813,24 +802,74 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 	Opengl_IsOkay();
 }
 
-SoyPixelsMeta Opengl::TTexture::GetInternalMeta() const
+SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType)
 {
 #if defined(OPENGL_ES_3)
 	std::Debug << "Warning, using " << __func__ << " on opengl es (no such info)" << std::endl;
 	return mMeta;
 #else
-	GLint MipLevel = 0;
-	GLint Width = 0;
-	GLint Height = 0;
-	GLint Format = 0;
-	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_WIDTH, &Width);
-	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_HEIGHT, &Height);
-	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &Format );
-	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()" );
-
-	return SoyPixelsMeta( Width, Height, GetDownloadPixelFormat( Format ) );
+	
+	//	try all types
+	GLenum Types_[] =
+	{
+		mType,
+		GL_TEXTURE_2D,
+#if defined(GL_TEXTURE_RECTANGLE)
+		GL_TEXTURE_RECTANGLE,
+#endif
+#if defined(GL_TEXTURE_EXTERNAL_OES)
+		GL_TEXTURE_EXTERNAL_OES,
+#endif
+		GL_TEXTURE_1D,
+		GL_TEXTURE_3D,
+		GL_TEXTURE_CUBE_MAP,
+	};
+	
+	auto Types = GetRemoteArray(Types_);
+	for ( int t=0;	t<Types.GetSize();	t++ )
+	{
+		auto Type = Types[t];
+		if ( Type == GL_INVALID_VALUE )
+			continue;
+	
+		Opengl::TTexture TempTexture( mTexture.mName, mMeta, Type );
+		if ( !TempTexture.Bind() )
+			continue;
+		
+		GLint MipLevel = 0;
+		GLint Width = 0;
+		GLint Height = 0;
+		GLint Format = 0;
+		glGetTexLevelParameteriv( Type, MipLevel, GL_TEXTURE_WIDTH, &Width);
+		glGetTexLevelParameteriv( Type, MipLevel, GL_TEXTURE_HEIGHT, &Height);
+		glGetTexLevelParameteriv( Type, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &Format );
+		
+		TempTexture.Unbind();
+		
+		if ( !Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()", false ) )
+			continue;
+		
+		//	we probably won't get an opengl error, but the values won't be good. We can assume it's not that type
+		//	tested on osx
+		if ( Width==0 || Height==0 || Format==0 )
+			continue;
+		
+		if ( Type != mType )
+			std::Debug << "Determined that texture is " << GetEnumString(Type) << " not " << GetEnumString(mType) << std::endl;
+		
+		RealType = Type;
+		auto PixelFormat = GetDownloadPixelFormat( Format );
+		return SoyPixelsMeta( Width, Height, PixelFormat );
+	}
+	
+	//	couldn't determine any params... not a known texture type?
+	RealType = GL_INVALID_VALUE;
+	return SoyPixelsMeta();
 #endif
 }
+
+
+
 
 Opengl::TShaderState::TShaderState(const Opengl::TShader& Shader) :
 	mTextureBindCount	( 0 ),
