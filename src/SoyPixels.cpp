@@ -142,6 +142,11 @@ void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneForma
 			PlaneFormats.PushBack( Chroma2 );
 			break;
 			
+		case Yuv420_Biplanar_Video:
+			PlaneFormats.PushBack( LumaVideo );
+			PlaneFormats.PushBack( Chroma2 );
+			break;
+			
 		default:
 			break;
 	};
@@ -163,7 +168,9 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},
 	{ SoyPixelsFormat::FreenectDepthmm,		"FreenectDepthmm"	},
 	{ SoyPixelsFormat::Yuv420_Biplanar_Full,	"Yuv420_Biplanar_Full"	},
-	{ SoyPixelsFormat::Yuv420_Biplanar_Video,	"Yuv420_Biplanar_Video"	}
+	{ SoyPixelsFormat::Yuv420_Biplanar_Video,	"Yuv420_Biplanar_Video"	},
+	{ SoyPixelsFormat::LumaFull,			"LumaFull"	},
+	{ SoyPixelsFormat::LumaVideo,			"LumaVideo"	},
 };
 
 

@@ -277,6 +277,10 @@ void CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLi
 		ErrorLog = ParseLog( ErrorLog, SrcLines );
 		
 		Error << ErrorLog;
+		for ( int i=0;	i<SrcLines.GetSize();	i++ )
+		{
+			Error << SrcLines[i];
+		}
 		throw Soy::AssertException( Error.str() );
 	}
 }
@@ -1240,14 +1244,20 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 
 #if defined(TARGET_IOS)
 		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_BGRA, GL_BGRA, GL_BGRA ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
 		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
 		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA ),
 #endif
 #if defined(TARGET_WINDOWS)
 		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
 #endif
 #if defined(GL_VERSION_3_0)
 		TPixelFormatMapping( SoyPixelsFormat::BGR, GL_BGR, GL_BGR, GL_BGR ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_RED, GL_RED, GL_RED ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_RED, GL_RED, GL_RED ),
 		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_RED, GL_RED, GL_RED ),
 		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha, GL_RG, GL_RG, GL_RG ),
 		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_RGBA, GL_BGRA, GL_RGBA ),

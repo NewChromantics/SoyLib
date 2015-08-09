@@ -38,7 +38,7 @@ namespace SoyPixelsFormat
 		Yuv420_Biplanar_Video	= 17,
 	
 		LumaFull		= Greyscale,	//	Luma plane of a YUV
-		//LumaVideo		= 18,			//	Video-range luma plane
+		LumaVideo		= 18,			//	Video-range luma plane
 		Chroma2			= GreyscaleAlpha,	//	16 bit chroma plane
 		
 		//	shorthand names for different platforms
