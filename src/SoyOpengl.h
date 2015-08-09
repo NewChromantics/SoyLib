@@ -120,6 +120,7 @@ namespace Opengl
 	//	helpers
 	void	ClearColour(Soy::TRgb Colour,float Alpha=1);
 	void	ClearDepth();
+	void	ClearStencil();
 	void	SetViewport(Soy::Rectf Viewport);
 };
 

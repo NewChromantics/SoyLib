@@ -859,7 +859,8 @@ Opengl::TShaderState::~TShaderState()
 void Opengl::TShaderState::SetUniform(const std::string& Name,const float& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
-	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
+	if ( !Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name ) )
+		return;
 	Opengl::SetUniform( Uniform, v );
 }
 
@@ -867,7 +868,8 @@ void Opengl::TShaderState::SetUniform(const std::string& Name,const float& v)
 void Opengl::TShaderState::SetUniform(const std::string& Name,const vec4f& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
-	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
+	if ( !Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name ) )
+		return;
 	Opengl::SetUniform( Uniform, v );
 }
 
@@ -875,14 +877,16 @@ void Opengl::TShaderState::SetUniform(const std::string& Name,const vec4f& v)
 void Opengl::TShaderState::SetUniform(const std::string& Name,const vec2f& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
-	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
+	if ( !Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name ) )
+		return;
 	Opengl::SetUniform( Uniform, v );
 }
 
 void Opengl::TShaderState::SetUniform(const std::string& Name,const TTexture& Texture)
 {
 	auto Uniform = mShader.GetUniform( Name );
-	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
+	if ( !Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name ) )
+		return;
 
 	auto BindTextureIndex = size_cast<GLint>( mTextureBindCount );
 	BindTexture( BindTextureIndex, Texture );
@@ -1364,6 +1368,11 @@ void Opengl::SetViewport(Soy::Rectf Viewport)
 void Opengl::ClearDepth()
 {
 	glClear(GL_DEPTH_BUFFER_BIT);
+}
+
+void Opengl::ClearStencil()
+{
+	glClear(GL_STENCIL_BUFFER_BIT);
 }
 
 void Opengl::ClearColour(Soy::TRgb Colour,float Alpha)
