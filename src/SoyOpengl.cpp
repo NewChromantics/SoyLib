@@ -451,7 +451,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	bool AllowOpenglConversion = true;
 	GLuint PixelsFormat = Opengl::GetUploadPixelFormat(*this, Meta.GetFormat(), AllowOpenglConversion );
 	GLuint InternalPixelFormat = Opengl::GetNewTexturePixelFormat( Meta.GetFormat() );
-	if ( PixelsFormat == GL_INVALID_VALUE )
+	if ( PixelsFormat == GL_INVALID_ENUM || InternalPixelFormat == GL_INVALID_ENUM )
 	{
 		std::stringstream Error;
 		Error << "Failed to create texture, unsupported format " << Meta.GetFormat();
@@ -1240,6 +1240,8 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 
 #if defined(TARGET_IOS)
 		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_BGRA, GL_BGRA, GL_BGRA ),
+		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
+		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA ),
 #endif
 #if defined(TARGET_WINDOWS)
 		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
