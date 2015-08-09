@@ -895,43 +895,47 @@ Opengl::TShaderState::~TShaderState()
 
 
 
-void Opengl::TShaderState::SetUniform(const std::string& Name,const float& v)
+bool Opengl::TShaderState::SetUniform(const char* Name,const float& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
-	if ( !Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name ) )
-		return;
+	if ( !Uniform.IsValid() )
+		return false;
 	Opengl::SetUniform( Uniform, v );
+	return true;
 }
 
 
-void Opengl::TShaderState::SetUniform(const std::string& Name,const vec4f& v)
+bool Opengl::TShaderState::SetUniform(const char* Name,const vec4f& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
-	if ( !Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name ) )
-		return;
+	if ( !Uniform.IsValid() )
+		return false;
 	Opengl::SetUniform( Uniform, v );
+	return true;
 }
 
 
-void Opengl::TShaderState::SetUniform(const std::string& Name,const vec2f& v)
+bool Opengl::TShaderState::SetUniform(const char* Name,const vec2f& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
-	if ( !Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name ) )
-		return;
+	if ( !Uniform.IsValid() )
+		return false;
 	Opengl::SetUniform( Uniform, v );
+	return true;
 }
 
-void Opengl::TShaderState::SetUniform(const std::string& Name,const TTexture& Texture)
+bool Opengl::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
 {
 	auto Uniform = mShader.GetUniform( Name );
-	if ( !Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name ) )
-		return;
+	if ( !Uniform.IsValid() )
+		return false;
 
 	auto BindTextureIndex = size_cast<GLint>( mTextureBindCount );
 	BindTexture( BindTextureIndex, Texture );
 	glUniform1i( Uniform.mIndex, BindTextureIndex );
 	Opengl_IsOkay();
 	mTextureBindCount++;
+	return true;
 }
 
 void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
