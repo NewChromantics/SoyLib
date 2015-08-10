@@ -94,7 +94,8 @@ public:
 	~TBuffer();
 
 	void				Read(CUdeviceptr DeviceData,TStream& Stream,bool Block);
-	uint8*				GetData()	{	return mData;	}
+	uint8*				GetData()		{	return mData;	}
+	size_t				GetDataSize()	{	return mAllocSize;	}
 
 public:
 	//	cuda-allocated host data

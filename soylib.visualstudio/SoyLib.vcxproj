@@ -17,6 +17,7 @@
     <ClCompile Include="..\src\memheap.cpp" />
     <ClCompile Include="..\src\SoyArray.cpp" />
     <ClCompile Include="..\src\SoyAssert.cpp" />
+    <ClCompile Include="..\src\SoyCuda.cpp" />
     <ClCompile Include="..\src\SoyDebug.cpp" />
     <ClCompile Include="..\src\SoyEvent.cpp" />
     <ClCompile Include="..\src\SoyMath.cpp" />
@@ -48,6 +49,7 @@
     <ClInclude Include="..\src\SortArray.h" />
     <ClInclude Include="..\src\SoyArray.h" />
     <ClInclude Include="..\src\SoyAssert.h" />
+    <ClInclude Include="..\src\SoyCuda.h" />
     <ClInclude Include="..\src\SoyDebug.h" />
     <ClInclude Include="..\src\SoyEnum.h" />
     <ClInclude Include="..\src\SoyEvent.h" />
