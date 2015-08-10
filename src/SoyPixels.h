@@ -36,9 +36,11 @@ namespace SoyPixelsFormat
 		//	Y=luma	uv=ChromaUv
 		Yuv420_Biplanar_Full	= 16,
 		Yuv420_Biplanar_Video	= 17,
-	
+		Yuv422_Biplanar_Full	= 18,
+		Yuv444_Biplanar_Full	= 19,
+
 		LumaFull		= Greyscale,	//	Luma plane of a YUV
-		LumaVideo		= 18,			//	Video-range luma plane
+		LumaVideo		= 20,			//	Video-range luma plane
 		Chroma2			= GreyscaleAlpha,	//	16 bit chroma plane
 		
 		//	shorthand names for different platforms
@@ -223,10 +225,16 @@ public:
 	{
 		*this = that;
 	}
-	SoyPixelsRemote(uint8* Array,size_t Width,size_t Height,size_t DataSize,SoyPixelsFormat::Type Format) :
-		mArray			( Array, DataSize ),
-		mMeta			( Width, Height, Format ),
-		mArrayBridge	( mArray )
+	explicit SoyPixelsRemote(uint8* Array, size_t Width, size_t Height, size_t DataSize, SoyPixelsFormat::Type Format) :
+		mArray(Array, DataSize),
+		mMeta(Width, Height, Format),
+		mArrayBridge(mArray)
+	{
+	}
+	explicit SoyPixelsRemote(uint8* Array, size_t DataSize,const SoyPixelsMeta& Meta) :
+		mArray(Array, DataSize),
+		mMeta(Meta),
+		mArrayBridge(mArray)
 	{
 	}
 	explicit SoyPixelsRemote(SoyPixelsImpl& Pixels) :
