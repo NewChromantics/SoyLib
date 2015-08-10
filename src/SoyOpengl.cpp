@@ -679,6 +679,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 	//	pixel data format
 	auto GlPixelsFormat = Opengl::GetUploadPixelFormat( *this, SourcePixels.GetFormat(), Params.mAllowOpenglConversion );
 
+
 	//	gr: take IOS's target-must-match-source requirement into consideration here (replace GetUploadPixelFormat)
 	SoyPixels ConvertedPixels;
 	if ( Params.mAllowCpuConversion )
@@ -707,6 +708,12 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 		
 	}
 	
+	if (GlPixelsFormat == GL_INVALID_ENUM)
+	{
+		std::stringstream Error;
+		Error << "Failed to write texture, unsupported upload format " << SourcePixels.GetFormat();
+		throw Soy::AssertException(Error.str());
+	}
 	
 	auto& FinalPixels = *UsePixels;
 	GLenum GlPixelsStorage = GL_UNSIGNED_BYTE;
