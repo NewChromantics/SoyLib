@@ -263,8 +263,11 @@ public:
 	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex,TContext& Context);
 	~TGeometry();
 
-	void	Draw() const;
+	void	Draw();
 	bool	IsValid() const;
+
+	void	Bind();
+	void	Unbind();
 	
 public:
 	TGeometryVertex	mVertexDescription;	//	for attrib binding info

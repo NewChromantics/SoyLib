@@ -14,7 +14,11 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 {
 	{	OpenglExtensions::Invalid,				"Invalid"	},
 	{	OpenglExtensions::AppleClientStorage,	"GL_APPLE_client_storage"	},
+#if defined(TARGET_WINDOWS)
+	{	OpenglExtensions::VertexArrayObjects,	"GL_ARB_vertex_array_object"	},
+#else
 	{	OpenglExtensions::VertexArrayObjects,	"GL_APPLE_vertex_array_object"	},
+#endif
 };
 
 
@@ -137,11 +141,19 @@ void SetUnsupportedFunction(FUNCTION& Function,const char* Name,RETURN Return)
 	};
 }
 
+template<typename FUNCTYPE>
+void SetFunction(std::function<FUNCTYPE>& f,void* x)
+{
+	FUNCTYPE* ff = (FUNCTYPE*)x;
+	f = ff;
+}
+
 void Opengl::TContext::BindVertexArrayObjectsExtension()
 {
 	//	implicitly supported in opengl 3 & 4 (ES and CORE)
 	bool ImplicitlySupported = (mVersion.mMajor >= 3);
 	
+#if !defined(TARGET_WINDOWS)
 	if ( ImplicitlySupported )
 	{
 		SupportedExtensions[OpenglExtensions::VertexArrayObjects] = true;
@@ -153,6 +165,7 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 		IsVertexArray = glIsVertexArray;
 		return;
 	}
+#endif
 	
 	bool IsSupported = SupportedExtensions.find(OpenglExtensions::VertexArrayObjects) != SupportedExtensions.end();
 	
@@ -164,7 +177,12 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 		GenVertexArrays = glGenVertexArraysAPPLE;
 		DeleteVertexArrays = glDeleteVertexArraysAPPLE;
 		IsVertexArray = glIsVertexArrayAPPLE;
-#else
+#elif defined(TARGET_WINDOWS)
+		SetFunction( BindVertexArray, wglGetProcAddress("glBindVertexArray") );
+		SetFunction( GenVertexArrays, wglGetProcAddress("glGenVertexArrays") );
+		SetFunction( DeleteVertexArrays, wglGetProcAddress("glDeleteVertexArrays") );
+		SetFunction( IsVertexArray, wglGetProcAddress("glIsVertexArray") );
+ #else
 		IsSupported = false;
 #endif
 	}

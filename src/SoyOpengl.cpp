@@ -1197,18 +1197,18 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<G
 {
 	Opengl::IsOkay("Opengl::CreateGeometry flush", false);
 		
+	//	fill vertex array
+	Opengl::GenVertexArrays( 1, &mVertexArrayObject );
+	Opengl::IsOkay( std::string(__func__) + " glGenVertexArrays" );
+	
 	glGenBuffers( 1, &mVertexBuffer );
 	glGenBuffers( 1, &mIndexBuffer );
 	Opengl::IsOkay( std::string(__func__) + " glGenBuffers" );
 
-	//	fill vertex array
-	Opengl::GenVertexArrays( 1, &mVertexArrayObject );
-	Opengl::IsOkay( std::string(__func__) + " glGenVertexArrays" );
-	Opengl::BindVertexArray( mVertexArrayObject );
-	Opengl::IsOkay( std::string(__func__) + " glBindVertexArray" );
+	Bind();
 	glBindBuffer( GL_ARRAY_BUFFER, mVertexBuffer );
 	Opengl_IsOkay();
-
+	
 	//	gr: buffer data before setting attrib pointer (needed for ios)
 	//	push data
 	glBufferData( GL_ARRAY_BUFFER, Data.GetDataSize(), Data.GetArray(), GL_STATIC_DRAW );
@@ -1241,22 +1241,37 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<G
 	mIndexType = Opengl::GetTypeEnum<GLshort>();
 	Opengl_IsOkay();
 
-	
+	//	
+	glFinish();
+
 	//	unbind
-	//	gr: don't unbind, leave bound for life of VAO (maybe for GL 3 only)
+	//	gr: don't unbind buffers from the VAO, leave bound for life of VAO (maybe for GL 3 only?)
 	//glBindBuffer( GL_ARRAY_BUFFER, 0 );
 	//glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
-	Opengl::BindVertexArray( 0 );
+	Unbind();
+}
+
+void Opengl::TGeometry::Bind()
+{
+	Opengl::BindVertexArray( mVertexArrayObject );
 	Opengl_IsOkay();
 }
 
-
-void Opengl::TGeometry::Draw() const
+void Opengl::TGeometry::Unbind()
 {
-	//	null to draw from indexes in vertex array
-	Opengl::BindVertexArray( mVertexArrayObject );
+	//	unbinding so nothing alters it
+#if defined(TARGET_IOS)|| defined(TARGET_WINDOWS)
+	Opengl::BindVertexArray( 0 );
 	Opengl_IsOkay();
-	
+#endif
+}
+
+
+void Opengl::TGeometry::Draw()
+{
+	Bind();
+
+	//	should already be bound, so these should do nothing
 	glBindBuffer( GL_ARRAY_BUFFER, mVertexBuffer );
 	Opengl_IsOkay();
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
@@ -1276,10 +1291,7 @@ void Opengl::TGeometry::Draw() const
 	glDrawElements( GL_TRIANGLES, mIndexCount, mIndexType, nullptr );
 	Opengl::IsOkay("glDrawElements");
 
-	//	unbinding so nothing alters it
-#if defined(TARGET_IOS)
-	Opengl::BindVertexArray( 0 );
-#endif
+	Unbind();
 }
 
 Opengl::TGeometry::~TGeometry()
