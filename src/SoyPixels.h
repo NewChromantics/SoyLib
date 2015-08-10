@@ -44,7 +44,7 @@ namespace SoyPixelsFormat
 		Chroma2			= GreyscaleAlpha,	//	16 bit chroma plane
 		
 		//	shorthand names for different platforms
-		Nv12			= Yuv420_Biplanar_Full,
+		Nv12			= Yuv420_Biplanar_Video,
 	};
 
 	size_t		GetChannelCount(Type Format);

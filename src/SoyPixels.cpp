@@ -110,6 +110,7 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	default:
 	case Invalid:		return 0;
 	case Greyscale:		return 1;
+	case LumaVideo:		return 1;
 	case GreyscaleAlpha:	return 2;
 	case RGB:			return 3;
 	case RGBA:			return 4;
