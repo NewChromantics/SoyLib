@@ -232,11 +232,12 @@ bool Soy::Platform::IsDebuggerAttached()
 
 bool Soy::Platform::DebugBreak()
 {
+	static bool DoBreak = true;
+
 #if defined(TARGET_OSX)
 	//	gr: supposedly this works, if you enable it in the scheme, but I don't know where it's declared
 	//Debugger();
-	static bool AssemblerBreak = true;
-	if ( AssemblerBreak )
+	if (DoBreak)
 	{
 		__asm__("int $3");
 	}
@@ -247,7 +248,10 @@ bool Soy::Platform::DebugBreak()
 #endif
 
 #if defined(TARGET_WINDOWS)
-	::DebugBreak();
+	if (DoBreak)
+	{
+		::DebugBreak();
+	}
 	return true;
 #endif
 
