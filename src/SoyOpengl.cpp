@@ -142,7 +142,10 @@ std::string Opengl::GetEnumString(GLenum Type)
 			CASE_ENUM_STRING( GL_RGB8 );
 			CASE_ENUM_STRING( GL_RGBA8 );
 			CASE_ENUM_STRING( GL_RED );
-	
+
+			CASE_ENUM_STRING( GL_R8 );
+			CASE_ENUM_STRING( GL_RG8 );
+
 #if defined(OPENGL_CORE_3)
 			CASE_ENUM_STRING( GL_TEXTURE_1D );
 #endif
@@ -331,7 +334,7 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	Opengl::IsOkay("FBO glGenFramebuffers");
 	glBindFramebuffer( GL_FRAMEBUFFER, mFbo.mName );
 	Opengl::IsOkay("FBO glBindFramebuffer2");
-	
+
 	GLint MipLevel = 0;
 	if ( mType == GL_TEXTURE_2D )
 		glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, MipLevel );
@@ -344,12 +347,8 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
 	glDrawBuffers(1, DrawBuffers);
 	
-	//	caps check
-	auto FrameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	Soy::Assert( FrameBufferStatus == GL_FRAMEBUFFER_COMPLETE, "DIdn't complete framebuffer setup" );
-	
-	glBindFramebuffer( GL_FRAMEBUFFER, 0 );
-	Opengl::IsOkay("FBO UN glBindTexture2");
+	CheckStatus();
+	Unbind();
 }
 
 Opengl::TFbo::~TFbo()
@@ -359,6 +358,7 @@ Opengl::TFbo::~TFbo()
 
 void Opengl::TFbo::Delete(Opengl::TContext &Context)
 {
+
 	if ( !mFbo.IsValid() )
 		return;
 
@@ -405,6 +405,13 @@ void Opengl::TFbo::InvalidateContent()
 
 bool Opengl::TFbo::Bind()
 {
+	Opengl_IsOkayFlush();
+
+	bool IsFrameBuffer = glIsFramebuffer(mFbo.mName);
+	Opengl_IsOkay();
+	if ( !Soy::Assert( IsFrameBuffer, "Frame buffer no longer valid" ) )
+		return false;
+
 	glBindFramebuffer(GL_FRAMEBUFFER, mFbo.mName );
 	Opengl_IsOkay();
 	
@@ -419,11 +426,23 @@ bool Opengl::TFbo::Bind()
 	Opengl::SetViewport( FrameBufferRect );
 	Opengl_IsOkay();
 	
+
 	return true;
+}
+
+void Opengl::TFbo::CheckStatus()
+{
+	auto FrameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	Opengl::IsOkay("glCheckFramebufferStatus");
+	Soy::Assert(FrameBufferStatus == GL_FRAMEBUFFER_COMPLETE, "DIdn't complete framebuffer setup");
+
+	//	check target is still valid
+	Soy::Assert(mTarget.IsValid(), "FBO texture invalid");
 }
 
 void Opengl::TFbo::Unbind()
 {
+	CheckStatus();
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	Opengl_IsOkay();
 }
@@ -1237,9 +1256,12 @@ void Opengl::TGeometry::Draw() const
 	//	null to draw from indexes in vertex array
 	Opengl::BindVertexArray( mVertexArrayObject );
 	Opengl_IsOkay();
-	glBindBuffer( GL_ARRAY_BUFFER, mVertexBuffer );
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
 	
+	glBindBuffer( GL_ARRAY_BUFFER, mVertexBuffer );
+	Opengl_IsOkay();
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
+	Opengl_IsOkay();
+
 #if !defined(TARGET_IOS)
 	//	should be left enabled
 	mVertexDescription.EnableAttribs();
@@ -1304,9 +1326,11 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA ),
 #endif
 #if defined(TARGET_WINDOWS)
-		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
-		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
-		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_RED, GL_RED, GL_RED),
+		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_RED, GL_RED, GL_RED),
+		TPixelFormatMapping(SoyPixelsFormat::Greyscale, GL_RED, GL_RED, GL_RED),
+		TPixelFormatMapping(SoyPixelsFormat::GreyscaleAlpha, GL_RG, GL_RG, GL_RG),
+
 #endif
 #if defined(GL_VERSION_3_0)
 		TPixelFormatMapping( SoyPixelsFormat::BGR, GL_BGR, GL_BGR, GL_BGR ),

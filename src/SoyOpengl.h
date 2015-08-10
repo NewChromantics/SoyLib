@@ -399,6 +399,7 @@ public:
 	bool		Bind();
 	void		Unbind();
 	void		InvalidateContent();
+	void		CheckStatus();
 	
 	void		Delete(Opengl::TContext& Context);	//	deffered delete
 	void		Delete();
