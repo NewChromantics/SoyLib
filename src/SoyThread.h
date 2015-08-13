@@ -24,10 +24,18 @@ public:
 	void		Wait(const char* TimerName=nullptr);
 	void		OnCompleted();
 	
+	//	if whatever we're waiting for had an error, we re-throw the message in Wait() as a Soy::AssertException
+	void		OnFailed(const char* ThrownError)
+	{
+		mThrownError = ThrownError ? ThrownError : "Failed with unspecified error";
+		OnCompleted();
+	}
+	
 private:
 	std::mutex				mLock;
 	std::condition_variable	mConditional;
 	volatile bool			mCompleted;
+	std::string				mThrownError;
 };
 
 
@@ -51,14 +59,10 @@ public:
 	mSemaphore	( nullptr )
 	{
 	}
+
+	virtual void			Run()=0;		//	throws on error, otherwise assuming success
 	
-	//	returns "im finished"
-	//	return false to stop any more tasks being run and re-insert this in the queue
-	virtual bool		Run(std::ostream& Error)=0;
-	
-	//	todo: event, or sempahore? or OS semaphore?
 	Soy::TSemaphore*		mSemaphore;
-	//SoyEvent<bool>		mOnFinished;
 };
 
 
@@ -66,17 +70,17 @@ public:
 class PopWorker::TJob_Function : public TJob
 {
 public:
-	TJob_Function(std::function<bool ()> Function) :
+	TJob_Function(std::function<void()> Function) :
 	mFunction	( Function )
 	{
 	}
 	
-	virtual bool		Run(std::ostream& Error)
+	virtual void		Run() override
 	{
 		return mFunction();
 	}
 	
-	std::function<bool ()>	mFunction;
+	std::function<void()>	mFunction;
 };
 
 
@@ -93,8 +97,8 @@ class PopWorker::TJobQueue
 public:
 	void			Flush(TContext& Context);
 	bool			HasJobs() const			{	return !mJobs.empty();	}
-	void			PushJob(std::function<bool(void)> Lambda);
-	void			PushJob(std::function<bool(void)> Lambda,Soy::TSemaphore& Semaphore);
+	void			PushJob(std::function<void()> Lambda);
+	void			PushJob(std::function<void()> Lambda,Soy::TSemaphore& Semaphore);
 	void			PushJob(std::shared_ptr<TJob>& Job)									{	PushJobImpl( Job, nullptr );	}
 	void			PushJob(std::shared_ptr<TJob>& Job,Soy::TSemaphore& Semaphore)		{	PushJobImpl( Job, &Semaphore );	}
 	

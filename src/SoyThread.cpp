@@ -18,7 +18,11 @@ void Soy::TSemaphore::OnCompleted()
 void Soy::TSemaphore::Wait(const char* TimerName)
 {
 	if ( mCompleted )
+	{
+		if ( !mThrownError.empty() )
+			throw Soy::AssertException( mThrownError );
 		return;
+	}
 	
 	std::unique_lock<std::mutex> Lock( mLock );
 	
@@ -46,6 +50,9 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 	
 	if ( !mCompleted )
 		throw Soy::AssertException("Broke out of semaphore");
+
+	if ( !mThrownError.empty() )
+		throw Soy::AssertException( mThrownError );
 }
 
 
@@ -101,33 +108,31 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 		//	gr: remove this and make the jobs more dumb. Throw exceptions on error, caller can re-insert jobs as neccessary
 		try
 		{
-			if (!Job->Run(std::Debug))
-			{
-				mLock.lock();
-				mJobs.insert(mJobs.begin(), Job);
-				mLock.unlock();
-				break;
-			}
+			Job->Run();
+			//	mark job as finished
+			if ( Job->mSemaphore )
+				Job->mSemaphore->OnCompleted();
 		}
 		catch (std::exception& e)
 		{
-			std::Debug << "Error executing job " << e.what() << std::endl;
+			if ( Job->mSemaphore )
+				Job->mSemaphore->OnFailed( e.what() );
+			else
+				std::Debug << "Exception executing job " << e.what() << " (no semaphore)" << std::endl;
 		}
 		
-		//	mark job as finished
-		if ( Job->mSemaphore )
-			Job->mSemaphore->OnCompleted();
+		
 	}
 }
 
 
-void PopWorker::TJobQueue::PushJob(std::function<bool ()> Function)
+void PopWorker::TJobQueue::PushJob(std::function<void()> Function)
 {
 	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
 	PushJobImpl( Job, nullptr );
 }
 
-void PopWorker::TJobQueue::PushJob(std::function<bool ()> Function,Soy::TSemaphore& Semaphore)
+void PopWorker::TJobQueue::PushJob(std::function<void()> Function,Soy::TSemaphore& Semaphore)
 {
 	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
 	PushJobImpl( Job, &Semaphore );
