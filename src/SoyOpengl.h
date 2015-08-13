@@ -221,6 +221,14 @@ public:
 	bool	SetUniform(const char* Name,const vec2f& v);
 	bool	SetUniform(const char* Name,const vec4f& v);
 	bool	SetUniform(const char* Name,const TTexture& Texture);	//	special case which tracks how many textures are bound
+
+	template<typename TYPE>
+	bool	SetUniform(const std::string& Name,const TYPE& v)
+	{
+		return SetUniform( Name.c_str(), v );
+	}
+									   
+
 	void	BindTexture(size_t TextureIndex,TTexture Texture);	//	use to unbind too
 	
 public:
