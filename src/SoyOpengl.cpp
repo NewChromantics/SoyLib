@@ -562,20 +562,20 @@ void Opengl::TTexture::Delete()
 	}
 }
 
-bool Opengl::TTexture::Bind()
+bool Opengl::TTexture::Bind() const
 {
 	Opengl::IsOkay("Texture bind flush",false);
 	glBindTexture( mType, mTexture.mName );
 	return Opengl_IsOkay();
 }
 
-void Opengl::TTexture::Unbind()
+void Opengl::TTexture::Unbind() const
 {
 	glBindTexture( mType, GL_ASSET_INVALID );
 }
 
 
-void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
+void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 {
 	Soy::Assert( IsValid(), "Trying to read from invalid texture" );
 
@@ -611,11 +611,8 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
 	static int DebugPixelCount_ = 0;
 	if ( DebugPixelCount_ > 0 )
 	{
-		auto DebugPixelCount = std::min<size_t>( DebugPixelCount_, Pixels.GetPixelsArray().GetDataSize() );
-		std::Debug << "Read pixels; x" << DebugPixelCount;
-		for ( int i=0;	i<DebugPixelCount;	i++ )
-			std::Debug << ' ' << static_cast<int>(PixelBytes[i]);
-		std::Debug << std::endl;
+		//auto DebugPixelCount = std::min<size_t>( DebugPixelCount_, Pixels.GetPixelsArray().GetDataSize() );
+		Pixels.PrintPixels("Read pixels from texture: ", std::Debug, false, " " );
 	}
 	
 	Unbind();

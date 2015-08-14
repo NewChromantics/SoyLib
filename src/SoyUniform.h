@@ -10,7 +10,7 @@ namespace Soy
 
 namespace Opengl
 {
-	class TTexture;
+	class TTextureAndContext;
 }
 
 
@@ -35,7 +35,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const vec4f& v)=0;
 	
 	//	gr: here I want to find a way that doesn't require this to be defined so we're not dependant on Opengl/OPencl/Cuda
-	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& v)=0;
+	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v)=0;
 
 	template<typename TYPE>
 	bool			SetUniform_s(const std::string& Name,const TYPE& v)

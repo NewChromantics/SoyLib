@@ -2,6 +2,7 @@
 //#include "SoyApp.h"
 #include <SoyDebug.h>
 #include <SoyString.h>
+#include "SoyOpenglContext.h"
 
 
 namespace Opencl
@@ -768,6 +769,38 @@ Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,
 }
 
 
+Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
+	mContext	( Context )
+{
+	//	check for opengl interoperability
+	SoyPixels Buffer;
+	auto Read = [&Buffer,&Texture]
+	{
+		Texture.Read( Buffer );
+	};
+	Soy::TSemaphore ReadSemaphore;
+	OpenglContext.PushJob( Read, ReadSemaphore );
+	ReadSemaphore.Wait();
+	
+	*this = std::move( Opencl::TBufferImage( Buffer, Context, false, ReadWrite, Semaphore ) );
+}
+
+Opencl::TBufferImage& Opencl::TBufferImage::operator=(TBufferImage&& Move)
+{
+	if ( mContext != Move.mContext )
+		throw Soy::AssertException("Trying to std::move a buffer image across contexts");
+	
+	if ( this != &Move )
+	{
+		mMem = Move.mMem;
+
+		//	stolen the resource
+		Move.mMem = nullptr;
+	}
+	return *this;
+}
+
+
 void Opencl::TBufferImage::Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
 {
 	size_t Origin[] = { 0,0,0 };
@@ -806,10 +839,25 @@ void Opencl::TBufferImage::Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
 }
 
 
-bool Opencl::TKernelState::SetUniform(const char* Name,const Opengl::TTexture& Pixels)
+bool Opencl::TKernelState::SetUniform(const char* Name,const Opengl::TTextureAndContext& Pixels)
 {
-	Soy_AssertTodo();
-	return false;
+	//	todo: get uniform and check type is image_2D_t
+	//	make image buffer and set that
+	Opencl::TSync Sync;
+	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels.mTexture, Pixels.mContext, GetContext(), OpenclBufferReadWrite::ReadWrite, &Sync ) );
+	
+	if ( mBuffers.find(Name) != mBuffers.end() )
+		std::Debug << "Warning, setting buffer for uniform " << Name << " which already has a buffer..." << std::endl;
+	
+	mBuffers[Name] = Buffer;
+	
+	//	set kernel arg
+	bool Result = SetKernelArg( *this, Name, Buffer->GetMemBuffer() );
+	
+	//	we can't tell when caller is going to release the pixels, so wait for it to finish
+	Sync.Wait();
+	
+	return Result;
 }
 
 
@@ -817,7 +865,6 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const SoyPixelsImpl& Pixe
 {
 	//	todo: get uniform and check type is image_2D_t
 	//	make image buffer and set that
-	//	gr: do we need to store the buffer for the life time of the execution?
 	Opencl::TSync Sync;
 	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, OpenclBufferReadWrite::WriteOnly, &Sync ) );
 

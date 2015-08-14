@@ -125,7 +125,18 @@ namespace Opengl
 };
 
 
+class Opengl::TTextureAndContext
+{
+public:
+	TTextureAndContext(TTexture& t,TContext& c) :
+		mTexture	( t ),
+		mContext	( c )
+	{
+	}
 
+	TTexture&	mTexture;
+	TContext&	mContext;
+};
 
 
 class Opengl::TFboMeta
@@ -220,7 +231,8 @@ public:
 	virtual bool	SetUniform(const char* Name,const float& v) override;
 	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
 	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
-	virtual bool	SetUniform(const char* Name,const TTexture& Texture) override;	//	special case which tracks how many textures are bound
+	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& Texture);	//	special case which tracks how many textures are bound
+	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override	{	return SetUniform( Name, Texture.mTexture );	}
 
 	template<typename TYPE>
 	bool	SetUniform(const std::string& Name,const TYPE& v)
@@ -385,12 +397,12 @@ public:
 	size_t				GetHeight() const	{	return mMeta.GetHeight();	}
 	SoyPixelsFormat::Type	GetFormat() const	{	return mMeta.GetFormat();	}
 
-	bool				Bind();
-	void				Unbind();
+	bool				Bind() const;
+	void				Unbind() const;
 	bool				IsValid() const;
 	void				Delete();
 	void				Copy(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
-	void				Read(SoyPixelsImpl& Pixels);
+	void				Read(SoyPixelsImpl& Pixels) const;
 	
 public:
 	bool				mAutoRelease;

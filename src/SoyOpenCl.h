@@ -7,6 +7,13 @@
 #include "SoyPixels.h"
 #include "SoyUniform.h"
 
+namespace Opengl
+{
+	class TTexture;
+	class TContext;
+}
+
+
 
 #if defined(TARGET_WINDOWS)
 //	gr: amd APP sdk, other includes/libs may be different?
@@ -193,6 +200,12 @@ public:
 	cl_context			GetContext()		{	return mDevice.GetClContext();	}	//	get the opencl context
 	cl_command_queue	GetQueue() const	{	return mQueue;	}
 
+	bool				operator==(const TContext& that) const
+	{
+		return mDevice.GetClContext() == that.mDevice.GetClContext();
+	}
+	bool				operator!=(const TContext& that) const	{	return !(*this == that);	}
+	
 protected:
 	TDevice&			mDevice;
 	TDeviceMeta			mDeviceMeta;	//	useful to cache to read vars
@@ -292,7 +305,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const float& v) override;
 	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
 	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
-	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& v) override;
+	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v) override;
 	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels);
 	bool			SetUniform(const char* Name,cl_int Value);
 	
@@ -415,7 +428,11 @@ class Opencl::TBufferImage : public TBuffer
 public:
 	TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
 	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
+	TBufferImage(const Opengl::TTexture& Image,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
 	
+	TBufferImage&	operator=(TBufferImage&& Move);
+	
+	void		Write(const Opengl::TTexture& Image,Opencl::TSync* Semaphore);
 	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
 	void		Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
 	
