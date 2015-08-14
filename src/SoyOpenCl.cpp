@@ -29,6 +29,16 @@ cl_float2 Soy::VectorToCl(const vec2f& v)
 	return cl_float2{ .s={ v.x, v.y } };
 }
 
+cl_float3 Soy::VectorToCl(const vec3f& v)
+{
+	return cl_float3{ .s={ v.x, v.y, v.z } };
+}
+
+cl_float4 Soy::VectorToCl(const vec4f& v)
+{
+	return cl_float4{ .s={ v.x, v.y, v.z, v.w } };
+}
+
 
 
 
@@ -796,6 +806,13 @@ void Opencl::TBufferImage::Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
 }
 
 
+bool Opencl::TKernelState::SetUniform(const char* Name,const Opengl::TTexture& Pixels)
+{
+	Soy_AssertTodo();
+	return false;
+}
+
+
 bool Opencl::TKernelState::SetUniform(const char* Name,const SoyPixelsImpl& Pixels)
 {
 	//	todo: get uniform and check type is image_2D_t
@@ -819,7 +836,18 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const SoyPixelsImpl& Pixe
 }
 
 
-bool Opencl::TKernelState::SetUniform(const char* Name,vec2f Value)
+bool Opencl::TKernelState::SetUniform(const char* Name,const vec4f& Value)
+{
+	auto Value2 = Soy::VectorToCl( Value );
+	return SetKernelArg( *this, Name, Value2 );
+}
+
+bool Opencl::TKernelState::SetUniform(const char* Name,const float& Value)
+{
+	return SetKernelArg( *this, Name, Value );
+}
+
+bool Opencl::TKernelState::SetUniform(const char* Name,const vec2f& Value)
 {
 	auto Value2 = Soy::VectorToCl( Value );
 	return SetKernelArg( *this, Name, Value2 );

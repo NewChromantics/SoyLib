@@ -5,6 +5,7 @@
 #include "SoyString.h"
 #include "SoyEnum.h"
 #include "SoyPixels.h"
+#include "SoyUniform.h"
 
 
 #if defined(TARGET_WINDOWS)
@@ -278,26 +279,22 @@ public:
 
 
 
-class Opencl::TKernelState
+class Opencl::TKernelState : public Soy::TUniformContainer
 {
 	friend class TKernel;
 protected:
 	TKernelState(TKernel& Kernel);
 public:
-	~TKernelState();
+	virtual ~TKernelState();
 	
 	//	gr: not uniforms, but matching name of opengl
 	//	gr: like opengl, these now throw on error, silent(return) if uniform doesn't exist
+	virtual bool	SetUniform(const char* Name,const float& v) override;
+	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
+	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
+	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& v) override;
 	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels);
 	bool			SetUniform(const char* Name,cl_int Value);
-	bool			SetUniform(const char* Name,vec2f Value);
-	/*
-	template<typename TYPE>
-	bool			SetUniform(const std::string& Name,const TYPE& Value)
-	{
-		return SetUniform( Name.c_str(), Value );
-	}
-	 */
 	
 	//	throw on error, assuming wrong uniform is fatal
 	void			ReadUniform(const char* Name,SoyPixelsImpl& Pixels);	//	read back data from a buffer that was used as a uniform
@@ -322,7 +319,7 @@ private:
 
 
 
-class Opencl::TUniform
+class Opencl::TUniform : public Soy::TUniform
 {
 public:
 	TUniform() :
@@ -330,9 +327,9 @@ public:
 	{
 	}
 	TUniform(const std::string& Name,const std::string& Type,cl_uint Index) :
-		mIndex		( Index ),
-		mName		( Name ),
-		mType		( Type )
+		Soy::TUniform	( Name ),
+		mIndex			( Index ),
+		mType			( Type )
 	{
 	}
 	
@@ -340,7 +337,6 @@ public:
 	bool		operator==(const std::string& Name) const	{	return mName == Name;	}
 	
 public:
-	std::string	mName;
 	std::string	mType;
 	cl_uint		mIndex;
 };

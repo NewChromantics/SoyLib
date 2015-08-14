@@ -3,6 +3,7 @@
 #include <SoyEvent.h>
 #include <SoyMath.h>
 #include <SoyPixels.h>
+#include "SoyUniform.h"
 
 
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
@@ -144,21 +145,20 @@ public:
 
 
 
-class Opengl::TUniform
+class Opengl::TUniform : public Soy::TUniform
 {
 public:
 	TUniform(const std::string& Name=std::string()) :
-		mIndex		( GL_UNIFORM_INVALID ),
-		mType		( GL_ASSET_INVALID ),
-		mArraySize	( 0 ),
-		mName		( Name )
+		Soy::TUniform	( Name ),
+		mIndex			( GL_UNIFORM_INVALID ),
+		mType			( GL_ASSET_INVALID ),
+		mArraySize		( 0 )
 	{
 	}
 	
 	bool		IsValid() const	{	return mIndex != GL_UNIFORM_INVALID;	}
 	bool		operator==(const std::string& Name) const	{	return mName == Name;	}
 	
-	std::string	mName;
 	GLenum		mType;
 	GLsizei		mArraySize;	//	for arrays of mType
 	GLint		mIndex;		//	attrib index
@@ -211,16 +211,16 @@ public:
 
 //	clever class which does the binding, auto texture mapping, and unbinding
 //	why? so we can use const TShaders and share them across threads
-class Opengl::TShaderState
+class Opengl::TShaderState : public Soy::TUniformContainer
 {
 public:
 	TShaderState(const TShader& Shader);
 	~TShaderState();
 	
-	bool	SetUniform(const char* Name,const float& v);
-	bool	SetUniform(const char* Name,const vec2f& v);
-	bool	SetUniform(const char* Name,const vec4f& v);
-	bool	SetUniform(const char* Name,const TTexture& Texture);	//	special case which tracks how many textures are bound
+	virtual bool	SetUniform(const char* Name,const float& v) override;
+	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
+	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
+	virtual bool	SetUniform(const char* Name,const TTexture& Texture) override;	//	special case which tracks how many textures are bound
 
 	template<typename TYPE>
 	bool	SetUniform(const std::string& Name,const TYPE& v)
