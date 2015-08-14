@@ -591,6 +591,11 @@ Opencl::TContext& Opencl::TKernel::GetContext()
 	return *mLockedContext;
 }
 
+Opencl::TUniform Opencl::TKernel::GetUniform(const char* Name) const
+{
+	auto* Uniform = mUniforms.Find( Name );
+	return Uniform ? *Uniform : TUniform();
+}
 
 
 Opencl::TSync::TSync() :
@@ -639,8 +644,13 @@ Opencl::TKernelState::~TKernelState()
 }
 
 template<typename TYPE>
-void SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Value)
+bool SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Value)
 {
+	//	as per opengl, silent error if uniform doesn't exist
+	auto Uniform = Kernel.mKernel.GetUniform(Name);
+	if ( !Uniform.IsValid() )
+		return false;
+	
 	//	gr: ByNameAPPLE will fail if we haven't compiled kernel info
 	//		Opencl::BuildOption_KernelInfo
 	auto Error = clSetKernelArgByNameAPPLE( Kernel.mKernel.mKernel, Name, sizeof(TYPE), &Value );
@@ -648,6 +658,7 @@ void SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Valu
 	std::stringstream ErrorString;
 	ErrorString << "SetKernelArg(" << Name << ", " << Soy::GetTypeName<TYPE>() << ")";
 	Opencl::IsOkay(Error, ErrorString.str() );
+	return true;
 }
 
 
@@ -742,7 +753,8 @@ Opencl::TBufferImage::TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,c
 Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore) :
 	TBufferImage	( Image.GetMeta(), Context, ClientStorage ? &Image : nullptr, ReadWrite, Semaphore )
 {
-	Write( Image, Semaphore );
+	if ( ReadWrite != OpenclBufferReadWrite::WriteOnly )
+		Write( Image, Semaphore );
 }
 
 
@@ -767,24 +779,30 @@ void Opencl::TBufferImage::Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
 	size_t Region[] = { Image.GetWidth(), Image.GetHeight(), 1 };
 	auto Queue = mContext.GetQueue();
 	cl_bool Block = CL_TRUE;
-	int image_row_pitch = 0;	// TODO
-	int image_slice_pitch = 0;
+	
+	//	driver calcs pitch automatically
+	size_t image_row_pitch = 0;
+	image_row_pitch = Image.GetRowPitchBytes();
+	size_t image_slice_pitch = 0;	//	must be 0 for 2D
 
 	auto* Data = Image.GetPixelsArray().GetArray();
 	auto* Event = Semaphore ? &Semaphore->mEvent : nullptr;
 
 	auto Error = clEnqueueReadImage( Queue, mMem, Block, Origin, Region, image_row_pitch, image_slice_pitch, Data, 0, nullptr, Event );
 	Opencl::IsOkay( Error, __func__ );
+	
+	clFinish(Queue);
+	Opencl::IsOkay( Error, __func__ );
 }
 
 
-void Opencl::TKernelState::SetUniform(const char* Name,SoyPixelsImpl& Pixels)
+bool Opencl::TKernelState::SetUniform(const char* Name,const SoyPixelsImpl& Pixels)
 {
 	//	todo: get uniform and check type is image_2D_t
 	//	make image buffer and set that
 	//	gr: do we need to store the buffer for the life time of the execution?
 	Opencl::TSync Sync;
-	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, OpenclBufferReadWrite::ReadWrite, &Sync ) );
+	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, OpenclBufferReadWrite::WriteOnly, &Sync ) );
 
 	if ( mBuffers.find(Name) != mBuffers.end() )
 		std::Debug << "Warning, setting buffer for uniform " << Name << " which already has a buffer..." << std::endl;
@@ -792,22 +810,24 @@ void Opencl::TKernelState::SetUniform(const char* Name,SoyPixelsImpl& Pixels)
 	mBuffers[Name] = Buffer;
 
 	//	set kernel arg
-	SetKernelArg( *this, Name, Buffer->GetMemBuffer() );
+	bool Result = SetKernelArg( *this, Name, Buffer->GetMemBuffer() );
 	
 	//	we can't tell when caller is going to release the pixels, so wait for it to finish
 	Sync.Wait();
+	
+	return Result;
 }
 
 
-void Opencl::TKernelState::SetUniform(const char* Name,vec2f Value)
+bool Opencl::TKernelState::SetUniform(const char* Name,vec2f Value)
 {
 	auto Value2 = Soy::VectorToCl( Value );
-	SetKernelArg( *this, Name, Value2 );
+	return SetKernelArg( *this, Name, Value2 );
 }
 
-void Opencl::TKernelState::SetUniform(const char* Name,cl_int Value)
+bool Opencl::TKernelState::SetUniform(const char* Name,cl_int Value)
 {
-	SetKernelArg( *this, Name, Value );
+	return SetKernelArg( *this, Name, Value );
 }
 
 

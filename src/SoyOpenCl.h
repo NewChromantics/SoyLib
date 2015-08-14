@@ -287,10 +287,19 @@ public:
 	~TKernelState();
 	
 	//	gr: not uniforms, but matching name of opengl
-	void			SetUniform(const char* Name,SoyPixelsImpl& Pixels);
-	void			SetUniform(const char* Name,cl_int Value);
-	void			SetUniform(const char* Name,vec2f Value);
+	//	gr: like opengl, these now throw on error, silent(return) if uniform doesn't exist
+	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels);
+	bool			SetUniform(const char* Name,cl_int Value);
+	bool			SetUniform(const char* Name,vec2f Value);
+	/*
+	template<typename TYPE>
+	bool			SetUniform(const std::string& Name,const TYPE& Value)
+	{
+		return SetUniform( Name.c_str(), Value );
+	}
+	 */
 	
+	//	throw on error, assuming wrong uniform is fatal
 	void			ReadUniform(const char* Name,SoyPixelsImpl& Pixels);	//	read back data from a buffer that was used as a uniform
 	
 	void			GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations);
@@ -349,6 +358,8 @@ public:
 	TKernelState	Lock(TContext& Context);
 	void			Unlock();
 	TContext&		GetContext();
+	TUniform		GetUniform(const char* Name) const;
+	bool			HasUniform(const char* Name) const	{	return GetUniform(Name).IsValid();	}
 
 public:
 	std::string		mKernelName;		//	only for debug
