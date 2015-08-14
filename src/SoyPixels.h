@@ -137,8 +137,9 @@ public:
 	uint8			GetChannels() const				{	return size_cast<uint8>( GetMeta().GetChannels() );	}
 	uint16			GetWidth() const				{	return GetMeta().GetWidth();	}
 	uint16			GetHeight() const				{	return GetMeta().GetHeight();	}
+	size_t			GetRowPitchBytes() const		{	return sizeof(uint8) * GetChannels() * GetWidth();	}
 	SoyPixelsFormat::Type	GetFormat() const		{	return GetMeta().GetFormat();	}
-	void			PrintPixels(const std::string& Prefix,std::ostream& Stream) const;
+	void			PrintPixels(const std::string& Prefix,std::ostream& Stream,bool Hex,const char* PixelSuffix) const;
 
 	bool			GetPng(ArrayBridge<char>& PngData) const;
 	bool			GetRawSoyPixels(ArrayBridge<char>& RawData) const;

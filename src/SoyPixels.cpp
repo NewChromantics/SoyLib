@@ -1391,7 +1391,7 @@ bool SoyPixelsImpl::Copy(const SoyPixelsImpl &that,bool AllowReallocation)
 	return true;
 }
 
-void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream) const
+void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream,bool Hex,const char* PixelSuffix) const
 {
 	auto Meta = GetMeta();
 	Stream << Prefix << " " << Meta << std::endl;
@@ -1401,7 +1401,12 @@ void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream) 
 	
 	for ( int p=0;	p<Meta.GetDataSize();	p++ )
 	{
-		Stream << std::hex << Pixels[p] << " ";
+		int PixelValue = (int)Pixels[p];
+		if ( Hex )
+			Stream << std::hex;
+		Stream << PixelValue;
+		if ( PixelSuffix )
+			Stream << PixelSuffix;
 		
 		if ( p % Stride == 0 )
 			Stream << std::endl;
