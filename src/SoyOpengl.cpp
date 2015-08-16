@@ -1446,6 +1446,7 @@ void Opengl::SetViewport(Soy::Rectf Viewport)
 	auto w = size_cast<GLsizei>(Viewport.w);
 	auto h = size_cast<GLsizei>(Viewport.h);
 	glViewport( x, y, w, h );
+	Opengl_IsOkay();
 }
 
 void Opengl::ClearDepth()

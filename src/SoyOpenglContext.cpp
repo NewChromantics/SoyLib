@@ -248,6 +248,21 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 }
 
 
+void Opengl::TRenderTarget::SetViewportNormalised(Soy::Rectf Viewport)
+{
+	auto Rect = Soy::Rectf( GetSize() );
+
+	Rect.x -= Viewport.x * Rect.w;
+	Rect.y -= Viewport.y * Rect.h;
+	Rect.w /= Viewport.w;
+	Rect.h /= Viewport.h;
+	Rect.x /= Viewport.w;
+	Rect.y /= Viewport.h;
+	
+	Opengl::SetViewport( Rect );
+}
+
+
 Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context,Opengl::TTexture ExistingTexture) :
 	TRenderTarget	( Meta.mName ),
 	mTexture		( ExistingTexture )

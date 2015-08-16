@@ -73,6 +73,8 @@ public:
 	virtual void				Unbind()=0;
 	virtual Soy::Rectx<size_t>	GetSize()=0;
 	
+	void			SetViewportNormalised(Soy::Rectf Viewport);
+	
 	std::string		mName;
 };
 
