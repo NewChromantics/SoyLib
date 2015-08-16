@@ -65,6 +65,15 @@ public:
 		RemoveListener( std::bind( &Member, &This ) );
 	}
 
+	SoyListenerId		AddListener(SoyEvent<PARAM>& Event)
+	{
+		auto Relay = [&Event](PARAM& p)
+		{
+			Event.OnTriggered(p);
+		};
+		return AddListener( Relay );
+	}
+	
 	//	add static or lambda
 	SoyListenerId		AddListener(FUNCTION Function,SoyListenerId ListenerId=SoyListenerId())
 	{
