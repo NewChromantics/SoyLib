@@ -318,5 +318,10 @@ namespace Soy
 
 
 
-
+#if defined(__OBJC__)
+inline Soy::Rectf NSRectToRect(NSRect Rect)
+{
+	return Soy::Rectf( Rect.origin.x, Rect.origin.y, Rect.size.width, Rect.size.height );
+}
+#endif
 
