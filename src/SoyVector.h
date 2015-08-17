@@ -318,7 +318,7 @@ namespace Soy
 
 
 
-#if defined(__OBJC__)
+#if defined(__OBJC__) && defined(TARGET_OSX)
 inline Soy::Rectf NSRectToRect(NSRect Rect)
 {
 	return Soy::Rectf( Rect.origin.x, Rect.origin.y, Rect.size.width, Rect.size.height );
