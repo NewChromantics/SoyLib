@@ -575,6 +575,8 @@ Opencl::TKernel::TKernel(const std::string& Kernel,TProgram& Program) :
 
 Opencl::TKernel::~TKernel()
 {
+	//	wait for lock to be finished
+	std::lock_guard<std::mutex> Lock( mLock );
 	if ( mKernel )
 	{
 		clReleaseKernel( mKernel );
@@ -780,7 +782,7 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 	};
 	Soy::TSemaphore ReadSemaphore;
 	OpenglContext.PushJob( Read, ReadSemaphore );
-	ReadSemaphore.Wait();
+	ReadSemaphore.Wait("TBufferImage read pixels from texture");
 	
 	*this = std::move( Opencl::TBufferImage( Buffer, Context, false, ReadWrite, Semaphore ) );
 }
