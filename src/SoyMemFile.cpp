@@ -275,7 +275,8 @@ bool MemFileArray::SetSize(size_t size, bool preserve,bool AllowLess)
 	{
 		//	gr: errr do we need this to be readonly sometimes?
 		bool ReadOnly = false;
-		Init( size, ReadOnly );
+		if ( !Init( size, ReadOnly ) )
+			return false;
 	}
 	
 	//	if we hit the limit, don't change and fail
