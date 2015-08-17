@@ -18,6 +18,25 @@ namespace Soy
 	}
 }
 
+class MemFileHandle
+{
+public:
+#if defined(TARGET_OSX)
+	MemFileHandle(const std::string& Filename,int CreateFlags,int Mode);
+#endif
+	~MemFileHandle();
+	
+public:
+#if defined(TARGET_WINDOWS)
+	HANDLE				mHandle;
+#endif
+#if defined(TARGET_OSX)
+	int					mHandle;
+	std::string			mFilename;	//	need filename to close
+#endif
+
+};
+
 class MemFileArray : public ArrayInterface<char>
 {
 public:
@@ -174,12 +193,7 @@ private:
 #endif
 
 private:
-#if defined(TARGET_WINDOWS)
-	HANDLE				mHandle;
-#endif
-#if defined(TARGET_OSX)
-	int					mHandle;
-#endif
+	std::shared_ptr<MemFileHandle>	mHandle;
 	std::string			mFilename;
 	bool				mAllowOtherFilename;	//	if we cannot create file, we can try other filenames
 	void*				mMap;
