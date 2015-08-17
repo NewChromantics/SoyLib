@@ -782,7 +782,8 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 	};
 	Soy::TSemaphore ReadSemaphore;
 	OpenglContext.PushJob( Read, ReadSemaphore );
-	ReadSemaphore.Wait("TBufferImage read pixels from texture");
+	//ReadSemaphore.Wait("TBufferImage read pixels from texture");
+	ReadSemaphore.Wait();
 	
 	*this = std::move( Opencl::TBufferImage( Buffer, Context, false, ReadWrite, Semaphore ) );
 }

@@ -797,9 +797,9 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 		auto* PixelsArrayData = PixelsArray.GetArray();
 		
 		//	invalid operation here means the unity pixel format is probably different to the pixel data we're trying to push now
-		ofScopeTimerWarning Timer("glTexSubImage2D", 10 );
+		//ofScopeTimerWarning Timer("glTexSubImage2D", 10 );
 		glTexSubImage2D( mType, MipLevel, XOffset, YOffset, Width, Height, GlPixelsFormat, GlPixelsStorage, PixelsArrayData );
-		Timer.Stop();
+		//Timer.Stop();
 		
 		std::stringstream Context;
 		Context << __func__ << "glTexSubImage2D(" << Opengl::GetEnumString(GlPixelsFormat) << ")";
@@ -1222,7 +1222,7 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<G
 		void* ElementPointer = (void*)ElementOffset;
 		auto AttribIndex = Element.mIndex;
 
-		std::Debug << "Pushing attrib " << AttribIndex << ", arraysize " << Element.mArraySize << ", stride " << Stride << std::endl;
+		//std::Debug << "Pushing attrib " << AttribIndex << ", arraysize " << Element.mArraySize << ", stride " << Stride << std::endl;
 		glEnableVertexAttribArray( AttribIndex );
 		glVertexAttribPointer( AttribIndex, Element.mArraySize, Element.mType, Normalised, Stride, ElementPointer );
 		Opengl_IsOkay();
