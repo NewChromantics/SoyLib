@@ -72,6 +72,8 @@ namespace Opencl
 	
 	class TBuffer;
 	class TBufferImage;
+	template<typename TYPE>
+	class TBufferArray;
 
 	class TKernelState;	//	current binding to a kernel
 	class TKernelIteration;
@@ -244,6 +246,85 @@ public:
 
 
 
+class Opencl::TBuffer
+{
+protected:
+	TBuffer();
+	TBuffer(size_t Size,TContext& Context);
+public:
+	virtual ~TBuffer();
+	
+	cl_mem		GetMemBuffer() 	{	return mMem;	}
+	
+	template<typename TYPE>
+	void		Read(ArrayBridge<TYPE>&& Array,TContext& Context,TSync* Sync)
+	{
+		//	construct a new array
+		auto* ArrayPtr = reinterpret_cast<uint8*>( Array.GetArray() );
+		size_t ByteCount = Array.GetDataSize();
+		auto Array8 = GetRemoteArray( ArrayPtr, ByteCount );
+		auto Array8Bridge = GetArrayBridge( Array8 );
+		ReadImpl( Array8Bridge, Context, Sync );
+	}
+	
+	template<typename TYPE>
+	void		Read(TYPE& Item,TContext& Context,TSync* Sync)
+	{
+		auto ItemArray = GetRemoteArray( &Item, 1 );
+		Read( GetArrayBridge( ItemArray ), Context, Sync );
+	}
+	
+	size_t		GetMaxSize() const	{	return mBufferSize;	}
+	
+protected:
+	void		ReadImpl(ArrayInterface<uint8>& Array,TContext& Context,TSync* Sync);
+	void		Write(const uint8* Array,size_t Size,TContext& Context,TSync* Sync);
+	
+protected:
+	size_t		mBufferSize;
+	cl_mem		mMem;
+};
+
+
+template<typename TYPE>
+class Opencl::TBufferArray : public TBuffer
+{
+public:
+	TBufferArray(ArrayBridge<TYPE>&& Array,TContext& Context,TSync* Sync=nullptr) :
+		TBuffer	( Array.GetDataSize(), Context )
+	{
+		Write( reinterpret_cast<uint8*>( Array.GetArray() ), Array.GetDataSize(), Context, Sync );
+	}
+	TBufferArray(ArrayBridge<TYPE>& Array,TContext& Context,TSync* Sync=nullptr) :
+		TBuffer	( Array.GetDataSize(), Context )
+	{
+		Write( reinterpret_cast<uint8*>( Array.GetArray() ), Array.GetDataSize(), Context, Sync );
+	}
+	
+private:
+};
+
+
+
+class Opencl::TBufferImage : public TBuffer
+{
+public:
+	TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
+	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
+	TBufferImage(const Opengl::TTexture& Image,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
+	
+	TBufferImage&	operator=(TBufferImage&& Move);
+	
+	void		Write(const Opengl::TTexture& Image,Opencl::TSync* Semaphore);
+	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
+	void		Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
+	
+private:
+	//	store meta like with Opengl::TTexture to stop bad writes/hardware lookups
+	TContext&	mContext;
+};
+
+
 class Opencl::TKernelIteration
 {
 	const static size_t DIMENSIONS=3;
@@ -308,9 +389,17 @@ public:
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v) override;
 	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels);
 	bool			SetUniform(const char* Name,cl_int Value);
+	bool			SetUniform(const char* Name,TBuffer& Buffer);
 	
 	//	throw on error, assuming wrong uniform is fatal
-	void			ReadUniform(const char* Name,SoyPixelsImpl& Pixels);	//	read back data from a buffer that was used as a uniform
+	//	read back data from a buffer that was used as a uniform
+	void			ReadUniform(const char* Name,SoyPixelsImpl& Pixels);
+	template<typename TYPE>
+	void			ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead)
+	{
+		auto& Buffer = GetUniformBuffer(Name);
+		Buffer.Read( Data.GetArray(), Data.GetElementSize() * ElementsToRead );
+	}
 	
 	void			GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations);
 
@@ -322,7 +411,10 @@ public:
 
 private:
 	void			QueueIterationImpl(const TKernelIteration& Iteration,TSync* Semaphore);
-	
+
+	//	get buffer for a uniform - only applies to temporary ones we created
+	TBuffer&		GetUniformBuffer(const char* Name);	//	throw if non-existant. assuming fatal if we're trying to read data from a uniform
+												 
 public:
 	TKernel&		mKernel;
 	
@@ -404,42 +496,6 @@ public:
 	cl_event	mEvent;
 };
 
-
-
-
-
-
-class Opencl::TBuffer
-{
-public:
-	TBuffer();
-	virtual ~TBuffer();
-	
-	cl_mem		GetMemBuffer()	{	return mMem;	}
-	
-protected:
-	cl_mem		mMem;
-};
-
-
-
-class Opencl::TBufferImage : public TBuffer
-{
-public:
-	TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
-	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
-	TBufferImage(const Opengl::TTexture& Image,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
-	
-	TBufferImage&	operator=(TBufferImage&& Move);
-	
-	void		Write(const Opengl::TTexture& Image,Opencl::TSync* Semaphore);
-	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
-	void		Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
-	
-private:
-	//	store meta like with Opengl::TTexture to stop bad writes/hardware lookups
-	TContext&	mContext;
-};
 
 
 

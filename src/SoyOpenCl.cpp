@@ -717,6 +717,21 @@ Opencl::TBuffer::TBuffer() :
 	
 }
 
+Opencl::TBuffer::TBuffer(size_t Size,TContext& Context) :
+	mMem	( nullptr )
+{
+	cl_mem_flags Flags = 0;
+	void* HostPtr = nullptr;
+
+	cl_int Error = CL_SUCCESS;
+	mMem = clCreateBuffer( Context.GetContext(), Flags, Size, HostPtr, &Error );
+	std::stringstream ErrorString;
+	ErrorString << __func__ << "(" << Soy::FormatSizeBytes(Size) << ")";
+	Opencl::IsOkay( Error, ErrorString.str() );
+
+	Soy::Assert( mMem != nullptr, "clCreateBuffer success but no mem object" );
+}
+
 Opencl::TBuffer::~TBuffer()
 {
 	if ( mMem )
@@ -725,6 +740,40 @@ Opencl::TBuffer::~TBuffer()
 		mMem = nullptr;
 	}
 }
+
+
+void Opencl::TBuffer::ReadImpl(ArrayInterface<uint8>& Array,TContext& Context,TSync* Sync)
+{
+	Soy::Assert( mMem != nullptr, "Mem buffer expected" );
+
+	auto* ArrayPtr = Array.GetArray();
+	Soy::Assert( ArrayPtr != nullptr, "Array should not be empty" );
+	
+	//	todo; check size of mem. We should store this on mMem set
+	size_t StartBytes = 0;
+	size_t ByteCount = Array.GetDataSize();
+	bool Blocking = false;
+	
+	auto Error = clEnqueueReadBuffer( Context.GetQueue(), mMem, Blocking, StartBytes, ByteCount, ArrayPtr, 0, nullptr, Sync ? &Sync->mEvent : nullptr );
+	std::stringstream ErrorString;
+	ErrorString << "TBuffer::Read(" << ByteCount << " bytes)";
+	Opencl::IsOkay( Error, ErrorString.str() );
+}
+
+void Opencl::TBuffer::Write(const uint8 *Array,size_t Size,TContext& Context,Opencl::TSync *Sync)
+{
+	Soy::Assert( mMem != nullptr, "Mem buffer expected" );
+	Soy::Assert( Array != nullptr, "Array should not be empty" );
+
+	bool Blocking = false;
+	size_t StartBytes = 0;
+
+	auto Error = clEnqueueWriteBuffer( Context.GetQueue(), mMem, Blocking, StartBytes, Size, Array, 0, nullptr,  Sync ? &Sync->mEvent : nullptr );
+	std::stringstream ErrorString;
+	ErrorString << "TBuffer::Write(" << Size << " bytes)";
+	Opencl::IsOkay( Error, ErrorString.str() );
+}
+
 
 
 Opencl::TBufferImage::TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
@@ -906,6 +955,11 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const vec2f& Value)
 bool Opencl::TKernelState::SetUniform(const char* Name,cl_int Value)
 {
 	return SetKernelArg( *this, Name, Value );
+}
+
+bool Opencl::TKernelState::SetUniform(const char* Name,TBuffer& Buffer)
+{
+	return SetKernelArg( *this, Name, Buffer.GetMemBuffer() );
 }
 
 
