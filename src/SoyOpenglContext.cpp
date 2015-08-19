@@ -308,16 +308,7 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Conte
 			 */
 		}
 		
-		try
-		{
-			mFbo.reset( new TFbo( mTexture ) );
-		}
-		catch ( std::exception& e )
-		{
-			std::Debug << "Failed to create FBO: " << e.what() << std::endl;
-			mFbo.reset();
-		}
-		return true;
+		mFbo.reset( new TFbo( mTexture ) );
 	};
 	
 	std::Debug << "Deffering FBO rendertarget creation to " << ExistingTexture.mMeta << std::endl;
