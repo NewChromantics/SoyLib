@@ -16,9 +16,13 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 	{	OpenglExtensions::AppleClientStorage,	"GL_APPLE_client_storage"	},
 #if defined(TARGET_WINDOWS)
 	{	OpenglExtensions::VertexArrayObjects,	"GL_ARB_vertex_array_object"	},
-#else
+#elif defined(TARGET_OSX)
 	{	OpenglExtensions::VertexArrayObjects,	"GL_APPLE_vertex_array_object"	},
+#elif defined(TARGET_ANDROID)
+	{	OpenglExtensions::VertexArrayObjects,	"GL_OES_vertex_array_object"	},
 #endif
+	
+	GL_OES_vertex_array_object
 };
 
 
@@ -172,19 +176,36 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 	//	extension supported, set functions
 	if ( IsSupported )
 	{
-#if defined(TARGET_OSX)
-		BindVertexArray = glBindVertexArrayAPPLE;
-		GenVertexArrays = glGenVertexArraysAPPLE;
-		DeleteVertexArrays = glDeleteVertexArraysAPPLE;
-		IsVertexArray = glIsVertexArrayAPPLE;
-#elif defined(TARGET_WINDOWS)
-		SetFunction( BindVertexArray, wglGetProcAddress("glBindVertexArray") );
-		SetFunction( GenVertexArrays, wglGetProcAddress("glGenVertexArrays") );
-		SetFunction( DeleteVertexArrays, wglGetProcAddress("glDeleteVertexArrays") );
-		SetFunction( IsVertexArray, wglGetProcAddress("glIsVertexArray") );
- #else
-		IsSupported = false;
-#endif
+		try
+		{
+	#if defined(TARGET_OSX)
+			BindVertexArray = glBindVertexArrayAPPLE;
+			GenVertexArrays = glGenVertexArraysAPPLE;
+			DeleteVertexArrays = glDeleteVertexArraysAPPLE;
+			IsVertexArray = glIsVertexArrayAPPLE;
+	#elif defined(TARGET_WINDOWS)
+			SetFunction( BindVertexArray, wglGetProcAddress("glBindVertexArray") );
+			SetFunction( GenVertexArrays, wglGetProcAddress("glGenVertexArrays") );
+			SetFunction( DeleteVertexArrays, wglGetProcAddress("glDeleteVertexArrays") );
+			SetFunction( IsVertexArray, wglGetProcAddress("glIsVertexArray") );
+	#elif defined(TARGET_ANDROID)
+			//glBindVertexArrayOES_ = (PFNGLBINDVERTEXARRAYOESPROC)eglGetProcAddress("glBindVertexArrayOES");
+			//glDeleteVertexArraysOES_ = (PFNGLDELETEVERTEXARRAYSOESPROC)eglGetProcAddress("glDeleteVertexArraysOES");
+			//glGenVertexArraysOES_ = (PFNGLGENVERTEXARRAYSOESPROC)eglGetProcAddress("glGenVertexArraysOES");
+			//glIsVertexArrayOES_ = (PFNGLISVERTEXARRAYOESPROC)eglGetProcAddress("glIsVertexArrayOES");
+			SetFunction( BindVertexArray, eglGetProcAddress("glBindVertexArrayOES") );
+			SetFunction( GenVertexArrays, eglGetProcAddress("glGenVertexArraysOES") );
+			SetFunction( DeleteVertexArrays, eglGetProcAddress("glDeleteVertexArraysOES") );
+			SetFunction( IsVertexArray, eglGetProcAddress("glIsVertexArrayOES") );
+	#else
+			IsSupported = false;
+	#endif
+		}
+		catch ( std::exception& e )
+		{
+			std::Debug << "Error binding VOA functions, disabling support. " << e.what() << std::endl;
+			IsSupported = false;
+		}
 	}
 
 	//	not supported (or has been unset due to implementation)

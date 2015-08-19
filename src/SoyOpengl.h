@@ -7,7 +7,12 @@
 
 
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
-	#define OPENGL_ES_3		//	need 3 for FBO's
+
+//	build for ES 2 and add support via extensions
+//	need 3 for FBO's
+//#define OPENGL_ES_3
+#define OPENGL_ES_2
+
 #elif defined(TARGET_OSX)
 	#define OPENGL_CORE_3	//	need 3 for VBA's
 #elif defined(TARGET_WINDOWS)

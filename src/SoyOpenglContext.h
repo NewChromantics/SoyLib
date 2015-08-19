@@ -107,5 +107,7 @@ public:
 	void	Wait(const char* TimerName=nullptr);
 	
 private:
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
 	GLsync				mSyncObject;
+#endif
 };
