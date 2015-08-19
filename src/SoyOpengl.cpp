@@ -127,14 +127,18 @@ std::string Opengl::GetEnumString(GLenum Type)
 			CASE_ENUM_STRING( GL_FLOAT_MAT2 );
 			CASE_ENUM_STRING( GL_FLOAT_MAT3 );
 			CASE_ENUM_STRING( GL_FLOAT_MAT4 );
-#if defined(OPENGL_CORE_3)
+#if defined(GL_DOUBLE)
 			CASE_ENUM_STRING( GL_DOUBLE );
+#endif
+#if defined(GL_SAMPLER_1D)
 			CASE_ENUM_STRING( GL_SAMPLER_1D );
+#endif
+#if defined(GL_SAMPLER_3D)
 			CASE_ENUM_STRING( GL_SAMPLER_3D );
 #endif
 			
 			//	colours
-#if !defined(TARGET_ANDROID)
+#if defined(GL_BGRA)
 			CASE_ENUM_STRING( GL_BGRA );
 #endif
 			CASE_ENUM_STRING( GL_RGBA );
@@ -146,18 +150,24 @@ std::string Opengl::GetEnumString(GLenum Type)
 			CASE_ENUM_STRING( GL_R8 );
 			CASE_ENUM_STRING( GL_RG8 );
 
-#if defined(OPENGL_CORE_3)
+#if defined(GL_TEXTURE_1D)
 			CASE_ENUM_STRING( GL_TEXTURE_1D );
 #endif
 			CASE_ENUM_STRING( GL_TEXTURE_2D );
 			CASE_ENUM_STRING( GL_TEXTURE_3D );
-#if defined(OPENGL_CORE_3)
+#if defined(GL_TEXTURE_RECTANGLE)
 			CASE_ENUM_STRING( GL_TEXTURE_RECTANGLE );
 #endif
-#if defined(TARGET_ANDROID)
+#if defined(GL_TEXTURE_EXTERNAL_OES)
 			CASE_ENUM_STRING( GL_TEXTURE_EXTERNAL_OES );
+#endif
+#if defined(GL_SAMPLER_EXTERNAL_OES)
 			CASE_ENUM_STRING( GL_SAMPLER_EXTERNAL_OES );
 #endif
+#if defined(GL_SAMPLER_2D_RECT)
+			CASE_ENUM_STRING( GL_SAMPLER_2D_RECT );
+#endif
+
 	};
 #undef CASE_ENUM_STRING
 	std::stringstream Unknown;
@@ -379,6 +389,9 @@ void Opengl::TFbo::Delete()
 {
 	if ( mFbo.mName != GL_ASSET_INVALID )
 	{
+		//	gr: this often gives an error that shouldn't occur, try flushing
+		Opengl_IsOkayFlush();
+		
 		glDeleteFramebuffers( 1, &mFbo.mName );
 		Opengl::IsOkay("glDeleteFramebuffers", false);
 		mFbo.mName = GL_ASSET_INVALID;
