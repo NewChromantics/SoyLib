@@ -143,18 +143,30 @@ std::string Opengl::GetEnumString(GLenum Type)
 #endif
 			CASE_ENUM_STRING( GL_RGBA );
 			CASE_ENUM_STRING( GL_RGB );
+#if defined(GL_RGB8)
 			CASE_ENUM_STRING( GL_RGB8 );
+#endif
+#if defined(GL_RGBA8)
 			CASE_ENUM_STRING( GL_RGBA8 );
+#endif
+#if defined(GL_RED)
 			CASE_ENUM_STRING( GL_RED );
+#endif
 
+#if defined(GL_R8)
 			CASE_ENUM_STRING( GL_R8 );
+#endif
+#if defined(GL_RG8)
 			CASE_ENUM_STRING( GL_RG8 );
+#endif
 
 #if defined(GL_TEXTURE_1D)
 			CASE_ENUM_STRING( GL_TEXTURE_1D );
 #endif
 			CASE_ENUM_STRING( GL_TEXTURE_2D );
+#if defined(GL_TEXTURE_3D)
 			CASE_ENUM_STRING( GL_TEXTURE_3D );
+#endif
 #if defined(GL_TEXTURE_RECTANGLE)
 			CASE_ENUM_STRING( GL_TEXTURE_RECTANGLE );
 #endif
