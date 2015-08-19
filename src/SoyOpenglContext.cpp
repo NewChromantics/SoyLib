@@ -2,6 +2,25 @@
 #include "SoyEnum.h"
 
 
+
+//	gr: only expose extensions in this file
+#if defined(TARGET_OSX)
+#if defined(GL_GLEXT_FUNCTION_POINTERS)
+#undef GL_GLEXT_FUNCTION_POINTERS
+#endif
+#include <Opengl/glext.h>
+#endif
+
+#if defined(TARGET_ANDROID) && defined(OPENGL_ES_2)
+#include <EGL/egl.h>
+//#include <EGL/eglext.h>
+#endif
+
+#if defined(TARGET_IOS) && defined(OPENGL_ES_2)
+#include <OpenGLES/EGL/egl.h>
+#endif
+
+
 //	todo: move this to context only
 namespace Opengl
 {
@@ -21,18 +40,8 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 #elif defined(TARGET_ANDROID)
 	{	OpenglExtensions::VertexArrayObjects,	"GL_OES_vertex_array_object"	},
 #endif
-	
-	GL_OES_vertex_array_object
 };
 
-
-//	gr: only expose extensions here
-#if defined(TARGET_OSX)
-#if defined(GL_GLEXT_FUNCTION_POINTERS)
-#undef GL_GLEXT_FUNCTION_POINTERS
-#endif
-#include <Opengl/glext.h>
-#endif
 
 
 namespace Opengl
@@ -145,15 +154,35 @@ void SetUnsupportedFunction(FUNCTION& Function,const char* Name,RETURN Return)
 	};
 }
 
+
+#if defined(TARGET_ANDROID)
+
+/*
+void SetFunction(void (* xxxx)())
+{
+	//FUNCTYPE* ff = (FUNCTYPE*)x;
+	//f = ff;
+}
+*/
+template<typename FUNCTYPE>
+void SetFunction(std::function<FUNCTYPE>& f,void (* xxxx)() )
+{
+	FUNCTYPE* ff = (FUNCTYPE*)xxxx;
+	f = ff;
+}
+
+#else
 template<typename FUNCTYPE>
 void SetFunction(std::function<FUNCTYPE>& f,void* x)
 {
 	FUNCTYPE* ff = (FUNCTYPE*)x;
 	f = ff;
 }
+#endif
 
 void Opengl::TContext::BindVertexArrayObjectsExtension()
 {
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
 	//	implicitly supported in opengl 3 & 4 (ES and CORE)
 	bool ImplicitlySupported = (mVersion.mMajor >= 3);
 	
@@ -169,6 +198,7 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 		IsVertexArray = glIsVertexArray;
 		return;
 	}
+#endif
 #endif
 	
 	bool IsSupported = SupportedExtensions.find(OpenglExtensions::VertexArrayObjects) != SupportedExtensions.end();
@@ -194,7 +224,8 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 			//glGenVertexArraysOES_ = (PFNGLGENVERTEXARRAYSOESPROC)eglGetProcAddress("glGenVertexArraysOES");
 			//glIsVertexArrayOES_ = (PFNGLISVERTEXARRAYOESPROC)eglGetProcAddress("glIsVertexArrayOES");
 			SetFunction( BindVertexArray, eglGetProcAddress("glBindVertexArrayOES") );
-			SetFunction( GenVertexArrays, eglGetProcAddress("glGenVertexArraysOES") );
+			//SetFunction( BindVertexArray, eglGetProcAddress("glBindVertexArrayOES") );
+			//SetFunction( GenVertexArrays, eglGetProcAddress("glGenVertexArraysOES") );
 			SetFunction( DeleteVertexArrays, eglGetProcAddress("glDeleteVertexArraysOES") );
 			SetFunction( IsVertexArray, eglGetProcAddress("glIsVertexArrayOES") );
 	#else
@@ -241,6 +272,8 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		else
 		{
 			Opengl_IsOkayFlush();
+			
+#if defined(OPENGL_ES3) || defined(OPENGL_CORE_3)
 			//	opengl 3 safe way
 			GLint ExtensionCount = -1;
 			glGetIntegerv( GL_NUM_EXTENSIONS, &ExtensionCount );
@@ -257,6 +290,9 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 				std::string ExtensionName( reinterpret_cast<const char*>(pExtensionName) );
 				PushExtension( SupportedExtensions, ExtensionName );
 			}
+#else
+			std::Debug << "Cannot determine opengl extensions" << std::endl;
+#endif
 		}
 
 		pContext->BindVertexArrayObjectsExtension();
@@ -366,16 +402,21 @@ Opengl::TTexture Opengl::TRenderTargetFbo::GetTexture()
 }
 
 
-
-Opengl::TSync::TSync() :
+Opengl::TSync::TSync()
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+:
 	mSyncObject	( nullptr )
+#endif
 {
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
 	mSyncObject = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
 	Opengl::IsOkay("glFenceSync");
+#endif
 }
 
 void Opengl::TSync::Wait(const char* TimerName)
 {
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
 	if ( !glIsSync( mSyncObject ) )
 		return;
 
@@ -395,5 +436,8 @@ void Opengl::TSync::Wait(const char* TimerName)
 
 	glDeleteSync( mSyncObject );
 	mSyncObject = nullptr;
+#else
+	glFinish();
+#endif
 }
 
