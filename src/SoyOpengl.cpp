@@ -367,7 +367,6 @@ void Opengl::TFbo::Delete(Opengl::TContext &Context)
 	{
 		glDeleteFramebuffers( 1, &FboName );
 		Opengl::IsOkay("Deffered FBO delete");
-		return true;
 	};
 
 	Context.PushJob( DefferedDelete );
