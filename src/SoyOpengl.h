@@ -345,6 +345,7 @@ public:
 	mTexture		( static_cast<GLuint>(reinterpret_cast<intptr_t>(TexturePtr)) )
 #endif
 	{
+		Soy::Assert( IsValid(), "Not a valid opengl texture" );
 	}
 	
 	TTexture(GLuint TextureName,const SoyPixelsMeta& Meta,GLenum Type) :
