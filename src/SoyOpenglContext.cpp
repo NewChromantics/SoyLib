@@ -50,6 +50,8 @@ namespace Opengl
 	std::function<void(GLsizei,GLuint*)>		GenVertexArrays;
 	std::function<void(GLsizei,const GLuint*)>	DeleteVertexArrays;
 	std::function<GLboolean(GLuint)>			IsVertexArray;
+	
+	std::function<GLboolean(GLsizei,const GLenum *)>	DrawBuffers;
 }
 
 
@@ -182,6 +184,8 @@ void SetFunction(std::function<FUNCTYPE>& f,void* x)
 
 void Opengl::TContext::BindVertexArrayObjectsExtension()
 {
+	auto Extension = OpenglExtensions::VertexArrayObjects;
+
 #if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
 	//	implicitly supported in opengl 3 & 4 (ES and CORE)
 	bool ImplicitlySupported = (mVersion.mMajor >= 3);
@@ -189,8 +193,8 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 #if !defined(TARGET_WINDOWS)
 	if ( ImplicitlySupported )
 	{
-		SupportedExtensions[OpenglExtensions::VertexArrayObjects] = true;
-		std::Debug << "Assumed implicit support for OpenglExtensions::VertexArrayObjects" << std::endl;
+		SupportedExtensions[Extension] = true;
+		std::Debug << "Assumed implicit support for " << Extension << " << std::endl;
 
 		BindVertexArray = glBindVertexArray;
 		GenVertexArrays = glGenVertexArrays;
@@ -201,7 +205,7 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 #endif
 #endif
 	
-	bool IsSupported = SupportedExtensions.find(OpenglExtensions::VertexArrayObjects) != SupportedExtensions.end();
+	bool IsSupported = SupportedExtensions.find(Extension) != SupportedExtensions.end();
 	
 	//	extension supported, set functions
 	if ( IsSupported )
@@ -219,17 +223,12 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 			SetFunction( DeleteVertexArrays, wglGetProcAddress("glDeleteVertexArrays") );
 			SetFunction( IsVertexArray, wglGetProcAddress("glIsVertexArray") );
 	#elif defined(TARGET_ANDROID)
-			//glBindVertexArrayOES_ = (PFNGLBINDVERTEXARRAYOESPROC)eglGetProcAddress("glBindVertexArrayOES");
-			//glDeleteVertexArraysOES_ = (PFNGLDELETEVERTEXARRAYSOESPROC)eglGetProcAddress("glDeleteVertexArraysOES");
-			//glGenVertexArraysOES_ = (PFNGLGENVERTEXARRAYSOESPROC)eglGetProcAddress("glGenVertexArraysOES");
-			//glIsVertexArrayOES_ = (PFNGLISVERTEXARRAYOESPROC)eglGetProcAddress("glIsVertexArrayOES");
 			SetFunction( BindVertexArray, eglGetProcAddress("glBindVertexArrayOES") );
-			//SetFunction( BindVertexArray, eglGetProcAddress("glBindVertexArrayOES") );
-			//SetFunction( GenVertexArrays, eglGetProcAddress("glGenVertexArraysOES") );
+			SetFunction( GenVertexArrays, eglGetProcAddress("glGenVertexArraysOES") );
 			SetFunction( DeleteVertexArrays, eglGetProcAddress("glDeleteVertexArraysOES") );
 			SetFunction( IsVertexArray, eglGetProcAddress("glIsVertexArrayOES") );
 	#else
-			IsSupported = false;
+			throw Soy::AssertException("Support unknown on this platform");
 	#endif
 		}
 		catch ( std::exception& e )
@@ -242,7 +241,7 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 	//	not supported (or has been unset due to implementation)
 	if ( !IsSupported )
 	{
-		SupportedExtensions[OpenglExtensions::VertexArrayObjects] = false;
+		SupportedExtensions[Extension] = false;
 		//	gr: set error/throw function wrappers
 		SetUnsupportedFunction(BindVertexArray, "glBindVertexArray" );
 		SetUnsupportedFunction(GenVertexArrays, "GenVertexArrays" );
@@ -251,6 +250,63 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 		return;
 	}
 
+}
+
+
+void Opengl::TContext::BindVertexBuffersExtension()
+{
+	auto Extension = OpenglExtensions::VertexBuffers;
+	
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+	//	implicitly supported in opengl 3 & 4 (ES and CORE)
+	bool ImplicitlySupported = (mVersion.mMajor >= 3);
+	
+	if ( ImplicitlySupported )
+	{
+		SupportedExtensions[Extension] = true;
+		std::Debug << "Assumed implicit support for " << Extension << std::endl;
+		
+		DrawBuffers = glDrawBuffers;
+		return;
+	}
+#endif
+	
+	bool IsSupported = SupportedExtensions.find(Extension) != SupportedExtensions.end();
+	
+	//	extension supported, set functions
+	if ( IsSupported )
+	{
+		try
+		{
+#if defined(TARGET_OSX)
+			DrawBuffers = glDrawBuffersAPPLE;
+#elif defined(TARGET_WINDOWS)
+			SetFunction( DrawBuffers, wglGetProcAddress("glBindVertexArray") );
+#elif defined(TARGET_ANDROID)
+			SetFunction( DrawBuffers, eglGetProcAddress("glBindVertexArrayOES") );
+#else
+			throw Soy::AssertException("Support unknown on this platform");
+#endif
+		}
+		catch ( std::exception& e )
+		{
+			std::Debug << "Error binding " << Extension << " functions, disabling support. " << e.what() << std::endl;
+			IsSupported = false;
+		}
+	}
+	
+	//	not supported (or has been unset due to implementation)
+	if ( !IsSupported )
+	{
+		SupportedExtensions[Extension] = false;
+		//	gr: set error/throw function wrappers
+		SetUnsupportedFunction(BindVertexArray, "glBindVertexArray" );
+		SetUnsupportedFunction(GenVertexArrays, "GenVertexArrays" );
+		SetUnsupportedFunction(DeleteVertexArrays, "DeleteVertexArrays" );
+		SetUnsupportedFunction(IsVertexArray, "IsVertexArray", (GLboolean)false );
+		return;
+	}
+	
 }
 
 

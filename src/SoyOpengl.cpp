@@ -367,11 +367,13 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	//	gr: init? or render?
 	// Set the list of draw buffers.
 	GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
-	glDrawBuffers(1, DrawBuffers);
+	Opengl::DrawBuffers(1, DrawBuffers);
 	
 	CheckStatus();
 	Unbind();
 }
+
+
 
 Opengl::TFbo::~TFbo()
 {
@@ -473,12 +475,17 @@ void Opengl::TFbo::Unbind()
 
 size_t Opengl::TFbo::GetAlphaBits() const
 {
+#if defined(OPENGL_ES_2)
+	throw Soy::AssertException("Framebuffer alpha size query not availible in opengles2");
+	return 0;
+#else
 	GLint AlphaSize = -1;
 	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE, &AlphaSize );
 	Opengl::IsOkay("Get FBO GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE");
 	std::Debug << "FBO has " << AlphaSize << " alpha bits" << std::endl;
 
 	return AlphaSize < 0 ? 0 :AlphaSize;
+#endif
 }
 
 Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
@@ -510,10 +517,12 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	GLenum GlPixelsStorage = GL_UNSIGNED_BYTE;
 	GLint Border = 0;
 	
+#if !defined(OPENGL_ES_2)
 	//	gr: change this to glGenerateMipMaps etc
 	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, MipLevel );
 	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, MipLevel );
 	Opengl::IsOkay("glTexParameteri set mip levels");
+#endif
 	
 	//	debug construction
 	//std::Debug << "glTexImage2D(" << Opengl::GetEnumString( mType ) << "," << Opengl::GetEnumString( InternalPixelFormat ) << "," << Opengl::GetEnumString( PixelsFormat ) << "," << Opengl::GetEnumString(GlPixelsStorage) << ")" << std::endl;
@@ -534,7 +543,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	Opengl::IsOkay("glTexImage2D texture construction");
 	
 	//	verify params
-#if !defined(OPENGL_ES_3)
+#if defined(OPENGL_CORE_3)
 	GLint TextureWidth = -1;
 	GLint TextureHeight = -1;
 	GLint TextureInternalFormat = -1;
@@ -661,7 +670,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 	GLint TextureInternalFormat = 0;
 	
 	//	opengl es doesn't have access!
-#if defined(OPENGL_ES_3)
+#if defined(OPENGL_ES_3)||defined(OPENGL_ES_2)
 	TextureWidth = this->GetWidth();
 	TextureHeight = this->GetHeight();
 	//	gr: errr what should this be now?
@@ -851,7 +860,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 
 SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType)
 {
-#if defined(OPENGL_ES_3)
+#if defined(OPENGL_ES_3)||defined(OPENGL_ES_2)
 	std::Debug << "Warning, using " << __func__ << " on opengl es (no such info)" << std::endl;
 	return mMeta;
 #else
@@ -867,8 +876,12 @@ SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType)
 #if defined(GL_TEXTURE_EXTERNAL_OES)
 		GL_TEXTURE_EXTERNAL_OES,
 #endif
+#if defined(GL_TEXTURE_1D)
 		GL_TEXTURE_1D,
+#endif
+#if defined(GL_TEXTURE_3D)
 		GL_TEXTURE_3D,
+#endif
 		GL_TEXTURE_CUBE_MAP,
 	};
 	
@@ -1319,7 +1332,7 @@ Opengl::TGeometry::~TGeometry()
 {
 	if ( mVertexArrayObject != GL_ASSET_INVALID )
 	{
-		glDeleteVertexArrays( 1, &mVertexArrayObject );
+		Opengl::DeleteVertexArrays( 1, &mVertexArrayObject );
 		mVertexArrayObject = GL_ASSET_INVALID;
 	}
 	
@@ -1348,8 +1361,12 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::RGBA, GL_RGBA, GL_RGBA, GL_RGBA ),
 
 		//	alternatives for GL -> soy
+#if defined(GL_RGB8)
 		TPixelFormatMapping( SoyPixelsFormat::RGB, GL_RGB8, GL_RGB8, GL_RGB8 ),
+#endif
+#if defined(GL_RGBA8)
 		TPixelFormatMapping( SoyPixelsFormat::RGBA, GL_RGBA8, GL_RGBA8, GL_RGBA8 ),
+#endif
 
 #if defined(TARGET_IOS)
 		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_BGRA, GL_BGRA, GL_BGRA ),

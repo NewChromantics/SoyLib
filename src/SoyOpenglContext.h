@@ -13,6 +13,7 @@ namespace OpenglExtensions
 		Invalid,
 		AppleClientStorage,
 		VertexArrayObjects,
+		VertexBuffers,
 	};
 	
 	DECLARE_SOYENUM( OpenglExtensions );
@@ -32,6 +33,8 @@ namespace Opengl
 	extern std::function<void(GLsizei,GLuint*)>			GenVertexArrays;
 	extern std::function<void(GLsizei,const GLuint*)>	DeleteVertexArrays;
 	extern std::function<GLboolean(GLuint)>				IsVertexArray;
+	
+	extern std::function<GLboolean(GLsizei,const GLenum *)>	DrawBuffers;
 };
 
 
@@ -52,6 +55,7 @@ public:
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
 	
 	void			BindVertexArrayObjectsExtension();
+	void			BindVertexBuffersExtension();
 
 public:
 	Soy::TVersion	mVersion;
