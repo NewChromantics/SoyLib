@@ -405,7 +405,7 @@ public:
 	void				Unbind() const;
 	bool				IsValid() const;
 	void				Delete();
-	void				Copy(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
+	void				Write(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
 	void				Read(SoyPixelsImpl& Pixels) const;
 	void				SetRepeat(bool Repeat=true);
 	void				SetClamped()				{	SetRepeat(false);	}

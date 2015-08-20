@@ -668,7 +668,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 
 
 
-void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUploadParams Params)
+void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUploadParams Params)
 {
 	Soy::Assert( IsValid(), "Trying to upload to invalid texture ");
 	
