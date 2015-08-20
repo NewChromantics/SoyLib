@@ -296,6 +296,14 @@ inline std::ostream& operator<<(std::ostream &out,const float4x4&in)
 	return out;
 }
 
+inline std::ostream& operator<<(std::ostream &out,const float3x3&in)
+{
+	out << in.GetRow(0) << Soy::VecNXDelins[0]
+	<< in.GetRow(1) << Soy::VecNXDelins[0]
+	<< in.GetRow(2);
+	return out;
+}
+
 template<size_t BUFFERSIZE>
 inline void Soy::StringToBuffer(const char* Source,char (& Buffer)[BUFFERSIZE])
 {
