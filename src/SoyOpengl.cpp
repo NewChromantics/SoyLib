@@ -188,6 +188,16 @@ std::ostream& Opengl::operator<<(std::ostream &out,const Opengl::TUniform& in)
 
 
 template<>
+void Opengl::SetUniform(const TUniform& Uniform,const float3x3& Value)
+{
+	GLsizei ArraySize = 1;
+	static GLboolean Transpose = false;
+	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
+	glUniformMatrix3fv( Uniform.mIndex, ArraySize, Transpose, Value.m );
+	Opengl_IsOkay();
+}
+
+template<>
 void Opengl::SetUniform(const TUniform& Uniform,const vec4f& Value)
 {
 	GLsizei ArraySize = 1;
@@ -584,8 +594,18 @@ bool Opengl::TTexture::Bind() const
 void Opengl::TTexture::Unbind() const
 {
 	glBindTexture( mType, GL_ASSET_INVALID );
+	Opengl_IsOkay();
 }
 
+void Opengl::TTexture::SetRepeat(bool Repeat)
+{
+	Bind();
+	auto Type = (mType == GL_TEXTURE_RECTANGLE) ? GL_TEXTURE_2D : mType;
+	glTexParameteri( Type, GL_TEXTURE_WRAP_S, Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+	glTexParameteri( Type, GL_TEXTURE_WRAP_T, Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+	Opengl_IsOkay();
+	Unbind();
+}
 
 void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 {
@@ -926,6 +946,17 @@ Opengl::TShaderState::~TShaderState()
 	
 	//	unbind shader
 	glUseProgram(0);
+}
+
+
+
+bool Opengl::TShaderState::SetUniform(const char* Name,const float3x3& v)
+{
+	auto Uniform = mShader.GetUniform( Name );
+	if ( !Uniform.IsValid() )
+		return false;
+	Opengl::SetUniform( Uniform, v );
+	return true;
 }
 
 

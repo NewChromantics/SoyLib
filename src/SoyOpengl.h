@@ -233,6 +233,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
 	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& Texture);	//	special case which tracks how many textures are bound
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override	{	return SetUniform( Name, Texture.mTexture );	}
+	bool			SetUniform(const char* Name,const float3x3& v);
 
 	template<typename TYPE>
 	bool	SetUniform(const std::string& Name,const TYPE& v)
@@ -404,7 +405,9 @@ public:
 	void				Delete();
 	void				Copy(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
 	void				Read(SoyPixelsImpl& Pixels) const;
-	
+	void				SetRepeat(bool Repeat=true);
+	void				SetClamped()				{	SetRepeat(false);	}
+
 public:
 	bool				mAutoRelease;
 	std::shared_ptr<SoyPixelsImpl>	mClientBuffer;	//	for CPU-buffered textures, it's kept here. ownership should go with mAutoRelease, but shared_ptr maybe takes care of that?
