@@ -308,6 +308,13 @@ void CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLi
 	}
 }
 
+void Opengl::FlushError(const char* Context)
+{
+	//	silently flush any errors
+	//	may expand in future
+	glGetError();
+}
+
 
 bool Opengl::IsOkay(const char* Context,bool ThrowException)
 {
@@ -316,7 +323,7 @@ bool Opengl::IsOkay(const char* Context,bool ThrowException)
 		return true;
 	
 	std::stringstream ErrorStr;
-	ErrorStr << "Opengl error in " << Context << ": " << Opengl::GetEnumString(Error) << std::endl;
+	ErrorStr << "Opengl error in " << Context << ": " << Opengl::GetEnumString(Error);
 	
 	if ( !ThrowException )
 	{
@@ -600,7 +607,14 @@ void Opengl::TTexture::Unbind() const
 void Opengl::TTexture::SetRepeat(bool Repeat)
 {
 	Bind();
+#if defined(GL_TEXTURE_RECTANGLE)
+	//	gr: on OSX, using a non-2D/Cubemap texture gives invalid enum
+	//	this doesn't work, but doesn't give an error
+	//	maybe allow the throw?
 	auto Type = (mType == GL_TEXTURE_RECTANGLE) ? GL_TEXTURE_2D : mType;
+#else
+	auto Type = mType;
+#endif
 	glTexParameteri( Type, GL_TEXTURE_WRAP_S, Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 	glTexParameteri( Type, GL_TEXTURE_WRAP_T, Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 	Opengl_IsOkay();

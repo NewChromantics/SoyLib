@@ -105,11 +105,13 @@ namespace Opengl
 	extern const char * ReflectionMappedFragmentShaderSrc;
 	
 
-#define Opengl_IsOkay()			Opengl::IsOkay(__func__)
-#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__)+ " flush", false )
+	#define Opengl_IsOkay()			Opengl::IsOkay(__func__)
+	//#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__)+ " flush", false )
+	#define Opengl_IsOkayFlush()	Opengl::FlushError( __func__ )
 
 	bool			IsOkay(const char* Context,bool ThrowException=true);
 	inline bool		IsOkay(const std::string& Context,bool ThrowException=true)	{	return IsOkay( Context.c_str(), ThrowException );	}
+	void			FlushError(const char* Context);
 	std::string		GetEnumString(GLenum Type);
 
 	GLenum	GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
