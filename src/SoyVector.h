@@ -271,6 +271,11 @@ public:
 		return m[(r*3)+c];
 	}
 	
+	TYPE&	operator()(size_t c,size_t r)
+	{
+		return m[(r*3)+c];
+	}
+	
 	const TYPE&	operator[](size_t i) const
 	{
 		return m[i];
@@ -365,7 +370,7 @@ namespace Soy
 	
 	inline vec4f	RectToVector(const Rectf& v)	{	return vec4f( v.x, v.y, v.w, v.h );	}
 
-	float3x3		MatrixToVector(const CGAffineTransform& Transform);
+	float3x3		MatrixToVector(const CGAffineTransform& Transform,vec2f TransformNormalisation);
 };
 
 
