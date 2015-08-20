@@ -77,7 +77,7 @@ __thread std::DebugBufferString* ThreadBuffer = nullptr;	//	thread_local not sup
 #if defined(TARGET_ANDROID)
 void Soy::Platform::DebugPrint(const std::string& Message)
 {
-	__android_log_print( ANDROID_LOG_INFO, Soy::DebugContext.c_str(), "pop: %s\n", Message.c_str() );
+	__android_log_print( ANDROID_LOG_INFO, Soy::DebugContext.c_str(), "pop: %s", Message.c_str() );
 }
 #endif
 
