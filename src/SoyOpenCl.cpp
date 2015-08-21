@@ -10,7 +10,8 @@ namespace Opencl
 #define Opencl_IsOkay(Error)	Opencl::IsOkay( (Error), __func__, true )
 	bool				IsOkay(cl_int Error,const std::string& Context,bool ThrowException=true);
 	
-	
+	std::string			EnumToString_EventStatus(cl_uint Error);
+
 	cl_channel_order	GetImageChannelOrder(SoyPixelsFormat::Type Format,cl_channel_type& DataType);
 }
 
@@ -40,6 +41,28 @@ cl_float4 Soy::VectorToCl(const vec4f& v)
 	return cl_float4{ .s={ v.x, v.y, v.z, v.w } };
 }
 
+vec2f Soy::ClToVector(const cl_float2& v)
+{
+	return vec2f( v.s[0], v.s[1] );
+}
+
+vec4f Soy::ClToVector(const cl_float4& v)
+{
+	return vec4f( v.s[0], v.s[1], v.s[2], v.s[3] );
+}
+
+
+std::ostream& operator<<(std::ostream &out,const cl_float2& in)
+{
+	out << Soy::ClToVector(in);
+	return out;
+}
+
+std::ostream& operator<<(std::ostream &out,const cl_float4& in)
+{
+	out << Soy::ClToVector(in);
+	return out;
+}
 
 
 
@@ -138,6 +161,23 @@ std::string Opencl::GetErrorString(cl_int Error)
 	return Unknown.str();
 }
 
+
+std::string Opencl::EnumToString_EventStatus(cl_uint Error)
+{
+#define CASE_ENUM_STRING(e)	case (e):	return #e;
+	switch ( Error )
+	{
+			//	extension errors
+			CASE_ENUM_STRING( CL_COMPLETE );
+			CASE_ENUM_STRING( CL_RUNNING );
+			CASE_ENUM_STRING( CL_SUBMITTED );
+			CASE_ENUM_STRING( CL_QUEUED );
+	}
+#undef CASE_ENUM_STRING
+	std::stringstream Unknown;
+	Unknown << "Unknown cl event status " << Error;
+	return Unknown.str();
+}
 
 void GetPlatforms(ArrayBridge<cl_platform_id>&& Platforms)
 {
@@ -630,6 +670,15 @@ void Opencl::TSync::Wait()
 	if ( !mEvent )
 		return;
 	
+	cl_uint EventRefCount = 0;
+	auto InfoError = clGetEventInfo( mEvent, CL_EVENT_REFERENCE_COUNT, sizeof(EventRefCount), &EventRefCount, nullptr );
+	Opencl_IsOkay( InfoError );
+
+	cl_int EventStatus = CL_SUCCESS;
+	auto GetEventInfoErr = clGetEventInfo( mEvent, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(EventStatus), &EventStatus, nullptr );
+	Opencl_IsOkay( GetEventInfoErr );
+	std::Debug << "Event status: " << EnumToString_EventStatus( EventStatus ) << std::endl;
+	
 	auto WaitError = clWaitForEvents( 1, &mEvent );
 
 	//	there was an error in execution, let's find what it was
@@ -712,13 +761,15 @@ cl_image_format Opencl::GetImageFormat(SoyPixelsFormat::Type Format)
 }
 
 Opencl::TBuffer::TBuffer() :
-	mMem	( nullptr )
+	mMem		( nullptr ),
+	mBufferSize	( 0 )
 {
 	
 }
 
 Opencl::TBuffer::TBuffer(size_t Size,TContext& Context) :
-	mMem	( nullptr )
+	mMem		( nullptr ),
+	mBufferSize	( 0 )
 {
 	cl_mem_flags Flags = 0;
 	void* HostPtr = nullptr;
@@ -730,6 +781,7 @@ Opencl::TBuffer::TBuffer(size_t Size,TContext& Context) :
 	Opencl::IsOkay( Error, ErrorString.str() );
 
 	Soy::Assert( mMem != nullptr, "clCreateBuffer success but no mem object" );
+	mBufferSize = Size;
 }
 
 Opencl::TBuffer::~TBuffer()
@@ -738,6 +790,7 @@ Opencl::TBuffer::~TBuffer()
 	{
 		clReleaseMemObject( mMem );
 		mMem = nullptr;
+		mBufferSize = 0;
 	}
 }
 
@@ -752,7 +805,15 @@ void Opencl::TBuffer::ReadImpl(ArrayInterface<uint8>& Array,TContext& Context,TS
 	//	todo; check size of mem. We should store this on mMem set
 	size_t StartBytes = 0;
 	size_t ByteCount = Array.GetDataSize();
-	bool Blocking = false;
+	static bool Blocking = true;
+
+	if ( ByteCount < mBufferSize )
+	{
+		std::stringstream Error;
+		Error << "Trying to read " << Soy::FormatSizeBytes(ByteCount) << " more than buffer size " << Soy::FormatSizeBytes(mBufferSize) << std::endl;
+		throw Soy::AssertException( Error.str() );
+		//ByteCount = mBufferSize;
+	}
 	
 	auto Error = clEnqueueReadBuffer( Context.GetQueue(), mMem, Blocking, StartBytes, ByteCount, ArrayPtr, 0, nullptr, Sync ? &Sync->mEvent : nullptr );
 	std::stringstream ErrorString;
@@ -764,9 +825,11 @@ void Opencl::TBuffer::Write(const uint8 *Array,size_t Size,TContext& Context,Ope
 {
 	Soy::Assert( mMem != nullptr, "Mem buffer expected" );
 	Soy::Assert( Array != nullptr, "Array should not be empty" );
+	Soy::Assert( Size <= mBufferSize, "Trying to write more bytes than in buffer");
 
 	bool Blocking = false;
 	size_t StartBytes = 0;
+	Size = std::min( Size, mBufferSize );
 
 	auto Error = clEnqueueWriteBuffer( Context.GetQueue(), mMem, Blocking, StartBytes, Size, Array, 0, nullptr,  Sync ? &Sync->mEvent : nullptr );
 	std::stringstream ErrorString;

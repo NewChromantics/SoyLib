@@ -93,7 +93,13 @@ namespace Soy
 	cl_float2	VectorToCl(const vec2f& v);
 	cl_float3	VectorToCl(const vec3f& v);
 	cl_float4	VectorToCl(const vec4f& v);
+
+	vec2f		ClToVector(const cl_float2& v);
+	vec4f		ClToVector(const cl_float4& v);
 }
+
+std::ostream& operator<<(std::ostream &out,const cl_float2& in);
+std::ostream& operator<<(std::ostream &out,const cl_float4& in);
 
 
 
@@ -291,17 +297,24 @@ class Opencl::TBufferArray : public TBuffer
 {
 public:
 	TBufferArray(ArrayBridge<TYPE>&& Array,TContext& Context,TSync* Sync=nullptr) :
-		TBuffer	( Array.GetDataSize(), Context )
+		TBuffer			( Array.GetDataSize(), Context ),
+		mElementSize	( 0 )
 	{
 		Write( reinterpret_cast<uint8*>( Array.GetArray() ), Array.GetDataSize(), Context, Sync );
+		mElementSize = Array.GetElementSize();
 	}
 	TBufferArray(ArrayBridge<TYPE>& Array,TContext& Context,TSync* Sync=nullptr) :
-		TBuffer	( Array.GetDataSize(), Context )
+		TBuffer			( Array.GetDataSize(), Context ),
+		mElementSize	( 0 )
 	{
 		Write( reinterpret_cast<uint8*>( Array.GetArray() ), Array.GetDataSize(), Context, Sync );
+		mElementSize = Array.GetElementSize();
 	}
 	
+	size_t	GetSize() const	{	return mBufferSize / mElementSize;	}
+	
 private:
+	size_t	mElementSize;
 };
 
 
