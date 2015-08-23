@@ -677,7 +677,7 @@ void Opencl::TSync::Wait()
 	cl_int EventStatus = CL_SUCCESS;
 	auto GetEventInfoErr = clGetEventInfo( mEvent, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(EventStatus), &EventStatus, nullptr );
 	Opencl_IsOkay( GetEventInfoErr );
-	std::Debug << "Event status: " << EnumToString_EventStatus( EventStatus ) << std::endl;
+	//std::Debug << "Event status: " << EnumToString_EventStatus( EventStatus ) << std::endl;
 	
 	auto WaitError = clWaitForEvents( 1, &mEvent );
 
@@ -807,7 +807,7 @@ void Opencl::TBuffer::ReadImpl(ArrayInterface<uint8>& Array,TContext& Context,TS
 	size_t ByteCount = Array.GetDataSize();
 	static bool Blocking = true;
 
-	if ( ByteCount < mBufferSize )
+	if ( ByteCount > mBufferSize )
 	{
 		std::stringstream Error;
 		Error << "Trying to read " << Soy::FormatSizeBytes(ByteCount) << " more than buffer size " << Soy::FormatSizeBytes(mBufferSize) << std::endl;
