@@ -940,17 +940,37 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 			mMem = clCreateFromGLTexture( mContext.GetContext(), MemFlags, Texture.mType, MipLevel, Texture.mTexture.mName, &Error );
 			Opencl::IsOkay( Error, "clCreateFromGLTexture" );
 
-			//	immediately acquire
-			static bool Lock = false;
-			
+			//	immediately acquire - required to stop corruption
+			static bool Lock = false;		//	has corruption!
+			static bool FlushApple = true;	//	non blocking glFlushRenderAPPLE does not solve it, but blocking does
+			static bool FlushGl = true;
 			if ( Lock )
 			{
-				Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, 0, nullptr, nullptr );
+				Soy::TScopeTimerPrint Timer("clEnqueueAcquireGLObjects",10);
+				TSync Sync;
+				Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, 0, nullptr, &Sync.mEvent );
 				Opencl::IsOkay( Error, "clEnqueueAcquireGLObjects" );
-			
+				Sync.Wait();
 				mLockedOpenglObject = true;
 			}
-			
+			else if ( FlushApple )
+			{
+				Soy::TScopeTimerPrint Timer("glFlushRenderAPPLE",10);
+				
+				Soy::TSemaphore Sync;
+				OpenglContext.PushJob( []{ glFlushRenderAPPLE(); }, Sync );
+				Sync.Wait();
+				//mLockedOpenglObject = true;
+			}
+			else if ( FlushGl )
+			{
+				Soy::TScopeTimerPrint Timer("glFlush",0);
+				Soy::TSemaphore Sync;
+				OpenglContext.PushJob( []{ glFlush(); }, Sync );
+				Sync.Wait();
+				mLockedOpenglObject = true;
+				throw Soy::AssertException("gr: this does NOT work");
+			}
 			//	success!
 			return;
 		}
