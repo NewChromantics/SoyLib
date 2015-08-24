@@ -244,19 +244,26 @@ std::ostream& operator<<(std::ostream &out,const Opencl::TDeviceMeta& in)
 
 
 Opencl::TDeviceMeta::TDeviceMeta(cl_device_id Device) :
-	mDevice		( Device )
+	mDevice						( Device ),
+	mHasOpenglInteroperability	( false )
 {
 	mVendor = GetString( Device, CL_DEVICE_VENDOR );
 	mName = GetString( Device, CL_DEVICE_NAME );
 	mDriverVersion = GetString( Device, CL_DRIVER_VERSION );
 	std::string DeviceVersion = GetString( Device, CL_DEVICE_VERSION );
 	mProfile = GetString( Device, CL_DEVICE_PROFILE );
-	mExtensions = GetString( Device, CL_DEVICE_EXTENSIONS );
 
+	auto Extensions = GetString( Device, CL_DEVICE_EXTENSIONS );
+	Soy::StringSplitByMatches( GetArrayBridge(mExtensions), Extensions, " " );
+
+#if defined(TARGET_OSX)
+	mHasOpenglInteroperability = mExtensions.Find("cl_APPLE_gl_sharing");
+#endif
+	
 	//	extract version
 	mVersion = Soy::TVersion( DeviceVersion, "OpenCL " );
 	
-	std::Debug << "Device " << mName << "(" << mDriverVersion << ") extensions: " << mExtensions << std::endl;
+	std::Debug << "Device " << mName << "(" << mDriverVersion << ") extensions: " << Extensions << std::endl;
 
 	cl_device_type Type = OpenclDevice::Invalid;
 	GetValue( Device, CL_DEVICE_TYPE, Type );
@@ -369,42 +376,52 @@ void Opencl::GetDevices(ArrayBridge<TDeviceMeta>&& Metas,OpenclDevice::Type Filt
 
 
 
-Opencl::TDevice::TDevice(const ArrayBridge<cl_device_id>& Devices) :
-	mContext	( nullptr )
+Opencl::TDevice::TDevice(const ArrayBridge<cl_device_id>& Devices,Opengl::TContext* OpenglContext) :
+	mContext				( nullptr ),
+	mSharedOpenglContext	( nullptr )
 {
-	CreateContext( Devices );
+	CreateContext( Devices, OpenglContext );
 }
 
 
-Opencl::TDevice::TDevice(const ArrayBridge<TDeviceMeta>& Devices) :
-	mContext	( nullptr )
+Opencl::TDevice::TDevice(const ArrayBridge<TDeviceMeta>& Devices,Opengl::TContext* OpenglContext) :
+	mContext				( nullptr ),
+	mSharedOpenglContext	( nullptr )
 {
 	Array<cl_device_id> DeviceIds;
 	for ( int i=0;	i<Devices.GetSize();	i++ )
 		DeviceIds.PushBack( Devices[i].mDevice );
 
-	CreateContext( GetArrayBridge(DeviceIds) );
+	CreateContext( GetArrayBridge(DeviceIds), OpenglContext );
 }
 
-void Opencl::TDevice::CreateContext(const ArrayBridge<cl_device_id>& Devices)
+void Opencl::TDevice::CreateContext(const ArrayBridge<cl_device_id>& Devices,Opengl::TContext* OpenglContext)
 {
 	if ( Devices.IsEmpty() )
 		throw Soy::AssertException("No devices provided");
+	
+	
+	//	gr: just warn?
+	//	gr: filter out non interop devices?
+	if ( OpenglContext )
+	{
+	}
 	
 	//	create context
 	//	if we specify any properties we need a platform (and a terminator)
 	Array<cl_context_properties> Properties;
 
 #if defined(TARGET_OSX)
-	/* opengl interop
-	CGLContextObj kCGLContext = CGLGetCurrentContext();
-	CGLShareGroupObj kCGLShareGroup = CGLGetShareGroup(kCGLContext);
-	Properties.PushBack( CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE );
-	Properties.PushBack( (cl_context_properties)kCGLShareGroup );
-	 */
+	if ( OpenglContext )
+	{
+		auto CGLContext = OpenglContext->GetPlatformContext();
+		CGLShareGroupObj CGLShareGroup = CGLGetShareGroup( CGLContext );
+		Properties.PushBack( CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE );
+		Properties.PushBack( (cl_context_properties)CGLShareGroup );
+	}
 #endif
 
-	//	c-array style list terminator
+	//	add c-array style list terminator
 	if ( !Properties.IsEmpty() )
 		Properties.PushBack(0);
 
@@ -414,6 +431,13 @@ void Opencl::TDevice::CreateContext(const ArrayBridge<cl_device_id>& Devices)
 	Soy::Assert( mContext != nullptr, "clCreateContext failed to return a context" );
 	
 	mDevices.Copy( Devices );
+	
+#if defined(TARGET_OSX)
+	if ( OpenglContext )
+	{
+		mSharedOpenglContext = OpenglContext->GetPlatformContext();
+	}
+#endif
 }
 
 
@@ -424,6 +448,16 @@ Opencl::TDevice::~TDevice()
 		clReleaseContext( mContext );
 		mContext = nullptr;
 	}
+}
+
+bool Opencl::TDevice::HasInteroperability(Opengl::TContext &Opengl)
+{
+#if defined(TARGET_OSX)
+	auto Context = Opengl.GetPlatformContext();
+	return mSharedOpenglContext == Context;
+#else
+	return false;
+#endif
 }
 
 std::shared_ptr<Opencl::TContext> Opencl::TDevice::CreateContext()
@@ -886,7 +920,19 @@ Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,
 Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
 	mContext	( Context )
 {
-	//	check for opengl interoperability
+	Soy::TScopeTimerPrint Timer("TBufferImage from opengl texture", 10 );
+	
+	if ( Context.HasInteroperability(OpenglContext) )
+	{
+		cl_mem_flags MemFlags = ReadWrite;
+		cl_GLint MipLevel = 0;
+		cl_int Error = CL_SUCCESS;
+		mMem = clCreateFromGLTexture( Context.GetContext(), MemFlags, Texture.mType, MipLevel, Texture.mTexture.mName, &Error );
+		if ( Opencl::IsOkay( Error, "clCreateFromGLTexture", false ) )
+			return;
+	}
+
+	//	read texture to buffer and upload that
 	SoyPixels Buffer;
 	auto Read = [&Buffer,&Texture]
 	{
@@ -894,9 +940,8 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 	};
 	Soy::TSemaphore ReadSemaphore;
 	OpenglContext.PushJob( Read, ReadSemaphore );
-	//ReadSemaphore.Wait("TBufferImage read pixels from texture");
 	ReadSemaphore.Wait();
-	
+
 	*this = std::move( Opencl::TBufferImage( Buffer, Context, false, ReadWrite, Semaphore ) );
 }
 
@@ -954,12 +999,12 @@ void Opencl::TBufferImage::Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
 }
 
 
-bool Opencl::TKernelState::SetUniform(const char* Name,const Opengl::TTextureAndContext& Pixels)
+bool Opencl::TKernelState::SetUniform(const char* Name,const Opengl::TTextureAndContext& Pixels,OpenclBufferReadWrite::Type ReadWriteMode)
 {
 	//	todo: get uniform and check type is image_2D_t
 	//	make image buffer and set that
 	Opencl::TSync Sync;
-	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels.mTexture, Pixels.mContext, GetContext(), OpenclBufferReadWrite::ReadWrite, &Sync ) );
+	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels.mTexture, Pixels.mContext, GetContext(), ReadWriteMode, &Sync ) );
 	
 	if ( mBuffers.find(Name) != mBuffers.end() )
 		std::Debug << "Warning, setting buffer for uniform " << Name << " which already has a buffer..." << std::endl;
@@ -976,12 +1021,12 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const Opengl::TTextureAnd
 }
 
 
-bool Opencl::TKernelState::SetUniform(const char* Name,const SoyPixelsImpl& Pixels)
+bool Opencl::TKernelState::SetUniform(const char* Name,const SoyPixelsImpl& Pixels,OpenclBufferReadWrite::Type ReadWriteMode)
 {
 	//	todo: get uniform and check type is image_2D_t
 	//	make image buffer and set that
 	Opencl::TSync Sync;
-	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, OpenclBufferReadWrite::WriteOnly, &Sync ) );
+	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, ReadWriteMode, &Sync ) );
 
 	if ( mBuffers.find(Name) != mBuffers.end() )
 		std::Debug << "Warning, setting buffer for uniform " << Name << " which already has a buffer..." << std::endl;
