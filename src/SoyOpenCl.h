@@ -340,13 +340,13 @@ public:
 	void		Write(const Opengl::TTexture& Image,Opencl::TSync* Semaphore);
 	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
 	void		Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
+	void		Read(const Opengl::TTexture& Image,Opencl::TSync* Semaphore);
 	
 private:
 	//	store meta like with Opengl::TTexture to stop bad writes/hardware lookups
-	TContext&			mContext;
-	bool				mLockedOpenglObject;	//	bool to avoid including opengl as a dependency :/
+	TContext&				mContext;
+	const Opengl::TTexture*	mOpenglObject;	//	pointer to reduce dependancy. If texture is deleted in the meantime results are undefined anyway. maybe make this safer sometime
 };
-
 
 class Opencl::TKernelIteration
 {
@@ -421,6 +421,7 @@ public:
 	//	throw on error, assuming wrong uniform is fatal
 	//	read back data from a buffer that was used as a uniform
 	void			ReadUniform(const char* Name,SoyPixelsImpl& Pixels);
+	void			ReadUniform(const char* Name,Opengl::TTextureAndContext& Texture);
 	template<typename TYPE>
 	void			ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead)
 	{

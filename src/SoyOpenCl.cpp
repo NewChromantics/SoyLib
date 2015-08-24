@@ -877,8 +877,8 @@ void Opencl::TBuffer::Write(const uint8 *Array,size_t Size,TContext& Context,Ope
 
 
 Opencl::TBufferImage::TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
-	mContext			( Context ),
-	mLockedOpenglObject	( false )
+	mContext		( Context ),
+	mOpenglObject	( nullptr )
 {
 	Soy::Assert( mMem == nullptr, "clmem already allocated");
 	
@@ -924,8 +924,8 @@ Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,
 
 
 Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
-	mContext			( Context ),
-	mLockedOpenglObject	( false )
+	mContext		( Context ),
+	mOpenglObject	( nullptr )
 {
 	Soy::TScopeTimerPrint Timer("TBufferImage from opengl texture", 10 );
 	
@@ -944,31 +944,32 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 			static bool Lock = false;		//	has corruption!
 			static bool FlushApple = true;	//	non blocking glFlushRenderAPPLE does not solve it, but blocking does
 			static bool FlushGl = true;
+			static int TimerMin = 50;
 			if ( Lock )
 			{
-				Soy::TScopeTimerPrint Timer("clEnqueueAcquireGLObjects",10);
+				Soy::TScopeTimerPrint Timer("clEnqueueAcquireGLObjects",TimerMin);
 				TSync Sync;
 				Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, 0, nullptr, &Sync.mEvent );
 				Opencl::IsOkay( Error, "clEnqueueAcquireGLObjects" );
 				Sync.Wait();
-				mLockedOpenglObject = true;
+				mOpenglObject = &Texture;
 			}
 			else if ( FlushApple )
 			{
-				Soy::TScopeTimerPrint Timer("glFlushRenderAPPLE",10);
+				Soy::TScopeTimerPrint Timer("glFlushRenderAPPLE",TimerMin);
 				
 				Soy::TSemaphore Sync;
 				OpenglContext.PushJob( []{ glFlushRenderAPPLE(); }, Sync );
 				Sync.Wait();
-				//mLockedOpenglObject = true;
+				mOpenglObject = &Texture;
 			}
 			else if ( FlushGl )
 			{
-				Soy::TScopeTimerPrint Timer("glFlush",0);
+				Soy::TScopeTimerPrint Timer("glFlush",TimerMin);
 				Soy::TSemaphore Sync;
 				OpenglContext.PushJob( []{ glFlush(); }, Sync );
 				Sync.Wait();
-				mLockedOpenglObject = true;
+				mOpenglObject = &Texture;
 				throw Soy::AssertException("gr: this does NOT work");
 			}
 			//	success!
@@ -1004,12 +1005,12 @@ Opencl::TBufferImage& Opencl::TBufferImage::operator=(TBufferImage&& Move)
 			throw Soy::AssertException("Overwriting mem with std::move");
 
 		mMem = Move.mMem;
-		mLockedOpenglObject = Move.mLockedOpenglObject;
+		mOpenglObject = Move.mOpenglObject;
 		mBufferSize = Move.mBufferSize;
 
 		//	stolen resources
 		Move.mMem = nullptr;
-		Move.mLockedOpenglObject = false;
+		Move.mOpenglObject = nullptr;
 		Move.mBufferSize = 0;
 	}
 	return *this;
@@ -1018,7 +1019,7 @@ Opencl::TBufferImage& Opencl::TBufferImage::operator=(TBufferImage&& Move)
 Opencl::TBufferImage::~TBufferImage()
 {
 	//	release any opengl objects in use
-	if ( mLockedOpenglObject )
+	if ( mOpenglObject )
 	{
 		Soy::Assert( mMem != nullptr, "Need to release GL object lock from membuffer, but mem is gone");
 		
@@ -1026,7 +1027,7 @@ Opencl::TBufferImage::~TBufferImage()
 		auto Error = clEnqueueReleaseGLObjects( mContext.GetQueue(), 1, &mMem, 0, nullptr, &Sync.mEvent );
 		Opencl::IsOkay( Error, "clEnqueueReleaseGLObjects" );
 		Sync.Wait();
-		mLockedOpenglObject = false;
+		mOpenglObject = nullptr;
 	}
 }
 
@@ -1067,6 +1068,14 @@ void Opencl::TBufferImage::Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
 	Opencl::IsOkay( Error, __func__ );
 }
 
+void Opencl::TBufferImage::Read(const Opengl::TTexture& Image,Opencl::TSync* Semaphore)
+{
+	//	read-back the texture we were created with
+	if ( mOpenglObject != &Image )
+		throw Soy::AssertException("Currently only support reading back to texture we were created from");
+	
+	//	how do I read this? just flush opencl work?	
+}
 
 bool Opencl::TKernelState::SetUniform(const char* Name,const Opengl::TTextureAndContext& Pixels,OpenclBufferReadWrite::Type ReadWriteMode)
 {
@@ -1139,6 +1148,32 @@ bool Opencl::TKernelState::SetUniform(const char* Name,TBuffer& Buffer)
 	return SetKernelArg( *this, Name, Buffer.GetMemBuffer() );
 }
 
+
+void Opencl::TKernelState::ReadUniform(const char* Name,Opengl::TTextureAndContext& Texture)
+{
+	//	see if there's a buffer
+	auto BufferIt = mBuffers.find( Name );
+	if ( BufferIt == mBuffers.end() )
+	{
+		std::stringstream Error;
+		Error << "No buffer for uniform " << Name;
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	auto& pBuffer = BufferIt->second;
+	if ( !pBuffer )
+	{
+		std::stringstream Error;
+		Error << "Missing data buffer for uniform " << Name;
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	//	check types etc!
+	Opencl::TSync Semaphore;
+	auto& BufferImage = dynamic_cast<TBufferImage&>( *pBuffer );
+	BufferImage.Read( Texture.mTexture, &Semaphore );
+	Semaphore.Wait();
+}
 
 void Opencl::TKernelState::ReadUniform(const char* Name,SoyPixelsImpl& Pixels)
 {
