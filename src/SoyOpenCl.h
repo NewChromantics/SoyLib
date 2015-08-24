@@ -333,6 +333,7 @@ public:
 	TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
 	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
 	TBufferImage(const Opengl::TTexture& Image,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
+	~TBufferImage();
 	
 	TBufferImage&	operator=(TBufferImage&& Move);
 	
@@ -342,7 +343,8 @@ public:
 	
 private:
 	//	store meta like with Opengl::TTexture to stop bad writes/hardware lookups
-	TContext&	mContext;
+	TContext&			mContext;
+	bool				mLockedOpenglObject;	//	bool to avoid including opengl as a dependency :/
 };
 
 

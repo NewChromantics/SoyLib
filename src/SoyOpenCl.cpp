@@ -794,6 +794,7 @@ cl_image_format Opencl::GetImageFormat(SoyPixelsFormat::Type Format)
 	return FormatCl;
 }
 
+
 Opencl::TBuffer::TBuffer() :
 	mMem		( nullptr ),
 	mBufferSize	( 0 )
@@ -808,6 +809,7 @@ Opencl::TBuffer::TBuffer(size_t Size,TContext& Context) :
 	cl_mem_flags Flags = 0;
 	void* HostPtr = nullptr;
 
+	Soy::Assert( mMem == nullptr, "clmem already allocated");
 	cl_int Error = CL_SUCCESS;
 	mMem = clCreateBuffer( Context.GetContext(), Flags, Size, HostPtr, &Error );
 	std::stringstream ErrorString;
@@ -822,7 +824,8 @@ Opencl::TBuffer::~TBuffer()
 {
 	if ( mMem )
 	{
-		clReleaseMemObject( mMem );
+		auto Error = clReleaseMemObject( mMem );
+		Opencl::IsOkay( Error, "clReleaseMemObject" );
 		mMem = nullptr;
 		mBufferSize = 0;
 	}
@@ -874,8 +877,11 @@ void Opencl::TBuffer::Write(const uint8 *Array,size_t Size,TContext& Context,Ope
 
 
 Opencl::TBufferImage::TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
-	mContext	( Context )
+	mContext			( Context ),
+	mLockedOpenglObject	( false )
 {
+	Soy::Assert( mMem == nullptr, "clmem already allocated");
+	
 	auto& Device = Context.GetDevice();
 	Soy::Assert( Device.imageSupport, "Device doesn't support images" );
 	if ( Device.image2dMaxWidth < Meta.GetWidth() || Device.image2dMaxHeight < Meta.GetHeight() )
@@ -910,7 +916,7 @@ Opencl::TBufferImage::TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,c
 }
 
 Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore) :
-	TBufferImage	( Image.GetMeta(), Context, ClientStorage ? &Image : nullptr, ReadWrite, Semaphore )
+	TBufferImage		( Image.GetMeta(), Context, ClientStorage ? &Image : nullptr, ReadWrite, Semaphore )
 {
 	if ( ReadWrite != OpenclBufferReadWrite::WriteOnly )
 		Write( Image, Semaphore );
@@ -918,18 +924,40 @@ Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,
 
 
 Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
-	mContext	( Context )
+	mContext			( Context ),
+	mLockedOpenglObject	( false )
 {
 	Soy::TScopeTimerPrint Timer("TBufferImage from opengl texture", 10 );
 	
-	if ( Context.HasInteroperability(OpenglContext) )
+	try
 	{
-		cl_mem_flags MemFlags = ReadWrite;
-		cl_GLint MipLevel = 0;
-		cl_int Error = CL_SUCCESS;
-		mMem = clCreateFromGLTexture( Context.GetContext(), MemFlags, Texture.mType, MipLevel, Texture.mTexture.mName, &Error );
-		if ( Opencl::IsOkay( Error, "clCreateFromGLTexture", false ) )
+		if ( Context.HasInteroperability(OpenglContext) )
+		{
+			cl_mem_flags MemFlags = ReadWrite;
+			cl_GLint MipLevel = 0;
+			cl_int Error = CL_SUCCESS;
+			Soy::Assert( mMem == nullptr, "clmem already allocated");
+			mMem = clCreateFromGLTexture( mContext.GetContext(), MemFlags, Texture.mType, MipLevel, Texture.mTexture.mName, &Error );
+			Opencl::IsOkay( Error, "clCreateFromGLTexture" );
+
+			//	immediately acquire
+			static bool Lock = false;
+			
+			if ( Lock )
+			{
+				Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, 0, nullptr, nullptr );
+				Opencl::IsOkay( Error, "clEnqueueAcquireGLObjects" );
+			
+				mLockedOpenglObject = true;
+			}
+			
+			//	success!
 			return;
+		}
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Failed to upload texture to opencl via opengl: " << e.what() << std::endl;
 	}
 
 	//	read texture to buffer and upload that
@@ -952,14 +980,35 @@ Opencl::TBufferImage& Opencl::TBufferImage::operator=(TBufferImage&& Move)
 	
 	if ( this != &Move )
 	{
-		mMem = Move.mMem;
+		if ( mMem )
+			throw Soy::AssertException("Overwriting mem with std::move");
 
-		//	stolen the resource
+		mMem = Move.mMem;
+		mLockedOpenglObject = Move.mLockedOpenglObject;
+		mBufferSize = Move.mBufferSize;
+
+		//	stolen resources
 		Move.mMem = nullptr;
+		Move.mLockedOpenglObject = false;
+		Move.mBufferSize = 0;
 	}
 	return *this;
 }
 
+Opencl::TBufferImage::~TBufferImage()
+{
+	//	release any opengl objects in use
+	if ( mLockedOpenglObject )
+	{
+		Soy::Assert( mMem != nullptr, "Need to release GL object lock from membuffer, but mem is gone");
+		
+		TSync Sync;
+		auto Error = clEnqueueReleaseGLObjects( mContext.GetQueue(), 1, &mMem, 0, nullptr, &Sync.mEvent );
+		Opencl::IsOkay( Error, "clEnqueueReleaseGLObjects" );
+		Sync.Wait();
+		mLockedOpenglObject = false;
+	}
+}
 
 void Opencl::TBufferImage::Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
 {
