@@ -41,10 +41,5 @@ DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
 COPY_PHASE_STRIP = NO
 
 
-//	manage obj-c auto release ourselves so we can use the pointers in c++ classes
-//	ie. without needing @property(strong) NSWindow* window;
-CLANG_ENABLE_OBJC_ARC = NO
-
-
 PRODUCT_BUNDLE_IDENTIFIER = NewChromantics.$(PRODUCT_NAME:rfc1034identifier)
 PRODUCT_NAME = $(TARGET_NAME)
