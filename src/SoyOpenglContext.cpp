@@ -81,14 +81,14 @@ void Opengl::TContext::Init()
 
 
 
-bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName)
+bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName,ArrayBridge<std::string>& UnhandledExtensions)
 {
 	auto ExtensionType = OpenglExtensions::ToType( ExtensionName );
 	
 	//	not one we explicitly support
 	if ( ExtensionType == OpenglExtensions::Invalid )
 	{
-		std::Debug << "Unhandled/ignored extension: " << ExtensionName << std::endl;
+		UnhandledExtensions.PushBack( ExtensionName );
 		return true;
 	}
 	
@@ -99,13 +99,18 @@ bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,co
 	return true;
 }
 
+bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName,ArrayBridge<std::string>&& UnhandledExtensions)
+{
+	return PushExtension( SupportedExtensions, ExtensionName, UnhandledExtensions );
+}
+
 //	pre-opengl 3 we have a string to parse
-void ParseExtensions(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionsList)
+void ParseExtensions(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionsList,ArrayBridge<std::string>&& UnhandledExtensions)
 {
 	//	pump split's into map
-	auto ParseExtension = [&SupportedExtensions](const std::string& ExtensionName)
+	auto ParseExtension = [&SupportedExtensions,&UnhandledExtensions](const std::string& ExtensionName)
 	{
-		return PushExtension( SupportedExtensions, ExtensionName );
+		return PushExtension( SupportedExtensions, ExtensionName, UnhandledExtensions );
 	};
 	
 	//	parse extensions string
@@ -211,11 +216,13 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		//	could do a version check, or just handle it nicely :)
 		//	debug full string in lldb;
 		//		set set target.max-string-summary-length 10000
+		Array<std::string> UnhandledExtensions;
+		
 		auto* pAllExtensions = glGetString( GL_EXTENSIONS );
 		if ( pAllExtensions )
 		{
 			std::string AllExtensions( reinterpret_cast<const char*>(pAllExtensions) );
-			ParseExtensions( SupportedExtensions, AllExtensions );
+			ParseExtensions( SupportedExtensions, AllExtensions, GetArrayBridge(UnhandledExtensions) );
 		}
 		else
 		{
@@ -234,7 +241,7 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 				}
 				
 				std::string ExtensionName( reinterpret_cast<const char*>(pExtensionName) );
-				PushExtension( SupportedExtensions, ExtensionName );
+				PushExtension( SupportedExtensions, ExtensionName, GetArrayBridge(UnhandledExtensions) );
 			}
 		}
 
