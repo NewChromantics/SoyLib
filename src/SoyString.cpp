@@ -384,3 +384,14 @@ bool Soy::StringReplace(ArrayBridge<std::string>&& str,const std::string& from,c
 	return StringReplace(str,from,to);
 }
 
+
+bool Soy::StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool CaseSensitive)
+{
+	if ( !StringBeginsWith( Haystack, Prefix, CaseSensitive ) )
+		return false;
+	
+	Haystack.erase( Haystack.begin(), Haystack.begin() + Prefix.length() );
+	return true;
+}
+
+
