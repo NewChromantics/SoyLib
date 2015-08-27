@@ -249,6 +249,13 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		
 		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
 		SupportedExtensions[OpenglExtensions::Invalid] = false;
+		
+		//	list other extensions
+		std::stringstream UnhandledExtensionsStr;
+		UnhandledExtensionsStr << "Unhandled extensions(x" << UnhandledExtensions.GetSize() << ") ";
+		for ( int i=0;	i<UnhandledExtensions.GetSize();	i++ )
+			UnhandledExtensionsStr << UnhandledExtensions[i] << " ";
+		std::Debug << UnhandledExtensionsStr.str() << std::endl;
 	}
 	
 	return SupportedExtensions[Extension];
@@ -339,6 +346,9 @@ void Opengl::TRenderTargetFbo::Unbind()
 		glFinish();
 	}
 	mFbo->Unbind();
+	
+	//	generate mipmaps after we've drawn to the image
+	mFbo->mTarget.GenerateMipMaps();
 }
 
 Soy::Rectx<size_t> Opengl::TRenderTargetFbo::GetSize()
