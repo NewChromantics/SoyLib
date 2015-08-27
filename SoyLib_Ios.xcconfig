@@ -11,7 +11,7 @@ HEADER_SEARCH_PATHS = $(inherited) $(SOY_PATH)/src/** $(POP_PATH)/src/**
 
 
 //	unity compatible settings
-ARCHS = armv7
+ARCHS = $(ARCHS_STANDARD)
 SUPPORTED_PLATFORMS = iphoneos
 
 //	gr: reduce this as much as possible
@@ -30,3 +30,6 @@ ENABLE_BITCODE = NO
 
 //	no ARC please. See OSX config
 CLANG_ENABLE_OBJC_ARC = NO
+
+PRODUCT_BUNDLE_IDENTIFIER = NewChromantics.$(PRODUCT_NAME:rfc1034identifier)
+PRODUCT_NAME = $(TARGET_NAME)
