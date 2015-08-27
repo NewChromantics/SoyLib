@@ -621,6 +621,15 @@ void Opengl::TTexture::SetRepeat(bool Repeat)
 	Unbind();
 }
 
+void Opengl::TTexture::GenerateMipMaps()
+{
+	Bind();
+	glGenerateMipmap( mType );
+	Opengl_IsOkay();
+	Unbind();
+}
+
+
 void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 {
 	Soy::Assert( IsValid(), "Trying to read from invalid texture" );

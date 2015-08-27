@@ -409,6 +409,7 @@ public:
 	void				Read(SoyPixelsImpl& Pixels) const;
 	void				SetRepeat(bool Repeat=true);
 	void				SetClamped()				{	SetRepeat(false);	}
+	void				GenerateMipMaps();
 
 public:
 	bool				mAutoRelease;
