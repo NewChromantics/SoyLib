@@ -693,8 +693,8 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	
 	//	opengl es doesn't have access!
 #if defined(OPENGL_ES_3)
-	TextureWidth = this->GetWidth();
-	TextureHeight = this->GetHeight();
+	TextureWidth = size_cast<GLint>(this->GetWidth());
+	TextureHeight = size_cast<GLint>(this->GetHeight());
 	//	gr: errr what should this be now?
 	TextureInternalFormat = GetNewTexturePixelFormat( this->GetFormat() );
 #else
