@@ -162,6 +162,8 @@ public:
 		{
 			if ( mReportFunc )
 				mReportFunc( SoyTime(mAccumulatedTime) );
+			else
+				std::Debug << mName << " took " << mAccumulatedTime << "ms to execute" << std::endl;
 			return true;
 		}
 		return false;
@@ -194,7 +196,11 @@ class Soy::TScopeTimerPrint : public TScopeTimer
 {
 public:
 	TScopeTimerPrint(const char* Name,uint64 WarningTimeMs,bool AutoStart=true,std::ostream& Output=std::Debug) :
+#if defined(TARGET_IOS)
+		TScopeTimer		( Name, WarningTimeMs, nullptr, AutoStart ),
+#else
 		TScopeTimer		( Name, WarningTimeMs, std::bind( &TScopeTimerPrint::ReportStr, this, std::placeholders::_1 ), AutoStart ),
+#endif
 		mOutputStream	( Output )
 	{
 	}
