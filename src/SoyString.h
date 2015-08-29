@@ -71,6 +71,8 @@ namespace Soy
 	
 	void		StringToArray(std::string String,ArrayBridge<char>& Array);
 	inline void	StringToArray(std::string String,ArrayBridge<char>&& Array)	{	StringToArray( String, Array );	}
+	void		StringToArray(std::string String,ArrayBridge<uint8>& Array);
+	inline void	StringToArray(std::string String,ArrayBridge<uint8>&& Array)	{	StringToArray( String, Array );	}
 	template <size_t BUFFERSIZE>
 	void		StringToBuffer(const char* Source,char (& Buffer)[BUFFERSIZE]);
 
@@ -252,6 +254,16 @@ inline std::ostream& operator<<(std::ostream &out,const vec4x<TYPE> &in)
 {
 	out << in.x << Soy::VecNXDelins[0] << in.y << Soy::VecNXDelins[0] << in.z << Soy::VecNXDelins[0] << in.w;
 	return out;
+}
+
+namespace Soy
+{
+template<typename TYPE>
+inline std::ostream& operator<<(std::ostream &out,const Soy::Rectx<TYPE> &in)
+{
+	out << in.x << Soy::VecNXDelins[0] << in.y << Soy::VecNXDelins[0] << in.w << Soy::VecNXDelins[0] << in.h;
+	return out;
+}
 }
 
 inline std::ostream& operator<<(std::ostream &out,const Soy::Matrix4x1 &in)
