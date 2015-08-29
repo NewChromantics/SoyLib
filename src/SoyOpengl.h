@@ -431,11 +431,14 @@ public:
 	void		InvalidateContent();
 	void		CheckStatus();
 	
-	void		Delete(Opengl::TContext& Context);	//	deffered delete
+	void		Delete(Opengl::TContext& Context,bool Blocking=false);	//	deffered delete
 	void		Delete();
 	
 	size_t		GetAlphaBits() const;
+	size_t		GetWidth() const	{	return mTarget.GetWidth();	}
+	size_t		GetHeight() const	{	return mTarget.GetHeight();	}
 	
+public:
 	TAsset		mFbo;
 	TTexture	mTarget;
 };

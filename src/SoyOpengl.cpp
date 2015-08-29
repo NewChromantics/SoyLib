@@ -383,9 +383,8 @@ Opengl::TFbo::~TFbo()
 	Delete();
 }
 
-void Opengl::TFbo::Delete(Opengl::TContext &Context)
+void Opengl::TFbo::Delete(Opengl::TContext &Context,bool Blocking)
 {
-
 	if ( !mFbo.IsValid() )
 		return;
 
@@ -396,8 +395,17 @@ void Opengl::TFbo::Delete(Opengl::TContext &Context)
 		Opengl::IsOkay("Deffered FBO delete");
 	};
 
-	Context.PushJob( DefferedDelete );
-
+	if ( Blocking )
+	{
+		Soy::TSemaphore Semaphore;
+		Context.PushJob( DefferedDelete, Semaphore );
+		Semaphore.Wait();
+	}
+	else
+	{
+		Context.PushJob( DefferedDelete );
+	}
+	
 	//	dont-auto delete later
 	mFbo.mName = GL_ASSET_INVALID;
 }
