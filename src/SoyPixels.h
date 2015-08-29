@@ -83,7 +83,7 @@ public:
 	uint8			GetChannels() const				{	return size_cast<uint8>(SoyPixelsFormat::GetChannelCount(mFormat));	}
 	uint16			GetWidth() const				{	return mWidth;	}
 	uint16			GetHeight() const				{	return mHeight;	}
-	size_t			GetDataSize() const				{	return GetWidth() * GetChannels() * GetWidth();	}
+	size_t			GetDataSize() const				{	return GetWidth() * GetChannels() * GetHeight();	}
 	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
 	
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
