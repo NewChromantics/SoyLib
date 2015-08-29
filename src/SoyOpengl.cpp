@@ -637,6 +637,111 @@ void Opengl::TTexture::GenerateMipMaps()
 	Unbind();
 }
 
+namespace Opengl
+{
+	class TPbo;
+}
+
+
+class Opengl::TPbo
+{
+public:
+	TPbo(SoyPixelsMeta Meta);
+	~TPbo();
+	
+	void		Bind();
+	void		Unbind();
+	
+	void			ReadPixels();
+	const uint8*	LockBuffer();
+	void			UnlockBuffer();
+	size_t			GetDataSize();
+	
+public:
+	GLuint			mPbo;
+	SoyPixelsMeta	mMeta;
+};
+
+Opengl::TPbo::TPbo(SoyPixelsMeta Meta) :
+	mMeta	( Meta ),
+	mPbo	( GL_ASSET_INVALID )
+{
+	glGenBuffers( 1, &mPbo );
+	Opengl_IsOkay();
+	
+	//	can only read back 1, 3 or 4 channels
+	auto ChannelCount = Meta.GetChannels();
+	if ( ChannelCount != 1 && ChannelCount != 3 && ChannelCount != 4 )
+		throw Soy::AssertException("PBO channel count must be 1 3 or 4");
+
+	auto DataSize = Meta.GetDataSize();
+	
+	Bind();
+	glBufferData( GL_PIXEL_PACK_BUFFER, DataSize, nullptr, GL_STREAM_READ);
+	Opengl_IsOkay();
+	Unbind();
+}
+
+Opengl::TPbo::~TPbo()
+{
+	if ( mPbo != GL_ASSET_INVALID )
+	{
+		glDeleteBuffers( 1, &mPbo );
+		Opengl_IsOkay();
+		mPbo = GL_ASSET_INVALID;
+	}
+}
+
+size_t Opengl::TPbo::GetDataSize()
+{
+	return mMeta.GetDataSize();
+}
+
+void Opengl::TPbo::Bind()
+{
+	glBindBuffer( GL_PIXEL_PACK_BUFFER, mPbo );
+	Opengl_IsOkay();
+}
+
+void Opengl::TPbo::Unbind()
+{
+	glBindBuffer( GL_PIXEL_PACK_BUFFER, 0 );
+	Opengl_IsOkay();
+}
+
+void Opengl::TPbo::ReadPixels()
+{
+	GLint x = 0;
+	GLint y = 0;
+	
+	BufferArray<GLint,5> Formats;
+	Formats.PushBack( GL_INVALID_VALUE );
+	Formats.PushBack( GL_ALPHA );
+	Formats.PushBack( GL_INVALID_VALUE );
+	Formats.PushBack( GL_RGB );
+	Formats.PushBack( GL_RGBA );
+	auto ChannelCount = mMeta.GetChannels();
+	
+	Bind();
+
+	glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), Formats[ChannelCount], GL_UNSIGNED_BYTE, nullptr );
+	Opengl_IsOkay();
+	
+	Unbind();
+}
+
+const uint8* Opengl::TPbo::LockBuffer()
+{
+	auto* Buffer = glMapBuffer( GL_PIXEL_PACK_BUFFER, GL_READ_ONLY );
+	Opengl_IsOkay();
+	return reinterpret_cast<const uint8*>( Buffer );
+}
+
+void Opengl::TPbo::UnlockBuffer()
+{
+	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+	Opengl_IsOkay();
+}
 
 void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 {
@@ -647,6 +752,8 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 	throw Soy::AssertException( std::string(__func__) + " not supported on opengl es yet");
 	return;
 #else
+	
+
 	
 	Bind();
 	
@@ -663,13 +770,57 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 	//	pre-alloc data
 	if ( !Pixels.Init( GetWidth(), GetHeight(), PixelFormat ) )
 		throw Soy::AssertException("Failed to allocate pixels for texture read");
+	auto* PixelBytes = Pixels.GetPixelsArray().GetArray();
+
 	
-	//
+	//	try to use PBO's
+	static bool UsePbo = false;
+	static bool UseFbo = true;
+	
+	if ( UsePbo )
+	{
+		TFbo FrameBuffer( *this );
+		FrameBuffer.Bind();
+		TPbo PixelBuffer( mMeta );
+		PixelBuffer.ReadPixels();
+		auto* pData = PixelBuffer.LockBuffer();
+		auto DataSize = std::min( PixelBuffer.GetDataSize(), Pixels.GetPixelsArray().GetDataSize() );
+		memcpy( PixelBytes, pData, DataSize );
+		PixelBuffer.UnlockBuffer();
+		return;
+	}
+	
+	
+	//	make sure no padding is applied so glGetTexImage doesn't override tail memory
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	Opengl_IsOkay();
+
 	GLint MipLevel = 0;
 	GLenum PixelStorage = GL_UNSIGNED_BYTE;
-	auto* PixelBytes = Pixels.GetPixelsArray().GetArray();
-	glGetTexImage( mType, MipLevel, GlFormat, PixelStorage, PixelBytes );
-	Opengl_IsOkay();
+	
+	if ( UseFbo )
+	{
+		TFbo FrameBuffer( *this );
+		GLint x = 0;
+		GLint y = 0;
+		BufferArray<GLint,5> Formats;
+		Formats.PushBack( GL_INVALID_VALUE );
+		Formats.PushBack( GL_ALPHA );
+		Formats.PushBack( GL_INVALID_VALUE );
+		Formats.PushBack( GL_RGB );
+		Formats.PushBack( GL_RGBA );
+		auto ChannelCount = mMeta.GetChannels();
+		FrameBuffer.Bind();
+		glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), Formats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
+		FrameBuffer.Unbind();
+		Opengl_IsOkay();
+	}
+	else
+	{
+		//	4.5 has byte-saftey with glGetTextureImage glGetnTexImage
+		glGetTexImage( mType, MipLevel, GlFormat, PixelStorage, PixelBytes );
+		Opengl_IsOkay();
+	}
 	
 	static int DebugPixelCount_ = 0;
 	if ( DebugPixelCount_ > 0 )
