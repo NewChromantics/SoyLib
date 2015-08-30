@@ -1084,11 +1084,12 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const Opengl::TTextureAnd
 	Opencl::TSync Sync;
 	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels.mTexture, Pixels.mContext, GetContext(), ReadWriteMode, &Sync ) );
 	
+	mBuffers.PushBack( std::make_pair(Name,Buffer) );
+/*
 	if ( mBuffers.find(Name) != mBuffers.end() )
 		std::Debug << "Warning, setting buffer for uniform " << Name << " which already has a buffer..." << std::endl;
-	
 	mBuffers[Name] = Buffer;
-	
+	*/
 	//	set kernel arg
 	bool Result = SetKernelArg( *this, Name, Buffer->GetMemBuffer() );
 	
@@ -1106,11 +1107,12 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const SoyPixelsImpl& Pixe
 	Opencl::TSync Sync;
 	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, ReadWriteMode, &Sync ) );
 
+	mBuffers.PushBack( std::make_pair(Name,Buffer) );
+	/*
 	if ( mBuffers.find(Name) != mBuffers.end() )
 		std::Debug << "Warning, setting buffer for uniform " << Name << " which already has a buffer..." << std::endl;
-
 	mBuffers[Name] = Buffer;
-
+*/
 	//	set kernel arg
 	bool Result = SetKernelArg( *this, Name, Buffer->GetMemBuffer() );
 	
@@ -1148,55 +1150,38 @@ bool Opencl::TKernelState::SetUniform(const char* Name,TBuffer& Buffer)
 	return SetKernelArg( *this, Name, Buffer.GetMemBuffer() );
 }
 
+Opencl::TBuffer& Opencl::TKernelState::GetUniformBuffer(const char* Name)
+{
+	for ( int i=0;	i<mBuffers.GetSize();	i++ )
+	{
+		auto& Pair = mBuffers[i];
+		if ( Pair.first == Name )
+			return *Pair.second;
+	}
+	
+	std::stringstream Error;
+	Error << "No uniform buffer named " << Name;
+	throw Soy::AssertException( Error.str() );
+}
 
 void Opencl::TKernelState::ReadUniform(const char* Name,Opengl::TTextureAndContext& Texture)
 {
-	//	see if there's a buffer
-	auto BufferIt = mBuffers.find( Name );
-	if ( BufferIt == mBuffers.end() )
-	{
-		std::stringstream Error;
-		Error << "No buffer for uniform " << Name;
-		throw Soy::AssertException( Error.str() );
-	}
-	
-	auto& pBuffer = BufferIt->second;
-	if ( !pBuffer )
-	{
-		std::stringstream Error;
-		Error << "Missing data buffer for uniform " << Name;
-		throw Soy::AssertException( Error.str() );
-	}
-	
+	auto& Buffer = GetUniformBuffer( Name );
+
 	//	check types etc!
 	Opencl::TSync Semaphore;
-	auto& BufferImage = dynamic_cast<TBufferImage&>( *pBuffer );
+	auto& BufferImage = dynamic_cast<TBufferImage&>( Buffer );
 	BufferImage.Read( Texture.mTexture, &Semaphore );
 	Semaphore.Wait();
 }
 
 void Opencl::TKernelState::ReadUniform(const char* Name,SoyPixelsImpl& Pixels)
 {
-	//	see if there's a buffer
-	auto BufferIt = mBuffers.find( Name );
-	if ( BufferIt == mBuffers.end() )
-	{
-		std::stringstream Error;
-		Error << "No buffer for uniform " << Name;
-		throw Soy::AssertException( Error.str() );
-	}
-
-	auto& pBuffer = BufferIt->second;
-	if ( !pBuffer )
-	{
-		std::stringstream Error;
-		Error << "Missing data buffer for uniform " << Name;
-		throw Soy::AssertException( Error.str() );
-	}
+	auto& Buffer = GetUniformBuffer( Name );
 	
 	//	check types etc!
 	Opencl::TSync Semaphore;
-	auto& BufferImage = dynamic_cast<TBufferImage&>( *pBuffer );
+	auto& BufferImage = dynamic_cast<TBufferImage&>( Buffer );
 	BufferImage.Read( Pixels, &Semaphore );
 	Semaphore.Wait();
 }

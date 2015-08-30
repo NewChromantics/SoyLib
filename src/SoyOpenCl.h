@@ -442,12 +442,14 @@ private:
 
 	//	get buffer for a uniform - only applies to temporary ones we created
 	TBuffer&		GetUniformBuffer(const char* Name);	//	throw if non-existant. assuming fatal if we're trying to read data from a uniform
-												 
+
 public:
 	TKernel&		mKernel;
 	
 private:
-	std::map<std::string,std::shared_ptr<TBuffer>>	mBuffers;	//	temporarily allocated buffers for uniforms
+	//	gr: changed to array because of map crashes... hopefully this will find out why
+	Array<std::pair<std::string,std::shared_ptr<TBuffer>>>	mBuffers;
+	//std::map<std::string,std::shared_ptr<TBuffer>>	mBuffers;	//	temporarily allocated buffers for uniforms
 };
 
 
