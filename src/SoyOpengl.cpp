@@ -637,30 +637,8 @@ void Opengl::TTexture::GenerateMipMaps()
 	Unbind();
 }
 
-namespace Opengl
-{
-	class TPbo;
-}
 
 
-class Opengl::TPbo
-{
-public:
-	TPbo(SoyPixelsMeta Meta);
-	~TPbo();
-	
-	void		Bind();
-	void		Unbind();
-	
-	void			ReadPixels();
-	const uint8*	LockBuffer();
-	void			UnlockBuffer();
-	size_t			GetDataSize();
-	
-public:
-	GLuint			mPbo;
-	SoyPixelsMeta	mMeta;
-};
 
 Opengl::TPbo::TPbo(SoyPixelsMeta Meta) :
 	mMeta	( Meta ),
@@ -732,7 +710,15 @@ void Opengl::TPbo::ReadPixels()
 
 const uint8* Opengl::TPbo::LockBuffer()
 {
+#if defined(TARGET_IOS)
+	//	gr: come back to this... supported in 2 and 3... but check extensions, GL_READ_ONLY, GL_BUFFER_ACCESS_OES are missing too
+	const uint8* Buffer = nullptr;
+#elif defined(TARGET_ANDROID)
+	auto* Buffer = glMapBufferOES( GL_PIXEL_PACK_BUFFER, GL_BUFFER_ACCESS_OES );
+#else
 	auto* Buffer = glMapBuffer( GL_PIXEL_PACK_BUFFER, GL_READ_ONLY );
+#endif
+
 	Opengl_IsOkay();
 	return reinterpret_cast<const uint8*>( Buffer );
 }

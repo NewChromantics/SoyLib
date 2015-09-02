@@ -73,6 +73,7 @@ namespace Opengl
 	class TTexture;
 	class TTextureUploadParams;
 	class TFbo;
+	class TPbo;
 	class TGeoQuad;
 	class TShaderEosBlit;
 	class TGeometry;
@@ -442,6 +443,28 @@ public:
 	TAsset		mFbo;
 	TTexture	mTarget;
 };
+
+
+class Opengl::TPbo
+{
+public:
+	TPbo(SoyPixelsMeta Meta);
+	~TPbo();
+	
+	void		Bind();
+	void		Unbind();
+	
+	void			ReadPixels();
+	const uint8*	LockBuffer();
+	void			UnlockBuffer();
+	size_t			GetDataSize();
+	
+public:
+	GLuint			mPbo;
+	SoyPixelsMeta	mMeta;
+};
+
+
 /*
 class Opengl::TGeoQuad
 {
