@@ -141,6 +141,12 @@ void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
 	Array.PushBackArray( CommandStrArray );
 }
 
+void Soy::StringToArray(std::string String,ArrayBridge<uint8>& Array)
+{
+	auto CommandStrArray = GetRemoteArray( reinterpret_cast<const uint8*>(String.c_str()), String.length() );
+	Array.PushBackArray( CommandStrArray );
+}
+
 void Soy::StringSplitByString(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& Delim,bool IncludeEmpty)
 {
 	auto PushBack = [&Parts,&Delim](const std::string& Part)
@@ -383,4 +389,15 @@ bool Soy::StringReplace(ArrayBridge<std::string>&& str,const std::string& from,c
 {
 	return StringReplace(str,from,to);
 }
+
+
+bool Soy::StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool CaseSensitive)
+{
+	if ( !StringBeginsWith( Haystack, Prefix, CaseSensitive ) )
+		return false;
+	
+	Haystack.erase( Haystack.begin(), Haystack.begin() + Prefix.length() );
+	return true;
+}
+
 

@@ -84,6 +84,26 @@ void Opengl::TContext::Init()
 	//	iphone says: "OpenGL ES 3.0 Apple A7 GPU - 53.13"
 	mVersion = Soy::TVersion( std::string( VersionString ), "OpenGL ES " );
 	
+	//	get shader version
+	//	they SHOULD align... but just in case http://stackoverflow.com/a/19022416/355753
+	auto* ShaderVersionString = reinterpret_cast<const char*>( glGetString( GL_SHADING_LANGUAGE_VERSION ) );
+	if ( ShaderVersionString )
+	{
+		std::string Preamble;
+#if defined(OPENGL_ES_2) || defined(OPENGL_ES_3)
+		Preamble = "OpenGL ES GLSL ES";
+#endif
+		mShaderVersion = Soy::TVersion( std::string(ShaderVersionString), Preamble );
+		std::Debug << "Set shader version " << mShaderVersion << " from " << std::string(ShaderVersionString) << std::endl;
+	}
+	else
+	{
+		//	gr: maybe assume 1.00 on ES?
+		std::Debug << "Warning: GL_SHADING_LANGUAGE_VERSION missing, assuming shader version 1.10" << std::endl;
+		mShaderVersion = Soy::TVersion(1,10);
+	}
+
+	
 	auto* DeviceString = reinterpret_cast<const char*>( glGetString( GL_VERSION ) );
 	Soy::Assert( DeviceString!=nullptr, "device string invalid. Context not valid? Not on opengl thread?" );
 	mDeviceName = std::string( DeviceString );
@@ -96,14 +116,14 @@ void Opengl::TContext::Init()
 
 
 
-bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName)
+bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName,ArrayBridge<std::string>& UnhandledExtensions)
 {
 	auto ExtensionType = OpenglExtensions::ToType( ExtensionName );
 	
 	//	not one we explicitly support
 	if ( ExtensionType == OpenglExtensions::Invalid )
 	{
-		std::Debug << "Unhandled/ignored extension: " << ExtensionName << std::endl;
+		UnhandledExtensions.PushBack( ExtensionName );
 		return true;
 	}
 	
@@ -114,13 +134,18 @@ bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,co
 	return true;
 }
 
+bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName,ArrayBridge<std::string>&& UnhandledExtensions)
+{
+	return PushExtension( SupportedExtensions, ExtensionName, UnhandledExtensions );
+}
+
 //	pre-opengl 3 we have a string to parse
-void ParseExtensions(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionsList)
+void ParseExtensions(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionsList,ArrayBridge<std::string>&& UnhandledExtensions)
 {
 	//	pump split's into map
-	auto ParseExtension = [&SupportedExtensions](const std::string& ExtensionName)
+	auto ParseExtension = [&SupportedExtensions,&UnhandledExtensions](const std::string& ExtensionName)
 	{
-		return PushExtension( SupportedExtensions, ExtensionName );
+		return PushExtension( SupportedExtensions, ExtensionName, UnhandledExtensions );
 	};
 	
 	//	parse extensions string
@@ -227,6 +252,11 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 			SetFunction( GenVertexArrays, eglGetProcAddress("glGenVertexArraysOES") );
 			SetFunction( DeleteVertexArrays, eglGetProcAddress("glDeleteVertexArraysOES") );
 			SetFunction( IsVertexArray, eglGetProcAddress("glIsVertexArrayOES") );
+	#elif defined(TARGET_IOS)
+			BindVertexArray = glBindVertexArray;
+			GenVertexArrays = glGenVertexArrays;
+			DeleteVertexArrays = glDeleteVertexArrays;
+			IsVertexArray = glIsVertexArray;
 	#else
 			throw Soy::AssertException("Support unknown on this platform");
 	#endif
@@ -310,6 +340,7 @@ void Opengl::TContext::BindVertexBuffersExtension()
 }
 
 
+
 bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TContext* pContext)
 {
 	//	first parse of extensions
@@ -319,11 +350,13 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		//	could do a version check, or just handle it nicely :)
 		//	debug full string in lldb;
 		//		set set target.max-string-summary-length 10000
+		Array<std::string> UnhandledExtensions;
+		
 		auto* pAllExtensions = glGetString( GL_EXTENSIONS );
 		if ( pAllExtensions )
 		{
 			std::string AllExtensions( reinterpret_cast<const char*>(pAllExtensions) );
-			ParseExtensions( SupportedExtensions, AllExtensions );
+			ParseExtensions( SupportedExtensions, AllExtensions, GetArrayBridge(UnhandledExtensions) );
 		}
 		else
 		{
@@ -344,7 +377,7 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 				}
 				
 				std::string ExtensionName( reinterpret_cast<const char*>(pExtensionName) );
-				PushExtension( SupportedExtensions, ExtensionName );
+				PushExtension( SupportedExtensions, ExtensionName, GetArrayBridge(UnhandledExtensions) );
 			}
 #else
 			std::Debug << "Cannot determine opengl extensions" << std::endl;
@@ -355,6 +388,13 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		
 		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
 		SupportedExtensions[OpenglExtensions::Invalid] = false;
+		
+		//	list other extensions
+		std::stringstream UnhandledExtensionsStr;
+		UnhandledExtensionsStr << "Unhandled extensions(x" << UnhandledExtensions.GetSize() << ") ";
+		for ( int i=0;	i<UnhandledExtensions.GetSize();	i++ )
+			UnhandledExtensionsStr << UnhandledExtensions[i] << " ";
+		std::Debug << UnhandledExtensionsStr.str() << std::endl;
 	}
 	
 	return SupportedExtensions[Extension];
@@ -445,6 +485,9 @@ void Opengl::TRenderTargetFbo::Unbind()
 		glFinish();
 	}
 	mFbo->Unbind();
+	
+	//	generate mipmaps after we've drawn to the image
+	mFbo->mTarget.GenerateMipMaps();
 }
 
 Soy::Rectx<size_t> Opengl::TRenderTargetFbo::GetSize()

@@ -78,6 +78,7 @@ namespace Opengl
 	class TTexture;
 	class TTextureUploadParams;
 	class TFbo;
+	class TPbo;
 	class TGeoQuad;
 	class TShaderEosBlit;
 	class TGeometry;
@@ -110,11 +111,13 @@ namespace Opengl
 	extern const char * ReflectionMappedFragmentShaderSrc;
 	
 
-#define Opengl_IsOkay()			Opengl::IsOkay(__func__)
-#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__)+ " flush", false )
+	#define Opengl_IsOkay()			Opengl::IsOkay(__func__)
+	//#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__)+ " flush", false )
+	#define Opengl_IsOkayFlush()	Opengl::FlushError( __func__ )
 
 	bool			IsOkay(const char* Context,bool ThrowException=true);
 	inline bool		IsOkay(const std::string& Context,bool ThrowException=true)	{	return IsOkay( Context.c_str(), ThrowException );	}
+	void			FlushError(const char* Context);
 	std::string		GetEnumString(GLenum Type);
 
 	GLenum	GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
@@ -238,6 +241,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
 	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& Texture);	//	special case which tracks how many textures are bound
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override	{	return SetUniform( Name, Texture.mTexture );	}
+	bool			SetUniform(const char* Name,const float3x3& v);
 
 	template<typename TYPE>
 	bool	SetUniform(const std::string& Name,const TYPE& v)
@@ -285,7 +289,7 @@ public:
 class Opengl::TGeometry
 {
 public:
-	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex,TContext& Context);
+	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex);
 	~TGeometry();
 
 	void	Draw();
@@ -407,9 +411,12 @@ public:
 	void				Unbind() const;
 	bool				IsValid() const;
 	void				Delete();
-	void				Copy(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
+	void				Write(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
 	void				Read(SoyPixelsImpl& Pixels) const;
-	
+	void				SetRepeat(bool Repeat=true);
+	void				SetClamped()				{	SetRepeat(false);	}
+	void				GenerateMipMaps();
+
 public:
 	bool				mAutoRelease;
 	std::shared_ptr<SoyPixelsImpl>	mClientBuffer;	//	for CPU-buffered textures, it's kept here. ownership should go with mAutoRelease, but shared_ptr maybe takes care of that?
@@ -430,14 +437,39 @@ public:
 	void		InvalidateContent();
 	void		CheckStatus();
 	
-	void		Delete(Opengl::TContext& Context);	//	deffered delete
+	void		Delete(Opengl::TContext& Context,bool Blocking=false);	//	deffered delete
 	void		Delete();
 	
 	size_t		GetAlphaBits() const;
+	size_t		GetWidth() const	{	return mTarget.GetWidth();	}
+	size_t		GetHeight() const	{	return mTarget.GetHeight();	}
 	
+public:
 	TAsset		mFbo;
 	TTexture	mTarget;
 };
+
+
+class Opengl::TPbo
+{
+public:
+	TPbo(SoyPixelsMeta Meta);
+	~TPbo();
+	
+	void		Bind();
+	void		Unbind();
+	
+	void			ReadPixels();
+	const uint8*	LockBuffer();
+	void			UnlockBuffer();
+	size_t			GetDataSize();
+	
+public:
+	GLuint			mPbo;
+	SoyPixelsMeta	mMeta;
+};
+
+
 /*
 class Opengl::TGeoQuad
 {

@@ -101,22 +101,24 @@ namespace std
 namespace Soy
 {
 	std::string	FormatSizeBytes(uint64 bytes);
-	
+	class TScopeTimer;
+	class TScopeTimerPrint;
+	class TScopeTimerFunc;
 }
+//	legacy typename
+typedef Soy::TScopeTimerPrint ofScopeTimerWarning;
 
-#define ENABLE_SCOPE_TIMER
 
 
-#if defined(ENABLE_SCOPE_TIMER)
-class ofScopeTimerWarning
+class Soy::TScopeTimer
 {
 public:
-	ofScopeTimerWarning(const char* Name,uint64 WarningTimeMs,bool AutoStart=true,std::ostream& Output=std::Debug) :
+	TScopeTimer(const char* Name,uint64 WarningTimeMs,std::function<void(SoyTime)> ReportFunc,bool AutoStart) :
 		mWarningTimeMs		( WarningTimeMs ),
 		mStopped			( true ),
 		mReportedOnLastStop	( false ),
 		mAccumulatedTime	( 0 ),
-		mOutputStream		( Output )
+		mReportFunc			( ReportFunc )
 	{
 		//	visual studio 2013 won't let me user initialiser
 		mName[0] = '\0';
@@ -125,20 +127,21 @@ public:
 		if ( AutoStart )
 			Start( true );
 	}
-	~ofScopeTimerWarning()
+	~TScopeTimer()
 	{
 		if ( mStopped && !mReportedOnLastStop )
 			Report();
 		else
 			Stop();
 	}
-	//	returns if a report was output
-	bool				Stop(bool DoReport=true)
+	
+	//	returns accumulated time since last stop
+	SoyTime				Stop(bool DoReport=true)
 	{
 		if ( mStopped )
 		{
 			mReportedOnLastStop = false;
-			return false;
+			return SoyTime();
 		}
 
 		SoyTime Now(true);
@@ -151,13 +154,16 @@ public:
 			DidReport = Report();
 		
 		mStopped = true;
-		return DidReport;
+		return SoyTime( Delta );
 	}
 	bool				Report(bool Force=false)
 	{
 		if ( mAccumulatedTime >= mWarningTimeMs || Force )
 		{
-			mOutputStream << mName << " took " << mAccumulatedTime << "ms to execute" << std::endl;
+			if ( mReportFunc )
+				mReportFunc( SoyTime(mAccumulatedTime) );
+			//else
+			//	std::Debug << mName << " took " << mAccumulatedTime << "ms to execute" << std::endl;
 			return true;
 		}
 		return false;
@@ -174,36 +180,35 @@ public:
 		mStartTime = Now;
 		mStopped = false;
 	}
-
+	
+protected:
+	std::function<void(SoyTime)>	mReportFunc;
 	SoyTime				mStartTime;
 	uint64				mWarningTimeMs;
 	char				mName[100];
 	bool				mStopped;
 	bool				mReportedOnLastStop;
 	uint64				mAccumulatedTime;
-	std::ostream&		mOutputStream;
 };
-#else
-class ofScopeTimerWarning
+
+
+class Soy::TScopeTimerPrint : public TScopeTimer
 {
 public:
-	ofScopeTimerWarning(const char* Name,uint64 WarningTimeMs,bool AutoStart=true,std::ostream& Output=std::Debug)
+	TScopeTimerPrint(const char* Name,uint64 WarningTimeMs,bool AutoStart=true,std::ostream& Output=std::Debug) :
+		TScopeTimer		( Name, WarningTimeMs, std::bind( &TScopeTimerPrint::ReportStr, this, std::placeholders::_1 ), AutoStart ),
+		mOutputStream	( Output )
 	{
 	}
 
-	bool				Stop(bool DoReport=true)
+protected:
+	void		ReportStr(SoyTime Time)
 	{
-		return false;
+		mOutputStream << mName << " took " << Time.mTime << "ms to execute" << std::endl;
 	}
-	bool				Report(bool Force=false)
-	{
-		return false;
-	}
-	
-	void				Start(bool Reset=false)
-	{
-	}
+
+protected:
+	std::ostream&		mOutputStream;
 };
-#endif
 
 

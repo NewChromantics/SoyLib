@@ -93,7 +93,13 @@ namespace Soy
 	cl_float2	VectorToCl(const vec2f& v);
 	cl_float3	VectorToCl(const vec3f& v);
 	cl_float4	VectorToCl(const vec4f& v);
+
+	vec2f		ClToVector(const cl_float2& v);
+	vec4f		ClToVector(const cl_float4& v);
 }
+
+std::ostream& operator<<(std::ostream &out,const cl_float2& in);
+std::ostream& operator<<(std::ostream &out,const cl_float4& in);
 
 
 
@@ -134,8 +140,9 @@ public:
 	std::string			mDriverVersion;
 	std::string			mDeviceVersion;
 	std::string			mProfile;
-	std::string			mExtensions;
+	Array<std::string>	mExtensions;
 	OpenclDevice::Type	mType;
+	bool				mHasOpenglInteroperability;
 	
 	cl_uint		maxComputeUnits;
 	cl_uint		maxWorkItemDimensions;
@@ -169,20 +176,25 @@ std::ostream& operator<<(std::ostream &out,const Opencl::TDeviceMeta& in);
 class Opencl::TDevice
 {
 public:
-	TDevice(const ArrayBridge<cl_device_id>& Devices);
-	TDevice(const ArrayBridge<TDeviceMeta>& Devices);
+	TDevice(const ArrayBridge<cl_device_id>& Devices,Opengl::TContext* OpenglContext=nullptr);
+	TDevice(const ArrayBridge<TDeviceMeta>& Devices,Opengl::TContext* OpenglContext=nullptr);
 	~TDevice();
 	
 	std::shared_ptr<TContext>		CreateContext();
 	std::shared_ptr<TContextThread>	CreateContextThread(const std::string& Name);
 	cl_context						GetClContext()		{	return mContext;	}
+	bool							HasInteroperability(Opengl::TContext& Opengl);
 	
 private:
-	void				CreateContext(const ArrayBridge<cl_device_id>& Devices);
+	void				CreateContext(const ArrayBridge<cl_device_id>& Devices,Opengl::TContext* OpenglContext);
 
 protected:
 	Array<TDeviceMeta>	mDevices;	//	devices attached to this context
 	cl_context			mContext;	//	binding to a device
+	
+#if defined(TARGET_OSX)
+	CGLContextObj		mSharedOpenglContext;
+#endif
 };
 
 
@@ -202,6 +214,8 @@ public:
 	cl_context			GetContext()		{	return mDevice.GetClContext();	}	//	get the opencl context
 	cl_command_queue	GetQueue() const	{	return mQueue;	}
 
+	bool				HasInteroperability(Opengl::TContext& Opengl)	{	return mDevice.HasInteroperability(Opengl);	}
+	
 	bool				operator==(const TContext& that) const
 	{
 		return mDevice.GetClContext() == that.mDevice.GetClContext();
@@ -291,17 +305,24 @@ class Opencl::TBufferArray : public TBuffer
 {
 public:
 	TBufferArray(ArrayBridge<TYPE>&& Array,TContext& Context,TSync* Sync=nullptr) :
-		TBuffer	( Array.GetDataSize(), Context )
+		TBuffer			( Array.GetDataSize(), Context ),
+		mElementSize	( 0 )
 	{
 		Write( reinterpret_cast<uint8*>( Array.GetArray() ), Array.GetDataSize(), Context, Sync );
+		mElementSize = Array.GetElementSize();
 	}
 	TBufferArray(ArrayBridge<TYPE>& Array,TContext& Context,TSync* Sync=nullptr) :
-		TBuffer	( Array.GetDataSize(), Context )
+		TBuffer			( Array.GetDataSize(), Context ),
+		mElementSize	( 0 )
 	{
 		Write( reinterpret_cast<uint8*>( Array.GetArray() ), Array.GetDataSize(), Context, Sync );
+		mElementSize = Array.GetElementSize();
 	}
 	
+	size_t	GetSize() const	{	return mBufferSize / mElementSize;	}
+	
 private:
+	size_t	mElementSize;
 };
 
 
@@ -312,18 +333,20 @@ public:
 	TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
 	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
 	TBufferImage(const Opengl::TTexture& Image,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
+	~TBufferImage();
 	
 	TBufferImage&	operator=(TBufferImage&& Move);
 	
 	void		Write(const Opengl::TTexture& Image,Opencl::TSync* Semaphore);
 	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
 	void		Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
+	void		Read(const Opengl::TTexture& Image,Opencl::TSync* Semaphore);
 	
 private:
 	//	store meta like with Opengl::TTexture to stop bad writes/hardware lookups
-	TContext&	mContext;
+	TContext&				mContext;
+	const Opengl::TTexture*	mOpenglObject;	//	pointer to reduce dependancy. If texture is deleted in the meantime results are undefined anyway. maybe make this safer sometime
 };
-
 
 class Opencl::TKernelIteration
 {
@@ -386,14 +409,19 @@ public:
 	virtual bool	SetUniform(const char* Name,const float& v) override;
 	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
 	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
-	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v) override;
-	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels);
+	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v) override
+	{
+		return SetUniform( Name, v, OpenclBufferReadWrite::ReadWrite );
+	}
+	bool			SetUniform(const char* Name,const Opengl::TTextureAndContext& v,OpenclBufferReadWrite::Type ReadWriteMode);
+	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels,OpenclBufferReadWrite::Type ReadWriteMode);
 	bool			SetUniform(const char* Name,cl_int Value);
 	bool			SetUniform(const char* Name,TBuffer& Buffer);
 	
 	//	throw on error, assuming wrong uniform is fatal
 	//	read back data from a buffer that was used as a uniform
 	void			ReadUniform(const char* Name,SoyPixelsImpl& Pixels);
+	void			ReadUniform(const char* Name,Opengl::TTextureAndContext& Texture);
 	template<typename TYPE>
 	void			ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead)
 	{
@@ -414,12 +442,14 @@ private:
 
 	//	get buffer for a uniform - only applies to temporary ones we created
 	TBuffer&		GetUniformBuffer(const char* Name);	//	throw if non-existant. assuming fatal if we're trying to read data from a uniform
-												 
+
 public:
 	TKernel&		mKernel;
 	
 private:
-	std::map<std::string,std::shared_ptr<TBuffer>>	mBuffers;	//	temporarily allocated buffers for uniforms
+	//	gr: changed to array because of map crashes... hopefully this will find out why
+	Array<std::pair<std::string,std::shared_ptr<TBuffer>>>	mBuffers;
+	//std::map<std::string,std::shared_ptr<TBuffer>>	mBuffers;	//	temporarily allocated buffers for uniforms
 };
 
 

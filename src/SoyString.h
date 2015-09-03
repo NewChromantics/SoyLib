@@ -60,6 +60,7 @@ namespace Soy
 	bool		StringTrimLeft(std::string& String, char TrimChar);
 	bool		StringTrimRight(std::string& String, const ArrayBridge<char>& TrimAnyChars);
 	inline bool	StringTrimRight(std::string& String, const ArrayBridge<char>&& TrimAnyChars) {	return StringTrimRight(String, TrimAnyChars);	}
+	bool		StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool CaseSensitive);
 
 	bool		StringReplace(std::string& str,const std::string& from,const std::string& to);
 	bool		StringReplace(ArrayBridge<std::string>& str,const std::string& from,const std::string& to);
@@ -70,6 +71,8 @@ namespace Soy
 	
 	void		StringToArray(std::string String,ArrayBridge<char>& Array);
 	inline void	StringToArray(std::string String,ArrayBridge<char>&& Array)	{	StringToArray( String, Array );	}
+	void		StringToArray(std::string String,ArrayBridge<uint8>& Array);
+	inline void	StringToArray(std::string String,ArrayBridge<uint8>&& Array)	{	StringToArray( String, Array );	}
 	template <size_t BUFFERSIZE>
 	void		StringToBuffer(const char* Source,char (& Buffer)[BUFFERSIZE]);
 
@@ -253,6 +256,16 @@ inline std::ostream& operator<<(std::ostream &out,const vec4x<TYPE> &in)
 	return out;
 }
 
+namespace Soy
+{
+template<typename TYPE>
+inline std::ostream& operator<<(std::ostream &out,const Soy::Rectx<TYPE> &in)
+{
+	out << in.x << Soy::VecNXDelins[0] << in.y << Soy::VecNXDelins[0] << in.w << Soy::VecNXDelins[0] << in.h;
+	return out;
+}
+}
+
 inline std::ostream& operator<<(std::ostream &out,const Soy::Matrix4x1 &in)
 {
 	out << in.x() << Soy::VecNXDelins[0] << in.y() << Soy::VecNXDelins[0] << in.z() << Soy::VecNXDelins[0] << in.w();
@@ -293,6 +306,14 @@ inline std::ostream& operator<<(std::ostream &out,const float4x4&in)
 	<< in.rows[1] << Soy::VecNXDelins[0]
 	<< in.rows[2] << Soy::VecNXDelins[0]
 	<< in.rows[3];
+	return out;
+}
+
+inline std::ostream& operator<<(std::ostream &out,const float3x3&in)
+{
+	out << in.GetRow(0) << Soy::VecNXDelins[0]
+	<< in.GetRow(1) << Soy::VecNXDelins[0]
+	<< in.GetRow(2);
 	return out;
 }
 

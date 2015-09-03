@@ -1,15 +1,7 @@
 #include "SoyShader.h"
 #include "Array.hpp"
 #include "SoyString.h"
-
-
-
-std::map<OpenglShaderVersion::Type,std::string> OpenglShaderVersion::EnumMap =
-{
-	{ OpenglShaderVersion::Invalid,	"" },
-	{ OpenglShaderVersion::glsl300,	"#version 300 es" },
-	{ OpenglShaderVersion::glsl150,	"#version 150 core" },
-};
+#include "SoyOpengl.h"
 
 
 size_t GetNonProcessorFirstLine(ArrayBridge<std::string>& Shader)
@@ -62,32 +54,46 @@ void PreprocessShader(ArrayBridge<std::string>& Shader)
 }
 
 //	vert & frag changes
-void UpgradeShader(ArrayBridge<std::string>& Shader,OpenglShaderVersion::Type Version)
+void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 {
 	//	insert version if there isn't one there
 	if ( !Soy::StringBeginsWith(Shader[0],"#version",true) )
 	{
-		auto VersionString = OpenglShaderVersion::ToString( Version );
-		Shader.InsertAt( 0, VersionString );
+		std::string Profile;
+		
+#if defined(OPENGL_ES_2) || defined(OPENGL_ES_3)
+		//	don't specificy a profile for 1.0 (es2)
+		Profile = "es";
+		if ( Version.mMajor == 1 && Version.mMinor == 0 )
+			Profile = "";
+#elif defined(OPENGL_CORE_3) || defined(OPENGL_CORE_2)
+		//	gr: for 120, no profile specified, should default to "core"
+#else
+#error Unknown opengl type
+#endif
+		//	auto pad minor using ints
+		size_t VersionInt = (Version.mMajor * 100) + Version.mMinor;
+		std::stringstream VersionString;
+		VersionString << "#version " << VersionInt << " " << Profile << "\n";
+	
+		Shader.InsertAt( 0, VersionString.str() );
 	}
 	
+	//	all versions of IOS (es?) require a precision specifier
 #if defined(TARGET_IOS)
-	if ( Version == OpenglShaderVersion::glsl300 )
-	{
-		//	ios requires precision
-		//	gr: add something to check if this is already declared
-		Shader.InsertAt( GetNonProcessorFirstLine(Shader), "precision highp float;\n" );
-	}
+	//	gr: add something to check if this is already declared
+	//	gr: needed vec2 declarations for GLSL 100... not for gles3?
+	Shader.InsertAt( GetNonProcessorFirstLine(Shader), "precision highp float;\n" );
 #endif
 	
 }
 
-void SoyShader::Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,OpenglShaderVersion::Type Version)
+void SoyShader::Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,Soy::TVersion Version)
 {
 	PreprocessShader( Shader );
 	UpgradeShader( Shader, Version );
 	
-	if ( Version != OpenglShaderVersion::Invalid )
+	if ( Version.mMajor >= 3 && Version.mMinor >= 20 )
 	{
 		//	in 3.2, attribute/varying is now in/out
 		//			varying is Vert OUT, and INPUT for a frag (it becomes an attribute of the pixel)
@@ -97,12 +103,12 @@ void SoyShader::Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,Open
 }
 
 
-void SoyShader::Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,OpenglShaderVersion::Type Version)
+void SoyShader::Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,Soy::TVersion Version)
 {
 	PreprocessShader( Shader );
 	UpgradeShader( Shader, Version );
 	
-	if ( Version != OpenglShaderVersion::Invalid )
+	if ( Version.mMajor >= 3 && Version.mMinor >= 20 )
 	{
 		//	auto-replace/insert the new fragment output
 		//	https://www.opengl.org/wiki/Fragment_Shader#Outputs

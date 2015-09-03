@@ -200,6 +200,16 @@ std::ostream& Opengl::operator<<(std::ostream &out,const Opengl::TUniform& in)
 
 
 template<>
+void Opengl::SetUniform(const TUniform& Uniform,const float3x3& Value)
+{
+	GLsizei ArraySize = 1;
+	static GLboolean Transpose = false;
+	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
+	glUniformMatrix3fv( Uniform.mIndex, ArraySize, Transpose, Value.m );
+	Opengl_IsOkay();
+}
+
+template<>
 void Opengl::SetUniform(const TUniform& Uniform,const vec4f& Value)
 {
 	GLsizei ArraySize = 1;
@@ -310,6 +320,13 @@ void CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLi
 	}
 }
 
+void Opengl::FlushError(const char* Context)
+{
+	//	silently flush any errors
+	//	may expand in future
+	glGetError();
+}
+
 
 bool Opengl::IsOkay(const char* Context,bool ThrowException)
 {
@@ -318,7 +335,7 @@ bool Opengl::IsOkay(const char* Context,bool ThrowException)
 		return true;
 	
 	std::stringstream ErrorStr;
-	ErrorStr << "Opengl error in " << Context << ": " << Opengl::GetEnumString(Error) << std::endl;
+	ErrorStr << "Opengl error in " << Context << ": " << Opengl::GetEnumString(Error);
 	
 	if ( !ThrowException )
 	{
@@ -341,17 +358,25 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	auto& mType = mTarget.mType;
 	//auto& mFboMeta = mTarget.mMeta;
 
+	
 	//	gr: added to try and get IOS working
+	//	gr: this is ONLY for opengles 3... add a context to check version? remove entirely?
+	/*
 #if defined(TARGET_IOS)
 	//	remove other mip levels
+	Opengl_IsOkayFlush();
 	glBindTexture( mType, mFboTextureName );
 	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, 0);
+	Opengl::IsOkay("FBO remove texture GL_TEXTURE_BASE_LEVEL");
 	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, 0);
+	Opengl::IsOkay("FBO remove texture GL_TEXTURE_MAX_LEVEL");
 	glBindTexture( mType, 0 );
+	Opengl::IsOkay("FBO remove texture mip map levels");
 #endif
+	 */
 	
 	//std::Debug << "Creating FBO " << mFboMeta << ", texture name: " << mFboTextureName << std::endl;
-	
+	Opengl_IsOkayFlush();
 	glGenFramebuffers( 1, &mFbo.mName );
 	Opengl::IsOkay("FBO glGenFramebuffers");
 	glBindFramebuffer( GL_FRAMEBUFFER, mFbo.mName );
@@ -364,10 +389,12 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 		throw Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
 	
+	
 	//	gr: init? or render?
 	// Set the list of draw buffers.
 	GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
 	Opengl::DrawBuffers(1, DrawBuffers);
+	Opengl::IsOkay("assign glDrawBuffers");
 	
 	CheckStatus();
 	Unbind();
@@ -380,9 +407,8 @@ Opengl::TFbo::~TFbo()
 	Delete();
 }
 
-void Opengl::TFbo::Delete(Opengl::TContext &Context)
+void Opengl::TFbo::Delete(Opengl::TContext &Context,bool Blocking)
 {
-
 	if ( !mFbo.IsValid() )
 		return;
 
@@ -393,8 +419,17 @@ void Opengl::TFbo::Delete(Opengl::TContext &Context)
 		Opengl::IsOkay("Deffered FBO delete");
 	};
 
-	Context.PushJob( DefferedDelete );
-
+	if ( Blocking )
+	{
+		Soy::TSemaphore Semaphore;
+		Context.PushJob( DefferedDelete, Semaphore );
+		Semaphore.Wait();
+	}
+	else
+	{
+		Context.PushJob( DefferedDelete );
+	}
+	
 	//	dont-auto delete later
 	mFbo.mName = GL_ASSET_INVALID;
 }
@@ -605,8 +640,125 @@ bool Opengl::TTexture::Bind() const
 void Opengl::TTexture::Unbind() const
 {
 	glBindTexture( mType, GL_ASSET_INVALID );
+	Opengl_IsOkay();
 }
 
+void Opengl::TTexture::SetRepeat(bool Repeat)
+{
+	Bind();
+#if defined(GL_TEXTURE_RECTANGLE)
+	//	gr: on OSX, using a non-2D/Cubemap texture gives invalid enum
+	//	this doesn't work, but doesn't give an error
+	//	maybe allow the throw?
+	auto Type = (mType == GL_TEXTURE_RECTANGLE) ? GL_TEXTURE_2D : mType;
+#else
+	auto Type = mType;
+#endif
+	glTexParameteri( Type, GL_TEXTURE_WRAP_S, Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+	glTexParameteri( Type, GL_TEXTURE_WRAP_T, Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+	Opengl_IsOkay();
+	Unbind();
+}
+
+void Opengl::TTexture::GenerateMipMaps()
+{
+	Bind();
+	glGenerateMipmap( mType );
+	Opengl_IsOkay();
+	Unbind();
+}
+
+
+
+
+Opengl::TPbo::TPbo(SoyPixelsMeta Meta) :
+	mMeta	( Meta ),
+	mPbo	( GL_ASSET_INVALID )
+{
+	glGenBuffers( 1, &mPbo );
+	Opengl_IsOkay();
+	
+	//	can only read back 1, 3 or 4 channels
+	auto ChannelCount = Meta.GetChannels();
+	if ( ChannelCount != 1 && ChannelCount != 3 && ChannelCount != 4 )
+		throw Soy::AssertException("PBO channel count must be 1 3 or 4");
+
+	auto DataSize = Meta.GetDataSize();
+	
+	Bind();
+	glBufferData( GL_PIXEL_PACK_BUFFER, DataSize, nullptr, GL_STREAM_READ);
+	Opengl_IsOkay();
+	Unbind();
+}
+
+Opengl::TPbo::~TPbo()
+{
+	if ( mPbo != GL_ASSET_INVALID )
+	{
+		glDeleteBuffers( 1, &mPbo );
+		Opengl_IsOkay();
+		mPbo = GL_ASSET_INVALID;
+	}
+}
+
+size_t Opengl::TPbo::GetDataSize()
+{
+	return mMeta.GetDataSize();
+}
+
+void Opengl::TPbo::Bind()
+{
+	glBindBuffer( GL_PIXEL_PACK_BUFFER, mPbo );
+	Opengl_IsOkay();
+}
+
+void Opengl::TPbo::Unbind()
+{
+	glBindBuffer( GL_PIXEL_PACK_BUFFER, 0 );
+	Opengl_IsOkay();
+}
+
+void Opengl::TPbo::ReadPixels()
+{
+	GLint x = 0;
+	GLint y = 0;
+	
+	BufferArray<GLint,5> Formats;
+	Formats.PushBack( GL_INVALID_VALUE );
+	Formats.PushBack( GL_ALPHA );
+	Formats.PushBack( GL_INVALID_VALUE );
+	Formats.PushBack( GL_RGB );
+	Formats.PushBack( GL_RGBA );
+	auto ChannelCount = mMeta.GetChannels();
+	
+	Bind();
+
+	glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), Formats[ChannelCount], GL_UNSIGNED_BYTE, nullptr );
+	Opengl_IsOkay();
+	
+	Unbind();
+}
+
+const uint8* Opengl::TPbo::LockBuffer()
+{
+#if defined(TARGET_IOS)
+	//	gr: come back to this... supported in 2 and 3... but check extensions, GL_READ_ONLY, GL_BUFFER_ACCESS_OES are missing too
+	const uint8* Buffer = nullptr;
+#elif defined(TARGET_ANDROID)
+	auto* Buffer = glMapBufferOES( GL_PIXEL_PACK_BUFFER, GL_BUFFER_ACCESS_OES );
+#else
+	auto* Buffer = glMapBuffer( GL_PIXEL_PACK_BUFFER, GL_READ_ONLY );
+#endif
+
+	Opengl_IsOkay();
+	return reinterpret_cast<const uint8*>( Buffer );
+}
+
+void Opengl::TPbo::UnlockBuffer()
+{
+	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+	Opengl_IsOkay();
+}
 
 void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 {
@@ -617,6 +769,8 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 	throw Soy::AssertException( std::string(__func__) + " not supported on opengl es yet");
 	return;
 #else
+	
+
 	
 	Bind();
 	
@@ -633,13 +787,57 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 	//	pre-alloc data
 	if ( !Pixels.Init( GetWidth(), GetHeight(), PixelFormat ) )
 		throw Soy::AssertException("Failed to allocate pixels for texture read");
+	auto* PixelBytes = Pixels.GetPixelsArray().GetArray();
+
 	
-	//
+	//	try to use PBO's
+	static bool UsePbo = false;
+	static bool UseFbo = true;
+	
+	if ( UsePbo )
+	{
+		TFbo FrameBuffer( *this );
+		FrameBuffer.Bind();
+		TPbo PixelBuffer( mMeta );
+		PixelBuffer.ReadPixels();
+		auto* pData = PixelBuffer.LockBuffer();
+		auto DataSize = std::min( PixelBuffer.GetDataSize(), Pixels.GetPixelsArray().GetDataSize() );
+		memcpy( PixelBytes, pData, DataSize );
+		PixelBuffer.UnlockBuffer();
+		return;
+	}
+	
+	
+	//	make sure no padding is applied so glGetTexImage doesn't override tail memory
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	Opengl_IsOkay();
+
 	GLint MipLevel = 0;
 	GLenum PixelStorage = GL_UNSIGNED_BYTE;
-	auto* PixelBytes = Pixels.GetPixelsArray().GetArray();
-	glGetTexImage( mType, MipLevel, GlFormat, PixelStorage, PixelBytes );
-	Opengl_IsOkay();
+	
+	if ( UseFbo )
+	{
+		TFbo FrameBuffer( *this );
+		GLint x = 0;
+		GLint y = 0;
+		BufferArray<GLint,5> Formats;
+		Formats.PushBack( GL_INVALID_VALUE );
+		Formats.PushBack( GL_ALPHA );
+		Formats.PushBack( GL_INVALID_VALUE );
+		Formats.PushBack( GL_RGB );
+		Formats.PushBack( GL_RGBA );
+		auto ChannelCount = mMeta.GetChannels();
+		FrameBuffer.Bind();
+		glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), Formats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
+		FrameBuffer.Unbind();
+		Opengl_IsOkay();
+	}
+	else
+	{
+		//	4.5 has byte-saftey with glGetTextureImage glGetnTexImage
+		glGetTexImage( mType, MipLevel, GlFormat, PixelStorage, PixelBytes );
+		Opengl_IsOkay();
+	}
 	
 	static int DebugPixelCount_ = 0;
 	if ( DebugPixelCount_ > 0 )
@@ -655,7 +853,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 
 
 
-void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUploadParams Params)
+void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUploadParams Params)
 {
 	Soy::Assert( IsValid(), "Trying to upload to invalid texture ");
 	
@@ -955,6 +1153,17 @@ Opengl::TShaderState::~TShaderState()
 
 
 
+bool Opengl::TShaderState::SetUniform(const char* Name,const float3x3& v)
+{
+	auto Uniform = mShader.GetUniform( Name );
+	if ( !Uniform.IsValid() )
+		return false;
+	Opengl::SetUniform( Uniform, v );
+	return true;
+}
+
+
+
 bool Opengl::TShaderState::SetUniform(const char* Name,const float& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
@@ -1025,24 +1234,8 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 	Soy::SplitStringLines( GetArrayBridge(VertShader), vertexSrc );
 	Soy::SplitStringLines( GetArrayBridge(FragShader), fragmentSrc );
 	
-	OpenglShaderVersion::Type UpgradeVersion = OpenglShaderVersion::Invalid;
-	
-	//	not required for android
-#if defined(OPENGL_ES_3)
-	if ( Context.mVersion.mMajor >= 3 )
-		UpgradeVersion = OpenglShaderVersion::glsl300;
-#endif
-	
-#if defined(OPENGL_CORE_3)
-	if ( Context.mVersion.mMajor >= 3 )
-		UpgradeVersion = OpenglShaderVersion::glsl150;
-#endif
-	
-	if ( UpgradeVersion != OpenglShaderVersion::Invalid )
-	{
-		SoyShader::Opengl::UpgradeVertShader( GetArrayBridge(VertShader), UpgradeVersion );
-		SoyShader::Opengl::UpgradeFragShader( GetArrayBridge(FragShader), UpgradeVersion );
-	}
+	SoyShader::Opengl::UpgradeVertShader( GetArrayBridge(VertShader), Context.mShaderVersion );
+	SoyShader::Opengl::UpgradeFragShader( GetArrayBridge(FragShader), Context.mShaderVersion );
 	
 	mVertexShader.mName = glCreateShader( GL_VERTEX_SHADER );
 	CompileShader( mVertexShader, GetArrayBridge(VertShader), ShaderNameVert );
@@ -1220,7 +1413,7 @@ void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
 	}
 }
 
-Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex,TContext& Context) :
+Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex) :
 	mVertexBuffer( GL_ASSET_INVALID ),
 	mIndexBuffer( GL_ASSET_INVALID ),
 	mVertexArrayObject( GL_ASSET_INVALID ),
@@ -1410,7 +1603,17 @@ GLenum Opengl::GetUploadPixelFormat(const Opengl::TTexture& Texture,SoyPixelsFor
 	{
 		//	ios requires formats to match, no internal conversion
 	#if defined(TARGET_IOS)
-		Soy::Assert( Texture.GetFormat() == Format, "IOS requires texture upload format to match" );
+		bool ForceAllow = false;
+
+		//	allow RGBA as BGRA
+		ForceAllow = ( Texture.GetFormat() == SoyPixelsFormat::RGBA && Format == SoyPixelsFormat::BGRA );
+			
+		if ( Texture.GetFormat() != Format && !ForceAllow )
+		{
+			std::stringstream Error;
+			Error << "ios texture upload requires texture format(" << Texture.GetFormat() << " to match source format (" << Format << ")";
+			throw Soy::AssertException( Error.str() );
+		}
 		auto Mapping = GetPixelMapping( Texture.GetFormat() );
 		return Mapping.mUploadFormat;
 	#endif

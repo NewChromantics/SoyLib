@@ -6,6 +6,9 @@
 #include "SoyThread.h"
 
 
+typedef struct _CGLContextObject       *CGLContextObj;
+
+
 namespace OpenglExtensions
 {
 	enum Type
@@ -57,8 +60,13 @@ public:
 	void			BindVertexArrayObjectsExtension();
 	void			BindVertexBuffersExtension();
 
+#if defined(TARGET_OSX)
+	virtual CGLContextObj	GetPlatformContext()	{	return nullptr;	}
+#endif
+	
 public:
 	Soy::TVersion	mVersion;
+	Soy::TVersion	mShaderVersion;	//	max version supported
 	std::string		mDeviceName;
 };
 
