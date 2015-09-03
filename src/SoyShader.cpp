@@ -56,6 +56,8 @@ void PreprocessShader(ArrayBridge<std::string>& Shader)
 //	vert & frag changes
 void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 {
+	auto VersionHundred = Version.GetHundred();
+	
 	//	insert version if there isn't one there
 	if ( !Soy::StringBeginsWith(Shader[0],"#version",true) )
 	{
@@ -64,19 +66,26 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 #if defined(OPENGL_ES_2) || defined(OPENGL_ES_3)
 		//	don't specificy a profile for 1.0 (es2)
 		Profile = "es";
-		if ( Version.mMajor == 1 && Version.mMinor == 0 )
+		if ( VersionHundred <= 100 )
 			Profile = "";
 #elif defined(OPENGL_CORE_3) || defined(OPENGL_CORE_2)
 		//	gr: for 120, no profile specified, should default to "core"
 #else
 #error Unknown opengl type
 #endif
-		//	auto pad minor using ints
-		size_t VersionInt = (Version.mMajor * 100) + Version.mMinor;
 		std::stringstream VersionString;
-		VersionString << "#version " << VersionInt << " " << Profile << "\n";
+		VersionString << "#version " << VersionHundred << " " << Profile << "\n";
 	
 		Shader.InsertAt( 0, VersionString.str() );
+	}
+
+	//	glsl over a certain version doesn't allow the precision specifiers
+	//	gr: osx, maybe a desktop only thing?
+	if ( VersionHundred >= 120 )
+	{
+		Soy::StringReplace( Shader, "highp", "" );
+		Soy::StringReplace( Shader, "mediump", "" );
+		Soy::StringReplace( Shader, "lowp", "" );
 	}
 	
 	//	all versions of IOS (es?) require a precision specifier
