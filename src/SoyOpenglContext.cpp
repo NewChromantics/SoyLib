@@ -40,6 +40,7 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 #elif defined(TARGET_ANDROID) || defined(TARGET_IOS)
 	{	OpenglExtensions::VertexArrayObjects,	"GL_OES_vertex_array_object"	},
 #endif
+	{	OpenglExtensions::DrawBuffers,			"glDrawBuffer"	},
 };
 
 
@@ -270,23 +271,21 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 
 void Opengl::TContext::BindVertexBuffersExtension()
 {
-	auto Extension = OpenglExtensions::VertexBuffers;
+	auto Extension = OpenglExtensions::DrawBuffers;
 	
-#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
-	//	implicitly supported in opengl 3 & 4 (ES and CORE)
-	bool ImplicitlySupported = (mVersion.mMajor >= 3);
-	
-	if ( ImplicitlySupported )
+	//	does not exist on ES2, but dont need to replace it
+#if defined(TARGET_IOS) || defined(TARGET_ANDROID)
+	if ( mVersion.mMajor <= 2 )
 	{
-		SupportedExtensions[Extension] = true;
-		std::Debug << "Assumed implicit support for " << Extension << std::endl;
-		
-		DrawBuffers = glDrawBuffers;
+		DrawBuffers = [](GLsizei,const GLenum *){};
+		SupportedExtensions[Extension] = false;
 		return;
 	}
 #endif
-	
-	bool IsSupported = SupportedExtensions.find(Extension) != SupportedExtensions.end();
+
+	//	explicitly supported without an extension
+	bool IsSupported = true;
+	SupportedExtensions[Extension] = IsSupported;
 	
 	//	extension supported, set functions
 	if ( IsSupported )
@@ -294,11 +293,13 @@ void Opengl::TContext::BindVertexBuffersExtension()
 		try
 		{
 #if defined(TARGET_OSX)
-			DrawBuffers = glDrawBuffersAPPLE;
+			DrawBuffers = glDrawBuffersARB;
 #elif defined(TARGET_WINDOWS)
 			SetFunction( DrawBuffers, wglGetProcAddress("glDrawBuffers") );
 #elif defined(TARGET_ANDROID)
 			SetFunction( DrawBuffers, eglGetProcAddress("glDrawBuffers") );
+#elif defined(TARGET_IOS) && defined(OPENGL_ES_3)
+			DrawBuffers = glDrawBuffers;
 #else
 			throw Soy::AssertException("Support unknown on this platform");
 #endif
@@ -314,7 +315,6 @@ void Opengl::TContext::BindVertexBuffersExtension()
 	if ( !IsSupported )
 	{
 		SupportedExtensions[Extension] = false;
-		//	gr: set error/throw function wrappers
 		SetUnsupportedFunction(DrawBuffers, "glDrawBuffers" );
 	}
 	
@@ -366,6 +366,7 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		}
 
 		pContext->BindVertexArrayObjectsExtension();
+		pContext->BindVertexBuffersExtension();
 		
 		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
 		SupportedExtensions[OpenglExtensions::Invalid] = false;

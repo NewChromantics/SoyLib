@@ -389,15 +389,13 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 		throw Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
 	
-	
-	//	don't use this in es2, not supported. colour is auto assigned
-	/*
-	//	gr: init? or render?
-	// Set the list of draw buffers.
-	GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
-	Opengl::DrawBuffers(1, DrawBuffers);
-	Opengl::IsOkay("assign glDrawBuffers");
-	*/
+
+	//	this doesn't exist on es2, should fallback to a stub function
+	//	Set the list of draw buffers.
+	GLenum DrawBufferAttachments[1] = {GL_COLOR_ATTACHMENT0};
+	Opengl::DrawBuffers(1, DrawBufferAttachments);
+	Opengl::IsOkay("assigning glDrawBuffer attachments");
+
 	CheckStatus();
 	Unbind();
 }

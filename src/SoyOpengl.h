@@ -8,8 +8,7 @@
 
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
 
-//	build for ES 2 and add support via extensions
-//	need 3 for FBO's
+//	use latest SDK, but helps narrow down what might need supporting if we use ES2 headers
 //#define OPENGL_ES_3
 #define OPENGL_ES_2
 

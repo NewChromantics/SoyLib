@@ -17,6 +17,7 @@ namespace OpenglExtensions
 		AppleClientStorage,
 		VertexArrayObjects,
 		VertexBuffers,
+		DrawBuffers,
 	};
 	
 	DECLARE_SOYENUM( OpenglExtensions );
