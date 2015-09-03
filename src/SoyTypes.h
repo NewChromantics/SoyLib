@@ -310,6 +310,9 @@ public:
 	}
 	explicit TVersion(std::string VersionStr,const std::string& Prefix="");
 	
+	//	gr: throw if the minor is going to overflow
+	size_t	GetHundred() const;
+	
 public:
 	size_t	mMajor;
 	size_t	mMinor;

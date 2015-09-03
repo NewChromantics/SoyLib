@@ -601,3 +601,15 @@ Soy::TVersion::TVersion(std::string VersionStr,const std::string& Prefix) :
 }
 
 
+size_t Soy::TVersion::GetHundred() const
+{
+	//	gr: throw if the minor is going to overflow
+	if ( mMinor >= 100 )
+	{
+		std::stringstream Error;
+		Error << "Cannot convert version " << mMajor << "." << mMinor << " to hundreds";
+		throw Error.str();
+	}
+	return (mMajor * 100) + mMinor;
+}
+
