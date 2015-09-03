@@ -62,6 +62,7 @@ public:
 	
 public:
 	Soy::TVersion	mVersion;
+	Soy::TVersion	mShaderVersion;	//	max version supported
 	std::string		mDeviceName;
 };
 

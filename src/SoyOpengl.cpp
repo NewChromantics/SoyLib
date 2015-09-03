@@ -346,17 +346,25 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	auto& mType = mTarget.mType;
 	//auto& mFboMeta = mTarget.mMeta;
 
+	
 	//	gr: added to try and get IOS working
+	//	gr: this is ONLY for opengles 3... add a context to check version? remove entirely?
+	/*
 #if defined(TARGET_IOS)
 	//	remove other mip levels
+	Opengl_IsOkayFlush();
 	glBindTexture( mType, mFboTextureName );
 	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, 0);
+	Opengl::IsOkay("FBO remove texture GL_TEXTURE_BASE_LEVEL");
 	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, 0);
+	Opengl::IsOkay("FBO remove texture GL_TEXTURE_MAX_LEVEL");
 	glBindTexture( mType, 0 );
+	Opengl::IsOkay("FBO remove texture mip map levels");
 #endif
+	 */
 	
 	//std::Debug << "Creating FBO " << mFboMeta << ", texture name: " << mFboTextureName << std::endl;
-	
+	Opengl_IsOkayFlush();
 	glGenFramebuffers( 1, &mFbo.mName );
 	Opengl::IsOkay("FBO glGenFramebuffers");
 	glBindFramebuffer( GL_FRAMEBUFFER, mFbo.mName );
@@ -369,10 +377,12 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 		throw Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
 	
+	
 	//	gr: init? or render?
 	// Set the list of draw buffers.
 	GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
-	glDrawBuffers(1, DrawBuffers);
+	Opengl::DrawBuffers(1, DrawBuffers);
+	Opengl::IsOkay("assign glDrawBuffers");
 	
 	CheckStatus();
 	Unbind();
@@ -1199,24 +1209,8 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 	Soy::SplitStringLines( GetArrayBridge(VertShader), vertexSrc );
 	Soy::SplitStringLines( GetArrayBridge(FragShader), fragmentSrc );
 	
-	OpenglShaderVersion::Type UpgradeVersion = OpenglShaderVersion::Invalid;
-	
-	//	not required for android
-#if defined(OPENGL_ES_3)
-	if ( Context.mVersion.mMajor >= 3 )
-		UpgradeVersion = OpenglShaderVersion::glsl300;
-#endif
-	
-#if defined(OPENGL_CORE_3)
-	if ( Context.mVersion.mMajor >= 3 )
-		UpgradeVersion = OpenglShaderVersion::glsl150;
-#endif
-	
-	if ( UpgradeVersion != OpenglShaderVersion::Invalid )
-	{
-		SoyShader::Opengl::UpgradeVertShader( GetArrayBridge(VertShader), UpgradeVersion );
-		SoyShader::Opengl::UpgradeFragShader( GetArrayBridge(FragShader), UpgradeVersion );
-	}
+	SoyShader::Opengl::UpgradeVertShader( GetArrayBridge(VertShader), Context.mShaderVersion );
+	SoyShader::Opengl::UpgradeFragShader( GetArrayBridge(FragShader), Context.mShaderVersion );
 	
 	mVertexShader.mName = glCreateShader( GL_VERTEX_SHADER );
 	CompileShader( mVertexShader, GetArrayBridge(VertShader), ShaderNameVert );
@@ -1580,7 +1574,17 @@ GLenum Opengl::GetUploadPixelFormat(const Opengl::TTexture& Texture,SoyPixelsFor
 	{
 		//	ios requires formats to match, no internal conversion
 	#if defined(TARGET_IOS)
-		Soy::Assert( Texture.GetFormat() == Format, "IOS requires texture upload format to match" );
+		bool ForceAllow = false;
+
+		//	allow RGBA as BGRA
+		ForceAllow = ( Texture.GetFormat() == SoyPixelsFormat::RGBA && Format == SoyPixelsFormat::BGRA );
+			
+		if ( Texture.GetFormat() != Format && !ForceAllow )
+		{
+			std::stringstream Error;
+			Error << "ios texture upload requires texture format(" << Texture.GetFormat() << " to match source format (" << Format << ")";
+			throw Soy::AssertException( Error.str() );
+		}
 		auto Mapping = GetPixelMapping( Texture.GetFormat() );
 		return Mapping.mUploadFormat;
 	#endif

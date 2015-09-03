@@ -16,8 +16,10 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 	{	OpenglExtensions::AppleClientStorage,	"GL_APPLE_client_storage"	},
 #if defined(TARGET_WINDOWS)
 	{	OpenglExtensions::VertexArrayObjects,	"GL_ARB_vertex_array_object"	},
-#else
+#elif defined(TARGET_OSX)
 	{	OpenglExtensions::VertexArrayObjects,	"GL_APPLE_vertex_array_object"	},
+#elif defined(TARGET_ANDROID)
+	{	OpenglExtensions::VertexArrayObjects,	"GL_OES_vertex_array_object"	},
 #endif
 };
 
@@ -68,6 +70,26 @@ void Opengl::TContext::Init()
 	
 	//	iphone says: "OpenGL ES 3.0 Apple A7 GPU - 53.13"
 	mVersion = Soy::TVersion( std::string( VersionString ), "OpenGL ES " );
+	
+	//	get shader version
+	//	they SHOULD align... but just in case http://stackoverflow.com/a/19022416/355753
+	auto* ShaderVersionString = reinterpret_cast<const char*>( glGetString( GL_SHADING_LANGUAGE_VERSION ) );
+	if ( ShaderVersionString )
+	{
+		std::string Preamble;
+#if defined(OPENGL_ES_2) || defined(OPENGL_ES_3)
+		Preamble = "OpenGL ES GLSL ES";
+#endif
+		mShaderVersion = Soy::TVersion( std::string(ShaderVersionString), Preamble );
+		std::Debug << "Set shader version " << mShaderVersion << " from " << std::string(ShaderVersionString) << std::endl;
+	}
+	else
+	{
+		//	gr: maybe assume 1.00 on ES?
+		std::Debug << "Warning: GL_SHADING_LANGUAGE_VERSION missing, assuming shader version 1.10" << std::endl;
+		mShaderVersion = Soy::TVersion(1,10);
+	}
+
 	
 	auto* DeviceString = reinterpret_cast<const char*>( glGetString( GL_VERSION ) );
 	Soy::Assert( DeviceString!=nullptr, "device string invalid. Context not valid? Not on opengl thread?" );
@@ -155,14 +177,16 @@ void SetFunction(std::function<FUNCTYPE>& f,void* x)
 
 void Opengl::TContext::BindVertexArrayObjectsExtension()
 {
+	auto Extension = OpenglExtensions::VertexArrayObjects;
+
 	//	implicitly supported in opengl 3 & 4 (ES and CORE)
 	bool ImplicitlySupported = (mVersion.mMajor >= 3);
 	
 #if !defined(TARGET_WINDOWS)
 	if ( ImplicitlySupported )
 	{
-		SupportedExtensions[OpenglExtensions::VertexArrayObjects] = true;
-		std::Debug << "Assumed implicit support for OpenglExtensions::VertexArrayObjects" << std::endl;
+		SupportedExtensions[Extension] = true;
+		std::Debug << "Assumed implicit support for " << Extension << " << std::endl;
 
 		BindVertexArray = glBindVertexArray;
 		GenVertexArrays = glGenVertexArrays;
@@ -177,25 +201,43 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 	//	extension supported, set functions
 	if ( IsSupported )
 	{
-#if defined(TARGET_OSX)
-		BindVertexArray = glBindVertexArrayAPPLE;
-		GenVertexArrays = glGenVertexArraysAPPLE;
-		DeleteVertexArrays = glDeleteVertexArraysAPPLE;
-		IsVertexArray = glIsVertexArrayAPPLE;
-#elif defined(TARGET_WINDOWS)
-		SetFunction( BindVertexArray, wglGetProcAddress("glBindVertexArray") );
-		SetFunction( GenVertexArrays, wglGetProcAddress("glGenVertexArrays") );
-		SetFunction( DeleteVertexArrays, wglGetProcAddress("glDeleteVertexArrays") );
-		SetFunction( IsVertexArray, wglGetProcAddress("glIsVertexArray") );
- #else
-		IsSupported = false;
-#endif
+		try
+		{
+	#if defined(TARGET_OSX)
+			BindVertexArray = glBindVertexArrayAPPLE;
+			GenVertexArrays = glGenVertexArraysAPPLE;
+			DeleteVertexArrays = glDeleteVertexArraysAPPLE;
+			IsVertexArray = glIsVertexArrayAPPLE;
+	#elif defined(TARGET_WINDOWS)
+			SetFunction( BindVertexArray, wglGetProcAddress("glBindVertexArray") );
+			SetFunction( GenVertexArrays, wglGetProcAddress("glGenVertexArrays") );
+			SetFunction( DeleteVertexArrays, wglGetProcAddress("glDeleteVertexArrays") );
+			SetFunction( IsVertexArray, wglGetProcAddress("glIsVertexArray") );
+	#elif defined(TARGET_ANDROID)
+			SetFunction( BindVertexArray, eglGetProcAddress("glBindVertexArrayOES") );
+			SetFunction( GenVertexArrays, eglGetProcAddress("glGenVertexArraysOES") );
+			SetFunction( DeleteVertexArrays, eglGetProcAddress("glDeleteVertexArraysOES") );
+			SetFunction( IsVertexArray, eglGetProcAddress("glIsVertexArrayOES") );
+	#elif defined(TARGET_IOS)
+			BindVertexArray = glBindVertexArray;
+			GenVertexArrays = glGenVertexArrays;
+			DeleteVertexArrays = glDeleteVertexArrays;
+			IsVertexArray = glIsVertexArray;
+	#else
+			throw Soy::AssertException("Support unknown on this platform");
+	#endif
+		}
+		catch ( std::exception& e )
+		{
+			std::Debug << "Error binding VOA functions, disabling support. " << e.what() << std::endl;
+			IsSupported = false;
+		}
 	}
 
 	//	not supported (or has been unset due to implementation)
 	if ( !IsSupported )
 	{
-		SupportedExtensions[OpenglExtensions::VertexArrayObjects] = false;
+		SupportedExtensions[Extension] = false;
 		//	gr: set error/throw function wrappers
 		SetUnsupportedFunction(BindVertexArray, "glBindVertexArray" );
 		SetUnsupportedFunction(GenVertexArrays, "GenVertexArrays" );
@@ -205,6 +247,7 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 	}
 
 }
+
 
 
 bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TContext* pContext)
