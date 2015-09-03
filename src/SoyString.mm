@@ -13,3 +13,21 @@ NSString* Soy::StringToNSString(const std::string& String)
 	return MacString;
 }
 
+
+std::string Soy::NSErrorToString(NSError* Error)
+{
+	if ( !Error )
+		return "Error(null)";
+	
+	//	in case description is missing
+	try
+	{
+		auto* ErrorNs = [Error description];
+		return NSStringToString( ErrorNs );
+	}
+	catch ( ... )
+	{
+		return "Error(exception getting description)";
+	}
+}
+
