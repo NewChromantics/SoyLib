@@ -4,6 +4,8 @@
 
 std::string Soy::NSStringToString(NSString* String)
 {
+	if ( !String )
+		return "<null>";
 	return std::string([String UTF8String]);
 }
 
