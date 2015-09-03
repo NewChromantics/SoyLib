@@ -37,7 +37,7 @@ namespace Opengl
 	extern std::function<void(GLsizei,const GLuint*)>	DeleteVertexArrays;
 	extern std::function<GLboolean(GLuint)>				IsVertexArray;
 	
-	extern std::function<GLboolean(GLsizei,const GLenum *)>	DrawBuffers;
+	extern std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
 };
 
 

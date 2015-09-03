@@ -390,12 +390,14 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
 	
 	
+	//	don't use this in es2, not supported. colour is auto assigned
+	/*
 	//	gr: init? or render?
 	// Set the list of draw buffers.
 	GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
 	Opengl::DrawBuffers(1, DrawBuffers);
 	Opengl::IsOkay("assign glDrawBuffers");
-	
+	*/
 	CheckStatus();
 	Unbind();
 }
@@ -683,12 +685,16 @@ Opengl::TPbo::TPbo(SoyPixelsMeta Meta) :
 	if ( ChannelCount != 1 && ChannelCount != 3 && ChannelCount != 4 )
 		throw Soy::AssertException("PBO channel count must be 1 3 or 4");
 
-	auto DataSize = Meta.GetDataSize();
 	
+#if defined(OPENGL_ES_2)
+	throw Soy::AssertException("read from buffer data not supported on es2? need to test");
+#else
+	auto DataSize = Meta.GetDataSize();
 	Bind();
 	glBufferData( GL_PIXEL_PACK_BUFFER, DataSize, nullptr, GL_STREAM_READ);
 	Opengl_IsOkay();
 	Unbind();
+#endif
 }
 
 Opengl::TPbo::~TPbo()
@@ -708,14 +714,22 @@ size_t Opengl::TPbo::GetDataSize()
 
 void Opengl::TPbo::Bind()
 {
+#if defined(OPENGL_ES_2)
+	throw Soy::AssertException("PBO not supported es2?");
+#else
 	glBindBuffer( GL_PIXEL_PACK_BUFFER, mPbo );
 	Opengl_IsOkay();
+#endif
 }
 
 void Opengl::TPbo::Unbind()
 {
+#if defined(OPENGL_ES_2)
+	throw Soy::AssertException("PBO not supported es2?");
+#else
 	glBindBuffer( GL_PIXEL_PACK_BUFFER, 0 );
 	Opengl_IsOkay();
+#endif
 }
 
 void Opengl::TPbo::ReadPixels()
@@ -756,8 +770,12 @@ const uint8* Opengl::TPbo::LockBuffer()
 
 void Opengl::TPbo::UnlockBuffer()
 {
+#if defined(TARGET_IOS)
+	throw Soy::AssertException("Lock buffer should not have succeeded on ios");
+#else
 	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
 	Opengl_IsOkay();
+#endif
 }
 
 void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
@@ -869,8 +887,8 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	
 	//	opengl es doesn't have access!
 #if defined(OPENGL_ES_3)||defined(OPENGL_ES_2)
-	TextureWidth = this->GetWidth();
-	TextureHeight = this->GetHeight();
+	TextureWidth = size_cast<GLint>( this->GetWidth() );
+	TextureHeight = size_cast<GLint>( this->GetHeight() );
 	//	gr: errr what should this be now?
 	TextureInternalFormat = GetNewTexturePixelFormat( this->GetFormat() );
 #else

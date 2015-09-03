@@ -25,12 +25,6 @@
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
 
-//	include EOS in header
-#define GL_GLEXT_PROTOTYPES
-#define glBindVertexArray	glBindVertexArrayOES
-#define glGenVertexArrays	glGenVertexArraysOES
-#include <GLES/glext.h>	//	need for EOS
-
 #endif
 
 
