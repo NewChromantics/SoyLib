@@ -25,7 +25,8 @@
 namespace Opengl
 {
 	//	static method is slow, cache on a context!
-	std::map<OpenglExtensions::Type,bool>	SupportedExtensions;
+	std::map<OpenglExtensions::Type,bool>			SupportedExtensions;
+	extern std::map<OpenglExtensions::Type,Soy::TVersion>	ImplicitExtensions;
 };
 
 
@@ -41,6 +42,12 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 	{	OpenglExtensions::VertexArrayObjects,	"GL_OES_vertex_array_object"	},
 #endif
 	{	OpenglExtensions::DrawBuffers,			"glDrawBuffer"	},
+};
+
+std::map<OpenglExtensions::Type,Soy::TVersion> Opengl::ImplicitExtensions =
+{
+	{	OpenglExtensions::VertexArrayObjects,	Soy::TVersion(3,0)	},
+	{	OpenglExtensions::DrawBuffers,			Soy::TVersion(3,0)	},
 };
 
 
@@ -213,6 +220,7 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 	auto Extension = OpenglExtensions::VertexArrayObjects;
 	
 	bool IsSupported = SupportedExtensions.find(Extension) != SupportedExtensions.end();
+	bool ImplicitSupport = mVersion >= ImplicitExtensions[Extension];
 	
 	//	extension supported, set functions
 	if ( IsSupported )
@@ -220,10 +228,20 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 		try
 		{
 	#if defined(TARGET_OSX)
-			BindVertexArray = glBindVertexArrayAPPLE;
-			GenVertexArrays = glGenVertexArraysAPPLE;
-			DeleteVertexArrays = glDeleteVertexArraysAPPLE;
-			IsVertexArray = glIsVertexArrayAPPLE;
+			if ( ImplicitSupport )
+			{
+				BindVertexArray = glBindVertexArray;
+				GenVertexArrays = glGenVertexArrays;
+				DeleteVertexArrays = glDeleteVertexArrays;
+				IsVertexArray = glIsVertexArray;
+			}
+			else
+			{
+				BindVertexArray = glBindVertexArrayAPPLE;
+				GenVertexArrays = glGenVertexArraysAPPLE;
+				DeleteVertexArrays = glDeleteVertexArraysAPPLE;
+				IsVertexArray = glIsVertexArrayAPPLE;
+			}
 	#elif defined(TARGET_WINDOWS)
 			SetFunction( BindVertexArray, wglGetProcAddress("glBindVertexArray") );
 			SetFunction( GenVertexArrays, wglGetProcAddress("glGenVertexArrays") );
@@ -365,18 +383,33 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 #endif
 		}
 
+		//	list other extensions (do this first to aid debugging)
+		std::stringstream UnhandledExtensionsStr;
+		UnhandledExtensionsStr << "Unhandled extensions(x" << UnhandledExtensions.GetSize() << ") ";
+		for ( int i=0;	i<UnhandledExtensions.GetSize();	i++ )
+			UnhandledExtensionsStr << UnhandledExtensions[i] << " ";
+		std::Debug << UnhandledExtensionsStr.str() << std::endl;
+
+		//	check explicitly supported extensions
+		auto& Impl = Opengl::ImplicitExtensions;
+		for ( auto it=Impl.begin();	it!=Impl.end();	it++ )
+		{
+			auto& Version = it->second;
+			auto& Extension = it->first;
+			if ( pContext->mVersion < Version )
+				continue;
+			
+			std::Debug << "Implicitly supporting " << Extension << " (>= version " << Version << ")" << std::endl;
+			SupportedExtensions[Extension] = true;
+		}
+		
+		//	setup extensions
 		pContext->BindVertexArrayObjectsExtension();
 		pContext->BindVertexBuffersExtension();
 		
 		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
 		SupportedExtensions[OpenglExtensions::Invalid] = false;
 		
-		//	list other extensions
-		std::stringstream UnhandledExtensionsStr;
-		UnhandledExtensionsStr << "Unhandled extensions(x" << UnhandledExtensions.GetSize() << ") ";
-		for ( int i=0;	i<UnhandledExtensions.GetSize();	i++ )
-			UnhandledExtensionsStr << UnhandledExtensions[i] << " ";
-		std::Debug << UnhandledExtensionsStr.str() << std::endl;
 	}
 	
 	return SupportedExtensions[Extension];
