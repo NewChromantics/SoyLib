@@ -96,11 +96,12 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 		AddPrecision = true;
 #endif
 	
-	//	all versions of IOS (es?) require a precision specifier
-	//	gr: add something to check if this is already declared
 	//	gr: needed vec2 declarations for GLSL 100... not for gles3?
-	Shader.InsertAt( GetNonProcessorFirstLine(Shader), "precision highp float;\n" );
-	
+	if ( AddPrecision )
+	{
+		//	gr: add something to check if this is already declared
+		Shader.InsertAt( GetNonProcessorFirstLine(Shader), "precision highp float;\n" );
+	}
 }
 
 void SoyShader::Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,Soy::TVersion Version)
