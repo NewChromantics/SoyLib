@@ -806,7 +806,7 @@ Opencl::TBuffer::TBuffer(size_t Size,TContext& Context) :
 	mMem		( nullptr ),
 	mBufferSize	( 0 )
 {
-	cl_mem_flags Flags = 0;
+	cl_mem_flags Flags = CL_MEM_READ_WRITE;
 	void* HostPtr = nullptr;
 
 	Soy::Assert( mMem == nullptr, "clmem already allocated");
