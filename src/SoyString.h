@@ -102,6 +102,7 @@ namespace Soy
 	NSString*	StringToNSString(const std::string& String);
 	std::string	NSStringToString(NSString* String);
 	std::string	NSErrorToString(NSError* Error);
+	std::string	NSErrorToString(NSException* Exception);
 };
 #endif
 

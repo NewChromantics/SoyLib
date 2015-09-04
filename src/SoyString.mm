@@ -33,3 +33,14 @@ std::string Soy::NSErrorToString(NSError* Error)
 	}
 }
 
+std::string Soy::NSErrorToString(NSException* Exception)
+{
+	if ( !Exception )
+		return "<No exception>";
+	
+	std::stringstream String;
+	String << Soy::NSStringToString( Exception.name ) << ": " << Soy::NSStringToString( Exception.reason );
+	return String.str();
+}
+
+
