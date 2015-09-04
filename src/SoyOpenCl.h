@@ -271,7 +271,7 @@ public:
 	cl_mem		GetMemBuffer() 	{	return mMem;	}
 	
 	template<typename TYPE>
-	void		Read(ArrayBridge<TYPE>&& Array,TContext& Context,TSync* Sync)
+	void		Read(ArrayBridge<TYPE>& Array,TContext& Context,TSync* Sync)
 	{
 		//	construct a new array
 		auto* ArrayPtr = reinterpret_cast<uint8*>( Array.GetArray() );
@@ -279,6 +279,12 @@ public:
 		auto Array8 = GetRemoteArray( ArrayPtr, ByteCount );
 		auto Array8Bridge = GetArrayBridge( Array8 );
 		ReadImpl( Array8Bridge, Context, Sync );
+	}
+	
+	template<typename TYPE>
+	void		Read(ArrayBridge<TYPE>&& Array,TContext& Context,TSync* Sync)
+	{
+		Read( Array, Context, Sync );
 	}
 	
 	template<typename TYPE>
@@ -423,12 +429,8 @@ public:
 	void			ReadUniform(const char* Name,SoyPixelsImpl& Pixels);
 	void			ReadUniform(const char* Name,Opengl::TTextureAndContext& Texture);
 	template<typename TYPE>
-	void			ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead)
-	{
-		auto& Buffer = GetUniformBuffer(Name);
-		Buffer.Read( Data.GetArray(), Data.GetElementSize() * ElementsToRead );
-	}
-	
+	void			ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead);
+
 	void			GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations);
 
 	void			QueueIteration(const TKernelIteration& Iteration);
@@ -526,6 +528,17 @@ public:
 	cl_event	mEvent;
 };
 
+
+
+template<typename TYPE>
+inline void Opencl::TKernelState::ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead)
+{
+	auto ArrayWrapper = GetRemoteArray( Data.GetArray(), ElementsToRead );
+	auto& Buffer = GetUniformBuffer(Name);
+	Opencl::TSync Semaphore;
+	Buffer.Read( GetArrayBridge(ArrayWrapper), GetContext(), &Semaphore );
+	Semaphore.Wait();
+}
 
 
 
