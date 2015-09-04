@@ -143,18 +143,30 @@ std::string Opengl::GetEnumString(GLenum Type)
 #endif
 			CASE_ENUM_STRING( GL_RGBA );
 			CASE_ENUM_STRING( GL_RGB );
+#if defined(GL_RGB8)
 			CASE_ENUM_STRING( GL_RGB8 );
+#endif
+#if defined(GL_RGBA8)
 			CASE_ENUM_STRING( GL_RGBA8 );
+#endif
+#if defined(GL_RED)
 			CASE_ENUM_STRING( GL_RED );
+#endif
 
+#if defined(GL_R8)
 			CASE_ENUM_STRING( GL_R8 );
+#endif
+#if defined(GL_RG8)
 			CASE_ENUM_STRING( GL_RG8 );
+#endif
 
 #if defined(GL_TEXTURE_1D)
 			CASE_ENUM_STRING( GL_TEXTURE_1D );
 #endif
 			CASE_ENUM_STRING( GL_TEXTURE_2D );
+#if defined(GL_TEXTURE_3D)
 			CASE_ENUM_STRING( GL_TEXTURE_3D );
+#endif
 #if defined(GL_TEXTURE_RECTANGLE)
 			CASE_ENUM_STRING( GL_TEXTURE_RECTANGLE );
 #endif
@@ -377,16 +389,18 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 		throw Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
 	
-	
-	//	gr: init? or render?
-	// Set the list of draw buffers.
-	GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
-	Opengl::DrawBuffers(1, DrawBuffers);
-	Opengl::IsOkay("assign glDrawBuffers");
-	
+
+	//	this doesn't exist on es2, should fallback to a stub function
+	//	Set the list of draw buffers.
+	GLenum DrawBufferAttachments[1] = {GL_COLOR_ATTACHMENT0};
+	Opengl::DrawBuffers(1, DrawBufferAttachments);
+	Opengl::IsOkay("assigning glDrawBuffer attachments");
+
 	CheckStatus();
 	Unbind();
 }
+
+
 
 Opengl::TFbo::~TFbo()
 {
@@ -496,12 +510,17 @@ void Opengl::TFbo::Unbind()
 
 size_t Opengl::TFbo::GetAlphaBits() const
 {
+#if defined(OPENGL_ES_2)
+	throw Soy::AssertException("Framebuffer alpha size query not availible in opengles2");
+	return 0;
+#else
 	GLint AlphaSize = -1;
 	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE, &AlphaSize );
 	Opengl::IsOkay("Get FBO GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE");
 	std::Debug << "FBO has " << AlphaSize << " alpha bits" << std::endl;
 
 	return AlphaSize < 0 ? 0 :AlphaSize;
+#endif
 }
 
 Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
@@ -533,10 +552,12 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	GLenum GlPixelsStorage = GL_UNSIGNED_BYTE;
 	GLint Border = 0;
 	
+#if !defined(OPENGL_ES_2)
 	//	gr: change this to glGenerateMipMaps etc
 	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, MipLevel );
 	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, MipLevel );
 	Opengl::IsOkay("glTexParameteri set mip levels");
+#endif
 	
 	//	debug construction
 	//std::Debug << "glTexImage2D(" << Opengl::GetEnumString( mType ) << "," << Opengl::GetEnumString( InternalPixelFormat ) << "," << Opengl::GetEnumString( PixelsFormat ) << "," << Opengl::GetEnumString(GlPixelsStorage) << ")" << std::endl;
@@ -557,7 +578,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	Opengl::IsOkay("glTexImage2D texture construction");
 	
 	//	verify params
-#if !defined(OPENGL_ES_3)
+#if defined(OPENGL_CORE_3)
 	GLint TextureWidth = -1;
 	GLint TextureHeight = -1;
 	GLint TextureInternalFormat = -1;
@@ -662,12 +683,16 @@ Opengl::TPbo::TPbo(SoyPixelsMeta Meta) :
 	if ( ChannelCount != 1 && ChannelCount != 3 && ChannelCount != 4 )
 		throw Soy::AssertException("PBO channel count must be 1 3 or 4");
 
-	auto DataSize = Meta.GetDataSize();
 	
+#if defined(OPENGL_ES_2)
+	throw Soy::AssertException("read from buffer data not supported on es2? need to test");
+#else
+	auto DataSize = Meta.GetDataSize();
 	Bind();
 	glBufferData( GL_PIXEL_PACK_BUFFER, DataSize, nullptr, GL_STREAM_READ);
 	Opengl_IsOkay();
 	Unbind();
+#endif
 }
 
 Opengl::TPbo::~TPbo()
@@ -687,14 +712,22 @@ size_t Opengl::TPbo::GetDataSize()
 
 void Opengl::TPbo::Bind()
 {
+#if defined(OPENGL_ES_2)
+	throw Soy::AssertException("PBO not supported es2?");
+#else
 	glBindBuffer( GL_PIXEL_PACK_BUFFER, mPbo );
 	Opengl_IsOkay();
+#endif
 }
 
 void Opengl::TPbo::Unbind()
 {
+#if defined(OPENGL_ES_2)
+	throw Soy::AssertException("PBO not supported es2?");
+#else
 	glBindBuffer( GL_PIXEL_PACK_BUFFER, 0 );
 	Opengl_IsOkay();
+#endif
 }
 
 void Opengl::TPbo::ReadPixels()
@@ -735,8 +768,12 @@ const uint8* Opengl::TPbo::LockBuffer()
 
 void Opengl::TPbo::UnlockBuffer()
 {
+#if defined(TARGET_IOS)
+	throw Soy::AssertException("Lock buffer should not have succeeded on ios");
+#else
 	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
 	Opengl_IsOkay();
+#endif
 }
 
 void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
@@ -847,9 +884,9 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	GLint TextureInternalFormat = 0;
 	
 	//	opengl es doesn't have access!
-#if defined(OPENGL_ES_3)
-	TextureWidth = size_cast<GLint>(this->GetWidth());
-	TextureHeight = size_cast<GLint>(this->GetHeight());
+#if defined(OPENGL_ES_3)||defined(OPENGL_ES_2)
+	TextureWidth = size_cast<GLint>( this->GetWidth() );
+	TextureHeight = size_cast<GLint>( this->GetHeight() );
 	//	gr: errr what should this be now?
 	TextureInternalFormat = GetNewTexturePixelFormat( this->GetFormat() );
 #else
@@ -1037,7 +1074,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 
 SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType)
 {
-#if defined(OPENGL_ES_3)
+#if defined(OPENGL_ES_3)||defined(OPENGL_ES_2)
 	std::Debug << "Warning, using " << __func__ << " on opengl es (no such info)" << std::endl;
 	return mMeta;
 #else
@@ -1053,8 +1090,12 @@ SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType)
 #if defined(GL_TEXTURE_EXTERNAL_OES)
 		GL_TEXTURE_EXTERNAL_OES,
 #endif
+#if defined(GL_TEXTURE_1D)
 		GL_TEXTURE_1D,
+#endif
+#if defined(GL_TEXTURE_3D)
 		GL_TEXTURE_3D,
+#endif
 		GL_TEXTURE_CUBE_MAP,
 	};
 	
@@ -1500,7 +1541,7 @@ Opengl::TGeometry::~TGeometry()
 {
 	if ( mVertexArrayObject != GL_ASSET_INVALID )
 	{
-		glDeleteVertexArrays( 1, &mVertexArrayObject );
+		Opengl::DeleteVertexArrays( 1, &mVertexArrayObject );
 		mVertexArrayObject = GL_ASSET_INVALID;
 	}
 	
@@ -1529,8 +1570,12 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::RGBA, GL_RGBA, GL_RGBA, GL_RGBA ),
 
 		//	alternatives for GL -> soy
+#if defined(GL_RGB8)
 		TPixelFormatMapping( SoyPixelsFormat::RGB, GL_RGB8, GL_RGB8, GL_RGB8 ),
+#endif
+#if defined(GL_RGBA8)
 		TPixelFormatMapping( SoyPixelsFormat::RGBA, GL_RGBA8, GL_RGBA8, GL_RGBA8 ),
+#endif
 
 #if defined(TARGET_IOS)
 		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_BGRA, GL_BGRA, GL_BGRA ),

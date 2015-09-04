@@ -2,11 +2,31 @@
 #include "SoyEnum.h"
 
 
+
+//	gr: only expose extensions in this file
+#if defined(TARGET_OSX)
+#if defined(GL_GLEXT_FUNCTION_POINTERS)
+#undef GL_GLEXT_FUNCTION_POINTERS
+#endif
+#include <Opengl/glext.h>
+#endif
+
+#if defined(TARGET_ANDROID) && defined(OPENGL_ES_2)
+#include <EGL/egl.h>
+//#include <EGL/eglext.h>
+#endif
+
+#if defined(TARGET_IOS) && defined(OPENGL_ES_2)
+//#include <OpenGLES/EGL/egl.h>
+#endif
+
+
 //	todo: move this to context only
 namespace Opengl
 {
 	//	static method is slow, cache on a context!
-	std::map<OpenglExtensions::Type,bool>	SupportedExtensions;
+	std::map<OpenglExtensions::Type,bool>			SupportedExtensions;
+	extern std::map<OpenglExtensions::Type,Soy::TVersion>	ImplicitExtensions;
 };
 
 
@@ -18,19 +38,18 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 	{	OpenglExtensions::VertexArrayObjects,	"GL_ARB_vertex_array_object"	},
 #elif defined(TARGET_OSX)
 	{	OpenglExtensions::VertexArrayObjects,	"GL_APPLE_vertex_array_object"	},
-#elif defined(TARGET_ANDROID)
+#elif defined(TARGET_ANDROID) || defined(TARGET_IOS)
 	{	OpenglExtensions::VertexArrayObjects,	"GL_OES_vertex_array_object"	},
 #endif
+	{	OpenglExtensions::DrawBuffers,			"glDrawBuffer"	},
 };
 
+std::map<OpenglExtensions::Type,Soy::TVersion> Opengl::ImplicitExtensions =
+{
+	{	OpenglExtensions::VertexArrayObjects,	Soy::TVersion(3,0)	},
+	{	OpenglExtensions::DrawBuffers,			Soy::TVersion(3,0)	},
+};
 
-//	gr: only expose extensions here
-#if defined(TARGET_OSX)
-#if defined(GL_GLEXT_FUNCTION_POINTERS)
-#undef GL_GLEXT_FUNCTION_POINTERS
-#endif
-#include <Opengl/glext.h>
-#endif
 
 
 namespace Opengl
@@ -39,6 +58,8 @@ namespace Opengl
 	std::function<void(GLsizei,GLuint*)>		GenVertexArrays;
 	std::function<void(GLsizei,const GLuint*)>	DeleteVertexArrays;
 	std::function<GLboolean(GLuint)>			IsVertexArray;
+	
+	std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
 }
 
 
@@ -168,35 +189,44 @@ void SetUnsupportedFunction(FUNCTION& Function,const char* Name,RETURN Return)
 	};
 }
 
+
+#if defined(TARGET_ANDROID)
+
+/*
+void SetFunction(void (* xxxx)())
+{
+	//FUNCTYPE* ff = (FUNCTYPE*)x;
+	//f = ff;
+}
+*/
+template<typename FUNCTYPE>
+void SetFunction(std::function<FUNCTYPE>& f,void (* xxxx)() )
+{
+	if ( !xxxx )
+		throw Soy::AssertException("Function not found");
+	
+	FUNCTYPE* ff = (FUNCTYPE*)xxxx;
+	f = ff;
+}
+
+#else
 template<typename FUNCTYPE>
 void SetFunction(std::function<FUNCTYPE>& f,void* x)
 {
+	if ( !x )
+		throw Soy::AssertException("Function not found");
+	
 	FUNCTYPE* ff = (FUNCTYPE*)x;
 	f = ff;
 }
+#endif
 
 void Opengl::TContext::BindVertexArrayObjectsExtension()
 {
 	auto Extension = OpenglExtensions::VertexArrayObjects;
-
-	//	implicitly supported in opengl 3 & 4 (ES and CORE)
-	bool ImplicitlySupported = (mVersion.mMajor >= 3);
 	
-#if !defined(TARGET_WINDOWS)
-	if ( ImplicitlySupported )
-	{
-		SupportedExtensions[Extension] = true;
-		std::Debug << "Assumed implicit support for " << Extension << " << std::endl;
-
-		BindVertexArray = glBindVertexArray;
-		GenVertexArrays = glGenVertexArrays;
-		DeleteVertexArrays = glDeleteVertexArrays;
-		IsVertexArray = glIsVertexArray;
-		return;
-	}
-#endif
-	
-	bool IsSupported = SupportedExtensions.find(OpenglExtensions::VertexArrayObjects) != SupportedExtensions.end();
+	bool IsSupported = SupportedExtensions.find(Extension) != SupportedExtensions.end();
+	bool ImplicitSupport = mVersion >= ImplicitExtensions[Extension];
 	
 	//	extension supported, set functions
 	if ( IsSupported )
@@ -204,10 +234,20 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 		try
 		{
 	#if defined(TARGET_OSX)
-			BindVertexArray = glBindVertexArrayAPPLE;
-			GenVertexArrays = glGenVertexArraysAPPLE;
-			DeleteVertexArrays = glDeleteVertexArraysAPPLE;
-			IsVertexArray = glIsVertexArrayAPPLE;
+			if ( ImplicitSupport )
+			{
+				BindVertexArray = glBindVertexArray;
+				GenVertexArrays = glGenVertexArrays;
+				DeleteVertexArrays = glDeleteVertexArrays;
+				IsVertexArray = glIsVertexArray;
+			}
+			else
+			{
+				BindVertexArray = glBindVertexArrayAPPLE;
+				GenVertexArrays = glGenVertexArraysAPPLE;
+				DeleteVertexArrays = glDeleteVertexArraysAPPLE;
+				IsVertexArray = glIsVertexArrayAPPLE;
+			}
 	#elif defined(TARGET_WINDOWS)
 			SetFunction( BindVertexArray, wglGetProcAddress("glBindVertexArray") );
 			SetFunction( GenVertexArrays, wglGetProcAddress("glGenVertexArrays") );
@@ -218,11 +258,16 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 			SetFunction( GenVertexArrays, eglGetProcAddress("glGenVertexArraysOES") );
 			SetFunction( DeleteVertexArrays, eglGetProcAddress("glDeleteVertexArraysOES") );
 			SetFunction( IsVertexArray, eglGetProcAddress("glIsVertexArrayOES") );
-	#elif defined(TARGET_IOS)
+	#elif defined(TARGET_IOS) && defined(OPENGL_ES_3)
 			BindVertexArray = glBindVertexArray;
 			GenVertexArrays = glGenVertexArrays;
 			DeleteVertexArrays = glDeleteVertexArrays;
 			IsVertexArray = glIsVertexArray;
+	#elif defined(TARGET_IOS) && defined(OPENGL_ES_2)
+			BindVertexArray = glBindVertexArrayOES;
+			GenVertexArrays = glGenVertexArraysOES;
+			DeleteVertexArrays = glDeleteVertexArraysOES;
+			IsVertexArray = glIsVertexArrayOES;
 	#else
 			throw Soy::AssertException("Support unknown on this platform");
 	#endif
@@ -243,9 +288,60 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 		SetUnsupportedFunction(GenVertexArrays, "GenVertexArrays" );
 		SetUnsupportedFunction(DeleteVertexArrays, "DeleteVertexArrays" );
 		SetUnsupportedFunction(IsVertexArray, "IsVertexArray", (GLboolean)false );
-		return;
 	}
 
+}
+
+
+void Opengl::TContext::BindVertexBuffersExtension()
+{
+	auto Extension = OpenglExtensions::DrawBuffers;
+	
+	//	does not exist on ES2, but dont need to replace it
+#if defined(TARGET_IOS) || defined(TARGET_ANDROID)
+	if ( mVersion.mMajor <= 2 )
+	{
+		DrawBuffers = [](GLsizei,const GLenum *){};
+		SupportedExtensions[Extension] = false;
+		return;
+	}
+#endif
+
+	//	explicitly supported without an extension
+	bool IsSupported = true;
+	SupportedExtensions[Extension] = IsSupported;
+	
+	//	extension supported, set functions
+	if ( IsSupported )
+	{
+		try
+		{
+#if defined(TARGET_OSX)
+			DrawBuffers = glDrawBuffersARB;
+#elif defined(TARGET_WINDOWS)
+			SetFunction( DrawBuffers, wglGetProcAddress("glDrawBuffers") );
+#elif defined(TARGET_ANDROID)
+			SetFunction( DrawBuffers, eglGetProcAddress("glDrawBuffers") );
+#elif defined(TARGET_IOS) && defined(OPENGL_ES_3)
+			DrawBuffers = glDrawBuffers;
+#else
+			throw Soy::AssertException("Support unknown on this platform");
+#endif
+		}
+		catch ( std::exception& e )
+		{
+			std::Debug << "Error binding " << Extension << " functions, disabling support. " << e.what() << std::endl;
+			IsSupported = false;
+		}
+	}
+	
+	//	not supported (or has been unset due to implementation)
+	if ( !IsSupported )
+	{
+		SupportedExtensions[Extension] = false;
+		SetUnsupportedFunction(DrawBuffers, "glDrawBuffers" );
+	}
+	
 }
 
 
@@ -270,6 +366,8 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		else
 		{
 			Opengl_IsOkayFlush();
+			
+#if defined(OPENGL_ES3) || defined(OPENGL_CORE_3)
 			//	opengl 3 safe way
 			GLint ExtensionCount = -1;
 			glGetIntegerv( GL_NUM_EXTENSIONS, &ExtensionCount );
@@ -286,19 +384,38 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 				std::string ExtensionName( reinterpret_cast<const char*>(pExtensionName) );
 				PushExtension( SupportedExtensions, ExtensionName, GetArrayBridge(UnhandledExtensions) );
 			}
+#else
+			std::Debug << "Cannot determine opengl extensions" << std::endl;
+#endif
 		}
 
-		pContext->BindVertexArrayObjectsExtension();
-		
-		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
-		SupportedExtensions[OpenglExtensions::Invalid] = false;
-		
-		//	list other extensions
+		//	list other extensions (do this first to aid debugging)
 		std::stringstream UnhandledExtensionsStr;
 		UnhandledExtensionsStr << "Unhandled extensions(x" << UnhandledExtensions.GetSize() << ") ";
 		for ( int i=0;	i<UnhandledExtensions.GetSize();	i++ )
 			UnhandledExtensionsStr << UnhandledExtensions[i] << " ";
 		std::Debug << UnhandledExtensionsStr.str() << std::endl;
+
+		//	check explicitly supported extensions
+		auto& Impl = Opengl::ImplicitExtensions;
+		for ( auto it=Impl.begin();	it!=Impl.end();	it++ )
+		{
+			auto& Version = it->second;
+			auto& Extension = it->first;
+			if ( pContext->mVersion < Version )
+				continue;
+			
+			std::Debug << "Implicitly supporting " << Extension << " (>= version " << Version << ")" << std::endl;
+			SupportedExtensions[Extension] = true;
+		}
+		
+		//	setup extensions
+		pContext->BindVertexArrayObjectsExtension();
+		pContext->BindVertexBuffersExtension();
+		
+		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
+		SupportedExtensions[OpenglExtensions::Invalid] = false;
+		
 	}
 	
 	return SupportedExtensions[Extension];
@@ -405,16 +522,21 @@ Opengl::TTexture Opengl::TRenderTargetFbo::GetTexture()
 }
 
 
-
-Opengl::TSync::TSync() :
+Opengl::TSync::TSync()
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+:
 	mSyncObject	( nullptr )
+#endif
 {
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
 	mSyncObject = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
 	Opengl::IsOkay("glFenceSync");
+#endif
 }
 
 void Opengl::TSync::Wait(const char* TimerName)
 {
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
 	if ( !glIsSync( mSyncObject ) )
 		return;
 
@@ -434,5 +556,8 @@ void Opengl::TSync::Wait(const char* TimerName)
 
 	glDeleteSync( mSyncObject );
 	mSyncObject = nullptr;
+#else
+	glFinish();
+#endif
 }
 

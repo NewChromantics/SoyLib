@@ -64,19 +64,26 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 #if defined(OPENGL_ES_2) || defined(OPENGL_ES_3)
 		//	don't specificy a profile for 1.0 (es2)
 		Profile = "es";
-		if ( Version.mMajor == 1 && Version.mMinor == 0 )
+		if ( Version <= Soy::TVersion(1,0) )
 			Profile = "";
 #elif defined(OPENGL_CORE_3) || defined(OPENGL_CORE_2)
 		//	gr: for 120, no profile specified, should default to "core"
 #else
 #error Unknown opengl type
 #endif
-		//	auto pad minor using ints
-		size_t VersionInt = (Version.mMajor * 100) + Version.mMinor;
 		std::stringstream VersionString;
-		VersionString << "#version " << VersionInt << " " << Profile << "\n";
+		VersionString << "#version " << Version.GetHundred() << " " << Profile << "\n";
 	
 		Shader.InsertAt( 0, VersionString.str() );
+	}
+
+	//	glsl over a certain version doesn't allow the precision specifiers
+	//	gr: osx, maybe a desktop only thing?
+	if ( Version >= Soy::TVersion(1,20) )
+	{
+		Soy::StringReplace( Shader, "highp", "" );
+		Soy::StringReplace( Shader, "mediump", "" );
+		Soy::StringReplace( Shader, "lowp", "" );
 	}
 	
 	//	all versions of IOS (es?) require a precision specifier
@@ -93,7 +100,7 @@ void SoyShader::Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,Soy:
 	PreprocessShader( Shader );
 	UpgradeShader( Shader, Version );
 	
-	if ( Version.mMajor >= 3 && Version.mMinor >= 20 )
+	if ( Version >= Soy::TVersion(3,00) )
 	{
 		//	in 3.2, attribute/varying is now in/out
 		//			varying is Vert OUT, and INPUT for a frag (it becomes an attribute of the pixel)
@@ -108,7 +115,7 @@ void SoyShader::Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,Soy:
 	PreprocessShader( Shader );
 	UpgradeShader( Shader, Version );
 	
-	if ( Version.mMajor >= 3 && Version.mMinor >= 20 )
+	if ( Version >= Soy::TVersion(3,00) )
 	{
 		//	auto-replace/insert the new fragment output
 		//	https://www.opengl.org/wiki/Fragment_Shader#Outputs

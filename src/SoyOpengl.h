@@ -7,7 +7,11 @@
 
 
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
-	#define OPENGL_ES_3		//	need 3 for FBO's
+
+//	use latest SDK, but helps narrow down what might need supporting if we use ES2 headers
+#define OPENGL_ES_3
+//#define OPENGL_ES_2
+
 #elif defined(TARGET_OSX)
 	#define OPENGL_CORE_3	//	need 3 for VBA's
 #elif defined(TARGET_WINDOWS)
@@ -19,12 +23,6 @@
 #if defined(TARGET_ANDROID) && defined(OPENGL_ES_3)
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
-
-//	include EOS in header
-#define GL_GLEXT_PROTOTYPES
-#define glBindVertexArray	glBindVertexArrayOES
-#define glGenVertexArrays	glGenVertexArraysOES
-#include <GLES/glext.h>	//	need for EOS
 
 #endif
 
