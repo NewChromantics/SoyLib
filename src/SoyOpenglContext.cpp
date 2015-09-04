@@ -202,6 +202,9 @@ void SetFunction(void (* xxxx)())
 template<typename FUNCTYPE>
 void SetFunction(std::function<FUNCTYPE>& f,void (* xxxx)() )
 {
+	if ( !xxxx )
+		throw Soy::AssertException("Function not found");
+	
 	FUNCTYPE* ff = (FUNCTYPE*)xxxx;
 	f = ff;
 }
@@ -210,6 +213,9 @@ void SetFunction(std::function<FUNCTYPE>& f,void (* xxxx)() )
 template<typename FUNCTYPE>
 void SetFunction(std::function<FUNCTYPE>& f,void* x)
 {
+	if ( !x )
+		throw Soy::AssertException("Function not found");
+	
 	FUNCTYPE* ff = (FUNCTYPE*)x;
 	f = ff;
 }
