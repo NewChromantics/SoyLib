@@ -23,9 +23,8 @@
 #if defined(TARGET_ANDROID) && defined(OPENGL_ES_3)
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
-
+#include <GLES/glext.h>
 #endif
-
 
 #if defined(TARGET_ANDROID) && defined(OPENGL_ES_2)
 #include <GLES2/gl2.h>

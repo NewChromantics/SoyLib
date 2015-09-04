@@ -753,11 +753,9 @@ void Opengl::TPbo::ReadPixels()
 
 const uint8* Opengl::TPbo::LockBuffer()
 {
-#if defined(TARGET_IOS)
-	//	gr: come back to this... supported in 2 and 3... but check extensions, GL_READ_ONLY, GL_BUFFER_ACCESS_OES are missing too
+#if defined(TARGET_IOS) || defined(TARGET_ANDROID)
+	//	gr: come back to this... when needed, I think it's supported
 	const uint8* Buffer = nullptr;
-#elif defined(TARGET_ANDROID)
-	auto* Buffer = glMapBufferOES( GL_PIXEL_PACK_BUFFER, GL_BUFFER_ACCESS_OES );
 #else
 	auto* Buffer = glMapBuffer( GL_PIXEL_PACK_BUFFER, GL_READ_ONLY );
 #endif
@@ -768,8 +766,8 @@ const uint8* Opengl::TPbo::LockBuffer()
 
 void Opengl::TPbo::UnlockBuffer()
 {
-#if defined(TARGET_IOS)
-	throw Soy::AssertException("Lock buffer should not have succeeded on ios");
+#if defined(TARGET_IOS) || defined(TARGET_ANDROID)
+	throw Soy::AssertException("Lock buffer should not have succeeded on ES");
 #else
 	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
 	Opengl_IsOkay();

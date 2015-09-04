@@ -85,13 +85,21 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 		Soy::StringReplace( Shader, "mediump", "" );
 		Soy::StringReplace( Shader, "lowp", "" );
 	}
+
+	//	All versions of IOS, and android ES3? require a precision specifier
+	bool AddPrecision = false;
+	
+#if defined(TARGET_IOS)
+	AddPrecision = true;
+#elif defined(TARGET_ANDROID)
+	if ( Version >= Soy::TVersion(3,0) )
+		AddPrecision = true;
+#endif
 	
 	//	all versions of IOS (es?) require a precision specifier
-#if defined(TARGET_IOS)
 	//	gr: add something to check if this is already declared
 	//	gr: needed vec2 declarations for GLSL 100... not for gles3?
 	Shader.InsertAt( GetNonProcessorFirstLine(Shader), "precision highp float;\n" );
-#endif
 	
 }
 

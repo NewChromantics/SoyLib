@@ -11,9 +11,8 @@
 #include <Opengl/glext.h>
 #endif
 
-#if defined(TARGET_ANDROID) && defined(OPENGL_ES_2)
+#if defined(TARGET_ANDROID)
 #include <EGL/egl.h>
-//#include <EGL/eglext.h>
 #endif
 
 #if defined(TARGET_IOS) && defined(OPENGL_ES_2)
