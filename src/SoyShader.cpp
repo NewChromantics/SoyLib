@@ -56,8 +56,6 @@ void PreprocessShader(ArrayBridge<std::string>& Shader)
 //	vert & frag changes
 void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 {
-	auto VersionHundred = Version.GetHundred();
-	
 	//	insert version if there isn't one there
 	if ( !Soy::StringBeginsWith(Shader[0],"#version",true) )
 	{
@@ -66,7 +64,7 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 #if defined(OPENGL_ES_2) || defined(OPENGL_ES_3)
 		//	don't specificy a profile for 1.0 (es2)
 		Profile = "es";
-		if ( VersionHundred <= Soy::TVersion(1,0) )
+		if ( Version <= Soy::TVersion(1,0) )
 			Profile = "";
 #elif defined(OPENGL_CORE_3) || defined(OPENGL_CORE_2)
 		//	gr: for 120, no profile specified, should default to "core"
@@ -74,7 +72,7 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 #error Unknown opengl type
 #endif
 		std::stringstream VersionString;
-		VersionString << "#version " << VersionHundred << " " << Profile << "\n";
+		VersionString << "#version " << Version.GetHundred() << " " << Profile << "\n";
 	
 		Shader.InsertAt( 0, VersionString.str() );
 	}
@@ -102,7 +100,7 @@ void SoyShader::Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,Soy:
 	PreprocessShader( Shader );
 	UpgradeShader( Shader, Version );
 	
-	if ( Version >= Soy::TVersion(3,20) )
+	if ( Version >= Soy::TVersion(3,00) )
 	{
 		//	in 3.2, attribute/varying is now in/out
 		//			varying is Vert OUT, and INPUT for a frag (it becomes an attribute of the pixel)
@@ -117,7 +115,7 @@ void SoyShader::Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,Soy:
 	PreprocessShader( Shader );
 	UpgradeShader( Shader, Version );
 	
-	if ( Version >= Soy::TVersion(3,20) )
+	if ( Version >= Soy::TVersion(3,00) )
 	{
 		//	auto-replace/insert the new fragment output
 		//	https://www.opengl.org/wiki/Fragment_Shader#Outputs
