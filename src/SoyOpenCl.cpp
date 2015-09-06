@@ -510,13 +510,21 @@ Opencl::TContext::~TContext()
 
 bool Opencl::TContext::Lock()
 {
-	//	need to set thread for queue?
+	//	need to set thread for cl_queue?
+
+	//	same as Opengl::TContext::Lock()
+	Soy::Assert( mLockedThread == std::thread::id(), "context already locked" );
+	mLockedThread = std::this_thread::get_id();
 	return true;
 }
 
 void Opencl::TContext::Unlock()
 {
-	
+	//	same as Opengl::TContext::Unlock()
+	auto ThisThread = std::this_thread::get_id();
+	Soy::Assert( mLockedThread != std::thread::id(), "context not locked to wrong thread" );
+	Soy::Assert( mLockedThread == ThisThread, "context not unlocked from wrong thread" );
+	mLockedThread = std::thread::id();
 }
 
 
@@ -878,7 +886,8 @@ void Opencl::TBuffer::Write(const uint8 *Array,size_t Size,TContext& Context,Ope
 
 Opencl::TBufferImage::TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
 	mContext		( Context ),
-	mOpenglObject	( nullptr )
+	mOpenglObject	( nullptr ),
+	mMeta			( Meta )
 {
 	Soy::Assert( mMem == nullptr, "clmem already allocated");
 	
@@ -925,10 +934,9 @@ Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,
 
 Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
 	mContext		( Context ),
-	mOpenglObject	( nullptr )
+	mOpenglObject	( nullptr ),
+	mMeta			( Texture.mMeta )
 {
-	Soy::TScopeTimerPrint Timer("TBufferImage from opengl texture", 10 );
-	
 	try
 	{
 		if ( Context.HasInteroperability(OpenglContext) )
@@ -982,6 +990,8 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 	}
 
 	//	read texture to buffer and upload that
+	Soy::TScopeTimerPrint Timer("TBufferImage from opengl texture via read pixels", 10 );
+	
 	SoyPixels Buffer;
 	auto Read = [&Buffer,&Texture]
 	{
@@ -1046,6 +1056,23 @@ void Opencl::TBufferImage::Write(const SoyPixelsImpl& Image,Opencl::TSync* Semap
 	Opencl::IsOkay( Error, __func__ );
 }
 
+
+void Opencl::TBufferImage::Write(TBufferImage& Image,Opencl::TSync* Semaphore)
+{
+	//	copy image to image
+	size_t SourceOffset = 0;	//	mem offset, guess this needs calculating if we're doing a sub image
+	size_t DestOrigin[] = { 0,0,0 };
+	size_t DestRegion[] = { mMeta.GetWidth(), mMeta.GetHeight(), 1 };
+	auto Queue = mContext.GetQueue();
+	auto* Event = Semaphore ? &Semaphore->mEvent : nullptr;
+	auto SourceBuffer = Image.mMem;
+	auto DestBuffer = mMem;
+	
+	cl_int Error = clEnqueueCopyBufferToImage( Queue, SourceBuffer, DestBuffer, SourceOffset, DestOrigin, DestRegion, 0, nullptr, Event );
+	Opencl::IsOkay( Error, __func__ );
+}
+
+
 void Opencl::TBufferImage::Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
 {
 	size_t Origin[] = { 0,0,0 };
@@ -1068,13 +1095,48 @@ void Opencl::TBufferImage::Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
 	Opencl::IsOkay( Error, __func__ );
 }
 
-void Opencl::TBufferImage::Read(const Opengl::TTexture& Image,Opencl::TSync* Semaphore)
+
+void Opencl::TBufferImage::Read(Opengl::TTexture& Image,Opencl::TSync* Semaphore)
 {
 	//	read-back the texture we were created with
-	if ( mOpenglObject != &Image )
-		throw Soy::AssertException("Currently only support reading back to texture we were created from");
+	if ( mOpenglObject == &Image )
+	{
+		//	seems to just write immediately, with no need for any flushes...
+		return;
+	}
 	
-	//	how do I read this? just flush opencl work?	
+	throw Soy::AssertException("Trying to read back buffer image to different texture, context required");
+}
+
+
+
+void Opencl::TBufferImage::Read(Opengl::TTextureAndContext& TextureAndContext,Opencl::TSync* Semaphore)
+{
+	//	read-back the texture we were created with
+	if ( mOpenglObject == &TextureAndContext.mTexture )
+	{
+		//	seems to just write immediately, with no need for any flushes...
+		return;
+	}
+	
+	//	if texture is not valid, create it
+	auto& Texture = TextureAndContext.mTexture;
+	auto& Context = TextureAndContext.mContext;
+	if ( !Texture.IsValid(false) )
+	{
+		auto CreateTexture = [&Texture,this]
+		{
+			Texture = std::move( Opengl::TTexture( mMeta, GL_TEXTURE_2D ) );
+		};
+		Soy::TSemaphore Semaphore;
+		Context.PushJob( CreateTexture, Semaphore );
+		Semaphore.Wait();
+	}
+	
+	//	create a temporary buffer attached to the texture, and copy it
+	Opencl::TBufferImage NewTextureBuffer( Texture, Context, this->mContext, OpenclBufferReadWrite::WriteOnly, nullptr );
+	NewTextureBuffer.Write( *this, Semaphore );
+	NewTextureBuffer.Read( Texture, Semaphore );
 }
 
 bool Opencl::TKernelState::SetUniform(const char* Name,const Opengl::TTextureAndContext& Pixels,OpenclBufferReadWrite::Type ReadWriteMode)

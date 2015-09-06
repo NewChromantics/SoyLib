@@ -160,7 +160,7 @@ class Opengl::TUniform : public Soy::TUniform
 {
 public:
 	TUniform(const std::string& Name=std::string()) :
-		Soy::TUniform	( Name ),
+		Soy::TUniform	( Name, std::string() ),
 		mIndex			( GL_UNIFORM_INVALID ),
 		mType			( GL_ASSET_INVALID ),
 		mArraySize		( 0 )

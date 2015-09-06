@@ -18,13 +18,15 @@ class Soy::TUniform
 {
 public:
 	TUniform()	{}
-	TUniform(const std::string& Name) :
-		mName	( Name )
+	TUniform(const std::string& Name,const std::string& Type=std::string()) :
+		mName	( Name ),
+		mType	( Type )
 	{
 	}
 	
 public:
 	std::string		mName;
+	std::string		mType;
 };
 
 class Soy::TUniformContainer

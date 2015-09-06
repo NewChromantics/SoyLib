@@ -209,6 +209,7 @@ public:
 
 	virtual bool	Lock() override;
 	virtual void	Unlock() override;
+	virtual bool	IsLocked(std::thread::id Thread) override		{	return mLockedThread == Thread;	}
 
 	const TDeviceMeta&	GetDevice() const	{	return mDeviceMeta;		}
 	cl_context			GetContext()		{	return mDevice.GetClContext();	}	//	get the opencl context
@@ -226,6 +227,9 @@ protected:
 	TDevice&			mDevice;
 	TDeviceMeta			mDeviceMeta;	//	useful to cache to read vars
 	cl_command_queue	mQueue;
+	
+private:
+	std::thread::id		mLockedThread;	//	needed in the context as it gets locked in other places than the job queue
 };
 
 
@@ -345,13 +349,15 @@ public:
 	
 	void		Write(const Opengl::TTexture& Image,Opencl::TSync* Semaphore);
 	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
+	void		Write(TBufferImage& Image,Opencl::TSync* Semaphore);
 	void		Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
-	void		Read(const Opengl::TTexture& Image,Opencl::TSync* Semaphore);
+	void		Read(Opengl::TTexture& Image,Opencl::TSync* Semaphore);
+	void		Read(Opengl::TTextureAndContext& TextureAndContext,Opencl::TSync* Semaphore);
 	
 private:
-	//	store meta like with Opengl::TTexture to stop bad writes/hardware lookups
 	TContext&				mContext;
 	const Opengl::TTexture*	mOpenglObject;	//	pointer to reduce dependancy. If texture is deleted in the meantime results are undefined anyway. maybe make this safer sometime
+	SoyPixelsMeta			mMeta;
 };
 
 class Opencl::TKernelIteration
@@ -464,9 +470,8 @@ public:
 	{
 	}
 	TUniform(const std::string& Name,const std::string& Type,cl_uint Index) :
-		Soy::TUniform	( Name ),
-		mIndex			( Index ),
-		mType			( Type )
+		Soy::TUniform	( Name, Type ),
+		mIndex			( Index )
 	{
 	}
 	
@@ -474,7 +479,6 @@ public:
 	bool		operator==(const std::string& Name) const	{	return mName == Name;	}
 	
 public:
-	std::string	mType;
 	cl_uint		mIndex;
 };
 std::ostream& operator<<(std::ostream &out,const Opencl::TUniform& in);
