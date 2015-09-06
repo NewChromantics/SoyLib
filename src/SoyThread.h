@@ -110,7 +110,7 @@ public:
 	
 private:
 	std::vector<std::shared_ptr<TJob>>	mJobs;		//	gr: change this to a nice soy ringbuffer
-	std::recursive_mutex				mLock;
+	std::recursive_mutex				mJobLock;
 };
 
 

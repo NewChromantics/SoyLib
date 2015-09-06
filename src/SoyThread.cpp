@@ -71,7 +71,7 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 	{
 		LockTimer.Start();
 		//	pop task
-		mLock.lock();
+		mJobLock.lock();
 		std::shared_ptr<TJob> Job;
 		auto NextJob = mJobs.begin();
 		if ( NextJob != mJobs.end() )
@@ -80,7 +80,7 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 			mJobs.erase( NextJob );
 		}
 		//bool MoreJobs = !mJobs.empty();
-		mLock.unlock();
+		mJobLock.unlock();
 		LockTimer.Stop();
 		
 		if ( !Job )
@@ -89,9 +89,9 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 		//	lock the context
 		if ( !Context.Lock() )
 		{
-			mLock.lock();
+			mJobLock.lock();
 			mJobs.insert( mJobs.begin(), Job );
-			mLock.unlock();
+			mJobLock.unlock();
 			break;
 		}
 		
@@ -144,9 +144,9 @@ void PopWorker::TJobQueue::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphor
 	
 	Job->mSemaphore = Semaphore;
 	
-	mLock.lock();
+	mJobLock.lock();
 	mJobs.push_back( Job );
-	mLock.unlock();
+	mJobLock.unlock();
 	
 	mOnJobPushed.OnTriggered( Job );
 }
