@@ -51,8 +51,9 @@ public:
 
 	void			Init();
 	void			Iteration()			{	Flush(*this);	}
-	virtual bool	Lock() override		{	return true;	}
-	virtual void	Unlock() override	{	}
+	virtual bool	Lock() override;
+	virtual void	Unlock() override;
+	virtual bool	IsLocked(std::thread::id Thread) override		{	return mLockedThread == Thread;	}
 	virtual std::shared_ptr<Opengl::TContext>	CreateSharedContext()	{	return nullptr;	}
 
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
@@ -69,6 +70,9 @@ public:
 	Soy::TVersion	mVersion;
 	Soy::TVersion	mShaderVersion;	//	max version supported
 	std::string		mDeviceName;
+	
+private:
+	std::thread::id		mLockedThread;	//	needed in the context as it gets locked in other places than the job queue
 };
 
 

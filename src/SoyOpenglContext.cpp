@@ -121,6 +121,21 @@ void Opengl::TContext::Init()
 	std::Debug << "Opengl version: " << mVersion << " on " << mDeviceName << std::endl;
 }
 
+bool Opengl::TContext::Lock()
+{
+	Soy::Assert( mLockedThread == std::thread::id(), "context already locked" );
+	
+	mLockedThread = std::this_thread::get_id();
+	return true;
+}
+
+void Opengl::TContext::Unlock()
+{
+	auto ThisThread = std::this_thread::get_id();
+	Soy::Assert( mLockedThread != std::thread::id(), "context not locked to wrong thread" );
+	Soy::Assert( mLockedThread == ThisThread, "context not unlocked from wrong thread" );
+	mLockedThread = std::thread::id();
+}
 
 
 bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName,ArrayBridge<std::string>& UnhandledExtensions)

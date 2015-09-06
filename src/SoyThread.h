@@ -95,6 +95,8 @@ public:
 class PopWorker::TJobQueue
 {
 public:
+	virtual bool	IsLocked(std::thread::id Thread)		{	return false;	}	//	is this THREAD exclusively locked
+
 	void			Flush(TContext& Context);
 	bool			HasJobs() const			{	return !mJobs.empty();	}
 	void			PushJob(std::function<void()> Lambda);
@@ -105,14 +107,16 @@ public:
 protected:
 	virtual void	PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore);
 	
+private:
+	void			RunJob(std::shared_ptr<TJob>& Job);
+
 public:
 	SoyEvent<std::shared_ptr<TJob>>		mOnJobPushed;
 	
 private:
-	std::vector<std::shared_ptr<TJob>>	mJobs;		//	gr: change this to a nice soy ringbuffer
+	std::vector<std::shared_ptr<TJob>>	mJobs;			//	gr: change this to a nice soy ringbuffer
 	std::recursive_mutex				mJobLock;
 };
-
 
 
 

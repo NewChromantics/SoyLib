@@ -102,26 +102,30 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 			FlushError = false;
 		}
 		
+		//	gr: will this work after a throw?
 		auto ContextLock = SoyScope( nullptr, AutoUnlockContext );
+
+		RunJob( Job );
+	}
+}
+
+
+void PopWorker::TJobQueue::RunJob(std::shared_ptr<TJob>& Job)
+{
+	try
+	{
+		Job->Run();
 		
-		//	execute task, if it returns false, we don't run any more this time and re-insert
-		//	gr: remove this and make the jobs more dumb. Throw exceptions on error, caller can re-insert jobs as neccessary
-		try
-		{
-			Job->Run();
-			//	mark job as finished
-			if ( Job->mSemaphore )
-				Job->mSemaphore->OnCompleted();
-		}
-		catch (std::exception& e)
-		{
-			if ( Job->mSemaphore )
-				Job->mSemaphore->OnFailed( e.what() );
-			else
-				std::Debug << "Exception executing job " << e.what() << " (no semaphore)" << std::endl;
-		}
-		
-		
+		//	mark job as finished
+		if ( Job->mSemaphore )
+			Job->mSemaphore->OnCompleted();
+	}
+	catch (std::exception& e)
+	{
+		if ( Job->mSemaphore )
+			Job->mSemaphore->OnFailed( e.what() );
+		else
+			std::Debug << "Exception executing job " << e.what() << " (no semaphore)" << std::endl;
 	}
 }
 
@@ -143,6 +147,18 @@ void PopWorker::TJobQueue::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphor
 	Soy::Assert( Job!=nullptr, "Job expected" );
 	
 	Job->mSemaphore = Semaphore;
+	
+	//	try and avoid inception deadlocks
+	bool WillWait = (Semaphore!=nullptr);	//	assumption
+	auto ThisThreadId = std::this_thread::get_id();
+	if ( IsLocked(ThisThreadId) && WillWait )
+	{
+		//	execute immediately, assume any throws will be caught by the queue flush...
+		std::Debug << "Warning: caught job inception, executing immediately to avoid deadlock" << std::endl;
+	
+		RunJob( Job );
+		return;
+	}
 	
 	mJobLock.lock();
 	mJobs.push_back( Job );
