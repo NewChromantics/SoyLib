@@ -600,25 +600,34 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	mMeta = Meta;
 }
 
-bool Opengl::TTexture::IsValid() const
+bool Opengl::TTexture::IsValid(bool InvasiveTest) const
 {
-	auto IsTexture = glIsTexture( mTexture.mName );
-
-	//	gr: on IOS this is nice and reliable and NEEDED to distinguish from metal textures!
 #if defined(TARGET_IOS)
-	return IsTexture;
-#else
-	
-	//	gr: this is returning false [on OSX] from other threads :/ even though they have a context
-	//	other funcs are working though
-	if ( IsTexture )
-		return true;
+	if ( !InvasiveTest )
+	{
+		throw Soy::AssertException("Because of metal support, IOS currently doesn't allow non-invasive testing until I have something reliable");
+	}
+#endif
+
+	if ( InvasiveTest )
+	{
+		auto IsTexture = glIsTexture( mTexture.mName );
+
+		//	gr: on IOS this is nice and reliable and NEEDED to distinguish from metal textures!
+	#if defined(TARGET_IOS)
+		return IsTexture;
+	#endif
+		
+		//	gr: this is returning false [on OSX] from other threads :/ even though they have a context
+		//	other funcs are working though
+		if ( IsTexture )
+			return true;
+	}
 	
 	if ( mTexture.mName != GL_ASSET_INVALID )
 		return true;
 	
 	return false;
-#endif
 }
 
 void Opengl::TTexture::Delete()

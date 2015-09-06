@@ -401,7 +401,7 @@ public:
 
 	bool				Bind() const;
 	void				Unbind() const;
-	bool				IsValid() const;
+	bool				IsValid(bool InvasiveTest=true) const;	//	only use InvasiveTest on opengl threads
 	void				Delete();
 	void				Write(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
 	void				Read(SoyPixelsImpl& Pixels) const;
