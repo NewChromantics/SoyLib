@@ -30,8 +30,7 @@ void Soy::Private::Assert_Impl(TErrorMessageFunc ErrorMessageFunc) throw(AssertE
 	
 	//	if the debugger is attached, try and break the debugger without an exception so we can continue
 	if ( Platform::IsDebuggerAttached() )
-		if ( Soy::Platform::DebugBreak() )
-			return;
+		Soy::Platform::DebugBreak();
 	
 
 	//	throw exception
