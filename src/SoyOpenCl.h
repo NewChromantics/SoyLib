@@ -354,6 +354,8 @@ public:
 	void		Read(Opengl::TTexture& Image,Opencl::TSync* Semaphore);
 	void		Read(Opengl::TTextureAndContext& TextureAndContext,Opencl::TSync* Semaphore);
 	
+	SoyPixelsMeta	GetMeta() const			{	return mMeta;	}
+	
 private:
 	TContext&				mContext;
 	const Opengl::TTexture*	mOpenglObject;	//	pointer to reduce dependancy. If texture is deleted in the meantime results are undefined anyway. maybe make this safer sometime

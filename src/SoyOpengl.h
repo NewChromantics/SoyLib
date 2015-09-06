@@ -395,6 +395,7 @@ public:
 
 	SoyPixelsMeta		GetInternalMeta(GLenum& Type);	//	read meta from opengl
 
+	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 	size_t				GetWidth() const	{	return mMeta.GetWidth();	}
 	size_t				GetHeight() const	{	return mMeta.GetHeight();	}
 	SoyPixelsFormat::Type	GetFormat() const	{	return mMeta.GetFormat();	}
