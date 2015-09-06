@@ -267,8 +267,8 @@ public:
 class Opencl::TBuffer
 {
 protected:
-	TBuffer();
-	TBuffer(size_t Size,TContext& Context);
+	TBuffer(const std::string& DebugName);
+	TBuffer(size_t Size,TContext& Context,const std::string& DebugName);
 public:
 	virtual ~TBuffer();
 	
@@ -305,8 +305,9 @@ protected:
 	void		Write(const uint8* Array,size_t Size,TContext& Context,TSync* Sync);
 	
 protected:
-	size_t		mBufferSize;
-	cl_mem		mMem;
+	size_t			mBufferSize;
+	cl_mem			mMem;
+	std::string		mDebugName;
 };
 
 
@@ -314,15 +315,15 @@ template<typename TYPE>
 class Opencl::TBufferArray : public TBuffer
 {
 public:
-	TBufferArray(ArrayBridge<TYPE>&& Array,TContext& Context,TSync* Sync=nullptr) :
-		TBuffer			( Array.GetDataSize(), Context ),
+	TBufferArray(ArrayBridge<TYPE>&& Array,TContext& Context,const std::string& DebugName,TSync* Sync=nullptr) :
+		TBuffer			( Array.GetDataSize(), Context, DebugName ),
 		mElementSize	( 0 )
 	{
 		Write( reinterpret_cast<uint8*>( Array.GetArray() ), Array.GetDataSize(), Context, Sync );
 		mElementSize = Array.GetElementSize();
 	}
-	TBufferArray(ArrayBridge<TYPE>& Array,TContext& Context,TSync* Sync=nullptr) :
-		TBuffer			( Array.GetDataSize(), Context ),
+	TBufferArray(ArrayBridge<TYPE>& Array,TContext& Context,const std::string& DebugName,TSync* Sync=nullptr) :
+		TBuffer			( Array.GetDataSize(), Context, DebugName ),
 		mElementSize	( 0 )
 	{
 		Write( reinterpret_cast<uint8*>( Array.GetArray() ), Array.GetDataSize(), Context, Sync );
@@ -340,9 +341,9 @@ private:
 class Opencl::TBufferImage : public TBuffer
 {
 public:
-	TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
-	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
-	TBufferImage(const Opengl::TTexture& Image,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
+	TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,const std::string& DebugName,Opencl::TSync* Semaphore=nullptr);
+	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,const std::string& DebugName,Opencl::TSync* Semaphore=nullptr);
+	TBufferImage(const Opengl::TTexture& Image,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,const std::string& DebugName,Opencl::TSync* Semaphore=nullptr);
 	~TBufferImage();
 	
 	TBufferImage&	operator=(TBufferImage&& Move);
@@ -438,6 +439,7 @@ public:
 	void			ReadUniform(const char* Name,Opengl::TTextureAndContext& Texture);
 	template<typename TYPE>
 	void			ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead);
+	void			ReadUniform(const char* Name,TBuffer& Buffer);
 
 	void			GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations);
 

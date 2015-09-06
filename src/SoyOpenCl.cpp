@@ -803,16 +803,18 @@ cl_image_format Opencl::GetImageFormat(SoyPixelsFormat::Type Format)
 }
 
 
-Opencl::TBuffer::TBuffer() :
+Opencl::TBuffer::TBuffer(const std::string& DebugName) :
 	mMem		( nullptr ),
-	mBufferSize	( 0 )
+	mBufferSize	( 0 ),
+	mDebugName	( DebugName )
 {
 	
 }
 
-Opencl::TBuffer::TBuffer(size_t Size,TContext& Context) :
+Opencl::TBuffer::TBuffer(size_t Size,TContext& Context,const std::string& DebugName) :
 	mMem		( nullptr ),
-	mBufferSize	( 0 )
+	mBufferSize	( 0 ),
+	mDebugName	( DebugName )
 {
 	cl_mem_flags Flags = CL_MEM_READ_WRITE;
 	void* HostPtr = nullptr;
@@ -832,6 +834,8 @@ Opencl::TBuffer::~TBuffer()
 {
 	if ( mMem )
 	{
+		//std::Debug << "Deleting cl_mem " << mDebugName << std::endl;
+		
 		auto Error = clReleaseMemObject( mMem );
 		Opencl::IsOkay( Error, "clReleaseMemObject" );
 		mMem = nullptr;
@@ -884,7 +888,8 @@ void Opencl::TBuffer::Write(const uint8 *Array,size_t Size,TContext& Context,Ope
 
 
 
-Opencl::TBufferImage::TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
+Opencl::TBufferImage::TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,const std::string& DebugName,TSync* Semaphore) :
+	TBuffer			( DebugName + " (TBufferImage)" ),
 	mContext		( Context ),
 	mOpenglObject	( nullptr ),
 	mMeta			( Meta )
@@ -924,15 +929,16 @@ Opencl::TBufferImage::TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,c
 	Opencl::IsOkay( Error, "clCreateImage" );
 }
 
-Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore) :
-	TBufferImage		( Image.GetMeta(), Context, ClientStorage ? &Image : nullptr, ReadWrite, Semaphore )
+Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,const std::string& DebugName,Opencl::TSync* Semaphore) :
+	TBufferImage		( Image.GetMeta(), Context, ClientStorage ? &Image : nullptr, ReadWrite, DebugName, Semaphore )
 {
 	if ( ReadWrite != OpenclBufferReadWrite::WriteOnly )
 		Write( Image, Semaphore );
 }
 
 
-Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
+Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,const std::string& DebugName,TSync* Semaphore) :
+	TBuffer			( DebugName + " (TBufferImage)" ),
 	mContext		( Context ),
 	mOpenglObject	( nullptr ),
 	mMeta			( Texture.mMeta )
@@ -1001,7 +1007,7 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 	OpenglContext.PushJob( Read, ReadSemaphore );
 	ReadSemaphore.Wait();
 
-	*this = std::move( Opencl::TBufferImage( Buffer, Context, false, ReadWrite, Semaphore ) );
+	*this = std::move( Opencl::TBufferImage( Buffer, Context, false, ReadWrite, mDebugName, Semaphore ) );
 }
 
 Opencl::TBufferImage& Opencl::TBufferImage::operator=(TBufferImage&& Move)
@@ -1144,7 +1150,7 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const Opengl::TTextureAnd
 	//	todo: get uniform and check type is image_2D_t
 	//	make image buffer and set that
 	Opencl::TSync Sync;
-	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels.mTexture, Pixels.mContext, GetContext(), ReadWriteMode, &Sync ) );
+	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels.mTexture, Pixels.mContext, GetContext(), ReadWriteMode, std::string("Uniform ")+Name, &Sync ) );
 	
 	mBuffers.PushBack( std::make_pair(Name,Buffer) );
 /*
@@ -1167,7 +1173,7 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const SoyPixelsImpl& Pixe
 	//	todo: get uniform and check type is image_2D_t
 	//	make image buffer and set that
 	Opencl::TSync Sync;
-	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, ReadWriteMode, &Sync ) );
+	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, ReadWriteMode, std::string("Uniform ") + Name, &Sync ) );
 
 	mBuffers.PushBack( std::make_pair(Name,Buffer) );
 	/*
@@ -1209,6 +1215,7 @@ bool Opencl::TKernelState::SetUniform(const char* Name,cl_int Value)
 
 bool Opencl::TKernelState::SetUniform(const char* Name,TBuffer& Buffer)
 {
+	//	gr: this fails if you assign a read uniform with a write-only buffer! catch this here!
 	return SetKernelArg( *this, Name, Buffer.GetMemBuffer() );
 }
 
@@ -1246,6 +1253,11 @@ void Opencl::TKernelState::ReadUniform(const char* Name,SoyPixelsImpl& Pixels)
 	auto& BufferImage = dynamic_cast<TBufferImage&>( Buffer );
 	BufferImage.Read( Pixels, &Semaphore );
 	Semaphore.Wait();
+}
+
+void Opencl::TKernelState::ReadUniform(const char* Name,TBuffer& Buffer)
+{
+	//	may need to copy?
 }
 
 
