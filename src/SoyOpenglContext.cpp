@@ -437,8 +437,9 @@ void Opengl::TRenderTarget::SetViewportNormalised(Soy::Rectf Viewport)
 
 
 Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context,Opengl::TTexture ExistingTexture) :
-	TRenderTarget	( Meta.mName ),
-	mTexture		( ExistingTexture )
+	TRenderTarget		( Meta.mName ),
+	mTexture			( ExistingTexture ),
+	mGenerateMipMaps	( true )
 {
 	auto CreateFbo = [this,Meta]()
 	{
@@ -469,8 +470,9 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Conte
 
 
 Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture ExistingTexture) :
-	TRenderTarget	( Meta.mName ),
-	mTexture		( ExistingTexture )
+	TRenderTarget		( Meta.mName ),
+	mTexture			( ExistingTexture ),
+	mGenerateMipMaps	( true )
 {
 	Opengl_IsOkay();
 		
@@ -507,7 +509,8 @@ void Opengl::TRenderTargetFbo::Unbind()
 	mFbo->Unbind();
 	
 	//	generate mipmaps after we've drawn to the image
-	mFbo->mTarget.GenerateMipMaps();
+	if ( mGenerateMipMaps )
+		mFbo->mTarget.GenerateMipMaps();
 }
 
 Soy::Rectx<size_t> Opengl::TRenderTargetFbo::GetSize()

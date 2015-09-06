@@ -108,6 +108,8 @@ public:
 	virtual Soy::Rectx<size_t>	GetSize();
 	TTexture					GetTexture();
 	
+public:
+	bool					mGenerateMipMaps;
 	std::shared_ptr<TFbo>	mFbo;
 	TTexture				mTexture;
 };
