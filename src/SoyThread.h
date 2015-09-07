@@ -96,6 +96,7 @@ class PopWorker::TJobQueue
 {
 public:
 	virtual bool	IsLocked(std::thread::id Thread)		{	return false;	}	//	is this THREAD exclusively locked
+	bool			IsLockedToAnyThread()					{	return IsLocked( std::thread::id() );	}
 
 	void			Flush(TContext& Context);
 	bool			HasJobs() const			{	return !mJobs.empty();	}

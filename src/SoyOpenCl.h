@@ -209,8 +209,8 @@ public:
 
 	virtual bool	Lock() override;
 	virtual void	Unlock() override;
-	virtual bool	IsLocked(std::thread::id Thread) override		{	return mLockedThread == Thread;	}
-
+	virtual bool	IsLocked(std::thread::id Thread) override;
+	
 	const TDeviceMeta&	GetDevice() const	{	return mDeviceMeta;		}
 	cl_context			GetContext()		{	return mDevice.GetClContext();	}	//	get the opencl context
 	cl_command_queue	GetQueue() const	{	return mQueue;	}

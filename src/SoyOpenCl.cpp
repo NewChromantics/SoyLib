@@ -508,6 +508,15 @@ Opencl::TContext::~TContext()
 	}
 }
 
+bool Opencl::TContext::IsLocked(std::thread::id Thread)
+{
+	//	check for any thread
+	if ( Thread == std::thread::id() )
+		return mLockedThread!=std::thread::id();
+	else
+		return mLockedThread == Thread;
+}
+
 bool Opencl::TContext::Lock()
 {
 	//	need to set thread for cl_queue?
@@ -972,9 +981,24 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 			{
 				Soy::TScopeTimerPrint Timer("glFlushRenderAPPLE",TimerMin);
 				
-				Soy::TSemaphore Sync;
-				OpenglContext.PushJob( []{ glFlushRenderAPPLE(); }, Sync );
-				Sync.Wait();
+				//	gr: to avoid deadlock when this is called thunked from opengl, don't flush if the context is locked in a job
+				//	note: we are NOT in the locked thread, so check if locked to any
+				//	check this doesn't cause corruption
+				if ( OpenglContext.IsLockedToAnyThread() )
+				{
+					std::Debug << "Skipping flush as context is locked to a job" << std::endl;
+				}
+				else
+				{
+					//std::Debug << "opengl context not locked, flushing to sync GL objects" << std::endl;
+					auto Flush = []
+					{
+						glFlushRenderAPPLE();
+					};
+					Soy::TSemaphore Sync;
+					OpenglContext.PushJob( Flush, Sync );
+					Sync.Wait();
+				}
 				mOpenglObject = &Texture;
 			}
 			else if ( FlushGl )
@@ -1075,7 +1099,10 @@ void Opencl::TBufferImage::Write(TBufferImage& Image,Opencl::TSync* Semaphore)
 	auto DestBuffer = mMem;
 	
 	cl_int Error = clEnqueueCopyBufferToImage( Queue, SourceBuffer, DestBuffer, SourceOffset, DestOrigin, DestRegion, 0, nullptr, Event );
-	Opencl::IsOkay( Error, __func__ );
+	
+	std::stringstream ErrorContext;
+	ErrorContext << "clEnqueueCopyBufferToImage " << this->mDebugName << " --> " << Image.mDebugName;
+	Opencl::IsOkay( Error, ErrorContext.str() );
 }
 
 
@@ -1140,7 +1167,7 @@ void Opencl::TBufferImage::Read(Opengl::TTextureAndContext& TextureAndContext,Op
 	}
 	
 	//	create a temporary buffer attached to the texture, and copy it
-	Opencl::TBufferImage NewTextureBuffer( Texture, Context, this->mContext, OpenclBufferReadWrite::WriteOnly, nullptr );
+	Opencl::TBufferImage NewTextureBuffer( Texture, Context, this->mContext, OpenclBufferReadWrite::ReadWrite, std::string("Temporary image to copy from ")+mDebugName );
 	NewTextureBuffer.Write( *this, Semaphore );
 	NewTextureBuffer.Read( Texture, Semaphore );
 }

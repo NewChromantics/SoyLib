@@ -53,7 +53,7 @@ public:
 	void			Iteration()			{	Flush(*this);	}
 	virtual bool	Lock() override;
 	virtual void	Unlock() override;
-	virtual bool	IsLocked(std::thread::id Thread) override		{	return mLockedThread == Thread;	}
+	virtual bool	IsLocked(std::thread::id Thread) override;
 	virtual std::shared_ptr<Opengl::TContext>	CreateSharedContext()	{	return nullptr;	}
 
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}

@@ -121,6 +121,16 @@ void Opengl::TContext::Init()
 	std::Debug << "Opengl version: " << mVersion << " on " << mDeviceName << std::endl;
 }
 
+
+bool Opengl::TContext::IsLocked(std::thread::id Thread)
+{
+	//	check for any thread
+	if ( Thread == std::thread::id() )
+		return mLockedThread!=std::thread::id();
+	else
+		return mLockedThread == Thread;
+}
+
 bool Opengl::TContext::Lock()
 {
 	Soy::Assert( mLockedThread == std::thread::id(), "context already locked" );
