@@ -844,14 +844,22 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 		GLint x = 0;
 		GLint y = 0;
 		BufferArray<GLint,5> Formats;
+		
 		Formats.PushBack( GL_INVALID_VALUE );
+#if defined(OPENGL_ES_2)||defined(OPENGL_ES_3)
 		Formats.PushBack( GL_ALPHA );
+#else
+		Formats.PushBack( GL_RED );
+#endif
 		Formats.PushBack( GL_INVALID_VALUE );
 		Formats.PushBack( GL_RGB );
 		Formats.PushBack( GL_RGBA );
+
 		auto ChannelCount = mMeta.GetChannels();
 		FrameBuffer.Bind();
+		
 		glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), Formats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
+		Opengl::IsOkay("glReadPixels");
 		FrameBuffer.Unbind();
 		Opengl_IsOkay();
 	}
