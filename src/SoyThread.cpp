@@ -270,7 +270,7 @@ void SoyThread::SetThreadName(std::string name,std::thread::native_handle_type T
 	int Result = pthread_setname_np( name.c_str() );
 	if ( Result != 0 )
 	{
-		std::Debug << "Failed to set thread name to " << name << ": " << Result << std::endl;
+		std::Debug << "Failed to set thread name to " << name << ": " << Soy::Platform::GetLastErrorString() << std::endl;
 	}
 #endif
 	
