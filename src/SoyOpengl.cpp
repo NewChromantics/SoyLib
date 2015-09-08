@@ -574,6 +574,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 		InitFramePixels.Init( Meta.GetWidth(), Meta.GetHeight(), Meta.GetFormat() );
 		auto& PixelsArray = InitFramePixels.GetPixelsArray();
 		glTexImage2D( mType, MipLevel, InternalPixelFormat, Meta.GetWidth(), Meta.GetHeight(), Border, PixelsFormat, GlPixelsStorage, PixelsArray.GetArray() );
+		OnWrite();
 	}
 	Opengl::IsOkay("glTexImage2D texture construction");
 	
@@ -637,6 +638,8 @@ void Opengl::TTexture::Delete()
 		glDeleteTextures( 1, &mTexture.mName );
 		mTexture.mName = GL_ASSET_INVALID;
 	}
+	
+	mWriteSync.reset();
 }
 
 bool Opengl::TTexture::Bind() const
@@ -1085,6 +1088,8 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	
 	Unbind();
 	Opengl_IsOkay();
+	
+	OnWrite();
 }
 
 SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType)
@@ -1155,6 +1160,12 @@ SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType)
 	RealType = GL_INVALID_VALUE;
 	return SoyPixelsMeta();
 #endif
+}
+
+void Opengl::TTexture::OnWrite()
+{
+	//	make a new sync fence so we can tell when this write has finished
+	mWriteSync.reset( new TSync(true) );
 }
 
 
@@ -1757,6 +1768,20 @@ Opengl::TSync::TSync(bool Create) :
 #endif
 }
 
+void Opengl::TSync::Delete()
+{
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+	if ( mSyncObject )
+	{
+		glDeleteSync( mSyncObject );
+		Opengl::IsOkay("glDeleteSync");
+		mSyncObject = nullptr;
+	}
+#else
+	mSyncObject = false;
+#endif
+}
+
 void Opengl::TSync::Wait(const char* TimerName)
 {
 #if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
@@ -1777,10 +1802,10 @@ void Opengl::TSync::Wait(const char* TimerName)
 	if ( Result == GL_WAIT_FAILED )
 		Opengl::IsOkay("glClientWaitSync GL_WAIT_FAILED");
 	
-	glDeleteSync( mSyncObject );
-	mSyncObject = nullptr;
 #else
 	if ( mSyncObject )
 		glFinish();
 #endif
+
+	Delete();
 }

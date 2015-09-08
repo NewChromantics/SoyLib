@@ -536,6 +536,9 @@ void Opengl::TRenderTargetFbo::Unbind()
 	//	generate mipmaps after we've drawn to the image
 	if ( mGenerateMipMaps )
 		mFbo->mTarget.GenerateMipMaps();
+	
+	//	mark as written to
+	mFbo->mTarget.OnWrite();
 }
 
 Soy::Rectx<size_t> Opengl::TRenderTargetFbo::GetSize()

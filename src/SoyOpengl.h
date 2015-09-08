@@ -226,8 +226,27 @@ class Opengl::TSync
 {
 public:
 	TSync(bool Create=true);
+	explicit TSync(TSync&& Move)	{	*this = std::move(Move);	}
+	~TSync()						{	Delete();	}
 	
+	bool	IsValid() const			{	return mSyncObject != nullptr;	}
+	void	Delete();
 	void	Wait(const char* TimerName=nullptr);
+	
+	TSync& operator=(TSync&& Move)
+	{
+		if ( this != &Move )
+		{
+			//	delete existing sync
+			Delete();
+			
+			mSyncObject = Move.mSyncObject;
+			
+			//	stolen the resource
+			Move.mSyncObject = nullptr;
+		}
+		return *this;
+	}
 	
 private:
 #if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
@@ -344,8 +363,14 @@ public:
 		mType			( GL_TEXTURE_2D )
 	{
 	}
-	TTexture(TTexture&& Move)			{	*this = std::move(Move);	}
-	TTexture(const TTexture& Reference)	{	*this = Reference;	}
+	TTexture(TTexture&& Move)
+	{
+		*this = std::move(Move);
+	}
+	TTexture(const TTexture& Reference)
+	{
+		*this = Reference;
+	}
 	explicit TTexture(SoyPixelsMeta Meta,GLenum Type);	//	alloc
 	
 	//	reference from external
@@ -390,6 +415,7 @@ public:
 			mMeta = Weak.mMeta;
 			mType = Weak.mType;
 			mClientBuffer = Weak.mClientBuffer;
+			mWriteSync = Weak.mWriteSync;
 		}
 		return *this;
 	}
@@ -403,9 +429,11 @@ public:
 			mMeta = Move.mMeta;
 			mType = Move.mType;
 			mClientBuffer = Move.mClientBuffer;
+			mWriteSync = Move.mWriteSync;
 			
 			//	stolen the resource
 			Move.mAutoRelease = false;
+			Move.mWriteSync.reset();
 		}
 		return *this;
 	}
@@ -427,12 +455,15 @@ public:
 	void				SetClamped()				{	SetRepeat(false);	}
 	void				GenerateMipMaps();
 
+	void				OnWrite();
+	
 public:
 	bool				mAutoRelease;
 	std::shared_ptr<SoyPixelsImpl>	mClientBuffer;	//	for CPU-buffered textures, it's kept here. ownership should go with mAutoRelease, but shared_ptr maybe takes care of that?
 	TAsset				mTexture;
 	SoyPixelsMeta		mMeta;
-	GLenum				mType;		//	GL_TEXTURE_2D by default. gr: "type" may be the wrong nomenclature here
+	GLenum				mType;			//	GL_TEXTURE_2D by default. gr: "type" may be the wrong nomenclature here
+	std::shared_ptr<TSync>	mWriteSync;	//	a sync queued after a write so we can tell when a write has finished
 };
 
 class Opengl::TFbo
