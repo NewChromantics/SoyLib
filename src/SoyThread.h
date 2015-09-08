@@ -13,6 +13,7 @@ namespace Soy
 	class TSemaphore;
 }
 
+//	gr: big flaw with this class... if you create, then wait. It'll never complete. Need an "assigned" flag
 class Soy::TSemaphore
 {
 public:
