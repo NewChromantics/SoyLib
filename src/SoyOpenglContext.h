@@ -101,6 +101,7 @@ public:
 	//	provide context for non-immediate construction
 	TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context,Opengl::TTexture ExistingTexture=Opengl::TTexture());
 	TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture ExistingTexture=Opengl::TTexture());
+	explicit TRenderTargetFbo(Opengl::TTexture ExistingTexture);
 	~TRenderTargetFbo()
 	{
 		mFbo.reset();

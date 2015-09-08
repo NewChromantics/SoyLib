@@ -493,6 +493,10 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Conte
 	Context.PushJob( CreateFbo );
 }
 
+Opengl::TRenderTargetFbo::TRenderTargetFbo(Opengl::TTexture ExistingTexture) :
+	TRenderTargetFbo	( TFboMeta("Texture",ExistingTexture.GetWidth(),ExistingTexture.GetHeight()), ExistingTexture )
+{
+}
 
 Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture ExistingTexture) :
 	TRenderTarget		( Meta.mName ),
