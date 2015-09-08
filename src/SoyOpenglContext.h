@@ -29,7 +29,6 @@ namespace Opengl
 	class TRenderTarget;	//	PBO/FBO, but sometimes with additional stuff (buffer flip etc depending on source)
 
 	class TRenderTargetFbo;
-	class TSync;			//	uses fences to sync
 	
 	
 	//	extension bindings
@@ -118,15 +117,3 @@ public:
 	TTexture				mTexture;
 };
 
-class Opengl::TSync
-{
-public:
-	TSync();
-	
-	void	Wait(const char* TimerName=nullptr);
-	
-private:
-#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
-	GLsync				mSyncObject;
-#endif
-};

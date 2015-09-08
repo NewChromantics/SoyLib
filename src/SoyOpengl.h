@@ -77,7 +77,8 @@ namespace Opengl
 	class TGeometryVertex;
 	class TGeometryVertexElement;
 	class TContext;
-	
+	class TSync;
+
 	
 	// It probably isn't worth keeping these shared here, each user
 	// should just duplicate them.
@@ -218,6 +219,22 @@ public:
 	bool	IsValid() const		{	return mName != GL_ASSET_INVALID;	}
 	
 	GLuint	mName;
+};
+
+
+class Opengl::TSync
+{
+public:
+	TSync(bool Create=true);
+	
+	void	Wait(const char* TimerName=nullptr);
+	
+private:
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+	GLsync				mSyncObject;
+#else
+	bool				mSyncObject;	//	dummy for cleaner code
+#endif
 };
 
 //	clever class which does the binding, auto texture mapping, and unbinding

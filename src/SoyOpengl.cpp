@@ -1739,3 +1739,48 @@ void Opengl::ClearColour(Soy::TRgb Colour,float Alpha)
 	glClearColor( Colour.r(), Colour.g(), Colour.b(), Alpha );
 	glClear(GL_COLOR_BUFFER_BIT);
 }
+
+
+Opengl::TSync::TSync(bool Create) :
+	mSyncObject	( nullptr )
+{
+	if ( Create )
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+	{
+		mSyncObject = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+		Opengl::IsOkay("glFenceSync");
+	}
+#else
+	{
+		mSyncObject = true;
+	}
+#endif
+}
+
+void Opengl::TSync::Wait(const char* TimerName)
+{
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+	if ( !glIsSync( mSyncObject ) )
+		return;
+	
+	//glWaitSync( mSyncObject, 0, GL_TIMEOUT_IGNORED );
+	GLbitfield Flags = GL_SYNC_FLUSH_COMMANDS_BIT;
+	GLuint64 TimeoutMs = 1000;
+	GLuint64 TimeoutNs = TimeoutMs * 1000000;
+	GLenum Result = GL_INVALID_ENUM;
+	do
+	{
+		Result = glClientWaitSync( mSyncObject, Flags, TimeoutNs );
+	}
+	while ( Result == GL_TIMEOUT_EXPIRED );
+	
+	if ( Result == GL_WAIT_FAILED )
+		Opengl::IsOkay("glClientWaitSync GL_WAIT_FAILED");
+	
+	glDeleteSync( mSyncObject );
+	mSyncObject = nullptr;
+#else
+	if ( mSyncObject )
+		glFinish();
+#endif
+}
