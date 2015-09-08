@@ -963,53 +963,63 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 			mMem = clCreateFromGLTexture( mContext.GetContext(), MemFlags, Texture.mType, MipLevel, Texture.mTexture.mName, &Error );
 			Opencl::IsOkay( Error, "clCreateFromGLTexture" );
 
-			//	immediately acquire - required to stop corruption
-			static bool Lock = false;		//	has corruption!
-			static bool FlushApple = true;	//	non blocking glFlushRenderAPPLE does not solve it, but blocking does
-			static bool FlushGl = true;
-			static int TimerMin = 50;
-			if ( Lock )
+			//	before we lock opengl objects, we need to flush/sync them
+			//	gr: use cl_khr_gl_sync to sync individual textures. apparently we're supposed to flush with gl finish, but flush works?
+			static bool FlushIfOpenglBusy = true;
+			bool DoFlush = true;
+
+			//	gr: to avoid deadlock when this is called thunked from opengl, don't flush if the context is locked in a job
+			//	note: we are NOT in the locked thread, so check if locked to any
+			//	check this doesn't cause corruption
+			if ( !FlushIfOpenglBusy )
 			{
-				Soy::TScopeTimerPrint Timer("clEnqueueAcquireGLObjects",TimerMin);
-				TSync Sync;
-				Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, 0, nullptr, &Sync.mEvent );
-				Opencl::IsOkay( Error, "clEnqueueAcquireGLObjects" );
-				Sync.Wait();
-				mOpenglObject = &Texture;
-			}
-			else if ( FlushApple )
-			{
-				Soy::TScopeTimerPrint Timer("glFlushRenderAPPLE",TimerMin);
-				
-				//	gr: to avoid deadlock when this is called thunked from opengl, don't flush if the context is locked in a job
-				//	note: we are NOT in the locked thread, so check if locked to any
-				//	check this doesn't cause corruption
 				if ( OpenglContext.IsLockedToAnyThread() )
 				{
-					std::Debug << "Skipping flush as context is locked to a job" << std::endl;
+					//std::Debug << "Skipping flush as context is locked to a job" << std::endl;
+					DoFlush = false;
 				}
-				else
-				{
-					//std::Debug << "opengl context not locked, flushing to sync GL objects" << std::endl;
-					auto Flush = []
-					{
-						glFlushRenderAPPLE();
-					};
-					Soy::TSemaphore Sync;
-					OpenglContext.PushJob( Flush, Sync );
-					Sync.Wait();
-				}
-				mOpenglObject = &Texture;
 			}
-			else if ( FlushGl )
+		
+			if ( DoFlush )
 			{
-				Soy::TScopeTimerPrint Timer("glFlush",TimerMin);
+				static int TimerMin = 10;
+				Soy::TScopeTimerPrint Timer("Opengl -> Opencl flush sync",TimerMin);
+				static bool FlushApple = true;
+				static bool Flush = true;
+				static bool Finish = true;
+				
 				Soy::TSemaphore Sync;
-				OpenglContext.PushJob( []{ glFlush(); }, Sync );
+				if ( FlushApple )
+				{
+					OpenglContext.PushJob( glFlushRenderAPPLE, Sync );
+				}
+				else if ( Flush )
+				{
+					OpenglContext.PushJob( glFlush, Sync );
+				}
+				else if ( Finish )
+				{
+					OpenglContext.PushJob( glFinish, Sync );
+				}
 				Sync.Wait();
-				mOpenglObject = &Texture;
-				throw Soy::AssertException("gr: this does NOT work");
 			}
+			
+			//	lock opengl objects
+			static bool DoAcquire = true;
+			if ( DoAcquire )
+			{
+				static int TimerMin = 10;
+				Soy::TScopeTimerPrint Timer("clEnqueueAcquireGLObjects",TimerMin);
+				
+				TSync SyncCl;
+				Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, 0, nullptr, &SyncCl.mEvent );
+				Opencl::IsOkay( Error, "clEnqueueAcquireGLObjects" );
+				SyncCl.Wait();
+			}
+
+			//	gr: set this regardless of the lock
+			mOpenglObject = &Texture;
+
 			//	success!
 			return;
 		}
