@@ -983,13 +983,28 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 			if ( DoFlush )
 			{
 				static int TimerMin = 10;
-				Soy::TScopeTimerPrint Timer("Opengl -> Opencl flush sync",TimerMin);
-				static bool FlushApple = true;
-				static bool Flush = true;
-				static bool Finish = true;
+				static bool TextureSync = true;
+				static bool FlushApple = false;
+				static bool Flush = false;
+				static bool Finish = false;
 				
+				std::stringstream SyncTimerName;
+				SyncTimerName << "Opengl -> Opencl flush sync ";
+				if ( TextureSync && Texture.mWriteSync )
+					SyncTimerName << " TEXTURE SYNC";
+				
+				Soy::TScopeTimerPrint Timer(SyncTimerName.str().c_str(),TimerMin);
 				Soy::TSemaphore Sync;
-				if ( FlushApple )
+				
+				if ( TextureSync && Texture.mWriteSync )
+				{
+					auto TextureSync = [&Texture]
+					{
+						Texture.mWriteSync->Wait();
+					};
+					OpenglContext.PushJob( TextureSync, Sync );
+				}
+				else if ( FlushApple )
 				{
 					OpenglContext.PushJob( glFlushRenderAPPLE, Sync );
 				}
@@ -1001,7 +1016,12 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 				{
 					OpenglContext.PushJob( glFinish, Sync );
 				}
+				else
+				{
+					Sync.OnCompleted();
+				}
 				Sync.Wait();
+			
 			}
 			
 			//	lock opengl objects
