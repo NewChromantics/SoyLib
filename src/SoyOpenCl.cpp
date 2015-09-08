@@ -988,8 +988,8 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 			if ( DoFlush )
 			{
 				static int FlushTimerMin = 10;
+				static bool TextureSyncCl = false;
 				static bool TextureSync = true;
-				static bool TextureSyncCl = true;
 				static bool FlushApple = false;
 				static bool Flush = false;
 				static bool Finish = false;
@@ -1052,20 +1052,8 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 				static int AcquireTimerMin = 10;
 				Soy::TScopeTimerPrint Timer("clEnqueueAcquireGLObjects",AcquireTimerMin);
 
-				static bool WaitOnAcquire = true;
-				if ( WaitOnAcquire )
-				{
-					TSync SyncCl;
-					Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, size_cast<cl_uint>(PreAcquireEvents.GetSize()), PreAcquireEvents.GetArray(), &SyncCl.mEvent );
-					Opencl::IsOkay( Error, "clEnqueueAcquireGLObjects" );
-					SyncCl.Wait();
-				}
-				else
-				{
-					Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, size_cast<cl_uint>(PreAcquireEvents.GetSize()), PreAcquireEvents.GetArray(), nullptr );
-					Opencl::IsOkay( Error, "clEnqueueAcquireGLObjects" );
-				
-				}
+				Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, size_cast<cl_uint>(PreAcquireEvents.GetSize()), PreAcquireEvents.GetArray(), Semaphore ? &Semaphore->mEvent : nullptr );
+				Opencl::IsOkay( Error, "clEnqueueAcquireGLObjects" );
 			}
 
 			//	gr: set this regardless of the lock
@@ -1410,13 +1398,13 @@ void Opencl::TKernelState::GetIterations(ArrayBridge<TKernelIteration>&& Iterati
 {
 	auto& Device = GetDevice();
 	
-	size_t Execa = (Iterations.GetSize() >= 1) ? (Iterations[0].y-Iterations[0].x) : (0);
-	size_t Execb = (Iterations.GetSize() >= 2) ? (Iterations[1].y-Iterations[1].x) : (0);
-	size_t Execc = (Iterations.GetSize() >= 3) ? (Iterations[2].y-Iterations[2].x) : (0);
 	size_t Firsta = (Iterations.GetSize() >= 1) ? (Iterations[0].x) : (0);
 	size_t Firstb = (Iterations.GetSize() >= 2) ? (Iterations[1].x) : (0);
 	size_t Firstc = (Iterations.GetSize() >= 3) ? (Iterations[2].x) : (0);
-	
+	size_t Execa = (Iterations.GetSize() >= 1) ? (Iterations[0].y-Firsta) : (0);
+	size_t Execb = (Iterations.GetSize() >= 2) ? (Iterations[1].y-Firstb) : (0);
+	size_t Execc = (Iterations.GetSize() >= 3) ? (Iterations[2].y-Firstc) : (0);
+
 	auto KernelWorkGroupMax = Device.GetMaxGlobalWorkGroupSize();
 	if ( KernelWorkGroupMax < 1 )
 		KernelWorkGroupMax = std::max( Execa, Execb, Execc );
