@@ -245,7 +245,8 @@ std::ostream& operator<<(std::ostream &out,const Opencl::TDeviceMeta& in)
 
 Opencl::TDeviceMeta::TDeviceMeta(cl_device_id Device) :
 	mDevice						( Device ),
-	mHasOpenglInteroperability	( false )
+	mHasOpenglInteroperability	( false ),
+	mHasOpenglSyncSupport		( false )
 {
 	mVendor = GetString( Device, CL_DEVICE_VENDOR );
 	mName = GetString( Device, CL_DEVICE_NAME );
@@ -259,6 +260,8 @@ Opencl::TDeviceMeta::TDeviceMeta(cl_device_id Device) :
 #if defined(TARGET_OSX)
 	mHasOpenglInteroperability = mExtensions.Find("cl_APPLE_gl_sharing");
 #endif
+	
+	mHasOpenglSyncSupport = mExtensions.Find("cl_khr_gl_event");
 	
 	//	extract version
 	mVersion = Soy::TVersion( DeviceVersion, "OpenCL " );
@@ -979,24 +982,42 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 					DoFlush = false;
 				}
 			}
+			
+			BufferArray<cl_event,1> PreAcquireEvents;
 		
 			if ( DoFlush )
 			{
-				static int TimerMin = 10;
+				static int FlushTimerMin = 10;
 				static bool TextureSync = true;
+				static bool TextureSyncCl = true;
 				static bool FlushApple = false;
 				static bool Flush = false;
 				static bool Finish = false;
 				
+				bool DoTextureSync = ( TextureSync && Texture.mWriteSync );
+				bool DoTextureSyncCl = ( TextureSyncCl && Context.GetDevice().mHasOpenglSyncSupport && Texture.mWriteSync );
+				
 				std::stringstream SyncTimerName;
 				SyncTimerName << "Opengl -> Opencl flush sync ";
-				if ( TextureSync && Texture.mWriteSync )
+				if ( DoTextureSyncCl )
+					SyncTimerName << " TEXTURE SYNC GL->CL";
+				else if ( DoTextureSync )
 					SyncTimerName << " TEXTURE SYNC";
 				
-				Soy::TScopeTimerPrint Timer(SyncTimerName.str().c_str(),TimerMin);
+				Soy::TScopeTimerPrint Timer(SyncTimerName.str().c_str(),FlushTimerMin);
 				Soy::TSemaphore Sync;
 				
-				if ( TextureSync && Texture.mWriteSync )
+				if ( DoTextureSyncCl )
+				{
+					cl_int Error = ~CL_SUCCESS;
+					auto Event = clCreateEventFromGLsyncKHR( Context.GetContext(), Texture.mWriteSync->mSyncObject, &Error );
+					Opencl::IsOkay( Error, "clCreateEventFromGLsyncKHR" );
+					PreAcquireEvents.PushBack( Event );
+
+					//	so we don't wait on this sync
+					Sync.OnCompleted();
+				}
+				else if ( DoTextureSync )
 				{
 					auto TextureSync = [&Texture]
 					{
@@ -1028,13 +1049,23 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 			static bool DoAcquire = true;
 			if ( DoAcquire )
 			{
-				static int TimerMin = 10;
-				Soy::TScopeTimerPrint Timer("clEnqueueAcquireGLObjects",TimerMin);
+				static int AcquireTimerMin = 10;
+				Soy::TScopeTimerPrint Timer("clEnqueueAcquireGLObjects",AcquireTimerMin);
+
+				static bool WaitOnAcquire = true;
+				if ( WaitOnAcquire )
+				{
+					TSync SyncCl;
+					Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, size_cast<cl_uint>(PreAcquireEvents.GetSize()), PreAcquireEvents.GetArray(), &SyncCl.mEvent );
+					Opencl::IsOkay( Error, "clEnqueueAcquireGLObjects" );
+					SyncCl.Wait();
+				}
+				else
+				{
+					Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, size_cast<cl_uint>(PreAcquireEvents.GetSize()), PreAcquireEvents.GetArray(), nullptr );
+					Opencl::IsOkay( Error, "clEnqueueAcquireGLObjects" );
 				
-				TSync SyncCl;
-				Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, 0, nullptr, &SyncCl.mEvent );
-				Opencl::IsOkay( Error, "clEnqueueAcquireGLObjects" );
-				SyncCl.Wait();
+				}
 			}
 
 			//	gr: set this regardless of the lock
@@ -1165,6 +1196,14 @@ void Opencl::TBufferImage::Read(Opengl::TTexture& Image,Opencl::TSync* Semaphore
 	if ( mOpenglObject == &Image )
 	{
 		//	seems to just write immediately, with no need for any flushes...
+		static bool Flush = false;
+		if ( Flush )
+		{
+			//	gr: obviously this should be a fence for just this object
+			Soy::TScopeTimerPrint Timer("Texture read-back with clFinish",1);
+			auto Error = clFinish( mContext.GetQueue() );
+			Opencl::IsOkay( Error, "Finish for texture read" );
+		}
 		return;
 	}
 	
@@ -1329,7 +1368,7 @@ Opencl::TContext& Opencl::TKernelState::GetContext()
 }
 
 
-void ExpandIterations(ArrayBridge<Opencl::TKernelIteration>& IterationSplits,size_t Executions,size_t KernelWorkGroupMax)
+void ExpandIterations(ArrayBridge<Opencl::TKernelIteration>& IterationSplits,size_t Executions,size_t FirstOffset,size_t KernelWorkGroupMax)
 {
 	if ( Executions == 0 )
 		return;
@@ -1357,7 +1396,7 @@ void ExpandIterations(ArrayBridge<Opencl::TKernelIteration>& IterationSplits,siz
 			//	add next dimension
 			auto First = it * KernelWorkGroupMax;
 			auto Count = std::min( KernelWorkGroupMax, Executions - First );
-			Iteration.mFirst.PushBack( First );
+			Iteration.mFirst.PushBack( First + FirstOffset );
 			Iteration.mCount.PushBack( Count );
 			
 			//
@@ -1367,25 +1406,24 @@ void ExpandIterations(ArrayBridge<Opencl::TKernelIteration>& IterationSplits,siz
 }
 
 
-void Opencl::TKernelState::GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations)
+void Opencl::TKernelState::GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<vec2x<size_t>>&& Iterations)
 {
 	auto& Device = GetDevice();
 	
-	BufferArray<size_t,3> Exec(3);
-	auto& Execa = Exec[0];
-	auto& Execb = Exec[1];
-	auto& Execc = Exec[2];
-	Execa = (Iterations.GetSize() >= 1) ? Iterations[0] : 0;
-	Execb = (Iterations.GetSize() >= 2) ? Iterations[1] : 0;
-	Execc = (Iterations.GetSize() >= 3) ? Iterations[2] : 0;
+	size_t Execa = (Iterations.GetSize() >= 1) ? (Iterations[0].y-Iterations[0].x) : (0);
+	size_t Execb = (Iterations.GetSize() >= 2) ? (Iterations[1].y-Iterations[1].x) : (0);
+	size_t Execc = (Iterations.GetSize() >= 3) ? (Iterations[2].y-Iterations[2].x) : (0);
+	size_t Firsta = (Iterations.GetSize() >= 1) ? (Iterations[0].x) : (0);
+	size_t Firstb = (Iterations.GetSize() >= 2) ? (Iterations[1].x) : (0);
+	size_t Firstc = (Iterations.GetSize() >= 3) ? (Iterations[2].x) : (0);
 	
 	auto KernelWorkGroupMax = Device.GetMaxGlobalWorkGroupSize();
 	if ( KernelWorkGroupMax < 1 )
 		KernelWorkGroupMax = std::max( Execa, Execb, Execc );
 
-	ExpandIterations( IterationSplits, Execa, KernelWorkGroupMax );
-	ExpandIterations( IterationSplits, Execb, KernelWorkGroupMax );
-	ExpandIterations( IterationSplits, Execc, KernelWorkGroupMax );
+	ExpandIterations( IterationSplits, Execa, Firsta, KernelWorkGroupMax );
+	ExpandIterations( IterationSplits, Execb, Firstb, KernelWorkGroupMax );
+	ExpandIterations( IterationSplits, Execc, Firstc, KernelWorkGroupMax );
 }
 
 void Opencl::TKernelState::QueueIteration(const TKernelIteration& Iteration)

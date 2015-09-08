@@ -143,6 +143,7 @@ public:
 	Array<std::string>	mExtensions;
 	OpenclDevice::Type	mType;
 	bool				mHasOpenglInteroperability;
+	bool				mHasOpenglSyncSupport;
 	
 	cl_uint		maxComputeUnits;
 	cl_uint		maxWorkItemDimensions;
@@ -441,7 +442,7 @@ public:
 	void			ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead);
 	void			ReadUniform(const char* Name,TBuffer& Buffer);
 
-	void			GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations);
+	void			GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<vec2x<size_t>>&& Iterations);
 
 	void			QueueIteration(const TKernelIteration& Iteration);
 	void			QueueIteration(const TKernelIteration& Iteration,TSync& Semaphore);

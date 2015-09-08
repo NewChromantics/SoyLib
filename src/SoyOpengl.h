@@ -248,7 +248,7 @@ public:
 		return *this;
 	}
 	
-private:
+public:
 #if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
 	GLsync				mSyncObject;
 #else
