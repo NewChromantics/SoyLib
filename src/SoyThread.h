@@ -11,6 +11,7 @@
 namespace Soy
 {
 	class TSemaphore;
+	class Mutex_Profiled;
 }
 
 //	gr: big flaw with this class... if you create, then wait. It'll never complete. Need an "assigned" flag
@@ -696,4 +697,47 @@ inline bool TLockQueue<TYPE>::Push(const TYPE& Job)
 	mOnQueueAdded.OnTriggered(JobCount);
 	return true;
 }
+
+
+class Soy::Mutex_Profiled
+{
+public:
+	bool			try_lock()
+	{
+		return mMutex.try_lock();
+	}
+
+	void			lock(const std::string& LockName/*="<Unnamed>"*/,ssize_t WarningMs=-1)
+	{
+		static size_t DefaultMs = 5;
+		if ( WarningMs < 0 )
+			WarningMs = DefaultMs;
+		
+		//	measure how long we wait to acquire lock
+		SoyTime LockTime(true);
+
+		//	immediate uncontested lock
+		if ( mMutex.try_lock() )
+			return;
+		
+		mMutex.lock();
+		
+		//	got lock
+		//	gr: this is optimised away
+		SoyTime AcquireTime(true);
+		auto AcquireMs = AcquireTime.GetTime() - LockTime.GetTime();
+		//if ( AcquireMs >= WarningMs )
+		{
+			std::Debug << "Contested lock " << LockName << " took " << AcquireMs << "ms to acquire" << std::endl;
+		}
+	}
+	
+	void			unlock()
+	{
+		mMutex.unlock();
+	}
+	
+	
+	std::mutex		mMutex;
+};
 
