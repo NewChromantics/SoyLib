@@ -998,7 +998,7 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 				bool DoTextureSyncCl = ( TextureSyncCl && Context.GetDevice().mHasOpenglSyncSupport && Texture.mWriteSync );
 				
 				std::stringstream SyncTimerName;
-				SyncTimerName << "Opengl -> Opencl flush sync ";
+				SyncTimerName << "Opengl -> Opencl flush sync " << DebugName;
 				if ( DoTextureSyncCl )
 					SyncTimerName << " TEXTURE SYNC GL->CL";
 				else if ( DoTextureSync )

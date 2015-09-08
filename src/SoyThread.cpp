@@ -66,10 +66,10 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 	
 	bool FlushError = true;
 	
-	ofScopeTimerWarning LockTimer("Waiting for job lock",4,false);
+	ofScopeTimerWarning LockTimer("Waiting for job lock",5,false);
 	while ( true )
 	{
-		LockTimer.Start();
+		LockTimer.Start(true);
 		//	pop task
 		mJobLock.lock();
 		std::shared_ptr<TJob> Job;
@@ -81,7 +81,9 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 		}
 		//bool MoreJobs = !mJobs.empty();
 		mJobLock.unlock();
-		LockTimer.Stop();
+		LockTimer.Stop(false);
+		if ( LockTimer.Report() )
+			std::Debug << "Job queue has " << mJobs.size() << std::endl;
 		
 		if ( !Job )
 			break;
