@@ -674,9 +674,20 @@ void Opengl::TTexture::SetRepeat(bool Repeat)
 
 void Opengl::TTexture::GenerateMipMaps()
 {
-	Bind();
+	Soy::Assert( IsValid(), "Generate mip maps on invalid texture");
+	
+	//	no mip maps on external textures [citation needed - extension spec IIRC]
+#if defined(GL_TEXTURE_EXTERNAL_OES)
+	if ( mType == GL_TEXTURE_EXTERNAL_OES )
+		return;
+#endif
+	
+	if ( !Bind() )
+		return;
 	glGenerateMipmap( mType );
-	Opengl_IsOkay();
+	std::stringstream Error;
+	Error << "Texture(" << Opengl::GetEnumString(mType) << " " << mMeta << ")::GenerateMipMaps";
+	Opengl::IsOkay( Error.str(), false );
 	Unbind();
 }
 
@@ -1164,8 +1175,11 @@ SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType)
 
 void Opengl::TTexture::OnWrite()
 {
+	//	bit expensive and currently not required on mobile
+#if !defined(TARGET_ANDROID) && !defined(TARGET_IOS)
 	//	make a new sync fence so we can tell when this write has finished
 	mWriteSync.reset( new TSync(true) );
+#endif
 }
 
 
