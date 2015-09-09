@@ -41,6 +41,8 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 	{	OpenglExtensions::VertexArrayObjects,	"GL_OES_vertex_array_object"	},
 #endif
 	{	OpenglExtensions::DrawBuffers,			"glDrawBuffer"	},
+	{	OpenglExtensions::ImageExternal,		"GL_OES_EGL_image_external"	},
+	{	OpenglExtensions::ImageExternalSS3,		"GL_OES_EGL_image_external_essl3"	},
 };
 
 std::map<OpenglExtensions::Type,Soy::TVersion> Opengl::ImplicitExtensions =
@@ -102,12 +104,29 @@ void Opengl::TContext::Init()
 #endif
 		mShaderVersion = Soy::TVersion( std::string(ShaderVersionString), Preamble );
 		std::Debug << "Set shader version " << mShaderVersion << " from " << std::string(ShaderVersionString) << std::endl;
+		
+		//	gr: on android, we cannot use external_OES and glsl3, force downgrade - make this an option somewhere
+		//	note4:	ES3.1 and GLSL 3.10	on samsung note4 allows external OES in shader
+		//			ES3.1 and GLSL 3.10 on samsung s6 does NOT allow external OES in shader
+		//	todo: make a quick test-shader, compile it NOW, and if it fails, fallback
+#if defined(TARGET_ANDROID)
+		if ( mShaderVersion >= Soy::TVersion(3,0) )
+		{
+			Soy::TVersion NewVersion(1,00);
+			std::Debug << "Downgrading opengl shader version from " << mShaderVersion << " to " << NewVersion << " as 3.00 doesn't support GL_OES_EGL_image_external on some phones" << std::endl;
+			mShaderVersion = NewVersion;
+		}
+#endif
 	}
 	else
 	{
-		//	gr: maybe assume 1.00 on ES?
-		std::Debug << "Warning: GL_SHADING_LANGUAGE_VERSION missing, assuming shader version 1.10" << std::endl;
-		mShaderVersion = Soy::TVersion(1,10);
+#if defined(OPENGL_ES_2) || defined(OPENGL_ES_3)
+		Soy::TVersion NewVersion(1,00);
+#else
+		Soy::TVersion NewVersion(1,10);
+#endif
+		std::Debug << "Warning: GL_SHADING_LANGUAGE_VERSION missing, assuming shader version " << NewVersion << std::endl;
+		mShaderVersion = NewVersion;
 	}
 
 	

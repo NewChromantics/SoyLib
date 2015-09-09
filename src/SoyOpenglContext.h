@@ -18,6 +18,8 @@ namespace OpenglExtensions
 		VertexArrayObjects,
 		VertexBuffers,
 		DrawBuffers,
+		ImageExternal,
+		ImageExternalSS3,
 	};
 	
 	DECLARE_SOYENUM( OpenglExtensions );
