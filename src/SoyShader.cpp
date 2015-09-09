@@ -77,7 +77,8 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 		Shader.InsertAt( 0, VersionString.str() );
 	}
 
-	//	glsl over a certain version doesn't allow the precision specifiers
+	//	glsl over a certain(?) version doesn't allow the precision specifiers
+	//	glsl100 (es) requires precision.
 	//	gr: osx, maybe a desktop only thing?
 	if ( Version >= Soy::TVersion(1,20) )
 	{
@@ -87,17 +88,18 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 	}
 
 	//	All versions of IOS, and android ES3? require a precision specifier
-	bool AddPrecision = false;
+	bool AddDefaultPrecision = false;
 	
 #if defined(TARGET_IOS)
-	AddPrecision = true;
+	AddDefaultPrecision = true;
 #elif defined(TARGET_ANDROID)
 	if ( Version >= Soy::TVersion(3,0) )
-		AddPrecision = true;
+		AddDefaultPrecision = true;
 #endif
 	
 	//	gr: needed vec2 declarations for GLSL 100... not for gles3?
-	if ( AddPrecision )
+	//	gr: note; cannot apply to vectors in ES 2
+	if ( AddDefaultPrecision )
 	{
 		//	gr: add something to check if this is already declared
 		Shader.InsertAt( GetNonProcessorFirstLine(Shader), "precision highp float;\n" );
