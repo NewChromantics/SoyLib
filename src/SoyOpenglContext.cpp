@@ -110,7 +110,9 @@ void Opengl::TContext::Init()
 		//			ES3.1 and GLSL 3.10 on samsung s6 does NOT allow external OES in shader
 		//	todo: make a quick test-shader, compile it NOW, and if it fails, fallback
 #if defined(TARGET_ANDROID)
-		if ( mShaderVersion >= Soy::TVersion(3,0) )
+		//	gr: non-edge s6 didn't drop down versions, but not sure what shader version it is, so just forcing this
+		//	gr: s6 has 3.1, and this wasn't triggered??
+		//if ( mShaderVersion >= Soy::TVersion(3,0) )
 		{
 			Soy::TVersion NewVersion(1,00);
 			std::Debug << "Downgrading opengl shader version from " << mShaderVersion << " to " << NewVersion << " as 3.00 doesn't support GL_OES_EGL_image_external on some phones" << std::endl;
