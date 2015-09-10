@@ -93,7 +93,8 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 #if defined(TARGET_IOS)
 	AddDefaultPrecision = true;
 #elif defined(TARGET_ANDROID)
-	if ( Version >= Soy::TVersion(3,0) )
+	//	gr: GLSL 100 needs this too on s6. Not REQUIRED on note4 etc?
+	//if ( Version >= Soy::TVersion(3,0) )
 		AddDefaultPrecision = true;
 #endif
 	
@@ -102,7 +103,7 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 	if ( AddDefaultPrecision )
 	{
 		//	gr: add something to check if this is already declared
-		Shader.InsertAt( GetNonProcessorFirstLine(Shader), "precision highp float;\n" );
+		Shader.InsertAt( GetNonProcessorFirstLine(Shader), "precision mediump float;\n" );
 	}
 }
 
