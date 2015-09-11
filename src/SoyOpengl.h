@@ -344,7 +344,8 @@ public:
 		mStretch				( false ),
 		mAllowCpuConversion		( true ),
 		mAllowOpenglConversion	( true ),
-		mAllowClientStorage		( false )		//	currently unstable on texture release?
+		mAllowClientStorage		( false ),		//	currently unstable on texture release?
+		mGenerateMipMaps		( false )
 	{
 	};
 	
@@ -352,6 +353,7 @@ public:
 	bool	mAllowCpuConversion;
 	bool	mAllowOpenglConversion;
 	bool	mAllowClientStorage;
+	bool	mGenerateMipMaps;		//	should we generate mip maps afterwards
 };
 
 class Opengl::TTexture
