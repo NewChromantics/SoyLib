@@ -684,6 +684,10 @@ void Opengl::TTexture::GenerateMipMaps()
 	
 	if ( !Bind() )
 		return;
+	
+	//	gr: this can be slow, highlight it
+	Soy::TScopeTimerPrint Timer("glGenerateMipmap",1);
+	
 	glGenerateMipmap( mType );
 	std::stringstream Error;
 	Error << "Texture(" << Opengl::GetEnumString(mType) << " " << mMeta << ")::GenerateMipMaps";
