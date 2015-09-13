@@ -57,24 +57,19 @@ public:
 	};
 };
 
-inline std::string& operator<<(std::string& str,const SoyRef& Value)
+
+inline std::ostream& operator<< (std::ostream &out,const SoyRef &in)
 {
-	str += std::string( Value.ToString().c_str() );
-	return str;
+	out << in.ToString();
+	return out;
 }
 
-template<class STRING>
-inline STRING& operator<<(STRING& str,const SoyRef& Value)
+inline std::istream& operator>> (std::istream &in,SoyRef &out)
 {
-	str << Value.ToString();
-	return str;
-}
-
-template<class STRING>
-inline const STRING& operator>>(const STRING& str,SoyRef& Value)
-{
-	Value = SoyRef( str );
-	return str;
+	std::string String;
+	in >> String;
+	out = SoyRef( String );
+	return in;
 }
 
 

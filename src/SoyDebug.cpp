@@ -20,7 +20,7 @@ namespace Soy
 };
 
 
-std::DebugStream	std::Debug;
+std::DebugStreamThreadSafeWrapper	std::Debug;
 
 //	gr: although cout is threadsafe, it doesnt synchornise the output
 std::mutex			CoutLock;

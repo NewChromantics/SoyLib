@@ -16,6 +16,24 @@ namespace Opencl
 }
 
 
+std::ostream& operator<<(std::ostream &out,const Opencl::TDeviceMeta& in)
+{
+	out << in.mName << " ";
+	out << in.mVendor << " ";
+	out << OpenclDevice::ToString(in.mType) << " ";
+	return out;
+}
+/*
+
+std::ostream& Opencl::operator<<(std::ostream &out,const Opencl::TDeviceMeta& in)
+{
+	out << in.mName << " ";
+	out << in.mVendor << " ";
+	out << OpenclDevice::ToString(in.mType) << " ";
+	return out;
+}
+*/
+
 std::map<OpenclDevice::Type,std::string> OpenclDevice::EnumMap =
 {
 	{ OpenclDevice::Invalid,	"Invalid" },
@@ -231,15 +249,6 @@ void GetValue(cl_device_id Device,cl_device_info Info,TYPE& Value)
 	size_t RealSize = 0;
 	auto Error = clGetDeviceInfo( Device, Info, sizeof(TYPE), &Value, &RealSize );
 	Opencl_IsOkay( Error );
-}
-
-
-std::ostream& operator<<(std::ostream &out,const Opencl::TDeviceMeta& in)
-{
-	out << in.mName << " ";
-	out << in.mVendor << " ";
-	out << OpenclDevice::ToString(in.mType) << " ";
-	return out;
 }
 
 

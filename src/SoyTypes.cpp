@@ -491,7 +491,10 @@ bool Soy::StringToFile(std::string Filename,std::string String)
 
 bool Soy::FileToString(std::string Filename,std::string& String)
 {
-	return FileToString( Filename, String, std::Debug );
+	auto& Stream = std::Debug.LockStream();
+	auto Result = FileToString( Filename, String, Stream );
+	std::Debug.UnlockStream( Stream );
+	return Result;
 }
 
 bool Soy::FileToString(std::string Filename,std::string& String,std::ostream& Error)

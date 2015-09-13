@@ -354,12 +354,12 @@ std::shared_ptr<MemFileArray> SoyMemFileManager::AllocFile(const ArrayBridge<cha
 
 	//	make up filename
 	mFilenameRef++;
-	std::string Filename;
-	Filename += mFilenamePrefix;
+	std::stringstream Filename;
+	Filename << mFilenamePrefix;
 	Filename << mFilenameRef;
 	//	todo: see if file already exists?
 	//	alloc new file
-	std::shared_ptr<MemFileArray> File = std::shared_ptr<MemFileArray>( new MemFileArray( Filename, true, Data.GetDataSize(), false ) );
+	std::shared_ptr<MemFileArray> File = std::shared_ptr<MemFileArray>( new MemFileArray( Filename.str(), true, Data.GetDataSize(), false ) );
 	if ( !File->IsValid() )
 		return std::shared_ptr<MemFileArray>();
 	File->Copy( Data );

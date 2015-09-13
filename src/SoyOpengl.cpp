@@ -892,7 +892,9 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 	if ( DebugPixelCount_ > 0 )
 	{
 		//auto DebugPixelCount = std::min<size_t>( DebugPixelCount_, Pixels.GetPixelsArray().GetDataSize() );
-		Pixels.PrintPixels("Read pixels from texture: ", std::Debug, false, " " );
+		auto& DebugStream = std::Debug.LockStream();
+		Pixels.PrintPixels("Read pixels from texture: ", DebugStream, false, " " );
+		std::Debug.UnlockStream( DebugStream );
 	}
 	
 	Unbind();
