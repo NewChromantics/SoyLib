@@ -39,8 +39,11 @@ std::string Soy::GetCurrentWorkingDir()
 
 
 
-Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(void)> LoadTest) :
+Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(void)> LoadTest)
+#if defined(TARGET_OSX)
+:
 	mHandle		( nullptr )
+#endif
 {
 	if ( LoadTest && LoadTest() )
 	{
@@ -101,11 +104,10 @@ void Soy::TRuntimeLibrary::Close()
 
 void* Soy::TRuntimeLibrary::GetSymbol(const char* Name)
 {
+#if defined(TARGET_OSX)
 	//	throw?
 	if ( !mHandle )
 		return nullptr;
-	
-#if defined(TARGET_OSX)
 	return dlsym( mHandle, Name );
 #else
 	return nullptr;
