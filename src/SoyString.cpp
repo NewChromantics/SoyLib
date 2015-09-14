@@ -257,7 +257,6 @@ std::string Soy::StreamToString(std::ostream& Stream)
 bool Soy::StringTrimLeft(std::string& String,char TrimChar)
 {
 	bool Changed = false;
-	std::Debug << __func__ << " (" << String <<"," << TrimChar << ")" << std::endl;
 	while ( !String.empty() )
 	{
 		if ( String[0] != TrimChar )
@@ -265,7 +264,20 @@ bool Soy::StringTrimLeft(std::string& String,char TrimChar)
 		String.erase( String.begin() );
 		Changed = true;
 	}
-	std::Debug << __func__ << " ... " << String << std::endl;
+	return Changed;
+}
+
+
+bool Soy::StringTrimLeft(std::string& String,const ArrayBridge<char>&& TrimChars)
+{
+	bool Changed = false;
+	while ( !String.empty() )
+	{
+		if ( !TrimChars.Find(String[0]) )
+			break;
+		String.erase( String.begin() );
+		Changed = true;
+	}
 	return Changed;
 }
 
@@ -398,6 +410,19 @@ bool Soy::StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool Ca
 	
 	Haystack.erase( Haystack.begin(), Haystack.begin() + Prefix.length() );
 	return true;
+}
+
+
+void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
+{
+	int Len = 0;
+	for ( Len=0;	Len<BufferSize-1;	Len++ )
+	{
+		if ( Source[Len] == '\0' )
+			break;
+		Buffer[Len] = Source[Len];
+	}
+	Buffer[Len] = '\0';
 }
 
 

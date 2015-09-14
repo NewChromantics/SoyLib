@@ -58,6 +58,7 @@ namespace Soy
 	bool		StringSplitByMatches(std::function<bool(const std::string&)> Callback,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty=true);
 
 	bool		StringTrimLeft(std::string& String, char TrimChar);
+	bool		StringTrimLeft(std::string& String, const ArrayBridge<char>&& TrimAnyChars);
 	bool		StringTrimRight(std::string& String, const ArrayBridge<char>& TrimAnyChars);
 	inline bool	StringTrimRight(std::string& String, const ArrayBridge<char>&& TrimAnyChars) {	return StringTrimRight(String, TrimAnyChars);	}
 	bool		StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool CaseSensitive);
@@ -73,8 +74,10 @@ namespace Soy
 	inline void	StringToArray(std::string String,ArrayBridge<char>&& Array)	{	StringToArray( String, Array );	}
 	void		StringToArray(std::string String,ArrayBridge<uint8>& Array);
 	inline void	StringToArray(std::string String,ArrayBridge<uint8>&& Array)	{	StringToArray( String, Array );	}
+	void		StringToBuffer(const char* Source,char* Buffer,size_t BufferSize);
+	inline void	StringToBuffer(const std::string& Source,char* Buffer,size_t BufferSize)	{	StringToBuffer( Source.c_str(), Buffer, BufferSize );	}
 	template <size_t BUFFERSIZE>
-	void		StringToBuffer(const char* Source,char (& Buffer)[BUFFERSIZE]);
+	void		StringToBuffer(const char* Source,char (& Buffer)[BUFFERSIZE])				{	StringToBuffer( Source, Buffer, BUFFERSIZE );	}
 
 	std::string	StreamToString(std::ostream& Stream);	//	windows
 	std::string	StreamToString(std::stringstream&& Stream);	//	osx
@@ -318,17 +321,3 @@ inline std::ostream& operator<<(std::ostream &out,const float3x3&in)
 	<< in.GetRow(2);
 	return out;
 }
-
-template<size_t BUFFERSIZE>
-inline void Soy::StringToBuffer(const char* Source,char (& Buffer)[BUFFERSIZE])
-{
-	int Len = 0;
-	for ( Len=0;	Len<BUFFERSIZE-1;	Len++ )
-	{
-		if ( Source[Len] == '\0' )
-			break;
-		Buffer[Len] = Source[Len];
-	}
-	Buffer[Len] = '\0';
-}
-
