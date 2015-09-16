@@ -476,6 +476,7 @@ public:
 	std::thread::id		GetThreadId() const		{	return mThread.get_id();	}
 	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return mThread.native_handle();	}
 	bool				IsCurrentThread() const	{	return GetThreadId() == std::this_thread::get_id();	}
+	const std::string&	GetThreadName() const	{	return mThreadName;	}
 
 protected:
 	bool				HasThread() const		{	return mThread.get_id() != std::thread::id();	}
