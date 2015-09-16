@@ -199,9 +199,17 @@ bool Soy::StringSplitByString(std::function<bool(const std::string&)> Callback,c
 
 void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
 {
-	auto PushBack = [&Parts](const std::string& Part)
+	auto PushBack = [&Parts](const std::string& Part,const char& Delim)
 	{
-		Parts.PushBack( Part );
+		if ( Parts.IsFull() )
+		{
+			Parts.GetBack() += Delim;
+			Parts.GetBack() += Part;
+		}
+		else
+		{
+			Parts.PushBack( Part );
+		}
 		return true;
 	};
 
@@ -209,7 +217,7 @@ void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string
 }
 
 //	gr: merge this and split by string and have a "match" function/policy
-bool Soy::StringSplitByMatches(std::function<bool(const std::string&)> Callback,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
+bool Soy::StringSplitByMatches(std::function<bool(const std::string&,const char&)> Callback,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
 {
 	//	gr; I think this is the only case where we erroneously return something
 	//		if removed, and we split "", then we get 1 empty case
@@ -218,25 +226,34 @@ bool Soy::StringSplitByMatches(std::function<bool(const std::string&)> Callback,
 	
 	//	gr: dumb approach as regexp is a little fiddly
 	std::stringstream Pending;
+	char LastDelim = '\0';
 	for ( int i=0;	i<=String.length();	i++ )
 	{
 		bool Eof = ( i >= String.length() );
 		
-		if ( !Eof && MatchingChars.find(String[i]) == MatchingChars.npos )
+		auto MatchIndex = MatchingChars.find(String[i]);
+		if ( !Eof && MatchIndex == MatchingChars.npos )
 		{
 			Pending << String[i];
 			continue;
 		}
+		
+		auto Delim = Eof ? '\0' : MatchingChars[MatchIndex];
 		
 		//	pop part
 		auto Part = Pending.str();
 		Pending.str( std::string() );
 		
 		if ( !IncludeEmpty && Part.empty() )
+		{
+			LastDelim = Delim;
 			continue;
+		}
 		
-		if ( !Callback( Part ) )
+		if ( !Callback( Part, LastDelim ) )
 			return false;
+		
+		LastDelim = Delim;
 	}
 	return true;
 }

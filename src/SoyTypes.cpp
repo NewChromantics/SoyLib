@@ -587,7 +587,7 @@ Soy::TVersion::TVersion(std::string VersionStr,const std::string& Prefix) :
 		VersionStr.erase(0, Prefix.length() );
 	
 	int PartCounter = 0;
-	auto PushVersions = [&PartCounter,this](const std::string& PartStr)
+	auto PushVersions = [&PartCounter,this](const std::string& PartStr,const char& Delim)
 	{
 		//	got all we need
 		if ( PartCounter >= 2 )
