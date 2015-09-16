@@ -209,11 +209,6 @@ int Soy::Winsock::GetError()
 #error SOCKERROR Macro not defined
 #endif
 
-//	gr: when something still has a connection to a closed socket, and we try and open it again, we get this error
-//		assuming its some file-io error...
-//	gr: note this is bit 9(256) | ETIMEDOUT. occurs during accept() and according to this page, may indicate a timeout... on our last socket?
-#define SOCKERROR_ZOMBIE	316
-
 
 bool Soy::Winsock::HasError(const std::string& ErrorContext,bool BlockIsError,int Error,std::ostream* ErrorStream)
 {
@@ -227,10 +222,6 @@ bool Soy::Winsock::HasError(const std::string& ErrorContext,bool BlockIsError,in
 	case SOCKERROR(WOULDBLOCK):
 		if ( !BlockIsError )
 			return false;
-		break;
-			
-	case SOCKERROR_ZOMBIE:
-		ErrorString = "failed to accept() zombie connection";
 		break;
 	};
 
@@ -764,18 +755,10 @@ bool SoySocketConnection::Recieve(ArrayBridge<char>&& Buffer)
 		//	socket closed gracefully
 		//	gr: sometimes chrome seems to close the socket, but websocket is still waiting for it to connect... try forcing it to disconnect rather than assume its disconnected...
 		//		maybe an issue with recv???
-		//	gr: just in case it's not graceful...
-		auto SockError = Soy::Winsock::GetError();
-		std::stringstream ErrorString;
-		Soy::Winsock::HasError("recv",false,SockError,&ErrorString);
-		if ( SockError == 0 && ErrorString.str().empty() )
-		{
-			//	graceful close, don't throw
-			return false;
-		}
-		
-		throw Soy::AssertException( ErrorString.str() );
-		//mParent.Disconnect( mClientRef, ErrorString.str() );
+		//	no error to check!
+		//	http://stackoverflow.com/questions/30257722/what-is-socket-accept-error-errno-316
+		//	graceful close, don't throw
+		return false;
 	}
 	else if ( Result == SOCKET_ERROR )
 	{
