@@ -1,5 +1,9 @@
 #pragma once
 
+#include "SoyTypes.h"
+#include "SoyRef.h"
+#include "SoyEvent.h"
+
 
 #if defined(TARGET_WINDOWS)
 	#include <winsock2.h>
@@ -8,17 +12,16 @@
 	typedef int socklen_t;
 	typedef ULONG in_addr_t;	//	note, not IN_ADDR as that has extra fields we don't need
 	typedef int socket_data_size_t;
-#elif defined(TARGET_OSX)
+#elif defined(TARGET_POSIX)
 	#include <sys/socket.h>
 	#define INVALID_SOCKET -1
 	typedef int SOCKET;
 	typedef size_t socket_data_size_t;
 #endif
 
-#include "SoyTypes.h"
-#include "SoyRef.h"
-#include "SoyEvent.h"
-
+#if defined(TARGET_ANDROID)
+	typedef __in_addr_t in_addr_t;
+#endif
 
 namespace Soy
 {

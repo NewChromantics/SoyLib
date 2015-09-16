@@ -1,10 +1,9 @@
 #include "SoySocket.h"
 #include <SoyDebug.h>
 #include <regex>
-#include "UnitTest++/src/UnitTest++.h"
 
 
-#if defined(TARGET_OSX)
+#if defined(TARGET_POSIX)
 #include <arpa/inet.h>
 #include <fcntl.h>	//	fcntl
 #include <unistd.h>	//	close
@@ -49,7 +48,7 @@ SoySockAddr::SoySockAddr(struct addrinfo& AddrInfo)
 SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 {
 	//	check length. field not present in winsock
-#if defined(TARGET_OSX)
+#if defined(TARGET_POSIX)
 	if ( AddrLen != Addr.sa_len )
 	{
 		std::stringstream err;
@@ -76,7 +75,7 @@ SoySockAddr::SoySockAddr(in_addr_t AddressIp4,uint16 Port)
 	//	gr: find a proper function for this
 	Addr4.sin_family = AF_INET;
 	Addr4.sin_port = htons(Port);
-#if defined(TARGET_OSX)
+#if defined(TARGET_POSIX)
 	Addr4.sin_len = sizeof(sockaddr_in);
 #endif
 	Addr4.sin_addr.s_addr = AddressIp4;
@@ -186,19 +185,19 @@ int Soy::Winsock::GetError()
 {
 #if defined(TARGET_WINDOWS)
 	return WSAGetLastError();
-#elif defined(TARGET_OSX)
+#elif defined(TARGET_POSIX)
 	return Soy::Platform::GetLastError();
 #endif
 }
 
 
-#if defined(TARGET_OSX)
-#define SOCKERROR(e)		(E ## e)
-#define SOCKERROR_SUCCESS	0
-#define SOCKET_ERROR		-1
+#if defined(TARGET_POSIX)
+	#define SOCKERROR(e)		(E ## e)
+	#define SOCKERROR_SUCCESS	0
+	#define SOCKET_ERROR		-1
 #elif defined(TARGET_WINDOWS)
-#define SOCKERROR(e)	(WSAE ## e)
-#define SOCKERROR_SUCCESS	ERROR_SUCCESS
+	#define SOCKERROR(e)	(WSAE ## e)
+	#define SOCKERROR_SUCCESS	ERROR_SUCCESS
 #endif
 
 #if !defined(SOCKERROR)
@@ -249,7 +248,7 @@ void SoySocket::Close()
 	{
 #if defined(TARGET_WINDOWS)
 		closesocket( mSocket );
-#elif defined(TARGET_OSX)
+#elif defined(TARGET_POSIX)
 		close( mSocket );
 #endif
 		Soy::Winsock::HasError("CloseSocket");
@@ -304,7 +303,7 @@ bool SoySocket::CreateTcp(bool Blocking)
 	mSocketAddr = SoySockAddr();
 
 	bool Success = false;
-#if defined(TARGET_OSX)
+#if defined(TARGET_POSIX)
 	int flags;
 	flags = fcntl( mSocket, F_GETFL, 0 );
 	
@@ -438,7 +437,7 @@ bool SoySocket::Bind(uint16 Port,SoySockAddr& outSockAddr)
 	{
 		int Error = Soy::Winsock::GetError();
 		Soy::Winsock::HasError( Soy::StreamToString(std::stringstream() << "Bind to " << Port), true, Error);
-#if defined(TARGET_OSX)
+#if defined(TARGET_POSIX)
 		if ( Error == EACCES )
 			std::Debug << "Access denied binding to port " << Port << " only root user on OSX can have a port < 1024" << std::endl;
 #endif
@@ -483,6 +482,7 @@ bool SoySocket::ListenUdp(int Port)
 }
 
 
+
 bool SoySocket::GetHostnameAndPortFromAddress(std::string& Hostname,uint16& Port,const std::string Address)
 {
 //	extract port from address
@@ -498,7 +498,9 @@ bool SoySocket::GetHostnameAndPortFromAddress(std::string& Hostname,uint16& Port
 	
 	Hostname = Match[1].str();
 	std::string PortStr = Match[2].str();
-	Port = std::stoi( PortStr );
+	int Porti;
+	Soy::StringToType( Porti, PortStr );
+	Port = size_cast<uint16>(Porti);
 
 	return true;
 }
@@ -695,7 +697,7 @@ void SoySocket::Disconnect(SoyRef ConnectionRef,const std::string& Reason)
 	{
 	#if defined(TARGET_WINDOWS)
 		if ( closesocket(Connection.mSocket) == SOCKET_ERROR )
-	#elif defined(TARGET_OSX)
+	#elif defined(TARGET_POSIX)
 			if ( ::close(Connection.mSocket) == SOCKET_ERROR )
 	#endif
 		{
