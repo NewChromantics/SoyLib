@@ -431,9 +431,11 @@ void SoyWorker::Loop()
 }
 
 
-void SoyWorkerThread::Start()
+void SoyWorkerThread::Start(bool ThrowIfAlreadyStarted)
 {
 	//	already have a thread
+	if ( !ThrowIfAlreadyStarted && HasThread() )
+		return;
 	if ( !Soy::Assert( !HasThread(), "Thread already created" ) )
 		return;
 	

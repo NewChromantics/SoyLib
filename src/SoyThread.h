@@ -470,7 +470,8 @@ public:
 		SoyWorker::mOnStart.AddListener( *this, &SoyWorkerThread::OnStart );
 	}
 	
-	virtual void		Start() override;
+	virtual void		Start() override		{	Start( true );	}
+	void				Start(bool ThrowIfAlreadyStarted);
 	void				WaitToFinish();
 	std::thread::id		GetThreadId() const		{	return mThread.get_id();	}
 	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return mThread.native_handle();	}
