@@ -47,15 +47,20 @@ SoySockAddr::SoySockAddr(struct addrinfo& AddrInfo)
 
 SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 {
-	//	check length. field not present in winsock
-#if defined(TARGET_POSIX)
-	if ( AddrLen != Addr.sa_len )
+	//	check length. field not present in winsock or linux (android)
+#if defined(TARGET_OSX)||defined(TARGET_IOS)
+	auto ExpectedLength = Addr.sa_len;
+#elif defined(TARGET_ANDROID)
+	auto ExpectedLength = __SOCK_SIZE__;
+#elif defined(TARGET_WINDOWS)
+#error what is expected length in windows?
+#endif
+	if ( AddrLen != ExpectedLength )
 	{
 		std::stringstream err;
-		err << "sockaddr length (" << Addr.sa_len << ") doesn't match specification " << AddrLen;
+		err << "sockaddr length (" << ExpectedLength << ") doesn't match specification " << AddrLen;
 		throw Soy::AssertException( err.str() );
 	}
-#endif
 
 	if ( AddrLen > sizeof(mAddr) )
 	{
@@ -75,7 +80,7 @@ SoySockAddr::SoySockAddr(in_addr_t AddressIp4,uint16 Port)
 	//	gr: find a proper function for this
 	Addr4.sin_family = AF_INET;
 	Addr4.sin_port = htons(Port);
-#if defined(TARGET_POSIX)
+#if defined(TARGET_OSX)||defined(TARGET_IOS)
 	Addr4.sin_len = sizeof(sockaddr_in);
 #endif
 	Addr4.sin_addr.s_addr = AddressIp4;
@@ -319,6 +324,7 @@ bool SoySocket::CreateTcp(bool Blocking)
 	}
 
 	//	turn off SIGPIPE signals for broken pipe read/writing
+#if !defined(TARGET_ANDROID)
 	bool EnableSigPipe = false;
 	if ( !EnableSigPipe )
 	{
@@ -327,6 +333,7 @@ bool SoySocket::CreateTcp(bool Blocking)
 		if ( Error != 0 )
 			Soy::Winsock::HasError("setsockopt turned of SIGPIPE");
 	}
+#endif
 	
 #elif defined(TARGET_WINDOWS)
 	//	make non-blocking
