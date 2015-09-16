@@ -7,7 +7,8 @@
 Http::TResponseProtocol::TResponseProtocol() :
 	mContentLength		( 0 ),
 	mResponseCode		( 0 ),
-	mHeadersComplete	( false )
+	mHeadersComplete	( false ),
+	mKeepAlive			( true )
 {
 	
 }
@@ -32,6 +33,9 @@ TProtocolState::Type Http::TResponseProtocol::Decode(TStreamBuffer& Buffer)
 	if ( !Buffer.Pop( mContentLength, GetArrayBridge(mContent) ) )
 		return TProtocolState::Waiting;
 	
+	if ( !mKeepAlive )
+		return TProtocolState::Disconnect;
+	
 	return TProtocolState::Finished;
 }
 
@@ -39,23 +43,27 @@ void Http::TResponseProtocol::PushHeader(const std::string& Header)
 {
 	auto& mResponseUrl = mUrl;
 	
-	if ( Header == "\r\n" )
+	if ( Header.empty() )
 	{
 		mHeadersComplete = true;
-		Soy::Assert( !mResponseUrl.empty(), "Finished http headers but never got response header" );
+		Soy::Assert( HasResponseHeader(), "Finished http headers but never got response header" );
 		return;
 	}
 	
 	//	check for HTTP response header
-	std::regex ResponsePattern("^HTTP/1.1 /(.*)$", std::regex::icase );
+	std::regex ResponsePattern("^HTTP/1.[01] ([0-9]+) (.*)$", std::regex::icase );
 	std::smatch Match;
 	if ( std::regex_match( Header, Match, ResponsePattern ) )
 	{
-		mResponseUrl = std::string("/") + Match[1].str();
+		Soy::Assert( !HasResponseHeader(), "Already matched response header" );
+		int ResponseCode;
+		Soy::StringToType( ResponseCode, Match[1].str() );
+		mResponseCode = size_cast<size_t>(ResponseCode);
+		mResponseUrl = Match[2].str();
 		return;
 	}
 
-	Soy::Assert( !mResponseUrl.empty(), "Parsing http headers but never got response header" );
+	Soy::Assert( HasResponseHeader(), "Parsing http headers but never got response header" );
 
 	//	split
 	BufferArray<std::string,2> Parts;
@@ -92,6 +100,15 @@ bool Http::TResponseProtocol::ParseSpecificHeader(const std::string& Key,const s
 		Soy::StringToType( mContentLength, Value );
 		return true;
 	}
+	
+	if ( Soy::StringMatches(Key,"Connection", false ) )
+	{
+		if ( Value == "close" )
+		{
+			mKeepAlive = false;
+			return true;
+		}
+	}
 
 	return false;
 }
@@ -104,11 +121,28 @@ void Http::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 
 	//	write request header
 	{
+		std::string HttpVersion;
+		if ( mHost.empty() )
+			HttpVersion = "HTTP/1.0";
+		else
+			HttpVersion = "HTTP/1.1";
+		
 		std::stringstream RequestHeader;
-		RequestHeader << mMethod << " /" << mUrl << " HTTP/1.1\r\n";
+		RequestHeader << mMethod << " /" << mUrl << " " << HttpVersion << "\r\n";
 		Buffer.Push( RequestHeader.str() );
 	}
+
+	//mHeaders["Accept"] = "text/html";
+	if ( !mHost.empty() )
+		mHeaders["Host"] = mHost;
+	//mHeaders["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.85 Safari/537.36";
 	
+	if ( mKeepAlive )
+		mHeaders["Connection"] = "keep-alive";
+	
+	if ( !mContent.IsEmpty() )
+		mHeaders["Content-length"] = Soy::StreamToString( std::stringstream()<<mContent.GetDataSize() );
+
 	//	write headers
 	for ( auto h=mHeaders.begin();	h!=mHeaders.end();	h++ )
 	{
@@ -120,15 +154,8 @@ void Http::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 		Buffer.Push( Header.str() );
 	}
 	
-	//	write special headers
-	{
-		std::stringstream ContentLengthHeader;
-		ContentLengthHeader << "Content-length: " << mContent.GetDataSize() << "\r\n";
-		Buffer.Push( ContentLengthHeader.str() );
-	}
-	
 	//	write header terminator
-	Buffer.Push("\r\n\r\n");
+	Buffer.Push("\r\n");
 	
 	//	write data
 	Buffer.Push( GetArrayBridge(mContent) );

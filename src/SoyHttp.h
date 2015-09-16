@@ -20,14 +20,16 @@ public:
 	
 	void							PushHeader(const std::string& Header);
 	virtual bool					ParseSpecificHeader(const std::string& Key,const std::string& Value);	//	check for specific headers
+	bool							HasResponseHeader() const	{	return mResponseCode != 0;	}
 	
 public:
 	std::map<std::string,std::string>	mHeaders;
 	bool								mHeadersComplete;
 	size_t								mContentLength;
 	size_t								mResponseCode;
-	std::string							mUrl;
+	std::string							mUrl;			//	could be "Bad Request" or "OK"
 	Array<char>							mContent;
+	bool								mKeepAlive;
 };
 
 
@@ -35,7 +37,8 @@ class Http::TRequestProtocol : public Soy::TWriteProtocol
 {
 public:
 	TRequestProtocol() :
-		mMethod	( "GET" )
+		mMethod		( "GET" ),
+		mKeepAlive	( false )
 	{
 	}
 	
@@ -46,6 +49,8 @@ public:
 	std::string							mUrl;
 	Array<char>							mContent;
 	std::string							mMethod;
+	std::string							mHost;		//	if empty forces us to http1.0
+	bool								mKeepAlive;
 };
 
 
