@@ -7,7 +7,7 @@
 
 bool TStreamBuffer::Pop(std::string Pattern,ArrayBridge<std::string>& Parts)
 {
-	std::lock_guard<std::mutex>	Lock( mLock );
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	//assert( Pattern.empty() );
 	if ( Pattern.empty() )
@@ -51,7 +51,7 @@ bool TStreamBuffer::Pop(std::string Pattern,ArrayBridge<std::string>& Parts)
 
 bool TStreamBuffer::PopAnyMatch(const ArrayInterface<char>&& DelimAny,ArrayBridge<char>& Data,bool KeepDelim)
 {
-	std::lock_guard<std::mutex>	Lock( mLock );
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 
 	//	delim is empty??
 	if ( !Soy::Assert( !DelimAny.IsEmpty(), "no deliminators sepecified" ) )
@@ -86,7 +86,7 @@ bool TStreamBuffer::PopAnyMatch(const ArrayInterface<char>&& DelimAny,ArrayBridg
 
 bool TStreamBuffer::Pop(const ArrayBridge<char>&& Delim,ArrayBridge<char>&& Data,bool KeepDelim)
 {
-	std::lock_guard<std::mutex>	Lock( mLock );
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	//	delim is empty??
 	if ( !Soy::Assert( !Delim.IsEmpty(), "no deliminator sepecified" ) )
@@ -124,7 +124,7 @@ bool TStreamBuffer::Pop(const ArrayBridge<char>&& Delim,ArrayBridge<char>&& Data
 
 bool TStreamBuffer::Pop(const std::string Delim,std::string& Data,bool KeepDelim)
 {
-	std::lock_guard<std::mutex>	Lock( mLock );
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	//	search array
 	auto DelimLength = Delim.length();
@@ -170,7 +170,7 @@ bool TStreamBuffer::Pop(const std::string Delim,std::string& Data,bool KeepDelim
 
 bool TStreamBuffer::Pop(size_t Length)
 {
-	std::lock_guard<std::mutex>	Lock( mLock );
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	//	enough data ready?
 	if ( mData.GetDataSize() < Length )
@@ -183,7 +183,7 @@ bool TStreamBuffer::Pop(size_t Length)
 
 bool TStreamBuffer::Pop(size_t Length,ArrayBridge<char>& Data)
 {
-	std::lock_guard<std::mutex>	Lock( mLock );
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	//	enough data ready?
 	if ( mData.GetDataSize() < Length )
@@ -201,7 +201,7 @@ bool TStreamBuffer::Pop(size_t Length,ArrayBridge<char>& Data)
 
 bool TStreamBuffer::Push(const std::string& Data)
 {
-	std::lock_guard<std::mutex>	Lock( mLock );
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	auto DataLength = Data.length();
 	auto DataArray = GetRemoteArray( Data.c_str(), DataLength );
@@ -218,7 +218,7 @@ bool TStreamBuffer::Push(const ArrayBridge<char>& Data)
 	if ( Data.IsEmpty() )
 		return true;
 	
-	std::lock_guard<std::mutex>	Lock( mLock );
+	std::lock_guard<std::recursive_mutex> Lock( mLock );
 	
 	mData.PushBackArray( Data );
 	
@@ -230,7 +230,7 @@ bool TStreamBuffer::Push(const ArrayBridge<char>& Data)
 
 bool TStreamBuffer::UnPop(const ArrayBridge<char>& Data)
 {
-	std::lock_guard<std::mutex>	Lock( mLock );
+	std::lock_guard<std::recursive_mutex> Lock( mLock );
 	
 	auto mDataBridge = GetArrayBridge( mData );
 	if ( !mDataBridge.InsertArray( Data, 0 ) )
@@ -257,7 +257,7 @@ bool TStreamBuffer::UnPop(const std::string& String)
 
 bool TStreamBuffer::PeekBack(ArrayBridge<char> &&Data)
 {
-	std::lock_guard<std::mutex>	Lock( mLock );
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	if ( mData.GetSize() < Data.GetSize() )
 		return false;
@@ -281,7 +281,16 @@ TStreamReader::TStreamReader(const std::string& Name) :
 bool TStreamReader::Iteration()
 {
 	//	read next chunk
-	Read();
+	try
+	{
+		Read();
+	}
+	catch (std::exception& e)
+	{
+		std::Debug << "Stream " << GetThreadName() << " failed to read: " << e.what() << std::endl;
+		std::this_thread::sleep_for( std::chrono::milliseconds(5000) );
+		return true;
+	}
 	
 	//	nothing to do
 	if ( mReadBuffer.IsEmpty() )

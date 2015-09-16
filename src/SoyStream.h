@@ -45,8 +45,8 @@ public:
 	
 private:
 	//	gr: make this a ring buffer for speed!
-	std::mutex		mLock;
-	Array<char>		mData;
+	std::recursive_mutex	mLock;
+	Array<char>				mData;
 };
 
 
