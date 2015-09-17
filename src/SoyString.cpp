@@ -443,3 +443,52 @@ void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 }
 
 
+
+std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim)
+{
+	std::stringstream Pop;
+	
+	while ( !Haystack.empty() )
+	{
+		if ( Haystack[0] == Delim )
+			break;
+		
+		Pop << Haystack[0];
+		if ( KeepDelim )
+			Pop << Delim;
+		
+		Haystack.erase( Haystack.begin() );
+	}
+	
+	return Pop.str();
+}
+
+
+
+uint8 Soy::HexToByte(char Hex)
+{
+	uint8 Value = 0;
+	
+	if ( Hex >= '0' && Hex <= '9' )
+		Value = Hex - '0';
+	else if ( Hex >= 'a' && Hex <= 'f' )
+		Value = 10 + Hex - 'a';
+	else if ( Hex >= 'A' && Hex <= 'F' )
+		Value = 10 + Hex - 'A';
+	else
+	{
+		std::stringstream Error;
+		Error << "character " << Hex << " is not a hexidecimal";
+		throw Soy::AssertException(Error.str());
+	}
+	return Value;
+}
+
+uint8 Soy::HexToByte(char HexA,char HexB)
+{
+	auto a = HexToByte(HexA);
+	auto b = HexToByte(HexB);
+	uint8 Byte = (a << 4) | (b);
+	return Byte;
+}
+
