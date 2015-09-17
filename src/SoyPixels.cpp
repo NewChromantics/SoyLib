@@ -110,6 +110,7 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	default:
 	case Invalid:		return 0;
 	case Greyscale:		return 1;
+	case LumaVideo:		return 1;
 	case GreyscaleAlpha:	return 2;
 	case RGB:			return 3;
 	case RGBA:			return 4;
@@ -133,25 +134,45 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(size_t ChannelC
 	}
 }
 
-
-std::ostream& operator<< (std::ostream &out,const SoyPixelsFormat::Type &in)
+void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats)
 {
-	switch ( in )
+	switch ( Format )
 	{
-		case SoyPixelsFormat::Greyscale:		return out << "Greyscale";
-		case SoyPixelsFormat::GreyscaleAlpha:	return out << "GreyscaleAlpha";
-		case SoyPixelsFormat::RGB:				return out << "RGB";
-		case SoyPixelsFormat::RGBA:				return out << "RGBA";
-		case SoyPixelsFormat::BGRA:				return out << "BGRA";
-		case SoyPixelsFormat::BGR:				return out << "BGR";
-		case SoyPixelsFormat::KinectDepth:		return out << "KinectDepth";
-		case SoyPixelsFormat::FreenectDepth11bit:	return out << "FreenectDepth11bit";
-		case SoyPixelsFormat::FreenectDepth10bit:	return out << "FreenectDepth10bit";
-		case SoyPixelsFormat::FreenectDepthmm:	return out << "FreenectDepthmm";
+		case Yuv420_Biplanar_Full:
+			PlaneFormats.PushBack( LumaFull );
+			PlaneFormats.PushBack( Chroma2 );
+			break;
+			
+		case Yuv420_Biplanar_Video:
+			PlaneFormats.PushBack( LumaVideo );
+			PlaneFormats.PushBack( Chroma2 );
+			break;
+			
 		default:
-			return out << "<unknown SoyPixelsFormat:: " << static_cast<int>(in) << ">";
-	}
+			break;
+	};
 }
+
+
+std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
+{
+	{ SoyPixelsFormat::Invalid,				"Invalid" },
+	{ SoyPixelsFormat::UnityUnknown,		"UnityUnknown" },
+	{ SoyPixelsFormat::Greyscale,			"Greyscale" },
+	{ SoyPixelsFormat::GreyscaleAlpha,		"GreyscaleAlpha"	},
+	{ SoyPixelsFormat::RGB,					"RGB"	},
+	{ SoyPixelsFormat::RGBA,				"RGBA"	},
+	{ SoyPixelsFormat::BGRA,				"BGRA"	},
+	{ SoyPixelsFormat::BGR,					"BGR"	},
+	{ SoyPixelsFormat::KinectDepth,			"KinectDepth"	},
+	{ SoyPixelsFormat::FreenectDepth10bit,	"FreenectDepth10bit"	},
+	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},
+	{ SoyPixelsFormat::FreenectDepthmm,		"FreenectDepthmm"	},
+	{ SoyPixelsFormat::Yuv420_Biplanar_Full,	"Yuv420_Biplanar_Full"	},
+	{ SoyPixelsFormat::Yuv420_Biplanar_Video,	"Yuv420_Biplanar_Video"	},
+	{ SoyPixelsFormat::LumaFull,			"LumaFull"	},
+	{ SoyPixelsFormat::LumaVideo,			"LumaVideo"	},
+};
 
 
 #if defined(SOY_OPENCL)
@@ -279,7 +300,7 @@ void SetDepthColour(uint8& Red,uint8& Green,uint8& Blue,float Depth,int PlayerIn
 bool ConvertFormat_KinectDepthToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	bool GreyscaleAlphaFormat = (NewFormat == SoyPixelsFormat::GreyscaleAlpha);
-	int Height = Meta.GetHeight( Pixels.GetDataSize() );
+	int Height = Meta.GetHeight();
 	int PixelCount = Meta.GetWidth() * Height;
 	for ( int p=0;	p<PixelCount;	p++ )
 	{
@@ -302,7 +323,6 @@ bool ConvertFormat_KinectDepthToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixel
 		Pixels.SetSize( PixelCount );
 	Meta.DumbSetFormat( GreyscaleAlphaFormat ? SoyPixelsFormat::GreyscaleAlpha : SoyPixelsFormat::Greyscale );
 	assert( Meta.IsValid() );
-	assert( Meta.GetHeight( Pixels.GetDataSize() ) == Height );
 	return true;
 }
 
@@ -313,7 +333,7 @@ bool ConvertFormat_KinectDepthToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta&
 	memcpy( DepthPixels.GetArray(), Pixels.GetArray(), DepthPixels.GetDataSize() );
 	
 	auto Components = SoyPixelsFormat::GetChannelCount( NewFormat );
-	int Height = Meta.GetHeight( Pixels.GetDataSize() );
+	int Height = Meta.GetHeight();
 	int PixelCount = Meta.GetWidth() * Height;
 	
 	//	realloc
@@ -347,7 +367,7 @@ bool ConvertFormat_KinectDepthToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta&
 	
 	Meta.DumbSetFormat( NewFormat );
 	assert( Meta.IsValid() );
-	assert( Meta.GetHeight( Pixels.GetDataSize() ) == Height );
+	assert( Meta.GetHeight() == Height );
 	return true;
 }
 
@@ -366,7 +386,7 @@ bool DepthToGreyOrRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixel
 	memcpy( DepthPixels.GetArray(), Pixels.GetArray(), DepthPixels.GetDataSize() );
 	
 	auto Components = SoyPixelsFormat::GetChannelCount( NewFormat );
-	auto Height = Meta.GetHeight( Pixels.GetDataSize() );
+	auto Height = Meta.GetHeight();
 	auto PixelCount = Meta.GetWidth() * Height;
 	
 	//	realloc
@@ -442,14 +462,14 @@ bool DepthToGreyOrRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixel
 	
 	Meta.DumbSetFormat( NewFormat );
 	assert( Meta.IsValid() );
-	assert( Meta.GetHeight( Pixels.GetDataSize() ) == Height );
+	assert( Meta.GetHeight() == Height );
 	return true;
 }
 
 
 bool ConvertFormat_BgrToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
-	auto Height = Meta.GetHeight( Pixels.GetDataSize() );
+	auto Height = Meta.GetHeight();
 	auto PixelCount = Meta.GetWidth() * Height;
 	auto SrcChannels = Meta.GetChannels();
 	auto DestChannels = SoyPixelsFormat::GetChannelCount( NewFormat );
@@ -474,7 +494,7 @@ bool ConvertFormat_BgrToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,So
 
 bool ConvertFormat_RGBAToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
-	int Height = Meta.GetHeight( Pixels.GetDataSize() );
+	int Height = Meta.GetHeight();
 	int PixelCount = Meta.GetWidth() * Height;
 	int Channels = Meta.GetChannels();
 	auto GreyscaleChannels = SoyPixelsFormat::GetChannelCount(NewFormat);
@@ -498,7 +518,7 @@ bool ConvertFormat_RGBAToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& 
 	Pixels.SetSize( PixelCount * GreyscaleChannels );
 	Meta.DumbSetFormat( NewFormat );
 	assert( Meta.IsValid() );
-	assert( Meta.GetHeight( Pixels.GetDataSize() ) == Height );
+	assert( Meta.GetHeight() == Height );
 	return true;
 }
 
@@ -536,7 +556,7 @@ bool ConvertDepth16(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsF
 	//int NewDepthBits = GetDepthFormatBits( NewFormat );
 	
 	uint16* DepthPixels = reinterpret_cast<uint16*>( Pixels.GetArray() );
-	int PixelCount = Meta.GetWidth() * Meta.GetHeight( Pixels.GetDataSize() );
+	int PixelCount = Meta.GetWidth() * Meta.GetHeight();
 
 	static bool Debug = false;
 	
@@ -798,22 +818,6 @@ bool TPixels::Set(const msa::OpenCLImage& PixelsConst,cl_command_queue Queue)
 #endif
 
 
-#if defined(SOY_OPENCL)
-bool SoyPixelsFormat::GetOpenclFormat(int& clFormat,SoyPixelsFormat::Type Format)
-{
-	//	from ofGetGlInternalFormat(const ofPixels& pix)
-	switch ( Format )
-	{
-		//	clSURF code uses CL_R...
-	case SoyPixelsFormat::Greyscale:	clFormat = CL_R;	return true;
-//	case SoyPixelsFormat::Greyscale:	clFormat = CL_LUMINANCE;	return true;
-	case SoyPixelsFormat::RGB:			clFormat = CL_RGB;			return true;
-	case SoyPixelsFormat::RGBA:			clFormat = CL_RGBA;			return true;
-	case SoyPixelsFormat::BGRA:			clFormat = treatbgrasrgb ? CL_RGBA : CL_BGRA;			return true;
-	}
-	return false;
-}
-#endif
 
 bool SoyPixelsImpl::Init(size_t Width, size_t Height, size_t Channels)
 {
@@ -823,14 +827,24 @@ bool SoyPixelsImpl::Init(size_t Width, size_t Height, size_t Channels)
 
 bool SoyPixelsImpl::Init(size_t Width, size_t Height,SoyPixelsFormat::Type Format)
 {
+	return Init( SoyPixelsMeta( Width, Height, Format ) );
+}
+
+
+bool SoyPixelsImpl::Init(const SoyPixelsMeta& Meta)
+{
+	auto Width = Meta.GetWidth();
+	auto Height = Meta.GetHeight();
+	auto Format = Meta.GetFormat();
+	
 	//	alloc
 	GetMeta().DumbSetWidth( size_cast<uint16>(Width) );
+	GetMeta().DumbSetHeight( size_cast<uint16>(Height) );
 	GetMeta().DumbSetFormat( Format );
-	size_t Alloc = GetWidth() * GetChannels() * Height;
+	size_t Alloc = GetMeta().GetDataSize();
 	auto& Pixels = GetPixelsArray();
 	Pixels.SetSize( Alloc, false );
-	assert( this->GetHeight() == Height );
-	return true;	
+	return true;
 }
 
 
@@ -1092,8 +1106,8 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 	const char IDAT[] = { 73, 68, 65, 84 };// ("IDAT")
 
 	//	write header chunk
-	uint32 Width = GetWidth();
-	uint32 Height = GetHeight();
+	uint32 Width = size_cast<uint32>(GetWidth());
+	uint32 Height = size_cast<uint32>(GetHeight());
 	uint8 BitDepth = GetBitDepth();
 	uint8 ColourType = PngColourType;
 	assert( PngColourType != TPng::TColour::Invalid );
@@ -1152,9 +1166,9 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 
 const uint8& SoyPixelsImpl::GetPixel(uint16 x,uint16 y,uint16 Channel) const
 {
-	int w = GetWidth();
-	int h = GetHeight();
-	int Channels = GetChannels();
+	auto w = GetWidth();
+	auto h = GetHeight();
+	auto Channels = GetChannels();
 	if ( x < 0 || x >= w || y<0 || y>=h || Channel<0 || Channel>=Channels )
 	{
 		assert(false);
@@ -1193,13 +1207,13 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 	//	simply add/remove rows
 	if ( Height > GetHeight() )
 	{
-		int RowBytes = GetChannels() * GetWidth();
+		auto RowBytes = GetChannels() * GetWidth();
 		RowBytes *= Height - GetHeight();
 		Pixels.PushBlock( RowBytes );
 	}
 	else if ( Height < GetHeight() )
 	{
-		int RowBytes = GetChannels() * GetWidth();
+		auto RowBytes = GetChannels() * GetWidth();
 		RowBytes *= GetHeight() - Height;
 		Pixels.SetSize( Pixels.GetDataSize() - RowBytes );
 	}
@@ -1208,8 +1222,8 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 	if ( Width > GetWidth() )
 	{
 		//	working backwards makes it easy & fast
-		int Stride = GetChannels() * GetWidth();
-		int ColBytes = GetChannels() * (Width - GetWidth());
+		auto Stride = GetChannels() * GetWidth();
+		auto ColBytes = GetChannels() * (Width - GetWidth());
 		for ( ssize_t p=Pixels.GetDataSize();	p>=0;	p-=Stride )
 			Pixels.InsertBlock( p, ColBytes );
 		GetMeta().DumbSetWidth( Width );
@@ -1217,8 +1231,8 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 	else if ( Width < GetWidth() )
 	{
 		//	working backwards makes it easy & fast
-		int Stride = GetChannels() * GetWidth();
-		int ColBytes = GetChannels() * (GetWidth() - Width);
+		auto Stride = GetChannels() * GetWidth();
+		auto ColBytes = GetChannels() * (GetWidth() - Width);
 		for ( ssize_t p=Pixels.GetDataSize()-ColBytes;	p>=0;	p-=Stride )
 			Pixels.RemoveBlock( p, ColBytes );
 		GetMeta().DumbSetWidth( Width );
@@ -1377,15 +1391,9 @@ bool SoyPixelsImpl::Copy(const SoyPixelsImpl &that,bool AllowReallocation)
 	return true;
 }
 
-
-SoyPixelsMetaFull SoyPixelsImpl::GetMetaFull() const
+void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream,bool Hex,const char* PixelSuffix) const
 {
-	return SoyPixelsMetaFull( GetWidth(), GetHeight(), GetFormat() );
-}
-
-void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream) const
-{
-	auto Meta = GetMetaFull();
+	auto Meta = GetMeta();
 	Stream << Prefix << " " << Meta << std::endl;
 	auto ComponentCount = GetChannels();
 	auto Stride = ComponentCount * Meta.GetWidth();
@@ -1393,7 +1401,12 @@ void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream) 
 	
 	for ( int p=0;	p<Meta.GetDataSize();	p++ )
 	{
-		Stream << std::hex << Pixels[p] << " ";
+		int PixelValue = (int)Pixels[p];
+		if ( Hex )
+			Stream << std::hex;
+		Stream << PixelValue;
+		if ( PixelSuffix )
+			Stream << PixelSuffix;
 		
 		if ( p % Stride == 0 )
 			Stream << std::endl;

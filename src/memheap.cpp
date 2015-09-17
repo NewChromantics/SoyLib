@@ -314,7 +314,12 @@ Improvement summary
 //	for stack tracing
 #include <windows.h>
 #include <tlhelp32.h>
+
+#pragma warning(push)
+#pragma warning(disable:4091)
 #include <dbghelp.h>
+#pragma warning(pop)
+
 #include <errorrep.h>
 //#include <time.h>
 //#pragma comment(lib,"version.lib")	//for VerQueryValue, GetFileVersionInfo and GetFileVersioInfoSize
@@ -1282,7 +1287,9 @@ void prmem::HeapInfo::OnFailedAlloc(std::string TypeName,size_t TypeSize,size_t 
 	std::Debug << "Failed to allocate " << TypeName << "x " << ElementCount << " (" << Soy::FormatSizeBytes( TypeSize * ElementCount ) << ")" << std::endl;
 	
 	//	show heap stats
-	Debug_DumpInfoToOutput( std::Debug );
+	auto& DebugStream = std::Debug.LockStream();
+	Debug_DumpInfoToOutput( DebugStream );
+	std::Debug.UnlockStream( DebugStream );
 
 	//	show dump too
 	auto* pHeapDebug = GetDebug();
@@ -1298,7 +1305,9 @@ void prmem::HeapInfo::OnFailedAlloc(std::string TypeName,size_t TypeSize,size_t 
 	for ( int h=0;	h<Heaps.GetSize();	h++ )
 	{
 		auto& Heap = *Heaps[h];
-		Heap.Debug_DumpInfoToOutput( std::Debug );
+		auto& DebugStream = std::Debug.LockStream();
+		Heap.Debug_DumpInfoToOutput( DebugStream );
+		std::Debug.UnlockStream( DebugStream );
 	}
 	
 }

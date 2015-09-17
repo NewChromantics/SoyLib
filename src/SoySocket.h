@@ -1,179 +1,147 @@
 #pragma once
 
-#include "SoyEnum.h"
-#include "SoyPacket.h"
-#include "SoyNet.h"
-#include "SoyThread.h"
-#include <ofxNetwork.h>
+#include "SoyTypes.h"
+#include "SoyRef.h"
+#include "SoyEvent.h"
 
-#define UDP_MAX_BUFFERSIZE	1024*64
 
-namespace SoyNet
+#if defined(TARGET_WINDOWS)
+	#include <winsock2.h>
+	#include <ws2tcpip.h>
+	#pragma comment(lib, "Ws2_32.lib")
+	typedef int socklen_t;
+	typedef ULONG in_addr_t;	//	note, not IN_ADDR as that has extra fields we don't need
+	typedef int socket_data_size_t;
+#elif defined(TARGET_POSIX)
+	#include <sys/socket.h>
+	#define INVALID_SOCKET -1
+	typedef int SOCKET;
+	typedef size_t socket_data_size_t;
+#endif
+
+#if defined(TARGET_ANDROID)
+	typedef __in_addr_t in_addr_t;
+#endif
+
+namespace Soy
 {
-	class TSocket;
-	class TSocketTCP;	
-	class TSocketUDP;
-	class TSocketUDPMultiCast;	
-};
-
-
-namespace SoyNet
-{
-	namespace TSocketState
+	namespace Winsock
 	{
-		enum Type
-		{
-			Closed,
-			ServerListening,
-			ClientConnected,
-		};
-
-		BufferString<100>	ToString(TSocketState::Type Enum);
-		void				GetArray(ArrayBridge<TSocketState::Type>& Array);
-	};
-};
-SOY_DECLARE_ENUM( SoyNet::TSocketState );
-
-class SoyNet::TSocket : public SoyThread
-{
-public:
-	TSocket(bool IncludeMetaInPacket=true);
-	virtual ~TSocket();
-
-	void				StopThread();
-	virtual void		GetConnections(Array<SoyNet::TAddress>& Addresses) const=0;
-	virtual bool		Listen(uint16 Port)=0;
-	virtual bool		Connect(const SoyNet::TAddress& ServerAddress)=0;
-	virtual void		Close()=0;
-	TSocketState::Type	GetState() const		{	ofMutex::ScopedLock Lock( const_cast<ofMutex&>( mStateLock ) );	return mState;	}
-
-	virtual TAddress	GetClientAddress(int ClientId) const=0;
-	virtual int			GetClientId(TAddress Client) const;
-	virtual TAddress	GetMyAddress() const=0;
-
-private:
-	void				SetState(TSocketState::Type NewState);
-	void				StartThread();			//	we don't want to start thread in constructor (do we?) so it's started first time we try to connect/listen etc
-	virtual void		threadedFunction();
-	
-protected:
-	//	callbacks which instigate events and update state
-	virtual void		OnClosed();				//	will callback if listen or connect fail
-	void				OnClientConnected();
-	void				OnServerListening();
-	void				OnClientJoin(const SoyNet::TAddress& Address);
-	void				OnClientLeft(const SoyNet::TAddress& Address);
-	void				OnRecievePackets();
-
-	virtual void		CheckState()=0;			//	check if we've been closed
-	virtual void		CheckForClients()=0;	//	check clients have connected/disconnected
-	virtual void		RecievePackets()=0;	
-	virtual void		SendPackets()=0;	
-
-public:
-	bool								mIncludeMetaInPacket;
-	SoyPacketManager					mPacketsIn;
-	SoyPacketManager					mPacketsOut;
-	ofEvent<bool>						mOnClosed;
-	ofEvent<bool>						mOnClientConnected;
-	ofEvent<bool>						mOnServerListening;
-	ofEvent<const SoyNet::TAddress>		mOnClientJoin;
-	ofEvent<const SoyNet::TAddress>		mOnClientLeft;
-	ofEvent<TSocket*>					mOnRecievePacket;		//	notify when there are packets to pop
-
-private:
-	ofMutex					mStateLock;
-	TSocketState::Type		mState;
-};
-
-
-class SoyNet::TSocketTCP : public SoyNet::TSocket
-{
-public:
-	TSocketTCP(bool IncludeMetaInPacket=true) :
-		TSocket	( IncludeMetaInPacket )
-	{
+		bool		Init();
+		void		Shutdown();
+		int			GetError();
+		bool		HasError(const std::string& ErrorContext,bool BlockIsError=true,int Error=GetError(),std::ostream* ErrorStream=nullptr);
+		bool		HasError(std::stringstream&& ErrorContext, bool BlockIsError=true,int Error=GetError(),std::ostream* ErrorStream=nullptr);
 	}
-	virtual void		GetConnections(Array<SoyNet::TAddress>& Addresses) const;
-	virtual bool		Listen(uint16 Port);
-	virtual bool		Connect(const SoyNet::TAddress& ServerAddress);
-	virtual void		Close();
-	
-	virtual TAddress	GetClientAddress(int ClientId) const;
-	TAddress			GetServerAddress() const;
-	virtual TAddress	GetMyAddress() const;
-
-protected:
-	virtual void		OnClosed();
-
-	virtual void		CheckState();
-	virtual void		CheckForClients();
-	virtual void		RecievePackets();	
-	virtual void		SendPackets();	
-	bool				CheckForClient(int ClientId);	//	check an individual client is newly connected/disconnected. Done individually as we cannot lock the connections. returns if client is connected
-
-private:
-	//	ofxNetwork stuff isn't very const compliant...
-	ofxTCPServer&		GetServerConst() const		{	return const_cast<ofxTCPServer&>( mServer );	}
-	ofxTCPClient&		GetClientConst() const		{	return const_cast<ofxTCPClient&>( mClient );	}
-
-private:
-	ofxTCPServer 		mServer;
-	Array<TAddress>		mClientCache;	//	list of connected clients just so we know when they connect/disconnect
-	ofxTCPClient 		mClient;
-};
+}
 
 
-
-class SoyNet::TSocketUDP : public SoyNet::TSocket
+class SoySockAddr
 {
 public:
-	TSocketUDP(bool IncludeMetaInPacket=true) :
-		TSocket	( IncludeMetaInPacket )
+	SoySockAddr()
 	{
-		//	this is not initialised in ofxUDPManager
-		mSocket.SetTimeoutSend( NO_TIMEOUT );
-		mSocket.SetTimeoutReceive( NO_TIMEOUT );
+		memset( &mAddr, 0, sizeof(mAddr) );
 	}
-	virtual void		GetConnections(Array<SoyNet::TAddress>& Addresses) const;
-	virtual bool		Listen(uint16 Port);
-	virtual bool		Connect(const SoyNet::TAddress& ServerAddress);
-	virtual void		Close();
+	SoySockAddr(const std::string& Hostname,const uint16 Port);
+	SoySockAddr(struct addrinfo& AddrInfo);
+	SoySockAddr(const sockaddr& Addr,socklen_t AddrLen);
+	explicit SoySockAddr(in_addr_t AddressIpv4,const uint16 Port);
+	//explicit SoySockAddr(in6_addr AddressIpv6,const uint16 Port);
 	
-	virtual TAddress	GetClientAddress(int ClientId) const;
-	virtual TAddress	GetMyAddress() const;
-
-protected:
-	virtual void		OnClosed();
-
-	virtual void		CheckState();
-	virtual void		CheckForClients();
-	virtual void		RecievePackets();	
-	virtual void		SendPackets();	
-	bool				CheckForClient(int ClientId);	//	check an individual client is newly connected/disconnected. Done individually as we cannot lock the connections. returns if client is connected
-
-protected:
-	virtual bool		BindUDP(uint16 Port);
-	virtual bool		ConnectUDP(const SoyNet::TAddress& ServerAddress);
-
-protected:
-	ofMutexT<Array<SoyPair<SoyNet::TAddress,Array<char>>>>	mPacketData;	//	data we've recieved from various sources but not yet processed
-	ofMutexT<ofxUDPManager>		mSocket;
-};
-
-
-class SoyNet::TSocketUDPMultiCast : public SoyNet::TSocketUDP
-{
-public:
-	TSocketUDPMultiCast(const char* MultiCastAddress="255.255.255.255") :
-		mMultiCastAddress	( MultiCastAddress )
+	//	gr: remove this for a try/catch
+	bool				IsValid() const
 	{
+		//	check for "not all zero"
+		SoySockAddr Null;
+		return memcmp( &Null.mAddr, &mAddr, sizeof(mAddr) ) != 0;
 	}
 
+	socklen_t			GetSockAddrLength() const;
+	const sockaddr*		GetSockAddr() const;
+	sockaddr*			GetSockAddr();
+
+public:
+	sockaddr_storage	mAddr;
+};
+
+
+class SoySocketConnection
+{
+public:
+	SoySocketConnection() :
+		mSocket		( INVALID_SOCKET )
+	{
+		memset( &mAddr, 0, sizeof(mAddr) );
+		assert( !IsValid() );
+	}
+
+	bool			IsValid() const		
+	{
+		return mSocket != INVALID_SOCKET;	
+	}
+
+	bool		Recieve(ArrayBridge<char>&& Buffer);	//	throws on error. Returns false on graceful disconnection
+	void		Send(ArrayBridge<char>&& Buffer,bool IsUdp);		//	throws on error. keeps writing until all sent
+
+public:
+	SoySockAddr		mAddr;
+	SOCKET			mSocket;	//	gr: currently if we're a client connecting to a server, this is the client's DUPLICATED socket (connect() doesnt give us a socket)
+};
+
+std::ostream& operator<< (std::ostream &out,const SoySocketConnection &in);
+std::ostream& operator<< (std::ostream &out,const SoySockAddr &in);
+
+
+class SoySocket
+{
+public:
+	SoySocket() :
+		mSocket			( INVALID_SOCKET )
+	{
+	}
+	~SoySocket()	{	Close();	}
+
+	bool		CreateTcp(bool Blocking=false);
+	bool		CreateUdp(bool Broadcast);
+	bool		IsCreated() const		{	return mSocket != INVALID_SOCKET;	}
+	void		Close();
+
+	SoyRef		AllocConnectionRef();
+	bool		ListenTcp(int Port);
+	bool		ListenUdp(int Port);
+	SoyRef		WaitForClient();
+	SoyRef		Connect(std::string Address);
+	SoyRef		UdpConnect(const char* Address,uint16 Port);	//	this doesn't "do" a connect, but fakes one as a success, and starts listening (required only on windows
+	SoyRef		UdpConnect(SoySockAddr Address);
+
+	bool		IsConnected();
+	bool		IsUdp() const;
+
+	SoySocketConnection	GetFirstConnection() const;					//	get first one which is useful for clients to show which server they're attached to
+	SoySocketConnection	GetConnection(SoyRef ConnectionRef);
+	void		Disconnect(SoyRef ConnectionRef,const std::string& Reason);
+
+	void		OnError(SoyRef ConnectionRef,const std::string& Error);	//	error occured, disconnect from this
+
+	static bool	GetHostnameAndPortFromAddress(std::string& Hostname,uint16& Port,const std::string Address);
+	
+	SOCKET		GetSocket()	{	return mSocket;	}	//	gr: don't think I should be providing access here....
+	
+	
 protected:
-	virtual bool		BindUDP(uint16 Port);
-	virtual bool		ConnectUDP(const SoyNet::TAddress& ServerAddress);
+	SoyRef		OnConnection(SoySocketConnection Connection);
+	bool		Bind(uint16 Port,SoySockAddr& outSockAddr);
+
+public:
+	SoyEvent<const SoyRef>					mOnConnect;
+	SoyEvent<const SoyRef>					mOnDisconnect;
+	SoySockAddr								mSocketAddr;		//	current socket address; gr: find this from the socket? Is it the first connection?
 
 private:
-	BufferString<100>	mMultiCastAddress;
+	//	lock to control ordered connect/disconnect (not strictly for race conditions)
+	//	also lock whenever manipulating/passing on mSocket to help control flow
+	std::recursive_mutex					mConnectionLock;
+	std::map<SoyRef,SoySocketConnection>	mConnections;
+	SOCKET									mSocket;
 };

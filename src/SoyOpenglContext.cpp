@@ -2,11 +2,30 @@
 #include "SoyEnum.h"
 
 
+
+//	gr: only expose extensions in this file
+#if defined(TARGET_OSX)
+#if defined(GL_GLEXT_FUNCTION_POINTERS)
+#undef GL_GLEXT_FUNCTION_POINTERS
+#endif
+#include <Opengl/glext.h>
+#endif
+
+#if defined(TARGET_ANDROID)
+#include <EGL/egl.h>
+#endif
+
+#if defined(TARGET_IOS) && defined(OPENGL_ES_2)
+//#include <OpenGLES/EGL/egl.h>
+#endif
+
+
 //	todo: move this to context only
 namespace Opengl
 {
 	//	static method is slow, cache on a context!
-	std::map<OpenglExtensions::Type,bool>	SupportedExtensions;
+	std::map<OpenglExtensions::Type,bool>			SupportedExtensions;
+	extern std::map<OpenglExtensions::Type,Soy::TVersion>	ImplicitExtensions;
 };
 
 
@@ -14,17 +33,24 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 {
 	{	OpenglExtensions::Invalid,				"Invalid"	},
 	{	OpenglExtensions::AppleClientStorage,	"GL_APPLE_client_storage"	},
+#if defined(TARGET_WINDOWS)
+	{	OpenglExtensions::VertexArrayObjects,	"GL_ARB_vertex_array_object"	},
+#elif defined(TARGET_OSX)
 	{	OpenglExtensions::VertexArrayObjects,	"GL_APPLE_vertex_array_object"	},
+#elif defined(TARGET_ANDROID) || defined(TARGET_IOS)
+	{	OpenglExtensions::VertexArrayObjects,	"GL_OES_vertex_array_object"	},
+#endif
+	{	OpenglExtensions::DrawBuffers,			"glDrawBuffer"	},
+	{	OpenglExtensions::ImageExternal,		"GL_OES_EGL_image_external"	},
+	{	OpenglExtensions::ImageExternalSS3,		"GL_OES_EGL_image_external_essl3"	},
 };
 
+std::map<OpenglExtensions::Type,Soy::TVersion> Opengl::ImplicitExtensions =
+{
+	{	OpenglExtensions::VertexArrayObjects,	Soy::TVersion(3,0)	},
+	{	OpenglExtensions::DrawBuffers,			Soy::TVersion(3,0)	},
+};
 
-//	gr: only expose extensions here
-#if defined(TARGET_OSX)
-#if defined(GL_GLEXT_FUNCTION_POINTERS)
-#undef GL_GLEXT_FUNCTION_POINTERS
-#endif
-#include <Opengl/glext.h>
-#endif
 
 
 namespace Opengl
@@ -33,34 +59,8 @@ namespace Opengl
 	std::function<void(GLsizei,GLuint*)>		GenVertexArrays;
 	std::function<void(GLsizei,const GLuint*)>	DeleteVertexArrays;
 	std::function<GLboolean(GLuint)>			IsVertexArray;
-}
-
-
-Opengl::TVersion::TVersion(std::string VersionStr) :
-	mMajor	( 0 ),
-	mMinor	( 0 )
-{
-	//	strip off prefix's
-	//	iphone says: "OpenGL ES 3.0 Apple A7 GPU - 53.13"
-	std::string OpenglEsPrefix = "OpenGL ES ";
-	if ( Soy::StringBeginsWith(VersionStr,OpenglEsPrefix, false ) )
-		VersionStr.erase(0, OpenglEsPrefix.length() );
 	
-	int PartCounter = 0;
-	auto PushVersions = [&PartCounter,this](const std::string& PartStr)
-	{
-		//	got all we need
-		if ( PartCounter >= 2 )
-			return false;
-		
-		auto& PartInt = (PartCounter==0) ? mMajor : mMinor;
-		Soy::StringToType( PartInt, PartStr );
-		
-		PartCounter++;
-		return true;
-	};
-	
-	Soy::StringSplitByMatches( PushVersions, VersionStr, " .", false );
+	std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
 }
 
 
@@ -70,11 +70,67 @@ Opengl::TContext::TContext()
 
 void Opengl::TContext::Init()
 {
+	//	windows needs Glew to initialise all it's extension stuff
+//	#define glewInit() glewContextInit(glewGetContext())
+//#define glewIsSupported(x) glewContextIsSupported(glewGetContext(), x)
+//#define glewIsExtensionSupported(x) glewIsSupported(x)
+#if defined(TARGET_WINDOWS)
+	{
+		auto Error = glewInit();
+		if ( Error != GL_NO_ERROR )
+		{
+			std::stringstream ErrorStr;
+			ErrorStr << "Error initialising opengl: " << GetEnumString( Error );
+			throw Soy::AssertException( ErrorStr.str() );
+		}
+	}
+#endif
+
 	//	init version
 	auto* VersionString = reinterpret_cast<const char*>( glGetString( GL_VERSION ) );
 	Soy::Assert( VersionString!=nullptr, "Version string invalid. Context not valid? Not on opengl thread?" );
 	
-	mVersion = Opengl::TVersion( std::string( VersionString ) );
+	//	iphone says: "OpenGL ES 3.0 Apple A7 GPU - 53.13"
+	mVersion = Soy::TVersion( std::string( VersionString ), "OpenGL ES " );
+	
+	//	get shader version
+	//	they SHOULD align... but just in case http://stackoverflow.com/a/19022416/355753
+	auto* ShaderVersionString = reinterpret_cast<const char*>( glGetString( GL_SHADING_LANGUAGE_VERSION ) );
+	if ( ShaderVersionString )
+	{
+		std::string Preamble;
+#if defined(OPENGL_ES_2) || defined(OPENGL_ES_3)
+		Preamble = "OpenGL ES GLSL ES";
+#endif
+		mShaderVersion = Soy::TVersion( std::string(ShaderVersionString), Preamble );
+		std::Debug << "Set shader version " << mShaderVersion << " from " << std::string(ShaderVersionString) << std::endl;
+		
+		//	gr: on android, we cannot use external_OES and glsl3, force downgrade - make this an option somewhere
+		//	note4:	ES3.1 and GLSL 3.10	on samsung note4 allows external OES in shader
+		//			ES3.1 and GLSL 3.10 on samsung s6 does NOT allow external OES in shader
+		//	todo: make a quick test-shader, compile it NOW, and if it fails, fallback
+#if defined(TARGET_ANDROID)
+		//	gr: non-edge s6 didn't drop down versions, but not sure what shader version it is, so just forcing this
+		//	gr: s6 has 3.1, and this wasn't triggered??
+		//if ( mShaderVersion >= Soy::TVersion(3,0) )
+		{
+			Soy::TVersion NewVersion(1,00);
+			std::Debug << "Downgrading opengl shader version from " << mShaderVersion << " to " << NewVersion << " as 3.00 doesn't support GL_OES_EGL_image_external on some phones" << std::endl;
+			mShaderVersion = NewVersion;
+		}
+#endif
+	}
+	else
+	{
+#if defined(OPENGL_ES_2) || defined(OPENGL_ES_3)
+		Soy::TVersion NewVersion(1,00);
+#else
+		Soy::TVersion NewVersion(1,10);
+#endif
+		std::Debug << "Warning: GL_SHADING_LANGUAGE_VERSION missing, assuming shader version " << NewVersion << std::endl;
+		mShaderVersion = NewVersion;
+	}
+
 	
 	auto* DeviceString = reinterpret_cast<const char*>( glGetString( GL_VERSION ) );
 	Soy::Assert( DeviceString!=nullptr, "device string invalid. Context not valid? Not on opengl thread?" );
@@ -87,15 +143,40 @@ void Opengl::TContext::Init()
 }
 
 
+bool Opengl::TContext::IsLocked(std::thread::id Thread)
+{
+	//	check for any thread
+	if ( Thread == std::thread::id() )
+		return mLockedThread!=std::thread::id();
+	else
+		return mLockedThread == Thread;
+}
 
-bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName)
+bool Opengl::TContext::Lock()
+{
+	Soy::Assert( mLockedThread == std::thread::id(), "context already locked" );
+	
+	mLockedThread = std::this_thread::get_id();
+	return true;
+}
+
+void Opengl::TContext::Unlock()
+{
+	auto ThisThread = std::this_thread::get_id();
+	Soy::Assert( mLockedThread != std::thread::id(), "context not locked to wrong thread" );
+	Soy::Assert( mLockedThread == ThisThread, "context not unlocked from wrong thread" );
+	mLockedThread = std::thread::id();
+}
+
+
+bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName,ArrayBridge<std::string>& UnhandledExtensions)
 {
 	auto ExtensionType = OpenglExtensions::ToType( ExtensionName );
 	
 	//	not one we explicitly support
 	if ( ExtensionType == OpenglExtensions::Invalid )
 	{
-		std::Debug << "Unhandled/ignored extension: " << ExtensionName << std::endl;
+		UnhandledExtensions.PushBack( ExtensionName );
 		return true;
 	}
 	
@@ -106,13 +187,18 @@ bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,co
 	return true;
 }
 
+bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionName,ArrayBridge<std::string>&& UnhandledExtensions)
+{
+	return PushExtension( SupportedExtensions, ExtensionName, UnhandledExtensions );
+}
+
 //	pre-opengl 3 we have a string to parse
-void ParseExtensions(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionsList)
+void ParseExtensions(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,const std::string& ExtensionsList,ArrayBridge<std::string>&& UnhandledExtensions)
 {
 	//	pump split's into map
-	auto ParseExtension = [&SupportedExtensions](const std::string& ExtensionName)
+	auto ParseExtension = [&SupportedExtensions,&UnhandledExtensions](const std::string& ExtensionName)
 	{
-		return PushExtension( SupportedExtensions, ExtensionName );
+		return PushExtension( SupportedExtensions, ExtensionName, UnhandledExtensions );
 	};
 	
 	//	parse extensions string
@@ -148,51 +234,161 @@ void SetUnsupportedFunction(FUNCTION& Function,const char* Name,RETURN Return)
 	};
 }
 
+
+#if defined(TARGET_ANDROID)
+
+/*
+void SetFunction(void (* xxxx)())
+{
+	//FUNCTYPE* ff = (FUNCTYPE*)x;
+	//f = ff;
+}
+*/
+template<typename FUNCTYPE>
+void SetFunction(std::function<FUNCTYPE>& f,void (* xxxx)() )
+{
+	if ( !xxxx )
+		throw Soy::AssertException("Function not found");
+	
+	FUNCTYPE* ff = (FUNCTYPE*)xxxx;
+	f = ff;
+}
+
+#else
+template<typename FUNCTYPE>
+void SetFunction(std::function<FUNCTYPE>& f,void* x)
+{
+	if ( !x )
+		throw Soy::AssertException("Function not found");
+	
+	FUNCTYPE* ff = (FUNCTYPE*)x;
+	f = ff;
+}
+#endif
+
 void Opengl::TContext::BindVertexArrayObjectsExtension()
 {
-	//	implicitly supported in opengl 3 & 4 (ES and CORE)
-	bool ImplicitlySupported = (mVersion.mMajor >= 3);
+	auto Extension = OpenglExtensions::VertexArrayObjects;
 	
-	if ( ImplicitlySupported )
-	{
-		SupportedExtensions[OpenglExtensions::VertexArrayObjects] = true;
-		std::Debug << "Assumed implicit support for OpenglExtensions::VertexArrayObjects" << std::endl;
-
-		BindVertexArray = glBindVertexArray;
-		GenVertexArrays = glGenVertexArrays;
-		DeleteVertexArrays = glDeleteVertexArrays;
-		IsVertexArray = glIsVertexArray;
-		return;
-	}
-	
-	bool IsSupported = SupportedExtensions.find(OpenglExtensions::VertexArrayObjects) != SupportedExtensions.end();
+	bool IsSupported = SupportedExtensions.find(Extension) != SupportedExtensions.end();
+	bool ImplicitSupport = mVersion >= ImplicitExtensions[Extension];
 	
 	//	extension supported, set functions
 	if ( IsSupported )
 	{
-#if defined(TARGET_OSX)
-		BindVertexArray = glBindVertexArrayAPPLE;
-		GenVertexArrays = glGenVertexArraysAPPLE;
-		DeleteVertexArrays = glDeleteVertexArraysAPPLE;
-		IsVertexArray = glIsVertexArrayAPPLE;
-#else
-		IsSupported = false;
-#endif
+		try
+		{
+	#if defined(TARGET_OSX)
+			if ( ImplicitSupport )
+			{
+				BindVertexArray = glBindVertexArray;
+				GenVertexArrays = glGenVertexArrays;
+				DeleteVertexArrays = glDeleteVertexArrays;
+				IsVertexArray = glIsVertexArray;
+			}
+			else
+			{
+				BindVertexArray = glBindVertexArrayAPPLE;
+				GenVertexArrays = glGenVertexArraysAPPLE;
+				DeleteVertexArrays = glDeleteVertexArraysAPPLE;
+				IsVertexArray = glIsVertexArrayAPPLE;
+			}
+	#elif defined(TARGET_WINDOWS)
+			SetFunction( BindVertexArray, wglGetProcAddress("glBindVertexArray") );
+			SetFunction( GenVertexArrays, wglGetProcAddress("glGenVertexArrays") );
+			SetFunction( DeleteVertexArrays, wglGetProcAddress("glDeleteVertexArrays") );
+			SetFunction( IsVertexArray, wglGetProcAddress("glIsVertexArray") );
+	#elif defined(TARGET_ANDROID)
+			SetFunction( BindVertexArray, eglGetProcAddress("glBindVertexArrayOES") );
+			SetFunction( GenVertexArrays, eglGetProcAddress("glGenVertexArraysOES") );
+			SetFunction( DeleteVertexArrays, eglGetProcAddress("glDeleteVertexArraysOES") );
+			SetFunction( IsVertexArray, eglGetProcAddress("glIsVertexArrayOES") );
+	#elif defined(TARGET_IOS) && defined(OPENGL_ES_3)
+			BindVertexArray = glBindVertexArray;
+			GenVertexArrays = glGenVertexArrays;
+			DeleteVertexArrays = glDeleteVertexArrays;
+			IsVertexArray = glIsVertexArray;
+	#elif defined(TARGET_IOS) && defined(OPENGL_ES_2)
+			BindVertexArray = glBindVertexArrayOES;
+			GenVertexArrays = glGenVertexArraysOES;
+			DeleteVertexArrays = glDeleteVertexArraysOES;
+			IsVertexArray = glIsVertexArrayOES;
+	#else
+			throw Soy::AssertException("Support unknown on this platform");
+	#endif
+		}
+		catch ( std::exception& e )
+		{
+			std::Debug << "Error binding VOA functions, disabling support. " << e.what() << std::endl;
+			IsSupported = false;
+		}
 	}
 
 	//	not supported (or has been unset due to implementation)
 	if ( !IsSupported )
 	{
-		SupportedExtensions[OpenglExtensions::VertexArrayObjects] = false;
+		SupportedExtensions[Extension] = false;
 		//	gr: set error/throw function wrappers
 		SetUnsupportedFunction(BindVertexArray, "glBindVertexArray" );
 		SetUnsupportedFunction(GenVertexArrays, "GenVertexArrays" );
 		SetUnsupportedFunction(DeleteVertexArrays, "DeleteVertexArrays" );
 		SetUnsupportedFunction(IsVertexArray, "IsVertexArray", (GLboolean)false );
-		return;
 	}
 
 }
+
+
+void Opengl::TContext::BindVertexBuffersExtension()
+{
+	auto Extension = OpenglExtensions::DrawBuffers;
+	
+	//	does not exist on ES2, but dont need to replace it
+#if defined(TARGET_IOS) || defined(TARGET_ANDROID)
+	if ( mVersion.mMajor <= 2 )
+	{
+		DrawBuffers = [](GLsizei,const GLenum *){};
+		SupportedExtensions[Extension] = false;
+		return;
+	}
+#endif
+
+	//	explicitly supported without an extension
+	bool IsSupported = true;
+	SupportedExtensions[Extension] = IsSupported;
+	
+	//	extension supported, set functions
+	if ( IsSupported )
+	{
+		try
+		{
+#if defined(TARGET_OSX)
+			DrawBuffers = glDrawBuffersARB;
+#elif defined(TARGET_WINDOWS)
+			SetFunction( DrawBuffers, wglGetProcAddress("glDrawBuffers") );
+#elif defined(TARGET_ANDROID)
+			SetFunction( DrawBuffers, eglGetProcAddress("glDrawBuffers") );
+#elif defined(TARGET_IOS) && defined(OPENGL_ES_3)
+			DrawBuffers = glDrawBuffers;
+#else
+			throw Soy::AssertException("Support unknown on this platform");
+#endif
+		}
+		catch ( std::exception& e )
+		{
+			std::Debug << "Error binding " << Extension << " functions, disabling support. " << e.what() << std::endl;
+			IsSupported = false;
+		}
+	}
+	
+	//	not supported (or has been unset due to implementation)
+	if ( !IsSupported )
+	{
+		SupportedExtensions[Extension] = false;
+		SetUnsupportedFunction(DrawBuffers, "glDrawBuffers" );
+	}
+	
+}
+
 
 
 bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TContext* pContext)
@@ -204,15 +400,19 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		//	could do a version check, or just handle it nicely :)
 		//	debug full string in lldb;
 		//		set set target.max-string-summary-length 10000
+		Array<std::string> UnhandledExtensions;
+		
 		auto* pAllExtensions = glGetString( GL_EXTENSIONS );
 		if ( pAllExtensions )
 		{
 			std::string AllExtensions( reinterpret_cast<const char*>(pAllExtensions) );
-			ParseExtensions( SupportedExtensions, AllExtensions );
+			ParseExtensions( SupportedExtensions, AllExtensions, GetArrayBridge(UnhandledExtensions) );
 		}
 		else
 		{
 			Opengl_IsOkayFlush();
+			
+#if defined(OPENGL_ES3) || defined(OPENGL_CORE_3)
 			//	opengl 3 safe way
 			GLint ExtensionCount = -1;
 			glGetIntegerv( GL_NUM_EXTENSIONS, &ExtensionCount );
@@ -227,23 +427,65 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 				}
 				
 				std::string ExtensionName( reinterpret_cast<const char*>(pExtensionName) );
-				PushExtension( SupportedExtensions, ExtensionName );
+				PushExtension( SupportedExtensions, ExtensionName, GetArrayBridge(UnhandledExtensions) );
 			}
+#else
+			std::Debug << "Cannot determine opengl extensions" << std::endl;
+#endif
 		}
 
+		//	list other extensions (do this first to aid debugging)
+		std::stringstream UnhandledExtensionsStr;
+		UnhandledExtensionsStr << "Unhandled extensions(x" << UnhandledExtensions.GetSize() << ") ";
+		for ( int i=0;	i<UnhandledExtensions.GetSize();	i++ )
+			UnhandledExtensionsStr << UnhandledExtensions[i] << " ";
+		std::Debug << UnhandledExtensionsStr.str() << std::endl;
+
+		//	check explicitly supported extensions
+		auto& Impl = Opengl::ImplicitExtensions;
+		for ( auto it=Impl.begin();	it!=Impl.end();	it++ )
+		{
+			auto& Version = it->second;
+			auto& Extension = it->first;
+			if ( pContext->mVersion < Version )
+				continue;
+			
+			std::Debug << "Implicitly supporting " << Extension << " (>= version " << Version << ")" << std::endl;
+			SupportedExtensions[Extension] = true;
+		}
+		
+		//	setup extensions
 		pContext->BindVertexArrayObjectsExtension();
+		pContext->BindVertexBuffersExtension();
 		
 		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
 		SupportedExtensions[OpenglExtensions::Invalid] = false;
+		
 	}
 	
 	return SupportedExtensions[Extension];
 }
 
 
+void Opengl::TRenderTarget::SetViewportNormalised(Soy::Rectf Viewport)
+{
+	auto Rect = Soy::Rectf( GetSize() );
+
+	Rect.x -= Viewport.x * Rect.w;
+	Rect.y -= Viewport.y * Rect.h;
+	Rect.w /= Viewport.w;
+	Rect.h /= Viewport.h;
+	Rect.x /= Viewport.w;
+	Rect.y /= Viewport.h;
+	
+	Opengl::SetViewport( Rect );
+}
+
+
 Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context,Opengl::TTexture ExistingTexture) :
-	TRenderTarget	( Meta.mName ),
-	mTexture		( ExistingTexture )
+	TRenderTarget		( Meta.mName ),
+	mTexture			( ExistingTexture ),
+	mGenerateMipMaps	( true )
 {
 	auto CreateFbo = [this,Meta]()
 	{
@@ -252,7 +494,7 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Conte
 		//	create texture
 		if ( !mTexture.IsValid() )
 		{
-			SoyPixelsMetaFull TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
+			SoyPixelsMeta TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
 			mTexture = TTexture( TextureMeta, GL_TEXTURE_2D );
 			/*
 			 glGenTextures(1, &mTexture.mTexture.mName );
@@ -265,33 +507,29 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Conte
 			 */
 		}
 		
-		try
-		{
-			mFbo.reset( new TFbo( mTexture ) );
-		}
-		catch ( std::exception& e )
-		{
-			std::Debug << "Failed to create FBO: " << e.what() << std::endl;
-			mFbo.reset();
-		}
-		return true;
+		mFbo.reset( new TFbo( mTexture ) );
 	};
 	
 	std::Debug << "Deffering FBO rendertarget creation to " << ExistingTexture.mMeta << std::endl;
 	Context.PushJob( CreateFbo );
 }
 
+Opengl::TRenderTargetFbo::TRenderTargetFbo(Opengl::TTexture ExistingTexture) :
+	TRenderTargetFbo	( TFboMeta("Texture",ExistingTexture.GetWidth(),ExistingTexture.GetHeight()), ExistingTexture )
+{
+}
 
 Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture ExistingTexture) :
-	TRenderTarget	( Meta.mName ),
-	mTexture		( ExistingTexture )
+	TRenderTarget		( Meta.mName ),
+	mTexture			( ExistingTexture ),
+	mGenerateMipMaps	( true )
 {
 	Opengl_IsOkay();
 		
 	//	create texture
 	if ( !mTexture.IsValid() )
 	{
-		SoyPixelsMetaFull TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
+		SoyPixelsMeta TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
 		mTexture = TTexture( TextureMeta, GL_TEXTURE_2D );
 	}
 
@@ -319,6 +557,13 @@ void Opengl::TRenderTargetFbo::Unbind()
 		glFinish();
 	}
 	mFbo->Unbind();
+	
+	//	generate mipmaps after we've drawn to the image
+	if ( mGenerateMipMaps )
+		mFbo->mTarget.GenerateMipMaps();
+	
+	//	mark as written to
+	mFbo->mTarget.OnWrite();
 }
 
 Soy::Rectx<size_t> Opengl::TRenderTargetFbo::GetSize()
@@ -331,35 +576,4 @@ Opengl::TTexture Opengl::TRenderTargetFbo::GetTexture()
 	return mTexture;
 }
 
-
-
-Opengl::TSync::TSync() :
-	mSyncObject	( nullptr )
-{
-	mSyncObject = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
-	Opengl::IsOkay("glFenceSync");
-}
-
-void Opengl::TSync::Wait(const char* TimerName)
-{
-	if ( !glIsSync( mSyncObject ) )
-		return;
-
-	//glWaitSync( mSyncObject, 0, GL_TIMEOUT_IGNORED );
-	GLbitfield Flags = GL_SYNC_FLUSH_COMMANDS_BIT;
-	GLuint64 TimeoutMs = 1000;
-	GLuint64 TimeoutNs = TimeoutMs * 1000000;
-	GLenum Result = GL_INVALID_ENUM;
-	do
-	{
-		Result = glClientWaitSync( mSyncObject, Flags, TimeoutNs );
-	}
-	while ( Result == GL_TIMEOUT_EXPIRED );
-	
-	if ( Result == GL_WAIT_FAILED )
-		Opengl::IsOkay("glClientWaitSync GL_WAIT_FAILED");
-
-	glDeleteSync( mSyncObject );
-	mSyncObject = nullptr;
-}
 

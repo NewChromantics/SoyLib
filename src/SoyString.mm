@@ -4,6 +4,8 @@
 
 std::string Soy::NSStringToString(NSString* String)
 {
+	if ( !String )
+		return "<null>";
 	return std::string([String UTF8String]);
 }
 
@@ -12,4 +14,33 @@ NSString* Soy::StringToNSString(const std::string& String)
 	NSString* MacString = [NSString stringWithCString:String.c_str() encoding:[NSString defaultCStringEncoding]];
 	return MacString;
 }
+
+
+std::string Soy::NSErrorToString(NSError* Error)
+{
+	if ( !Error )
+		return "Error(null)";
+	
+	//	in case description is missing
+	try
+	{
+		auto* ErrorNs = [Error description];
+		return NSStringToString( ErrorNs );
+	}
+	catch ( ... )
+	{
+		return "Error(exception getting description)";
+	}
+}
+
+std::string Soy::NSErrorToString(NSException* Exception)
+{
+	if ( !Exception )
+		return "<No exception>";
+	
+	std::stringstream String;
+	String << Soy::NSStringToString( Exception.name ) << ": " << Soy::NSStringToString( Exception.reason );
+	return String.str();
+}
+
 

@@ -5,6 +5,14 @@
 #include "SoyString.h"
 #include "SoyEnum.h"
 #include "SoyPixels.h"
+#include "SoyUniform.h"
+
+namespace Opengl
+{
+	class TTexture;
+	class TContext;
+}
+
 
 
 #if defined(TARGET_WINDOWS)
@@ -61,10 +69,11 @@ namespace Opencl
 	class TSync;		//	cl_wait_event
 
 	class TJob;			//	execute a kernel, on a context
-	class TVersion;
 	
 	class TBuffer;
 	class TBufferImage;
+	template<typename TYPE>
+	class TBufferArray;
 
 	class TKernelState;	//	current binding to a kernel
 	class TKernelIteration;
@@ -84,30 +93,15 @@ namespace Soy
 	cl_float2	VectorToCl(const vec2f& v);
 	cl_float3	VectorToCl(const vec3f& v);
 	cl_float4	VectorToCl(const vec4f& v);
+
+	vec2f		ClToVector(const cl_float2& v);
+	vec4f		ClToVector(const cl_float4& v);
 }
 
+std::ostream& operator<<(std::ostream &out,const cl_float2& in);
+std::ostream& operator<<(std::ostream &out,const cl_float4& in);
 
 
-
-class Opencl::TVersion
-{
-public:
-	TVersion() :
-		mMajor	( 0 ),
-		mMinor	( 0 )
-	{
-	}
-	TVersion(size_t Major,size_t Minor) :
-		mMajor	( Major ),
-		mMinor	( Minor )
-	{
-	}
-	explicit TVersion(std::string VersionStr);
-	
-public:
-	size_t	mMajor;
-	size_t	mMinor;
-};
 
 class Opencl::TPlatform
 {
@@ -139,15 +133,17 @@ public:
 	size_t				GetMaxGlobalWorkGroupSize() const;
 
 public:
-	TVersion			mVersion;
+	Soy::TVersion		mVersion;
 	cl_device_id		mDevice;
 	std::string			mVendor;
 	std::string			mName;
 	std::string			mDriverVersion;
 	std::string			mDeviceVersion;
 	std::string			mProfile;
-	std::string			mExtensions;
+	Array<std::string>	mExtensions;
 	OpenclDevice::Type	mType;
+	bool				mHasOpenglInteroperability;
+	bool				mHasOpenglSyncSupport;
 	
 	cl_uint		maxComputeUnits;
 	cl_uint		maxWorkItemDimensions;
@@ -181,20 +177,25 @@ std::ostream& operator<<(std::ostream &out,const Opencl::TDeviceMeta& in);
 class Opencl::TDevice
 {
 public:
-	TDevice(const ArrayBridge<cl_device_id>& Devices);
-	TDevice(const ArrayBridge<TDeviceMeta>& Devices);
+	TDevice(const ArrayBridge<cl_device_id>& Devices,Opengl::TContext* OpenglContext=nullptr);
+	TDevice(const ArrayBridge<TDeviceMeta>& Devices,Opengl::TContext* OpenglContext=nullptr);
 	~TDevice();
 	
 	std::shared_ptr<TContext>		CreateContext();
 	std::shared_ptr<TContextThread>	CreateContextThread(const std::string& Name);
 	cl_context						GetClContext()		{	return mContext;	}
+	bool							HasInteroperability(Opengl::TContext& Opengl);
 	
 private:
-	void				CreateContext(const ArrayBridge<cl_device_id>& Devices);
+	void				CreateContext(const ArrayBridge<cl_device_id>& Devices,Opengl::TContext* OpenglContext);
 
 protected:
 	Array<TDeviceMeta>	mDevices;	//	devices attached to this context
 	cl_context			mContext;	//	binding to a device
+	
+#if defined(TARGET_OSX)
+	CGLContextObj		mSharedOpenglContext;
+#endif
 };
 
 
@@ -209,15 +210,27 @@ public:
 
 	virtual bool	Lock() override;
 	virtual void	Unlock() override;
-
+	virtual bool	IsLocked(std::thread::id Thread) override;
+	
 	const TDeviceMeta&	GetDevice() const	{	return mDeviceMeta;		}
 	cl_context			GetContext()		{	return mDevice.GetClContext();	}	//	get the opencl context
 	cl_command_queue	GetQueue() const	{	return mQueue;	}
 
+	bool				HasInteroperability(Opengl::TContext& Opengl)	{	return mDevice.HasInteroperability(Opengl);	}
+	
+	bool				operator==(const TContext& that) const
+	{
+		return mDevice.GetClContext() == that.mDevice.GetClContext();
+	}
+	bool				operator!=(const TContext& that) const	{	return !(*this == that);	}
+	
 protected:
 	TDevice&			mDevice;
 	TDeviceMeta			mDeviceMeta;	//	useful to cache to read vars
 	cl_command_queue	mQueue;
+	
+private:
+	std::thread::id		mLockedThread;	//	needed in the context as it gets locked in other places than the job queue
 };
 
 
@@ -251,6 +264,105 @@ public:
 
 
 
+
+class Opencl::TBuffer
+{
+protected:
+	TBuffer(const std::string& DebugName);
+	TBuffer(size_t Size,TContext& Context,const std::string& DebugName);
+public:
+	virtual ~TBuffer();
+	
+	cl_mem		GetMemBuffer() 	{	return mMem;	}
+	
+	template<typename TYPE>
+	void		Read(ArrayBridge<TYPE>& Array,TContext& Context,TSync* Sync)
+	{
+		//	construct a new array
+		auto* ArrayPtr = reinterpret_cast<uint8*>( Array.GetArray() );
+		size_t ByteCount = Array.GetDataSize();
+		auto Array8 = GetRemoteArray( ArrayPtr, ByteCount );
+		auto Array8Bridge = GetArrayBridge( Array8 );
+		ReadImpl( Array8Bridge, Context, Sync );
+	}
+	
+	template<typename TYPE>
+	void		Read(ArrayBridge<TYPE>&& Array,TContext& Context,TSync* Sync)
+	{
+		Read( Array, Context, Sync );
+	}
+	
+	template<typename TYPE>
+	void		Read(TYPE& Item,TContext& Context,TSync* Sync)
+	{
+		auto ItemArray = GetRemoteArray( &Item, 1 );
+		Read( GetArrayBridge( ItemArray ), Context, Sync );
+	}
+	
+	size_t		GetMaxSize() const	{	return mBufferSize;	}
+	
+protected:
+	void		ReadImpl(ArrayInterface<uint8>& Array,TContext& Context,TSync* Sync);
+	void		Write(const uint8* Array,size_t Size,TContext& Context,TSync* Sync);
+	
+protected:
+	size_t			mBufferSize;
+	cl_mem			mMem;
+	std::string		mDebugName;
+};
+
+
+template<typename TYPE>
+class Opencl::TBufferArray : public TBuffer
+{
+public:
+	TBufferArray(ArrayBridge<TYPE>&& Array,TContext& Context,const std::string& DebugName,TSync* Sync=nullptr) :
+		TBuffer			( Array.GetDataSize(), Context, DebugName ),
+		mElementSize	( 0 )
+	{
+		Write( reinterpret_cast<uint8*>( Array.GetArray() ), Array.GetDataSize(), Context, Sync );
+		mElementSize = Array.GetElementSize();
+	}
+	TBufferArray(ArrayBridge<TYPE>& Array,TContext& Context,const std::string& DebugName,TSync* Sync=nullptr) :
+		TBuffer			( Array.GetDataSize(), Context, DebugName ),
+		mElementSize	( 0 )
+	{
+		Write( reinterpret_cast<uint8*>( Array.GetArray() ), Array.GetDataSize(), Context, Sync );
+		mElementSize = Array.GetElementSize();
+	}
+	
+	size_t	GetSize() const	{	return mBufferSize / mElementSize;	}
+	
+private:
+	size_t	mElementSize;
+};
+
+
+
+class Opencl::TBufferImage : public TBuffer
+{
+public:
+	TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,const std::string& DebugName,Opencl::TSync* Semaphore=nullptr);
+	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,const std::string& DebugName,Opencl::TSync* Semaphore=nullptr);
+	TBufferImage(const Opengl::TTexture& Image,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,const std::string& DebugName,Opencl::TSync* Semaphore=nullptr);
+	~TBufferImage();
+	
+	TBufferImage&	operator=(TBufferImage&& Move);
+	
+	void		Write(const Opengl::TTexture& Image,Opencl::TSync* Semaphore);
+	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
+	void		Write(TBufferImage& Image,Opencl::TSync* Semaphore);
+	void		Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
+	void		Read(Opengl::TTexture& Image,Opencl::TSync* Semaphore);
+	void		Read(Opengl::TTextureAndContext& TextureAndContext,Opencl::TSync* Semaphore);
+	
+	SoyPixelsMeta	GetMeta() const			{	return mMeta;	}
+	
+private:
+	TContext&				mContext;
+	const Opengl::TTexture*	mOpenglObject;	//	pointer to reduce dependancy. If texture is deleted in the meantime results are undefined anyway. maybe make this safer sometime
+	SoyPixelsMeta			mMeta;
+};
 
 class Opencl::TKernelIteration
 {
@@ -300,22 +412,37 @@ public:
 
 
 
-class Opencl::TKernelState
+class Opencl::TKernelState : public Soy::TUniformContainer
 {
 	friend class TKernel;
 protected:
 	TKernelState(TKernel& Kernel);
 public:
-	~TKernelState();
+	virtual ~TKernelState();
 	
 	//	gr: not uniforms, but matching name of opengl
-	void			SetUniform(const char* Name,SoyPixelsImpl& Pixels);
-	void			SetUniform(const char* Name,cl_int Value);
-	void			SetUniform(const char* Name,vec2f Value);
+	//	gr: like opengl, these now throw on error, silent(return) if uniform doesn't exist
+	virtual bool	SetUniform(const char* Name,const float& v) override;
+	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
+	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
+	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v) override
+	{
+		return SetUniform( Name, v, OpenclBufferReadWrite::ReadWrite );
+	}
+	bool			SetUniform(const char* Name,const Opengl::TTextureAndContext& v,OpenclBufferReadWrite::Type ReadWriteMode);
+	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels,OpenclBufferReadWrite::Type ReadWriteMode);
+	bool			SetUniform(const char* Name,cl_int Value);
+	bool			SetUniform(const char* Name,TBuffer& Buffer);
 	
-	void			ReadUniform(const char* Name,SoyPixelsImpl& Pixels);	//	read back data from a buffer that was used as a uniform
-	
-	void			GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations);
+	//	throw on error, assuming wrong uniform is fatal
+	//	read back data from a buffer that was used as a uniform
+	void			ReadUniform(const char* Name,SoyPixelsImpl& Pixels);
+	void			ReadUniform(const char* Name,Opengl::TTextureAndContext& Texture);
+	template<typename TYPE>
+	void			ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead);
+	void			ReadUniform(const char* Name,TBuffer& Buffer);
+
+	void			GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<vec2x<size_t>>&& Iterations);
 
 	void			QueueIteration(const TKernelIteration& Iteration);
 	void			QueueIteration(const TKernelIteration& Iteration,TSync& Semaphore);
@@ -325,17 +452,22 @@ public:
 
 private:
 	void			QueueIterationImpl(const TKernelIteration& Iteration,TSync* Semaphore);
-	
+
+	//	get buffer for a uniform - only applies to temporary ones we created
+	TBuffer&		GetUniformBuffer(const char* Name);	//	throw if non-existant. assuming fatal if we're trying to read data from a uniform
+
 public:
 	TKernel&		mKernel;
 	
 private:
-	std::map<std::string,std::shared_ptr<TBuffer>>	mBuffers;	//	temporarily allocated buffers for uniforms
+	//	gr: changed to array because of map crashes... hopefully this will find out why
+	Array<std::pair<std::string,std::shared_ptr<TBuffer>>>	mBuffers;
+	//std::map<std::string,std::shared_ptr<TBuffer>>	mBuffers;	//	temporarily allocated buffers for uniforms
 };
 
 
 
-class Opencl::TUniform
+class Opencl::TUniform : public Soy::TUniform
 {
 public:
 	TUniform() :
@@ -343,9 +475,8 @@ public:
 	{
 	}
 	TUniform(const std::string& Name,const std::string& Type,cl_uint Index) :
-		mIndex		( Index ),
-		mName		( Name ),
-		mType		( Type )
+		Soy::TUniform	( Name, Type ),
+		mIndex			( Index )
 	{
 	}
 	
@@ -353,8 +484,6 @@ public:
 	bool		operator==(const std::string& Name) const	{	return mName == Name;	}
 	
 public:
-	std::string	mName;
-	std::string	mType;
 	cl_uint		mIndex;
 };
 std::ostream& operator<<(std::ostream &out,const Opencl::TUniform& in);
@@ -371,6 +500,8 @@ public:
 	TKernelState	Lock(TContext& Context);
 	void			Unlock();
 	TContext&		GetContext();
+	TUniform		GetUniform(const char* Name) const;
+	bool			HasUniform(const char* Name) const	{	return GetUniform(Name).IsValid();	}
 
 public:
 	std::string		mKernelName;		//	only for debug
@@ -408,36 +539,15 @@ public:
 
 
 
-
-
-
-class Opencl::TBuffer
+template<typename TYPE>
+inline void Opencl::TKernelState::ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead)
 {
-public:
-	TBuffer();
-	virtual ~TBuffer();
-	
-	cl_mem		GetMemBuffer()	{	return mMem;	}
-	
-protected:
-	cl_mem		mMem;
-};
-
-
-
-class Opencl::TBufferImage : public TBuffer
-{
-public:
-	TBufferImage(const SoyPixelsMetaFull& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
-	TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore=nullptr);
-	
-	void		Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
-	void		Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore);
-	
-private:
-	//	store meta like with Opengl::TTexture to stop bad writes/hardware lookups
-	TContext&	mContext;
-};
+	auto ArrayWrapper = GetRemoteArray( Data.GetArray(), ElementsToRead );
+	auto& Buffer = GetUniformBuffer(Name);
+	Opencl::TSync Semaphore;
+	Buffer.Read( GetArrayBridge(ArrayWrapper), GetContext(), &Semaphore );
+	Semaphore.Wait();
+}
 
 
 

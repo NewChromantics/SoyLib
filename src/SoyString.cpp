@@ -141,6 +141,12 @@ void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
 	Array.PushBackArray( CommandStrArray );
 }
 
+void Soy::StringToArray(std::string String,ArrayBridge<uint8>& Array)
+{
+	auto CommandStrArray = GetRemoteArray( reinterpret_cast<const uint8*>(String.c_str()), String.length() );
+	Array.PushBackArray( CommandStrArray );
+}
+
 void Soy::StringSplitByString(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& Delim,bool IncludeEmpty)
 {
 	auto PushBack = [&Parts,&Delim](const std::string& Part)
@@ -193,9 +199,17 @@ bool Soy::StringSplitByString(std::function<bool(const std::string&)> Callback,c
 
 void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
 {
-	auto PushBack = [&Parts](const std::string& Part)
+	auto PushBack = [&Parts](const std::string& Part,const char& Delim)
 	{
-		Parts.PushBack( Part );
+		if ( Parts.IsFull() )
+		{
+			Parts.GetBack() += Delim;
+			Parts.GetBack() += Part;
+		}
+		else
+		{
+			Parts.PushBack( Part );
+		}
 		return true;
 	};
 
@@ -203,7 +217,7 @@ void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string
 }
 
 //	gr: merge this and split by string and have a "match" function/policy
-bool Soy::StringSplitByMatches(std::function<bool(const std::string&)> Callback,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
+bool Soy::StringSplitByMatches(std::function<bool(const std::string&,const char&)> Callback,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
 {
 	//	gr; I think this is the only case where we erroneously return something
 	//		if removed, and we split "", then we get 1 empty case
@@ -212,25 +226,34 @@ bool Soy::StringSplitByMatches(std::function<bool(const std::string&)> Callback,
 	
 	//	gr: dumb approach as regexp is a little fiddly
 	std::stringstream Pending;
+	char LastDelim = '\0';
 	for ( int i=0;	i<=String.length();	i++ )
 	{
 		bool Eof = ( i >= String.length() );
 		
-		if ( !Eof && MatchingChars.find(String[i]) == MatchingChars.npos )
+		auto MatchIndex = MatchingChars.find(String[i]);
+		if ( !Eof && MatchIndex == MatchingChars.npos )
 		{
 			Pending << String[i];
 			continue;
 		}
+		
+		auto Delim = Eof ? '\0' : MatchingChars[MatchIndex];
 		
 		//	pop part
 		auto Part = Pending.str();
 		Pending.str( std::string() );
 		
 		if ( !IncludeEmpty && Part.empty() )
+		{
+			LastDelim = Delim;
 			continue;
+		}
 		
-		if ( !Callback( Part ) )
+		if ( !Callback( Part, LastDelim ) )
 			return false;
+		
+		LastDelim = Delim;
 	}
 	return true;
 }
@@ -251,7 +274,6 @@ std::string Soy::StreamToString(std::ostream& Stream)
 bool Soy::StringTrimLeft(std::string& String,char TrimChar)
 {
 	bool Changed = false;
-	std::Debug << __func__ << " (" << String <<"," << TrimChar << ")" << std::endl;
 	while ( !String.empty() )
 	{
 		if ( String[0] != TrimChar )
@@ -259,7 +281,20 @@ bool Soy::StringTrimLeft(std::string& String,char TrimChar)
 		String.erase( String.begin() );
 		Changed = true;
 	}
-	std::Debug << __func__ << " ... " << String << std::endl;
+	return Changed;
+}
+
+
+bool Soy::StringTrimLeft(std::string& String,const ArrayBridge<char>&& TrimChars)
+{
+	bool Changed = false;
+	while ( !String.empty() )
+	{
+		if ( !TrimChars.Find(String[0]) )
+			break;
+		String.erase( String.begin() );
+		Changed = true;
+	}
 	return Changed;
 }
 
@@ -383,4 +418,28 @@ bool Soy::StringReplace(ArrayBridge<std::string>&& str,const std::string& from,c
 {
 	return StringReplace(str,from,to);
 }
+
+
+bool Soy::StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool CaseSensitive)
+{
+	if ( !StringBeginsWith( Haystack, Prefix, CaseSensitive ) )
+		return false;
+	
+	Haystack.erase( Haystack.begin(), Haystack.begin() + Prefix.length() );
+	return true;
+}
+
+
+void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
+{
+	int Len = 0;
+	for ( Len=0;	Len<BufferSize-1;	Len++ )
+	{
+		if ( Source[Len] == '\0' )
+			break;
+		Buffer[Len] = Source[Len];
+	}
+	Buffer[Len] = '\0';
+}
+
 

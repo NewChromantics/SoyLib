@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <OutDir>bin\</OutDir>
+    <TargetName>$(ProjectName)_$(Configuration)</TargetName>
+    <ExecutablePath>D:\gstreamer-sdk\0.10\x86\bin;$(ExecutablePath)</ExecutablePath>
+    <IncludePath>$(SOY_PATH)/src;$(GSTREAMER_INCLUDE);$(AMDAPPSDKROOT)\include;$(KINECTSDK10_DIR)\inc;$(POP_PATH)/src;$(IncludePath)</IncludePath>
+    <ReferencePath>D:\gstreamer-sdk\0.10\x86\bin;$(VCInstallDir)atlmfc\lib;$(VCInstallDir)lib</ReferencePath>
+    <LibraryPath>$(GSTREAMER_LIB);$(AMDAPPSDKROOT)\lib\x86;$(KINECTSDK10_DIR)\lib\x86;$(LibraryPath)</LibraryPath>
+    <LinkIncremental>true</LinkIncremental>
+    <IntDir>$(Configuration)\$(MSBuildProjectName)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile />
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ProgramDatabaseFile>$(TargetDir)$(TargetName)_debugInfo.pdb</ProgramDatabaseFile>
+      <StackReserveSize>8388608</StackReserveSize>
+      <SubSystem>Console</SubSystem>
+      <LargeAddressAware>true</LargeAddressAware>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup />
+</Project>

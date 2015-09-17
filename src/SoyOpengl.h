@@ -3,10 +3,15 @@
 #include <SoyEvent.h>
 #include <SoyMath.h>
 #include <SoyPixels.h>
+#include "SoyUniform.h"
 
 
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
-	#define OPENGL_ES_3		//	need 3 for FBO's
+
+//	use latest SDK, but helps narrow down what might need supporting if we use ES2 headers
+#define OPENGL_ES_3
+//#define OPENGL_ES_2
+
 #elif defined(TARGET_OSX)
 	#define OPENGL_CORE_3	//	need 3 for VBA's
 #elif defined(TARGET_WINDOWS)
@@ -18,15 +23,8 @@
 #if defined(TARGET_ANDROID) && defined(OPENGL_ES_3)
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
-
-//	include EOS in header
-#define GL_GLEXT_PROTOTYPES
-#define glBindVertexArray	glBindVertexArrayOES
-#define glGenVertexArrays	glGenVertexArraysOES
-#include <GLES/glext.h>	//	need for EOS
-
+#include <GLES/glext.h>
 #endif
-
 
 #if defined(TARGET_ANDROID) && defined(OPENGL_ES_2)
 #include <GLES2/gl2.h>
@@ -67,18 +65,20 @@ namespace Opengl
 	class TFboMeta;
 	class TUniform;
 	class TAsset;
-	class GlProgram;
+	class TShader;
 	class TShaderState;
 	class TTexture;
 	class TTextureUploadParams;
 	class TFbo;
+	class TPbo;
 	class TGeoQuad;
 	class TShaderEosBlit;
 	class TGeometry;
 	class TGeometryVertex;
 	class TGeometryVertexElement;
 	class TContext;
-	
+	class TSync;
+
 	
 	// It probably isn't worth keeping these shared here, each user
 	// should just duplicate them.
@@ -103,38 +103,14 @@ namespace Opengl
 	extern const char * ReflectionMappedSkinned1VertexShaderSrc;
 	extern const char * ReflectionMappedFragmentShaderSrc;
 	
-	GlProgram	BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context);
 
+	#define Opengl_IsOkay()			Opengl::IsOkay(__func__)
+	//#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__)+ " flush", false )
+	#define Opengl_IsOkayFlush()	Opengl::FlushError( __func__ )
 
-	
-	struct VertexAttribs
-	{
-		std::vector<vec3f> position;
-		std::vector<vec3f> normal;
-		std::vector<vec3f> tangent;
-		std::vector<vec3f> binormal;
-		std::vector<vec4f> color;
-		std::vector<vec2f> uv0;
-		std::vector<vec2f> uv1;
-		//Array< Vector4i > jointIndices;
-		//Array< Vector4f > jointWeights;
-	};
-	
-	typedef unsigned short TriangleIndex;
-	//typedef unsigned int TriangleIndex;
-	
-	static const int MAX_GEOMETRY_VERTICES	= 1 << ( sizeof( TriangleIndex ) * 8 );
-	static const int MAX_GEOMETRY_INDICES	= 1024 * 1024 * 3;
-	
-	TGeometry BuildTesselatedQuad( const int horizontal, const int vertical );
-	TGeometry	CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const TGeometryVertex& Vertex,TContext& Context);
-
-#define Opengl_IsInitialised()	Opengl::IsInitialised(__func__,true)
-#define Opengl_IsOkay()			Opengl::IsOkay(__func__)
-#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__) + " flush", false )
-
-	bool	IsInitialised(const std::string& Context,bool ThrowException);	//	throws exception
-	bool	IsOkay(const std::string& Context,bool ThrowException=true);	//	throws exception
+	bool			IsOkay(const char* Context,bool ThrowException=true);
+	inline bool		IsOkay(const std::string& Context,bool ThrowException=true)	{	return IsOkay( Context.c_str(), ThrowException );	}
+	void			FlushError(const char* Context);
 	std::string		GetEnumString(GLenum Type);
 
 	GLenum	GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
@@ -145,11 +121,23 @@ namespace Opengl
 	//	helpers
 	void	ClearColour(Soy::TRgb Colour,float Alpha=1);
 	void	ClearDepth();
+	void	ClearStencil();
 	void	SetViewport(Soy::Rectf Viewport);
 };
 
 
+class Opengl::TTextureAndContext
+{
+public:
+	TTextureAndContext(TTexture& t,TContext& c) :
+		mTexture	( t ),
+		mContext	( c )
+	{
+	}
 
+	TTexture&	mTexture;
+	TContext&	mContext;
+};
 
 
 class Opengl::TFboMeta
@@ -169,21 +157,20 @@ public:
 
 
 
-class Opengl::TUniform
+class Opengl::TUniform : public Soy::TUniform
 {
 public:
 	TUniform(const std::string& Name=std::string()) :
-		mIndex		( GL_UNIFORM_INVALID ),
-		mType		( GL_ASSET_INVALID ),
-		mArraySize	( 0 ),
-		mName		( Name )
+		Soy::TUniform	( Name, std::string() ),
+		mIndex			( GL_UNIFORM_INVALID ),
+		mType			( GL_ASSET_INVALID ),
+		mArraySize		( 0 )
 	{
 	}
 	
 	bool		IsValid() const	{	return mIndex != GL_UNIFORM_INVALID;	}
 	bool		operator==(const std::string& Name) const	{	return mName == Name;	}
 	
-	std::string	mName;
 	GLenum		mType;
 	GLsizei		mArraySize;	//	for arrays of mType
 	GLint		mIndex;		//	attrib index
@@ -234,48 +221,92 @@ public:
 	GLuint	mName;
 };
 
-//	clever class which does the binding, auto texture mapping, and unbinding
-//	why? so we can use const GlPrograms and share them across threads
-class Opengl::TShaderState
+
+class Opengl::TSync
 {
 public:
-	TShaderState(const GlProgram& Shader);
+	TSync(bool Create=true);
+	explicit TSync(TSync&& Move)	{	*this = std::move(Move);	}
+	~TSync()						{	Delete();	}
+	
+	bool	IsValid() const			{	return mSyncObject != nullptr;	}
+	void	Delete();
+	void	Wait(const char* TimerName=nullptr);
+	
+	TSync& operator=(TSync&& Move)
+	{
+		if ( this != &Move )
+		{
+			//	delete existing sync
+			Delete();
+			
+			mSyncObject = Move.mSyncObject;
+			
+			//	stolen the resource
+			Move.mSyncObject = nullptr;
+		}
+		return *this;
+	}
+	
+public:
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+	GLsync				mSyncObject;
+#else
+	bool				mSyncObject;	//	dummy for cleaner code
+#endif
+};
+
+//	clever class which does the binding, auto texture mapping, and unbinding
+//	why? so we can use const TShaders and share them across threads
+class Opengl::TShaderState : public Soy::TUniformContainer
+{
+public:
+	TShaderState(const TShader& Shader);
 	~TShaderState();
 	
-	bool	IsValid() const;
-	void	SetUniform(const std::string& Name,const float& v);
-	void	SetUniform(const std::string& Name,const vec2f& v);
-	void	SetUniform(const std::string& Name,const vec4f& v);
-	void	SetUniform(const std::string& Name,const TTexture& Texture);	//	special case which tracks how many textures are bound
+	virtual bool	SetUniform(const char* Name,const float& v) override;
+	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
+	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
+	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& Texture);	//	special case which tracks how many textures are bound
+	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override	{	return SetUniform( Name, Texture.mTexture );	}
+	bool			SetUniform(const char* Name,const float3x3& v);
+
+	template<typename TYPE>
+	bool	SetUniform(const std::string& Name,const TYPE& v)
+	{
+		return SetUniform( Name.c_str(), v );
+	}
+									   
+
 	void	BindTexture(size_t TextureIndex,TTexture Texture);	//	use to unbind too
 	
 public:
-	const GlProgram&	mShader;
-	size_t				mTextureBindCount;
+	const TShader&	mShader;
+	size_t			mTextureBindCount;
 };
 
-class Opengl::GlProgram
+class Opengl::TShader
 {
 public:
-	bool			IsValid() const;
-	void			Destroy();
+	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context);
+	~TShader();
 	
 	TShaderState	Bind();	//	let this go out of scope to unbind
-	TUniform		GetUniform(const std::string& Name) const
+	TUniform		GetUniform(const char* Name) const
 	{
 		auto* Uniform = mUniforms.Find( Name );
 		return Uniform ? *Uniform : TUniform();
 	}
-	TUniform		GetAttribute(const std::string& Name) const
+	TUniform		GetAttribute(const char* Name) const
 	{
 		auto* Uniform = mAttributes.Find( Name );
 		return Uniform ? *Uniform : TUniform();
 	}
 
 public:
-	TAsset			program;
-	TAsset			vertexShader;
-	TAsset			fragmentShader;
+	TAsset			mProgram;
+	TAsset			mVertexShader;
+	TAsset			mFragmentShader;
 	
 	Array<TUniform>	mUniforms;
 	Array<TUniform>	mAttributes;
@@ -286,55 +317,23 @@ public:
 class Opengl::TGeometry
 {
 public:
-	TGeometry() :
-	vertexBuffer( GL_ASSET_INVALID ),
-	indexBuffer( GL_ASSET_INVALID ),
-	vertexArrayObject( GL_ASSET_INVALID ),
-	vertexCount( GL_ASSET_INVALID ),
-	indexCount( GL_ASSET_INVALID ),
-	mIndexType(GL_ASSET_INVALID)
-	{
-	}
-	/*
-	TGeometry( const VertexAttribs & attribs, const std::vector< TriangleIndex > & indices ) :
-	vertexBuffer( GL_ASSET_INVALID ),
-	indexBuffer( GL_ASSET_INVALID ),
-	vertexArrayObject( GL_ASSET_INVALID ),
-	vertexCount( GL_ASSET_INVALID ),
-	indexCount( GL_ASSET_INVALID )
-	{
-		Create( attribs, indices );
-	}
-	 */
-	
-	// Create the VAO and vertex and index buffers from arrays of data.
-//	void	Create( const VertexAttribs & attribs, const std::vector< TriangleIndex > & indices );
-//	void	Update( const VertexAttribs & attribs );
-	
-	// Assumes the correct program, uniforms, textures, etc, are all bound.
-	// Leaves the VAO bound for efficiency, be careful not to inadvertently
-	// modify any of the state.
-	// You need to manually bind and draw if you want to use GL_LINES / GL_POINTS / GL_TRISTRIPS,
-	// or only draw a subset of the indices.
-	void	Draw() const;
-	
-	// Free the buffers and VAO, assuming that they are strictly for this geometry.
-	// We could save some overhead by packing an entire model into a single buffer, but
-	// it would add more coupling to the structures.
-	// This is not in the destructor to allow objects of this class to be passed by value.
-	void	Free();
-	
+	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex);
+	~TGeometry();
+
+	void	Draw();
 	bool	IsValid() const;
+
+	void	Bind();
+	void	Unbind();
 	
 public:
-	TGeometryVertex	mVertexDescription;
-	GLuint		vertexArrayObject;
-	GLuint		vertexBuffer;
-	GLsizei		vertexCount;
-	
-	GLuint		indexBuffer;
-	GLsizei 	indexCount;
-	GLenum		mIndexType;		//	short/int etc data stored in index buffer
+	TGeometryVertex	mVertexDescription;	//	for attrib binding info
+	GLuint			mVertexArrayObject;
+	GLuint			mVertexBuffer;
+	GLsizei			mVertexCount;
+	GLuint			mIndexBuffer;
+	GLsizei			mIndexCount;
+	GLenum			mIndexType;		//	short/int etc data stored in index buffer
 };
 
 
@@ -345,7 +344,8 @@ public:
 		mStretch				( false ),
 		mAllowCpuConversion		( true ),
 		mAllowOpenglConversion	( true ),
-		mAllowClientStorage		( false )		//	currently unstable on texture release?
+		mAllowClientStorage		( false ),		//	currently unstable on texture release?
+		mGenerateMipMaps		( false )
 	{
 	};
 	
@@ -353,6 +353,7 @@ public:
 	bool	mAllowCpuConversion;
 	bool	mAllowOpenglConversion;
 	bool	mAllowClientStorage;
+	bool	mGenerateMipMaps;		//	should we generate mip maps afterwards
 };
 
 class Opengl::TTexture
@@ -364,12 +365,18 @@ public:
 		mType			( GL_TEXTURE_2D )
 	{
 	}
-	TTexture(TTexture&& Move)			{	*this = std::move(Move);	}
-	TTexture(const TTexture& Reference)	{	*this = Reference;	}
-	explicit TTexture(SoyPixelsMetaFull Meta,GLenum Type);	//	alloc
+	TTexture(TTexture&& Move)
+	{
+		*this = std::move(Move);
+	}
+	TTexture(const TTexture& Reference)
+	{
+		*this = Reference;
+	}
+	explicit TTexture(SoyPixelsMeta Meta,GLenum Type);	//	alloc
 	
 	//	reference from external
-	TTexture(void* TexturePtr,const SoyPixelsMetaFull& Meta,GLenum Type) :
+	TTexture(void* TexturePtr,const SoyPixelsMeta& Meta,GLenum Type) :
 	mMeta			( Meta ),
 	mType			( Type ),
 	mAutoRelease	( false ),
@@ -383,9 +390,10 @@ public:
 	mTexture		( static_cast<GLuint>(reinterpret_cast<intptr_t>(TexturePtr)) )
 #endif
 	{
+		Soy::Assert( IsValid(), "Not a valid opengl texture" );
 	}
 	
-	TTexture(GLuint TextureName,const SoyPixelsMetaFull& Meta,GLenum Type) :
+	TTexture(GLuint TextureName,const SoyPixelsMeta& Meta,GLenum Type) :
 		mMeta			( Meta ),
 		mType			( Type ),
 		mAutoRelease	( false ),
@@ -409,6 +417,7 @@ public:
 			mMeta = Weak.mMeta;
 			mType = Weak.mType;
 			mClientBuffer = Weak.mClientBuffer;
+			mWriteSync = Weak.mWriteSync;
 		}
 		return *this;
 	}
@@ -422,32 +431,41 @@ public:
 			mMeta = Move.mMeta;
 			mType = Move.mType;
 			mClientBuffer = Move.mClientBuffer;
+			mWriteSync = Move.mWriteSync;
 			
 			//	stolen the resource
 			Move.mAutoRelease = false;
+			Move.mWriteSync.reset();
 		}
 		return *this;
 	}
 
-	SoyPixelsMetaFull	GetInternalMeta() const;	//	read meta from opengl
+	SoyPixelsMeta		GetInternalMeta(GLenum& Type);	//	read meta from opengl
 
+	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 	size_t				GetWidth() const	{	return mMeta.GetWidth();	}
 	size_t				GetHeight() const	{	return mMeta.GetHeight();	}
 	SoyPixelsFormat::Type	GetFormat() const	{	return mMeta.GetFormat();	}
 
-	bool				Bind();
-	void				Unbind();
-	bool				IsValid() const;
+	bool				Bind() const;
+	void				Unbind() const;
+	bool				IsValid(bool InvasiveTest=true) const;	//	only use InvasiveTest on opengl threads
 	void				Delete();
-	void				Copy(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
-	void				Read(SoyPixelsImpl& Pixels);
+	void				Write(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
+	void				Read(SoyPixelsImpl& Pixels) const;
+	void				SetRepeat(bool Repeat=true);
+	void				SetClamped()				{	SetRepeat(false);	}
+	void				GenerateMipMaps();
+
+	void				OnWrite();
 	
 public:
-	bool						mAutoRelease;
+	bool				mAutoRelease;
 	std::shared_ptr<SoyPixelsImpl>	mClientBuffer;	//	for CPU-buffered textures, it's kept here. ownership should go with mAutoRelease, but shared_ptr maybe takes care of that?
-	TAsset						mTexture;
-	SoyPixelsMetaFull			mMeta;
-	GLenum						mType;		//	GL_TEXTURE_2D by default. gr: "type" may be the wrong nomenclature here
+	TAsset				mTexture;
+	SoyPixelsMeta		mMeta;
+	GLenum				mType;			//	GL_TEXTURE_2D by default. gr: "type" may be the wrong nomenclature here
+	std::shared_ptr<TSync>	mWriteSync;	//	a sync queued after a write so we can tell when a write has finished
 };
 
 class Opengl::TFbo
@@ -460,15 +478,41 @@ public:
 	bool		Bind();
 	void		Unbind();
 	void		InvalidateContent();
+	void		CheckStatus();
 	
-	void		Delete(Opengl::TContext& Context);	//	deffered delete
+	void		Delete(Opengl::TContext& Context,bool Blocking=false);	//	deffered delete
 	void		Delete();
 	
 	size_t		GetAlphaBits() const;
+	size_t		GetWidth() const	{	return mTarget.GetWidth();	}
+	size_t		GetHeight() const	{	return mTarget.GetHeight();	}
 	
+public:
 	TAsset		mFbo;
 	TTexture	mTarget;
 };
+
+
+class Opengl::TPbo
+{
+public:
+	TPbo(SoyPixelsMeta Meta);
+	~TPbo();
+	
+	void		Bind();
+	void		Unbind();
+	
+	void			ReadPixels();
+	const uint8*	LockBuffer();
+	void			UnlockBuffer();
+	size_t			GetDataSize();
+	
+public:
+	GLuint			mPbo;
+	SoyPixelsMeta	mMeta;
+};
+
+
 /*
 class Opengl::TGeoQuad
 {
@@ -492,7 +536,7 @@ public:
 	
 	bool		IsValid() const	{	return mProgram.IsValid();	}
 	
-	Opengl::GlProgram	mProgram;
+	Opengl::TShader	mProgram;
 };
 */
 

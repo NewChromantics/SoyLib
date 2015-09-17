@@ -5,6 +5,7 @@ typedef	unsigned char		uint8;
 typedef	signed short		int16;
 typedef	unsigned short		uint16;
 
+
 //	earlier as used by some TARGET_X specific smart pointers
 struct NonCopyable {
 	NonCopyable & operator=(const NonCopyable&) = delete;
@@ -13,7 +14,7 @@ struct NonCopyable {
 };
 
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(TARGET_WINDOWS)
 #define TARGET_WINDOWS
 #endif
 
@@ -45,7 +46,11 @@ struct NonCopyable {
 #endif
 
 
-
+//	forward declarations
+namespace Soy
+{
+	class TVersion;
+}
 
 //	array forward declaration
 template<typename TYPE>
@@ -286,4 +291,48 @@ namespace Soy
 	void		base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded);
 	void		base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded);
 };
+
+
+
+
+class Soy::TVersion
+{
+public:
+	TVersion() :
+		mMajor	( 0 ),
+		mMinor	( 0 )
+	{
+	}
+	TVersion(size_t Major,size_t Minor) :
+		mMajor	( Major ),
+		mMinor	( Minor )
+	{
+	}
+	explicit TVersion(std::string VersionStr,const std::string& Prefix="");
+	
+	//	gr: throw if the minor is going to overflow
+	size_t	GetHundred() const;
+	
+	bool	operator<(const TVersion& that) const	{	return GetHundred() < that.GetHundred();	}
+	bool	operator<=(const TVersion& that) const	{	return GetHundred() <= that.GetHundred();	}
+	bool	operator>(const TVersion& that) const	{	return GetHundred() > that.GetHundred();	}
+	bool	operator>=(const TVersion& that) const	{	return GetHundred() >= that.GetHundred();	}
+	bool	operator==(const TVersion& that) const	{	return GetHundred() == that.GetHundred();	}
+	bool	operator!=(const TVersion& that) const	{	return GetHundred() != that.GetHundred();	}
+	
+public:
+	size_t	mMajor;
+	size_t	mMinor;
+};
+
+namespace Soy
+{
+inline std::ostream& operator<<(std::ostream &out,const Soy::TVersion& in)
+{
+	out << in.mMajor << '.' << in.mMinor;
+	return out;
+}
+}
+
+
 

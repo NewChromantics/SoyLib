@@ -6,6 +6,9 @@
 #include "SoyThread.h"
 
 
+typedef struct _CGLContextObject       *CGLContextObj;
+
+
 namespace OpenglExtensions
 {
 	enum Type
@@ -13,6 +16,10 @@ namespace OpenglExtensions
 		Invalid,
 		AppleClientStorage,
 		VertexArrayObjects,
+		VertexBuffers,
+		DrawBuffers,
+		ImageExternal,
+		ImageExternalSS3,
 	};
 	
 	DECLARE_SOYENUM( OpenglExtensions );
@@ -22,10 +29,8 @@ namespace Opengl
 {
 	class TContext;			//	opengl context abstraction - contexts are not thread safe, but can share objects
 	class TRenderTarget;	//	PBO/FBO, but sometimes with additional stuff (buffer flip etc depending on source)
-	class TVersion;
 
 	class TRenderTargetFbo;
-	class TSync;			//	uses fences to sync
 	
 	
 	//	extension bindings
@@ -33,37 +38,10 @@ namespace Opengl
 	extern std::function<void(GLsizei,GLuint*)>			GenVertexArrays;
 	extern std::function<void(GLsizei,const GLuint*)>	DeleteVertexArrays;
 	extern std::function<GLboolean(GLuint)>				IsVertexArray;
-};
-
-
-class Opengl::TVersion
-{
-public:
-	TVersion() :
-		mMajor	( 0 ),
-		mMinor	( 0 )
-	{
-	}
-	TVersion(size_t Major,size_t Minor) :
-		mMajor	( Major ),
-		mMinor	( Minor )
-	{
-	}
-	explicit TVersion(std::string VersionStr);
 	
-public:
-	size_t	mMajor;
-	size_t	mMinor;
+	extern std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
 };
 
-namespace Opengl
-{
-	inline std::ostream& operator<<(std::ostream &out,const Opengl::TVersion& in)
-	{
-		out << in.mMajor << '.' << in.mMinor;
-		return out;
-	}
-}
 
 
 class Opengl::TContext : public PopWorker::TJobQueue, public PopWorker::TContext
@@ -74,18 +52,28 @@ public:
 
 	void			Init();
 	void			Iteration()			{	Flush(*this);	}
-	virtual bool	Lock() override		{	return true;	}
-	virtual void	Unlock() override	{	}
+	virtual bool	Lock() override;
+	virtual void	Unlock() override;
+	virtual bool	IsLocked(std::thread::id Thread) override;
 	virtual std::shared_ptr<Opengl::TContext>	CreateSharedContext()	{	return nullptr;	}
 
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
 	
 	void			BindVertexArrayObjectsExtension();
+	void			BindVertexBuffersExtension();
 
+#if defined(TARGET_OSX)
+	virtual CGLContextObj	GetPlatformContext()	{	return nullptr;	}
+#endif
+	
 public:
-	TVersion		mVersion;
+	Soy::TVersion	mVersion;
+	Soy::TVersion	mShaderVersion;	//	max version supported
 	std::string		mDeviceName;
+	
+private:
+	std::thread::id		mLockedThread;	//	needed in the context as it gets locked in other places than the job queue
 };
 
 
@@ -103,6 +91,8 @@ public:
 	virtual void				Unbind()=0;
 	virtual Soy::Rectx<size_t>	GetSize()=0;
 	
+	void			SetViewportNormalised(Soy::Rectf Viewport);
+	
 	std::string		mName;
 };
 
@@ -113,6 +103,7 @@ public:
 	//	provide context for non-immediate construction
 	TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context,Opengl::TTexture ExistingTexture=Opengl::TTexture());
 	TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture ExistingTexture=Opengl::TTexture());
+	explicit TRenderTargetFbo(Opengl::TTexture ExistingTexture);
 	~TRenderTargetFbo()
 	{
 		mFbo.reset();
@@ -123,17 +114,9 @@ public:
 	virtual Soy::Rectx<size_t>	GetSize();
 	TTexture					GetTexture();
 	
+public:
+	bool					mGenerateMipMaps;
 	std::shared_ptr<TFbo>	mFbo;
 	TTexture				mTexture;
 };
 
-class Opengl::TSync
-{
-public:
-	TSync();
-	
-	void	Wait(const char* TimerName=nullptr);
-	
-private:
-	GLsync				mSyncObject;
-};

@@ -8,17 +8,18 @@
 #include "SoyScope.h"
 #include "SoyString.h"
 
+
 #if !defined(TARGET_ANDROID)
 #define USE_HEAP_STRING
 #endif
 
 namespace std
 {
-	class DebugStream;
+	class DebugStreamThreadSafeWrapper;
 	
 	//	cross platform debug output stream
 	//	std::Debug << XXX << std::endl;
-	extern DebugStream	Debug;
+	extern DebugStreamThreadSafeWrapper	Debug;
 }
 
 
@@ -93,6 +94,78 @@ namespace std
 		DebugStreamBuf	mBuffer;
 	};
 
+	
+	
+	
+	
+	class DebugStreamThreadSafeWrapper
+	{
+	public:
+		explicit DebugStreamThreadSafeWrapper()
+		{
+		}
+		
+		DebugStream&	LockStream()
+		{
+			mStreamLock.lock();
+			return mStream;
+		}
+		void			UnlockStream(DebugStream& Stream)
+		{
+			Soy::Assert( &Stream == &mStream, "Wrong stream" );
+			mStreamLock.unlock();
+		}
+		
+		template<typename TYPE>
+		DebugStreamThreadSafeWrapper&	operator<<(const TYPE& x)
+		{
+			std::lock_guard<std::recursive_mutex> Lock(mStreamLock);
+			mStream << x;
+			return *this;
+		}
+
+		// function that takes a custom stream, and returns it
+		typedef DebugStreamThreadSafeWrapper& (*MyStreamManipulator)(DebugStreamThreadSafeWrapper&);
+		
+		// take in a function with the custom signature
+		DebugStreamThreadSafeWrapper& operator<<(MyStreamManipulator manip)
+		{
+			std::lock_guard<std::recursive_mutex> Lock(mStreamLock);
+			manip(*this);
+			return *this;
+		}
+		/*
+		static DebugStream& endl(DebugStream& Stream)
+		{
+			std::lock_guard<std::recursive_mutex> Lock(mStreamLock);
+			Stream.mStream << std::endl;
+			return Stream;
+		}
+		*/
+		// this is the type of std::cout
+		typedef std::basic_ostream<char, std::char_traits<char> > StreamType;
+		
+		// this is the function signature of std::endl
+		typedef StreamType& (*Fstd_endl)(StreamType&);
+		
+		// define an operator<< to take in std::endl
+		DebugStreamThreadSafeWrapper& operator<<(Fstd_endl manip)
+		{
+			// call the function, but we cannot return it's value
+			manip(mStream);
+			
+			return *this;
+		}
+		
+		SoyEvent<const std::string>&		GetOnFlushEvent()	{	return mStream.GetOnFlushEvent();	}
+		
+		//	toggle std output for this std debug stream
+		void			EnableStdOut(bool Enable)	{	mStream.EnableStdOut(Enable);	}
+		
+	private:
+		std::recursive_mutex	mStreamLock;
+		DebugStream				mStream;
+	};
 };
 
 
@@ -101,42 +174,48 @@ namespace std
 namespace Soy
 {
 	std::string	FormatSizeBytes(uint64 bytes);
-	
+	class TScopeTimer;
+	class TScopeTimerPrint;
+	class TScopeTimerStream;
+	class TScopeTimerFunc;
 }
+//	legacy typename
+typedef Soy::TScopeTimerPrint ofScopeTimerWarning;
 
-#define ENABLE_SCOPE_TIMER
 
 
-#if defined(ENABLE_SCOPE_TIMER)
-class ofScopeTimerWarning
+class Soy::TScopeTimer
 {
 public:
-	ofScopeTimerWarning(const char* Name,uint64 WarningTimeMs,bool AutoStart=true,std::ostream& Output=std::Debug) :
-		mName				( "" ),
+	TScopeTimer(const char* Name,uint64 WarningTimeMs,std::function<void(SoyTime)> ReportFunc,bool AutoStart) :
 		mWarningTimeMs		( WarningTimeMs ),
 		mStopped			( true ),
 		mReportedOnLastStop	( false ),
 		mAccumulatedTime	( 0 ),
-		mOutputStream		( Output )
+		mReportFunc			( ReportFunc )
 	{
+		//	visual studio 2013 won't let me user initialiser
+		mName[0] = '\0';
+		
 		Soy::StringToBuffer( Name, mName );
 		if ( AutoStart )
 			Start( true );
 	}
-	~ofScopeTimerWarning()
+	~TScopeTimer()
 	{
 		if ( mStopped && !mReportedOnLastStop )
 			Report();
 		else
 			Stop();
 	}
-	//	returns if a report was output
-	bool				Stop(bool DoReport=true)
+	
+	//	returns accumulated time since last stop
+	SoyTime				Stop(bool DoReport=true)
 	{
 		if ( mStopped )
 		{
 			mReportedOnLastStop = false;
-			return false;
+			return SoyTime();
 		}
 
 		SoyTime Now(true);
@@ -149,13 +228,16 @@ public:
 			DidReport = Report();
 		
 		mStopped = true;
-		return DidReport;
+		return SoyTime( Delta );
 	}
 	bool				Report(bool Force=false)
 	{
 		if ( mAccumulatedTime >= mWarningTimeMs || Force )
 		{
-			mOutputStream << mName << " took " << mAccumulatedTime << "ms to execute" << std::endl;
+			if ( mReportFunc )
+				mReportFunc( SoyTime(mAccumulatedTime) );
+			//else
+			//	std::Debug << mName << " took " << mAccumulatedTime << "ms to execute" << std::endl;
 			return true;
 		}
 		return false;
@@ -172,36 +254,52 @@ public:
 		mStartTime = Now;
 		mStopped = false;
 	}
-
+	
+protected:
+	std::function<void(SoyTime)>	mReportFunc;
 	SoyTime				mStartTime;
 	uint64				mWarningTimeMs;
 	char				mName[100];
 	bool				mStopped;
 	bool				mReportedOnLastStop;
 	uint64				mAccumulatedTime;
-	std::ostream&		mOutputStream;
 };
-#else
-class ofScopeTimerWarning
+
+
+class Soy::TScopeTimerPrint : public TScopeTimer
 {
 public:
-	ofScopeTimerWarning(const char* Name,uint64 WarningTimeMs,bool AutoStart=true,std::ostream& Output=std::Debug)
+	TScopeTimerPrint(const char* Name,uint64 WarningTimeMs,bool AutoStart=true) :
+		TScopeTimer		( Name, WarningTimeMs, std::bind( &TScopeTimerPrint::ReportStr, this, std::placeholders::_1 ), AutoStart )
 	{
 	}
 
-	bool				Stop(bool DoReport=true)
+protected:
+	void		ReportStr(SoyTime Time)
 	{
-		return false;
+		std::Debug << mName << " took " << Time.mTime << "ms to execute" << std::endl;
 	}
-	bool				Report(bool Force=false)
+
+protected:
+};
+
+
+class Soy::TScopeTimerStream : public TScopeTimer
+{
+public:
+	TScopeTimerStream(const char* Name,uint64 WarningTimeMs,bool AutoStart,std::ostream& Output) :
+		TScopeTimer		( Name, WarningTimeMs, std::bind( &TScopeTimerStream::ReportStr, this, std::placeholders::_1 ), AutoStart ),
+		mOutputStream	( Output )
 	{
-		return false;
 	}
 	
-	void				Start(bool Reset=false)
+protected:
+	void		ReportStr(SoyTime Time)
 	{
+		mOutputStream << mName << " took " << Time.mTime << "ms to execute" << std::endl;
 	}
+	
+protected:
+	std::ostream&		mOutputStream;
 };
-#endif
-
 

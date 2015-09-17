@@ -11,8 +11,10 @@
 namespace Soy
 {
 	class TSemaphore;
+	class Mutex_Profiled;
 }
 
+//	gr: big flaw with this class... if you create, then wait. It'll never complete. Need an "assigned" flag
 class Soy::TSemaphore
 {
 public:
@@ -24,10 +26,18 @@ public:
 	void		Wait(const char* TimerName=nullptr);
 	void		OnCompleted();
 	
+	//	if whatever we're waiting for had an error, we re-throw the message in Wait() as a Soy::AssertException
+	void		OnFailed(const char* ThrownError)
+	{
+		mThrownError = ThrownError ? ThrownError : "Failed with unspecified error";
+		OnCompleted();
+	}
+	
 private:
 	std::mutex				mLock;
 	std::condition_variable	mConditional;
 	volatile bool			mCompleted;
+	std::string				mThrownError;
 };
 
 
@@ -51,14 +61,10 @@ public:
 	mSemaphore	( nullptr )
 	{
 	}
+
+	virtual void			Run()=0;		//	throws on error, otherwise assuming success
 	
-	//	returns "im finished"
-	//	return false to stop any more tasks being run and re-insert this in the queue
-	virtual bool		Run(std::ostream& Error)=0;
-	
-	//	todo: event, or sempahore? or OS semaphore?
 	Soy::TSemaphore*		mSemaphore;
-	//SoyEvent<bool>		mOnFinished;
 };
 
 
@@ -66,17 +72,17 @@ public:
 class PopWorker::TJob_Function : public TJob
 {
 public:
-	TJob_Function(std::function<bool ()> Function) :
+	TJob_Function(std::function<void()> Function) :
 	mFunction	( Function )
 	{
 	}
 	
-	virtual bool		Run(std::ostream& Error)
+	virtual void		Run() override
 	{
 		return mFunction();
 	}
 	
-	std::function<bool ()>	mFunction;
+	std::function<void()>	mFunction;
 };
 
 
@@ -91,24 +97,29 @@ public:
 class PopWorker::TJobQueue
 {
 public:
+	virtual bool	IsLocked(std::thread::id Thread)		{	return false;	}	//	is this THREAD exclusively locked
+	bool			IsLockedToAnyThread()					{	return IsLocked( std::thread::id() );	}
+
 	void			Flush(TContext& Context);
 	bool			HasJobs() const			{	return !mJobs.empty();	}
-	void			PushJob(std::function<bool(void)> Lambda);
-	void			PushJob(std::function<bool(void)> Lambda,Soy::TSemaphore& Semaphore);
+	void			PushJob(std::function<void()> Lambda);
+	void			PushJob(std::function<void()> Lambda,Soy::TSemaphore& Semaphore);
 	void			PushJob(std::shared_ptr<TJob>& Job)									{	PushJobImpl( Job, nullptr );	}
 	void			PushJob(std::shared_ptr<TJob>& Job,Soy::TSemaphore& Semaphore)		{	PushJobImpl( Job, &Semaphore );	}
 	
 protected:
 	virtual void	PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore);
 	
+private:
+	void			RunJob(std::shared_ptr<TJob>& Job);
+
 public:
 	SoyEvent<std::shared_ptr<TJob>>		mOnJobPushed;
 	
 private:
-	std::vector<std::shared_ptr<TJob>>	mJobs;		//	gr: change this to a nice soy ringbuffer
-	std::recursive_mutex				mLock;
+	std::vector<std::shared_ptr<TJob>>	mJobs;			//	gr: change this to a nice soy ringbuffer
+	std::recursive_mutex				mJobLock;
 };
-
 
 
 
@@ -459,11 +470,13 @@ public:
 		SoyWorker::mOnStart.AddListener( *this, &SoyWorkerThread::OnStart );
 	}
 	
-	virtual void		Start() override;
+	virtual void		Start() override		{	Start( true );	}
+	void				Start(bool ThrowIfAlreadyStarted);
 	void				WaitToFinish();
 	std::thread::id		GetThreadId() const		{	return mThread.get_id();	}
 	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return mThread.native_handle();	}
 	bool				IsCurrentThread() const	{	return GetThreadId() == std::this_thread::get_id();	}
+	const std::string&	GetThreadName() const	{	return mThreadName;	}
 
 protected:
 	bool				HasThread() const		{	return mThread.get_id() != std::thread::id();	}
@@ -686,4 +699,47 @@ inline bool TLockQueue<TYPE>::Push(const TYPE& Job)
 	mOnQueueAdded.OnTriggered(JobCount);
 	return true;
 }
+
+
+class Soy::Mutex_Profiled
+{
+public:
+	bool			try_lock()
+	{
+		return mMutex.try_lock();
+	}
+
+	void			lock(const std::string& LockName/*="<Unnamed>"*/,ssize_t WarningMs=-1)
+	{
+		static size_t DefaultMs = 5;
+		if ( WarningMs < 0 )
+			WarningMs = DefaultMs;
+		
+		//	measure how long we wait to acquire lock
+		SoyTime LockTime(true);
+
+		//	immediate uncontested lock
+		if ( mMutex.try_lock() )
+			return;
+		
+		mMutex.lock();
+		
+		//	got lock
+		//	gr: this is optimised away
+		SoyTime AcquireTime(true);
+		auto AcquireMs = AcquireTime.GetTime() - LockTime.GetTime();
+		//if ( AcquireMs >= WarningMs )
+		{
+			std::Debug << "Contested lock " << LockName << " took " << AcquireMs << "ms to acquire" << std::endl;
+		}
+	}
+	
+	void			unlock()
+	{
+		mMutex.unlock();
+	}
+	
+	
+	std::mutex		mMutex;
+};
 

@@ -33,9 +33,11 @@ public:
 	}
 	
 	//	need an explicit = operator for self-type
+	//	gr: should this explicitly copy the ptr? look out for a case that needs it
 	void operator = (const FixedRemoteArray& v)
 	{
-		Copy(v);
+		mData = v.mData;
+		mDataSize = v.mDataSize;
 	}
 	
 	template<class ARRAYTYPE>

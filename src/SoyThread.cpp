@@ -18,7 +18,11 @@ void Soy::TSemaphore::OnCompleted()
 void Soy::TSemaphore::Wait(const char* TimerName)
 {
 	if ( mCompleted )
+	{
+		if ( !mThrownError.empty() )
+			throw Soy::AssertException( mThrownError );
 		return;
+	}
 	
 	std::unique_lock<std::mutex> Lock( mLock );
 	
@@ -46,6 +50,9 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 	
 	if ( !mCompleted )
 		throw Soy::AssertException("Broke out of semaphore");
+
+	if ( !mThrownError.empty() )
+		throw Soy::AssertException( mThrownError );
 }
 
 
@@ -59,12 +66,12 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 	
 	bool FlushError = true;
 	
-	ofScopeTimerWarning LockTimer("Waiting for job lock",4,false);
+	ofScopeTimerWarning LockTimer("Waiting for job lock",5,false);
 	while ( true )
 	{
-		LockTimer.Start();
+		LockTimer.Start(true);
 		//	pop task
-		mLock.lock();
+		mJobLock.lock();
 		std::shared_ptr<TJob> Job;
 		auto NextJob = mJobs.begin();
 		if ( NextJob != mJobs.end() )
@@ -73,8 +80,10 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 			mJobs.erase( NextJob );
 		}
 		//bool MoreJobs = !mJobs.empty();
-		mLock.unlock();
-		LockTimer.Stop();
+		mJobLock.unlock();
+		LockTimer.Stop(false);
+		if ( LockTimer.Report() )
+			std::Debug << "Job queue has " << mJobs.size() << std::endl;
 		
 		if ( !Job )
 			break;
@@ -82,9 +91,9 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 		//	lock the context
 		if ( !Context.Lock() )
 		{
-			mLock.lock();
+			mJobLock.lock();
 			mJobs.insert( mJobs.begin(), Job );
-			mLock.unlock();
+			mJobLock.unlock();
 			break;
 		}
 		
@@ -95,39 +104,41 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 			FlushError = false;
 		}
 		
+		//	gr: will this work after a throw?
 		auto ContextLock = SoyScope( nullptr, AutoUnlockContext );
-		
-		//	execute task, if it returns false, we don't run any more this time and re-insert
-		//	gr: remove this and make the jobs more dumb. Throw exceptions on error, caller can re-insert jobs as neccessary
-		try
-		{
-			if (!Job->Run(std::Debug))
-			{
-				mLock.lock();
-				mJobs.insert(mJobs.begin(), Job);
-				mLock.unlock();
-				break;
-			}
-		}
-		catch (std::exception& e)
-		{
-			std::Debug << "Error executing job " << e.what() << std::endl;
-		}
+
+		RunJob( Job );
+	}
+}
+
+
+void PopWorker::TJobQueue::RunJob(std::shared_ptr<TJob>& Job)
+{
+	try
+	{
+		Job->Run();
 		
 		//	mark job as finished
 		if ( Job->mSemaphore )
 			Job->mSemaphore->OnCompleted();
 	}
+	catch (std::exception& e)
+	{
+		if ( Job->mSemaphore )
+			Job->mSemaphore->OnFailed( e.what() );
+		else
+			std::Debug << "Exception executing job " << e.what() << " (no semaphore)" << std::endl;
+	}
 }
 
 
-void PopWorker::TJobQueue::PushJob(std::function<bool ()> Function)
+void PopWorker::TJobQueue::PushJob(std::function<void()> Function)
 {
 	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
 	PushJobImpl( Job, nullptr );
 }
 
-void PopWorker::TJobQueue::PushJob(std::function<bool ()> Function,Soy::TSemaphore& Semaphore)
+void PopWorker::TJobQueue::PushJob(std::function<void()> Function,Soy::TSemaphore& Semaphore)
 {
 	std::shared_ptr<TJob> Job( new TJob_Function( Function ) );
 	PushJobImpl( Job, &Semaphore );
@@ -139,9 +150,21 @@ void PopWorker::TJobQueue::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphor
 	
 	Job->mSemaphore = Semaphore;
 	
-	mLock.lock();
+	//	try and avoid inception deadlocks
+	bool WillWait = (Semaphore!=nullptr);	//	assumption
+	auto ThisThreadId = std::this_thread::get_id();
+	if ( IsLocked(ThisThreadId) && WillWait )
+	{
+		//	execute immediately, assume any throws will be caught by the queue flush...
+		std::Debug << "Warning: caught job inception, executing immediately to avoid deadlock" << std::endl;
+	
+		RunJob( Job );
+		return;
+	}
+	
+	mJobLock.lock();
 	mJobs.push_back( Job );
-	mLock.unlock();
+	mJobLock.unlock();
 	
 	mOnJobPushed.OnTriggered( Job );
 }
@@ -249,7 +272,7 @@ void SoyThread::SetThreadName(std::string name,std::thread::native_handle_type T
 	int Result = pthread_setname_np( name.c_str() );
 	if ( Result != 0 )
 	{
-		std::Debug << "Failed to set thread name to " << name << ": " << Result << std::endl;
+		std::Debug << "Failed to set thread name to " << name << ": " << Soy::Platform::GetLastErrorString() << std::endl;
 	}
 #endif
 	
@@ -408,9 +431,11 @@ void SoyWorker::Loop()
 }
 
 
-void SoyWorkerThread::Start()
+void SoyWorkerThread::Start(bool ThrowIfAlreadyStarted)
 {
 	//	already have a thread
+	if ( !ThrowIfAlreadyStarted && HasThread() )
+		return;
 	if ( !Soy::Assert( !HasThread(), "Thread already created" ) )
 		return;
 	

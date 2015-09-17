@@ -79,6 +79,12 @@
     <ClCompile Include="..\src\SoyShader.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\SoyCuda.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\SoyDirectx.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\SoyThread.h">
@@ -181,6 +187,12 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\SoyShader.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyCuda.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyDirectx.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

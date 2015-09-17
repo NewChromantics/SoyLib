@@ -491,7 +491,10 @@ bool Soy::StringToFile(std::string Filename,std::string String)
 
 bool Soy::FileToString(std::string Filename,std::string& String)
 {
-	return FileToString( Filename, String, std::Debug );
+	auto& Stream = std::Debug.LockStream();
+	auto Result = FileToString( Filename, String, Stream );
+	std::Debug.UnlockStream( Stream );
+	return Result;
 }
 
 bool Soy::FileToString(std::string Filename,std::string& String,std::ostream& Error)
@@ -575,5 +578,41 @@ std::string Soy::DemangleTypeName(const char* name)
 
 
 
+Soy::TVersion::TVersion(std::string VersionStr,const std::string& Prefix) :
+	mMajor	( 0 ),
+	mMinor	( 0 )
+{
+	//	strip off prefix's
+	if ( Soy::StringBeginsWith(VersionStr,Prefix, false ) )
+		VersionStr.erase(0, Prefix.length() );
+	
+	int PartCounter = 0;
+	auto PushVersions = [&PartCounter,this](const std::string& PartStr,const char& Delim)
+	{
+		//	got all we need
+		if ( PartCounter >= 2 )
+			return false;
+		
+		auto& PartInt = (PartCounter==0) ? mMajor : mMinor;
+		Soy::StringToType( PartInt, PartStr );
+		
+		PartCounter++;
+		return true;
+	};
+	
+	Soy::StringSplitByMatches( PushVersions, VersionStr, " .", false );
+}
 
+
+size_t Soy::TVersion::GetHundred() const
+{
+	//	gr: throw if the minor is going to overflow
+	if ( mMinor >= 100 )
+	{
+		std::stringstream Error;
+		Error << "Cannot convert version " << mMajor << "." << mMinor << " to hundreds";
+		throw Error.str();
+	}
+	return (mMajor * 100) + mMinor;
+}
 

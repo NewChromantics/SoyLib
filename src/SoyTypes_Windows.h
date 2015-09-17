@@ -1,6 +1,18 @@
 #pragma once
 
 
+#if defined(TARGET_POSIX)
+#define Windows is NOT POSIX!
+#endif
+
+//	some c++11 anomlies so highlight them and maybe one day we can remove them
+//	currently need VS2013 for windows 7
+//	http://stackoverflow.com/questions/70013/how-to-detect-if-im-compiling-code-with-visual-studio-2008
+#if defined(_MSC_VER) && _MSC_VER<=1800
+#define OLD_VISUAL_STUDIO
+#endif
+
+
 //	see ofConstants
 #define WIN32_LEAN_AND_MEAN
 

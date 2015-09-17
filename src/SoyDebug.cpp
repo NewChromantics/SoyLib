@@ -20,7 +20,7 @@ namespace Soy
 };
 
 
-std::DebugStream	std::Debug;
+std::DebugStreamThreadSafeWrapper	std::Debug;
 
 //	gr: although cout is threadsafe, it doesnt synchornise the output
 std::mutex			CoutLock;
@@ -77,7 +77,7 @@ __thread std::DebugBufferString* ThreadBuffer = nullptr;	//	thread_local not sup
 #if defined(TARGET_ANDROID)
 void Soy::Platform::DebugPrint(const std::string& Message)
 {
-	__android_log_print( ANDROID_LOG_INFO, Soy::DebugContext.c_str(), "pop: %s\n", Message.c_str() );
+	__android_log_print( ANDROID_LOG_INFO, Soy::DebugContext.c_str(), "pop: %s", Message.c_str() );
 }
 #endif
 
@@ -233,10 +233,10 @@ bool Soy::Platform::IsDebuggerAttached()
 bool Soy::Platform::DebugBreak()
 {
 #if defined(TARGET_OSX)
+	static bool DoBreak = true;
 	//	gr: supposedly this works, if you enable it in the scheme, but I don't know where it's declared
 	//Debugger();
-	static bool AssemblerBreak = true;
-	if ( AssemblerBreak )
+	if (DoBreak)
 	{
 		__asm__("int $3");
 	}
@@ -247,7 +247,11 @@ bool Soy::Platform::DebugBreak()
 #endif
 
 #if defined(TARGET_WINDOWS)
-	::DebugBreak();
+	static bool DoBreak = true;
+	if (DoBreak)
+	{
+		::DebugBreak();
+	}
 	return true;
 #endif
 

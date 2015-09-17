@@ -23,6 +23,7 @@ namespace Soy
 	class Rectx;
 };
 
+struct CGAffineTransform;
 
 
 
@@ -189,8 +190,11 @@ public:
 	vec4x4(TYPE a,TYPE b,TYPE c,TYPE d,
 		   TYPE e,TYPE f,TYPE g,TYPE h,
 		   TYPE i,TYPE j,TYPE k,TYPE l,
-		   TYPE m,TYPE n,TYPE o,TYPE p) :
+		   TYPE m,TYPE n,TYPE o,TYPE p)
+#if !defined(OLD_VISUAL_STUDIO)
+		   :
 		rows	{	vec4x<TYPE>(a,b,c,d), vec4x<TYPE>(e,f,g,h), vec4x<TYPE>(i,j,k,l), vec4x<TYPE>(m,n,o,p)	}
+#endif
 	{
 	}
 
@@ -227,6 +231,59 @@ public:
 	vec4x<TYPE>	rows[4];
 };
 
+
+template<typename TYPE>
+class vec3x3
+{
+public:
+	vec3x3() :
+		m	{	1,0,0,	0,1,0,	0,0,1	}
+	{
+	}
+	vec3x3(TYPE a,TYPE b,TYPE c,
+		   TYPE d,TYPE e,TYPE f,
+		   TYPE g,TYPE h,TYPE i)
+#if !defined(OLD_VISUAL_STUDIO)
+	:
+	m	{	a,b,c,d,e,f,g,h,i	}
+#endif
+	{
+		#if defined(OLD_VISUAL_STUDIO)
+		m[0] = a;
+		m[1] = b;
+		m[2] = c;
+		m[3] = d;
+		m[4] = e;
+		m[5] = f;
+		m[6] = g;
+		m[7] = h;
+		m[8] = i;
+#endif
+	}
+	
+	vec3x<TYPE>	GetRow(size_t r) const
+	{
+		return vec3x<TYPE>( m[(r*3)+0], m[(r*3)+1], m[(r*3)+2] );
+	}
+	
+	const TYPE&	operator()(size_t c,size_t r) const
+	{
+		return m[(r*3)+c];
+	}
+	
+	TYPE&	operator()(size_t c,size_t r)
+	{
+		return m[(r*3)+c];
+	}
+	
+	const TYPE&	operator[](size_t i) const
+	{
+		return m[i];
+	}
+	
+public:
+	TYPE	m[3*3];
+};
 
 template<typename TYPE>
 class Soy::Rectx
@@ -274,6 +331,7 @@ typedef vec2x<float> vec2f;
 typedef vec3x<float> vec3f;
 typedef vec4x<float> vec4f;
 typedef vec4x4<float> float4x4;
+typedef vec3x3<float> float3x3;
 
 namespace Soy
 {
@@ -311,9 +369,16 @@ namespace Soy
 	}
 	
 	inline vec4f	RectToVector(const Rectf& v)	{	return vec4f( v.x, v.y, v.w, v.h );	}
+
+	float3x3		MatrixToVector(const CGAffineTransform& Transform,vec2f TransformNormalisation);
 };
 
 
 
-
+#if defined(__OBJC__) && defined(TARGET_OSX)
+inline Soy::Rectf NSRectToRect(NSRect Rect)
+{
+	return Soy::Rectf( Rect.origin.x, Rect.origin.y, Rect.size.width, Rect.size.height );
+}
+#endif
 

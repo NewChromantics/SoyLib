@@ -15,7 +15,6 @@
 MemFileArray::MemFileArray(std::string Filename,bool AllowOtherFilename) :
 	mFilename	( Filename ),
 	mAllowOtherFilename	( AllowOtherFilename ),
-	mHandle		( Soy::Platform::InvalidFileHandle ),
 	mMap		( nullptr ),
 	mMapSize	( 0 ),
 	mOffset		( 0 )
@@ -26,7 +25,6 @@ MemFileArray::MemFileArray(std::string Filename,bool AllowOtherFilename) :
 MemFileArray::MemFileArray(std::string Filename,bool AllowOtherFilename,size_t DataSize,bool ReadOnly) :
 	mFilename	( Filename ),
 	mAllowOtherFilename	( AllowOtherFilename ),
-	mHandle		( Soy::Platform::InvalidFileHandle ),
 	mMap		( nullptr ),
 	mMapSize	( 0 ),
 	mOffset		( 0 )
@@ -78,9 +76,11 @@ bool MemFileArray::Init(size_t DataSize,bool ReadOnly,std::stringstream& Error)
 			return false;
 		}
 	}
+	if ( !Soy::Assert( mHandle != nullptr, "Handle expected" ) )
+		return false;
 	
 	int MapProtectionFlags = ReadOnly ? PROT_READ : (PROT_READ|PROT_WRITE);
-	mMap = mmap(0, DataSize, MapProtectionFlags, MAP_SHARED, mHandle, 0);
+	mMap = mmap(0, DataSize, MapProtectionFlags, MAP_SHARED, mHandle->mHandle, 0);
 	if ( mMap == MAP_FAILED )
 	{
 		//	don't store error code as unmap will fail
@@ -138,11 +138,68 @@ bool MemFileArray::Init(size_t DataSize,bool ReadOnly,std::stringstream& Error)
 
 bool MemFileArray::IsValid() const
 {
-	return mHandle != Soy::Platform::InvalidFileHandle;
+	return mHandle != nullptr;
 }
 
 #if defined(TARGET_OSX)
-bool OpenFile(int& FileHandle,std::string& Filename,size_t Size,int CreateFlags,std::stringstream& Error)
+MemFileHandle::MemFileHandle(const std::string& Filename,int CreateFlags,int Mode) :
+	mHandle		( Soy::Platform::InvalidFileHandle ),
+	mFilename	( Filename )
+{
+	mHandle = shm_open( Filename.c_str(), CreateFlags, Mode );
+	
+	if ( mHandle == Soy::Platform::InvalidFileHandle )
+	{
+		auto PlatformError = Soy::Platform::GetLastErrorString();
+		std::stringstream Error;
+		Error << "MemFileArray(" << Filename << ") error: shm_open failed; " << PlatformError;
+		throw Soy::AssertException( Error.str() );
+	}
+}
+#endif
+
+MemFileHandle::~MemFileHandle()
+{
+#if defined(TARGET_OSX)
+	//	ignore if opened in read-only?
+	if ( mHandle != Soy::Platform::InvalidFileHandle )
+	{
+		auto Result = shm_unlink( mFilename.c_str() );
+		if ( Result != 0 )
+		{
+			auto PlatformError = Soy::Platform::GetLastErrorString();
+			std::stringstream Error;
+			Error << "MemFileArray(" << mFilename << ") error: shm_unlink(" << mHandle << ") failed; " << PlatformError;
+			throw Soy::AssertException( Error.str() );
+		}
+
+		//	some code had close, some unlink
+		Result = close(mHandle);
+		if ( Result != 0 )
+		{
+			auto PlatformError = Soy::Platform::GetLastErrorString();
+			std::stringstream Error;
+			Error << "MemFileArray(" << mFilename << ") error: close(" << mHandle << ") failed; " << PlatformError;
+			throw Soy::AssertException( Error.str() );
+		}		
+
+		mHandle = Soy::Platform::InvalidFileHandle;
+	}
+
+#endif
+	
+#if defined(TARGET_WINDOWS)
+	if ( mHandle != Soy::Platform::InvalidFileHandle )
+	{
+		CloseHandle(mHandle);
+		mHandle = Soy::Platform::InvalidFileHandle;
+	}
+#endif
+
+}
+
+#if defined(TARGET_OSX)
+std::shared_ptr<MemFileHandle> OpenFile(std::string& Filename,size_t Size,int CreateFlags,std::stringstream& Error)
 {
 	//http://stackoverflow.com/questions/9409079/linux-dynamic-shared-memory-in-different-programs
 	//	sysconf(_SC_PAGE_SIZE);
@@ -150,19 +207,24 @@ bool OpenFile(int& FileHandle,std::string& Filename,size_t Size,int CreateFlags,
 	//	docs say this is optional, but it's needed.
 	//http://stackoverflow.com/questions/21368355/macos-x-c-shm-open-fails-with-errno-13-permission-denied-on-subsequent-runs
 	int Mode = S_IRWXU|S_IRWXG|S_IRWXO;
-	std::string preError = Soy::Platform::GetLastErrorString();
-	FileHandle = shm_open( Filename.c_str(), CreateFlags, Mode );
-	if (FileHandle == Soy::Platform::InvalidFileHandle)
+	std::string FlushError = Soy::Platform::GetLastErrorString();
+	
+	std::shared_ptr<MemFileHandle> Handle;
+	try
 	{
-		auto PlatformError = Soy::Platform::GetLastErrorString();
-		Error << "MemFileArray(" << Filename << ") error: shm_open failed; " << PlatformError;
-		return false;
+		Handle.reset( new MemFileHandle( Filename, CreateFlags, Mode ) );
 	}
+	catch (std::exception& e)
+	{
+		Error << e.what();
+		return nullptr;
+	}
+
 	
 	//	initialise size - only done on create
 	if ( CreateFlags & O_CREAT )
 	{
-		auto r = ftruncate( FileHandle, Size);
+		auto r = ftruncate( Handle->mHandle, Size);
 		if (r != 0)
 		{
 			auto ErrorVal = Soy::Platform::GetLastError();
@@ -176,13 +238,13 @@ bool OpenFile(int& FileHandle,std::string& Filename,size_t Size,int CreateFlags,
 			{
 				Error << "MemFileArray(" << Filename << ") error: ftruncate(" << Size << ") failed; " << ErrorString;
 			}
-		
-			//	fail regardless, mmap will probably fail next
-			return false;
+
+			//	fail regardless as mmap will probably fail next
+			return nullptr;
 		}
 	}
 	
-	return true;
+	return Handle;
 }
 #endif
 
@@ -208,7 +270,8 @@ bool MemFileArray::OpenWriteFile(size_t Size,std::stringstream& Error)
 
 		//	clear so only the last error is left
 		Error.clear();
-		if ( !OpenFile( mHandle, Filename, Size, O_CREAT|O_RDWR, Error ) )
+		mHandle = OpenFile( Filename, Size, O_CREAT|O_RDWR, Error );
+		if ( !mHandle )
 			continue;
 
 		mFilename = Filename;
@@ -222,7 +285,8 @@ bool MemFileArray::OpenWriteFile(size_t Size,std::stringstream& Error)
 #if defined(TARGET_OSX)
 bool MemFileArray::OpenReadOnlyFile(size_t Size,std::stringstream& Error)
 {
-	if ( !OpenFile( mHandle, mFilename, Size, O_RDONLY, Error ) )
+	mHandle = OpenFile( mFilename, Size, O_RDONLY, Error );
+	if ( !mHandle )
 	{
 		Close();
 		return false;
@@ -233,11 +297,8 @@ bool MemFileArray::OpenReadOnlyFile(size_t Size,std::stringstream& Error)
 
 void MemFileArray::Destroy()
 {
-#if defined(TARGET_OSX)
-	//	ignore if opened in read-only?
-	auto Result = shm_unlink( mFilename.c_str() );
-	Soy::Assert(Result==0, "error unlinking memory" );
-#endif
+	mHandle.reset();
+
 }
 
 void MemFileArray::Close()
@@ -254,17 +315,8 @@ void MemFileArray::Close()
 		mMap = nullptr;
 		mMapSize = 0;
 	}
-
-	if ( mHandle != Soy::Platform::InvalidFileHandle )
-	{
-#if defined(TARGET_OSX)
-		close(mHandle);
-#endif
-#if defined(TARGET_WINDOWS)
-		CloseHandle(mHandle);
-#endif
-		mHandle = Soy::Platform::InvalidFileHandle;
-	}
+	
+	mHandle.reset();
 }
 
 
@@ -275,7 +327,8 @@ bool MemFileArray::SetSize(size_t size, bool preserve,bool AllowLess)
 	{
 		//	gr: errr do we need this to be readonly sometimes?
 		bool ReadOnly = false;
-		Init( size, ReadOnly );
+		if ( !Init( size, ReadOnly ) )
+			return false;
 	}
 	
 	//	if we hit the limit, don't change and fail
@@ -301,12 +354,12 @@ std::shared_ptr<MemFileArray> SoyMemFileManager::AllocFile(const ArrayBridge<cha
 
 	//	make up filename
 	mFilenameRef++;
-	std::string Filename;
-	Filename += mFilenamePrefix;
+	std::stringstream Filename;
+	Filename << mFilenamePrefix;
 	Filename << mFilenameRef;
 	//	todo: see if file already exists?
 	//	alloc new file
-	std::shared_ptr<MemFileArray> File = std::shared_ptr<MemFileArray>( new MemFileArray( Filename, true, Data.GetDataSize(), false ) );
+	std::shared_ptr<MemFileArray> File = std::shared_ptr<MemFileArray>( new MemFileArray( Filename.str(), true, Data.GetDataSize(), false ) );
 	if ( !File->IsValid() )
 		return std::shared_ptr<MemFileArray>();
 	File->Copy( Data );

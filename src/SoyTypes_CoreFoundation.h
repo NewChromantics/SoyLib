@@ -12,6 +12,7 @@ typedef uint32_t	uint32;
 typedef int64_t		int64;
 typedef uint64_t	uint64;
 
+#define TARGET_POSIX
 
 #if defined(TARGET_IOS)
 #if __has_feature(objc_arc)
@@ -29,11 +30,12 @@ typedef uint64_t	uint64;
 
 //	smart pointer for core foundation instances
 //	gr: note, TYPE for CF types is already a pointer, hence no *'s on types
+//	gr: warning! TYPE here passes around without proper type checks!
 template<typename TYPE>
 class CFPtr : public NonCopyable
 {
 public:
-	CFPtr(TYPE Object,bool DoRetain) :
+	explicit CFPtr(TYPE Object,bool DoRetain) :
 	mObject	( nullptr )
 	{
 		if ( DoRetain )
@@ -50,11 +52,11 @@ public:
 	mObject	( nullptr )
 	{
 	}
-	template<typename THAT>
-	explicit CFPtr(const CFPtr<THAT>& That) :
+	//template<typename THAT>
+	explicit CFPtr(const CFPtr<TYPE>& That) :
 	CFPtr	( nullptr )
 	{
-		Retain( static_cast<THAT>(That.mObject) );
+		Retain( static_cast<TYPE>(That.mObject) );
 	}
 	
 	~CFPtr()

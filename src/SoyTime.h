@@ -79,6 +79,12 @@ public:
 	uint64			GetTime() const							{	return mTime;	}
 	bool			IsValid() const							{	return mTime!=0;	}
 	static SoyTime	Now()									{	return SoyTime( ofGetElapsedTimeMillis()+1 );	}	//	we +1 so we never have zero for a "real" time
+	ssize_t			GetDiff(const SoyTime& that) const
+	{
+		ssize_t a = size_cast<ssize_t>( this->GetTime() );
+		ssize_t b = size_cast<ssize_t>( that.GetTime() );
+		return a - b;
+	}
 
 	inline bool		operator==(const SoyTime& Time) const	{	return mTime == Time.mTime;	}
 	inline bool		operator!=(const SoyTime& Time) const	{	return mTime != Time.mTime;	}

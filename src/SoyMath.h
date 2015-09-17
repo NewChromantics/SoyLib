@@ -121,6 +121,10 @@ class Soy::THsl
 {
 public:
 	THsl()					{}
+	THsl(float h,float s,float l) :
+		mHsl	( h, s, l )
+	{
+	}
 	THsl(const TRgb& rgb);
 	
 	float&			h()			{	return mHsl.x;	}

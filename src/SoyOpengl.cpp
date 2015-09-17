@@ -127,34 +127,59 @@ std::string Opengl::GetEnumString(GLenum Type)
 			CASE_ENUM_STRING( GL_FLOAT_MAT2 );
 			CASE_ENUM_STRING( GL_FLOAT_MAT3 );
 			CASE_ENUM_STRING( GL_FLOAT_MAT4 );
-#if defined(OPENGL_CORE_3)
+#if defined(GL_DOUBLE)
 			CASE_ENUM_STRING( GL_DOUBLE );
+#endif
+#if defined(GL_SAMPLER_1D)
 			CASE_ENUM_STRING( GL_SAMPLER_1D );
+#endif
+#if defined(GL_SAMPLER_3D)
 			CASE_ENUM_STRING( GL_SAMPLER_3D );
 #endif
 			
 			//	colours
-#if !defined(TARGET_ANDROID)
+#if defined(GL_BGRA)
 			CASE_ENUM_STRING( GL_BGRA );
 #endif
 			CASE_ENUM_STRING( GL_RGBA );
 			CASE_ENUM_STRING( GL_RGB );
+#if defined(GL_RGB8)
 			CASE_ENUM_STRING( GL_RGB8 );
+#endif
+#if defined(GL_RGBA8)
 			CASE_ENUM_STRING( GL_RGBA8 );
+#endif
+#if defined(GL_RED)
 			CASE_ENUM_STRING( GL_RED );
-	
-#if defined(OPENGL_CORE_3)
+#endif
+
+#if defined(GL_R8)
+			CASE_ENUM_STRING( GL_R8 );
+#endif
+#if defined(GL_RG8)
+			CASE_ENUM_STRING( GL_RG8 );
+#endif
+
+#if defined(GL_TEXTURE_1D)
 			CASE_ENUM_STRING( GL_TEXTURE_1D );
 #endif
 			CASE_ENUM_STRING( GL_TEXTURE_2D );
+#if defined(GL_TEXTURE_3D)
 			CASE_ENUM_STRING( GL_TEXTURE_3D );
-#if defined(OPENGL_CORE_3)
+#endif
+#if defined(GL_TEXTURE_RECTANGLE)
 			CASE_ENUM_STRING( GL_TEXTURE_RECTANGLE );
 #endif
-#if defined(TARGET_ANDROID)
+#if defined(GL_TEXTURE_EXTERNAL_OES)
 			CASE_ENUM_STRING( GL_TEXTURE_EXTERNAL_OES );
+#endif
+#if defined(GL_SAMPLER_EXTERNAL_OES)
 			CASE_ENUM_STRING( GL_SAMPLER_EXTERNAL_OES );
 #endif
+#if defined(GL_SAMPLER_2D_RECT)
+			CASE_ENUM_STRING( GL_SAMPLER_2D_RECT );
+#endif
+
 	};
 #undef CASE_ENUM_STRING
 	std::stringstream Unknown;
@@ -173,6 +198,16 @@ std::ostream& Opengl::operator<<(std::ostream &out,const Opengl::TUniform& in)
 }
 
 
+
+template<>
+void Opengl::SetUniform(const TUniform& Uniform,const float3x3& Value)
+{
+	GLsizei ArraySize = 1;
+	static GLboolean Transpose = false;
+	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
+	glUniformMatrix3fv( Uniform.mIndex, ArraySize, Transpose, Value.m );
+	Opengl_IsOkay();
+}
 
 template<>
 void Opengl::SetUniform(const TUniform& Uniform,const vec4f& Value)
@@ -247,8 +282,9 @@ std::string ParseLog(const std::string& ErrorLog,const ArrayBridge<std::string>&
 	return NewLog.str();
 }
 
-bool CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLines,const std::string& ErrorPrefix,std::ostream& Error)
+void CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLines,const std::string& ErrorPrefix)
 {
+	//	turn into explicit lines to aid with parsing erros later
 	Array<const GLchar*> Lines;
 	for ( int i=0;	i<SrcLines.GetSize();	i++ )
 	{
@@ -266,6 +302,7 @@ bool CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLi
 	Opengl::IsOkay("glGetShaderiv(GL_COMPILE_STATUS)");
 	if ( r == GL_FALSE )
 	{
+		std::stringstream Error;
 		Error << ErrorPrefix << " Compiling shader error: ";
 		GLchar msg[4096] = {0};
 		glGetShaderInfoLog( Shader.mName, sizeof( msg ), 0, msg );
@@ -274,28 +311,31 @@ bool CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLi
 		//	re-process log in case we can get some extended info out of it
 		ErrorLog = ParseLog( ErrorLog, SrcLines );
 		
-		Error << ErrorLog << std::endl;
-		return false;
+		Error << ErrorLog;
+		for ( int i=0;	i<SrcLines.GetSize();	i++ )
+		{
+			Error << SrcLines[i];
+		}
+		throw Soy::AssertException( Error.str() );
 	}
-	return true;
 }
 
-bool Opengl::IsInitialised(const std::string &Context,bool ThrowException)
+void Opengl::FlushError(const char* Context)
 {
-	return true;
+	//	silently flush any errors
+	//	may expand in future
+	glGetError();
 }
 
-bool Opengl::IsOkay(const std::string& Context,bool ThrowException)
+
+bool Opengl::IsOkay(const char* Context,bool ThrowException)
 {
-	if ( !IsInitialised(std::string("CheckIsOkay") + Context, false ) )
-		return false;
-	
 	auto Error = glGetError();
 	if ( Error == GL_NONE )
 		return true;
 	
 	std::stringstream ErrorStr;
-	ErrorStr << "Opengl error in " << Context << ": " << Opengl::GetEnumString(Error) << std::endl;
+	ErrorStr << "Opengl error in " << Context << ": " << Opengl::GetEnumString(Error);
 	
 	if ( !ThrowException )
 	{
@@ -318,22 +358,30 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	auto& mType = mTarget.mType;
 	//auto& mFboMeta = mTarget.mMeta;
 
+	
 	//	gr: added to try and get IOS working
+	//	gr: this is ONLY for opengles 3... add a context to check version? remove entirely?
+	/*
 #if defined(TARGET_IOS)
 	//	remove other mip levels
+	Opengl_IsOkayFlush();
 	glBindTexture( mType, mFboTextureName );
 	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, 0);
+	Opengl::IsOkay("FBO remove texture GL_TEXTURE_BASE_LEVEL");
 	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, 0);
+	Opengl::IsOkay("FBO remove texture GL_TEXTURE_MAX_LEVEL");
 	glBindTexture( mType, 0 );
+	Opengl::IsOkay("FBO remove texture mip map levels");
 #endif
+	 */
 	
 	//std::Debug << "Creating FBO " << mFboMeta << ", texture name: " << mFboTextureName << std::endl;
-	
+	Opengl_IsOkayFlush();
 	glGenFramebuffers( 1, &mFbo.mName );
 	Opengl::IsOkay("FBO glGenFramebuffers");
 	glBindFramebuffer( GL_FRAMEBUFFER, mFbo.mName );
 	Opengl::IsOkay("FBO glBindFramebuffer2");
-	
+
 	GLint MipLevel = 0;
 	if ( mType == GL_TEXTURE_2D )
 		glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, MipLevel );
@@ -341,25 +389,25 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 		throw Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
 	
-	//	gr: init? or render?
-	// Set the list of draw buffers.
-	GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
-	glDrawBuffers(1, DrawBuffers);
-	
-	//	caps check
-	auto FrameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	Soy::Assert( FrameBufferStatus == GL_FRAMEBUFFER_COMPLETE, "DIdn't complete framebuffer setup" );
-	
-	glBindFramebuffer( GL_FRAMEBUFFER, 0 );
-	Opengl::IsOkay("FBO UN glBindTexture2");
+
+	//	this doesn't exist on es2, should fallback to a stub function
+	//	Set the list of draw buffers.
+	GLenum DrawBufferAttachments[1] = {GL_COLOR_ATTACHMENT0};
+	Opengl::DrawBuffers(1, DrawBufferAttachments);
+	Opengl::IsOkay("assigning glDrawBuffer attachments");
+
+	CheckStatus();
+	Unbind();
 }
+
+
 
 Opengl::TFbo::~TFbo()
 {
 	Delete();
 }
 
-void Opengl::TFbo::Delete(Opengl::TContext &Context)
+void Opengl::TFbo::Delete(Opengl::TContext &Context,bool Blocking)
 {
 	if ( !mFbo.IsValid() )
 		return;
@@ -369,11 +417,19 @@ void Opengl::TFbo::Delete(Opengl::TContext &Context)
 	{
 		glDeleteFramebuffers( 1, &FboName );
 		Opengl::IsOkay("Deffered FBO delete");
-		return true;
 	};
 
-	Context.PushJob( DefferedDelete );
-
+	if ( Blocking )
+	{
+		Soy::TSemaphore Semaphore;
+		Context.PushJob( DefferedDelete, Semaphore );
+		Semaphore.Wait();
+	}
+	else
+	{
+		Context.PushJob( DefferedDelete );
+	}
+	
 	//	dont-auto delete later
 	mFbo.mName = GL_ASSET_INVALID;
 }
@@ -382,6 +438,9 @@ void Opengl::TFbo::Delete()
 {
 	if ( mFbo.mName != GL_ASSET_INVALID )
 	{
+		//	gr: this often gives an error that shouldn't occur, try flushing
+		Opengl_IsOkayFlush();
+		
 		glDeleteFramebuffers( 1, &mFbo.mName );
 		Opengl::IsOkay("glDeleteFramebuffers", false);
 		mFbo.mName = GL_ASSET_INVALID;
@@ -407,6 +466,13 @@ void Opengl::TFbo::InvalidateContent()
 
 bool Opengl::TFbo::Bind()
 {
+	Opengl_IsOkayFlush();
+
+	bool IsFrameBuffer = glIsFramebuffer(mFbo.mName);
+	Opengl_IsOkay();
+	if ( !Soy::Assert( IsFrameBuffer, "Frame buffer no longer valid" ) )
+		return false;
+
 	glBindFramebuffer(GL_FRAMEBUFFER, mFbo.mName );
 	Opengl_IsOkay();
 	
@@ -421,36 +487,52 @@ bool Opengl::TFbo::Bind()
 	Opengl::SetViewport( FrameBufferRect );
 	Opengl_IsOkay();
 	
+
 	return true;
+}
+
+void Opengl::TFbo::CheckStatus()
+{
+	auto FrameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	Opengl::IsOkay("glCheckFramebufferStatus");
+	Soy::Assert(FrameBufferStatus == GL_FRAMEBUFFER_COMPLETE, "DIdn't complete framebuffer setup");
+
+	//	check target is still valid
+	Soy::Assert(mTarget.IsValid(), "FBO texture invalid");
 }
 
 void Opengl::TFbo::Unbind()
 {
+	CheckStatus();
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	Opengl_IsOkay();
 }
 
 size_t Opengl::TFbo::GetAlphaBits() const
 {
+#if defined(OPENGL_ES_2)
+	throw Soy::AssertException("Framebuffer alpha size query not availible in opengles2");
+	return 0;
+#else
 	GLint AlphaSize = -1;
 	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE, &AlphaSize );
 	Opengl::IsOkay("Get FBO GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE");
 	std::Debug << "FBO has " << AlphaSize << " alpha bits" << std::endl;
 
 	return AlphaSize < 0 ? 0 :AlphaSize;
+#endif
 }
 
-Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
+Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	mAutoRelease	( true ),
 	mType			( Type )
 {
-	Opengl_IsInitialised();
 	Soy::Assert( Meta.IsValid(), "Cannot setup texture with invalid meta" );
 	
 	bool AllowOpenglConversion = true;
 	GLuint PixelsFormat = Opengl::GetUploadPixelFormat(*this, Meta.GetFormat(), AllowOpenglConversion );
 	GLuint InternalPixelFormat = Opengl::GetNewTexturePixelFormat( Meta.GetFormat() );
-	if ( PixelsFormat == GL_INVALID_VALUE )
+	if ( PixelsFormat == GL_INVALID_ENUM || InternalPixelFormat == GL_INVALID_ENUM )
 	{
 		std::stringstream Error;
 		Error << "Failed to create texture, unsupported format " << Meta.GetFormat();
@@ -470,10 +552,12 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 	GLenum GlPixelsStorage = GL_UNSIGNED_BYTE;
 	GLint Border = 0;
 	
+#if !defined(OPENGL_ES_2)
 	//	gr: change this to glGenerateMipMaps etc
 	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, MipLevel );
 	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, MipLevel );
 	Opengl::IsOkay("glTexParameteri set mip levels");
+#endif
 	
 	//	debug construction
 	//std::Debug << "glTexImage2D(" << Opengl::GetEnumString( mType ) << "," << Opengl::GetEnumString( InternalPixelFormat ) << "," << Opengl::GetEnumString( PixelsFormat ) << "," << Opengl::GetEnumString(GlPixelsStorage) << ")" << std::endl;
@@ -490,11 +574,12 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 		InitFramePixels.Init( Meta.GetWidth(), Meta.GetHeight(), Meta.GetFormat() );
 		auto& PixelsArray = InitFramePixels.GetPixelsArray();
 		glTexImage2D( mType, MipLevel, InternalPixelFormat, Meta.GetWidth(), Meta.GetHeight(), Border, PixelsFormat, GlPixelsStorage, PixelsArray.GetArray() );
+		OnWrite();
 	}
 	Opengl::IsOkay("glTexImage2D texture construction");
 	
 	//	verify params
-#if !defined(OPENGL_ES_3)
+#if defined(OPENGL_CORE_3)
 	GLint TextureWidth = -1;
 	GLint TextureHeight = -1;
 	GLint TextureInternalFormat = -1;
@@ -516,28 +601,34 @@ Opengl::TTexture::TTexture(SoyPixelsMetaFull Meta,GLenum Type) :
 	mMeta = Meta;
 }
 
-bool Opengl::TTexture::IsValid() const
+bool Opengl::TTexture::IsValid(bool InvasiveTest) const
 {
-	if ( !Opengl::IsInitialised(__func__,false) )
-		return false;
-	
-	auto IsTexture = glIsTexture( mTexture.mName );
-
-	//	gr: on IOS this is nice and reliable and NEEDED to distinguish from metal textures!
 #if defined(TARGET_IOS)
-	return IsTexture;
-#else
-	
-	//	gr: this is returning false [on OSX] from other threads :/ even though they have a context
-	//	other funcs are working though
-	if ( IsTexture )
-		return true;
+	if ( !InvasiveTest )
+	{
+		throw Soy::AssertException("Because of metal support, IOS currently doesn't allow non-invasive testing until I have something reliable");
+	}
+#endif
+
+	if ( InvasiveTest )
+	{
+		auto IsTexture = glIsTexture( mTexture.mName );
+
+		//	gr: on IOS this is nice and reliable and NEEDED to distinguish from metal textures!
+	#if defined(TARGET_IOS)
+		return IsTexture;
+	#endif
+		
+		//	gr: this is returning false [on OSX] from other threads :/ even though they have a context
+		//	other funcs are working though
+		if ( IsTexture )
+			return true;
+	}
 	
 	if ( mTexture.mName != GL_ASSET_INVALID )
 		return true;
 	
 	return false;
-#endif
 }
 
 void Opengl::TTexture::Delete()
@@ -547,22 +638,170 @@ void Opengl::TTexture::Delete()
 		glDeleteTextures( 1, &mTexture.mName );
 		mTexture.mName = GL_ASSET_INVALID;
 	}
+	
+	mWriteSync.reset();
 }
 
-bool Opengl::TTexture::Bind()
+bool Opengl::TTexture::Bind() const
 {
 	Opengl::IsOkay("Texture bind flush",false);
 	glBindTexture( mType, mTexture.mName );
 	return Opengl_IsOkay();
 }
 
-void Opengl::TTexture::Unbind()
+void Opengl::TTexture::Unbind() const
 {
 	glBindTexture( mType, GL_ASSET_INVALID );
+	Opengl_IsOkay();
+}
+
+void Opengl::TTexture::SetRepeat(bool Repeat)
+{
+	Bind();
+#if defined(GL_TEXTURE_RECTANGLE)
+	//	gr: on OSX, using a non-2D/Cubemap texture gives invalid enum
+	//	this doesn't work, but doesn't give an error
+	//	maybe allow the throw?
+	auto Type = (mType == GL_TEXTURE_RECTANGLE) ? GL_TEXTURE_2D : mType;
+#else
+	auto Type = mType;
+#endif
+	glTexParameteri( Type, GL_TEXTURE_WRAP_S, Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+	glTexParameteri( Type, GL_TEXTURE_WRAP_T, Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+	Opengl_IsOkay();
+	Unbind();
+}
+
+void Opengl::TTexture::GenerateMipMaps()
+{
+	Soy::Assert( IsValid(), "Generate mip maps on invalid texture");
+	
+	//	no mip maps on external textures [citation needed - extension spec IIRC]
+#if defined(GL_TEXTURE_EXTERNAL_OES)
+	if ( mType == GL_TEXTURE_EXTERNAL_OES )
+		return;
+#endif
+	
+	if ( !Bind() )
+		return;
+	
+	//	gr: this can be slow, highlight it
+	Soy::TScopeTimerPrint Timer("glGenerateMipmap",1);
+	
+	glGenerateMipmap( mType );
+	std::stringstream Error;
+	Error << "Texture(" << Opengl::GetEnumString(mType) << " " << mMeta << ")::GenerateMipMaps";
+	Opengl::IsOkay( Error.str(), false );
+	Unbind();
 }
 
 
-void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
+
+
+Opengl::TPbo::TPbo(SoyPixelsMeta Meta) :
+	mMeta	( Meta ),
+	mPbo	( GL_ASSET_INVALID )
+{
+	glGenBuffers( 1, &mPbo );
+	Opengl_IsOkay();
+	
+	//	can only read back 1, 3 or 4 channels
+	auto ChannelCount = Meta.GetChannels();
+	if ( ChannelCount != 1 && ChannelCount != 3 && ChannelCount != 4 )
+		throw Soy::AssertException("PBO channel count must be 1 3 or 4");
+
+	
+#if defined(OPENGL_ES_2)
+	throw Soy::AssertException("read from buffer data not supported on es2? need to test");
+#else
+	auto DataSize = Meta.GetDataSize();
+	Bind();
+	glBufferData( GL_PIXEL_PACK_BUFFER, DataSize, nullptr, GL_STREAM_READ);
+	Opengl_IsOkay();
+	Unbind();
+#endif
+}
+
+Opengl::TPbo::~TPbo()
+{
+	if ( mPbo != GL_ASSET_INVALID )
+	{
+		glDeleteBuffers( 1, &mPbo );
+		Opengl_IsOkay();
+		mPbo = GL_ASSET_INVALID;
+	}
+}
+
+size_t Opengl::TPbo::GetDataSize()
+{
+	return mMeta.GetDataSize();
+}
+
+void Opengl::TPbo::Bind()
+{
+#if defined(OPENGL_ES_2)
+	throw Soy::AssertException("PBO not supported es2?");
+#else
+	glBindBuffer( GL_PIXEL_PACK_BUFFER, mPbo );
+	Opengl_IsOkay();
+#endif
+}
+
+void Opengl::TPbo::Unbind()
+{
+#if defined(OPENGL_ES_2)
+	throw Soy::AssertException("PBO not supported es2?");
+#else
+	glBindBuffer( GL_PIXEL_PACK_BUFFER, 0 );
+	Opengl_IsOkay();
+#endif
+}
+
+void Opengl::TPbo::ReadPixels()
+{
+	GLint x = 0;
+	GLint y = 0;
+	
+	BufferArray<GLint,5> Formats;
+	Formats.PushBack( GL_INVALID_VALUE );
+	Formats.PushBack( GL_ALPHA );
+	Formats.PushBack( GL_INVALID_VALUE );
+	Formats.PushBack( GL_RGB );
+	Formats.PushBack( GL_RGBA );
+	auto ChannelCount = mMeta.GetChannels();
+	
+	Bind();
+
+	glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), Formats[ChannelCount], GL_UNSIGNED_BYTE, nullptr );
+	Opengl_IsOkay();
+	
+	Unbind();
+}
+
+const uint8* Opengl::TPbo::LockBuffer()
+{
+#if defined(TARGET_IOS) || defined(TARGET_ANDROID)
+	//	gr: come back to this... when needed, I think it's supported
+	const uint8* Buffer = nullptr;
+#else
+	auto* Buffer = glMapBuffer( GL_PIXEL_PACK_BUFFER, GL_READ_ONLY );
+#endif
+
+	Opengl_IsOkay();
+	return reinterpret_cast<const uint8*>( Buffer );
+}
+
+void Opengl::TPbo::UnlockBuffer()
+{
+#if defined(TARGET_IOS) || defined(TARGET_ANDROID)
+	throw Soy::AssertException("Lock buffer should not have succeeded on ES");
+#else
+	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+	Opengl_IsOkay();
+#endif
+}
+
+void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 {
 	Soy::Assert( IsValid(), "Trying to read from invalid texture" );
 
@@ -571,6 +810,8 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
 	throw Soy::AssertException( std::string(__func__) + " not supported on opengl es yet");
 	return;
 #else
+	
+
 	
 	Bind();
 	
@@ -587,22 +828,73 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
 	//	pre-alloc data
 	if ( !Pixels.Init( GetWidth(), GetHeight(), PixelFormat ) )
 		throw Soy::AssertException("Failed to allocate pixels for texture read");
+	auto* PixelBytes = Pixels.GetPixelsArray().GetArray();
+
 	
-	//
+	//	try to use PBO's
+	static bool UsePbo = false;
+	static bool UseFbo = true;
+	
+	if ( UsePbo )
+	{
+		TFbo FrameBuffer( *this );
+		FrameBuffer.Bind();
+		TPbo PixelBuffer( mMeta );
+		PixelBuffer.ReadPixels();
+		auto* pData = PixelBuffer.LockBuffer();
+		auto DataSize = std::min( PixelBuffer.GetDataSize(), Pixels.GetPixelsArray().GetDataSize() );
+		memcpy( PixelBytes, pData, DataSize );
+		PixelBuffer.UnlockBuffer();
+		return;
+	}
+	
+	
+	//	make sure no padding is applied so glGetTexImage doesn't override tail memory
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	Opengl_IsOkay();
+
 	GLint MipLevel = 0;
 	GLenum PixelStorage = GL_UNSIGNED_BYTE;
-	auto* PixelBytes = Pixels.GetPixelsArray().GetArray();
-	glGetTexImage( mType, MipLevel, GlFormat, PixelStorage, PixelBytes );
-	Opengl_IsOkay();
+	
+	if ( UseFbo )
+	{
+		TFbo FrameBuffer( *this );
+		GLint x = 0;
+		GLint y = 0;
+		BufferArray<GLint,5> Formats;
+		
+		Formats.PushBack( GL_INVALID_VALUE );
+#if defined(OPENGL_ES_2)||defined(OPENGL_ES_3)
+		Formats.PushBack( GL_ALPHA );
+#else
+		Formats.PushBack( GL_RED );
+#endif
+		Formats.PushBack( GL_INVALID_VALUE );
+		Formats.PushBack( GL_RGB );
+		Formats.PushBack( GL_RGBA );
+
+		auto ChannelCount = mMeta.GetChannels();
+		FrameBuffer.Bind();
+		
+		glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), Formats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
+		Opengl::IsOkay("glReadPixels");
+		FrameBuffer.Unbind();
+		Opengl_IsOkay();
+	}
+	else
+	{
+		//	4.5 has byte-saftey with glGetTextureImage glGetnTexImage
+		glGetTexImage( mType, MipLevel, GlFormat, PixelStorage, PixelBytes );
+		Opengl_IsOkay();
+	}
 	
 	static int DebugPixelCount_ = 0;
 	if ( DebugPixelCount_ > 0 )
 	{
-		auto DebugPixelCount = std::min<size_t>( DebugPixelCount_, Pixels.GetPixelsArray().GetDataSize() );
-		std::Debug << "Read pixels; x" << DebugPixelCount;
-		for ( int i=0;	i<DebugPixelCount;	i++ )
-			std::Debug << ' ' << static_cast<int>(PixelBytes[i]);
-		std::Debug << std::endl;
+		//auto DebugPixelCount = std::min<size_t>( DebugPixelCount_, Pixels.GetPixelsArray().GetDataSize() );
+		auto& DebugStream = std::Debug.LockStream();
+		Pixels.PrintPixels("Read pixels from texture: ", DebugStream, false, " " );
+		std::Debug.UnlockStream( DebugStream );
 	}
 	
 	Unbind();
@@ -612,7 +904,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels)
 
 
 
-void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUploadParams Params)
+void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUploadParams Params)
 {
 	Soy::Assert( IsValid(), "Trying to upload to invalid texture ");
 	
@@ -627,9 +919,9 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 	GLint TextureInternalFormat = 0;
 	
 	//	opengl es doesn't have access!
-#if defined(OPENGL_ES_3)
-	TextureWidth = this->GetWidth();
-	TextureHeight = this->GetHeight();
+#if defined(OPENGL_ES_3)||defined(OPENGL_ES_2)
+	TextureWidth = size_cast<GLint>( this->GetWidth() );
+	TextureHeight = size_cast<GLint>( this->GetHeight() );
 	//	gr: errr what should this be now?
 	TextureInternalFormat = GetNewTexturePixelFormat( this->GetFormat() );
 #else
@@ -685,6 +977,7 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 	//	pixel data format
 	auto GlPixelsFormat = Opengl::GetUploadPixelFormat( *this, SourcePixels.GetFormat(), Params.mAllowOpenglConversion );
 
+
 	//	gr: take IOS's target-must-match-source requirement into consideration here (replace GetUploadPixelFormat)
 	SoyPixels ConvertedPixels;
 	if ( Params.mAllowCpuConversion )
@@ -713,6 +1006,12 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 		
 	}
 	
+	if (GlPixelsFormat == GL_INVALID_ENUM)
+	{
+		std::stringstream Error;
+		Error << "Failed to write texture, unsupported upload format " << SourcePixels.GetFormat();
+		throw Soy::AssertException(Error.str());
+	}
 	
 	auto& FinalPixels = *UsePixels;
 	GLenum GlPixelsStorage = GL_UNSIGNED_BYTE;
@@ -780,9 +1079,9 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 		auto* PixelsArrayData = PixelsArray.GetArray();
 		
 		//	invalid operation here means the unity pixel format is probably different to the pixel data we're trying to push now
-		ofScopeTimerWarning Timer("glTexSubImage2D", 10 );
+		//ofScopeTimerWarning Timer("glTexSubImage2D", 10 );
 		glTexSubImage2D( mType, MipLevel, XOffset, YOffset, Width, Height, GlPixelsFormat, GlPixelsStorage, PixelsArrayData );
-		Timer.Stop();
+		//Timer.Stop();
 		
 		std::stringstream Context;
 		Context << __func__ << "glTexSubImage2D(" << Opengl::GetEnumString(GlPixelsFormat) << ")";
@@ -806,32 +1105,97 @@ void Opengl::TTexture::Copy(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUp
 	
 	Unbind();
 	Opengl_IsOkay();
+	
+	OnWrite();
 }
 
-SoyPixelsMetaFull Opengl::TTexture::GetInternalMeta() const
+SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType)
 {
-#if defined(OPENGL_ES_3)
+#if defined(OPENGL_ES_3)||defined(OPENGL_ES_2)
 	std::Debug << "Warning, using " << __func__ << " on opengl es (no such info)" << std::endl;
 	return mMeta;
 #else
-	GLint MipLevel = 0;
-	GLint Width = 0;
-	GLint Height = 0;
-	GLint Format = 0;
-	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_WIDTH, &Width);
-	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_HEIGHT, &Height);
-	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &Format );
-	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()" );
-
-	return SoyPixelsMetaFull( Width, Height, GetDownloadPixelFormat( Format ) );
+	
+	//	try all types
+	GLenum Types_[] =
+	{
+		mType,
+		GL_TEXTURE_2D,
+#if defined(GL_TEXTURE_RECTANGLE)
+		GL_TEXTURE_RECTANGLE,
+#endif
+#if defined(GL_TEXTURE_EXTERNAL_OES)
+		GL_TEXTURE_EXTERNAL_OES,
+#endif
+#if defined(GL_TEXTURE_1D)
+		GL_TEXTURE_1D,
+#endif
+#if defined(GL_TEXTURE_3D)
+		GL_TEXTURE_3D,
+#endif
+		GL_TEXTURE_CUBE_MAP,
+	};
+	
+	auto Types = GetRemoteArray(Types_);
+	for ( int t=0;	t<Types.GetSize();	t++ )
+	{
+		auto Type = Types[t];
+		if ( Type == GL_INVALID_VALUE )
+			continue;
+	
+		Opengl::TTexture TempTexture( mTexture.mName, mMeta, Type );
+		if ( !TempTexture.Bind() )
+			continue;
+		
+		GLint MipLevel = 0;
+		GLint Width = 0;
+		GLint Height = 0;
+		GLint Format = 0;
+		glGetTexLevelParameteriv( Type, MipLevel, GL_TEXTURE_WIDTH, &Width);
+		glGetTexLevelParameteriv( Type, MipLevel, GL_TEXTURE_HEIGHT, &Height);
+		glGetTexLevelParameteriv( Type, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &Format );
+		
+		TempTexture.Unbind();
+		
+		if ( !Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()", false ) )
+			continue;
+		
+		//	we probably won't get an opengl error, but the values won't be good. We can assume it's not that type
+		//	tested on osx
+		if ( Width==0 || Height==0 || Format==0 )
+			continue;
+		
+		if ( Type != mType )
+			std::Debug << "Determined that texture is " << GetEnumString(Type) << " not " << GetEnumString(mType) << std::endl;
+		
+		RealType = Type;
+		auto PixelFormat = GetDownloadPixelFormat( Format );
+		return SoyPixelsMeta( Width, Height, PixelFormat );
+	}
+	
+	//	couldn't determine any params... not a known texture type?
+	RealType = GL_INVALID_VALUE;
+	return SoyPixelsMeta();
 #endif
 }
 
-Opengl::TShaderState::TShaderState(const Opengl::GlProgram& Shader) :
+void Opengl::TTexture::OnWrite()
+{
+	//	bit expensive and currently not required on mobile
+#if !defined(TARGET_ANDROID) && !defined(TARGET_IOS)
+	//	make a new sync fence so we can tell when this write has finished
+	mWriteSync.reset( new TSync(true) );
+#endif
+}
+
+
+
+
+Opengl::TShaderState::TShaderState(const Opengl::TShader& Shader) :
 	mTextureBindCount	( 0 ),
 	mShader				( Shader )
 {
-	glUseProgram( Shader.program.mName );
+	glUseProgram( Shader.mProgram.mName );
 	Opengl_IsOkay();
 }
 
@@ -851,39 +1215,58 @@ Opengl::TShaderState::~TShaderState()
 
 
 
-void Opengl::TShaderState::SetUniform(const std::string& Name,const float& v)
+bool Opengl::TShaderState::SetUniform(const char* Name,const float3x3& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
-	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
+	if ( !Uniform.IsValid() )
+		return false;
 	Opengl::SetUniform( Uniform, v );
+	return true;
 }
 
 
-void Opengl::TShaderState::SetUniform(const std::string& Name,const vec4f& v)
+
+bool Opengl::TShaderState::SetUniform(const char* Name,const float& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
-	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
+	if ( !Uniform.IsValid() )
+		return false;
 	Opengl::SetUniform( Uniform, v );
+	return true;
 }
 
 
-void Opengl::TShaderState::SetUniform(const std::string& Name,const vec2f& v)
+bool Opengl::TShaderState::SetUniform(const char* Name,const vec4f& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
-	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
+	if ( !Uniform.IsValid() )
+		return false;
 	Opengl::SetUniform( Uniform, v );
+	return true;
 }
 
-void Opengl::TShaderState::SetUniform(const std::string& Name,const TTexture& Texture)
+
+bool Opengl::TShaderState::SetUniform(const char* Name,const vec2f& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
-	Soy::Assert( Uniform.IsValid(), std::stringstream() << "Invalid uniform " << Name );
+	if ( !Uniform.IsValid() )
+		return false;
+	Opengl::SetUniform( Uniform, v );
+	return true;
+}
+
+bool Opengl::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
+{
+	auto Uniform = mShader.GetUniform( Name );
+	if ( !Uniform.IsValid() )
+		return false;
 
 	auto BindTextureIndex = size_cast<GLint>( mTextureBindCount );
 	BindTexture( BindTextureIndex, Texture );
 	glUniform1i( Uniform.mIndex, BindTextureIndex );
 	Opengl_IsOkay();
 	mTextureBindCount++;
+	return true;
 }
 
 void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
@@ -903,57 +1286,29 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
 	Opengl_IsOkay();
 }
 
-Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context)
+Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context)
 {
-	if ( !Opengl_IsInitialised() )
-		return GlProgram();
-	
 	std::string ShaderNameVert = ShaderName + " (vert)";
 	std::string ShaderNameFrag = ShaderName + " (frag)";
-	
-	GlProgram prog;
 	
 	Array<std::string> VertShader;
 	Array<std::string> FragShader;
 	Soy::SplitStringLines( GetArrayBridge(VertShader), vertexSrc );
 	Soy::SplitStringLines( GetArrayBridge(FragShader), fragmentSrc );
 	
-	OpenglShaderVersion::Type UpgradeVersion = OpenglShaderVersion::Invalid;
+	SoyShader::Opengl::UpgradeVertShader( GetArrayBridge(VertShader), Context.mShaderVersion );
+	SoyShader::Opengl::UpgradeFragShader( GetArrayBridge(FragShader), Context.mShaderVersion );
 	
-	//	not required for android
-#if defined(OPENGL_ES_3)
-	if ( Context.mVersion.mMajor >= 3 )
-		UpgradeVersion = OpenglShaderVersion::glsl300;
-#endif
+	mVertexShader.mName = glCreateShader( GL_VERTEX_SHADER );
+	CompileShader( mVertexShader, GetArrayBridge(VertShader), ShaderNameVert );
+
+	mFragmentShader.mName = glCreateShader( GL_FRAGMENT_SHADER );
+	CompileShader( mFragmentShader, GetArrayBridge(FragShader), ShaderNameFrag );
 	
-#if defined(OPENGL_CORE_3)
-	if ( Context.mVersion.mMajor >= 3 )
-		UpgradeVersion = OpenglShaderVersion::glsl150;
-#endif
-	
-	if ( UpgradeVersion != OpenglShaderVersion::Invalid )
-	{
-		SoyShader::Opengl::UpgradeVertShader( GetArrayBridge(VertShader), UpgradeVersion );
-		SoyShader::Opengl::UpgradeFragShader( GetArrayBridge(FragShader), UpgradeVersion );
-	}
-	
-	prog.vertexShader.mName = glCreateShader( GL_VERTEX_SHADER );
-	if ( !CompileShader( prog.vertexShader, GetArrayBridge(VertShader), ShaderNameVert, std::Debug ) )
-	{
-		Soy::Assert( false, "Failed to compile vertex shader" );
-		return GlProgram();
-	}
-	prog.fragmentShader.mName = glCreateShader( GL_FRAGMENT_SHADER );
-	if ( !CompileShader( prog.fragmentShader, GetArrayBridge(FragShader), ShaderNameFrag, std::Debug ) )
-	{
-		Soy::Assert( false, "Failed to compile fragment shader" );
-		return GlProgram();
-	}
-	
-	prog.program.mName = glCreateProgram();
-	auto& ProgramName = prog.program.mName;
-	glAttachShader( ProgramName, prog.vertexShader.mName );
-	glAttachShader( ProgramName, prog.fragmentShader.mName );
+	mProgram.mName = glCreateProgram();
+	auto& ProgramName = mProgram.mName;
+	glAttachShader( ProgramName, mVertexShader.mName );
+	glAttachShader( ProgramName, mFragmentShader.mName );
 	
 	//	gr: this is not required. We cache the links that the compiler generates AFTERwards
 	//	bind attributes before linking to match geometry
@@ -974,7 +1329,6 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 		std::stringstream Error;
 		Error << "Failed to link vertex and fragment shader: " << msg;
 		throw Soy::AssertException( Error.str() );
-		return GlProgram();
 	}
 	
 	//	gr: validate only if we have VAO bound
@@ -991,7 +1345,7 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 			Error << "Failed to validate vertex and fragment shader: " << msg;
 			std::Debug << Error.str() << std::endl;
 			//Soy::Assert( false, Error.str() );
-			//return GlProgram();
+			//return TShader();
 		}
 	}
 	
@@ -1020,9 +1374,8 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 		glGetActiveAttrib( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Uniform.mType, &nameData[0]);
 		Uniform.mName = std::string( nameData.data(), actualLength );
 		
-		//	check is valid type etc
-		
-		prog.mAttributes.PushBack( Uniform );
+		//	todo: check is valid type etc
+		mAttributes.PushBack( Uniform );
 	}
 	
 	for( GLint attrib=0;	attrib<numActiveUniforms;	++attrib )
@@ -1036,61 +1389,47 @@ Opengl::GlProgram Opengl::BuildProgram(const std::string& vertexSrc,const std::s
 		glGetActiveUniform( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Uniform.mType, &nameData[0]);
 		Uniform.mName = std::string( nameData.data(), actualLength );
 		
-		//	check is valid type etc
-		
-		prog.mUniforms.PushBack( Uniform );
+		//	todo: check is valid type etc
+		mUniforms.PushBack( Uniform );
 	}
 
-	std::Debug << ShaderName << " has " << prog.mAttributes.GetSize() << " attributes; " << std::endl;
-	std::Debug << Soy::StringJoin( GetArrayBridge(prog.mAttributes), "\n" );
+	std::Debug << ShaderName << " has " << mAttributes.GetSize() << " attributes; " << std::endl;
+	std::Debug << Soy::StringJoin( GetArrayBridge(mAttributes), "\n" );
 	std::Debug << std::endl;
 
-	std::Debug << ShaderName << " has " << prog.mUniforms.GetSize() << " uniforms; " << std::endl;
-	std::Debug << Soy::StringJoin( GetArrayBridge(prog.mUniforms), "\n" );
+	std::Debug << ShaderName << " has " << mUniforms.GetSize() << " uniforms; " << std::endl;
+	std::Debug << Soy::StringJoin( GetArrayBridge(mUniforms), "\n" );
 	std::Debug << std::endl;
-
-	
-	return prog;
 }
 
 
-bool Opengl::GlProgram::IsValid() const
-{
-	return program.IsValid() && vertexShader.IsValid() && fragmentShader.IsValid();
-}
-
-Opengl::TShaderState Opengl::GlProgram::Bind()
+Opengl::TShaderState Opengl::TShader::Bind()
 {
 	Opengl_IsOkay();
-	glUseProgram( program.mName );
+	glUseProgram( mProgram.mName );
 	Opengl_IsOkay();
 	
 	TShaderState ShaderState( *this );
 	return ShaderState;
 }
 
-void Opengl::GlProgram::Destroy()
+Opengl::TShader::~TShader()
 {
-	if ( program.mName != GL_ASSET_INVALID )
+	if ( mProgram.mName != GL_ASSET_INVALID )
 	{
-		glDeleteProgram( program.mName );
-		program.mName = GL_ASSET_INVALID;
+		glDeleteProgram( mProgram.mName );
+		mProgram.mName = GL_ASSET_INVALID;
 	}
-	if ( vertexShader.mName != GL_ASSET_INVALID )
+	if ( mVertexShader.mName != GL_ASSET_INVALID )
 	{
-		glDeleteShader( vertexShader.mName );
-		vertexShader.mName = GL_ASSET_INVALID;
+		glDeleteShader( mVertexShader.mName );
+		mVertexShader.mName = GL_ASSET_INVALID;
 	}
-	if ( fragmentShader.mName != GL_ASSET_INVALID )
+	if ( mFragmentShader.mName != GL_ASSET_INVALID )
 	{
-		glDeleteShader( fragmentShader.mName );
-		fragmentShader.mName = GL_ASSET_INVALID;
+		glDeleteShader( mFragmentShader.mName );
+		mFragmentShader.mName = GL_ASSET_INVALID;
 	}
-}
-
-bool Opengl::TShaderState::IsValid() const
-{
-	return mShader.IsValid();
 }
 
 
@@ -1136,30 +1475,33 @@ void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
 	}
 }
 
-
-Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex,TContext& Context)
+Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex) :
+	mVertexBuffer( GL_ASSET_INVALID ),
+	mIndexBuffer( GL_ASSET_INVALID ),
+	mVertexArrayObject( GL_ASSET_INVALID ),
+	mVertexCount( GL_ASSET_INVALID ),
+	mIndexCount( GL_ASSET_INVALID ),
+	mIndexType(GL_ASSET_INVALID),
+	mVertexDescription	( Vertex )
 {
 	Opengl::IsOkay("Opengl::CreateGeometry flush", false);
 		
-	TGeometry Geo;
-	Geo.mVertexDescription = Vertex;
+	//	fill vertex array
+	Opengl::GenVertexArrays( 1, &mVertexArrayObject );
+	Opengl::IsOkay( std::string(__func__) + " glGenVertexArrays" );
 	
-	glGenBuffers( 1, &Geo.vertexBuffer );
-	glGenBuffers( 1, &Geo.indexBuffer );
+	glGenBuffers( 1, &mVertexBuffer );
+	glGenBuffers( 1, &mIndexBuffer );
 	Opengl::IsOkay( std::string(__func__) + " glGenBuffers" );
 
-	//	fill vertex array
-	Opengl::GenVertexArrays( 1, &Geo.vertexArrayObject );
-	Opengl::IsOkay( std::string(__func__) + " glGenVertexArrays" );
-	Opengl::BindVertexArray( Geo.vertexArrayObject );
-	Opengl::IsOkay( std::string(__func__) + " glBindVertexArray" );
-	glBindBuffer( GL_ARRAY_BUFFER, Geo.vertexBuffer );
+	Bind();
+	glBindBuffer( GL_ARRAY_BUFFER, mVertexBuffer );
 	Opengl_IsOkay();
-
+	
 	//	gr: buffer data before setting attrib pointer (needed for ios)
 	//	push data
 	glBufferData( GL_ARRAY_BUFFER, Data.GetDataSize(), Data.GetArray(), GL_STATIC_DRAW );
-	Geo.vertexCount = size_cast<GLsizei>( Data.GetDataSize() / Vertex.GetDataSize() );
+	mVertexCount = size_cast<GLsizei>( Data.GetDataSize() / Vertex.GetDataSize() );
 	Opengl_IsOkay();
 	
 	for ( int at=0;	at<Vertex.mElements.GetSize();	at++ )
@@ -1172,7 +1514,7 @@ Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const A
 		void* ElementPointer = (void*)ElementOffset;
 		auto AttribIndex = Element.mIndex;
 
-		std::Debug << "Pushing attrib " << AttribIndex << ", arraysize " << Element.mArraySize << ", stride " << Stride << std::endl;
+		//std::Debug << "Pushing attrib " << AttribIndex << ", arraysize " << Element.mArraySize << ", stride " << Stride << std::endl;
 		glEnableVertexAttribArray( AttribIndex );
 		glVertexAttribPointer( AttribIndex, Element.mArraySize, Element.mType, Normalised, Stride, ElementPointer );
 		Opengl_IsOkay();
@@ -1182,37 +1524,48 @@ Opengl::TGeometry Opengl::CreateGeometry(const ArrayBridge<uint8>&& Data,const A
 	//Vertex.DisableAttribs();
 
 	//	push indexes
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, Geo.indexBuffer );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
 	glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes.GetDataSize(), Indexes.GetArray(), GL_STATIC_DRAW );
-	Geo.indexCount = size_cast<GLsizei>( Indexes.GetSize() );
-	Geo.mIndexType = Opengl::GetTypeEnum<GLshort>();
+	mIndexCount = size_cast<GLsizei>( Indexes.GetSize() );
+	mIndexType = Opengl::GetTypeEnum<GLshort>();
 	Opengl_IsOkay();
 
-	
+	//	
+	glFinish();
+
 	//	unbind
-	//	gr: don't unbind, leave bound for life of VAO (maybe for GL 3 only)
+	//	gr: don't unbind buffers from the VAO, leave bound for life of VAO (maybe for GL 3 only?)
 	//glBindBuffer( GL_ARRAY_BUFFER, 0 );
 	//glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 );
+	Unbind();
+}
+
+void Opengl::TGeometry::Bind()
+{
+	Opengl::BindVertexArray( mVertexArrayObject );
+	Opengl_IsOkay();
+}
+
+void Opengl::TGeometry::Unbind()
+{
+	//	unbinding so nothing alters it
+#if defined(TARGET_IOS)|| defined(TARGET_WINDOWS)
 	Opengl::BindVertexArray( 0 );
 	Opengl_IsOkay();
-	
-
-	
-	return Geo;
+#endif
 }
 
 
-void Opengl::TGeometry::Draw() const
+void Opengl::TGeometry::Draw()
 {
-	if ( !Opengl_IsInitialised() )
-		return;
-	
-	//	null to draw from indexes in vertex array
-	Opengl::BindVertexArray( vertexArrayObject );
+	Bind();
+
+	//	should already be bound, so these should do nothing
+	glBindBuffer( GL_ARRAY_BUFFER, mVertexBuffer );
 	Opengl_IsOkay();
-	glBindBuffer( GL_ARRAY_BUFFER, vertexBuffer );
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, indexBuffer );
-	
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
+	Opengl_IsOkay();
+
 #if !defined(TARGET_IOS)
 	//	should be left enabled
 	mVertexDescription.EnableAttribs();
@@ -1224,46 +1577,33 @@ void Opengl::TGeometry::Draw() const
 	//Opengl_IsOkay();
 	
 	
-	glDrawElements( GL_TRIANGLES, indexCount, mIndexType, nullptr );
+	glDrawElements( GL_TRIANGLES, mIndexCount, mIndexType, nullptr );
 	Opengl::IsOkay("glDrawElements");
 
-	//	unbinding so nothing alters it
-#if defined(TARGET_IOS)
-	Opengl::BindVertexArray( 0 );
-#endif
+	Unbind();
 }
 
-void Opengl::TGeometry::Free()
+Opengl::TGeometry::~TGeometry()
 {
-	if ( vertexArrayObject != GL_ASSET_INVALID )
+	if ( mVertexArrayObject != GL_ASSET_INVALID )
 	{
-		glDeleteVertexArrays( 1, &vertexArrayObject );
-		vertexArrayObject = GL_ASSET_INVALID;
+		Opengl::DeleteVertexArrays( 1, &mVertexArrayObject );
+		mVertexArrayObject = GL_ASSET_INVALID;
 	}
 	
-	if ( indexBuffer != GL_ASSET_INVALID )
+	if ( mIndexBuffer != GL_ASSET_INVALID )
 	{
-		glDeleteBuffers( 1, &indexBuffer );
-		indexBuffer = GL_ASSET_INVALID;
-		indexCount = 0;
+		glDeleteBuffers( 1, &mIndexBuffer );
+		mIndexBuffer = GL_ASSET_INVALID;
+		mIndexCount = 0;
 	}
 	
-	if ( vertexBuffer != GL_ASSET_INVALID )
+	if ( mVertexBuffer != GL_ASSET_INVALID )
 	{
-		glDeleteBuffers( 1, &vertexBuffer );
-		vertexBuffer = GL_ASSET_INVALID;
-		vertexCount = 0;
+		glDeleteBuffers( 1, &mVertexBuffer );
+		mVertexBuffer = GL_ASSET_INVALID;
+		mVertexCount = 0;
 	}
-}
-
-
-bool Opengl::TGeometry::IsValid() const
-{
-	return	vertexBuffer != GL_ASSET_INVALID &&
-	indexBuffer != GL_ASSET_INVALID &&
-	vertexArrayObject != GL_ASSET_INVALID &&
-	vertexCount != GL_ASSET_INVALID &&
-	indexCount != GL_ASSET_INVALID;
 }
 
 
@@ -1276,17 +1616,31 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::RGBA, GL_RGBA, GL_RGBA, GL_RGBA ),
 
 		//	alternatives for GL -> soy
+#if defined(GL_RGB8)
 		TPixelFormatMapping( SoyPixelsFormat::RGB, GL_RGB8, GL_RGB8, GL_RGB8 ),
+#endif
+#if defined(GL_RGBA8)
 		TPixelFormatMapping( SoyPixelsFormat::RGBA, GL_RGBA8, GL_RGBA8, GL_RGBA8 ),
+#endif
 
 #if defined(TARGET_IOS)
 		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_BGRA, GL_BGRA, GL_BGRA ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
+		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
+		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA ),
 #endif
 #if defined(TARGET_WINDOWS)
-		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_RED, GL_RED, GL_RED),
+		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_RED, GL_RED, GL_RED),
+		TPixelFormatMapping(SoyPixelsFormat::Greyscale, GL_RED, GL_RED, GL_RED),
+		TPixelFormatMapping(SoyPixelsFormat::GreyscaleAlpha, GL_RG, GL_RG, GL_RG),
+
 #endif
 #if defined(GL_VERSION_3_0)
 		TPixelFormatMapping( SoyPixelsFormat::BGR, GL_BGR, GL_BGR, GL_BGR ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_RED, GL_RED, GL_RED ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_RED, GL_RED, GL_RED ),
 		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_RED, GL_RED, GL_RED ),
 		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha, GL_RG, GL_RG, GL_RG ),
 		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_RGBA, GL_BGRA, GL_RGBA ),
@@ -1311,7 +1665,17 @@ GLenum Opengl::GetUploadPixelFormat(const Opengl::TTexture& Texture,SoyPixelsFor
 	{
 		//	ios requires formats to match, no internal conversion
 	#if defined(TARGET_IOS)
-		Soy::Assert( Texture.GetFormat() == Format, "IOS requires texture upload format to match" );
+		bool ForceAllow = false;
+
+		//	allow RGBA as BGRA
+		ForceAllow = ( Texture.GetFormat() == SoyPixelsFormat::RGBA && Format == SoyPixelsFormat::BGRA );
+			
+		if ( Texture.GetFormat() != Format && !ForceAllow )
+		{
+			std::stringstream Error;
+			Error << "ios texture upload requires texture format(" << Texture.GetFormat() << " to match source format (" << Format << ")";
+			throw Soy::AssertException( Error.str() );
+		}
 		auto Mapping = GetPixelMapping( Texture.GetFormat() );
 		return Mapping.mUploadFormat;
 	#endif
@@ -1388,6 +1752,7 @@ void Opengl::SetViewport(Soy::Rectf Viewport)
 	auto w = size_cast<GLsizei>(Viewport.w);
 	auto h = size_cast<GLsizei>(Viewport.h);
 	glViewport( x, y, w, h );
+	Opengl_IsOkay();
 }
 
 void Opengl::ClearDepth()
@@ -1395,8 +1760,72 @@ void Opengl::ClearDepth()
 	glClear(GL_DEPTH_BUFFER_BIT);
 }
 
+void Opengl::ClearStencil()
+{
+	glClear(GL_STENCIL_BUFFER_BIT);
+}
+
 void Opengl::ClearColour(Soy::TRgb Colour,float Alpha)
 {
 	glClearColor( Colour.r(), Colour.g(), Colour.b(), Alpha );
 	glClear(GL_COLOR_BUFFER_BIT);
+}
+
+
+Opengl::TSync::TSync(bool Create) :
+	mSyncObject	( nullptr )
+{
+	if ( Create )
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+	{
+		mSyncObject = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+		Opengl::IsOkay("glFenceSync");
+	}
+#else
+	{
+		mSyncObject = true;
+	}
+#endif
+}
+
+void Opengl::TSync::Delete()
+{
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+	if ( mSyncObject )
+	{
+		glDeleteSync( mSyncObject );
+		Opengl::IsOkay("glDeleteSync");
+		mSyncObject = nullptr;
+	}
+#else
+	mSyncObject = false;
+#endif
+}
+
+void Opengl::TSync::Wait(const char* TimerName)
+{
+#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+	if ( !glIsSync( mSyncObject ) )
+		return;
+	
+	//glWaitSync( mSyncObject, 0, GL_TIMEOUT_IGNORED );
+	GLbitfield Flags = GL_SYNC_FLUSH_COMMANDS_BIT;
+	GLuint64 TimeoutMs = 1000;
+	GLuint64 TimeoutNs = TimeoutMs * 1000000;
+	GLenum Result = GL_INVALID_ENUM;
+	do
+	{
+		Result = glClientWaitSync( mSyncObject, Flags, TimeoutNs );
+	}
+	while ( Result == GL_TIMEOUT_EXPIRED );
+	
+	if ( Result == GL_WAIT_FAILED )
+		Opengl::IsOkay("glClientWaitSync GL_WAIT_FAILED");
+	
+#else
+	if ( mSyncObject )
+		glFinish();
+#endif
+
+	Delete();
 }

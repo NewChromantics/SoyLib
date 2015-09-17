@@ -2,6 +2,7 @@
 //#include "SoyApp.h"
 #include <SoyDebug.h>
 #include <SoyString.h>
+#include "SoyOpenglContext.h"
 
 
 namespace Opencl
@@ -9,10 +10,29 @@ namespace Opencl
 #define Opencl_IsOkay(Error)	Opencl::IsOkay( (Error), __func__, true )
 	bool				IsOkay(cl_int Error,const std::string& Context,bool ThrowException=true);
 	
-	
+	std::string			EnumToString_EventStatus(cl_uint Error);
+
 	cl_channel_order	GetImageChannelOrder(SoyPixelsFormat::Type Format,cl_channel_type& DataType);
 }
 
+
+std::ostream& operator<<(std::ostream &out,const Opencl::TDeviceMeta& in)
+{
+	out << in.mName << " ";
+	out << in.mVendor << " ";
+	out << OpenclDevice::ToString(in.mType) << " ";
+	return out;
+}
+/*
+
+std::ostream& Opencl::operator<<(std::ostream &out,const Opencl::TDeviceMeta& in)
+{
+	out << in.mName << " ";
+	out << in.mVendor << " ";
+	out << OpenclDevice::ToString(in.mType) << " ";
+	return out;
+}
+*/
 
 std::map<OpenclDevice::Type,std::string> OpenclDevice::EnumMap =
 {
@@ -29,6 +49,38 @@ cl_float2 Soy::VectorToCl(const vec2f& v)
 	return cl_float2{ .s={ v.x, v.y } };
 }
 
+cl_float3 Soy::VectorToCl(const vec3f& v)
+{
+	return cl_float3{ .s={ v.x, v.y, v.z } };
+}
+
+cl_float4 Soy::VectorToCl(const vec4f& v)
+{
+	return cl_float4{ .s={ v.x, v.y, v.z, v.w } };
+}
+
+vec2f Soy::ClToVector(const cl_float2& v)
+{
+	return vec2f( v.s[0], v.s[1] );
+}
+
+vec4f Soy::ClToVector(const cl_float4& v)
+{
+	return vec4f( v.s[0], v.s[1], v.s[2], v.s[3] );
+}
+
+
+std::ostream& operator<<(std::ostream &out,const cl_float2& in)
+{
+	out << Soy::ClToVector(in);
+	return out;
+}
+
+std::ostream& operator<<(std::ostream &out,const cl_float4& in)
+{
+	out << Soy::ClToVector(in);
+	return out;
+}
 
 
 
@@ -128,33 +180,22 @@ std::string Opencl::GetErrorString(cl_int Error)
 }
 
 
-
-Opencl::TVersion::TVersion(std::string VersionStr) :
-	mMajor	( 0 ),
-	mMinor	( 0 )
+std::string Opencl::EnumToString_EventStatus(cl_uint Error)
 {
-	//	strip off prefix's
-	std::string Prefix = "OpenCL ";
-	if ( Soy::StringBeginsWith(VersionStr,Prefix, false ) )
-		VersionStr.erase(0, Prefix.length() );
-	
-	int PartCounter = 0;
-	auto PushVersions = [&PartCounter,this](const std::string& PartStr)
+#define CASE_ENUM_STRING(e)	case (e):	return #e;
+	switch ( Error )
 	{
-		//	got all we need
-		if ( PartCounter >= 2 )
-			return false;
-		
-		auto& PartInt = (PartCounter==0) ? mMajor : mMinor;
-		Soy::StringToType( PartInt, PartStr );
-		
-		PartCounter++;
-		return true;
-	};
-	
-	Soy::StringSplitByMatches( PushVersions, VersionStr, " .", false );
+			//	extension errors
+			CASE_ENUM_STRING( CL_COMPLETE );
+			CASE_ENUM_STRING( CL_RUNNING );
+			CASE_ENUM_STRING( CL_SUBMITTED );
+			CASE_ENUM_STRING( CL_QUEUED );
+	}
+#undef CASE_ENUM_STRING
+	std::stringstream Unknown;
+	Unknown << "Unknown cl event status " << Error;
+	return Unknown.str();
 }
-
 
 void GetPlatforms(ArrayBridge<cl_platform_id>&& Platforms)
 {
@@ -211,29 +252,30 @@ void GetValue(cl_device_id Device,cl_device_info Info,TYPE& Value)
 }
 
 
-std::ostream& operator<<(std::ostream &out,const Opencl::TDeviceMeta& in)
-{
-	out << in.mName << " ";
-	out << in.mVendor << " ";
-	out << OpenclDevice::ToString(in.mType) << " ";
-	return out;
-}
-
-
 Opencl::TDeviceMeta::TDeviceMeta(cl_device_id Device) :
-	mDevice		( Device )
+	mDevice						( Device ),
+	mHasOpenglInteroperability	( false ),
+	mHasOpenglSyncSupport		( false )
 {
 	mVendor = GetString( Device, CL_DEVICE_VENDOR );
 	mName = GetString( Device, CL_DEVICE_NAME );
 	mDriverVersion = GetString( Device, CL_DRIVER_VERSION );
 	std::string DeviceVersion = GetString( Device, CL_DEVICE_VERSION );
 	mProfile = GetString( Device, CL_DEVICE_PROFILE );
-	mExtensions = GetString( Device, CL_DEVICE_EXTENSIONS );
 
-	//	extract version
-	mVersion = TVersion( DeviceVersion );
+	auto Extensions = GetString( Device, CL_DEVICE_EXTENSIONS );
+	Soy::StringSplitByMatches( GetArrayBridge(mExtensions), Extensions, " " );
+
+#if defined(TARGET_OSX)
+	mHasOpenglInteroperability = mExtensions.Find("cl_APPLE_gl_sharing");
+#endif
 	
-	std::Debug << "Device " << mName << "(" << mDriverVersion << ") extensions: " << mExtensions << std::endl;
+	mHasOpenglSyncSupport = mExtensions.Find("cl_khr_gl_event");
+	
+	//	extract version
+	mVersion = Soy::TVersion( DeviceVersion, "OpenCL " );
+	
+	std::Debug << "Device " << mName << "(" << mDriverVersion << ") extensions: " << Extensions << std::endl;
 
 	cl_device_type Type = OpenclDevice::Invalid;
 	GetValue( Device, CL_DEVICE_TYPE, Type );
@@ -346,42 +388,52 @@ void Opencl::GetDevices(ArrayBridge<TDeviceMeta>&& Metas,OpenclDevice::Type Filt
 
 
 
-Opencl::TDevice::TDevice(const ArrayBridge<cl_device_id>& Devices) :
-	mContext	( nullptr )
+Opencl::TDevice::TDevice(const ArrayBridge<cl_device_id>& Devices,Opengl::TContext* OpenglContext) :
+	mContext				( nullptr ),
+	mSharedOpenglContext	( nullptr )
 {
-	CreateContext( Devices );
+	CreateContext( Devices, OpenglContext );
 }
 
 
-Opencl::TDevice::TDevice(const ArrayBridge<TDeviceMeta>& Devices) :
-	mContext	( nullptr )
+Opencl::TDevice::TDevice(const ArrayBridge<TDeviceMeta>& Devices,Opengl::TContext* OpenglContext) :
+	mContext				( nullptr ),
+	mSharedOpenglContext	( nullptr )
 {
 	Array<cl_device_id> DeviceIds;
 	for ( int i=0;	i<Devices.GetSize();	i++ )
 		DeviceIds.PushBack( Devices[i].mDevice );
 
-	CreateContext( GetArrayBridge(DeviceIds) );
+	CreateContext( GetArrayBridge(DeviceIds), OpenglContext );
 }
 
-void Opencl::TDevice::CreateContext(const ArrayBridge<cl_device_id>& Devices)
+void Opencl::TDevice::CreateContext(const ArrayBridge<cl_device_id>& Devices,Opengl::TContext* OpenglContext)
 {
 	if ( Devices.IsEmpty() )
 		throw Soy::AssertException("No devices provided");
+	
+	
+	//	gr: just warn?
+	//	gr: filter out non interop devices?
+	if ( OpenglContext )
+	{
+	}
 	
 	//	create context
 	//	if we specify any properties we need a platform (and a terminator)
 	Array<cl_context_properties> Properties;
 
 #if defined(TARGET_OSX)
-	/* opengl interop
-	CGLContextObj kCGLContext = CGLGetCurrentContext();
-	CGLShareGroupObj kCGLShareGroup = CGLGetShareGroup(kCGLContext);
-	Properties.PushBack( CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE );
-	Properties.PushBack( (cl_context_properties)kCGLShareGroup );
-	 */
+	if ( OpenglContext )
+	{
+		auto CGLContext = OpenglContext->GetPlatformContext();
+		CGLShareGroupObj CGLShareGroup = CGLGetShareGroup( CGLContext );
+		Properties.PushBack( CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE );
+		Properties.PushBack( (cl_context_properties)CGLShareGroup );
+	}
 #endif
 
-	//	c-array style list terminator
+	//	add c-array style list terminator
 	if ( !Properties.IsEmpty() )
 		Properties.PushBack(0);
 
@@ -391,6 +443,13 @@ void Opencl::TDevice::CreateContext(const ArrayBridge<cl_device_id>& Devices)
 	Soy::Assert( mContext != nullptr, "clCreateContext failed to return a context" );
 	
 	mDevices.Copy( Devices );
+	
+#if defined(TARGET_OSX)
+	if ( OpenglContext )
+	{
+		mSharedOpenglContext = OpenglContext->GetPlatformContext();
+	}
+#endif
 }
 
 
@@ -401,6 +460,16 @@ Opencl::TDevice::~TDevice()
 		clReleaseContext( mContext );
 		mContext = nullptr;
 	}
+}
+
+bool Opencl::TDevice::HasInteroperability(Opengl::TContext &Opengl)
+{
+#if defined(TARGET_OSX)
+	auto Context = Opengl.GetPlatformContext();
+	return mSharedOpenglContext == Context;
+#else
+	return false;
+#endif
 }
 
 std::shared_ptr<Opencl::TContext> Opencl::TDevice::CreateContext()
@@ -451,15 +520,32 @@ Opencl::TContext::~TContext()
 	}
 }
 
+bool Opencl::TContext::IsLocked(std::thread::id Thread)
+{
+	//	check for any thread
+	if ( Thread == std::thread::id() )
+		return mLockedThread!=std::thread::id();
+	else
+		return mLockedThread == Thread;
+}
+
 bool Opencl::TContext::Lock()
 {
-	//	need to set thread for queue?
+	//	need to set thread for cl_queue?
+
+	//	same as Opengl::TContext::Lock()
+	Soy::Assert( mLockedThread == std::thread::id(), "context already locked" );
+	mLockedThread = std::this_thread::get_id();
 	return true;
 }
 
 void Opencl::TContext::Unlock()
 {
-	
+	//	same as Opengl::TContext::Unlock()
+	auto ThisThread = std::this_thread::get_id();
+	Soy::Assert( mLockedThread != std::thread::id(), "context not locked to wrong thread" );
+	Soy::Assert( mLockedThread == ThisThread, "context not unlocked from wrong thread" );
+	mLockedThread = std::thread::id();
 }
 
 
@@ -592,6 +678,8 @@ Opencl::TKernel::TKernel(const std::string& Kernel,TProgram& Program) :
 
 Opencl::TKernel::~TKernel()
 {
+	//	wait for lock to be finished
+	std::lock_guard<std::mutex> Lock( mLock );
 	if ( mKernel )
 	{
 		clReleaseKernel( mKernel );
@@ -619,6 +707,11 @@ Opencl::TContext& Opencl::TKernel::GetContext()
 	return *mLockedContext;
 }
 
+Opencl::TUniform Opencl::TKernel::GetUniform(const char* Name) const
+{
+	auto* Uniform = mUniforms.Find( Name );
+	return Uniform ? *Uniform : TUniform();
+}
 
 
 Opencl::TSync::TSync() :
@@ -639,6 +732,15 @@ void Opencl::TSync::Wait()
 {
 	if ( !mEvent )
 		return;
+	
+	cl_uint EventRefCount = 0;
+	auto InfoError = clGetEventInfo( mEvent, CL_EVENT_REFERENCE_COUNT, sizeof(EventRefCount), &EventRefCount, nullptr );
+	Opencl_IsOkay( InfoError );
+
+	cl_int EventStatus = CL_SUCCESS;
+	auto GetEventInfoErr = clGetEventInfo( mEvent, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(EventStatus), &EventStatus, nullptr );
+	Opencl_IsOkay( GetEventInfoErr );
+	//std::Debug << "Event status: " << EnumToString_EventStatus( EventStatus ) << std::endl;
 	
 	auto WaitError = clWaitForEvents( 1, &mEvent );
 
@@ -667,8 +769,13 @@ Opencl::TKernelState::~TKernelState()
 }
 
 template<typename TYPE>
-void SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Value)
+bool SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Value)
 {
+	//	as per opengl, silent error if uniform doesn't exist
+	auto Uniform = Kernel.mKernel.GetUniform(Name);
+	if ( !Uniform.IsValid() )
+		return false;
+	
 	//	gr: ByNameAPPLE will fail if we haven't compiled kernel info
 	//		Opencl::BuildOption_KernelInfo
 	auto Error = clSetKernelArgByNameAPPLE( Kernel.mKernel.mKernel, Name, sizeof(TYPE), &Value );
@@ -676,6 +783,7 @@ void SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Valu
 	std::stringstream ErrorString;
 	ErrorString << "SetKernelArg(" << Name << ", " << Soy::GetTypeName<TYPE>() << ")";
 	Opencl::IsOkay(Error, ErrorString.str() );
+	return true;
 }
 
 
@@ -715,25 +823,100 @@ cl_image_format Opencl::GetImageFormat(SoyPixelsFormat::Type Format)
 	return FormatCl;
 }
 
-Opencl::TBuffer::TBuffer() :
-	mMem	( nullptr )
+
+Opencl::TBuffer::TBuffer(const std::string& DebugName) :
+	mMem		( nullptr ),
+	mBufferSize	( 0 ),
+	mDebugName	( DebugName )
 {
 	
+}
+
+Opencl::TBuffer::TBuffer(size_t Size,TContext& Context,const std::string& DebugName) :
+	mMem		( nullptr ),
+	mBufferSize	( 0 ),
+	mDebugName	( DebugName )
+{
+	cl_mem_flags Flags = CL_MEM_READ_WRITE;
+	void* HostPtr = nullptr;
+
+	Soy::Assert( mMem == nullptr, "clmem already allocated");
+	cl_int Error = CL_SUCCESS;
+	mMem = clCreateBuffer( Context.GetContext(), Flags, Size, HostPtr, &Error );
+	std::stringstream ErrorString;
+	ErrorString << __func__ << "(" << Soy::FormatSizeBytes(Size) << ")";
+	Opencl::IsOkay( Error, ErrorString.str() );
+
+	Soy::Assert( mMem != nullptr, "clCreateBuffer success but no mem object" );
+	mBufferSize = Size;
 }
 
 Opencl::TBuffer::~TBuffer()
 {
 	if ( mMem )
 	{
-		clReleaseMemObject( mMem );
+		//std::Debug << "Deleting cl_mem " << mDebugName << std::endl;
+		
+		auto Error = clReleaseMemObject( mMem );
+		Opencl::IsOkay( Error, "clReleaseMemObject" );
 		mMem = nullptr;
+		mBufferSize = 0;
 	}
 }
 
 
-Opencl::TBufferImage::TBufferImage(const SoyPixelsMetaFull& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,TSync* Semaphore) :
-	mContext	( Context )
+void Opencl::TBuffer::ReadImpl(ArrayInterface<uint8>& Array,TContext& Context,TSync* Sync)
 {
+	Soy::Assert( mMem != nullptr, "Mem buffer expected" );
+
+	auto* ArrayPtr = Array.GetArray();
+	Soy::Assert( ArrayPtr != nullptr, "Array should not be empty" );
+	
+	//	todo; check size of mem. We should store this on mMem set
+	size_t StartBytes = 0;
+	size_t ByteCount = Array.GetDataSize();
+	static bool Blocking = true;
+
+	if ( ByteCount > mBufferSize )
+	{
+		std::stringstream Error;
+		Error << "Trying to read " << Soy::FormatSizeBytes(ByteCount) << " more than buffer size " << Soy::FormatSizeBytes(mBufferSize) << std::endl;
+		throw Soy::AssertException( Error.str() );
+		//ByteCount = mBufferSize;
+	}
+	
+	auto Error = clEnqueueReadBuffer( Context.GetQueue(), mMem, Blocking, StartBytes, ByteCount, ArrayPtr, 0, nullptr, Sync ? &Sync->mEvent : nullptr );
+	std::stringstream ErrorString;
+	ErrorString << "TBuffer::Read(" << ByteCount << " bytes)";
+	Opencl::IsOkay( Error, ErrorString.str() );
+}
+
+void Opencl::TBuffer::Write(const uint8 *Array,size_t Size,TContext& Context,Opencl::TSync *Sync)
+{
+	Soy::Assert( mMem != nullptr, "Mem buffer expected" );
+	Soy::Assert( Array != nullptr, "Array should not be empty" );
+	Soy::Assert( Size <= mBufferSize, "Trying to write more bytes than in buffer");
+
+	bool Blocking = false;
+	size_t StartBytes = 0;
+	Size = std::min( Size, mBufferSize );
+
+	auto Error = clEnqueueWriteBuffer( Context.GetQueue(), mMem, Blocking, StartBytes, Size, Array, 0, nullptr,  Sync ? &Sync->mEvent : nullptr );
+	std::stringstream ErrorString;
+	ErrorString << "TBuffer::Write(" << Size << " bytes)";
+	Opencl::IsOkay( Error, ErrorString.str() );
+}
+
+
+
+Opencl::TBufferImage::TBufferImage(const SoyPixelsMeta& Meta,TContext& Context,const SoyPixelsImpl* ClientStorage,OpenclBufferReadWrite::Type ReadWrite,const std::string& DebugName,TSync* Semaphore) :
+	TBuffer			( DebugName + " (TBufferImage)" ),
+	mContext		( Context ),
+	mOpenglObject	( nullptr ),
+	mMeta			( Meta )
+{
+	Soy::Assert( mMem == nullptr, "clmem already allocated");
+	
 	auto& Device = Context.GetDevice();
 	Soy::Assert( Device.imageSupport, "Device doesn't support images" );
 	if ( Device.image2dMaxWidth < Meta.GetWidth() || Device.image2dMaxHeight < Meta.GetHeight() )
@@ -767,12 +950,184 @@ Opencl::TBufferImage::TBufferImage(const SoyPixelsMetaFull& Meta,TContext& Conte
 	Opencl::IsOkay( Error, "clCreateImage" );
 }
 
-Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,Opencl::TSync* Semaphore) :
-	TBufferImage	( Image.GetMetaFull(), Context, ClientStorage ? &Image : nullptr, ReadWrite, Semaphore )
+Opencl::TBufferImage::TBufferImage(const SoyPixelsImpl& Image,TContext& Context,bool ClientStorage,OpenclBufferReadWrite::Type ReadWrite,const std::string& DebugName,Opencl::TSync* Semaphore) :
+	TBufferImage		( Image.GetMeta(), Context, ClientStorage ? &Image : nullptr, ReadWrite, DebugName, Semaphore )
 {
-	Write( Image, Semaphore );
+	if ( ReadWrite != OpenclBufferReadWrite::WriteOnly )
+		Write( Image, Semaphore );
 }
 
+
+Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TContext& OpenglContext,TContext& Context,OpenclBufferReadWrite::Type ReadWrite,const std::string& DebugName,TSync* Semaphore) :
+	TBuffer			( DebugName + " (TBufferImage)" ),
+	mContext		( Context ),
+	mOpenglObject	( nullptr ),
+	mMeta			( Texture.mMeta )
+{
+	try
+	{
+		if ( Context.HasInteroperability(OpenglContext) )
+		{
+			cl_mem_flags MemFlags = ReadWrite;
+			cl_GLint MipLevel = 0;
+			cl_int Error = CL_SUCCESS;
+			Soy::Assert( mMem == nullptr, "clmem already allocated");
+			mMem = clCreateFromGLTexture( mContext.GetContext(), MemFlags, Texture.mType, MipLevel, Texture.mTexture.mName, &Error );
+			Opencl::IsOkay( Error, "clCreateFromGLTexture" );
+
+			//	before we lock opengl objects, we need to flush/sync them
+			//	gr: use cl_khr_gl_sync to sync individual textures. apparently we're supposed to flush with gl finish, but flush works?
+			static bool FlushIfOpenglBusy = true;
+			bool DoFlush = true;
+
+			//	gr: to avoid deadlock when this is called thunked from opengl, don't flush if the context is locked in a job
+			//	note: we are NOT in the locked thread, so check if locked to any
+			//	check this doesn't cause corruption
+			if ( !FlushIfOpenglBusy )
+			{
+				if ( OpenglContext.IsLockedToAnyThread() )
+				{
+					//std::Debug << "Skipping flush as context is locked to a job" << std::endl;
+					DoFlush = false;
+				}
+			}
+			
+			BufferArray<cl_event,1> PreAcquireEvents;
+		
+			if ( DoFlush )
+			{
+				static int FlushTimerMin = 10;
+				static bool TextureSyncCl = false;
+				static bool TextureSync = true;
+				static bool FlushApple = false;
+				static bool Flush = false;
+				static bool Finish = false;
+				
+				bool DoTextureSync = ( TextureSync && Texture.mWriteSync );
+				bool DoTextureSyncCl = ( TextureSyncCl && Context.GetDevice().mHasOpenglSyncSupport && Texture.mWriteSync );
+				
+				std::stringstream SyncTimerName;
+				SyncTimerName << "Opengl -> Opencl flush sync " << DebugName;
+				if ( DoTextureSyncCl )
+					SyncTimerName << " TEXTURE SYNC GL->CL";
+				else if ( DoTextureSync )
+					SyncTimerName << " TEXTURE SYNC";
+				
+				Soy::TScopeTimerPrint Timer(SyncTimerName.str().c_str(),FlushTimerMin);
+				Soy::TSemaphore Sync;
+				
+				if ( DoTextureSyncCl )
+				{
+					cl_int Error = ~CL_SUCCESS;
+					auto Event = clCreateEventFromGLsyncKHR( Context.GetContext(), Texture.mWriteSync->mSyncObject, &Error );
+					Opencl::IsOkay( Error, "clCreateEventFromGLsyncKHR" );
+					PreAcquireEvents.PushBack( Event );
+
+					//	so we don't wait on this sync
+					Sync.OnCompleted();
+				}
+				else if ( DoTextureSync )
+				{
+					auto TextureSync = [&Texture]
+					{
+						Texture.mWriteSync->Wait();
+					};
+					OpenglContext.PushJob( TextureSync, Sync );
+				}
+				else if ( FlushApple )
+				{
+					OpenglContext.PushJob( glFlushRenderAPPLE, Sync );
+				}
+				else if ( Flush )
+				{
+					OpenglContext.PushJob( glFlush, Sync );
+				}
+				else if ( Finish )
+				{
+					OpenglContext.PushJob( glFinish, Sync );
+				}
+				else
+				{
+					Sync.OnCompleted();
+				}
+				Sync.Wait();
+			
+			}
+			
+			//	lock opengl objects
+			static bool DoAcquire = true;
+			if ( DoAcquire )
+			{
+				static int AcquireTimerMin = 10;
+				Soy::TScopeTimerPrint Timer("clEnqueueAcquireGLObjects",AcquireTimerMin);
+
+				Error = clEnqueueAcquireGLObjects( mContext.GetQueue(), 1, &mMem, size_cast<cl_uint>(PreAcquireEvents.GetSize()), PreAcquireEvents.GetArray(), Semaphore ? &Semaphore->mEvent : nullptr );
+				Opencl::IsOkay( Error, "clEnqueueAcquireGLObjects" );
+			}
+
+			//	gr: set this regardless of the lock
+			mOpenglObject = &Texture;
+
+			//	success!
+			return;
+		}
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Failed to upload texture to opencl via opengl: " << e.what() << std::endl;
+	}
+
+	//	read texture to buffer and upload that
+	Soy::TScopeTimerPrint Timer("TBufferImage from opengl texture via read pixels", 10 );
+	
+	SoyPixels Buffer;
+	auto Read = [&Buffer,&Texture]
+	{
+		Texture.Read( Buffer );
+	};
+	Soy::TSemaphore ReadSemaphore;
+	OpenglContext.PushJob( Read, ReadSemaphore );
+	ReadSemaphore.Wait();
+
+	*this = std::move( Opencl::TBufferImage( Buffer, Context, false, ReadWrite, mDebugName, Semaphore ) );
+}
+
+Opencl::TBufferImage& Opencl::TBufferImage::operator=(TBufferImage&& Move)
+{
+	if ( mContext != Move.mContext )
+		throw Soy::AssertException("Trying to std::move a buffer image across contexts");
+	
+	if ( this != &Move )
+	{
+		if ( mMem )
+			throw Soy::AssertException("Overwriting mem with std::move");
+
+		mMem = Move.mMem;
+		mOpenglObject = Move.mOpenglObject;
+		mBufferSize = Move.mBufferSize;
+
+		//	stolen resources
+		Move.mMem = nullptr;
+		Move.mOpenglObject = nullptr;
+		Move.mBufferSize = 0;
+	}
+	return *this;
+}
+
+Opencl::TBufferImage::~TBufferImage()
+{
+	//	release any opengl objects in use
+	if ( mOpenglObject )
+	{
+		Soy::Assert( mMem != nullptr, "Need to release GL object lock from membuffer, but mem is gone");
+		
+		TSync Sync;
+		auto Error = clEnqueueReleaseGLObjects( mContext.GetQueue(), 1, &mMem, 0, nullptr, &Sync.mEvent );
+		Opencl::IsOkay( Error, "clEnqueueReleaseGLObjects" );
+		Sync.Wait();
+		mOpenglObject = nullptr;
+	}
+}
 
 void Opencl::TBufferImage::Write(const SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
 {
@@ -789,80 +1144,213 @@ void Opencl::TBufferImage::Write(const SoyPixelsImpl& Image,Opencl::TSync* Semap
 	Opencl::IsOkay( Error, __func__ );
 }
 
+
+void Opencl::TBufferImage::Write(TBufferImage& Image,Opencl::TSync* Semaphore)
+{
+	//	copy image to image
+	size_t SourceOffset = 0;	//	mem offset, guess this needs calculating if we're doing a sub image
+	size_t DestOrigin[] = { 0,0,0 };
+	size_t DestRegion[] = { mMeta.GetWidth(), mMeta.GetHeight(), 1 };
+	auto Queue = mContext.GetQueue();
+	auto* Event = Semaphore ? &Semaphore->mEvent : nullptr;
+	auto SourceBuffer = Image.mMem;
+	auto DestBuffer = mMem;
+	
+	cl_int Error = clEnqueueCopyBufferToImage( Queue, SourceBuffer, DestBuffer, SourceOffset, DestOrigin, DestRegion, 0, nullptr, Event );
+	
+	std::stringstream ErrorContext;
+	ErrorContext << "clEnqueueCopyBufferToImage " << this->mDebugName << " --> " << Image.mDebugName;
+	Opencl::IsOkay( Error, ErrorContext.str() );
+}
+
+
 void Opencl::TBufferImage::Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
 {
 	size_t Origin[] = { 0,0,0 };
 	size_t Region[] = { Image.GetWidth(), Image.GetHeight(), 1 };
 	auto Queue = mContext.GetQueue();
 	cl_bool Block = CL_TRUE;
-	int image_row_pitch = 0;	// TODO
-	int image_slice_pitch = 0;
+	
+	//	driver calcs pitch automatically
+	size_t image_row_pitch = 0;
+	image_row_pitch = Image.GetRowPitchBytes();
+	size_t image_slice_pitch = 0;	//	must be 0 for 2D
 
 	auto* Data = Image.GetPixelsArray().GetArray();
 	auto* Event = Semaphore ? &Semaphore->mEvent : nullptr;
 
 	auto Error = clEnqueueReadImage( Queue, mMem, Block, Origin, Region, image_row_pitch, image_slice_pitch, Data, 0, nullptr, Event );
 	Opencl::IsOkay( Error, __func__ );
+	
+	clFinish(Queue);
+	Opencl::IsOkay( Error, __func__ );
 }
 
 
-void Opencl::TKernelState::SetUniform(const char* Name,SoyPixelsImpl& Pixels)
+void Opencl::TBufferImage::Read(Opengl::TTexture& Image,Opencl::TSync* Semaphore)
+{
+	//	read-back the texture we were created with
+	if ( mOpenglObject == &Image )
+	{
+		//	seems to just write immediately, with no need for any flushes...
+		static bool Flush = false;
+		if ( Flush )
+		{
+			//	gr: obviously this should be a fence for just this object
+			Soy::TScopeTimerPrint Timer("Texture read-back with clFinish",1);
+			auto Error = clFinish( mContext.GetQueue() );
+			Opencl::IsOkay( Error, "Finish for texture read" );
+		}
+		return;
+	}
+	
+	throw Soy::AssertException("Trying to read back buffer image to different texture, context required");
+}
+
+
+
+void Opencl::TBufferImage::Read(Opengl::TTextureAndContext& TextureAndContext,Opencl::TSync* Semaphore)
+{
+	//	read-back the texture we were created with
+	if ( mOpenglObject == &TextureAndContext.mTexture )
+	{
+		//	seems to just write immediately, with no need for any flushes...
+		return;
+	}
+	
+	//	if texture is not valid, create it
+	auto& Texture = TextureAndContext.mTexture;
+	auto& Context = TextureAndContext.mContext;
+	if ( !Texture.IsValid(false) )
+	{
+		auto CreateTexture = [&Texture,this]
+		{
+			Texture = std::move( Opengl::TTexture( mMeta, GL_TEXTURE_2D ) );
+		};
+		Soy::TSemaphore Semaphore;
+		Context.PushJob( CreateTexture, Semaphore );
+		Semaphore.Wait();
+	}
+	
+	//	create a temporary buffer attached to the texture, and copy it
+	Opencl::TBufferImage NewTextureBuffer( Texture, Context, this->mContext, OpenclBufferReadWrite::ReadWrite, std::string("Temporary image to copy from ")+mDebugName );
+	NewTextureBuffer.Write( *this, Semaphore );
+	NewTextureBuffer.Read( Texture, Semaphore );
+}
+
+bool Opencl::TKernelState::SetUniform(const char* Name,const Opengl::TTextureAndContext& Pixels,OpenclBufferReadWrite::Type ReadWriteMode)
 {
 	//	todo: get uniform and check type is image_2D_t
 	//	make image buffer and set that
-	//	gr: do we need to store the buffer for the life time of the execution?
 	Opencl::TSync Sync;
-	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, OpenclBufferReadWrite::ReadWrite, &Sync ) );
-
+	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels.mTexture, Pixels.mContext, GetContext(), ReadWriteMode, std::string("Uniform ")+Name, &Sync ) );
+	
+	mBuffers.PushBack( std::make_pair(Name,Buffer) );
+/*
 	if ( mBuffers.find(Name) != mBuffers.end() )
 		std::Debug << "Warning, setting buffer for uniform " << Name << " which already has a buffer..." << std::endl;
-
 	mBuffers[Name] = Buffer;
-
+	*/
 	//	set kernel arg
-	SetKernelArg( *this, Name, Buffer->GetMemBuffer() );
+	bool Result = SetKernelArg( *this, Name, Buffer->GetMemBuffer() );
 	
 	//	we can't tell when caller is going to release the pixels, so wait for it to finish
 	Sync.Wait();
+	
+	return Result;
 }
 
 
-void Opencl::TKernelState::SetUniform(const char* Name,vec2f Value)
+bool Opencl::TKernelState::SetUniform(const char* Name,const SoyPixelsImpl& Pixels,OpenclBufferReadWrite::Type ReadWriteMode)
+{
+	//	todo: get uniform and check type is image_2D_t
+	//	make image buffer and set that
+	Opencl::TSync Sync;
+	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, ReadWriteMode, std::string("Uniform ") + Name, &Sync ) );
+
+	mBuffers.PushBack( std::make_pair(Name,Buffer) );
+	/*
+	if ( mBuffers.find(Name) != mBuffers.end() )
+		std::Debug << "Warning, setting buffer for uniform " << Name << " which already has a buffer..." << std::endl;
+	mBuffers[Name] = Buffer;
+*/
+	//	set kernel arg
+	bool Result = SetKernelArg( *this, Name, Buffer->GetMemBuffer() );
+	
+	//	we can't tell when caller is going to release the pixels, so wait for it to finish
+	Sync.Wait();
+	
+	return Result;
+}
+
+
+bool Opencl::TKernelState::SetUniform(const char* Name,const vec4f& Value)
 {
 	auto Value2 = Soy::VectorToCl( Value );
-	SetKernelArg( *this, Name, Value2 );
+	return SetKernelArg( *this, Name, Value2 );
 }
 
-void Opencl::TKernelState::SetUniform(const char* Name,cl_int Value)
+bool Opencl::TKernelState::SetUniform(const char* Name,const float& Value)
 {
-	SetKernelArg( *this, Name, Value );
+	return SetKernelArg( *this, Name, Value );
 }
 
+bool Opencl::TKernelState::SetUniform(const char* Name,const vec2f& Value)
+{
+	auto Value2 = Soy::VectorToCl( Value );
+	return SetKernelArg( *this, Name, Value2 );
+}
+
+bool Opencl::TKernelState::SetUniform(const char* Name,cl_int Value)
+{
+	return SetKernelArg( *this, Name, Value );
+}
+
+bool Opencl::TKernelState::SetUniform(const char* Name,TBuffer& Buffer)
+{
+	//	gr: this fails if you assign a read uniform with a write-only buffer! catch this here!
+	return SetKernelArg( *this, Name, Buffer.GetMemBuffer() );
+}
+
+Opencl::TBuffer& Opencl::TKernelState::GetUniformBuffer(const char* Name)
+{
+	for ( int i=0;	i<mBuffers.GetSize();	i++ )
+	{
+		auto& Pair = mBuffers[i];
+		if ( Pair.first == Name )
+			return *Pair.second;
+	}
+	
+	std::stringstream Error;
+	Error << "No uniform buffer named " << Name;
+	throw Soy::AssertException( Error.str() );
+}
+
+void Opencl::TKernelState::ReadUniform(const char* Name,Opengl::TTextureAndContext& Texture)
+{
+	auto& Buffer = GetUniformBuffer( Name );
+
+	//	check types etc!
+	Opencl::TSync Semaphore;
+	auto& BufferImage = dynamic_cast<TBufferImage&>( Buffer );
+	BufferImage.Read( Texture.mTexture, &Semaphore );
+	Semaphore.Wait();
+}
 
 void Opencl::TKernelState::ReadUniform(const char* Name,SoyPixelsImpl& Pixels)
 {
-	//	see if there's a buffer
-	auto BufferIt = mBuffers.find( Name );
-	if ( BufferIt == mBuffers.end() )
-	{
-		std::stringstream Error;
-		Error << "No buffer for uniform " << Name;
-		throw Soy::AssertException( Error.str() );
-	}
-
-	auto& pBuffer = BufferIt->second;
-	if ( !pBuffer )
-	{
-		std::stringstream Error;
-		Error << "Missing data buffer for uniform " << Name;
-		throw Soy::AssertException( Error.str() );
-	}
+	auto& Buffer = GetUniformBuffer( Name );
 	
 	//	check types etc!
 	Opencl::TSync Semaphore;
-	auto& BufferImage = dynamic_cast<TBufferImage&>( *pBuffer );
+	auto& BufferImage = dynamic_cast<TBufferImage&>( Buffer );
 	BufferImage.Read( Pixels, &Semaphore );
 	Semaphore.Wait();
+}
+
+void Opencl::TKernelState::ReadUniform(const char* Name,TBuffer& Buffer)
+{
+	//	may need to copy?
 }
 
 
@@ -877,7 +1365,7 @@ Opencl::TContext& Opencl::TKernelState::GetContext()
 }
 
 
-void ExpandIterations(ArrayBridge<Opencl::TKernelIteration>& IterationSplits,size_t Executions,size_t KernelWorkGroupMax)
+void ExpandIterations(ArrayBridge<Opencl::TKernelIteration>& IterationSplits,size_t Executions,size_t FirstOffset,size_t KernelWorkGroupMax)
 {
 	if ( Executions == 0 )
 		return;
@@ -905,7 +1393,7 @@ void ExpandIterations(ArrayBridge<Opencl::TKernelIteration>& IterationSplits,siz
 			//	add next dimension
 			auto First = it * KernelWorkGroupMax;
 			auto Count = std::min( KernelWorkGroupMax, Executions - First );
-			Iteration.mFirst.PushBack( First );
+			Iteration.mFirst.PushBack( First + FirstOffset );
 			Iteration.mCount.PushBack( Count );
 			
 			//
@@ -915,25 +1403,24 @@ void ExpandIterations(ArrayBridge<Opencl::TKernelIteration>& IterationSplits,siz
 }
 
 
-void Opencl::TKernelState::GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<size_t>&& Iterations)
+void Opencl::TKernelState::GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<vec2x<size_t>>&& Iterations)
 {
 	auto& Device = GetDevice();
 	
-	BufferArray<size_t,3> Exec(3);
-	auto& Execa = Exec[0];
-	auto& Execb = Exec[1];
-	auto& Execc = Exec[2];
-	Execa = (Iterations.GetSize() >= 1) ? Iterations[0] : 0;
-	Execb = (Iterations.GetSize() >= 2) ? Iterations[1] : 0;
-	Execc = (Iterations.GetSize() >= 3) ? Iterations[2] : 0;
-	
+	size_t Firsta = (Iterations.GetSize() >= 1) ? (Iterations[0].x) : (0);
+	size_t Firstb = (Iterations.GetSize() >= 2) ? (Iterations[1].x) : (0);
+	size_t Firstc = (Iterations.GetSize() >= 3) ? (Iterations[2].x) : (0);
+	size_t Execa = (Iterations.GetSize() >= 1) ? (Iterations[0].y-Firsta) : (0);
+	size_t Execb = (Iterations.GetSize() >= 2) ? (Iterations[1].y-Firstb) : (0);
+	size_t Execc = (Iterations.GetSize() >= 3) ? (Iterations[2].y-Firstc) : (0);
+
 	auto KernelWorkGroupMax = Device.GetMaxGlobalWorkGroupSize();
 	if ( KernelWorkGroupMax < 1 )
 		KernelWorkGroupMax = std::max( Execa, Execb, Execc );
 
-	ExpandIterations( IterationSplits, Execa, KernelWorkGroupMax );
-	ExpandIterations( IterationSplits, Execb, KernelWorkGroupMax );
-	ExpandIterations( IterationSplits, Execc, KernelWorkGroupMax );
+	ExpandIterations( IterationSplits, Execa, Firsta, KernelWorkGroupMax );
+	ExpandIterations( IterationSplits, Execb, Firstb, KernelWorkGroupMax );
+	ExpandIterations( IterationSplits, Execc, Firstc, KernelWorkGroupMax );
 }
 
 void Opencl::TKernelState::QueueIteration(const TKernelIteration& Iteration)
