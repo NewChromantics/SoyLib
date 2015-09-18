@@ -492,3 +492,52 @@ uint8 Soy::HexToByte(char HexA,char HexB)
 	return Byte;
 }
 
+std::string	Soy::ResolveUrl(const std::string& BaseUrl,const std::string& Path)
+{
+	//	new path starts with a protocol, return unmodified
+	auto ProtocolPos = Path.find("://");
+	if ( ProtocolPos != std::string::npos )
+		return Path;
+	
+	//	find where to place path, if it starts with a slash, it goes after the server
+	//	otherwise it goes after the last slash
+	bool AbsolutePath = Path[0] == '/';
+	
+	std::stringstream NewUrl;
+	
+	if ( AbsolutePath )
+	{
+		auto BaseProtocolPos = BaseUrl.find("://");
+		if ( BaseProtocolPos == std::string::npos )
+			BaseProtocolPos = 0;
+		
+		//	find the first / after protocol
+		auto BasePathStart = BaseUrl.find( '/', BaseProtocolPos );
+		if ( BasePathStart == std::string::npos )
+			BasePathStart = BaseUrl.length()-1;
+		
+		NewUrl << BaseUrl.substr( 0, BasePathStart );
+	}
+	else
+	{
+		//	start from last /
+		auto BasePathStart = BaseUrl.rfind('/');
+		if ( BasePathStart == std::string::npos )
+		{
+			NewUrl << BaseUrl << "/";
+		}
+		else
+		{
+			NewUrl << BaseUrl.substr( 0, BasePathStart ) << "/";
+		}
+	}
+
+	//	append path
+	NewUrl << Path;
+	return NewUrl.str();
+}
+
+
+
+
+
