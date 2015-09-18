@@ -1,7 +1,10 @@
 #include "SoyVector.h"
+#if defined(TARGET_IOS)||defined(TARGET_OSX)
 #include <CoreGraphics/CGAffineTransform.h>
+#endif
 
-float3x3 Soy::MatrixToVector(const CGAffineTransform& Transform,vec2f TransformNormalisation)
+#if defined(TARGET_IOS)||defined(TARGET_OSX)
+float3x3 Soy::MatrixToVector(const CGAffineTransform& Transform, vec2f TransformNormalisation)
 {
 	//	CGAffineTransform is a 3x3 matrix with the z col as 0,0,1
 	//	http://iphonedevelopment.blogspot.co.uk/2008/10/demystifying-cgaffinetransform.html
@@ -30,4 +33,4 @@ float3x3 Soy::MatrixToVector(const CGAffineTransform& Transform,vec2f TransformN
 	//return float3x3( a,b,0, c,d,0, tx,ty,1 );
 	return float3x3( a,b,tx, c,d,ty, 0,0,0 );
 }
-
+#endif
