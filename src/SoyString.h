@@ -63,6 +63,8 @@ namespace Soy
 	inline bool	StringTrimRight(std::string& String, const ArrayBridge<char>&& TrimAnyChars) {	return StringTrimRight(String, TrimAnyChars);	}
 	bool		StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool CaseSensitive);
 
+	std::string	StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim=false);
+	
 	bool		StringReplace(std::string& str,const std::string& from,const std::string& to);
 	bool		StringReplace(ArrayBridge<std::string>& str,const std::string& from,const std::string& to);
 	bool		StringReplace(ArrayBridge<std::string>&& str,const std::string& from,const std::string& to);
@@ -87,6 +89,11 @@ namespace Soy
 
 	bool		IsUtf8String(const std::string& String);
 	bool		IsUtf8Char(char c);
+	uint8		HexToByte(char Hex);
+	uint8		HexToByte(char HexA,char HexB);
+
+	std::string	ResolveUrl(const std::string& BaseUrl,const std::string& Path);	//	work out the full path of Path from the base url. if it starts from / then use the server. if it starts with protocol, don't modify, otherwise place in directory
+
 	
 	template<typename TYPE>
 	bool		StringToType(TYPE& Out,const std::string& String);
