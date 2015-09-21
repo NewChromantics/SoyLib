@@ -8,6 +8,7 @@
 
 #include <mutex>
 #include "SoyTypes.h"
+#include "RemoteArray.h"
 
 
 //	ArrayTest object forces .cpp to be built and not throw away the unittest symbols
@@ -317,6 +318,18 @@ public:
 				return false;
 			return true;
 		}
+	}
+	
+	template<typename TYPE>
+	FixedRemoteArray<TYPE>	GetSubArray(size_t ByteOffset,size_t OutputElements)
+	{
+		//	verify this combination is possible
+		Soy::Assert( ByteOffset < this->GetDataSize(), "Subarray start out of bounds" );
+		size_t ElementLast = ByteOffset + (OutputElements * sizeof(TYPE));
+		Soy::Assert( ElementLast < this->GetDataSize(), "Subarray end out of bounds" );
+		
+		auto* Start = reinterpret_cast<uint8*>( this->GetArray() ) + ByteOffset;
+		return FixedRemoteArray<TYPE>( reinterpret_cast<TYPE*>( Start ), OutputElements );
 	}
 };
 

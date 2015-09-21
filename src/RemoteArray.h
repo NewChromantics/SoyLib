@@ -2,7 +2,7 @@
 
 
 #include "SoyArray.h"
-
+#include "SoyAssert.h"
 
 
 //	gr: should this be a type of heap to be used on heaparray?...
@@ -17,12 +17,12 @@ public:
 	template <size_t BUFFERSIZE>
 	FixedRemoteArray(T (& Buffer)[BUFFERSIZE]) :
 		mData			( Buffer ),
-		mDataSize		( BUFFERSIZE )
+		mSize			( BUFFERSIZE )
 	{
 	}
 	explicit FixedRemoteArray(T* Buffer,const size_t BufferSize) :
 		mData		( Buffer ),
-		mDataSize	( BufferSize )
+		mSize		( BufferSize )
 	{
 	}
 	
@@ -37,7 +37,7 @@ public:
 	void operator = (const FixedRemoteArray& v)
 	{
 		mData = v.mData;
-		mDataSize = v.mDataSize;
+		mSize = v.mSize;
 	}
 	
 	template<class ARRAYTYPE>
@@ -58,8 +58,9 @@ public:
 		return mData[Index];
 	}
 	
-	size_t		GetSize() const			{	return mDataSize;		}
+	size_t		GetSize() const			{	return mSize;		}
 	size_t		MaxSize() const			{	return GetSize();	}
+	size_t		GetDataSize() const		{	return sizeof(TYPE) * GetSize();	}
 	const T*	GetArray() const		{	return mData;	}
 	T*			GetArray()				{	return mData;	}
 	
@@ -69,10 +70,10 @@ public:
 		return size == GetSize();
 	}
 	
-	T*			PushBlock(size_t count)				{	return nullptr;	}
+	T*			PushBlock(size_t count)					{	return nullptr;	}
 	T*			InsertBlock(size_t Index,size_t Count)	{	return nullptr;	}
 	bool		RemoveBlock(size_t Index,size_t Count)	{	return false;	}
-	void		Clear(bool Dealloc)					{	}
+	void		Clear(bool Dealloc)						{	}
 	
 	void		Reserve(size_t Size,bool Clear)
 	{
@@ -83,7 +84,7 @@ public:
 	
 private:
 	T*			mData;
-	size_t		mDataSize;	//	elements in mData
+	size_t		mSize;	//	elements in mData
 };
 
 
