@@ -12,6 +12,117 @@
 #include <sys/mman.h>
 #endif
 
+#if defined(TARGET_OSX)
+std::shared_ptr<MemFileHandle> OpenFile(const std::string& Filename,size_t Size,int CreateFlags);
+#endif
+
+
+SoyMemFile::SoyMemFile(const std::string& Filename,MemFileAccess::Type Access,size_t DataSize) :
+	mMap		( nullptr ),
+	mMapSize	( 0 ),
+	mFilename	( Filename )
+{
+#if defined(TARGET_OSX)
+
+	int CreateFlags = 0;
+	switch ( Access )
+	{
+		case MemFileAccess::ReadOnly:
+			CreateFlags = O_RDONLY;
+			break;
+			
+		case MemFileAccess::Writable:
+			CreateFlags = O_RDWR;
+			break;
+
+		case MemFileAccess::Create:
+			CreateFlags = O_CREAT|O_RDWR;
+			break;
+			
+		default:
+			Soy::Assert(false,"Unknown access type");
+	}
+
+	mHandle = OpenFile( Filename, DataSize, CreateFlags );
+	Soy::Assert( mHandle != nullptr, "Handle expected" );
+	
+	int MapProtectionFlags = (Access==MemFileAccess::ReadOnly) ? PROT_READ : (PROT_READ|PROT_WRITE);
+	mMap = mmap( 0, DataSize, MapProtectionFlags, MAP_SHARED, mHandle->mHandle, 0 );
+	if ( mMap == MAP_FAILED )
+	{
+		//	don't store error code(the return) as unmap will fail
+		mMap = nullptr;
+
+		std::stringstream Error;
+		auto PlatformError = Soy::Platform::GetLastErrorString();
+		Error << "MemFileArray(" << mFilename << ") error: mmap failed; " << PlatformError;
+		Close();
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	mMapSize = DataSize;
+	
+#elif defined(TARGET_WINDOWS)
+	
+	//	If lpName matches the name of an existing event, semaphore, mutex, waitable timer, or job object, the function fails, and the GetLastError function returns ERROR_INVALID_HANDLE. This occurs because these objects share the same namespace.
+	DWORD MaxSizeHi = 0;
+	DWORD MaxSizeLo = size_cast<DWORD>(DataSize);
+	mHandle = CreateFileMappingA(	INVALID_HANDLE_VALUE,    // use paging file
+									NULL,                    // default security
+									ReadOnly ? PAGE_READONLY : PAGE_READWRITE,          // read/write access
+									MaxSizeHi,                       // maximum object size (high-order DWORD)
+									MaxSizeLo,                // maximum object size (low-order DWORD)
+									mFilename.c_str()	// name of mapping object
+									);
+	if ( mHandle == nullptr )
+	{
+		std::stringstream Error;
+		Error << "MemFileArray(" << mFilename << ") error: " << Soy::Platform::GetLastErrorString();
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	//	map to file
+	mMap = MapViewOfFile(	mHandle,   // handle to map object
+							FILE_MAP_ALL_ACCESS, // read/write permission
+							0,
+							0,
+							DataSize );
+	if ( !mMap )
+	{
+		auto PlatformError = Soy::Platform::GetLastErrorString();
+		std::stringstream Error;
+		Error << "MemFileArray(" << mFilename << ") error: " << PlatformError;
+		Close();
+		throw Soy::AssertException( Error.str() );
+	}
+	mMapSize = DataSize;
+	mOffset = mMapSize;
+#else
+	Soy::Assert(false,"SoyMemFile not supported on this platform");
+#endif
+}
+
+
+void SoyMemFile::Close()
+{
+	if ( mMap )
+	{
+#if defined(TARGET_OSX)
+		auto Result = munmap( mMap, mMapSize );
+		Soy::Assert(Result==0, "error unmapping" );
+#endif
+#if defined(TARGET_WINDOWS)
+		UnmapViewOfFile( mMap );
+#endif
+		mMap = nullptr;
+		mMapSize = 0;
+	}
+	
+	mHandle.reset();
+}
+
+
+
 MemFileArray::MemFileArray(std::string Filename,bool AllowOtherFilename) :
 	mFilename	( Filename ),
 	mAllowOtherFilename	( AllowOtherFilename ),
@@ -57,88 +168,14 @@ bool MemFileArray::Init(size_t DataSize,bool ReadOnly,std::stringstream& Error)
 		return false;
 	}
 	
-#if defined(TARGET_OSX)
-
-	if ( ReadOnly )
-	{
-		if ( !OpenReadOnlyFile( DataSize, Error ) )
-		{
-			Close();
-			return false;
-		}
-	}
-	else
-	{
-		//	attempt to create file
-		if ( !OpenWriteFile( DataSize, Error ) )
-		{
-			Close();
-			return false;
-		}
-	}
-	if ( !Soy::Assert( mHandle != nullptr, "Handle expected" ) )
-		return false;
-	
-	int MapProtectionFlags = ReadOnly ? PROT_READ : (PROT_READ|PROT_WRITE);
-	mMap = mmap(0, DataSize, MapProtectionFlags, MAP_SHARED, mHandle->mHandle, 0);
-	if ( mMap == MAP_FAILED )
-	{
-		//	don't store error code as unmap will fail
-		mMap = nullptr;
-		
-		auto PlatformError = Soy::Platform::GetLastErrorString();
-		Error << "MemFileArray(" << mFilename << ") error: mmap failed; " << PlatformError;
-		Close();
-		return false;
-	}
-
-	//close(fd);
-	mMapSize = DataSize;
-	mOffset = mMapSize;
-	
-#endif
-
-#if defined(TARGET_WINDOWS)
-	//	If lpName matches the name of an existing event, semaphore, mutex, waitable timer, or job object, the function fails, and the GetLastError function returns ERROR_INVALID_HANDLE. This occurs because these objects share the same namespace.
-	DWORD MaxSizeHi = 0;
-	DWORD MaxSizeLo = size_cast<DWORD>(DataSize);
-	mHandle = CreateFileMappingA(	INVALID_HANDLE_VALUE,    // use paging file
-									NULL,                    // default security
-									ReadOnly ? PAGE_READONLY : PAGE_READWRITE,          // read/write access
-									MaxSizeHi,                       // maximum object size (high-order DWORD)
-									MaxSizeLo,                // maximum object size (low-order DWORD)
-									mFilename.c_str()	// name of mapping object
-									);
-	if ( mHandle == nullptr )
-	{
-		Error << "MemFileArray(" << mFilename << ") error: " << Soy::Platform::GetLastErrorString();
-		return false;
-	}
-
-
-	//	map to file
-	mMap = MapViewOfFile(	mHandle,   // handle to map object
-							FILE_MAP_ALL_ACCESS, // read/write permission
-							0,
-							0,
-							DataSize );
-	if ( !mMap )
-	{
-		auto PlatformError = Soy::Platform::GetLastErrorString();
-		Error << "MemFileArray(" << mFilename << ") error: " << PlatformError;
-		Close();
-		return false;
-	}
-	mMapSize = DataSize;
-	mOffset = mMapSize;
-#endif
-	
+	std::string Filename = mFilename;
+	mMemFile.reset( new SoyMemFile( Filename, ReadOnly ? MemFileAccess::ReadOnly : MemFileAccess::Create, DataSize ) );
 	return true;
 }
 
 bool MemFileArray::IsValid() const
 {
-	return mHandle != nullptr;
+	return mMemFile != nullptr;
 }
 
 #if defined(TARGET_OSX)
@@ -199,7 +236,7 @@ MemFileHandle::~MemFileHandle()
 }
 
 #if defined(TARGET_OSX)
-std::shared_ptr<MemFileHandle> OpenFile(std::string& Filename,size_t Size,int CreateFlags,std::stringstream& Error)
+std::shared_ptr<MemFileHandle> OpenFile(const std::string& Filename,size_t Size,int CreateFlags)
 {
 	//http://stackoverflow.com/questions/9409079/linux-dynamic-shared-memory-in-different-programs
 	//	sysconf(_SC_PAGE_SIZE);
@@ -210,26 +247,18 @@ std::shared_ptr<MemFileHandle> OpenFile(std::string& Filename,size_t Size,int Cr
 	std::string FlushError = Soy::Platform::GetLastErrorString();
 	
 	std::shared_ptr<MemFileHandle> Handle;
-	try
-	{
-		Handle.reset( new MemFileHandle( Filename, CreateFlags, Mode ) );
-	}
-	catch (std::exception& e)
-	{
-		Error << e.what();
-		return nullptr;
-	}
+	Handle.reset( new MemFileHandle( Filename, CreateFlags, Mode ) );
 
-	
 	//	initialise size - only done on create
 	if ( CreateFlags & O_CREAT )
 	{
-		auto r = ftruncate( Handle->mHandle, Size);
+		auto r = ftruncate( Handle->mHandle, Size );
 		if (r != 0)
 		{
 			auto ErrorVal = Soy::Platform::GetLastError();
 			auto ErrorString = Soy::Platform::GetErrorString( ErrorVal );
 			
+			std::stringstream Error;
 			if ( ErrorVal == EINVAL )
 			{
 				Error << "MemFileArray(" << Filename << ") ftruncate error; " << Size << " must be larger than original size. " << ErrorString;
@@ -238,9 +267,7 @@ std::shared_ptr<MemFileHandle> OpenFile(std::string& Filename,size_t Size,int Cr
 			{
 				Error << "MemFileArray(" << Filename << ") error: ftruncate(" << Size << ") failed; " << ErrorString;
 			}
-
-			//	fail regardless as mmap will probably fail next
-			return nullptr;
+			throw Soy::AssertException( Error.str() );
 		}
 	}
 	
@@ -270,9 +297,16 @@ bool MemFileArray::OpenWriteFile(size_t Size,std::stringstream& Error)
 
 		//	clear so only the last error is left
 		Error.clear();
-		mHandle = OpenFile( Filename, Size, O_CREAT|O_RDWR, Error );
-		if ( !mHandle )
+		
+		try
+		{
+			mMemFile.reset( new SoyMemFile( Filename, MemFileAccess::Create, Size ) );
+		}
+		catch(std::exception& e)
+		{
+			Error << e.what();
 			continue;
+		}
 
 		mFilename = Filename;
 		return true;
@@ -281,43 +315,6 @@ bool MemFileArray::OpenWriteFile(size_t Size,std::stringstream& Error)
 	return false;
 }
 #endif
-
-#if defined(TARGET_OSX)
-bool MemFileArray::OpenReadOnlyFile(size_t Size,std::stringstream& Error)
-{
-	mHandle = OpenFile( mFilename, Size, O_RDONLY, Error );
-	if ( !mHandle )
-	{
-		Close();
-		return false;
-	}
-	return true;
-}
-#endif
-
-void MemFileArray::Destroy()
-{
-	mHandle.reset();
-
-}
-
-void MemFileArray::Close()
-{
-	if ( mMap )
-	{
-#if defined(TARGET_OSX)
-		auto Result = munmap( mMap, mMapSize );
-		Soy::Assert(Result==0, "error unmapping" );
-#endif
-#if defined(TARGET_WINDOWS)
-		UnmapViewOfFile( mMap );
-#endif
-		mMap = nullptr;
-		mMapSize = 0;
-	}
-	
-	mHandle.reset();
-}
 
 
 bool MemFileArray::SetSize(size_t size, bool preserve,bool AllowLess)

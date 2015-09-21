@@ -4,6 +4,8 @@
 #include "HeapArray.hpp"
 #include "SoyRef.h"
 #include "SoyThread.h"
+#include "RemoteArray.h"
+
 
 namespace Soy
 {
@@ -17,6 +19,17 @@ namespace Soy
 #endif
 	}
 }
+
+namespace MemFileAccess
+{
+	enum Type
+	{
+		Create,
+		Writable,	//	read/write but don't create
+		ReadOnly,
+	};
+};
+
 
 class MemFileHandle
 {
@@ -37,6 +50,25 @@ public:
 
 };
 
+
+class SoyMemFile
+{
+public:
+	SoyMemFile(const std::string& Filename,MemFileAccess::Type Access,size_t Size);
+	
+	FixedRemoteArray<uint8>	GetArray()		{	return FixedRemoteArray<uint8>( reinterpret_cast<uint8*>(mMap), mMapSize );	}
+	const std::string&		GetFilename() const	{	return mFilename;	}
+	void					Close();
+	
+private:
+	std::string			mFilename;
+	std::shared_ptr<MemFileHandle>	mHandle;
+	void*				mMap;
+	size_t				mMapSize;
+};
+
+
+
 class MemFileArray : public ArrayInterface<char>
 {
 public:
@@ -46,17 +78,11 @@ public:
 public:
 	MemFileArray(std::string Filename,bool AllowOtherFilename);
 	MemFileArray(std::string Filename,bool AllowOtherFilename,size_t Size,bool ReadOnly);
-	~MemFileArray()
-	{
-		Close();
-	}
 
 	bool				Init(size_t Size,bool ReadOnly);
 	bool				Init(size_t Size,bool ReadOnly,std::stringstream& Error);	//	size must be known beforehand!
 	
 	std::string			GetFilename() const				{	return mFilename;	}
-	void				Close();						//	close handle but don't destroy file
-	void				Destroy();						//	destroy shared memory
 	bool				IsValid() const;
 
 	virtual T&			operator[](size_t index) override		{	return GetArray()[index];	}
@@ -193,7 +219,7 @@ private:
 #endif
 
 private:
-	std::shared_ptr<MemFileHandle>	mHandle;
+	std::shared_ptr<SoyMemFile>	mMemFile;
 	std::string			mFilename;
 	bool				mAllowOtherFilename;	//	if we cannot create file, we can try other filenames
 	void*				mMap;
