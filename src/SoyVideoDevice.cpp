@@ -33,8 +33,19 @@ std::ostream& operator<< (std::ostream &out,const TVideoDeviceMeta &in)
 }
 
 
+
+SoyPixelsImpl& TVideoFrameImpl::GetPixels()
+{
+	auto Pixels = GetPixelsShared();
+	Soy::Assert( Pixels != nullptr, "Pixels expected");
+	return *Pixels;
+}
+
+
+
 TVideoDevice::TVideoDevice(const TVideoDeviceMeta& Meta) :
-	mLastFrame		( Meta.mSerial, Soy::StreamToString(std::stringstream() << "frame_" << Meta.mSerial), true ),
+//	mLastFrame		( Meta.mSerial, Soy::StreamToString(std::stringstream() << "frame_" << Meta.mSerial), true ),
+	mLastFrame		( Meta.mSerial ),
 	mLastError		( "waiting for first frame" ),
 	mFrameCount		( 0 )
 {
@@ -43,6 +54,19 @@ TVideoDevice::TVideoDevice(const TVideoDeviceMeta& Meta) :
 TVideoDevice::~TVideoDevice()
 {
 }
+
+
+TVideoFrame& TVideoDevice::GetLastFrame()
+{
+	//	there's an error, throw instead of returning frame
+	if ( !mLastError.empty() )
+	{
+		throw Soy::AssertException( mLastError );
+	}
+
+	return mLastFrame;
+}
+
 
 float TVideoDevice::GetFps() const
 {
@@ -103,7 +127,11 @@ void TVideoDevice::UnlockNewFrame(SoyTime Timecode)
 
 void TVideoDevice::OnNewFrame(const SoyPixelsImpl& Pixels,SoyTime Timecode)
 {
-	mLastError.clear();
+	if ( !mLastFrame.mPixels )
+	{
+		mLastError = "Missing pixels";
+		return;
+	}
 	
 	if ( !mLastFrame.mPixels->Copy( Pixels ) )
 	{
@@ -111,6 +139,7 @@ void TVideoDevice::OnNewFrame(const SoyPixelsImpl& Pixels,SoyTime Timecode)
 		return;
 	}
 	
+	mLastError.clear();
 	UnlockNewFrame( Timecode );
 }
 
