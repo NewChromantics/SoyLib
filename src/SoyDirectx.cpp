@@ -2,6 +2,12 @@
 #include "SoyPixels.h"
 
 
+namespace Directx
+{
+	bool	CanCopyMeta(const SoyPixelsMeta& Source,const SoyPixelsMeta& Destination);
+}
+
+
 DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
@@ -17,6 +23,21 @@ DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
 			//	gr: throw here so we can start handling more formats
 			return DXGI_FORMAT_UNKNOWN;
 	}
+}
+
+bool Directx::CanCopyMeta(const SoyPixelsMeta& Source,const SoyPixelsMeta& Destination)
+{
+	//	gr: this function could do with a tiny bit of changing for very specific format comparison
+	/*
+		from CopyResources
+		https://msdn.microsoft.com/en-us/library/windows/desktop/ff476392(v=vs.85).aspx
+		Must have compatible DXGI formats, which means the formats must be identical or at least 
+		from the same type group. For example, a DXGI_FORMAT_R32G32B32_FLOAT texture can be copied 
+		to an DXGI_FORMAT_R32G32B32_UINT texture since both of these formats are in the 
+		DXGI_FORMAT_R32G32B32_TYPELESS group. CopyResource can copy between a few format types. 
+		For more info, see Format Conversion using Direct3D 10.1.
+		*/
+	return Source == Destination;
 }
 
 
@@ -79,6 +100,13 @@ Directx::TContext::TContext(ID3D11Device& Device) :
 {
 }
 
+ID3D11DeviceContext& Directx::TContext::LockGetContext()
+{
+	if ( !Lock() )
+		throw Soy::AssertException("Failed to lock context");
+
+	return *mLockedContext;
+}
 
 bool Directx::TContext::Lock()
 {
@@ -103,13 +131,15 @@ void Directx::TContext::Unlock()
 
 
 Directx::TTexture::TTexture() :
-	mTexture	( nullptr )
+	mTexture		( nullptr )
 {
 }
 
-Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx) :
-	mTexture	( nullptr )
+Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode) :
+	mTexture		( nullptr )
 {
+	static bool AutoMipMap = false;
+
 	Soy::Assert( Meta.IsValid(), "Cannot create texture with invalid meta");
 
 	//	create description
@@ -117,21 +147,40 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx) :
 	memset(&Desc, 0, sizeof(Desc));
 	Desc.Width = Meta.GetWidth();
 	Desc.Height = Meta.GetHeight();
-	Desc.MipLevels = 1;
+	Desc.MipLevels = AutoMipMap ? 0 : 1;
 	Desc.ArraySize = 1;
-
 	Desc.SampleDesc.Count = 1;
 	Desc.SampleDesc.Quality = 0;
-	Desc.Usage = D3D11_USAGE_DYNAMIC;
-	Desc.Format = GetFormat( Meta.GetFormat() );
-	Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		
-	ID3D11Texture2D* pTexture = NULL;
-	if ( !ContextDx.Lock() )
-		throw Soy::AssertException("Failed to lock context");
+
+	if ( Mode == TTextureMode::RenderTarget )
+	{
+		Desc.Format = GetFormat( Meta.GetFormat() );//DXGI_FORMAT_R32G32B32A32_FLOAT;
+		Desc.Usage = D3D11_USAGE_DEFAULT;
+		Desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+		Desc.CPUAccessFlags = 0;
+	}
+	else if ( Mode == TTextureMode::Writable )
+	{
+		Desc.Usage = D3D11_USAGE_DYNAMIC;
+		Desc.Format = GetFormat( Meta.GetFormat() );
+		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	}
+	else if ( Mode == TTextureMode::ReadOnly )
+	{
+		Desc.Usage = D3D11_USAGE_DEFAULT;
+		Desc.Format = GetFormat( Meta.GetFormat() );
+		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		Desc.CPUAccessFlags = 0x0;
+	}
+	else
+	{
+		throw Soy::AssertException("Dont know this texture mode");
+	}
+
+	ID3D11Texture2D* pTexture = nullptr;
+	auto& Context = ContextDx.LockGetContext();
 	Soy::Assert( ContextDx.mDevice, "Device expected");
-	auto& Context = *ContextDx.mLockedContext;
 	auto& Device = *ContextDx.mDevice;
 
 	try
@@ -153,10 +202,13 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx) :
 }
 
 Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
-	mTexture    ( Texture )
+	mTexture		( Texture )
 {
 	//	validate and throw here
 	Soy::Assert( mTexture != nullptr, "null directx texture" );
+
+	//	save
+	mTexture->AddRef();
 
 	//	get meta
 	D3D11_TEXTURE2D_DESC SrcDesc;
@@ -164,32 +216,64 @@ Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
 	mMeta = SoyPixelsMeta( SrcDesc.Width, SrcDesc.Height, GetFormat(SrcDesc.Format) );
 }
 
+Directx::TTexture::~TTexture()
+{
+	if ( mTexture )
+	{
+		auto NewRefCount = mTexture->Release();
+		mTexture = nullptr;
+	}
+}
 
-void Directx::TTexture::Write(TTexture& Texture,TContext& ContextDx)
+Directx::TTextureMode::Type Directx::TTexture::GetMode() const
+{
+	//	get meta
+	D3D11_TEXTURE2D_DESC SrcDesc;
+	mTexture->GetDesc( &SrcDesc );
+	bool IsRenderTarget = (SrcDesc.BindFlags & D3D11_BIND_RENDER_TARGET) != 0;
+	bool IsWritable = (SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_WRITE) != 0;
+
+	if ( IsRenderTarget )
+	{
+		return TTextureMode::RenderTarget;
+	}
+	else if ( IsWritable )
+	{
+		return TTextureMode::Writable;
+	}
+	else
+	{
+		return TTextureMode::ReadOnly;
+	}
+}
+
+void Directx::TTexture::Write(TTexture& Destination,TContext& ContextDx)
 {
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
-	Soy::Assert( Texture.IsValid(), "Writing from invalid texture" );
-	if ( !ContextDx.Lock() )
-		throw Soy::AssertException("Failed to lock context");
-	auto& Context = *ContextDx.mLockedContext;
+	Soy::Assert( Destination.IsValid(), "Writing from invalid texture" );
 
-	//	copy to real texture (gpu->gpu)
-	//	gr: this will fail silently if dimensions/format different, detect this!
+	//	try simple no-errors-reported-by-dx copy resource fast path
+	if ( Destination.GetMode() == TTextureMode::Writable )
 	{
-		//Unity::TScopeTimerWarning MapTimer("DX::copy resource",2);
-		Context.CopyResource( mTexture, Texture.mTexture );
+		if ( CanCopyMeta( mMeta, Destination.mMeta ) )
+		{
+			auto& Context = ContextDx.LockGetContext();
+			Context.CopyResource( mTexture, Destination.mTexture );
+			ContextDx.Unlock();
+			return;
+		}
 	}
 
-	ContextDx.Unlock();
+	std::stringstream Error;
+	Error << "No path to copy " << mMeta << " to " << Destination.mMeta;
+	throw Soy::AssertException( Error.str() );
 }
 
 
 void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 {
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
-	if ( !ContextDx.Lock() )
-		throw Soy::AssertException("Failed to lock context");
-	auto& Context = *ContextDx.mLockedContext;
+	auto& Context = ContextDx.LockGetContext();
 
 	bool Blocking = true;
 
@@ -252,7 +336,7 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 				throw Soy::AssertException("GPU is still using texture during map() and we specified non-blocking");
 			}
 
-			//	other error
+			//	check for other error
 			{
 				std::stringstream ErrorString;
 				ErrorString << "Failed to get Map() for dynamic texture(" << SrcDesc.Width << "," << SrcDesc.Height << ")";
