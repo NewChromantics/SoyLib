@@ -19,6 +19,7 @@ namespace Directx
 	std::string		GetEnumString(HRESULT Error);
 	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
 	SoyPixelsFormat::Type	GetFormat(DXGI_FORMAT Format);
+	DXGI_FORMAT				GetFormat(SoyPixelsFormat::Type Format);
 }
 
 class Directx::TContext : public PopWorker::TContext
@@ -38,7 +39,7 @@ class Directx::TTexture
 {
 public:
 	TTexture();
-    explicit TTexture(SoyPixelsMeta Meta);	//	allocate
+    explicit TTexture(SoyPixelsMeta Meta,TContext& ContextDx);	//	allocate
 	TTexture(ID3D11Texture2D* Texture);
 
 	bool	IsValid() const		{	return mTexture!=nullptr;	}

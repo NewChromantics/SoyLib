@@ -2,6 +2,23 @@
 #include "SoyPixels.h"
 
 
+DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+		//	gr: these are unsupported natively by directx, so force 32 bit and have to do conversion in write()
+		case SoyPixelsFormat::RGB:	return DXGI_FORMAT_R8G8B8A8_UNORM;
+		case SoyPixelsFormat::BGR:	return DXGI_FORMAT_R8G8B8A8_UNORM;
+
+		case SoyPixelsFormat::RGBA:	return DXGI_FORMAT_R8G8B8A8_UNORM;
+		case SoyPixelsFormat::BGRA:	return DXGI_FORMAT_B8G8R8A8_UNORM;
+
+		default:
+			//	gr: throw here so we can start handling more formats
+			return DXGI_FORMAT_UNKNOWN;
+	}
+}
+
 
 SoyPixelsFormat::Type Directx::GetFormat(DXGI_FORMAT Format)
 {
@@ -15,6 +32,9 @@ SoyPixelsFormat::Type Directx::GetFormat(DXGI_FORMAT Format)
 		case DXGI_FORMAT_R8G8B8A8_UNORM:		return SoyPixelsFormat::RGBA;
 		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:	return SoyPixelsFormat::RGBA;
 		case DXGI_FORMAT_R8G8B8A8_UINT:			return SoyPixelsFormat::RGBA;
+		case DXGI_FORMAT_B8G8R8A8_TYPELESS:		return SoyPixelsFormat::BGRA;
+		case DXGI_FORMAT_B8G8R8A8_UNORM:		return SoyPixelsFormat::BGRA;
+		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:	return SoyPixelsFormat::BGRA;
 		case DXGI_FORMAT_R8G8_TYPELESS:			return SoyPixelsFormat::GreyscaleAlpha;
 		case DXGI_FORMAT_R8G8_UNORM:			return SoyPixelsFormat::GreyscaleAlpha;
 		case DXGI_FORMAT_R8G8_SNORM:			return SoyPixelsFormat::GreyscaleAlpha;
@@ -26,7 +46,7 @@ SoyPixelsFormat::Type Directx::GetFormat(DXGI_FORMAT Format)
 		case DXGI_FORMAT_R8_SNORM:				return SoyPixelsFormat::Greyscale;
 		case DXGI_FORMAT_R8_SINT:				return SoyPixelsFormat::Greyscale;
 		case DXGI_FORMAT_A8_UNORM:				return SoyPixelsFormat::Greyscale;
-		case DXGI_FORMAT_NV12:				return SoyPixelsFormat::Nv12;
+		case DXGI_FORMAT_NV12:					return SoyPixelsFormat::Nv12;
 	}
 }
 
@@ -87,10 +107,49 @@ Directx::TTexture::TTexture() :
 {
 }
 
-Directx::TTexture::TTexture(SoyPixelsMeta Meta) :
+Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx) :
 	mTexture	( nullptr )
 {
-	Soy::Assert(false,"todo; alloc");
+	Soy::Assert( Meta.IsValid(), "Cannot create texture with invalid meta");
+
+	//	create description
+	D3D11_TEXTURE2D_DESC Desc;
+	memset(&Desc, 0, sizeof(Desc));
+	Desc.Width = Meta.GetWidth();
+	Desc.Height = Meta.GetHeight();
+	Desc.MipLevels = 1;
+	Desc.ArraySize = 1;
+
+	Desc.SampleDesc.Count = 1;
+	Desc.SampleDesc.Quality = 0;
+	Desc.Usage = D3D11_USAGE_DYNAMIC;
+	Desc.Format = GetFormat( Meta.GetFormat() );
+	Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		
+	ID3D11Texture2D* pTexture = NULL;
+	if ( !ContextDx.Lock() )
+		throw Soy::AssertException("Failed to lock context");
+	Soy::Assert( ContextDx.mDevice, "Device expected");
+	auto& Context = *ContextDx.mLockedContext;
+	auto& Device = *ContextDx.mDevice;
+
+	try
+	{
+		auto Result = Device.CreateTexture2D( &Desc, nullptr, &mTexture );
+		std::stringstream Error;
+		Error << "Creating texture2D(" << Meta << ")";
+		Directx::IsOkay( Result, Error.str() );
+		Soy::Assert( mTexture, "CreateTexture succeeded, but no texture");
+		mTexture->AddRef();
+		mMeta = Meta;
+	}
+	catch( std::exception& e)
+	{
+		ContextDx.Unlock();
+		throw;
+	}
+	ContextDx.Unlock();
 }
 
 Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
@@ -180,7 +239,9 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 			else
 			{
 				MapFlags = !Blocking ? D3D11_MAP_FLAG_DO_NOT_WAIT : 0x0;
-				MapMode = D3D11_MAP_WRITE;
+				//	gr: for immediate context, we ALSO want write_discard
+				//MapMode = D3D11_MAP_WRITE;
+				MapMode = D3D11_MAP_WRITE_DISCARD;
 			}
 
 			HRESULT hr = Context.Map(mTexture, SubResource, MapMode, MapFlags, &resource);
