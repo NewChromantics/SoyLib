@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SoyThread.h"
+#include "SoyPixels.h"
 
 class SoyPixelsImpl;
 
@@ -17,6 +18,7 @@ namespace Directx
 
 	std::string		GetEnumString(HRESULT Error);
 	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
+	SoyPixelsFormat::Type	GetFormat(DXGI_FORMAT Format);
 }
 
 class Directx::TContext : public PopWorker::TContext
@@ -35,22 +37,15 @@ public:
 class Directx::TTexture
 {
 public:
-	TTexture() :
-		mTexture	( nullptr )
-	{
-	}
-    
-	TTexture(ID3D11Texture2D* Texture) :
-        mTexture    ( Texture )
-    {
-		//	validate and throw here
-		Soy::Assert( mTexture != nullptr, "null directx texture" );
-    }
+	TTexture();
+    explicit TTexture(SoyPixelsMeta Meta);	//	allocate
+	TTexture(ID3D11Texture2D* Texture);
 
 	bool	IsValid() const		{	return mTexture!=nullptr;	}
 	void	Write(TTexture& Texture,TContext& Context);
 	void	Write(const SoyPixelsImpl& Pixels,TContext& Context);
 
 public:
+	SoyPixelsMeta		mMeta;		//	cache
 	ID3D11Texture2D*	mTexture;
 };
