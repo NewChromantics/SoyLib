@@ -167,7 +167,7 @@ inline std::string Soy::StringJoin(const ArrayBridge<TYPE>& Elements,const std::
 template<typename TYPE>
 inline bool Soy::StringParseVecNx(const std::string& instr,ArrayBridge<TYPE>&& Components)
 {
-	auto Append = [&Components](const std::string& Valuestr)
+	auto Append = [&Components](const std::string& Valuestr,const char& Delim)
 	{
 		TYPE Value;
 		if ( !Soy::StringToType( Value, Valuestr ) )

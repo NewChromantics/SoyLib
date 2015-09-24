@@ -97,12 +97,10 @@ public:
 	{
 	}
 	
-	bool							IsValid() const		{	return GetPixelsConst().IsValid();	}
-	virtual SoyPixelsImpl&			GetPixels() =0;
-	virtual const SoyPixelsImpl&	GetPixelsConst() const=0;
-	virtual std::shared_ptr<SoyPixelsImpl>	GetPixelsShared()	{	return nullptr;	}
-	const SoyTime&					GetTime() const		{	return mTimecode;	}
-	
+	SoyPixelsImpl&							GetPixels();
+	virtual std::shared_ptr<SoyPixelsImpl>	GetPixelsShared()=0;
+	const SoyTime&							GetTime() const		{	return mTimecode;	}
+
 public:
 	std::string			mSerial;
 	SoyTime				mTimecode;
@@ -112,14 +110,15 @@ class TVideoFrame : public TVideoFrameImpl
 {
 public:
 	TVideoFrame(const std::string& Serial) :
-		TVideoFrameImpl	( Serial )
+		TVideoFrameImpl	( Serial ),
+		mPixels			( new SoyPixels )
 	{
 	}
 
-	virtual SoyPixelsImpl&			GetPixels() override		{	return mPixels;	}
-	virtual const SoyPixelsImpl&	GetPixelsConst() const override 	{	return mPixels;	}
-	
-	SoyPixels		mPixels;
+	virtual std::shared_ptr<SoyPixelsImpl>	GetPixelsShared()	{	return mPixels;	}
+
+public:
+	std::shared_ptr<SoyPixels>	mPixels;
 };
 
 class SoyPixelsMemFile : public SoyPixelsImpl
@@ -164,8 +163,6 @@ public:
 	{
 	}
 	
-	virtual SoyPixelsImpl&			GetPixels() override			{	return *mPixels;	}
-	virtual const SoyPixelsImpl&	GetPixelsConst() const override	{	return *mPixels;	}
 	virtual std::shared_ptr<SoyPixelsImpl>	GetPixelsShared() override	{	return mPixels;	}
 	
 public:
@@ -181,7 +178,7 @@ public:
 	
 	virtual TVideoDeviceMeta	GetMeta() const=0;		//	gr: make this dynamic so other states might change
 	std::string					GetSerial() const		{	return GetMeta().mSerial;	}
-	TVideoFrameMemFile&			GetLastFrame(std::ostream& Error) 	{	Error << mLastError;	return mLastFrame;	}
+	TVideoFrame&				GetLastFrame();			//	throws if there's an error from the last frame
 	float						GetFps() const;			//	how many frames per sec are we averaging?
 	int							GetFrameMs() const;		//	how long does each frame take to recieve
 	void						ResetFrameCounter();	//	reset the fps counter
@@ -204,7 +201,7 @@ public:
 private:
 	//	gr: video frame can cope without a lock,(no realloc) but the string will probably crash
 	std::string					mLastError;		//	should be empty if last frame was okay
-	TVideoFrameMemFile			mLastFrame;
+	TVideoFrame					mLastFrame;
 	
 	//	fps counting
 	SoyTime						mFirstFrameTime;	//	time we got first frame
