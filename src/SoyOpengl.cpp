@@ -449,7 +449,7 @@ void Opengl::TFbo::Delete()
 
 void Opengl::TFbo::InvalidateContent()
 {
-#if defined(OPENGL_ES_3)
+#if (OPENGL_ES==3)
 	//	gr: not needed, but I think is a performance boost?
 	//		maybe a proper performance boost would be AFTER using it to copy to texture
 	const GLenum fboAttachments[1] = { GL_COLOR_ATTACHMENT0 };
@@ -510,7 +510,7 @@ void Opengl::TFbo::Unbind()
 
 size_t Opengl::TFbo::GetAlphaBits() const
 {
-#if defined(OPENGL_ES_2)
+#if (OPENGL_ES==2)
 	throw Soy::AssertException("Framebuffer alpha size query not availible in opengles2");
 	return 0;
 #else
@@ -552,7 +552,8 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	GLenum GlPixelsStorage = GL_UNSIGNED_BYTE;
 	GLint Border = 0;
 	
-#if !defined(OPENGL_ES_2)
+	//	disable other mip map levels
+#if (OPENGL_ES!=2)
 	//	gr: change this to glGenerateMipMaps etc
 	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, MipLevel );
 	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, MipLevel );
@@ -579,7 +580,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	Opengl::IsOkay("glTexImage2D texture construction");
 	
 	//	verify params
-#if defined(OPENGL_CORE_3)
+#if (OPENGL_CORE==3)
 	GLint TextureWidth = -1;
 	GLint TextureHeight = -1;
 	GLint TextureInternalFormat = -1;
@@ -711,7 +712,7 @@ Opengl::TPbo::TPbo(SoyPixelsMeta Meta) :
 		throw Soy::AssertException("PBO channel count must be 1 3 or 4");
 
 	
-#if defined(OPENGL_ES_2)
+#if (OPENGL_ES==2)
 	throw Soy::AssertException("read from buffer data not supported on es2? need to test");
 #else
 	auto DataSize = Meta.GetDataSize();
@@ -739,7 +740,7 @@ size_t Opengl::TPbo::GetDataSize()
 
 void Opengl::TPbo::Bind()
 {
-#if defined(OPENGL_ES_2)
+#if (OPENGL_ES==2)
 	throw Soy::AssertException("PBO not supported es2?");
 #else
 	glBindBuffer( GL_PIXEL_PACK_BUFFER, mPbo );
@@ -749,7 +750,7 @@ void Opengl::TPbo::Bind()
 
 void Opengl::TPbo::Unbind()
 {
-#if defined(OPENGL_ES_2)
+#if (OPENGL_ES==2)
 	throw Soy::AssertException("PBO not supported es2?");
 #else
 	glBindBuffer( GL_PIXEL_PACK_BUFFER, 0 );
@@ -864,7 +865,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 		BufferArray<GLint,5> Formats;
 		
 		Formats.PushBack( GL_INVALID_VALUE );
-#if defined(OPENGL_ES_2)||defined(OPENGL_ES_3)
+#if defined(OPENGL_ES)
 		Formats.PushBack( GL_ALPHA );
 #else
 		Formats.PushBack( GL_RED );
@@ -919,7 +920,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	GLint TextureInternalFormat = 0;
 	
 	//	opengl es doesn't have access!
-#if defined(OPENGL_ES_3)||defined(OPENGL_ES_2)
+#if defined(OPENGL_ES)
 	TextureWidth = size_cast<GLint>( this->GetWidth() );
 	TextureHeight = size_cast<GLint>( this->GetHeight() );
 	//	gr: errr what should this be now?
@@ -1111,7 +1112,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 
 SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType)
 {
-#if defined(OPENGL_ES_3)||defined(OPENGL_ES_2)
+#if defined(OPENGL_ES)
 	std::Debug << "Warning, using " << __func__ << " on opengl es (no such info)" << std::endl;
 	return mMeta;
 #else
@@ -1776,7 +1777,7 @@ Opengl::TSync::TSync(bool Create) :
 	mSyncObject	( nullptr )
 {
 	if ( Create )
-#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+#if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	{
 		mSyncObject = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
 		Opengl::IsOkay("glFenceSync");
@@ -1790,7 +1791,7 @@ Opengl::TSync::TSync(bool Create) :
 
 void Opengl::TSync::Delete()
 {
-#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+#if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	if ( mSyncObject )
 	{
 		glDeleteSync( mSyncObject );
@@ -1804,7 +1805,7 @@ void Opengl::TSync::Delete()
 
 void Opengl::TSync::Wait(const char* TimerName)
 {
-#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+#if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	if ( !glIsSync( mSyncObject ) )
 		return;
 	

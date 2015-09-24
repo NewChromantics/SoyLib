@@ -61,12 +61,12 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 	{
 		std::string Profile;
 		
-#if defined(OPENGL_ES_2) || defined(OPENGL_ES_3)
+#if defined(OPENGL_ES)
 		//	don't specificy a profile for 1.0 (es2)
 		Profile = "es";
 		if ( Version <= Soy::TVersion(1,0) )
 			Profile = "";
-#elif defined(OPENGL_CORE_3) || defined(OPENGL_CORE_2)
+#elif defined(OPENGL_CORE)
 		//	gr: for 120, no profile specified, should default to "core"
 #else
 #error Unknown opengl type
