@@ -482,7 +482,6 @@ void Directx::TRenderTarget::Clear(TContext& ContextDx,Soy::TRgb Colour,float Al
 
 Directx::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& _Indexes,const Opengl::TGeometryVertex& Vertex,TContext& ContextDx) :
 	mVertexDescription	( Vertex ),
-	mVertexCount		( 0 ),
 	mIndexCount			( 0 )
 {
 	Array<uint32> Indexes;
@@ -527,7 +526,6 @@ Directx::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<
 	{
 		auto Result = Device.CreateBuffer(&vertexBufferDesc, &vertexData, &mVertexBuffer.mObject );
 		Directx::IsOkay( Result, "Create vertex buffer");
-		//mVertexCount = 
 
 		Result = Device.CreateBuffer(&indexBufferDesc, &indexData, &mIndexBuffer.mObject );
 		Directx::IsOkay( Result, "Create index buffer");
@@ -623,18 +621,21 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 }
 
 
-DXGI_FORMAT GetType(GLenum Type)
+DXGI_FORMAT GetType(GLenum Type,size_t Length)
 {
 	switch ( Type )
 	{
-		case GL_FLOAT:	return DXGI_FORMAT_R32_FLOAT;
+		case GL_FLOAT:
+		{
+			if ( Length == 1 )	return DXGI_FORMAT_R32_FLOAT;
+			if ( Length == 2 )	return DXGI_FORMAT_R32G32_FLOAT;
+			if ( Length == 3 )	return DXGI_FORMAT_R32G32B32_FLOAT;
+			if ( Length == 4 )	return DXGI_FORMAT_R32G32B32A32_FLOAT;
+		}
 		default:
 			Soy::Assert( false, "Unhandled type");
+			return DXGI_FORMAT_UNKNOWN;
 	}
-	//	gr: sort this 
-	//	DXGI_FORMAT_R32G32B32_FLOAT
-	//	DXGI_FORMAT_R32G32_FLOAT
-	return DXGI_FORMAT_R32_FLOAT;
 }
 
 void Directx::TShader::MakeLayout(const Opengl::TGeometryVertex& Vertex,TShaderBlob& ShaderBlob,ID3D11Device& Device)
@@ -648,7 +649,7 @@ void Directx::TShader::MakeLayout(const Opengl::TGeometryVertex& Vertex,TShaderB
 		memset( &Layout, 0, sizeof(Layout) );
 		
 		Layout.SemanticName = Element.mName.c_str();
-		Layout.Format = GetType( Element.mType );
+		Layout.Format = GetType( Element.mType, Element.mArraySize );
 		//Layout.SemanticIndex = Element.mIndex;
 		Layout.SemanticIndex = 0;
 		Layout.InputSlot = 0;

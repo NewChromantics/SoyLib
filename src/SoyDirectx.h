@@ -119,7 +119,6 @@ public:
 public:
 	Opengl::TGeometryVertex			mVertexDescription;	//	for attrib binding info
 	AutoReleasePtr<ID3D11Buffer>	mVertexBuffer;
-	size_t							mVertexCount;
 	AutoReleasePtr<ID3D11Buffer>	mIndexBuffer;
 	size_t							mIndexCount;
 	DXGI_FORMAT						mIndexFormat;
