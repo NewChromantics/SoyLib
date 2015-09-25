@@ -110,9 +110,36 @@ std::ostream& Directx::operator<<(std::ostream &out,const Directx::TTexture& in)
 }
 
 
+void GetBlobString(ID3DBlob* Blob,std::ostream& String)
+{
+	if ( !Blob )
+		return;
+
+	Array<char> Buffer;
+	auto BlobSize = Blob->GetBufferSize();
+	auto* BlobData = reinterpret_cast<char*>( Blob->GetBufferPointer() );
+	if ( !BlobData )
+	{
+		String << "<BlobBufferMissing[" << BlobSize << "]>";
+		return;
+	}
+
+	//	clip size to something sensible
+	if ( BlobSize > 1024*1024*1 )
+		BlobSize = 1024*1024*1;
+
+	auto BlobBuffer = GetRemoteArray( BlobData, BlobSize );
+	String << BlobBuffer.GetArray();
+}
+
+
+
+
+
 
 Directx::TContext::TContext(ID3D11Device& Device) :
-	mDevice			( &Device )
+	mDevice			( &Device ),
+	mLockCount		( 0 )
 {
 }
 
@@ -136,23 +163,32 @@ ID3D11Device& Directx::TContext::LockGetDevice()
 
 bool Directx::TContext::Lock()
 {
-	//	already locked... throw here? increment ref count, if any?
 	if ( mLockedContext )
-		throw Soy::AssertException("Context already locked");
+	{
+		mLockCount++;
+		return true;
+	}
 
 	mDevice->GetImmediateContext( &mLockedContext.mObject );
 	if ( !Soy::Assert( mLockedContext!=nullptr, "Failed to get immediate context" ) )
 		return false;
+	Soy::Assert( mLockCount == 0, "Lock count is not zero");
+	mLockCount++;
 
 	return true;
 }
 
 void Directx::TContext::Unlock()
 {
-	//	already locked... throw here? increment ref count, if any?
-	if ( !mLockedContext )
-		throw Soy::AssertException("Context was not locked");
-	mLockedContext.Release();
+	Soy::Assert( mLockedContext!=nullptr, "Context not locked!" );
+	Soy::Assert( mLockCount>0, "Context lock counter invalid!" );
+
+	mLockCount--;
+
+	if ( mLockCount == 0 )
+	{
+		mLockedContext.Release();
+	}
 }
 
 
@@ -423,8 +459,10 @@ Directx::TRenderTarget::TRenderTarget(std::shared_ptr<TTexture>& Texture,TContex
 void Directx::TRenderTarget::Bind(TContext& ContextDx)
 {
 	auto& Context = ContextDx.LockGetContext();
+
 	Context.OMSetRenderTargets( 1, &mRenderTargetView.mObject, nullptr );
 	//deviceContext->OMSetRenderTargets(1, &m_renderTargetView, depthStencilView);
+
 	ContextDx.Unlock();
 }
 
@@ -528,7 +566,149 @@ void Directx::TGeometry::Draw(TContext& ContextDx)
 	//	render
 	Context.DrawIndexed( mIndexCount, 0, 0);
 
+	ContextDx.Unlock();
+}
+
+
+
+Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& Name) :
+	mName	( Name )
+{
+	Array<char> SourceBuffer;
+	Soy::StringToArray( Source, GetArrayBridge(SourceBuffer) );
+	const D3D_SHADER_MACRO* Macros = nullptr;
+	ID3DInclude* IncludeMode = nullptr;
+	const char* EntryPoint = nullptr;
+	const char* Target = "vs_5_0";
+	UINT ShaderOptions = D3D10_SHADER_ENABLE_STRICTNESS;
+	UINT EffectOptions = 0;
+
+	AutoReleasePtr<ID3DBlob> ErrorBlob;
+
+	auto Result = D3DCompile( SourceBuffer.GetArray(), SourceBuffer.GetDataSize(),
+          Name.c_str(), Macros, IncludeMode, EntryPoint, Target, ShaderOptions,
+         EffectOptions,
+         &mBlob.mObject,
+        &ErrorBlob.mObject );
+
+	std::stringstream Error;
+	Error << "D3DCompile()->";
+	GetBlobString( ErrorBlob.mObject, Error );
+
+	Directx::IsOkay( Result, Error.str() );
+}
+
+
+Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const Opengl::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& ContextDx) :
+	mBoundContext	( nullptr )
+{
+	auto& Device = ContextDx.LockGetDevice();
+
+	try
+	{
+		TShaderBlob VertBlob( vertexSrc, ShaderName + " vert shader");
+		TShaderBlob FragBlob( fragmentSrc, ShaderName + " frag shader");
+	
+		auto Result = Device.CreateVertexShader( VertBlob.GetBuffer(), VertBlob.GetBufferSize(), nullptr, &mVertexShader.mObject );
+		Directx::IsOkay( Result, "CreateVertexShader" );
+
+		Result = Device.CreatePixelShader( FragBlob.GetBuffer(), FragBlob.GetBufferSize(), nullptr, &mPixelShader.mObject );
+		Directx::IsOkay( Result, "CreatePixelShader" );
+
+		MakeLayout( Vertex, VertBlob, Device );
+	}
+	catch(std::exception& e)
+	{
+		ContextDx.Unlock();
+		throw;
+	}
+}
+
+
+DXGI_FORMAT GetType(GLenum Type)
+{
+	switch ( Type )
+	{
+		default:
+			Soy::Assert( false, "Unhandled type");
+	}
+	//	gr: sort this 
+	//	DXGI_FORMAT_R32G32B32_FLOAT
+	//	DXGI_FORMAT_R32G32_FLOAT
+	return DXGI_FORMAT_R32_FLOAT;
+}
+
+void Directx::TShader::MakeLayout(const Opengl::TGeometryVertex& Vertex,TShaderBlob& ShaderBlob,ID3D11Device& Device)
+{
+	Array<D3D11_INPUT_ELEMENT_DESC> Layouts;
+
+	for ( int e=0;	e<Vertex.mElements.GetSize();	e++ )
+	{
+		auto& Element = Vertex.mElements[e];
+		auto& Layout = Layouts.PushBack();
+		memset( &Layout, 0, sizeof(Layout) );
+		
+		Layout.SemanticName = Element.mName.c_str();
+		Layout.Format = GetType( Element.mType );
+		//Layout.SemanticIndex = Element.mIndex;
+		Layout.SemanticIndex = 0;
+		Layout.InputSlot = 0;
+		Layout.AlignedByteOffset = 0;	//	D3D11_APPEND_ALIGNED_ELEMENT
+		Layout.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+		Layout.InstanceDataStepRate = 0;
+	}
+
+	auto Result = Device.CreateInputLayout( Layouts.GetArray(), Layouts.GetSize(), ShaderBlob.GetBuffer(), ShaderBlob.GetBufferSize(), &mLayout.mObject );
+	std::stringstream Error;
+	Error << "CreateInputLayout(" << ShaderBlob.mName << ")";
+	Directx::IsOkay( Result, Error.str() );
+}
+
+
+void Directx::TShader::Bind(TContext& ContextDx)
+{
+	Soy::Assert(mBoundContext==nullptr,"Shader already bound");
+	mBoundContext = &ContextDx;
+	auto& Context = ContextDx.LockGetContext();
+
+	// Set the vertex input layout.
+	Context.IASetInputLayout( mLayout.mObject );
+
+    // Set the vertex and pixel shaders that will be used to render this triangle.
+    Context.VSSetShader( mVertexShader.mObject, nullptr, 0);
+    Context.PSSetShader( mPixelShader.mObject, nullptr, 0);
+
+	// Set the sampler state in the pixel shader.
+	//Context.PSSetSamplers(0, 1, &m_sampleState);
 
 	ContextDx.Unlock();
 }
+
+void Directx::TShader::Unbind()
+{
+	Soy::Assert(mBoundContext!=nullptr,"Shader was not bound");
+
+	mBoundContext->Unlock();
+	mBoundContext = nullptr;
+}
+
+
+void Directx::TShader::SetPixelUniform(Soy::TUniform& Uniform,const float& v)
+{
+	//	gr: you can only set one buffer at time, so this function may need to update a buffer and mark it as dirty...
+//	deviceContext->PSSetShaderResources(0, 1, &texture);
+}
+
+void Directx::TShader::SetVertexUniform(Soy::TUniform& Uniform,const float& v)
+{
+	//	gr: you can only set one buffer at time, so this function may need to update a buffer and mark it as dirty...
+	//deviceContext->VSSetConstantBuffers(bufferNumber, 1, &m_matrixBuffer);
+}
+
+ID3D11DeviceContext& Directx::TShader::GetContext()
+{
+	Soy::Assert( mBoundContext!=nullptr, "Shader is not bound");
+	return *mBoundContext->mLockedContext;
+}
+
 

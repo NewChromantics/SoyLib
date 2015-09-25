@@ -97,6 +97,9 @@
     <ClCompile Include="..\src\SoyHttp.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\SoyUniform.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\SoyThread.h">
@@ -217,6 +220,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\SoyHttp.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyUniform.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

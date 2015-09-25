@@ -46,6 +46,7 @@
     <ClCompile Include="..\src\SoyThread.cpp" />
     <ClCompile Include="..\src\SoyTime.cpp" />
     <ClCompile Include="..\src\SoyTypes.cpp" />
+    <ClCompile Include="..\src\SoyUniform.cpp" />
     <ClCompile Include="..\src\SoyVector.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -87,6 +88,7 @@
     <ClInclude Include="..\src\SoyTypes_Android.h" />
     <ClInclude Include="..\src\SoyTypes_CoreFoundation.h" />
     <ClInclude Include="..\src\SoyTypes_Windows.h" />
+    <ClInclude Include="..\src\SoyUniform.h" />
     <ClInclude Include="..\src\SoyVector.h" />
     <ClInclude Include="..\src\stb\stb_image.h" />
   </ItemGroup>

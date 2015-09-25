@@ -2,6 +2,7 @@
 
 #include "SoyThread.h"
 #include "SoyPixels.h"
+#include "SoyUniform.h"
 
 #include "SoyOpengl.h"	//	re-using opengl's vertex description atm
 
@@ -12,6 +13,8 @@ class SoyPixelsImpl;
 #pragma warning( push )
 //#pragma warning( disable : 4005 )
 #include <d3d11.h>
+#include <d3dcompiler.h>
+#pragma comment(lib, "D3DCompiler.lib")
 #pragma warning( pop )
 
 namespace Directx
@@ -20,6 +23,8 @@ namespace Directx
 	class TTexture;
 	class TRenderTarget;
 	class TGeometry;
+	class TShader;
+	class TShaderBlob;
 
 	std::string		GetEnumString(HRESULT Error);
 	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
@@ -53,6 +58,7 @@ public:
 
 public:
 	AutoReleasePtr<ID3D11DeviceContext>	mLockedContext;
+	size_t					mLockCount;		//	for recursive locking
 	ID3D11Device*			mDevice;
 };
 
@@ -87,7 +93,7 @@ class Directx::TRenderTarget
 public:
 	TRenderTarget(std::shared_ptr<TTexture>& Texture,TContext& ContextDx);
 
-	void		Bind(TContext& ContextDx);
+	void		Bind(TContext& Context);
 	void		Unbind();
 
 	void		Clear(TContext& ContextDx,Soy::TRgb Colour,float Alpha=1.f);
@@ -108,7 +114,7 @@ public:
 	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const Opengl::TGeometryVertex& Vertex,TContext& ContextDx);
 	~TGeometry();
 
-	void	Draw(TContext& ContextDx);
+	void	Draw(TContext& Context);
 
 public:
 	Opengl::TGeometryVertex			mVertexDescription;	//	for attrib binding info
@@ -118,3 +124,76 @@ public:
 	size_t							mIndexCount;
 	DXGI_FORMAT						mIndexFormat;
 };
+
+
+//	compiled shader
+class Directx::TShaderBlob
+{
+public:
+	TShaderBlob(const std::string& Source,const std::string& Name);
+
+	void*		GetBuffer()			{	return mBlob ? mBlob->GetBufferPointer() : nullptr;	}
+	size_t		GetBufferSize()		{	return mBlob ? mBlob->GetBufferSize() : 0;	}
+
+public:
+	std::string					mName;
+	AutoReleasePtr<ID3D10Blob>	mBlob;
+};
+
+
+class Directx::TShader : public Soy::TUniformContainer
+{
+public:
+	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const Opengl::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& Context);
+
+	void			Bind(TContext& Context);
+	void			Unbind();
+
+	bool			SetUniform(const char* Name,const TTexture& v)	{	return SetUniformImpl( Name, v );	}
+
+	virtual bool	SetUniform(const char* Name,const float& v) override	{	return SetUniformImpl( Name, v );	}
+	virtual bool	SetUniform(const char* Name,const vec2f& v) override	{	return SetUniformImpl( Name, v );	}
+	virtual bool	SetUniform(const char* Name,const vec4f& v) override	{	return SetUniformImpl( Name, v );	}
+	
+	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v)	{	return SetUniformImpl( Name, v );	}
+
+private:
+	template<typename TYPE>
+	bool			SetUniformImpl(const char* Name,const TYPE& v);
+	void			SetPixelUniform(Soy::TUniform& Uniform,const float& v);
+	void			SetVertexUniform(Soy::TUniform& Uniform,const float& v);
+
+	ID3D11DeviceContext&		GetContext();
+
+	void			MakeLayout(const Opengl::TGeometryVertex& Vertex,TShaderBlob& Shader,ID3D11Device& Device);
+
+public:
+	TContext*							mBoundContext;
+
+	Array<Soy::TUniform>				mVertexShaderUniforms;
+	Array<Soy::TUniform>				mPixelShaderUniforms;
+	AutoReleasePtr<ID3D11VertexShader>	mVertexShader;
+	AutoReleasePtr<ID3D11PixelShader>	mPixelShader;
+	AutoReleasePtr<ID3D11InputLayout>	mLayout;	//	maybe for geometry?
+};
+
+
+
+
+template<typename TYPE>
+bool Directx::TShader::SetUniformImpl(const char* Name,const TYPE& v)
+{
+	auto* VertUniform = mVertexShaderUniforms.Find(Name);
+	//if ( VertUniform )
+	//	SetVertexUniform( *VertUniform, v );
+
+	auto* PixelUniform = mPixelShaderUniforms.Find(Name);
+	//if ( PixelUniform )
+	//	SetPixelUniform( *PixelUniform, v );
+
+	return (PixelUniform || VertUniform);
+}
+
+
+
+

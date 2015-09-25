@@ -23,6 +23,8 @@ public:
 		mType	( Type )
 	{
 	}
+
+	bool			operator==(const char* Name) const	{	return mName == Name;	}
 	
 public:
 	std::string		mName;
