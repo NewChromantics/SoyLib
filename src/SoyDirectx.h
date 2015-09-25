@@ -25,10 +25,13 @@ namespace Directx
 	{
 		enum Type
 		{
+			Invalid,		//	only for soyenum!
 			ReadOnly,
 			Writable,		//	dynamic/mappable
 			RenderTarget,
 		};
+
+		DECLARE_SOYENUM(Directx::TTextureMode);
 	}
 }
 
@@ -64,3 +67,8 @@ public:
 	SoyPixelsMeta		mMeta;			//	cache
 	ID3D11Texture2D*	mTexture;
 };
+namespace Directx
+{
+std::ostream& operator<<(std::ostream &out,const Directx::TTexture& in);
+}
+

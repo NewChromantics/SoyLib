@@ -8,6 +8,15 @@ namespace Directx
 }
 
 
+std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap = 
+{
+	{	Directx::TTextureMode::Invalid,			"Invalid"	},
+	{	Directx::TTextureMode::ReadOnly,		"ReadOnly"	},
+	{	Directx::TTextureMode::Writable,		"Writable"	},
+	{	Directx::TTextureMode::RenderTarget,	"RenderTarget"	},
+};
+
+
 DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
@@ -92,6 +101,14 @@ bool Directx::IsOkay(HRESULT Error,const std::string& Context,bool ThrowExceptio
 	
 	return Soy::Assert( Error == S_OK, ErrorStr.str() );
 }
+
+
+std::ostream& Directx::operator<<(std::ostream &out,const Directx::TTexture& in)
+{
+	out << in.mMeta << "(" << in.GetMode() << ")";
+	return out;
+}
+
 
 
 Directx::TContext::TContext(ID3D11Device& Device) :
@@ -265,7 +282,7 @@ void Directx::TTexture::Write(TTexture& Destination,TContext& ContextDx)
 	}
 
 	std::stringstream Error;
-	Error << "No path to copy " << mMeta << " to " << Destination.mMeta;
+	Error << "No path to copy " << (*this) << " to " << Destination;
 	throw Soy::AssertException( Error.str() );
 }
 
@@ -356,7 +373,7 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 
 			//	update contents 
 			memcpy(resource.pData, PixelsArray.GetArray(), ResourceDataSize);
-			//Context.Unmap( &resource, SubResource);
+			Context.Unmap( mTexture, SubResource);
 		}
 		ContextDx.Unlock();
 	}
