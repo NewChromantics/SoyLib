@@ -130,7 +130,7 @@ public:
 class Directx::TShaderBlob
 {
 public:
-	TShaderBlob(const std::string& Source,const std::string& Name);
+	TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name);
 
 	void*		GetBuffer()			{	return mBlob ? mBlob->GetBufferPointer() : nullptr;	}
 	size_t		GetBufferSize()		{	return mBlob ? mBlob->GetBufferSize() : 0;	}

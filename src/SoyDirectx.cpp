@@ -571,22 +571,20 @@ void Directx::TGeometry::Draw(TContext& ContextDx)
 
 
 
-Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& Name) :
+Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name) :
 	mName	( Name )
 {
 	Array<char> SourceBuffer;
 	Soy::StringToArray( Source, GetArrayBridge(SourceBuffer) );
 	const D3D_SHADER_MACRO* Macros = nullptr;
 	ID3DInclude* IncludeMode = nullptr;
-	const char* EntryPoint = nullptr;
-	const char* Target = "vs_5_0";
 	UINT ShaderOptions = D3D10_SHADER_ENABLE_STRICTNESS;
 	UINT EffectOptions = 0;
 
 	AutoReleasePtr<ID3DBlob> ErrorBlob;
 
 	auto Result = D3DCompile( SourceBuffer.GetArray(), SourceBuffer.GetDataSize(),
-          Name.c_str(), Macros, IncludeMode, EntryPoint, Target, ShaderOptions,
+          Name.c_str(), Macros, IncludeMode, Function.c_str(), Target.c_str(), ShaderOptions,
          EffectOptions,
          &mBlob.mObject,
         &ErrorBlob.mObject );
@@ -606,8 +604,8 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 
 	try
 	{
-		TShaderBlob VertBlob( vertexSrc, ShaderName + " vert shader");
-		TShaderBlob FragBlob( fragmentSrc, ShaderName + " frag shader");
+		TShaderBlob VertBlob( vertexSrc, "Vert", "vs_5_0", ShaderName + " vert shader");
+		TShaderBlob FragBlob( fragmentSrc, "Frag", "ps_5_0", ShaderName + " frag shader");
 	
 		auto Result = Device.CreateVertexShader( VertBlob.GetBuffer(), VertBlob.GetBufferSize(), nullptr, &mVertexShader.mObject );
 		Directx::IsOkay( Result, "CreateVertexShader" );
@@ -629,6 +627,7 @@ DXGI_FORMAT GetType(GLenum Type)
 {
 	switch ( Type )
 	{
+		case GL_FLOAT:	return DXGI_FORMAT_R32_FLOAT;
 		default:
 			Soy::Assert( false, "Unhandled type");
 	}
@@ -680,8 +679,6 @@ void Directx::TShader::Bind(TContext& ContextDx)
 
 	// Set the sampler state in the pixel shader.
 	//Context.PSSetSamplers(0, 1, &m_sampleState);
-
-	ContextDx.Unlock();
 }
 
 void Directx::TShader::Unbind()
