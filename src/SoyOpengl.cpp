@@ -1460,6 +1460,15 @@ size_t Opengl::TGeometryVertex::GetStride(size_t ElementIndex) const
 	return Stride;
 }
 
+size_t Opengl::TGeometryVertex::GetVertexSize() const
+{
+	size_t Size = 0;
+	for ( int e=0;	e<mElements.GetSize();	e++ )
+		Size += mElements[e].mElementDataSize;
+
+	return Size;
+}
+
 
 void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
 {
@@ -1476,7 +1485,7 @@ void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
 	}
 }
 
-Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex) :
+Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const Opengl::TGeometryVertex& Vertex) :
 	mVertexBuffer( GL_ASSET_INVALID ),
 	mIndexBuffer( GL_ASSET_INVALID ),
 	mVertexArrayObject( GL_ASSET_INVALID ),
@@ -1524,10 +1533,13 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<G
 	//	gr: disabling vertex attribs stops rendering on ios
 	//Vertex.DisableAttribs();
 
-	//	push indexes
+	//	push indexes as glshorts
+	Array<GLshort> Indexes16;
+	for ( int i=0;	i<Indexes.GetSize();	i++ )
+		Indexes16.PushBack( size_cast<GLshort>(Indexes[i]) );
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
-	glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes.GetDataSize(), Indexes.GetArray(), GL_STATIC_DRAW );
-	mIndexCount = size_cast<GLsizei>( Indexes.GetSize() );
+	glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes16.GetDataSize(), Indexes16.GetArray(), GL_STATIC_DRAW );
+	mIndexCount = size_cast<GLsizei>( Indexes16.GetSize() );
 	mIndexType = Opengl::GetTypeEnum<GLshort>();
 	Opengl_IsOkay();
 

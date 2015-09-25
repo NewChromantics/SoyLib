@@ -3,6 +3,9 @@
 #include "SoyThread.h"
 #include "SoyPixels.h"
 
+#include "SoyOpengl.h"	//	re-using opengl's vertex description atm
+
+
 class SoyPixelsImpl;
 
 //	something is including d3d10.h (from dx sdk) and some errors have different export types from winerror.h (winsdk)
@@ -16,6 +19,7 @@ namespace Directx
 	class TContext;
 	class TTexture;
 	class TRenderTarget;
+	class TGeometry;
 
 	std::string		GetEnumString(HRESULT Error);
 	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
@@ -97,3 +101,20 @@ private:
 	std::shared_ptr<TTexture>					mTexture;
 };
 
+
+class Directx::TGeometry
+{
+public:
+	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const Opengl::TGeometryVertex& Vertex,TContext& ContextDx);
+	~TGeometry();
+
+	void	Draw(TContext& ContextDx);
+
+public:
+	Opengl::TGeometryVertex			mVertexDescription;	//	for attrib binding info
+	AutoReleasePtr<ID3D11Buffer>	mVertexBuffer;
+	size_t							mVertexCount;
+	AutoReleasePtr<ID3D11Buffer>	mIndexBuffer;
+	size_t							mIndexCount;
+	DXGI_FORMAT						mIndexFormat;
+};

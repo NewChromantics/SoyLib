@@ -194,6 +194,7 @@ public:
 	size_t							GetDataSize() const;	//	size of vertex struct
 	size_t							GetOffset(size_t ElementIndex) const;
 	size_t							GetStride(size_t ElementIndex) const;
+	size_t							GetVertexSize() const;
 
 	void							EnableAttribs(bool Enable=true) const;
 	void							DisableAttribs() const				{	EnableAttribs(false);	}
@@ -321,7 +322,7 @@ public:
 class Opengl::TGeometry
 {
 public:
-	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex);
+	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const Opengl::TGeometryVertex& Vertex);
 	~TGeometry();
 
 	void	Draw();
