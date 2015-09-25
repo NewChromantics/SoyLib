@@ -112,8 +112,7 @@ std::ostream& Directx::operator<<(std::ostream &out,const Directx::TTexture& in)
 
 
 Directx::TContext::TContext(ID3D11Device& Device) :
-	mDevice			( &Device ),
-	mLockedContext	( nullptr )
+	mDevice			( &Device )
 {
 }
 
@@ -122,7 +121,17 @@ ID3D11DeviceContext& Directx::TContext::LockGetContext()
 	if ( !Lock() )
 		throw Soy::AssertException("Failed to lock context");
 
-	return *mLockedContext;
+	return *mLockedContext.mObject;
+}
+
+ID3D11Device& Directx::TContext::LockGetDevice()
+{
+	Soy::Assert( mDevice!=nullptr, "Device expected" );
+
+	if ( !Lock() )
+		throw Soy::AssertException("Failed to lock context");
+
+	return *mDevice;
 }
 
 bool Directx::TContext::Lock()
@@ -131,7 +140,7 @@ bool Directx::TContext::Lock()
 	if ( mLockedContext )
 		throw Soy::AssertException("Context already locked");
 
-	mDevice->GetImmediateContext( &mLockedContext );
+	mDevice->GetImmediateContext( &mLockedContext.mObject );
 	if ( !Soy::Assert( mLockedContext!=nullptr, "Failed to get immediate context" ) )
 		return false;
 
@@ -143,17 +152,12 @@ void Directx::TContext::Unlock()
 	//	already locked... throw here? increment ref count, if any?
 	if ( !mLockedContext )
 		throw Soy::AssertException("Context was not locked");
-	mLockedContext = nullptr;
+	mLockedContext.Release();
 }
 
 
-Directx::TTexture::TTexture() :
-	mTexture		( nullptr )
-{
-}
 
-Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode) :
-	mTexture		( nullptr )
+Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode)
 {
 	static bool AutoMipMap = false;
 
@@ -202,7 +206,7 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 
 	try
 	{
-		auto Result = Device.CreateTexture2D( &Desc, nullptr, &mTexture );
+		auto Result = Device.CreateTexture2D( &Desc, nullptr, &mTexture.mObject );
 		std::stringstream Error;
 		Error << "Creating texture2D(" << Meta << ")";
 		Directx::IsOkay( Result, Error.str() );
@@ -218,14 +222,12 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 	ContextDx.Unlock();
 }
 
-Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
-	mTexture		( Texture )
+Directx::TTexture::TTexture(ID3D11Texture2D* Texture)
 {
 	//	validate and throw here
-	Soy::Assert( mTexture != nullptr, "null directx texture" );
+	Soy::Assert( Texture != nullptr, "null directx texture" );
 
-	//	save
-	mTexture->AddRef();
+	mTexture.Set( Texture, true );
 
 	//	get meta
 	D3D11_TEXTURE2D_DESC SrcDesc;
@@ -233,20 +235,11 @@ Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
 	mMeta = SoyPixelsMeta( SrcDesc.Width, SrcDesc.Height, GetFormat(SrcDesc.Format) );
 }
 
-Directx::TTexture::~TTexture()
-{
-	if ( mTexture )
-	{
-		auto NewRefCount = mTexture->Release();
-		mTexture = nullptr;
-	}
-}
-
 Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 {
 	//	get meta
 	D3D11_TEXTURE2D_DESC SrcDesc;
-	mTexture->GetDesc( &SrcDesc );
+	mTexture.mObject->GetDesc( &SrcDesc );
 	bool IsRenderTarget = (SrcDesc.BindFlags & D3D11_BIND_RENDER_TARGET) != 0;
 	bool IsWritable = (SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_WRITE) != 0;
 
@@ -270,15 +263,12 @@ void Directx::TTexture::Write(TTexture& Destination,TContext& ContextDx)
 	Soy::Assert( Destination.IsValid(), "Writing from invalid texture" );
 
 	//	try simple no-errors-reported-by-dx copy resource fast path
-	if ( Destination.GetMode() == TTextureMode::Writable )
+	if ( CanCopyMeta( mMeta, Destination.mMeta ) )
 	{
-		if ( CanCopyMeta( mMeta, Destination.mMeta ) )
-		{
-			auto& Context = ContextDx.LockGetContext();
-			Context.CopyResource( mTexture, Destination.mTexture );
-			ContextDx.Unlock();
-			return;
-		}
+		auto& Context = ContextDx.LockGetContext();
+		Context.CopyResource( mTexture, Destination.mTexture );
+		ContextDx.Unlock();
+		return;
 	}
 
 	std::stringstream Error;
@@ -383,6 +373,73 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 		ContextDx.Unlock();
 		throw;
 	}
+}
+
+
+
+Directx::TRenderTarget::TRenderTarget(std::shared_ptr<TTexture>& Texture,TContext& ContextDx) :
+	mTexture		( Texture )
+{
+	Soy::Assert( Texture && Texture->IsValid(), "Render target needs a valid texture target" );
+	auto& Meta = Texture->GetMeta();
+	
+	// Create the render target view.
+	auto& Device = ContextDx.LockGetDevice();
+	try
+	{
+		auto* TextureDx = mTexture->mTexture.mObject;
+		D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
+		renderTargetViewDesc.Format = GetFormat( Meta.GetFormat() );
+		renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		renderTargetViewDesc.Texture2D.MipSlice = 0;
+		{
+			auto Result = Device.CreateRenderTargetView( TextureDx, &renderTargetViewDesc, &mRenderTargetView.mObject );
+			std::stringstream Error;
+			Error << "CreateRenderTargetView(" << Texture << ")";
+			Directx::IsOkay( Result, Error.str() );
+		}
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
+		shaderResourceViewDesc.Format = GetFormat( Meta.GetFormat() );
+		shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+		shaderResourceViewDesc.Texture2D.MipLevels = 1;
+		{
+			auto Result = Device.CreateShaderResourceView( TextureDx, &shaderResourceViewDesc, &mShaderResourceView.mObject );
+			std::stringstream Error;
+			Error << "CreateShaderResourceView(" << Texture << ")";
+			Directx::IsOkay( Result, Error.str() );
+		}
+
+		ContextDx.Unlock();
+	}
+	catch(std::exception& e)
+	{
+		ContextDx.Unlock();
+		throw;
+	}
+}
+
+void Directx::TRenderTarget::Bind(TContext& ContextDx)
+{
+	auto& Context = ContextDx.LockGetContext();
+	Context.OMSetRenderTargets( 1, &mRenderTargetView.mObject, nullptr );
+	//deviceContext->OMSetRenderTargets(1, &m_renderTargetView, depthStencilView);
+	ContextDx.Unlock();
+}
+
+void Directx::TRenderTarget::Unbind()
+{
+}
+
+void Directx::TRenderTarget::Clear(TContext& ContextDx,Soy::TRgb Colour,float Alpha)
+{
+	float Colour4[4] = { Colour.r(), Colour.g(), Colour.b(), Alpha };
+
+	auto& Context = ContextDx.LockGetContext();
+	Context.ClearRenderTargetView( mRenderTargetView, Colour4 );
+    //Context.ClearDepthStencilView( depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	ContextDx.Unlock();
 }
 
 

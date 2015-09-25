@@ -15,6 +15,7 @@ namespace Directx
 {
 	class TContext;
 	class TTexture;
+	class TRenderTarget;
 
 	std::string		GetEnumString(HRESULT Error);
 	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
@@ -44,31 +45,55 @@ public:
 	virtual void	Unlock() override;
 
 	ID3D11DeviceContext&	LockGetContext();
+	ID3D11Device&			LockGetDevice();
 
 public:
-	ID3D11DeviceContext*	mLockedContext;
+	AutoReleasePtr<ID3D11DeviceContext>	mLockedContext;
 	ID3D11Device*			mDevice;
 };
 
 class Directx::TTexture
 {
 public:
-	TTexture();
+	TTexture()		{}
     explicit TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode);	//	allocate
 	TTexture(ID3D11Texture2D* Texture);
-	~TTexture();
 
-	bool				IsValid() const		{	return mTexture!=nullptr;	}
+	bool				IsValid() const		{	return mTexture;	}
 	void				Write(TTexture& Texture,TContext& Context);
 	void				Write(const SoyPixelsImpl& Pixels,TContext& Context);
 	TTextureMode::Type	GetMode() const;
+	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
+
+	bool				operator==(const TTexture& that) const	{	return mTexture.mObject == that.mTexture.mObject;	}
 
 public:
 	SoyPixelsMeta		mMeta;			//	cache
-	ID3D11Texture2D*	mTexture;
+	AutoReleasePtr<ID3D11Texture2D>	mTexture;
 };
 namespace Directx
 {
 std::ostream& operator<<(std::ostream &out,const Directx::TTexture& in);
 }
+
+
+
+class Directx::TRenderTarget
+{
+public:
+	TRenderTarget(std::shared_ptr<TTexture>& Texture,TContext& ContextDx);
+
+	void		Bind(TContext& ContextDx);
+	void		Unbind();
+
+	void		Clear(TContext& ContextDx,Soy::TRgb Colour,float Alpha=1.f);
+
+	bool		operator==(const TTexture& Texture) const		{	return mTexture ? (*mTexture == Texture) : false;	}
+	bool		operator!=(const TTexture& Texture) const		{	return !(*this == Texture);	}
+
+private:
+	AutoReleasePtr<ID3D11ShaderResourceView>	mShaderResourceView;
+	AutoReleasePtr<ID3D11RenderTargetView>		mRenderTargetView;
+	std::shared_ptr<TTexture>					mTexture;
+};
 
