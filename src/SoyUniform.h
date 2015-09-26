@@ -50,3 +50,61 @@ public:
 		return SetUniform( Uniform.mName.c_str(), v );
 	}
 };
+
+
+
+
+//	uniform wrapper for a variable, it is both a uniform and a container (so external systems can set it to itself from its own meta data)
+template<typename TYPE>
+class TUniformWrapper : public Soy::TUniformContainer, public Soy::TUniform
+{
+public:
+	TUniformWrapper(const std::string& Name,TYPE DefaultValue) :
+	TUniform	( Name, Soy::GetTypeName<TYPE>() ),
+	mValue		( DefaultValue )
+	{
+	}
+	
+	//	setters... this is getting close to the SoyData thing again
+	virtual bool	SetUniform(const char* Name,const float& v) override;
+	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
+	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
+	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v) override;
+	
+	operator TYPE()	{	return mValue;	}
+	
+public:
+	TYPE			mValue;
+};
+
+
+template<typename TYPE>
+bool TUniformWrapper<TYPE>::SetUniform(const char* Name,const float& v)
+{
+	if ( mName == Name )
+	{
+		mValue = v;
+		return true;
+	}
+	return false;
+}
+
+template<typename TYPE>
+bool TUniformWrapper<TYPE>::SetUniform(const char* Name,const vec2f& v)
+{
+	return false;
+}
+
+template<typename TYPE>
+bool TUniformWrapper<TYPE>::SetUniform(const char* Name,const vec4f& v)
+{
+	return false;
+}
+
+template<typename TYPE>
+bool TUniformWrapper<TYPE>::SetUniform(const char* Name,const Opengl::TTextureAndContext& v)
+{
+	return false;
+}
+
+
