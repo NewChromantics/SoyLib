@@ -719,7 +719,7 @@ Opencl::TSync::TSync() :
 {
 }
 
-Opencl::TSync::~TSync()
+void Opencl::TSync::Release()
 {
 	if ( mEvent )
 	{
@@ -837,10 +837,17 @@ Opencl::TBuffer::TBuffer(size_t Size,TContext& Context,const std::string& DebugN
 	mBufferSize	( 0 ),
 	mDebugName	( DebugName )
 {
+	//	gr: we cannot create a CL_BUFFER with zero bytes, but I want to allow it in the middleware, so bail early
+	//		may abort this in future as we can't use the clmem anyway if its null and we'll just get INVALID_ARGS when we try and execute
+	if ( Size == 0 )
+		return;
+
+	//	this will just return CL_INVALID_BUFFER_SIZE, but catching it early might be handy
+	Soy::Assert( Size > 0, "Cannot create CL buffer of zero bytes");
+	
 	cl_mem_flags Flags = CL_MEM_READ_WRITE;
 	void* HostPtr = nullptr;
 
-	Soy::Assert( mMem == nullptr, "clmem already allocated");
 	cl_int Error = CL_SUCCESS;
 	mMem = clCreateBuffer( Context.GetContext(), Flags, Size, HostPtr, &Error );
 	std::stringstream ErrorString;
@@ -868,14 +875,24 @@ Opencl::TBuffer::~TBuffer()
 void Opencl::TBuffer::ReadImpl(ArrayInterface<uint8>& Array,TContext& Context,TSync* Sync)
 {
 	Soy::Assert( mMem != nullptr, "Mem buffer expected" );
-
-	auto* ArrayPtr = Array.GetArray();
-	Soy::Assert( ArrayPtr != nullptr, "Array should not be empty" );
 	
 	//	todo; check size of mem. We should store this on mMem set
 	size_t StartBytes = 0;
 	size_t ByteCount = Array.GetDataSize();
 	static bool Blocking = true;
+	
+	//	gr: sync's from clEnqueueReadBuffer never seem to finish if bytecount is 0. Should bail out earlier, but just in case...
+	if ( ByteCount == 0 )
+	{
+		Soy::Assert( Array.GetArray() == nullptr, "Array is not null (move to unit test!)" );
+		//	end event, just in case its setup
+		if ( Sync )
+			Sync->Release();
+		return;
+	}
+	
+	auto* ArrayPtr = Array.GetArray();
+	Soy::Assert( ArrayPtr != nullptr, "Array should not be empty if bytecount>0" );
 
 	if ( ByteCount > mBufferSize )
 	{
@@ -884,7 +901,7 @@ void Opencl::TBuffer::ReadImpl(ArrayInterface<uint8>& Array,TContext& Context,TS
 		throw Soy::AssertException( Error.str() );
 		//ByteCount = mBufferSize;
 	}
-	
+
 	auto Error = clEnqueueReadBuffer( Context.GetQueue(), mMem, Blocking, StartBytes, ByteCount, ArrayPtr, 0, nullptr, Sync ? &Sync->mEvent : nullptr );
 	std::stringstream ErrorString;
 	ErrorString << "TBuffer::Read(" << ByteCount << " bytes)";
@@ -1301,8 +1318,9 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const vec2f& Value)
 	return SetKernelArg( *this, Name, Value2 );
 }
 
-bool Opencl::TKernelState::SetUniform(const char* Name,cl_int Value)
+bool Opencl::TKernelState::SetUniform(const char* Name,const int& Value)
 {
+	static_assert( sizeof(cl_int) == sizeof(Value), "cl_int doesn't match int" );
 	return SetKernelArg( *this, Name, Value );
 }
 

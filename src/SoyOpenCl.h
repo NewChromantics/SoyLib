@@ -422,6 +422,7 @@ public:
 	
 	//	gr: not uniforms, but matching name of opengl
 	//	gr: like opengl, these now throw on error, silent(return) if uniform doesn't exist
+	virtual bool	SetUniform(const char* Name,const int& v) override;
 	virtual bool	SetUniform(const char* Name,const float& v) override;
 	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
 	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
@@ -431,7 +432,6 @@ public:
 	}
 	bool			SetUniform(const char* Name,const Opengl::TTextureAndContext& v,OpenclBufferReadWrite::Type ReadWriteMode);
 	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels,OpenclBufferReadWrite::Type ReadWriteMode);
-	bool			SetUniform(const char* Name,cl_int Value);
 	bool			SetUniform(const char* Name,TBuffer& Buffer);
 	
 	//	throw on error, assuming wrong uniform is fatal
@@ -529,9 +529,10 @@ class Opencl::TSync
 {
 public:
 	TSync();
-	~TSync();
+	~TSync()	{	Release();	}
 	
-	void	Wait();
+	void		Release();	//	occasionally we need to invalidate a sync
+	void		Wait();
 	
 public:
 	cl_event	mEvent;
