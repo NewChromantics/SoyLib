@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SoyVector.h"
+#include "SoyString.h"
 
 namespace Soy
 {
@@ -32,6 +33,8 @@ public:
 class Soy::TUniformContainer
 {
 public:
+	virtual bool	SetUniform(const char* Name,const std::string& v)	{	return false;	}
+	virtual bool	SetUniform(const char* Name,const int& v)=0;
 	virtual bool	SetUniform(const char* Name,const float& v)=0;
 	virtual bool	SetUniform(const char* Name,const vec2f& v)=0;
 	virtual bool	SetUniform(const char* Name,const vec4f& v)=0;
@@ -66,6 +69,8 @@ public:
 	}
 	
 	//	setters... this is getting close to the SoyData thing again
+	virtual bool	SetUniform(const char* Name,const std::string& v) override;
+	virtual bool	SetUniform(const char* Name,const int& v) override;
 	virtual bool	SetUniform(const char* Name,const float& v) override;
 	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
 	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
@@ -84,6 +89,28 @@ bool TUniformWrapper<TYPE>::SetUniform(const char* Name,const float& v)
 	if ( mName == Name )
 	{
 		mValue = v;
+		return true;
+	}
+	return false;
+}
+
+template<typename TYPE>
+bool TUniformWrapper<TYPE>::SetUniform(const char* Name,const int& v)
+{
+	if ( mName == Name )
+	{
+		mValue = v;
+		return true;
+	}
+	return false;
+}
+
+template<typename TYPE>
+bool TUniformWrapper<TYPE>::SetUniform(const char* Name,const std::string& v)
+{
+	if ( mName == Name )
+	{
+		Soy::StringToType( mValue, v );
 		return true;
 	}
 	return false;
