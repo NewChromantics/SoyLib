@@ -593,6 +593,7 @@ Opencl::TProgram::TProgram(const std::string& Source,TContext& Context) :
 	BuildArguments << BuildOption_KernelInfo << ' ';
 	
 	Array<std::string> Paths;
+	Paths.PushBack(".");
 	for ( int p=0;	p<Paths.GetSize();	p++)
 	{
 		auto Path = Paths[p];
