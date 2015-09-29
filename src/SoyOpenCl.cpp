@@ -1275,6 +1275,7 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const Opengl::TTextureAnd
 	//	we can't tell when caller is going to release the pixels, so wait for it to finish
 	Sync.Wait();
 	
+	OnAssignedUniform( Name, Result );
 	return Result;
 }
 
@@ -1298,6 +1299,7 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const SoyPixelsImpl& Pixe
 	//	we can't tell when caller is going to release the pixels, so wait for it to finish
 	Sync.Wait();
 	
+	OnAssignedUniform( Name, Result );
 	return Result;
 }
 
@@ -1305,30 +1307,40 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const SoyPixelsImpl& Pixe
 bool Opencl::TKernelState::SetUniform(const char* Name,const vec4f& Value)
 {
 	auto Value2 = Soy::VectorToCl( Value );
-	return SetKernelArg( *this, Name, Value2 );
+	bool Result = SetKernelArg( *this, Name, Value2 );
+	OnAssignedUniform( Name, Result );
+	return Result;
 }
 
 bool Opencl::TKernelState::SetUniform(const char* Name,const float& Value)
 {
-	return SetKernelArg( *this, Name, Value );
+	bool Result = SetKernelArg( *this, Name, Value );
+	OnAssignedUniform( Name, Result );
+	return Result;
 }
 
 bool Opencl::TKernelState::SetUniform(const char* Name,const vec2f& Value)
 {
 	auto Value2 = Soy::VectorToCl( Value );
-	return SetKernelArg( *this, Name, Value2 );
+	bool Result = SetKernelArg( *this, Name, Value2 );
+	OnAssignedUniform( Name, Result );
+	return Result;
 }
 
 bool Opencl::TKernelState::SetUniform(const char* Name,const int& Value)
 {
 	static_assert( sizeof(cl_int) == sizeof(Value), "cl_int doesn't match int" );
-	return SetKernelArg( *this, Name, Value );
+	bool Result = SetKernelArg( *this, Name, Value );
+	OnAssignedUniform( Name, Result );
+	return Result;
 }
 
 bool Opencl::TKernelState::SetUniform(const char* Name,TBuffer& Buffer)
 {
 	//	gr: this fails if you assign a read uniform with a write-only buffer! catch this here!
-	return SetKernelArg( *this, Name, Buffer.GetMemBuffer() );
+	bool Result = SetKernelArg( *this, Name, Buffer.GetMemBuffer() );
+	OnAssignedUniform( Name, Result );
+	return Result;
 }
 
 Opencl::TBuffer& Opencl::TKernelState::GetUniformBuffer(const char* Name)
@@ -1542,6 +1554,24 @@ void Opencl::TKernelState::QueueIterationImpl(const TKernelIteration& Iteration,
 	
 	cl_int Err = clEnqueueNDRangeKernel( Queue, Kernel, Dimensions, GlobalWorkOffset, GlobalWorkSize, LocalWorkSize, 0, nullptr, WaitEvent );
 
+	//	invalid kernel args can mean an arg wasn't set. work it out
+	if ( Err == CL_INVALID_KERNEL_ARGS )
+	{
+		Array<std::string> UnassignedUniforms;
+		for ( int u=0;	u<mKernel.mUniforms.GetSize();	u++ )
+		{
+			auto& Uniform = mKernel.mUniforms[u];
+			if ( mAssignedArguments.Find( Uniform.mName ) )
+				continue;
+			UnassignedUniforms.PushBack( Uniform.mName );
+		}
+
+		std::Debug << "Detected unassigned uniforms x" << UnassignedUniforms.GetSize() << ": ";
+		for ( int i=0;	i<UnassignedUniforms.GetSize();	i++ )
+			std::Debug << UnassignedUniforms[i] << ", ";
+		std::Debug << std::endl;
+	}
+	
 	Opencl::IsOkay( Err, "clEnqueueNDRangeKernel" );
 }
 

@@ -96,6 +96,7 @@ namespace Soy
 
 	vec2f		ClToVector(const cl_float2& v);
 	vec4f		ClToVector(const cl_float4& v);
+	mathfu::Vector<float,8>		ClToVector(const cl_float8& v);
 }
 
 std::ostream& operator<<(std::ostream &out,const cl_float2& in);
@@ -455,6 +456,11 @@ private:
 
 	//	get buffer for a uniform - only applies to temporary ones we created
 	TBuffer&		GetUniformBuffer(const char* Name);	//	throw if non-existant. assuming fatal if we're trying to read data from a uniform
+	void			OnAssignedUniform(const char* Name,bool Success)
+	{
+		if ( Success )
+			mAssignedArguments.PushBack( Name );
+	}
 
 public:
 	TKernel&		mKernel;
@@ -462,6 +468,7 @@ public:
 private:
 	//	gr: changed to array because of map crashes... hopefully this will find out why
 	Array<std::pair<std::string,std::shared_ptr<TBuffer>>>	mBuffers;
+	Array<std::string>										mAssignedArguments;	//	for detecting when an argument hasn't been set
 	//std::map<std::string,std::shared_ptr<TBuffer>>	mBuffers;	//	temporarily allocated buffers for uniforms
 };
 
