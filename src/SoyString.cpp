@@ -537,7 +537,12 @@ std::string	Soy::ResolveUrl(const std::string& BaseUrl,const std::string& Path)
 	return NewUrl.str();
 }
 
-
+std::wstring Soy::StringToWString(const std::string& s)
+{
+	std::wstring w;
+	w.assign( s.begin(), s.end() );
+	return w;
+}
 
 
 

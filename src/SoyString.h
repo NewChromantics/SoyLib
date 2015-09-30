@@ -94,6 +94,7 @@ namespace Soy
 
 	std::string	ResolveUrl(const std::string& BaseUrl,const std::string& Path);	//	work out the full path of Path from the base url. if it starts from / then use the server. if it starts with protocol, don't modify, otherwise place in directory
 
+	std::wstring	StringToWString(const std::string& s);
 	
 	template<typename TYPE>
 	bool		StringToType(TYPE& Out,const std::string& String);
