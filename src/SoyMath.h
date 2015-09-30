@@ -8,6 +8,7 @@
 #include "SoyVector.h"
 
 #if defined(TARGET_WINDOWS)
+#include <math.h>
 //	turn the double into a float - todo: make sure this is done at compile time
 #define PIf	static_cast<float>(M_PI)
 #else
