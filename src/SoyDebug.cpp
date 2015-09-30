@@ -233,7 +233,7 @@ bool Soy::Platform::IsDebuggerAttached()
 bool Soy::Platform::DebugBreak()
 {
 #if defined(TARGET_OSX)
-	static bool DoBreak = true;
+	static bool DoBreak = false;
 	//	gr: supposedly this works, if you enable it in the scheme, but I don't know where it's declared
 	//Debugger();
 	if (DoBreak)

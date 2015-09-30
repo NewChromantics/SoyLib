@@ -1231,7 +1231,16 @@ bool Opengl::TShaderState::SetUniform(const char* Name,const float& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
 	if ( !Uniform.IsValid() )
-		return false;
+	return false;
+	Opengl::SetUniform( Uniform, v );
+	return true;
+}
+
+bool Opengl::TShaderState::SetUniform(const char* Name,const int& v)
+{
+	auto Uniform = mShader.GetUniform( Name );
+	if ( !Uniform.IsValid() )
+	return false;
 	Opengl::SetUniform( Uniform, v );
 	return true;
 }
