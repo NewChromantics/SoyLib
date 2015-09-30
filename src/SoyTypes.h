@@ -261,6 +261,9 @@ namespace Soy
 
 		int					GetLastError();
 		std::string			GetErrorString(int Error);
+#if defined(TARGET_WINDOWS)
+		std::string			GetErrorString(HRESULT Error);
+#endif
 		inline std::string	GetLastErrorString()	{	return GetErrorString( GetLastError() );	}
 	}
 };

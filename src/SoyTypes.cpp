@@ -241,6 +241,15 @@ int Soy::Platform::GetLastError()
 #endif
 }
 
+#if defined(TARGET_WINDOWS)
+std::string Soy::Platform::GetErrorString(HRESULT Error)
+{
+	//	http://stackoverflow.com/a/7008279/355753
+	int ErrorInt = Error & 0xffff;
+	return GetErrorString( ErrorInt );
+}
+#endif
+
 std::string Soy::Platform::GetErrorString(int Error)
 {
 #if defined(TARGET_WINDOWS)
