@@ -85,6 +85,7 @@ std::string Directx::GetEnumString(HRESULT Error)
 	return Soy::Platform::GetErrorString( Error );	
 }
 
+//	gr: move this to generic Platform::IsOkay for windows
 bool Directx::IsOkay(HRESULT Error,const std::string& Context,bool ThrowException)
 {
 	if ( Error == S_OK )
