@@ -85,6 +85,7 @@ public:
 		ssize_t b = size_cast<ssize_t>( that.GetTime() );
 		return a - b;
 	}
+	uint64			GetNanoSeconds() const {	return mTime * 1000000;	}
 
 	inline bool		operator==(const SoyTime& Time) const	{	return mTime == Time.mTime;	}
 	inline bool		operator!=(const SoyTime& Time) const	{	return mTime != Time.mTime;	}
