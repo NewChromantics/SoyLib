@@ -464,6 +464,16 @@ void Directx::TRenderTarget::Bind(TContext& ContextDx)
 	Context.OMSetRenderTargets( 1, &mRenderTargetView.mObject, nullptr );
 	//deviceContext->OMSetRenderTargets(1, &m_renderTargetView, depthStencilView);
 
+	//	set viewport
+	D3D11_VIEWPORT Viewport;
+	ZeroMemory(&Viewport, sizeof(D3D11_VIEWPORT));
+
+	Viewport.TopLeftX = 0;
+	Viewport.TopLeftY = 0;
+	Viewport.Width = GetMeta().GetWidth();
+	Viewport.Height = GetMeta().GetHeight();
+
+	Context.RSSetViewports( 1, &Viewport );
 	ContextDx.Unlock();
 }
 

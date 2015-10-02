@@ -93,13 +93,14 @@ class Directx::TRenderTarget
 public:
 	TRenderTarget(std::shared_ptr<TTexture>& Texture,TContext& ContextDx);
 
-	void		Bind(TContext& Context);
-	void		Unbind();
+	void			Bind(TContext& Context);
+	void			Unbind();
 
-	void		Clear(TContext& ContextDx,Soy::TRgb Colour,float Alpha=1.f);
+	void			Clear(TContext& ContextDx,Soy::TRgb Colour,float Alpha=1.f);
+	SoyPixelsMeta	GetMeta() const									{	return mTexture ? mTexture->GetMeta() : SoyPixelsMeta();	}
 
-	bool		operator==(const TTexture& Texture) const		{	return mTexture ? (*mTexture == Texture) : false;	}
-	bool		operator!=(const TTexture& Texture) const		{	return !(*this == Texture);	}
+	bool			operator==(const TTexture& Texture) const		{	return mTexture ? (*mTexture == Texture) : false;	}
+	bool			operator!=(const TTexture& Texture) const		{	return !(*this == Texture);	}
 
 private:
 	AutoReleasePtr<ID3D11ShaderResourceView>	mShaderResourceView;
