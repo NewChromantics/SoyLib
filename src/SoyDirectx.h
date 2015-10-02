@@ -45,13 +45,16 @@ namespace Directx
 	}
 }
 
-class Directx::TContext : public PopWorker::TContext
+class Directx::TContext : public PopWorker::TJobQueue, public PopWorker::TContext
 {
 public:
 	TContext(ID3D11Device& Device);
 
 	virtual bool	Lock() override;
 	virtual void	Unlock() override;
+
+	void			Iteration()			{	Flush(*this);	}
+	bool			HasMultithreadAccess() const	{	return false;	}	//	gr: do real probe for... deffered, not immediate, context type?
 
 	ID3D11DeviceContext&	LockGetContext();
 	ID3D11Device&			LockGetDevice();
@@ -76,6 +79,7 @@ public:
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 
 	bool				operator==(const TTexture& that) const	{	return mTexture.mObject == that.mTexture.mObject;	}
+	bool				operator!=(const TTexture& that) const	{	return !(*this == that);	}
 
 public:
 	SoyPixelsMeta		mMeta;			//	cache
