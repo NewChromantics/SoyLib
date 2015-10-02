@@ -7,6 +7,8 @@
 #include "RemoteArray.h"
 
 
+class SoyPixelsMeta;
+
 
 namespace SoyPixelsFormat
 {
@@ -50,6 +52,7 @@ namespace SoyPixelsFormat
 	size_t		GetChannelCount(Type Format);
 	Type		GetFormatFromChannelCount(size_t ChannelCount);
 	void		GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats);
+	void		GetFormatPlanes(SoyPixelsMeta Format,ArrayBridge<SoyPixelsMeta>&& PlaneFormats);
 	
 	int			GetMaxValue(SoyPixelsFormat::Type Format);
 	int			GetMinValue(SoyPixelsFormat::Type Format);
@@ -79,13 +82,15 @@ public:
 	}
 	
 	bool			IsValid() const					{	return (mWidth>0) && (mHeight>0) && SoyPixelsFormat::IsValid(mFormat);	}
+	bool			IsValidDimensions() const		{	return (mWidth>0) && (mHeight>0);	}
 	uint8			GetBitDepth() const				{	return 8;	}
 	uint8			GetChannels() const				{	return size_cast<uint8>(SoyPixelsFormat::GetChannelCount(mFormat));	}
 	uint16			GetWidth() const				{	return mWidth;	}
 	uint16			GetHeight() const				{	return mHeight;	}
 	size_t			GetDataSize() const				{	return GetWidth() * GetChannels() * GetHeight();	}
 	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
-	
+	size_t			GetRowDataSize() const			{	return GetChannels() * GetWidth();	}
+
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
 	void			DumbSetChannels(size_t Channels)	{	mFormat = SoyPixelsFormat::GetFormatFromChannelCount(Channels);	}
 	void			DumbSetWidth(uint16 Width)		{	mWidth = Width;	}
@@ -160,6 +165,9 @@ public:
 	void			ResizeFastSample(uint16 Width,uint16 Height);
 	
 	void			RotateFlip();
+
+	//	split these pixels into multiple pixels if there are multiple planes
+	void			SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes);
 	
 	virtual SoyPixelsMeta&					GetMeta()=0;
 	virtual const SoyPixelsMeta&			GetMeta() const=0;
