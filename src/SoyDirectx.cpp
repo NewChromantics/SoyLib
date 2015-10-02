@@ -22,11 +22,16 @@ DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
 	switch ( Format )
 	{
 		//	gr: these are unsupported natively by directx, so force 32 bit and have to do conversion in write()
-		case SoyPixelsFormat::RGB:	return DXGI_FORMAT_R8G8B8A8_UNORM;
-		case SoyPixelsFormat::BGR:	return DXGI_FORMAT_R8G8B8A8_UNORM;
+		case SoyPixelsFormat::RGB:				return DXGI_FORMAT_R8G8B8A8_UNORM;
+		case SoyPixelsFormat::BGR:				return DXGI_FORMAT_R8G8B8A8_UNORM;
 
-		case SoyPixelsFormat::RGBA:	return DXGI_FORMAT_R8G8B8A8_UNORM;
-		case SoyPixelsFormat::BGRA:	return DXGI_FORMAT_B8G8R8A8_UNORM;
+		case SoyPixelsFormat::RGBA:				return DXGI_FORMAT_R8G8B8A8_UNORM;
+		case SoyPixelsFormat::BGRA:				return DXGI_FORMAT_B8G8R8A8_UNORM;
+
+		case SoyPixelsFormat::Nv12:				return DXGI_FORMAT_NV12;
+		case SoyPixelsFormat::Greyscale:		return DXGI_FORMAT_R8_UNORM;
+		case SoyPixelsFormat::LumaVideo:		return DXGI_FORMAT_R8_UNORM;
+		case SoyPixelsFormat::GreyscaleAlpha:	return DXGI_FORMAT_R8G8_UNORM;
 
 		default:
 			//	gr: throw here so we can start handling more formats
