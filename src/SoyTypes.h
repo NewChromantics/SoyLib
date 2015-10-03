@@ -270,9 +270,12 @@ class ArrayBridge;
 
 namespace Soy
 {
-	bool		FileToArray(ArrayBridge<char>& Data,std::string Filename,std::ostream& Error);
-	inline bool	FileToArray(ArrayBridge<char>&& Data,std::string Filename,std::ostream& Error)	{	return FileToArray( Data, Filename, Error );	}
-	inline bool	LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename,std::ostream& Error)	{	return FileToArray( Data, Filename, Error );	}
+	//	gr: move file things to their own files!
+	void		CreateDirectory(const std::string& Path);	//	will strip filenames
+	void		FileToArray(ArrayBridge<char>& Data,std::string Filename);
+	inline void	FileToArray(ArrayBridge<char>&& Data,std::string Filename)		{	FileToArray( Data, Filename );	}
+	void		ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename);
+	inline void	LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename)	{	FileToArray( Data, Filename );	}
 	bool		ReadStream(ArrayBridge<char>& Data, std::istream& Stream, std::ostream& Error);
 	bool		ReadStream(ArrayBridge<char>&& Data, std::istream& Stream, std::ostream& Error);
 	bool		ReadStreamChunk( ArrayBridge<char>& Data, std::istream& Stream );
