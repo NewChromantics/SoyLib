@@ -26,6 +26,8 @@ namespace Soy
 	
 	//	delineators for strings. First is used for output
 	static const char* VecNXDelins = ",x";
+	
+	class TPushPopStreamSettings;	//	scoped push/pop of stream flags
 };
 
 //	string that uses a prmem::Heap
@@ -115,6 +117,24 @@ namespace Soy
 	std::string	NSErrorToString(NSException* Exception);
 };
 #endif
+
+
+class Soy::TPushPopStreamSettings
+{
+public:
+	TPushPopStreamSettings(std::ostream& Stream) :
+		mPushedFlags	( Stream.flags() ),
+		mStream			( Stream )
+	{
+	}
+	~TPushPopStreamSettings()
+	{
+		mStream.flags( mPushedFlags );
+	}
+	
+	std::ostream&				mStream;
+	std::ios_base::fmtflags		mPushedFlags;
+};
 
 
 
