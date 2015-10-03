@@ -93,6 +93,8 @@ namespace Soy
 	cl_float2	VectorToCl(const vec2f& v);
 	cl_float3	VectorToCl(const vec3f& v);
 	cl_float4	VectorToCl(const vec4f& v);
+	cl_float8	VectorToCl8(const ArrayBridge<float>& v);
+	cl_int4		VectorToCl(const vec4x<int>& v);
 
 	vec2f		ClToVector(const cl_float2& v);
 	vec4f		ClToVector(const cl_float4& v);
