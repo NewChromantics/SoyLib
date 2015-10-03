@@ -33,6 +33,8 @@ namespace Soy
 	}
 	
 	
+	float	AngleDegDiff(float Angle,float Base);	//	get the smallest signed difference from Base
+	
 	template<typename T>
 	T	Lerp(const T& Start,const T& End,float Time)
 	{
