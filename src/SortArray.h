@@ -72,9 +72,11 @@ public:
 	}
 	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true) override
 	{
+		if ( size <= GetSize() && AllowLess && preserve )
+			return mArray.SetSize( size, preserve, AllowLess );
 		//	can't push blocks in sort arrays!
 		Soy::Assert(false, "Cannot allocate in sort array");
-		return nullptr;
+		return false;
 	}
 	virtual TYPE*			InsertBlock(size_t index,size_t Count) override
 	{
