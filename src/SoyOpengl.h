@@ -271,6 +271,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& Texture);	//	special case which tracks how many textures are bound
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override	{	return SetUniform( Name, Texture.mTexture );	}
 	bool			SetUniform(const char* Name,const float3x3& v);
+	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& Texture) override	{	return Soy_AssertTodo();	}
 
 	template<typename TYPE>
 	bool	SetUniform(const std::string& Name,const TYPE& v)

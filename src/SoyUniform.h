@@ -13,6 +13,7 @@ namespace Opengl
 {
 	class TTextureAndContext;
 }
+class SoyPixelsImpl;
 
 
 class Soy::TUniform
@@ -38,6 +39,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const float& v)=0;
 	virtual bool	SetUniform(const char* Name,const vec2f& v)=0;
 	virtual bool	SetUniform(const char* Name,const vec4f& v)=0;
+	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v)=0;
 	
 	//	gr: here I want to find a way that doesn't require this to be defined so we're not dependant on Opengl/OPencl/Cuda
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v)=0;
@@ -75,6 +77,11 @@ public:
 	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
 	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v) override;
+	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v) override
+	{
+		Soy_AssertTodo();
+		return false;
+	}
 	
 	operator TYPE()	{	return mValue;	}
 	
