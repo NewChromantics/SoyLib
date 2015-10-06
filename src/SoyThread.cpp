@@ -114,20 +114,33 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 
 void PopWorker::TJobQueue::RunJob(std::shared_ptr<TJob>& Job)
 {
-	try
+	Soy::Assert( Job!=nullptr, "Job expected" );
+
+	if ( Job->mCatchExceptions )
+	{
+		try
+		{
+			Job->Run();
+			
+			//	mark job as finished
+			if ( Job->mSemaphore )
+				Job->mSemaphore->OnCompleted();
+		}
+		catch (std::exception& e)
+		{
+			if ( Job->mSemaphore )
+				Job->mSemaphore->OnFailed( e.what() );
+			else
+				std::Debug << "Exception executing job " << e.what() << " (no semaphore)" << std::endl;
+		}
+	}
+	else
 	{
 		Job->Run();
 		
 		//	mark job as finished
 		if ( Job->mSemaphore )
 			Job->mSemaphore->OnCompleted();
-	}
-	catch (std::exception& e)
-	{
-		if ( Job->mSemaphore )
-			Job->mSemaphore->OnFailed( e.what() );
-		else
-			std::Debug << "Exception executing job " << e.what() << " (no semaphore)" << std::endl;
 	}
 }
 

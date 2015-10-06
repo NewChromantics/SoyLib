@@ -58,13 +58,15 @@ class PopWorker::TJob
 {
 public:
 	TJob() :
-	mSemaphore	( nullptr )
+		mSemaphore			( nullptr ),
+		mCatchExceptions	( true )
 	{
 	}
 
 	virtual void			Run()=0;		//	throws on error, otherwise assuming success
 	
 	Soy::TSemaphore*		mSemaphore;
+	bool					mCatchExceptions;
 };
 
 
