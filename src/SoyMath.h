@@ -52,6 +52,7 @@ namespace Soy
 	class TCamera;
 	
 	//	maybe not "math" ?
+	class TYuvParams;
 	class THsl;
 	class TRgb;
 }
@@ -115,6 +116,51 @@ public:
 	Matrix4x4	mProjectionMtx;
 	Matrix4x4	mModelViewMtx;
 	
+};
+
+
+
+
+class Soy::TYuvParams
+{
+private:
+	TYuvParams(float LumaMin,float LumaMax,float ChromaVRed,float ChromaUGreen,float ChromaVGreen,float ChromaUBlue) :
+		mLumaMin		( LumaMin ),
+		mLumaMax		( LumaMax ),
+		mChromaVRed		( ChromaVRed ),
+		mChromaUGreen	( ChromaUGreen ),
+		mChromaVGreen	( ChromaVGreen ),
+		mChromaUBlue	( ChromaUBlue )
+	{
+	}
+public:
+	static TYuvParams	Video()
+	{
+		float LumaMin = 16.0/255.0;
+		float LumaMax = 253.0/255.0;
+		float ChromaVRed = 1.5958;
+		float ChromaUGreen = -0.39173;
+		float ChromaVGreen = -0.81290;
+		float ChromaUBlue = 2.017;
+		return TYuvParams( LumaMin, LumaMax, ChromaVRed, ChromaUGreen, ChromaVGreen, ChromaUBlue );
+	}
+	static TYuvParams	Full()
+	{
+		float LumaMin = 0;
+		float LumaMax = 1;
+		float ChromaVRed = 1.4;
+		float ChromaUGreen = -0.343;
+		float ChromaVGreen = -0.711;
+		float ChromaUBlue = 1.765;
+		return TYuvParams( LumaMin, LumaMax, ChromaVRed, ChromaUGreen, ChromaVGreen, ChromaUBlue );
+	}
+
+	float	mLumaMin;
+	float	mLumaMax;
+	float	mChromaVRed;
+	float	mChromaUGreen;
+	float	mChromaVGreen;
+	float	mChromaUBlue;
 };
 
 
