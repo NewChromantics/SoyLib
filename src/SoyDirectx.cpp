@@ -857,11 +857,6 @@ Directx::TShaderState Directx::TShader::Bind(TContext& ContextDx)
     Context.VSSetShader( mVertexShader.mObject, nullptr, 0);
     Context.PSSetShader( mPixelShader.mObject, nullptr, 0);
 
-	// Set the sampler state in the pixel shader.
-	//Context.PSSetSamplers(0, 1, &m_sampleState);
-
-//	TShaderState ShaderState( *this );
-//	return ShaderState;
 	return TShaderState(*this);
 }
 
