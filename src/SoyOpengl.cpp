@@ -1419,8 +1419,7 @@ Opengl::TShaderState Opengl::TShader::Bind()
 	glUseProgram( mProgram.mName );
 	Opengl_IsOkay();
 	
-	TShaderState ShaderState( *this );
-	return ShaderState;
+	return TShaderState( *this );
 }
 
 Opengl::TShader::~TShader()

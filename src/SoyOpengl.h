@@ -263,7 +263,7 @@ public:
 
 //	clever class which does the binding, auto texture mapping, and unbinding
 //	why? so we can use const TShaders and share them across threads
-class Opengl::TShaderState : public Soy::TUniformContainer
+class Opengl::TShaderState : public Soy::TUniformContainer, public NonCopyable
 {
 public:
 	TShaderState(const TShader& Shader);
