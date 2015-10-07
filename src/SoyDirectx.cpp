@@ -585,6 +585,169 @@ void Directx::TGeometry::Draw(TContext& ContextDx)
 
 
 
+
+Directx::TShaderState::TShaderState(const Directx::TShader& Shader) :
+	mTextureBindCount	( 0 ),
+	mShader				( Shader )
+{
+	//	opengl unbinds here rather than in TShader
+}
+
+Directx::TShaderState::~TShaderState()
+{
+	/*
+	//	unbind textures
+	TTexture NullTexture;
+	while ( mTextureBindCount > 0 )
+	{
+		BindTexture( mTextureBindCount-1, NullTexture );
+		mTextureBindCount--;
+	}
+	*/
+	
+	//	opengl unbinds here rather than in TShader
+	const_cast<TShader&>(mShader).Unbind();
+}
+
+
+ID3D11DeviceContext& Directx::TShaderState::GetContext()
+{
+	Soy::Assert( mShader.mBoundContext, "Shader not bound");
+	Soy::Assert( mShader.mBoundContext->mLockedContext, "Shader not bound with locked context");
+	return *mShader.mBoundContext->mLockedContext.mObject;
+}
+
+ID3D11Device& Directx::TShaderState::GetDevice()
+{
+	Soy::Assert( mShader.mBoundContext, "Shader not bound");
+	Soy::Assert( mShader.mBoundContext->mDevice, "Shader bound missing device");
+	return *mShader.mBoundContext->mDevice;
+}
+
+
+bool Directx::TShaderState::SetUniform(const char* Name,const float3x3& v)
+{
+	return false;
+}
+
+bool Directx::TShaderState::SetUniform(const char* Name,const float& v)
+{
+	return false;
+}
+
+bool Directx::TShaderState::SetUniform(const char* Name,const int& v)
+{
+	return false;
+}
+
+bool Directx::TShaderState::SetUniform(const char* Name,const vec4f& v)
+{
+	return false;
+}
+
+bool Directx::TShaderState::SetUniform(const char* Name,const vec2f& v)
+{
+	return false;
+}
+
+bool Directx::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
+{
+	//	find uniform to put texture in the right slot
+	BindTexture( mTextureBindCount, Texture );
+	mTextureBindCount++;
+	return true;
+}
+
+bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTexture& Texture)
+{
+	Soy::Assert(false, "Opengl->Directx without context Not supported");
+	return false;
+}
+
+bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture)
+{
+	Soy_AssertTodo();
+	return false;
+}
+
+
+void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Texture)
+{
+	//	allocate sampler
+	{
+		std::shared_ptr<AutoReleasePtr<ID3D11SamplerState>> pSampler( new AutoReleasePtr<ID3D11SamplerState> );
+		auto& Sampler = pSampler->mObject;
+		auto& TextureParams = Texture.mSamplingParams;
+
+		D3D11_SAMPLER_DESC samplerDesc;
+		samplerDesc.Filter = TextureParams.mLinearFilter ? D3D11_FILTER_MIN_MAG_MIP_LINEAR : D3D11_FILTER_MIN_MAG_MIP_POINT;
+		samplerDesc.AddressU = TextureParams.mWrapU ? D3D11_TEXTURE_ADDRESS_WRAP : D3D11_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.AddressV = TextureParams.mWrapV ? D3D11_TEXTURE_ADDRESS_WRAP : D3D11_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.AddressW = TextureParams.mWrapW ? D3D11_TEXTURE_ADDRESS_WRAP : D3D11_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.MipLODBias = 0.0f;
+		samplerDesc.MaxAnisotropy = 1;
+		samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+		samplerDesc.BorderColor[0] = 0;
+		samplerDesc.BorderColor[1] = 0;
+		samplerDesc.BorderColor[2] = 0;
+		samplerDesc.BorderColor[3] = 0;
+		samplerDesc.MinLOD = TextureParams.mMinLod;
+		samplerDesc.MaxLOD = TextureParams.mMaxLod == -1 ? D3D11_FLOAT32_MAX : TextureParams.mMaxLod;
+
+		// Create the texture sampler state.
+		auto& Device = GetDevice();
+		auto Result = Device.CreateSamplerState( &samplerDesc, &Sampler );
+		Directx::IsOkay( Result, "Creating sampler" );
+		mSamplers.PushBack( pSampler );
+	}
+
+	//	create resource view (resource->shader binding)
+	{
+		std::shared_ptr<AutoReleasePtr<ID3D11ShaderResourceView>> pResourceView( new AutoReleasePtr<ID3D11ShaderResourceView> );
+		auto& ResourceView = *pResourceView;
+
+		ID3D11Resource* Resource = Texture.mTexture.mObject;
+		//	no description means it uses original params
+		const D3D11_SHADER_RESOURCE_VIEW_DESC* ResourceDesc = nullptr;
+		auto& Device = GetDevice();
+		auto Result = Device.CreateShaderResourceView( Resource, ResourceDesc, &ResourceView.mObject );
+		Directx::IsOkay( Result, "Createing resource view");
+		mResources.PushBack( pResourceView );
+	}
+}
+
+void Directx::TShaderState::Bake()
+{
+	//	Set the sampler state in the pixel shader.
+	auto& Context = GetContext();
+
+	{
+		int SamplerFirstSlot = 0;
+		Soy::Assert( SamplerFirstSlot+mSamplers.GetSize() < D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, "binding too many samplers in shader" );
+		BufferArray<ID3D11SamplerState*,100> Samplers;
+		for ( int i=0;	i<mSamplers.GetSize();	i++ )
+		{
+			auto* Sampler = mSamplers[i]->mObject;
+			Samplers.PushBack( Sampler );
+		}
+		//	gr: can I use a temporary here?
+		Context.PSSetSamplers( SamplerFirstSlot, Samplers.GetSize(), Samplers.GetArray() );
+	}
+
+	{
+		int ResourceFirstSlot = 0;
+		//Soy::Assert( ResourceFirstSlot+mSamplers.GetSize() < D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, "binding too many resources in shader" );
+		BufferArray<ID3D11ShaderResourceView*,100> Resources;
+		for ( int i=0;	i<mResources.GetSize();	i++ )
+		{
+			auto* Resource = mResources[i]->mObject;
+			Resources.PushBack( Resource );
+		}
+		//	gr: can I use a temporary here?
+		Context.PSSetShaderResources( ResourceFirstSlot, Resources.GetSize(), Resources.GetArray() );
+	}
+}
+
 Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name) :
 	mName	( Name )
 {
@@ -681,7 +844,7 @@ void Directx::TShader::MakeLayout(const Opengl::TGeometryVertex& Vertex,TShaderB
 }
 
 
-void Directx::TShader::Bind(TContext& ContextDx)
+Directx::TShaderState Directx::TShader::Bind(TContext& ContextDx)
 {
 	Soy::Assert(mBoundContext==nullptr,"Shader already bound");
 	mBoundContext = &ContextDx;
@@ -696,6 +859,10 @@ void Directx::TShader::Bind(TContext& ContextDx)
 
 	// Set the sampler state in the pixel shader.
 	//Context.PSSetSamplers(0, 1, &m_sampleState);
+
+//	TShaderState ShaderState( *this );
+//	return ShaderState;
+	return TShaderState(*this);
 }
 
 void Directx::TShader::Unbind()

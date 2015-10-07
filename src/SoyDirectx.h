@@ -24,7 +24,9 @@ namespace Directx
 	class TRenderTarget;
 	class TGeometry;
 	class TShader;
+	class TShaderState;
 	class TShaderBlob;
+	class TTextureSamplingParams;
 
 	std::string		GetEnumString(HRESULT Error);
 	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
@@ -65,6 +67,29 @@ public:
 	ID3D11Device*			mDevice;
 };
 
+
+//	note: these are set in opengl at creation time. in dx they can be seperate from the texture...
+class Directx::TTextureSamplingParams
+{
+public:
+	TTextureSamplingParams() :
+		mWrapU			( true ),
+		mWrapV			( true ),
+		mWrapW			( true ),
+		mMinLod			( 0 ),
+		mMaxLod			( 0 ),
+		mLinearFilter	( false )
+	{
+	}
+
+	bool	mWrapU;
+	bool	mWrapV;
+	bool	mWrapW;
+	size_t	mMinLod;
+	ssize_t	mMaxLod;		//	-1 = hardware max
+	bool	mLinearFilter;	//	else nearest
+};
+
 class Directx::TTexture
 {
 public:
@@ -82,7 +107,8 @@ public:
 	bool				operator!=(const TTexture& that) const	{	return !(*this == that);	}
 
 public:
-	SoyPixelsMeta		mMeta;			//	cache
+	TTextureSamplingParams			mSamplingParams;
+	SoyPixelsMeta					mMeta;			//	cache
 	AutoReleasePtr<ID3D11Texture2D>	mTexture;
 };
 namespace Directx
@@ -145,12 +171,53 @@ public:
 };
 
 
+//	clever class which does the binding, auto texture mapping, and unbinding
+//	why? so we can use const TShaders and share them across threads
+class Directx::TShaderState : public Soy::TUniformContainer, public NonCopyable
+{
+public:
+	TShaderState(const TShader& Shader);
+	~TShaderState();
+	
+	void			Bake();		//	upload final setup to GPU before drawing
+
+	virtual bool	SetUniform(const char* Name,const int& v) override;
+	virtual bool	SetUniform(const char* Name,const float& v) override;
+	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
+	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
+	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& Texture);	//	special case which tracks how many textures are bound
+	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override;
+	bool			SetUniform(const char* Name,const float3x3& v);
+	bool			SetUniform(const char* Name,const Directx::TTexture& v);
+
+	template<typename TYPE>
+	bool	SetUniform(const std::string& Name,const TYPE& v)
+	{
+		return SetUniform( Name.c_str(), v );
+	}
+									   
+
+	void	BindTexture(size_t TextureIndex,const TTexture& Texture);	//	use to unbind too
+	
+private:
+	ID3D11DeviceContext&		GetContext();
+	ID3D11Device&				GetDevice();
+
+public:
+	const TShader&		mShader;
+	size_t				mTextureBindCount;
+	
+	Array<std::shared_ptr<AutoReleasePtr<ID3D11SamplerState>>>			mSamplers;
+	Array<std::shared_ptr<AutoReleasePtr<ID3D11ShaderResourceView>>>	mResources;	//	textures
+};
+
+
 class Directx::TShader : public Soy::TUniformContainer
 {
 public:
 	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const Opengl::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& Context);
 
-	void			Bind(TContext& Context);
+	TShaderState	Bind(TContext& Context);	//	let this go out of scope to unbind
 	void			Unbind();
 
 	bool			SetUniform(const char* Name,const TTexture& v)	{	return SetUniformImpl( Name, v );	}
@@ -173,7 +240,7 @@ private:
 	void			MakeLayout(const Opengl::TGeometryVertex& Vertex,TShaderBlob& Shader,ID3D11Device& Device);
 
 public:
-	TContext*							mBoundContext;
+	TContext*							mBoundContext;	//	this binding should be moved to TShaderState
 
 	Array<Soy::TUniform>				mVertexShaderUniforms;
 	Array<Soy::TUniform>				mPixelShaderUniforms;
