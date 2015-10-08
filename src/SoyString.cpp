@@ -537,7 +537,41 @@ std::string	Soy::ResolveUrl(const std::string& BaseUrl,const std::string& Path)
 	return NewUrl.str();
 }
 
+std::wstring Soy::StringToWString(const std::string& s)
+{
+	std::wstring w;
+	w.assign( s.begin(), s.end() );
+	return w;
+}
 
+std::string Soy::FourCCToString(uint32 Fourcc)
+{
+	char CodecStrBuffer[5] = {0,0,0,0,0};
+	static_assert( sizeof(Fourcc) <= sizeof(CodecStrBuffer), "Bad buffer sizes" );
+	memcpy( CodecStrBuffer, &Fourcc, sizeof(Fourcc) );
 
+	auto IsFourccChar = [](char x)
+	{
+		if ( x >='A' && x <= 'Z' )	return true;
+		if ( x >='a' && x <= 'z' )	return true;
+		if ( x >='0' && x <= '9' )	return true;
+		return false;
+	};
 
+	//	check for invalid Fourcc's
+	if ( !IsFourccChar(CodecStrBuffer[0]) || 
+		!IsFourccChar(CodecStrBuffer[1]) || 
+	!IsFourccChar(CodecStrBuffer[2]) || 
+	!IsFourccChar(CodecStrBuffer[3]) )
+	{
+		std::stringstream Error;
+		Error << "Fourcc[" 
+			<< static_cast<int>(CodecStrBuffer[0]) << "," 
+			<< static_cast<int>(CodecStrBuffer[1]) << ","
+			<< static_cast<int>(CodecStrBuffer[2]) << ","
+			<< static_cast<int>(CodecStrBuffer[3]) << "/" << Fourcc << "]";
+		return Error.str();
+	}
+	return std::string( CodecStrBuffer );
+}
 

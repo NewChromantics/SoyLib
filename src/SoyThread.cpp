@@ -104,10 +104,8 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 			FlushError = false;
 		}
 		
-		//	gr: will this work after a throw?
-		auto ContextLock = SoyScope( nullptr, AutoUnlockContext );
-
 		RunJob( Job );
+		Context.Unlock();
 	}
 }
 

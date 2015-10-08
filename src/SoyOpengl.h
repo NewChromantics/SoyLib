@@ -9,45 +9,45 @@
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
 
 //	use latest SDK, but helps narrow down what might need supporting if we use ES2 headers
-#define OPENGL_ES_3
-//#define OPENGL_ES_2
+#define OPENGL_ES	3
+//#define OPENGL_ES	2
 
 #elif defined(TARGET_OSX)
-	#define OPENGL_CORE_3	//	need 3 for VBA's
+	#define OPENGL_CORE	3	//	need 3 for VBA's
 #elif defined(TARGET_WINDOWS)
-	#define OPENGL_CORE_1
+	#define OPENGL_CORE	3
 #endif
 
 //#define GL_NONE				GL_NO_ERROR	//	declared in GLES3
 
-#if defined(TARGET_ANDROID) && defined(OPENGL_ES_3)
+#if defined(TARGET_ANDROID) && (OPENGL_ES==3)
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
 #include <GLES/glext.h>
 #endif
 
-#if defined(TARGET_ANDROID) && defined(OPENGL_ES_2)
+#if defined(TARGET_ANDROID) && (OPENGL_ES==2)
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <GLES/glext.h>	//	need for EOS
 #endif
 
-#if defined(TARGET_OSX) && defined(OPENGL_CORE_3)
+#if defined(TARGET_OSX) && (OPENGL_CORE==3)
 #include <Opengl/gl3.h>
 #include <Opengl/gl3ext.h>
 #endif
 
-#if defined(TARGET_IOS) && defined(OPENGL_ES_3)
+#if defined(TARGET_IOS) && (OPENGL_ES==3)
 #include <OpenGLES/ES3/gl.h>
 #include <OpenGLES/ES3/glext.h>
 #endif
 
-#if defined(TARGET_IOS) && defined(OPENGL_ES_2)
+#if defined(TARGET_IOS) && (OPENGL_ES==2)
 #include <OpenGLES/ES2/gl.h>
 #include <OpenGLES/ES2/glext.h>
 #endif
 
-#if defined(TARGET_WINDOWS) && defined(OPENGL_CORE_1)
+#if defined(TARGET_WINDOWS)
 #if !defined(GLEW_STATIC)
 #error expected GLEW_STATIC to be defined
 #endif
@@ -194,6 +194,7 @@ public:
 	size_t							GetDataSize() const;	//	size of vertex struct
 	size_t							GetOffset(size_t ElementIndex) const;
 	size_t							GetStride(size_t ElementIndex) const;
+	size_t							GetVertexSize() const;
 
 	void							EnableAttribs(bool Enable=true) const;
 	void							DisableAttribs() const				{	EnableAttribs(false);	}
@@ -229,7 +230,11 @@ public:
 	explicit TSync(TSync&& Move)	{	*this = std::move(Move);	}
 	~TSync()						{	Delete();	}
 	
-	bool	IsValid() const			{	return mSyncObject != nullptr;	}
+#if (OPENGL_ES==3) || (OPENGL_CORE==3)
+	bool	IsValid() const			{ return mSyncObject != nullptr; }
+#else
+	bool	IsValid() const			{ return mSyncObject; }
+#endif
 	void	Delete();
 	void	Wait(const char* TimerName=nullptr);
 	
@@ -249,7 +254,7 @@ public:
 	}
 	
 public:
-#if defined(OPENGL_ES_3) || defined(OPENGL_CORE_3)
+#if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	GLsync				mSyncObject;
 #else
 	bool				mSyncObject;	//	dummy for cleaner code
@@ -258,7 +263,7 @@ public:
 
 //	clever class which does the binding, auto texture mapping, and unbinding
 //	why? so we can use const TShaders and share them across threads
-class Opengl::TShaderState : public Soy::TUniformContainer
+class Opengl::TShaderState : public Soy::TUniformContainer, public NonCopyable
 {
 public:
 	TShaderState(const TShader& Shader);
@@ -319,7 +324,7 @@ public:
 class Opengl::TGeometry
 {
 public:
-	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex);
+	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const Opengl::TGeometryVertex& Vertex);
 	~TGeometry();
 
 	void	Draw();

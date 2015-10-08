@@ -15,7 +15,7 @@
 #include <EGL/egl.h>
 #endif
 
-#if defined(TARGET_IOS) && defined(OPENGL_ES_2)
+#if defined(TARGET_IOS) && (OPENGL_ES==2)
 //#include <OpenGLES/EGL/egl.h>
 #endif
 
@@ -99,7 +99,7 @@ void Opengl::TContext::Init()
 	if ( ShaderVersionString )
 	{
 		std::string Preamble;
-#if defined(OPENGL_ES_2) || defined(OPENGL_ES_3)
+#if defined(OPENGL_ES)
 		Preamble = "OpenGL ES GLSL ES";
 #endif
 		mShaderVersion = Soy::TVersion( std::string(ShaderVersionString), Preamble );
@@ -122,7 +122,7 @@ void Opengl::TContext::Init()
 	}
 	else
 	{
-#if defined(OPENGL_ES_2) || defined(OPENGL_ES_3)
+#if defined(OPENGL_ES)
 		Soy::TVersion NewVersion(1,00);
 #else
 		Soy::TVersion NewVersion(1,10);
@@ -303,12 +303,12 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 			SetFunction( GenVertexArrays, eglGetProcAddress("glGenVertexArraysOES") );
 			SetFunction( DeleteVertexArrays, eglGetProcAddress("glDeleteVertexArraysOES") );
 			SetFunction( IsVertexArray, eglGetProcAddress("glIsVertexArrayOES") );
-	#elif defined(TARGET_IOS) && defined(OPENGL_ES_3)
+	#elif defined(TARGET_IOS) && (OPENGL_ES==3)
 			BindVertexArray = glBindVertexArray;
 			GenVertexArrays = glGenVertexArrays;
 			DeleteVertexArrays = glDeleteVertexArrays;
 			IsVertexArray = glIsVertexArray;
-	#elif defined(TARGET_IOS) && defined(OPENGL_ES_2)
+	#elif defined(TARGET_IOS) && (OPENGL_ES==2)
 			BindVertexArray = glBindVertexArrayOES;
 			GenVertexArrays = glGenVertexArraysOES;
 			DeleteVertexArrays = glDeleteVertexArraysOES;
@@ -367,7 +367,7 @@ void Opengl::TContext::BindVertexBuffersExtension()
 			SetFunction( DrawBuffers, wglGetProcAddress("glDrawBuffers") );
 #elif defined(TARGET_ANDROID)
 			SetFunction( DrawBuffers, eglGetProcAddress("glDrawBuffers") );
-#elif defined(TARGET_IOS) && defined(OPENGL_ES_3)
+#elif defined(TARGET_IOS) && (OPENGL_ES==3)
 			DrawBuffers = glDrawBuffers;
 #else
 			throw Soy::AssertException("Support unknown on this platform");
@@ -412,7 +412,7 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		{
 			Opengl_IsOkayFlush();
 			
-#if defined(OPENGL_ES3) || defined(OPENGL_CORE_3)
+#if (OPENGL_ES==3) || (OPENGL_CORE==3)
 			//	opengl 3 safe way
 			GLint ExtensionCount = -1;
 			glGetIntegerv( GL_NUM_EXTENSIONS, &ExtensionCount );
@@ -537,11 +537,10 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture Existi
 }
 
 
-bool Opengl::TRenderTargetFbo::Bind()
+void Opengl::TRenderTargetFbo::Bind()
 {
-	if ( !mFbo )
-		return false;
-	return mFbo->Bind();
+	Soy::Assert( mFbo!=nullptr, "FBO expected in render target");
+	mFbo->Bind();
 }
 
 void Opengl::TRenderTargetFbo::Unbind()

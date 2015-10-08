@@ -244,6 +244,15 @@ int Soy::Platform::GetLastError()
 #endif
 }
 
+#if defined(TARGET_WINDOWS)
+std::string Soy::Platform::GetErrorString(HRESULT Error)
+{
+	//	http://stackoverflow.com/a/7008279/355753
+	int ErrorInt = Error & 0xffff;
+	return GetErrorString( ErrorInt );
+}
+#endif
+
 std::string Soy::Platform::GetErrorString(int Error)
 {
 #if defined(TARGET_WINDOWS)
@@ -500,12 +509,23 @@ void Soy::CreateDirectory(const std::string& Path)
 	if ( Directory.empty() )
 		return;
 	
+#if defined(TARGET_POSIX)
 	mode_t Permissions = S_IRWXU|S_IRWXG|S_IRWXO;
 //	mode_t Permissions = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
 	if ( mkdir( Directory.c_str(), Permissions ) != 0 )
+#elif defined(TARGET_WINDOWS)
+	SECURITY_ATTRIBUTES* Permissions = nullptr;
+	if ( !CreateDirectory( Directory.c_str(), Permissions ) )
+#else
+	if ( false )
+#endif
 	{
 		auto LastError = Platform::GetLastError();
+#if defined(TARGET_WINDOWS)
+		if ( LastError != ERROR_ALREADY_EXISTS )
+#else
 		if ( LastError != EEXIST )
+#endif
 		{
 			std::stringstream Error;
 			Error << "Failed to create directory " << Directory << ": " << Platform::GetLastErrorString();

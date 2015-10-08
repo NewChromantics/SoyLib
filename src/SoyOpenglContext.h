@@ -56,6 +56,7 @@ public:
 	virtual void	Unlock() override;
 	virtual bool	IsLocked(std::thread::id Thread) override;
 	virtual std::shared_ptr<Opengl::TContext>	CreateSharedContext()	{	return nullptr;	}
+	bool			HasMultithreadAccess() const	{	return false;	}
 
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
@@ -87,7 +88,7 @@ public:
 	}
 	virtual ~TRenderTarget()	{}
 	
-	virtual bool				Bind()=0;
+	virtual void				Bind()=0;
 	virtual void				Unbind()=0;
 	virtual Soy::Rectx<size_t>	GetSize()=0;
 	
@@ -109,9 +110,9 @@ public:
 		mFbo.reset();
 	}
 	
-	virtual bool				Bind();
-	virtual void				Unbind();
-	virtual Soy::Rectx<size_t>	GetSize();
+	virtual void				Bind() override;
+	virtual void				Unbind() override;
+	virtual Soy::Rectx<size_t>	GetSize() override;
 	TTexture					GetTexture();
 	
 public:

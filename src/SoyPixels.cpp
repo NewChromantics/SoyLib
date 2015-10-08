@@ -149,10 +149,33 @@ void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneForma
 			break;
 			
 		default:
+			//	gr: should this return Format?
+			PlaneFormats.PushBack(Format);
 			break;
 	};
 }
 
+
+void SoyPixelsFormat::GetFormatPlanes(SoyPixelsMeta Format,ArrayBridge<SoyPixelsMeta>&& PlaneFormats)
+{
+	switch ( Format.GetFormat() )
+	{
+		case Yuv420_Biplanar_Full:
+			PlaneFormats.PushBack( SoyPixelsMeta( Format.GetWidth(), Format.GetHeight(), LumaFull ) );
+			PlaneFormats.PushBack( SoyPixelsMeta( Format.GetWidth()/2, Format.GetHeight()/2, Chroma2 ) );
+			break;
+			
+		case Yuv420_Biplanar_Video:
+			PlaneFormats.PushBack( SoyPixelsMeta( Format.GetWidth(), Format.GetHeight(), LumaVideo ) );
+			PlaneFormats.PushBack( SoyPixelsMeta( Format.GetWidth()/2, Format.GetHeight()/2, Chroma2 ) );
+			break;
+			
+		default:
+			//	gr: should this return Format?
+			PlaneFormats.PushBack(Format);
+			break;
+	};
+}
 
 std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 {
@@ -1240,6 +1263,29 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 		Error << "Wrong height(" << Height << " not " << GetHeight() << ") width (" << Width << " not " << GetWidth() << ") after " << __func__;
 		throw Soy::AssertException( Error.str() );
 	}
+}
+
+void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes)
+{
+	//	get the mid-formats
+	auto& ThisMeta = GetMeta();
+	auto& ThisArray = GetPixelsArray();
+	BufferArray<SoyPixelsMeta,2> Formats;
+	SoyPixelsFormat::GetFormatPlanes( ThisMeta, GetArrayBridge(Formats) );
+
+
+	size_t DataOffset = 0;
+	for ( int p=0;	p<Formats.GetSize();	p++ )
+	{
+		auto PlaneMeta = Formats[p];
+		auto* PlaneData = ThisArray.GetArray() + DataOffset;
+		auto PlaneDataSize = PlaneMeta.GetDataSize();
+		std::shared_ptr<SoyPixelsRemote> Pixels(new SoyPixelsRemote( PlaneData, PlaneDataSize, PlaneMeta ) );
+		Planes.PushBack(Pixels);
+		DataOffset += PlaneMeta.GetDataSize();
+	}
+
+	Soy::Assert( DataOffset == ThisArray.GetDataSize(), "Split pixel planes but data hasn't aligned after split");
 }
 
 

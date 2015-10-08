@@ -53,7 +53,7 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 #elif defined(TARGET_ANDROID)
 	auto ExpectedLength = __SOCK_SIZE__;
 #elif defined(TARGET_WINDOWS)
-#error what is expected length in windows?
+	auto ExpectedLength = sizeof(sockaddr_storage);
 #endif
 	if ( AddrLen != ExpectedLength )
 	{
