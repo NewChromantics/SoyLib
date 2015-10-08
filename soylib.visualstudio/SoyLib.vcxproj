@@ -38,6 +38,7 @@
     <ClCompile Include="..\src\SoyProtocol.cpp" />
     <ClCompile Include="..\src\SoyRef.cpp" />
     <ClCompile Include="..\src\SoyRingArray.cpp" />
+    <ClCompile Include="..\src\SoyRuntimeLibrary.cpp" />
     <ClCompile Include="..\src\SoyScope.cpp" />
     <ClCompile Include="..\src\SoyShader.cpp" />
     <ClCompile Include="..\src\SoySocket.cpp" />
@@ -77,6 +78,7 @@
     <ClInclude Include="..\src\SoyProtocol.h" />
     <ClInclude Include="..\src\SoyRef.h" />
     <ClInclude Include="..\src\SoyRingArray.h" />
+    <ClInclude Include="..\src\SoyRuntimeLibrary.h" />
     <ClInclude Include="..\src\SoyScope.h" />
     <ClInclude Include="..\src\SoyShader.h" />
     <ClInclude Include="..\src\SoySocket.h" />

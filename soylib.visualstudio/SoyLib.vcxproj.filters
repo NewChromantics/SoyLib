@@ -100,6 +100,9 @@
     <ClCompile Include="..\src\SoyUniform.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\SoyRuntimeLibrary.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\SoyThread.h">
@@ -223,6 +226,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\SoyUniform.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyRuntimeLibrary.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
