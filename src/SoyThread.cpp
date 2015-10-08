@@ -59,11 +59,6 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 
 void PopWorker::TJobQueue::Flush(TContext& Context)
 {
-	auto AutoUnlockContext = [&Context]
-	{
-		Context.Unlock();
-	};
-	
 	bool FlushError = true;
 	
 	ofScopeTimerWarning LockTimer("Waiting for job lock",5,false);
