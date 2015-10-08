@@ -911,16 +911,13 @@ bool SoyPixelsImpl::GetRawSoyPixels(ArrayBridge<char>& RawData) const
 }
 
 
-bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData,std::stringstream& Error)
+void SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData)
 {
 	//	http://stackoverflow.com/questions/7942635/write-png-quickly
 	TArrayReader Png( PngData );
 
 	if ( !TPng::CheckMagic( Png ) )
-	{
-		Error << "PNG has invalid magic header";
-		return false;
-	}
+		throw Soy::AssertException("PNG has invalid magic header");
 	
 	//	use stb
 #if defined(USE_STB)
@@ -933,19 +930,18 @@ bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData,std::stringstream& E
 	auto* DecodedPixels = stbi_load_from_memory( Buffer, BufferSize, &Width,&Height, &Components, RequestComponents );
 	if ( !DecodedPixels )
 	{
-		Error << "Failed to decode png pixels";
-		return false;
+		throw Soy::AssertException("Failed to decode png pixels");
 	}
 	
 	auto Format = SoyPixelsFormat::GetFormatFromChannelCount(Components);
 	if ( !this->Init( Width, Height, Format ) )
 	{
+		std::stringstream Error;
 		Error << "Failed to init pixels from png (" << Width << "x" << Height << " " << Format << ")";
-		return false;
+		throw Soy::AssertException(Error.str());
 	}
 	auto* ThisPixels = this->GetPixelsArray().GetArray();
 	memcpy( ThisPixels, DecodedPixels, this->GetPixelsArray().GetDataSize() );
-	return true;
 #else
 	
 	TPng::THeader Header;

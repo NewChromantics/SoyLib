@@ -162,9 +162,22 @@ namespace std
 		//	toggle std output for this std debug stream
 		void			EnableStdOut(bool Enable)	{	mStream.EnableStdOut(Enable);	}
 		
+		void			PushStreamSettings()
+		{
+			std::shared_ptr<Soy::TPushPopStreamSettings> Push( new Soy::TPushPopStreamSettings(mStream) );
+			mPushPopSettings.push_back( Push );
+		}
+		void			PopStreamSettings()
+		{
+			mPushPopSettings.pop_back();
+		}
+		
 	private:
 		std::recursive_mutex	mStreamLock;
 		DebugStream				mStream;
+		
+		//	gr: find a better stack system than allocating!
+		std::vector<std::shared_ptr<Soy::TPushPopStreamSettings>>	mPushPopSettings;
 	};
 };
 

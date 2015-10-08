@@ -20,6 +20,9 @@
 #include <map>
 #endif
 
+#if defined(TARGET_OSX)
+#include <sys/stat.h>
+#endif
 
 
 namespace Soy
@@ -356,21 +359,25 @@ bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::ostream& 
 	return true;
 }
 
-bool Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename,std::ostream& Error)
+void Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename)
 {
 	//	gr: would be nice to have an array! MemFileArray maybe, if it can be cross paltform...
 	std::ifstream Stream( Filename, std::ios::binary|std::ios::in );
+	
 	if ( !Stream.is_open() )
 	{
+		std::stringstream Error;
 		Error << "Failed to open " << Filename << " (" << Soy::Platform::GetLastErrorString() << ")";
-		return false;
+		throw Soy::AssertException(Error.str());
 	}
 	
 	//	read block by block
+	std::stringstream Error;
 	bool Result = ReadStream( Data, Stream, Error );
 	Stream.close();
 	
-	return Result;
+	if ( !Result )
+		throw Soy::AssertException( Error.str() );
 }
 
 
@@ -483,6 +490,61 @@ void Soy::base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Deco
 	}
 }
 
+void Soy::CreateDirectory(const std::string& Path)
+{
+	//	does path have any folder deliniators?
+	auto LastForwardSlash = Path.find_last_of('/');
+	auto LastBackSlash = Path.find_last_of('\\');
+	
+	//	gr: assumes standard npos is <0. but turns out its unsigned, so >0!
+	//static_assert( std::string::npos < 0, "Expecting string npos to be -1");
+	auto Last = LastBackSlash;
+	if ( Last == std::string::npos )
+		Last = LastForwardSlash;
+	if ( Last == std::string::npos )
+		return;
+	
+	//	real path string
+	auto Directory = Path.substr(0, Last);
+	if ( Directory.empty() )
+		return;
+	
+	mode_t Permissions = S_IRWXU|S_IRWXG|S_IRWXO;
+//	mode_t Permissions = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
+	if ( mkdir( Directory.c_str(), Permissions ) != 0 )
+	{
+		auto LastError = Platform::GetLastError();
+		if ( LastError != EEXIST )
+		{
+			std::stringstream Error;
+			Error << "Failed to create directory " << Directory << ": " << Platform::GetLastErrorString();
+			throw Soy::AssertException( Error.str() );
+		}
+	}
+}
+
+
+void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename)
+{
+	CreateDirectory(Filename);
+	
+	std::ofstream File( Filename, std::ios::out );
+	Soy::Assert( File.is_open(), std::string("Failed to open ")+Filename );
+
+	if ( !Data.IsEmpty() )
+		File.write( Data.GetArray(), Data.GetDataSize() );
+
+	if ( File.fail() )
+	{
+		File.close();
+		
+		std::stringstream Error;
+		Error << "Failed to write " << Soy::FormatSizeBytes( Data.GetDataSize() ) << " to " << Filename;
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	File.close();
+}
 
 bool Soy::StringToFile(std::string Filename,std::string String)
 {
@@ -511,8 +573,15 @@ bool Soy::FileToString(std::string Filename,std::string& String,std::ostream& Er
 	//	gr: err surely a better way
 	Array<char> StringData;
 	auto StringDataBridge = GetArrayBridge( StringData );
-	if ( !LoadBinaryFile( StringDataBridge, Filename, Error ) )
+	try
+	{
+		LoadBinaryFile( StringDataBridge, Filename );
+	}
+	catch(std::exception& e)
+	{
+		Error << e.what();
 		return false;
+	}
 
 	String = Soy::ArrayToString( StringDataBridge );
 	return true;
