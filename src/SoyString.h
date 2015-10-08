@@ -104,6 +104,8 @@ namespace Soy
 	//	max size of vector (ie. buffer array/remote array) dictates expected size
 	template<typename TYPE>
 	inline bool	StringParseVecNx(const std::string& String,ArrayBridge<TYPE>&& Vector);
+
+	std::string		FourCCToString(uint32 Fourcc);	//	on IOS, don't forget CFSwapInt32BigToHost()
 };
 
 #if defined(__OBJC__)
