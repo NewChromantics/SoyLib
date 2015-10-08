@@ -1,11 +1,33 @@
 #include "SoyDirectx.h"
 #include "SoyPixels.h"
+#include "SoyRuntimeLibrary.h"
+
+
+//	we never use this, but for old DX11 support, we need the type name
+class ID3DX11ThreadPump;
 
 
 namespace Directx
 {
 	bool	CanCopyMeta(const SoyPixelsMeta& Source,const SoyPixelsMeta& Destination);
+
+	//	gr: not sure why I can't do this (pD3DCompile is in the SDK header)
+	//typedef pD3DCompile D3DCompileFunc;
+	typedef HRESULT (__stdcall D3DCompileFunc)(LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs);
+	typedef void (__stdcall LPD3DX11COMPILEFROMMEMORY)(LPCSTR pSrcData, SIZE_T SrcDataLen, LPCSTR pFileName, const D3D10_SHADER_MACRO *pDefines, LPD3D10INCLUDE pInclude, LPCSTR pFunctionName, LPCSTR pProfile, UINT Flags1, UINT Flags2, ID3DX11ThreadPump *pPump, ID3D10Blob **ppShader, ID3D10Blob **ppErrorMsgs, HRESULT *pHResult);
+
+
+	//	use win8 sdk d3dcompiler if possible
+	//	https://gist.github.com/rygorous/7936047
+	std::function<D3DCompileFunc>				GetCompilerFunc();
+	
+	namespace Private
+	{
+		std::function<D3DCompileFunc>			D3dCompileFunc;
+		std::shared_ptr<Soy::TRuntimeLibrary>	D3dCompileLib;
+	}
 }
+
 
 
 std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap = 
@@ -114,6 +136,97 @@ std::ostream& Directx::operator<<(std::ostream &out,const Directx::TTexture& in)
 	out << in.mMeta << "(" << in.GetMode() << ")";
 	return out;
 }
+
+
+std::function<Directx::D3DCompileFunc> Directx::GetCompilerFunc()
+{
+	//	already setup
+	if ( Private::D3dCompileFunc )
+		return Private::D3dCompileFunc;
+
+	//	dynamically link compiler functions
+	//	https://github.com/pathscale/nvidia_sdk_samples/blob/master/matrixMul/common/inc/dynlink_d3d11.h
+	//	https://gist.github.com/rygorous/7936047
+	
+	class DllReference
+	{
+	public:
+		DllReference()	{}
+		DllReference(const char* Dll,const char* Func,const char* Desc) :
+			LibraryName		( Dll ),
+			FunctionName	( Func ),
+			Description		( Desc )
+		{
+		};
+
+		std::string	LibraryName;
+		std::string	FunctionName;
+		std::string	Description;
+	};
+
+	std::function<LPD3DX11COMPILEFROMMEMORY> CompileFromMemoryFunc;
+	Array<DllReference> DllFunctions;
+	DllFunctions.PushBack( DllReference("d3dcompiler_47.dll","D3DCompile","Win8 sdk 47") );
+	DllFunctions.PushBack( DllReference("d3dcompiler_46.dll","D3DCompile","Win8 sdk 46") );
+	DllFunctions.PushBack( DllReference("D3DX11d_43.dll","D3DX11CompileFromMemory","DXSDK 2010 June") );
+	DllFunctions.PushBack( DllReference("D3DX11d_42.dll","D3DX11CompileFromMemory","DXSDK 2010 Feb") );
+
+	for ( int d=0;	d<DllFunctions.GetSize();	d++ )
+	{
+		auto& Dll = DllFunctions[d];
+		try
+		{
+			Private::D3dCompileLib.reset( new Soy::TRuntimeLibrary(Dll.LibraryName) );
+
+			if ( Dll.FunctionName == "D3DCompile" )
+				Private::D3dCompileLib->SetFunction( Private::D3dCompileFunc, Dll.FunctionName.c_str() );
+			else
+				Private::D3dCompileLib->SetFunction( CompileFromMemoryFunc, Dll.FunctionName.c_str() );
+			std::Debug << "Using DX compiler from " << Dll.Description << std::endl;
+			break;
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Failed to load " << Dll.FunctionName << " from " << Dll.LibraryName << " (" << Dll.Description << ")" << std::endl;
+
+			Private::D3dCompileLib.reset();
+			Private::D3dCompileFunc = nullptr;
+			CompileFromMemoryFunc = nullptr;
+		}
+	}
+
+	//	didn't find any func
+	if ( !Private::D3dCompileFunc && !CompileFromMemoryFunc )
+	{
+		std::function<D3DCompileFunc> UnsupportedFunc = [](LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs)
+		{
+			throw Soy::AssertException( "D3D shader compiling unsupported." );
+			return (HRESULT)S_FALSE;
+		};
+		Private::D3dCompileFunc = UnsupportedFunc;
+	}
+	else if ( !Private::D3dCompileFunc && CompileFromMemoryFunc )
+	{
+		//	need a wrapper to old func
+		std::function<D3DCompileFunc> WrapperFunc = [CompileFromMemoryFunc](LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs)
+		{
+			//	make wrapper!
+			//	https://msdn.microsoft.com/en-us/library/windows/desktop/ff476262(v=vs.85).aspx
+			ID3DX11ThreadPump* Pump = nullptr;
+			const char* Source = reinterpret_cast<const char*>( pSrcData );
+			auto* Profile = pTarget;
+			HRESULT Result = S_FALSE;
+			CompileFromMemoryFunc( Source, SrcDataSize, pSourceName, pDefines, pInclude, pEntrypoint, Profile, Flags1, Flags2, Pump, ppCode, ppErrorMsgs, &Result );
+			return Result;
+		};
+		Private::D3dCompileFunc = WrapperFunc;
+	}
+
+	//	reached here, did we assign a func?
+	return Private::D3dCompileFunc;
+
+}
+
 
 
 void GetBlobString(ID3DBlob* Blob,std::ostream& String)
@@ -760,7 +873,10 @@ Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& F
 
 	AutoReleasePtr<ID3DBlob> ErrorBlob;
 
-	auto Result = D3DCompile( SourceBuffer.GetArray(), SourceBuffer.GetDataSize(),
+	auto Compile = GetCompilerFunc();
+	Soy::Assert( Compile!=nullptr, "Compile func missing" );
+
+	auto Result = Compile( SourceBuffer.GetArray(), SourceBuffer.GetDataSize(),
           Name.c_str(), Macros, IncludeMode, Function.c_str(), Target.c_str(), ShaderOptions,
          EffectOptions,
          &mBlob.mObject,

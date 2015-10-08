@@ -13,9 +13,15 @@ class SoyPixelsImpl;
 #pragma warning( push )
 //#pragma warning( disable : 4005 )
 #include <d3d11.h>
-#include <d3dcompiler.h>
-#pragma comment(lib, "D3DCompiler.lib")
 #pragma warning( pop )
+
+
+//	if compiling against win8 lib/runtime, then we can include the new d3d compiler lib directly
+#if WINDOWS_TARGET_SDK >= 8
+#include <d3dcompiler.h>
+//	gr: do not link to d3dcompiler. This means it will not load the DLL and we load it manually (InitCompilerExtension)
+//#pragma comment(lib, "D3DCompiler.lib")
+#endif
 
 namespace Directx
 {
@@ -45,6 +51,7 @@ namespace Directx
 
 		DECLARE_SOYENUM(Directx::TTextureMode);
 	}
+
 }
 
 class Directx::TContext : public PopWorker::TJobQueue, public PopWorker::TContext
