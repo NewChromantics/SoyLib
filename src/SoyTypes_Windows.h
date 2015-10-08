@@ -8,10 +8,19 @@
 //	some c++11 anomlies so highlight them and maybe one day we can remove them
 //	currently need VS2013 for windows 7
 //	http://stackoverflow.com/questions/70013/how-to-detect-if-im-compiling-code-with-visual-studio-2008
+//	note: this is for the COMPILER not for the SDK (below)
 #if defined(_MSC_VER) && _MSC_VER<=1800
 #define OLD_VISUAL_STUDIO
 #endif
 
+//	when vs2013 is set to windows vista/7 SDK, it adds this define
+#if defined(_USING_V110_SDK71_) && (WINVER >= _WIN32_WINNT_WIN7)
+	#define WINDOWS_TARGET_SDK	7
+#elif (WINVER >= _WIN32_WINNT_WIN8)
+	#define WINDOWS_TARGET_SDK	8
+#else
+	#error Not sure which windows SDK we're building against.
+#endif
 
 //	see ofConstants
 #define WIN32_LEAN_AND_MEAN
