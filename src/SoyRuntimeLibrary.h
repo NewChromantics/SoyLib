@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <functional>
+#include "SoyDebug.h"
 
 #if defined(TARGET_WINDOWS)
 #include "SoyTypes.h"
