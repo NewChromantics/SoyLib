@@ -59,9 +59,24 @@ namespace SoyPixelsFormat
 	int			GetInvalidValue(SoyPixelsFormat::Type Format);
 	int			GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format);
 	bool		GetIsFrontToBackDepth(SoyPixelsFormat::Type Format);
-
+	
 	DECLARE_SOYENUM( SoyPixelsFormat );
 };
+
+namespace Soy
+{
+	namespace Platform
+	{
+#if defined(__OBJC__)
+		OSType					GetFormat(SoyPixelsFormat::Type Format);
+		SoyPixelsFormat::Type 	GetFormat(OSType Format);
+		SoyPixelsFormat::Type 	GetFormat(NSNumber* Format);
+		std::string				PixelFormatToString(NSNumber* FormatCv);
+		std::string				PixelFormatToString(id FormatCv);
+		
+#endif
+	}
+}
 
 
 //	meta data for pixels (header when using raw data)
