@@ -616,14 +616,14 @@ bool Opengl::TTexture::IsValid(bool InvasiveTest) const
 		auto IsTexture = glIsTexture( mTexture.mName );
 
 		//	gr: on IOS this is nice and reliable and NEEDED to distinguish from metal textures!
-	#if defined(TARGET_IOS)
+#if defined(TARGET_IOS)
 		return IsTexture;
-	#endif
-		
+#else
 		//	gr: this is returning false [on OSX] from other threads :/ even though they have a context
 		//	other funcs are working though
 		if ( IsTexture )
 			return true;
+#endif
 	}
 	
 	if ( mTexture.mName != GL_ASSET_INVALID )
