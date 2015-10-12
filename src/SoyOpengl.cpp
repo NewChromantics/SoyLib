@@ -114,10 +114,11 @@ std::string Opengl::GetEnumString(GLenum Type)
 			CASE_ENUM_STRING( GL_UNSIGNED_SHORT );
 			CASE_ENUM_STRING( GL_INT );
 			CASE_ENUM_STRING( GL_UNSIGNED_INT );
-			CASE_ENUM_STRING( GL_FLOAT );
-			CASE_ENUM_STRING( GL_FLOAT_VEC2 );
-			CASE_ENUM_STRING( GL_FLOAT_VEC3 );
-			CASE_ENUM_STRING( GL_FLOAT_VEC4 );
+			//	CASE_ENUM_STRING( GL_FLOAT );
+		case GL_FLOAT:		return Soy::GetTypeName<float>();
+		case GL_FLOAT_VEC2: return Soy::GetTypeName<vec2f>();
+		case GL_FLOAT_VEC3: return Soy::GetTypeName<vec3f>();
+		case GL_FLOAT_VEC4: return Soy::GetTypeName<vec4f>();
 			CASE_ENUM_STRING( GL_INT_VEC2 );
 			CASE_ENUM_STRING( GL_INT_VEC3 );
 			CASE_ENUM_STRING( GL_INT_VEC4 );
