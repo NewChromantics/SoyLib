@@ -163,17 +163,22 @@ public:
 	TUniform(const std::string& Name=std::string()) :
 		Soy::TUniform	( Name, std::string() ),
 		mIndex			( GL_UNIFORM_INVALID ),
-		mType			( GL_ASSET_INVALID ),
+		mTypeEnum		( GL_ASSET_INVALID ),
 		mArraySize		( 0 )
 	{
 	}
 	
 	bool		IsValid() const	{	return mIndex != GL_UNIFORM_INVALID;	}
 	bool		operator==(const std::string& Name) const	{	return mName == Name;	}
-	
-	GLenum		mType;
+	void		SetType(GLenum Type)	{	mTypeEnum = Type;	mType = GetEnumString(Type);	}
+	GLenum		GetTypeEnum() const		{	return mTypeEnum;	}
+
+public:
 	GLsizei		mArraySize;	//	for arrays of mType
 	GLint		mIndex;		//	attrib index
+
+private:	//	gr: private to catch refactoring
+	GLenum		mTypeEnum;
 };
 namespace Opengl
 {
