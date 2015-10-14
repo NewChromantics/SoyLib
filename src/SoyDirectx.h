@@ -196,6 +196,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override;
 	bool			SetUniform(const char* Name,const float3x3& v);
 	bool			SetUniform(const char* Name,const Directx::TTexture& v);
+	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v) override;
 
 	template<typename TYPE>
 	bool	SetUniform(const std::string& Name,const TYPE& v)
@@ -235,6 +236,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const int& v) override		{	return SetUniformImpl( Name, v );	}
 	
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v)	{	return SetUniformImpl( Name, v );	}
+	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v) override		{	return SetUniformImpl( Name, v );	}
 
 private:
 	template<typename TYPE>

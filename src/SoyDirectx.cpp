@@ -785,6 +785,12 @@ bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTextureAn
 	return false;
 }
 
+bool Directx::TShaderState::SetUniform(const char* Name,const SoyPixelsImpl& Texture)
+{
+	Soy_AssertTodo();
+	return false;
+}
+
 
 void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Texture)
 {
