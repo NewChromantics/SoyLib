@@ -156,26 +156,6 @@ void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneForma
 }
 
 
-void SoyPixelsFormat::GetFormatPlanes(SoyPixelsMeta Format,ArrayBridge<SoyPixelsMeta>&& PlaneFormats)
-{
-	switch ( Format.GetFormat() )
-	{
-		case Yuv420_Biplanar_Full:
-			PlaneFormats.PushBack( SoyPixelsMeta( Format.GetWidth(), Format.GetHeight(), LumaFull ) );
-			PlaneFormats.PushBack( SoyPixelsMeta( Format.GetWidth()/2, Format.GetHeight()/2, Chroma2 ) );
-			break;
-			
-		case Yuv420_Biplanar_Video:
-			PlaneFormats.PushBack( SoyPixelsMeta( Format.GetWidth(), Format.GetHeight(), LumaVideo ) );
-			PlaneFormats.PushBack( SoyPixelsMeta( Format.GetWidth()/2, Format.GetHeight()/2, Chroma2 ) );
-			break;
-			
-		default:
-			//	gr: should this return Format?
-			PlaneFormats.PushBack(Format);
-			break;
-	};
-}
 
 std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 {
@@ -1271,7 +1251,7 @@ void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Pl
 	auto& ThisMeta = GetMeta();
 	auto& ThisArray = GetPixelsArray();
 	BufferArray<SoyPixelsMeta,2> Formats;
-	SoyPixelsFormat::GetFormatPlanes( ThisMeta, GetArrayBridge(Formats) );
+	ThisMeta.GetPlanes( GetArrayBridge(Formats) );
 
 
 	size_t DataOffset = 0;
@@ -1454,5 +1434,39 @@ void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream,b
 			Stream << std::endl;
 	}
 	Stream << std::endl;
+}
+
+
+size_t SoyPixelsMeta::GetDataSize() const
+{
+	BufferArray<SoyPixelsMeta,2> Planes;
+	GetPlanes( GetArrayBridge(Planes) );
+	size_t TotalDataSize = 0;
+	for ( int p=0;	p<Planes.GetSize();	p++ )
+	{
+		//	gr: should be recursive really... but I don't think we ever want that case
+		TotalDataSize += Planes[p].GetSelfDataSize();
+	}
+	return TotalDataSize;
+}
+
+void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes) const
+{
+	switch ( GetFormat() )
+	{
+		case SoyPixelsFormat::Yuv420_Biplanar_Full:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaFull ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::Chroma2 ) );
+			break;
+			
+		case SoyPixelsFormat::Yuv420_Biplanar_Video:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaVideo ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::Chroma2 ) );
+			break;
+			
+		default:
+			Planes.PushBack( *this );
+			break;
+	};
 }
 
