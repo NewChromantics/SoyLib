@@ -1418,7 +1418,8 @@ Opengl::TShaderState Opengl::TShader::Bind()
 	Opengl_IsOkay();
 	glUseProgram( mProgram.mName );
 	Opengl_IsOkay();
-	
+
+	//	gr: this is doing a copy constructor I think. fix this and add NonCopyable to TShaderState
 	return TShaderState( *this );
 }
 

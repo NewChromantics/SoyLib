@@ -884,7 +884,7 @@ Opencl::TBuffer::~TBuffer()
 
 void Opencl::TBuffer::ReadImpl(ArrayInterface<uint8>& Array,TContext& Context,TSync* Sync)
 {
-	Soy::Assert( mMem != nullptr, "Mem buffer expected" );
+	Soy::Assert( mMem != nullptr, mDebugName + " Mem buffer expected" );
 	
 	//	todo; check size of mem. We should store this on mMem set
 	size_t StartBytes = 0;
@@ -920,9 +920,9 @@ void Opencl::TBuffer::ReadImpl(ArrayInterface<uint8>& Array,TContext& Context,TS
 
 void Opencl::TBuffer::Write(const uint8 *Array,size_t Size,TContext& Context,Opencl::TSync *Sync)
 {
-	Soy::Assert( mMem != nullptr, "Mem buffer expected" );
-	Soy::Assert( Array != nullptr, "Array should not be empty" );
-	Soy::Assert( Size <= mBufferSize, "Trying to write more bytes than in buffer");
+	Soy::Assert( mMem != nullptr, mDebugName + " Mem buffer expected" );
+	Soy::Assert( Array != nullptr, mDebugName + " Array should not be empty" );
+	Soy::Assert( Size <= mBufferSize, mDebugName + " Trying to write more bytes than in buffer");
 
 	bool Blocking = false;
 	size_t StartBytes = 0;
@@ -930,7 +930,7 @@ void Opencl::TBuffer::Write(const uint8 *Array,size_t Size,TContext& Context,Ope
 
 	auto Error = clEnqueueWriteBuffer( Context.GetQueue(), mMem, Blocking, StartBytes, Size, Array, 0, nullptr,  Sync ? &Sync->mEvent : nullptr );
 	std::stringstream ErrorString;
-	ErrorString << "TBuffer::Write(" << Size << " bytes)";
+	ErrorString << mDebugName << " TBuffer::Write(" << Size << " bytes)";
 	Opencl::IsOkay( Error, ErrorString.str() );
 }
 

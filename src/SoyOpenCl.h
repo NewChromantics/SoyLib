@@ -434,6 +434,7 @@ public:
 		return SetUniform( Name, v, OpenclBufferReadWrite::ReadWrite );
 	}
 	bool			SetUniform(const char* Name,const Opengl::TTextureAndContext& v,OpenclBufferReadWrite::Type ReadWriteMode);
+	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels) override		{	return SetUniform( Name, Pixels, OpenclBufferReadWrite::ReadWrite );	}
 	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels,OpenclBufferReadWrite::Type ReadWriteMode);
 	bool			SetUniform(const char* Name,TBuffer& Buffer);
 	

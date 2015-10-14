@@ -58,13 +58,15 @@ class PopWorker::TJob
 {
 public:
 	TJob() :
-	mSemaphore	( nullptr )
+		mSemaphore			( nullptr ),
+		mCatchExceptions	( true )
 	{
 	}
 
 	virtual void			Run()=0;		//	throws on error, otherwise assuming success
 	
 	Soy::TSemaphore*		mSemaphore;
+	bool					mCatchExceptions;
 };
 
 
@@ -101,7 +103,8 @@ public:
 	bool			IsLockedToAnyThread()					{	return IsLocked( std::thread::id() );	}
 
 	void			Flush(TContext& Context);
-	bool			HasJobs() const			{	return !mJobs.empty();	}
+	size_t			GetJobCount() const						{	return mJobs.size();	}
+	bool			HasJobs() const							{	return !mJobs.empty();	}
 	void			PushJob(std::function<void()> Lambda);
 	void			PushJob(std::function<void()> Lambda,Soy::TSemaphore& Semaphore);
 	void			PushJob(std::shared_ptr<TJob>& Job)									{	PushJobImpl( Job, nullptr );	}

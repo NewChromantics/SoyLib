@@ -263,7 +263,7 @@ public:
 
 //	clever class which does the binding, auto texture mapping, and unbinding
 //	why? so we can use const TShaders and share them across threads
-class Opengl::TShaderState : public Soy::TUniformContainer, public NonCopyable
+class Opengl::TShaderState : public Soy::TUniformContainer//, public NonCopyable
 {
 public:
 	TShaderState(const TShader& Shader);
@@ -276,6 +276,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& Texture);	//	special case which tracks how many textures are bound
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override	{	return SetUniform( Name, Texture.mTexture );	}
 	bool			SetUniform(const char* Name,const float3x3& v);
+	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& Texture) override	{	return Soy_AssertTodo();	}
 
 	template<typename TYPE>
 	bool	SetUniform(const std::string& Name,const TYPE& v)
