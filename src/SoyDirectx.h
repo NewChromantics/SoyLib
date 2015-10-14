@@ -131,7 +131,7 @@ public:
 	TRenderTarget(std::shared_ptr<TTexture>& Texture,TContext& ContextDx);
 
 	void			Bind(TContext& Context);
-	void			Unbind();
+	void			Unbind(TContext& ContextDx);
 
 	void			Clear(TContext& ContextDx,Soy::TRgb Colour,float Alpha=1.f);
 	SoyPixelsMeta	GetMeta() const									{	return mTexture ? mTexture->GetMeta() : SoyPixelsMeta();	}
@@ -143,6 +143,9 @@ private:
 	AutoReleasePtr<ID3D11ShaderResourceView>	mShaderResourceView;
 	AutoReleasePtr<ID3D11RenderTargetView>		mRenderTargetView;
 	std::shared_ptr<TTexture>					mTexture;
+
+	AutoReleasePtr<ID3D11RenderTargetView>		mRestoreRenderTarget;
+	AutoReleasePtr<ID3D11DepthStencilView>		mRestoreStencilTarget;
 };
 
 
