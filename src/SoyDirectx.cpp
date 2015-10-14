@@ -260,6 +260,8 @@ Directx::TContext::TContext(ID3D11Device& Device) :
 	mDevice			( &Device ),
 	mLockCount		( 0 )
 {
+	//	gr: just pre-empting for testing
+	auto Func = Directx::GetCompilerFunc();
 }
 
 ID3D11DeviceContext& Directx::TContext::LockGetContext()
