@@ -7,6 +7,7 @@
 #include "SoyDebug.h"
 #include <atomic>
 #include "string.hpp"
+#include <SoyThread.h>
 
 #if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
@@ -25,40 +26,44 @@
 #endif
 
 
-namespace Soy
+namespace Java
 {
-	namespace Platform
-	{
 #if defined(TARGET_ANDROID)
-		JavaVM*		vm = nullptr;
-		JNIEnv*		MainEnv = nullptr;
-		std::map<std::thread::id,JNIEnv*>	ThreadEnv;
-		
-		bool		HasJavaVm()	{	return vm!=nullptr;	}
-		JNIEnv&		Java();
+	JavaVM*		vm = nullptr;
+	JNIEnv*		MainEnv = nullptr;
+	std::map<std::thread::id,JNIEnv*>	ThreadEnv;
+	SoyListenerId	mShutdownThreadListener;
+	SoyListenerId	mInitThreadListener;
 #endif
-	}
 }
 
-bool Soy::Platform::InitThread()
+bool Java::HasVm()
+{
+#if defined(TARGET_ANDROID)
+	return vm!=nullptr;
+#else
+	return false;
+#endif
+}
+
+
+void Java::InitThread(SoyThread& Thread)
 {
 #if defined(TARGET_ANDROID)
 #endif
-	return true;
 }
 
-void Soy::Platform::ShutdownThread()
+void Java::ShutdownThread(SoyThread& Thread)
 {
 #if defined(TARGET_ANDROID)
-	//	cleanup java env
+	//	cleanup this thread's java env
 	if ( vm )
 	{
 		auto Thread = std::this_thread::get_id();
-		auto ThreadEnvEntry = Soy::Platform::ThreadEnv.find( Thread );
-		if ( ThreadEnvEntry != Soy::Platform::ThreadEnv.end() )
+		auto ThreadEnvEntry = Java::ThreadEnv.find( Thread );
+		if ( ThreadEnvEntry != Java::ThreadEnv.end() )
 		{
-			Soy::Platform::ThreadEnv.erase( ThreadEnvEntry );
-			JNIEnv* env = nullptr;
+			Java::ThreadEnv.erase( ThreadEnvEntry );
 			auto EnvId = vm->DetachCurrentThread();
 			Soy::Assert( EnvId == JNI_OK, "Failed to detatch java thread");
 		}
@@ -70,9 +75,9 @@ void Soy::Platform::ShutdownThread()
 //	called by android OS on lib load
 __export JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 {
-	Soy::Platform::vm = vm;
+	Java::vm = vm;
 	
-	if ( vm->GetEnv( reinterpret_cast<void**>(&Soy::Platform::MainEnv), JNI_VERSION_1_6) != JNI_OK)
+	if ( vm->GetEnv( reinterpret_cast<void**>(&Java::MainEnv), JNI_VERSION_1_6) != JNI_OK)
 	{
 		std::Debug << "Failed to get Java Env" << std::endl;
 		return -1;
@@ -84,28 +89,31 @@ __export JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 
 
 #if defined(TARGET_ANDROID)
-JNIEnv& Soy::Platform::Java()
+JNIEnv& Java::GetContext()
 {
-	//	gr: better error
-	static JNIEnv Dummy;
-	if ( !Soy::Platform::vm )
-		return Dummy;
+	Soy::Assert( Java::vm!=nullptr, "VM expected" );
 	
-	auto& vm = *Soy::Platform::vm;
+	auto& vm = *Java::vm;
 	
 	auto Thread = std::this_thread::get_id();
 	
-	if ( Soy::Platform::ThreadEnv.find( Thread ) == Soy::Platform::ThreadEnv.end() )
+	if ( Java::ThreadEnv.find( Thread ) == Java::ThreadEnv.end() )
 	{
 		std::Debug << "Allocating java env for thread" << std::endl;
 		JNIEnv* env = nullptr;
 		auto EnvId = vm.AttachCurrentThread( &env, nullptr );
-		if ( EnvId != JNI_OK )
-			return Dummy;
-		Soy::Platform::ThreadEnv[Thread] = env;
+		Soy::Assert( EnvId == JNI_OK, "Failed to get java env for current thread" );
+		Java::ThreadEnv[Thread] = env;
 	}
 	
-	return *Soy::Platform::ThreadEnv[Thread];
+	//	register thread init & cleanup
+	if ( !mInitThreadListener.IsValid() )
+		mInitThreadListener = SoyThread::OnThreadStart.AddListener( Java::InitThread );
+	
+	if ( !mShutdownThreadListener.IsValid() )
+		mShutdownThreadListener = SoyThread::OnThreadFinish.AddListener( Java::ShutdownThread );
+	
+	return *Java::ThreadEnv[Thread];
 }
 #endif
 
@@ -113,7 +121,7 @@ JNIEnv& Soy::Platform::Java()
 bool Soy::Platform::Init()
 {
 #if defined(TARGET_ANDROID)
-	if ( !Soy::Platform::HasJavaVm() )
+	if ( !Java::HasVm() )
 		return false;
 #endif
 	

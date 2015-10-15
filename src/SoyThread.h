@@ -242,50 +242,6 @@ private:
 };
 #endif
 
-class ofThread
-{
-public:
-	ofThread();
-	virtual ~ofThread();
-
-	bool			startThread(bool blocking, bool verbose);
-	void			stopThread();
-	bool			isThreadRunning()					{	return mIsRunning;	}
-	void			waitForThread(bool stop = true);
-	std::thread::id		GetThreadId() const					{	return mThread.get_id();	}
-	std::string		GetThreadName() const				{	return mThreadName;	}
-	static void		Sleep(int ms=0)
-	{
-		//	slow down cpu usage on OSX until I find out how to do this properly
-#if defined(TARGET_OSX)
-		ms += 10;
-#endif
-		std::this_thread::sleep_for( std::chrono::milliseconds(ms) );
-	}
-
-#if defined(TARGET_WINDOWS) 
-	DWORD			GetNativeThreadId()					{	return ::GetThreadId( GetThreadHandle() );	}
-	HANDLE			GetThreadHandle()					{	return static_cast<HANDLE>( mThread.native_handle() );	}
-#elif defined(TARGET_OSX)
-//    typedef pthread_t native_handle_type;
-	std::thread::native_handle_type		GetNativeThreadId()					{	return mThread.native_handle();	}
-#endif
-
-protected:
-	bool			create(unsigned int stackSize=0);
-	void			destroy();
-	virtual void	threadedFunction() = 0;
-
-	static unsigned int __stdcall	threadFunc(void *args);
-
-protected:
-	std::string		mThreadName;
-
-private:
-	volatile bool	mIsRunning;
-
-    std::thread		mThread;
-};
 
 
 
@@ -343,51 +299,69 @@ public:
 
 
 
-class SoyThread : public ofThread
+class SoyThread
 {
 public:
-	SoyThread(std::string threadName)	
-	{
-		if ( !threadName.empty() )
-		{
-			mThreadName	= threadName;
-			SetThreadName( threadName );
-		}
-	}
+	//	global thread events for platform hooks
+	static SoyEvent<SoyThread>	OnThreadFinish;	//	call whilst in thread
+	static SoyEvent<SoyThread>	OnThreadStart;	//	call whilst in thread
 
-	static std::thread::native_handle_type	GetCurrentThreadNativeHandle()
+public:
+	SoyThread(const std::string& ThreadName);
+	virtual ~SoyThread();
+	
+	void					Start();
+	void					Stop(bool WaitToFinish);			//	signal thread to stop
+	void					WaitToFinish();
+	const std::string&		GetThreadName() const		{	return mThreadName;	}
+
+	//bool					IsCurrentThread() const	{	return GetThreadId() == std::this_thread::get_id();	}
+	static std::thread::native_handle_type	GetCurrentThreadNativeHandle();
+	static std::thread::id					GetCurrentThreadId()	{	return std::this_thread::get_id();	}
+	static std::string						GetThreadName(std::thread::native_handle_type ThreadHandle);
+
+	static prmem::Heap&		GetHeap(std::thread::native_handle_type Thread);
+	void					CleanupHeap();
+	
+protected:
+	virtual void			Thread()=0;
+	bool					HasThread() const		{	return mThread.get_id() != std::thread::id();	}
+
+private:
+	static void				SetThreadName(const std::string& Name,std::thread::native_handle_type ThreadHandle);
+	void					SetThreadName(const std::string& Name)		{	SetThreadName( Name, mThread.native_handle() );	}
+
+	
+	/*
+	bool				startThread(bool blocking, bool verbose);
+	void				stopThread();
+	bool				isThreadRunning()					{	return mIsRunning;	}
+	void				waitForThread(bool stop = true);
+	std::thread::id		GetThreadId() const					{	return mThread.get_id();	}
+	std::string			GetThreadName() const				{	return mThreadName;	}
+	static void			Sleep(size_t ms=0)
 	{
+		std::this_thread::sleep_for( std::chrono::milliseconds(ms) );
+	}
+	
 #if defined(TARGET_WINDOWS)
-		return ::GetCurrentThread();
-#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
-		return ::pthread_self();
+	DWORD			GetNativeThreadId()					{	return ::GetThreadId( GetThreadHandle() );	}
+	HANDLE			GetThreadHandle()					{	return static_cast<HANDLE>( mThread.native_handle() );	}
+#elif defined(TARGET_OSX)
+	//    typedef pthread_t native_handle_type;
+	std::thread::native_handle_type		GetNativeThreadId()					{	return mThread.native_handle();	}
 #endif
-	}
-	static std::thread::id	GetCurrentThreadId()
-	{
-        return std::this_thread::get_id();
-	}
-
-	void	startThread(bool blocking=true, bool verbose=true)
-	{
-		ofThread::startThread( blocking, verbose );
-		SetThreadName( mThreadName );
-	}
-
-	void		SetThreadName(std::string Name)	{	SetThreadName(Name, GetCurrentThreadNativeHandle()); }
-	static void	SetThreadName(std::string Name,std::thread::native_handle_type ThreadHandle);
-	static std::string	GetThreadName(std::thread::native_handle_type ThreadHandle);
 	
-	static std::shared_ptr<SoyEvent<const std::thread::native_handle_type>>	GetOnThreadCleanupEvent();
-	static bool	OnThreadCleanup(std::thread::native_handle_type Thread);	//	call cleanup callbacks
-
-	static std::mutex	mCleanupEventLock;
-	static std::map<std::thread::native_handle_type,std::shared_ptr<SoyEvent<const std::thread::native_handle_type>>>	mCleanupEvents;
-
-	static prmem::Heap&	GetHeap(std::thread::native_handle_type Thread);
-	
-	//	gr: make a pool of heaps to save the overhead of allocating heaps
-	static std::map<std::thread::native_handle_type,std::shared_ptr<prmem::Heap>>	mThreadHeaps;
+protected:
+	bool				create(unsigned int stackSize=0);
+	void				destroy();
+*/
+private:
+	std::string			mThreadName;
+	volatile bool		mIsRunning;
+	std::thread			mThread;
+	SoyListenerId		mNameThreadListener;
+	SoyListenerId		mHeapThreadListener;
 };
 
 
@@ -463,31 +437,29 @@ public:
 	virtual bool		Iteration()	{	return true;	};
 };
 
-class SoyWorkerThread : public SoyWorker
+class SoyWorkerThread : public SoyWorker, protected SoyThread
 {
 public:
 	SoyWorkerThread(std::string ThreadName,SoyWorkerWaitMode::Type WaitMode) :
 		SoyWorker	( WaitMode ),
-		mThreadName	( ThreadName )
+		SoyThread	( ThreadName )
 	{
-		SoyWorker::mOnStart.AddListener( *this, &SoyWorkerThread::OnStart );
 	}
 	
 	virtual void		Start() override		{	Start( true );	}
 	void				Start(bool ThrowIfAlreadyStarted);
-	void				WaitToFinish();
-	std::thread::id		GetThreadId() const		{	return mThread.get_id();	}
-	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return mThread.native_handle();	}
-	bool				IsCurrentThread() const	{	return GetThreadId() == std::this_thread::get_id();	}
-	const std::string&	GetThreadName() const	{	return mThreadName;	}
+	virtual void		Stop() override			{	SoyWorker::Stop();	SoyThread::Stop(false);	}
+	void				WaitToFinish()			{	SoyWorker::Stop();	SoyThread::Stop(true);	}
+
+	SoyThread&			GetThread()				{	return *this;	}
+	const SoyThread&	GetThread() const		{	return *this;	}
+//	std::thread::id		GetThreadId() const		{	return SoyThread::get_id();	}
+//	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return mThread.native_handle();	}
+//	const std::string&	GetThreadName() const	{	return SoyThread::GetThreadName();	}
 
 protected:
-	bool				HasThread() const		{	return mThread.get_id() != std::thread::id();	}
-	void				OnStart(bool&)			{	SoyThread::SetThreadName( mThreadName, GetThreadNativeHandle() );	}
-	
-private:
-	std::string			mThreadName;
-	std::thread			mThread;
+//	bool				HasThread() const		{	return SoyThread::get_id() != std::thread::id();	}
+	virtual void		Thread() override;
 };
 
 
