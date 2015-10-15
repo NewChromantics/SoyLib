@@ -101,6 +101,7 @@ public:
 	}
 	uint64			GetNanoSeconds() const					{	return mTime * 1000000;	}
 	void			SetNanoSeconds(uint64 NanoSecs)			{	mTime = NanoSecs / 1000000;	}
+	void			SetMicroSeconds(uint64 MicroSecs)		{	mTime = MicroSecs / 1000;	}
 
 	inline bool		operator==(const SoyTime& Time) const	{	return mTime == Time.mTime;	}
 	inline bool		operator!=(const SoyTime& Time) const	{	return mTime != Time.mTime;	}
