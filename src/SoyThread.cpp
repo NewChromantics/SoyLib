@@ -185,7 +185,8 @@ void PopWorker::TJobQueue::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphor
 
 
 SoyThread::SoyThread(const std::string& ThreadName) :
-	mThreadName	( ThreadName )
+	mThreadName	( ThreadName ),
+	mIsRunning	( false )
 {
 	//	POSIX needs to name threads IN the thread. so do that for everyone by default
 	auto NameThread = [this](SoyThread& Thread)
