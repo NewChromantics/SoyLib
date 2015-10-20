@@ -298,7 +298,7 @@ public:
 
 
 
-
+//	thread wrapper. basically a giant while loop, if real efficiency is required, use the SoyWorkerThread which waits/sleeps/wakes on conditionals
 class SoyThread
 {
 public:
@@ -312,7 +312,7 @@ public:
 	
 	void					Start();
 	void					Stop(bool WaitToFinish);			//	signal thread to stop
-	void					WaitToFinish();
+	void					WaitToFinish()				{	Stop(true);	}
 	const std::string&		GetThreadName() const		{	return mThreadName;	}
 
 	//bool					IsCurrentThread() const	{	return GetThreadId() == std::this_thread::get_id();	}
@@ -324,7 +324,7 @@ public:
 	void					CleanupHeap();
 	
 protected:
-	virtual void			Thread()=0;
+	virtual void			Thread()=0;				//	wrapped in an IsRunning() loop
 	bool					HasThread() const		{	return mThread.get_id() != std::thread::id();	}
 
 private:

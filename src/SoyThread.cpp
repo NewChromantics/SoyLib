@@ -240,8 +240,8 @@ void SoyThread::Start()
 	{
 		this->mIsRunning = true;
 		SoyThread::OnThreadStart.OnTriggered(*this);
-		this->Thread();
-		this->mIsRunning = false;
+		while ( this->mIsRunning )
+			this->Thread();
 		SoyThread::OnThreadFinish.OnTriggered(*this);
 		return 0;
 	};
