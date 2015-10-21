@@ -317,7 +317,7 @@ void SoyThread::SetThreadName(const std::string& Name,std::thread::native_handle
 		}
 	};
 	
-	SetNameFunc( name.c_str(), ThreadId );
+	SetNameFunc( Name.c_str(), ThreadId );
 
 #endif
 }
