@@ -939,21 +939,18 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 }
 
 
-DXGI_FORMAT GetType(GLenum Type,size_t Length)
+DXGI_FORMAT GetType(const std::string& Type,size_t Length)
 {
-	switch ( Type )
+	if ( Type == Soy::GetTypeName<float>() )
 	{
-		case GL_FLOAT:
-		{
-			if ( Length == 1 )	return DXGI_FORMAT_R32_FLOAT;
-			if ( Length == 2 )	return DXGI_FORMAT_R32G32_FLOAT;
-			if ( Length == 3 )	return DXGI_FORMAT_R32G32B32_FLOAT;
-			if ( Length == 4 )	return DXGI_FORMAT_R32G32B32A32_FLOAT;
-		}
-		default:
-			Soy::Assert( false, "Unhandled type");
-			return DXGI_FORMAT_UNKNOWN;
+		if ( Length == 1 )	return DXGI_FORMAT_R32_FLOAT;
+		if ( Length == 2 )	return DXGI_FORMAT_R32G32_FLOAT;
+		if ( Length == 3 )	return DXGI_FORMAT_R32G32B32_FLOAT;
+		if ( Length == 4 )	return DXGI_FORMAT_R32G32B32A32_FLOAT;
 	}
+
+	Soy::Assert( false, "Unhandled type");
+	return DXGI_FORMAT_UNKNOWN;
 }
 
 void Directx::TShader::MakeLayout(const Opengl::TGeometryVertex& Vertex,TShaderBlob& ShaderBlob,ID3D11Device& Device)
