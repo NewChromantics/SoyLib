@@ -47,6 +47,10 @@ namespace SoyPixelsFormat
 		
 		//	shorthand names for different platforms
 		Nv12			= Yuv420_Biplanar_Video,
+
+
+
+		Count,
 	};
 
 	size_t		GetChannelCount(Type Format);
