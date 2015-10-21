@@ -84,8 +84,16 @@ public:
 	{
 		Release();
 		mObject = Object;
-		if ( AddRef && mObject )
+		if ( AddRef )
+			Retain();
+	}
+
+	void		Retain()
+	{
+		if ( mObject )
+		{
 			mObject->AddRef();
+		}
 	}
 	
 	void		Release()

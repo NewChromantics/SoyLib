@@ -52,7 +52,6 @@ namespace SoyPixelsFormat
 	size_t		GetChannelCount(Type Format);
 	Type		GetFormatFromChannelCount(size_t ChannelCount);
 	void		GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats);
-	void		GetFormatPlanes(SoyPixelsMeta Format,ArrayBridge<SoyPixelsMeta>&& PlaneFormats);
 	
 	int			GetMaxValue(SoyPixelsFormat::Type Format);
 	int			GetMinValue(SoyPixelsFormat::Type Format);
@@ -99,13 +98,17 @@ public:
 	bool			IsValid() const					{	return (mWidth>0) && (mHeight>0) && SoyPixelsFormat::IsValid(mFormat);	}
 	bool			IsValidDimensions() const		{	return (mWidth>0) && (mHeight>0);	}
 	uint8			GetBitDepth() const				{	return 8;	}
+	
+	//	gr: deprecate this! shouldn't ever use it raw
 	uint8			GetChannels() const				{	return size_cast<uint8>(SoyPixelsFormat::GetChannelCount(mFormat));	}
 	uint16			GetWidth() const				{	return mWidth;	}
 	uint16			GetHeight() const				{	return mHeight;	}
-	size_t			GetDataSize() const				{	return GetWidth() * GetChannels() * GetHeight();	}
+	size_t			GetDataSize() const;			//	probes multiple planes to get full data size
 	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
 	size_t			GetRowDataSize() const			{	return GetChannels() * GetWidth();	}
+	void			GetPlanes(ArrayBridge<SoyPixelsMeta>&& PlaneFormats) const;	//	extract multiple plane formats where applicable (returns self if one plane)
 
+	//	unsafe funcs. (note: they WERE unsafe...)
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
 	void			DumbSetChannels(size_t Channels)	{	mFormat = SoyPixelsFormat::GetFormatFromChannelCount(Channels);	}
 	void			DumbSetWidth(uint16 Width)		{	mWidth = Width;	}
@@ -122,6 +125,9 @@ public:
 		return !(*this == that);
 	}
 	
+private:
+	size_t			GetSelfDataSize() const			{	return GetHeight() * GetWidth() * GetChannels();	}
+
 protected:
 	//	gr: assuming we will always have a length of data so we can determine height/stride
 	SoyPixelsFormat::Type	mFormat;

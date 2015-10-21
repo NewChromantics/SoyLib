@@ -260,6 +260,8 @@ Directx::TContext::TContext(ID3D11Device& Device) :
 	mDevice			( &Device ),
 	mLockCount		( 0 )
 {
+	//	gr: just pre-empting for testing
+	auto Func = Directx::GetCompilerFunc();
 }
 
 ID3D11DeviceContext& Directx::TContext::LockGetContext()
@@ -579,9 +581,14 @@ void Directx::TRenderTarget::Bind(TContext& ContextDx)
 {
 	auto& Context = ContextDx.LockGetContext();
 
-	Context.OMSetRenderTargets( 1, &mRenderTargetView.mObject, nullptr );
-	//deviceContext->OMSetRenderTargets(1, &m_renderTargetView, depthStencilView);
+	//	save rendertargets to restore
+	mRestoreRenderTarget.Release();
+	mRestoreStencilTarget.Release();
+	Context.OMGetRenderTargets( 1, &mRestoreRenderTarget.mObject, &mRestoreStencilTarget.mObject );
 
+	//	set new render target
+	Context.OMSetRenderTargets( 1, &mRenderTargetView.mObject, nullptr );
+	
 	//	set viewport
 	D3D11_VIEWPORT Viewport;
 	ZeroMemory(&Viewport, sizeof(D3D11_VIEWPORT));
@@ -592,11 +599,21 @@ void Directx::TRenderTarget::Bind(TContext& ContextDx)
 	Viewport.Height = GetMeta().GetHeight();
 
 	Context.RSSetViewports( 1, &Viewport );
+	
 	ContextDx.Unlock();
 }
 
-void Directx::TRenderTarget::Unbind()
+void Directx::TRenderTarget::Unbind(TContext& ContextDx)
 {
+	//	restore pre-bind render targets
+	auto& Context = ContextDx.LockGetContext();
+
+	Context.OMSetRenderTargets( 1, &mRestoreRenderTarget.mObject, mRestoreStencilTarget.mObject );
+
+	mRestoreRenderTarget.Release();
+	mRestoreStencilTarget.Release();
+
+	ContextDx.Unlock();
 }
 
 void Directx::TRenderTarget::Clear(TContext& ContextDx,Soy::TRgb Colour,float Alpha)
@@ -778,6 +795,12 @@ bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTexture& 
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture)
+{
+	Soy_AssertTodo();
+	return false;
+}
+
+bool Directx::TShaderState::SetUniform(const char* Name,const SoyPixelsImpl& Texture)
 {
 	Soy_AssertTodo();
 	return false;

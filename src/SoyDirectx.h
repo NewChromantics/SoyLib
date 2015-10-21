@@ -131,7 +131,7 @@ public:
 	TRenderTarget(std::shared_ptr<TTexture>& Texture,TContext& ContextDx);
 
 	void			Bind(TContext& Context);
-	void			Unbind();
+	void			Unbind(TContext& ContextDx);
 
 	void			Clear(TContext& ContextDx,Soy::TRgb Colour,float Alpha=1.f);
 	SoyPixelsMeta	GetMeta() const									{	return mTexture ? mTexture->GetMeta() : SoyPixelsMeta();	}
@@ -143,6 +143,9 @@ private:
 	AutoReleasePtr<ID3D11ShaderResourceView>	mShaderResourceView;
 	AutoReleasePtr<ID3D11RenderTargetView>		mRenderTargetView;
 	std::shared_ptr<TTexture>					mTexture;
+
+	AutoReleasePtr<ID3D11RenderTargetView>		mRestoreRenderTarget;
+	AutoReleasePtr<ID3D11DepthStencilView>		mRestoreStencilTarget;
 };
 
 
@@ -196,6 +199,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override;
 	bool			SetUniform(const char* Name,const float3x3& v);
 	bool			SetUniform(const char* Name,const Directx::TTexture& v);
+	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v) override;
 
 	template<typename TYPE>
 	bool	SetUniform(const std::string& Name,const TYPE& v)
@@ -235,6 +239,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const int& v) override		{	return SetUniformImpl( Name, v );	}
 	
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v)	{	return SetUniformImpl( Name, v );	}
+	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v) override		{	return SetUniformImpl( Name, v );	}
 
 private:
 	template<typename TYPE>
