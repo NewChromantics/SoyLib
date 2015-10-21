@@ -20,3 +20,9 @@ CMTime Soy::Platform::GetTime(SoyTime Time)
 }
 #endif
 
+#if defined(__OBJC__)
+SoyTime Soy::Platform::GetTime(CFTimeInterval Time)
+{
+	return SoyTime( size_cast<uint64>(Time*1000.0) );
+}
+#endif
