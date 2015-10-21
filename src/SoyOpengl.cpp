@@ -190,7 +190,7 @@ std::string Opengl::GetEnumString(GLenum Type)
 std::ostream& Opengl::operator<<(std::ostream &out,const Opengl::TUniform& in)
 {
 	out << "#" << in.mIndex << " ";
-	out << Opengl::GetEnumString(in.mType);
+	out << in.mType;
 	if ( in.mArraySize != 1 )
 		out << "[" << in.mArraySize << "]";
 	out << " " << in.mName;
@@ -616,14 +616,14 @@ bool Opengl::TTexture::IsValid(bool InvasiveTest) const
 		auto IsTexture = glIsTexture( mTexture.mName );
 
 		//	gr: on IOS this is nice and reliable and NEEDED to distinguish from metal textures!
-	#if defined(TARGET_IOS)
+#if defined(TARGET_IOS)
 		return IsTexture;
-	#endif
-		
+#else
 		//	gr: this is returning false [on OSX] from other threads :/ even though they have a context
 		//	other funcs are working though
 		if ( IsTexture )
 			return true;
+#endif
 	}
 	
 	if ( mTexture.mName != GL_ASSET_INVALID )
@@ -1381,7 +1381,9 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		Uniform.mIndex = attrib;
 		
 		GLsizei actualLength = 0;
-		glGetActiveAttrib( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Uniform.mType, &nameData[0]);
+		GLenum Type;
+		glGetActiveAttrib( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Type, &nameData[0]);
+		Uniform.SetType( Type );
 		Uniform.mName = std::string( nameData.data(), actualLength );
 		
 		//	todo: check is valid type etc
@@ -1396,7 +1398,9 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		Uniform.mIndex = attrib;
 		
 		GLsizei actualLength = 0;
-		glGetActiveUniform( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Uniform.mType, &nameData[0]);
+		GLenum Type;
+		glGetActiveUniform( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Type, &nameData[0]);
+		Uniform.SetType( Type );
 		Uniform.mName = std::string( nameData.data(), actualLength );
 		
 		//	todo: check is valid type etc
@@ -1535,7 +1539,7 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 
 		//std::Debug << "Pushing attrib " << AttribIndex << ", arraysize " << Element.mArraySize << ", stride " << Stride << std::endl;
 		glEnableVertexAttribArray( AttribIndex );
-		glVertexAttribPointer( AttribIndex, Element.mArraySize, Element.mType, Normalised, Stride, ElementPointer );
+		glVertexAttribPointer( AttribIndex, Element.mArraySize, Element.GetTypeEnum(), Normalised, Stride, ElementPointer );
 		Opengl_IsOkay();
 	}
 	

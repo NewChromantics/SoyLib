@@ -9,6 +9,20 @@
 #endif
 
 
+class SoyTime;
+
+namespace Soy
+{
+	namespace Platform
+	{
+#if defined(__OBJC__)
+		SoyTime				GetTime(CMTime Time);
+		CMTime				GetTime(SoyTime Time);
+#endif
+	}
+}
+
+
 inline unsigned long long	ofGetSystemTime()
 {
 #if defined(TARGET_WINDOWS)

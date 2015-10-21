@@ -6,6 +6,7 @@
 
 #if defined(TARGET_OSX)
 #include <dlfcn.h>
+#include <unistd.h>
 #endif
 
 std::string Soy::GetEnvVar(const char* Key)
@@ -18,6 +19,7 @@ std::string Soy::GetEnvVar(const char* Key)
 		Error << "Missing env var " << Key;
 		throw Soy::AssertException( Error.str() );
 	}
+	return Value;
 #elif defined(TARGET_WINDOWS)
 	char* Buffer = nullptr;
 	size_t BufferSize = 0;

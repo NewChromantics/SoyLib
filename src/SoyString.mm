@@ -44,3 +44,25 @@ std::string Soy::NSErrorToString(NSException* Exception)
 }
 
 
+void Soy::NSDictionaryToStrings(ArrayBridge<std::pair<std::string,std::string>>&& Elements,NSDictionary* Dictionary)
+{
+	for ( NSString* KeyNs in Dictionary )
+	{
+		std::string Key = Soy::NSStringToString( KeyNs );
+		std::stringstream Value;
+		@try
+		{
+			NSString* ValueNs = [[Dictionary objectForKey:KeyNs] description];
+			Value << Soy::NSStringToString( ValueNs );
+		}
+		@catch (NSException* e)
+		{
+			Value << "<unkown value " << Soy::NSErrorToString( e ) << ">";
+		}
+	
+		Elements.PushBack( std::make_pair(Key,Value.str() ) );
+	}
+}
+
+
+
