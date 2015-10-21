@@ -1656,13 +1656,13 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
 		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
 		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA ),
+
 #endif
 #if defined(TARGET_WINDOWS)
 		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_RED, GL_RED, GL_RED),
 		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_RED, GL_RED, GL_RED),
 		TPixelFormatMapping(SoyPixelsFormat::Greyscale, GL_RED, GL_RED, GL_RED),
 		TPixelFormatMapping(SoyPixelsFormat::GreyscaleAlpha, GL_RG, GL_RG, GL_RG),
-
 #endif
 #if defined(GL_VERSION_3_0)
 		TPixelFormatMapping( SoyPixelsFormat::BGR, GL_BGR, GL_BGR, GL_BGR ),
@@ -1671,6 +1671,12 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_RED, GL_RED, GL_RED ),
 		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha, GL_RG, GL_RG, GL_RG ),
 		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_RGBA, GL_BGRA, GL_RGBA ),
+
+		//	16bit formats
+		TPixelFormatMapping(SoyPixelsFormat::KinectDepth, GL_RG, GL_RG, GL_RG),
+		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth10bit, GL_RG, GL_RG, GL_RG),
+		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth11bit, GL_RG, GL_RG, GL_RG),
+		TPixelFormatMapping(SoyPixelsFormat::FreenectDepthmm, GL_RG, GL_RG, GL_RG),
 #endif
 	};
 	static Array<TPixelFormatMapping> PixelFormatMap( _PixelFormatMap );
