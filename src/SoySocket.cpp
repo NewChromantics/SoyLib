@@ -55,11 +55,17 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 #elif defined(TARGET_WINDOWS)
 	auto ExpectedLength = sizeof(sockaddr_storage);
 #endif
+
+	//	gr: on windows, accepting unity WWW connection was 16 bytes...
 	if ( AddrLen != ExpectedLength )
 	{
 		std::stringstream err;
 		err << "sockaddr length (" << ExpectedLength << ") doesn't match specification " << AddrLen;
+#if defined(TARGET_WINDOWS)
+		std::Debug << err.str() << std::endl;
+#else
 		throw Soy::AssertException( err.str() );
+#endif
 	}
 
 	if ( AddrLen > sizeof(mAddr) )
