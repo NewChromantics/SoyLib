@@ -64,6 +64,7 @@ namespace Soy
 	bool		StringTrimRight(std::string& String, const ArrayBridge<char>& TrimAnyChars);
 	inline bool	StringTrimRight(std::string& String, const ArrayBridge<char>&& TrimAnyChars) {	return StringTrimRight(String, TrimAnyChars);	}
 	bool		StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool CaseSensitive);
+	bool		StringTrimRight(std::string& Haystack,const std::string& Suffix,bool CaseSensitive);
 
 	std::string	StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim=false);
 	

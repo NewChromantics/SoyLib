@@ -429,6 +429,15 @@ bool Soy::StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool Ca
 	return true;
 }
 
+bool Soy::StringTrimRight(std::string& Haystack,const std::string& Suffix,bool CaseSensitive)
+{
+	if ( !StringEndsWith( Haystack, Suffix, CaseSensitive ) )
+		return false;
+	
+	Haystack.erase( Haystack.begin() - Suffix.length(), Haystack.end() );
+	return true;
+}
+
 
 void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 {
