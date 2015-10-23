@@ -31,6 +31,7 @@ public:
 	
 	bool		Push(const std::string& Data);
 	bool		Push(const ArrayBridge<char>& Data);
+	bool		Push(const ArrayBridge<uint8>&& Data);
 	bool		UnPop(const ArrayBridge<char>& Data);
 	inline bool	UnPop(const ArrayBridge<char>&& Data)	{	return UnPop( Data );	}
 	bool		UnPop(const std::string& Data);
@@ -46,7 +47,7 @@ public:
 private:
 	//	gr: make this a ring buffer for speed!
 	std::recursive_mutex	mLock;
-	Array<char>				mData;
+	Array<char>				mData;		//	change this to uint8!
 };
 
 

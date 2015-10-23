@@ -228,6 +228,15 @@ bool TStreamBuffer::Push(const ArrayBridge<char>& Data)
 	return true;
 }
 
+
+bool TStreamBuffer::Push(const ArrayBridge<uint8>&& Data)
+{
+	//	convert to char
+	auto DataChar = GetRemoteArray( reinterpret_cast<const char*>( Data.GetArray() ), Data.GetDataSize() );
+	return Push( GetArrayBridge( DataChar ) );
+}
+
+
 bool TStreamBuffer::UnPop(const ArrayBridge<char>& Data)
 {
 	std::lock_guard<std::recursive_mutex> Lock( mLock );
