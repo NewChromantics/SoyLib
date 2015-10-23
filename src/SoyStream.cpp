@@ -2,7 +2,7 @@
 #include <regex>
 #include "RemoteArray.h"
 #include "SoyProtocol.h"
-
+#include <future>
 
 
 bool TStreamBuffer::Pop(std::string Pattern,ArrayBridge<std::string>& Parts)
@@ -369,18 +369,36 @@ bool TStreamWriter::Iteration()
 	//	todo: have two threads, one writing the Buffer, and one that pops the queue and just keeps pushing data
 	//		onto the buffer. That way we can encode & write at the same time and have infinite write protocols!
 	TStreamBuffer Buffer;
+	bool EncodingFinished = false;
+
+	auto AsyncWrite = [&Buffer,&EncodingFinished,this]
+	{
+		while ( !EncodingFinished )
+		{
+			Write( Buffer );
+		}
+	};
+
+	auto Future = std::async( AsyncWrite );
+
 	try
 	{
 		Data->Encode( Buffer );
 	}
 	catch (std::exception& e)
 	{
+		//	end the async thread
+		EncodingFinished = true;
+		Future.wait();
+
 		std::Debug << "Failed to write buffer from protocol: " << e.what() << std::endl;
 		return true;
 	}
 	
-	//	now write
-	Write( Buffer );
+	//	now wait for writing to finish
+	EncodingFinished = true;
+	Future.wait();
+
 	return true;
 }
 
