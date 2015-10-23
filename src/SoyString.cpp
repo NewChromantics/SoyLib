@@ -378,7 +378,7 @@ bool Soy::StringToType(int& Out,const std::string& String)
 	{
 		//std::invalid_argument for non int string etc
 		//	std::out_of_range for numbers that need to be 64bit etc
-		std::Debug << "exception converting string to int; \"" << String << "\"; " << e.what() << std::endl;
+		//std::Debug << "exception converting string to int; \"" << String << "\"; " << e.what() << std::endl;
 		return false;
 	}
 	return true;
