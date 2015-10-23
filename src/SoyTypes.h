@@ -4,6 +4,7 @@ typedef	signed char			int8;
 typedef	unsigned char		uint8;
 typedef	signed short		int16;
 typedef	unsigned short		uint16;
+typedef	signed short		sint16;
 
 
 //	earlier as used by some TARGET_X specific smart pointers

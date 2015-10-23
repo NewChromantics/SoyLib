@@ -45,6 +45,6 @@ public:
 public:
 	SoyWaveEncoding::Type	mEncoding;
 	size_t					mChannelCount;
-	size_t					mSampleRate;		//	8000	44100	hz?
+	size_t					mSampleRate;		//	samples per second(freq/hz) 8000	44100	(440hz)
 	SoyWaveBitsPerSample::Type	mBitsPerSample;		//	normal 8 or 16
 };
