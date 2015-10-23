@@ -11,14 +11,17 @@ void Http::TCommonProtocol::BakeHeaders()
 		mHeaders["Connection"] = "keep-alive";
 
 	//	remove this ambiguity!
-	Soy::Assert( mContent.GetDataSize() == mContentLength, "Content length doesn't match length of content");
 	if ( mWriteContent )
 	{
 		Soy::Assert( mContent.IsEmpty(), "WriteContent callback, but also has content");
-		Soy::Assert( mContentLength==0, "WriteContent callback, but also has content length");
+		//Soy::Assert( mContentLength==0, "WriteContent callback, but also has content length");
+
+		if ( mContentLength != 0 )
+			mHeaders["Content-length"] = Soy::StreamToString( std::stringstream()<<mContentLength );
 	}
 	else if ( !mContent.IsEmpty() )
 	{
+		Soy::Assert( mContent.GetDataSize() == mContentLength, "Content length doesn't match length of content");
 		mHeaders["Content-length"] = Soy::StreamToString( std::stringstream()<<mContent.GetDataSize() );
 	}
 }
@@ -63,8 +66,15 @@ void Http::TCommonProtocol::WriteContent(TStreamBuffer& Buffer)
 }
 
 
-Http::TResponseProtocol::TResponseProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback) :
-	TCommonProtocol		( WriteContentCallback ),
+Http::TResponseProtocol::TResponseProtocol() :
+	TCommonProtocol		( ),
+	mResponseCode		( 0 ),
+	mHeadersComplete	( false )
+{
+}
+
+Http::TResponseProtocol::TResponseProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback,size_t ContentLength) :
+	TCommonProtocol		( WriteContentCallback, ContentLength ),
 	mResponseCode		( 0 ),
 	mHeadersComplete	( false )
 {

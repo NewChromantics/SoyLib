@@ -14,9 +14,15 @@ namespace Http
 class Http::TCommonProtocol
 {
 public:
-	TCommonProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback=nullptr) :
+	TCommonProtocol() :
 		mKeepAlive		( false ),
 		mContentLength	( 0 ),
+		mWriteContent	( nullptr )
+	{
+	}
+	TCommonProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback,size_t ContentLength) :
+		mKeepAlive		( false ),
+		mContentLength	( ContentLength ),
 		mWriteContent	( WriteContentCallback )
 	{
 	}
@@ -38,7 +44,8 @@ public:
 class Http::TResponseProtocol : public Http::TCommonProtocol, public Soy::TReadProtocol, public Soy::TWriteProtocol
 {
 public:
-	TResponseProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback=nullptr);
+	TResponseProtocol();
+	TResponseProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback,size_t ContentLength);
 	
 	virtual void					Encode(TStreamBuffer& Buffer) override;
 	virtual TProtocolState::Type	Decode(TStreamBuffer& Buffer) override;
