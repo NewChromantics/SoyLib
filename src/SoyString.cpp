@@ -434,7 +434,7 @@ bool Soy::StringTrimRight(std::string& Haystack,const std::string& Suffix,bool C
 	if ( !StringEndsWith( Haystack, Suffix, CaseSensitive ) )
 		return false;
 	
-	Haystack.erase( Haystack.begin() - Suffix.length(), Haystack.end() );
+	Haystack.erase( Haystack.end() - Suffix.length(), Haystack.end() );
 	return true;
 }
 
