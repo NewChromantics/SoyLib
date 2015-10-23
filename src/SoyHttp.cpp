@@ -93,7 +93,7 @@ void Http::TResponseProtocol::Encode(TStreamBuffer& Buffer)
 
 	BakeHeaders();
 	WriteHeaders( Buffer );
-	WRiteContent( Buffer );
+	WriteContent( Buffer );
 }
 
 
