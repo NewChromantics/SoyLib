@@ -445,6 +445,12 @@ public:
 		SoyThread	( ThreadName )
 	{
 	}
+	~SoyWorkerThread()
+	{
+		//	hail mary
+		if ( IsWorking() )
+			WaitToFinish();
+	}
 	
 	virtual void		Start() override		{	Start( true );	}
 	void				Start(bool ThrowIfAlreadyStarted);
