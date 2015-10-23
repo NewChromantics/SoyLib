@@ -103,6 +103,9 @@
     <ClCompile Include="..\src\SoyRuntimeLibrary.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\SoyWave.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\SoyThread.h">
@@ -229,6 +232,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\SoyRuntimeLibrary.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyWave.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

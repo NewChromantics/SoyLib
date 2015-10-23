@@ -49,6 +49,7 @@
     <ClCompile Include="..\src\SoyTypes.cpp" />
     <ClCompile Include="..\src\SoyUniform.cpp" />
     <ClCompile Include="..\src\SoyVector.cpp" />
+    <ClCompile Include="..\src\SoyWave.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\array.hpp" />
@@ -92,6 +93,7 @@
     <ClInclude Include="..\src\SoyTypes_Windows.h" />
     <ClInclude Include="..\src\SoyUniform.h" />
     <ClInclude Include="..\src\SoyVector.h" />
+    <ClInclude Include="..\src\SoyWave.h" />
     <ClInclude Include="..\src\stb\stb_image.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
