@@ -3,28 +3,44 @@
 #include "heaparray.hpp"
 
 
+
+size_t SoyWaveBitsPerSample::GetByteSize(SoyWaveBitsPerSample::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyWaveBitsPerSample::Eight:
+			return 1;
+		case SoyWaveBitsPerSample::Sixteen:
+			return 2;
+		case SoyWaveBitsPerSample::Float:
+			return 4;
+	}
+}
+
 Wave::TMeta::TMeta() :
 	mEncoding		( SoyWaveEncoding::PCM ),
 	mChannelCount	( 2 ),
 	mSampleRate		( 44100 ),
-	mBitsPerSample	( 16 )
+	mBitsPerSample	( SoyWaveBitsPerSample::Float )
 {
 }
 	
 
 void Wave::TMeta::GetFormatSubChunkData(ArrayBridge<char>&& Data)
 {
+	auto BytesPerSample = SoyWaveBitsPerSample::GetByteSize( mBitsPerSample );
+
 	//	The "WAVE" format consists of two subchunks: "fmt " and "data":
 	//	The "fmt " subchunk describes the sound data's format:
 	uint16 AudioFormat = 1;	//	PCM
-	uint32 ByteRate = mSampleRate * mChannelCount * (mBitsPerSample/8);
-	uint16 BlockAlignment = mChannelCount * (mBitsPerSample/8);
+	uint32 ByteRate = mSampleRate * mChannelCount * (BytesPerSample);
+	uint16 BlockAlignment = mChannelCount * (BytesPerSample);
 	Data.PushBackReinterpret( AudioFormat );
 	Data.PushBackReinterpret( size_cast<uint16>( mChannelCount ) );
 	Data.PushBackReinterpret( size_cast<uint32>( mSampleRate ) );
 	Data.PushBackReinterpret( ByteRate );
 	Data.PushBackReinterpret( BlockAlignment );
-	Data.PushBackReinterpret( size_cast<uint16>( mBitsPerSample ) );
+	Data.PushBackReinterpret( size_cast<uint16>( BytesPerSample*8 ) );
 	
 	
 	//	2   ExtraParamSize   if PCM, then doesn't exist
@@ -60,3 +76,33 @@ void Wave::TMeta::WriteHeader(ArrayBridge<char>&& Data,size_t DataSize)
 	
 	//	data follows
 };
+
+
+void Wave::WriteSample(float Samplef,SoyWaveBitsPerSample::Type Bits,ArrayBridge<uint8>&& Data)
+{
+	Soy::Assert( Samplef >= -1.f && Samplef <= 1.f, "Float sample out of range");
+
+	switch ( Bits )
+	{
+		case SoyWaveBitsPerSample::Eight:
+		{
+			uint8 Sample = size_cast<uint8>( Samplef * 255.f );
+			Data.PushBack( Sample );
+			return;
+		}
+		
+		case SoyWaveBitsPerSample::Sixteen:
+		{
+			//	16bit samples are signed
+			auto Sample = Soy::Lerp<sint16>( -32768, 32767, Samplef );
+			Data.PushBackReinterpret( Sample );
+			return;
+		}
+
+		case SoyWaveBitsPerSample::Float:
+			Data.PushBackReinterpret( Samplef );
+			return;
+	}
+
+}
+

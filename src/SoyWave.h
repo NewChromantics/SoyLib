@@ -4,12 +4,6 @@
 
 
 
-//	gr: not sure if this is a good namespace name?
-namespace Wave
-{
-	class TMeta;
-};
-
 namespace SoyWaveEncoding
 {
 	enum Type
@@ -17,6 +11,26 @@ namespace SoyWaveEncoding
 		PCM
 	};
 }
+
+namespace SoyWaveBitsPerSample
+{
+	enum Type
+	{
+		Eight,
+		Sixteen,
+		Float,		//	32 bit -1 to 1
+	};
+
+	size_t	GetByteSize(Type Format);
+};
+
+//	gr: not sure if this is a good namespace name?
+namespace Wave
+{
+	class TMeta;
+
+	void	WriteSample(float Sample,SoyWaveBitsPerSample::Type Bits,ArrayBridge<uint8>&& Data);
+};
 
 
 class Wave::TMeta
@@ -32,5 +46,5 @@ public:
 	SoyWaveEncoding::Type	mEncoding;
 	size_t					mChannelCount;
 	size_t					mSampleRate;		//	8000	44100	hz?
-	size_t					mBitsPerSample;		//	normal 8 or 16
+	SoyWaveBitsPerSample::Type	mBitsPerSample;		//	normal 8 or 16
 };
