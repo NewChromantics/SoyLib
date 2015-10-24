@@ -279,6 +279,14 @@ public:
 		*Block = item;
 		return *Block;
 	}
+	
+	T&					PushBackUnique(const T& item)
+	{
+		auto Index = this->FindIndex( item );
+		if ( Index != -1 )
+			return (*this)[Index];
+		return PushBack(item);
+	}
 
 	//	compare two arrays of the same type
 	//	gr: COULD turn this into a compare for sorting, but that would invoke a < and > operator call for each type.
