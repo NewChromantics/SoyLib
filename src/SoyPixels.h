@@ -40,9 +40,36 @@ namespace SoyPixelsFormat
 		Yuv420_Biplanar_Video	= 17,
 		Yuv422_Biplanar_Full	= 18,
 		Yuv444_Biplanar_Full	= 19,
+		
+		//	https://github.com/ofTheo/ofxKinect/blob/ebb9075bcb5ab2543220b4dec598fd73cec40904/libs/libfreenect/src/cameras.c
+		//	kinect (16bit?) yuv. See if its the same as a standard one 
+		uyvy					= 20,
+		/*
+		 int u  = raw_buf[2*i];
+			int y1 = raw_buf[2*i+1];
+			int v  = raw_buf[2*i+2];
+			int y2 = raw_buf[2*i+3];
+			int r1 = (y1-16)*1164/1000 + (v-128)*1596/1000;
+			int g1 = (y1-16)*1164/1000 - (v-128)*813/1000 - (u-128)*391/1000;
+			int b1 = (y1-16)*1164/1000 + (u-128)*2018/1000;
+			int r2 = (y2-16)*1164/1000 + (v-128)*1596/1000;
+			int g2 = (y2-16)*1164/1000 - (v-128)*813/1000 - (u-128)*391/1000;
+			int b2 = (y2-16)*1164/1000 + (u-128)*2018/1000;
+			CLAMP(r1)
+			CLAMP(g1)
+			CLAMP(b1)
+			CLAMP(r2)
+			CLAMP(g2)
+			CLAMP(b2)
+			proc_buf[3*i]  =r1;
+			proc_buf[3*i+1]=g1;
+			proc_buf[3*i+2]=b1;
+			proc_buf[3*i+3]=r2;
+			proc_buf[3*i+4]=g2;
+			proc_buf[3*i+5]=b2;		 */
 
 		LumaFull		= Greyscale,	//	Luma plane of a YUV
-		LumaVideo		= 20,			//	Video-range luma plane
+		LumaVideo		= 21,			//	Video-range luma plane
 		Chroma2			= GreyscaleAlpha,	//	16 bit chroma plane
 		
 		//	shorthand names for different platforms
