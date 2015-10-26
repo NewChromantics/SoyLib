@@ -34,13 +34,7 @@ TEST(PngWriteRead)
 	auto PngDataBridge = GetArrayBridge( PngData );
 	CHECK( Pixels.GetPng( PngDataBridge ) );
 	//	read back
-	std::stringstream Error;
-	CHECK( Pixels.SetPng( PngDataBridge, Error ) );
-	CHECK( Error.str().empty() );
-	if ( !Error.str().empty() )
-	{
-		std::Debug << "Expecting empty error: " << Error.str() << std::endl;
-	}
+	Pixels.SetPng( PngDataBridge );
 }
 
 #endif
