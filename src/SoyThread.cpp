@@ -264,18 +264,45 @@ void SoyThread::SetThreadName(const std::string& Name,std::thread::native_handle
 {
 #if defined(TARGET_OSX)
 
-	auto CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
+	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
+	
+	//	grab current thread name
+	char OldNameBuffer[200] = "<initialised>";
+	std::string OldThreadName;
+	auto Result = pthread_getname_np( ThreadId, OldNameBuffer, sizeof(OldNameBuffer) );
+	OldNameBuffer[sizeof(OldNameBuffer)-1] = '\0';
+	if ( Result == 0 )
+	{
+		OldThreadName = OldNameBuffer;
+		if ( OldThreadName.empty() )
+			OldThreadName = "<no name>";
+	}
+	else
+	{
+		OldThreadName = Soy::Platform::GetLastErrorString();
+	}
+	
+	/*
+	if ( CurrentThread == std::thread::native_handle_type() )
+	{
+		std::Debug << "T
+	}
+	 */
 	
 	//	has to be called whilst in this thread as OSX doesn't take a thread parameter
 	if ( CurrentThread != ThreadId )
 	{
-		std::Debug << "Trying to set thread name " << Name << ", out-of-thread" << std::endl;
+		std::Debug << "Trying to change thread name from " << OldThreadName << " to " << Name << ", out-of-thread" << std::endl;
 		return;
 	}
-	int Result = pthread_setname_np( Name.c_str() );
-	if ( Result != 0 )
+	Result = pthread_setname_np( Name.c_str() );
+	if ( Result == 0 )
 	{
-		std::Debug << "Failed to set thread name to " << Name << ": " << Soy::Platform::GetLastErrorString() << std::endl;
+		std::Debug << "Renamed thread from " << OldThreadName << " to " << Name << ": " << std::endl;
+	}
+	else
+	{
+		std::Debug << "Failed to change thread name from " << OldThreadName << " to " << Name << ": " << Soy::Platform::GetLastErrorString() << std::endl;
 	}
 #endif
 	
