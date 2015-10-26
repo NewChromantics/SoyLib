@@ -217,6 +217,16 @@ class TPixelBufferManagerBase
 {
 public:
 	virtual bool		PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::function<bool()> Block)=0;
+
+public:
+	SoyEvent<SoyTime>				mOnFramePushed;	//	decoded and pushed into buffer
+	SoyEvent<SoyTime>				mOnFramePushSkipped;
+	SoyEvent<SoyTime>				mOnFramePushFailed;		//	triggered if the buffer is full and we didn't block when pushing
+	SoyEvent<const ArrayBridge<SoyTime>>	mOnFramePopSkipped;
+	SoyEvent<SoyTime>				mOnFrameDecoded;
+	SoyEvent<SoyTime>				mOnFrameExtracted;			//	extracted, but not decoded yet
+	SoyEvent<SoyTime>				mOnFrameDecodeFailed;
+
 };
 
 
@@ -308,7 +318,7 @@ protected:
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);
 	virtual std::shared_ptr<TMediaPacket>	ReadNextPacket()=0;
-	
+
 private:
 	virtual bool					Iteration() override;
 	
@@ -346,6 +356,8 @@ protected:
 	virtual void					ProcessOutputPacket(TPixelBufferManagerBase& FrameBuffer)
 	{
 	}
+	
+	TPixelBufferManagerBase&		GetPixelBufferManager();
 	
 private:
 	virtual bool					Iteration() final;

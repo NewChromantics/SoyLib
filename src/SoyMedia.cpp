@@ -227,6 +227,11 @@ bool TMediaEncoder::Iteration()
 	return true;
 }
 
+TPixelBufferManagerBase& TMediaEncoder::GetPixelBufferManager()
+{
+	Soy::Assert( mOutput != nullptr, "MediaEncoder missing pixel buffer" );
+	return *mOutput;
+}
 
 
 
@@ -350,9 +355,9 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 		{
 			auto NextPacket = ReadNextPacket();
 			
-			//	no packet, EOF
+			//	no packet, error? try again
 			if ( !NextPacket )
-				return;
+				continue;
 			
 			//	temp
 			if ( NextPacket->mEof )
