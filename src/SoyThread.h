@@ -316,6 +316,7 @@ public:
 	const std::string&		GetThreadName() const		{	return mThreadName;	}
 
 	//bool					IsCurrentThread() const	{	return GetThreadId() == std::this_thread::get_id();	}
+	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return mThread.native_handle();	}
 	static std::thread::native_handle_type	GetCurrentThreadNativeHandle();
 	static std::thread::id					GetCurrentThreadId()	{	return std::this_thread::get_id();	}
 	static std::string						GetThreadName(std::thread::native_handle_type ThreadHandle);
@@ -460,8 +461,8 @@ public:
 	SoyThread&			GetThread()				{	return *this;	}
 	const SoyThread&	GetThread() const		{	return *this;	}
 //	std::thread::id		GetThreadId() const		{	return SoyThread::get_id();	}
-//	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return mThread.native_handle();	}
 //	const std::string&	GetThreadName() const	{	return SoyThread::GetThreadName();	}
+	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return SoyThread::GetThreadNativeHandle();	}
 
 protected:
 //	bool				HasThread() const		{	return SoyThread::get_id() != std::thread::id();	}
