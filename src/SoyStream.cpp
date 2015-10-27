@@ -323,6 +323,7 @@ bool TStreamReader::Iteration()
 			return true;
 			
 			//	fall through
+		case TProtocolState::Disconnect:
 		case TProtocolState::Finished:
 			break;
 			
@@ -332,6 +333,11 @@ bool TStreamReader::Iteration()
 		case TProtocolState::Ignore:
 			mCurrentProtocol.reset();
 			return true;
+	}
+	
+	if ( DecodeResult == TProtocolState::Disconnect )
+	{
+		std::Debug << "Todo: protocol says, disconnect stream. Currently unhandled." << std::endl;
 	}
 	
 	//	notify (with shared ptr so data can be cheaply saved)
@@ -370,12 +376,21 @@ bool TStreamWriter::Iteration()
 	//		onto the buffer. That way we can encode & write at the same time and have infinite write protocols!
 	TStreamBuffer Buffer;
 	bool EncodingFinished = false;
+	std::stringstream WriteError;
 
-	auto AsyncWrite = [&Buffer,&EncodingFinished,this]
+	auto AsyncWrite = [&Buffer,&EncodingFinished,&WriteError,this]
 	{
 		while ( !EncodingFinished )
 		{
-			Write( Buffer );
+			try
+			{
+				Write( Buffer );
+			}
+			catch (std::exception& e)
+			{
+				WriteError << e.what();
+				break;
+			}
 		}
 	};
 
@@ -391,7 +406,9 @@ bool TStreamWriter::Iteration()
 		EncodingFinished = true;
 		Future.wait();
 
-		std::Debug << "Failed to write buffer from protocol: " << e.what() << std::endl;
+		std::stringstream Error;
+		Error << "Failed to write buffer from protocol: " << e.what();
+		OnError( Error.str() );
 		return true;
 	}
 	
@@ -399,6 +416,11 @@ bool TStreamWriter::Iteration()
 	EncodingFinished = true;
 	Future.wait();
 
+	if ( !WriteError.str().empty() )
+	{
+		OnError( WriteError.str() );
+	}
+	
 	return true;
 }
 

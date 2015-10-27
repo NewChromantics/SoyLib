@@ -82,8 +82,10 @@ public:
 
 protected:
 	virtual void							Write(TStreamBuffer& Buffer)=0;	//	write next chunk
+	void									OnError(const std::string& Error)	{	mOnStreamError.OnTriggered( Error );	}
 
 public:
+	SoyEvent<const std::string>				mOnStreamError;			//	fatal write or encode error
 	SoyEvent<std::shared_ptr<Soy::TWriteProtocol>>	mOnDataRecieved;
 	
 protected:
@@ -93,6 +95,5 @@ private:
 	std::mutex										mQueueLock;
 	Array<std::shared_ptr<Soy::TWriteProtocol>>		mQueue;
 };
-
 
 
