@@ -584,3 +584,24 @@ std::string Soy::FourCCToString(uint32 Fourcc)
 	return std::string( CodecStrBuffer );
 }
 
+
+void Soy::SplitHostnameAndPort(std::string& Hostname,uint16& Port,const std::string& Address)
+{
+	//	extract port from address
+	std::regex Pattern("([^:]+):([0-9]+)$" );
+	std::smatch Match;
+	
+	//	address is empty, or malformed
+	if ( !std::regex_match( Address, Match, Pattern ) )
+	{
+		std::stringstream Error;
+		Error << "Invalid hostname:port (" << Address << ")";
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	Hostname = Match[1].str();
+	std::string PortStr = Match[2].str();
+	int Porti;
+	Soy::StringToType( Porti, PortStr );
+	Port = size_cast<uint16>(Porti);
+}
