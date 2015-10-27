@@ -158,16 +158,16 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc)
 
 
 
-TMediaEncoder::TMediaEncoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer) :
-SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
-mInput			( InputBuffer ),
-mOutput			( OutputBuffer )
+TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer) :
+	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
+	mInput			( InputBuffer ),
+	mOutput			( OutputBuffer )
 {
 	//	wake when new packets arrive
 	mOnNewPacketListener = WakeOnEvent( mInput->mOnNewPacket );
 }
 
-TMediaEncoder::~TMediaEncoder()
+TMediaDecoder::~TMediaDecoder()
 {
 	if ( mInput )
 	{
@@ -176,7 +176,7 @@ TMediaEncoder::~TMediaEncoder()
 	WaitToFinish();
 }
 
-bool TMediaEncoder::CanSleep()
+bool TMediaDecoder::CanSleep()
 {
 	//	don't sleep when there's work to do!
 	if ( mInput )
@@ -188,7 +188,7 @@ bool TMediaEncoder::CanSleep()
 	return true;
 }
 
-bool TMediaEncoder::Iteration()
+bool TMediaDecoder::Iteration()
 {
 	try
 	{
@@ -198,7 +198,7 @@ bool TMediaEncoder::Iteration()
 		auto Packet = mInput->PopPacket();
 		if ( Packet )
 		{
-			std::Debug << "Encoder Processing packet " << Packet->mTimecode << std::endl;
+			//std::Debug << "Encoder Processing packet " << Packet->mTimecode << std::endl;
 			ProcessPacket( *Packet );
 		}
 	}
@@ -227,7 +227,7 @@ bool TMediaEncoder::Iteration()
 	return true;
 }
 
-TPixelBufferManagerBase& TMediaEncoder::GetPixelBufferManager()
+TPixelBufferManagerBase& TMediaDecoder::GetPixelBufferManager()
 {
 	Soy::Assert( mOutput != nullptr, "MediaEncoder missing pixel buffer" );
 	return *mOutput;
@@ -288,7 +288,7 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 		SortArrayLambda<std::shared_ptr<TMediaPacket>> SortedPackets( GetArrayBridge(mPackets), SortPackets );
 		SortedPackets.Push( Packet );
 		
-		std::Debug << "Pushed intput packet to buffer " << *Packet << std::endl;
+		//std::Debug << "Pushed intput packet to buffer " << *Packet << std::endl;
 	}
 	mOnNewPacket.OnTriggered( Packet );
 }
@@ -415,4 +415,8 @@ TStreamMeta TMediaExtractor::GetVideoStream(size_t Index)
 }
 
 
+void TMediaEncoder::PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block)
+{
+	mOutput->PushPacket( Packet, Block );
+}
 

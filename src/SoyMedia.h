@@ -55,8 +55,11 @@ namespace SoyMediaFormat
 		
 		NotPixels = SoyPixelsFormat::Count,
 		
+		//	file:///Users/grahamr/Downloads/513_direct_access_to_media_encoding_and_decoding.pdf
+		//	gr: seperate PPS/SPS here?
 		H264,			//	specialise this? or go the other way and call it compressed-video? or should this just be a pixel format?
-		H264Ts,			//	elementry/transport/annexb stream (H264 ES in MF)
+		H264Ts,			//	elementry/transport/annexb/Nal stream (H264 ES in MF)
+		
 		Mpeg2TS,
 		Mpeg2,
 		
@@ -336,11 +339,12 @@ private:
 //	gr: this is dumb atm, it processes packets on the thread ASAP.
 //		output decides what's discarded, input decides what's skipped.
 //		maybe it should be more intelligent as this should be the SLOWEST part of the chain?...
-class TMediaEncoder : public SoyWorkerThread
+//	gr: renamed to decoder as it decodes to pixels
+class TMediaDecoder : public SoyWorkerThread
 {
 public:
-	TMediaEncoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer);
-	virtual ~TMediaEncoder();
+	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer);
+	virtual ~TMediaDecoder();
 	
 	bool							HasFatalError(std::string& Error)
 	{
@@ -370,6 +374,33 @@ protected:
 	
 private:
 	SoyListenerId						mOnNewPacketListener;
+};
+
+
+//	encode to binary
+class TMediaEncoder
+{
+public:
+	TMediaEncoder(std::shared_ptr<TMediaPacketBuffer>& OutputBuffer) :
+		mOutput	( OutputBuffer )
+	{
+	}
+	
+	bool							HasFatalError(std::string& Error)
+	{
+		Error = mFatalError.str();
+		return !Error.empty();
+	}
+	
+	virtual void					Write(const Opengl::TTexture& Image,SoyTime Timecode,Opengl::TContext& Context)=0;
+	virtual void					Write(const std::shared_ptr<SoyPixelsImpl> Image,SoyTime Timecode)=0;
+	
+protected:
+	void							PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block);
+	
+protected:
+	std::shared_ptr<TMediaPacketBuffer>	mOutput;
+	std::stringstream					mFatalError;
 };
 
 
