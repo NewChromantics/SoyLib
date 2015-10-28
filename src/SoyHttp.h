@@ -72,6 +72,11 @@ public:
 		mMethod		( "GET" )
 	{
 	}
+	TRequestProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback,size_t ContentLength) :
+		TCommonProtocol	( WriteContentCallback, ContentLength ),
+		mMethod			( "GET" )
+	{
+	}
 	
 	virtual void					Encode(TStreamBuffer& Buffer) override;
 	
