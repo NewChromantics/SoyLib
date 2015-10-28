@@ -24,6 +24,9 @@ void Http::TCommonProtocol::BakeHeaders()
 		Soy::Assert( mContent.GetDataSize() == mContentLength, "Content length doesn't match length of content");
 		mHeaders["Content-length"] = Soy::StreamToString( std::stringstream()<<mContent.GetDataSize() );
 	}
+	
+	if ( !mContentMimeType.empty() )
+		mHeaders["Content-Type"] = mContentMimeType;
 }
 
 void Http::TCommonProtocol::WriteHeaders(TStreamBuffer& Buffer) const
@@ -211,6 +214,12 @@ bool Http::TResponseProtocol::ParseSpecificHeader(const std::string& Key,const s
 	if ( Soy::StringMatches(Key,"Content-length", false ) )
 	{
 		Soy::StringToType( mContentLength, Value );
+		return true;
+	}
+	
+	if ( Soy::StringMatches(Key,"Content-Type", false ) )
+	{
+		mContentMimeType = Value;
 		return true;
 	}
 	

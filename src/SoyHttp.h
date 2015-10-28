@@ -36,6 +36,7 @@ public:
 	std::string							mUrl;			//	could be "Bad Request" or "OK" for responses
 	std::function<void(TStreamBuffer&)>	mWriteContent;		//	if this is present, we use a callback to write the content and don't know ahead of time the content length
 	Array<char>							mContent;
+	std::string							mContentMimeType;	//	change this to SoyMediaFormat
 	size_t								mContentLength;		//	need this for when reading headers... maybe ditch if possible
 	bool								mKeepAlive;
 };
