@@ -425,6 +425,7 @@ void SoyWorker::Loop()
 	
 	//	first call
 	bool Dummy = true;
+	mOnStart.OnTriggered(Dummy);
 	
 	while ( IsWorking() )
 	{
