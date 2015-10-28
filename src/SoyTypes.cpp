@@ -99,7 +99,7 @@ JNIEnv& Java::GetContext()
 	
 	if ( Java::ThreadEnv.find( Thread ) == Java::ThreadEnv.end() )
 	{
-		std::Debug << "Allocating java env for thread" << std::endl;
+		std::Debug << "Allocating java env for thread " << SoyThread::GetCurrentThreadName() << std::endl;
 		JNIEnv* env = nullptr;
 		auto EnvId = vm.AttachCurrentThread( &env, nullptr );
 		Soy::Assert( EnvId == JNI_OK, "Failed to get java env for current thread" );

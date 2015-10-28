@@ -320,7 +320,8 @@ public:
 	static std::thread::native_handle_type	GetCurrentThreadNativeHandle();
 	static std::thread::id					GetCurrentThreadId()	{	return std::this_thread::get_id();	}
 	static std::string						GetThreadName(std::thread::native_handle_type ThreadHandle);
-
+	static std::string						GetCurrentThreadName();
+	
 	static prmem::Heap&		GetHeap(std::thread::native_handle_type Thread);
 	void					CleanupHeap();
 	

@@ -260,16 +260,17 @@ std::thread::native_handle_type SoyThread::GetCurrentThreadNativeHandle()
 #endif
 }
 
-void SoyThread::SetThreadName(const std::string& Name,std::thread::native_handle_type ThreadId)
+
+std::string SoyThread::GetCurrentThreadName()
 {
 #if defined(TARGET_OSX)
-
+	
 	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
 	
 	//	grab current thread name
 	char OldNameBuffer[200] = "<initialised>";
 	std::string OldThreadName;
-	auto Result = pthread_getname_np( ThreadId, OldNameBuffer, sizeof(OldNameBuffer) );
+	auto Result = pthread_getname_np( CurrentThread, OldNameBuffer, sizeof(OldNameBuffer) );
 	OldNameBuffer[sizeof(OldNameBuffer)-1] = '\0';
 	if ( Result == 0 )
 	{
@@ -282,20 +283,34 @@ void SoyThread::SetThreadName(const std::string& Name,std::thread::native_handle
 		OldThreadName = Soy::Platform::GetLastErrorString();
 	}
 	
-	/*
-	if ( CurrentThread == std::thread::native_handle_type() )
-	{
-		std::Debug << "T
-	}
-	 */
+	return OldThreadName;
+#else
+	return "<NoThreadNameOnThisPlatform>";
+#endif
+}
+
+
+
+void SoyThread::SetThreadName(const std::string& Name,std::thread::native_handle_type ThreadId)
+{
+	auto OldThreadName = GetCurrentThreadName();
 	
+#if defined(TARGET_POSIX)
+	
+	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
+	
+#if defined(TARGET_OSX)
 	//	has to be called whilst in this thread as OSX doesn't take a thread parameter
 	if ( CurrentThread != ThreadId )
 	{
 		std::Debug << "Trying to change thread name from " << OldThreadName << " to " << Name << ", out-of-thread" << std::endl;
 		return;
 	}
-	Result = pthread_setname_np( Name.c_str() );
+	auto Result = pthread_setname_np( Name.c_str() );
+#else
+	auto Result = pthread_setname_np( ThreadId, Name.c_str() );
+#endif
+	
 	if ( Result == 0 )
 	{
 		std::Debug << "Renamed thread from " << OldThreadName << " to " << Name << ": " << std::endl;
@@ -304,6 +319,7 @@ void SoyThread::SetThreadName(const std::string& Name,std::thread::native_handle
 	{
 		std::Debug << "Failed to change thread name from " << OldThreadName << " to " << Name << ": " << Soy::Platform::GetLastErrorString() << std::endl;
 	}
+
 #endif
 	
 #if defined(TARGET_WINDOWS)
