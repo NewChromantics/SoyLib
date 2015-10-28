@@ -2,11 +2,10 @@
 
 
 
-
 TSocketReadThread::TSocketReadThread(std::shared_ptr<SoySocket>& Socket,SoyRef ConnectionRef) :
-TStreamReader	( "TSocketReadThread" ),
-mSocket			( Socket ),
-mConnectionRef	( ConnectionRef )
+	TStreamReader	( "TSocketReadThread" ),
+	mSocket			( Socket ),
+	mConnectionRef	( ConnectionRef )
 {
 	
 }
@@ -41,18 +40,36 @@ void TSocketReadThread::Read()
 
 
 
+
 TSocketWriteThread::TSocketWriteThread(std::shared_ptr<SoySocket>& Socket,SoyRef ConnectionRef) :
-TStreamWriter	( "TSocketWriteThread" ),
-mSocket			( Socket ),
-mConnectionRef	( ConnectionRef )
+	TStreamWriter	( "TSocketWriteThread" ),
+	mSocket			( Socket ),
+	mConnectionRef	( ConnectionRef )
 {
 }
+
+TSocketWriteThread::~TSocketWriteThread()
+{
+	//	try to abort the thread before we wait for it
+	mSocket.reset();
+	Stop();
+}
+
 
 void TSocketWriteThread::Write(TStreamBuffer& Buffer)
 {
 	//	keep writing until buffer is empty
 	while ( !Buffer.IsEmpty() )
 	{
+		//	abort if thread is stopped
+		//	gr: or do we want to try and finish?
+		if ( !IsWorking() )
+		{
+			//	throw seeing as we're being interrupted?
+			std::Debug << "Aborting TSocketWriteThread::Write as thread is stopped, with " << Buffer.GetBufferedSize() << " bytes remaining to send" << std::endl;
+			break;
+		}
+		
 		SoySocketConnection	ClientSocket = mSocket->GetConnection( mConnectionRef );
 		if ( !ClientSocket.IsValid() )
 		{

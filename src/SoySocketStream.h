@@ -25,6 +25,7 @@ class TSocketWriteThread : public TStreamWriter
 {
 public:
 	TSocketWriteThread(std::shared_ptr<SoySocket>& Socket,SoyRef ConnectionRef);
+	~TSocketWriteThread();
 	
 protected:
 	virtual void					Write(TStreamBuffer& Buffer) override;
