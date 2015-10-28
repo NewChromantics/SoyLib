@@ -11,6 +11,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Mpeg2TS,			"Mpeg2TS" },
 	{ SoyMediaFormat::Mpeg2,			"Mpeg2" },
 	{ SoyMediaFormat::Audio,			"audio" },
+	{ SoyMediaFormat::Wave,				"wave" },
 	{ SoyMediaFormat::Text,				"text" },
 	{ SoyMediaFormat::Subtitle,			"subtitle" },
 	{ SoyMediaFormat::ClosedCaption,	"closedcaption" },
@@ -124,6 +125,9 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::H264Ts:	return "video/avc_ES";	//	find the proper version of this
 		case SoyMediaFormat::Mpeg2TS:	return "video/ts";		//	find the proper version of this
 		case SoyMediaFormat::Mpeg2:		return "video/mpeg2";	//	find the proper version of this
+	
+		case SoyMediaFormat::Wave:		return "audio/wave";
+			
 		default:						return "invalid/invalid";
 	}
 	
@@ -135,6 +139,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::H264Ts ) )		return SoyMediaFormat::H264Ts;
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg2TS ) )	return SoyMediaFormat::Mpeg2TS;
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg2 ) )		return SoyMediaFormat::Mpeg2;
+	if ( Mime == ToMime( SoyMediaFormat::Wave ) )		return SoyMediaFormat::Wave;
 	
 	std::Debug << "Unknown mime type: " << Mime << std::endl;
 	return SoyMediaFormat::Invalid;

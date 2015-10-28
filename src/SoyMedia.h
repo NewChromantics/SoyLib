@@ -63,7 +63,9 @@ namespace SoyMediaFormat
 		Mpeg2TS,
 		Mpeg2,
 		
-		Audio,
+		Audio,			//	remove this and specialise only
+		Wave,			//	audio
+		
 		Text,
 		Subtitle,
 		ClosedCaption,
