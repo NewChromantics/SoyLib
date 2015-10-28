@@ -305,6 +305,7 @@ public:
 	void							Seek(SoyTime Time);				//	keep calling this, controls the packet read-ahead
 	
 	virtual void					GetStreams(ArrayBridge<TStreamMeta>&& Streams)=0;
+	TStreamMeta						GetStream(size_t Index);
 	TStreamMeta						GetVideoStream(size_t Index);
 	virtual std::shared_ptr<Platform::TMediaFormat>	GetStreamFormat(size_t StreamIndex)=0;
 	bool							HasFatalError(std::string& Error)

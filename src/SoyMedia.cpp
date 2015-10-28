@@ -128,7 +128,13 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Mpeg2:		return "video/mpeg2";	//	find the proper version of this
 	
 		case SoyMediaFormat::Wave:		return "audio/wave";
+			
+		//	gr: change this to handle multiple mime types per format
+#if defined(TARGET_ANDROID)
+		case SoyMediaFormat::Aac:		return "audio/mp4a-latm";
+#else
 		case SoyMediaFormat::Aac:		return "audio/x-aac";
+#endif
 			
 		default:						return "invalid/invalid";
 	}
@@ -398,6 +404,23 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			return;
 		}
 	}
+}
+
+
+TStreamMeta TMediaExtractor::GetStream(size_t Index)
+{
+	Array<TStreamMeta> Streams;
+	GetStreams( GetArrayBridge(Streams) );
+	auto TotalStreamCount = Streams.GetSize();
+	
+	if ( Index >= Streams.GetSize() )
+	{
+		std::stringstream Error;
+		Error << "Stream " << Index << "/" << TotalStreamCount << " doesn't exist";
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	return Streams[Index];
 }
 
 
