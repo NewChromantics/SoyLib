@@ -30,14 +30,22 @@ void Wave::TMeta::GetFormatSubChunkData(ArrayBridge<char>&& Data)
 {
 	auto BytesPerSample = SoyWaveBitsPerSample::GetByteSize( mBitsPerSample );
 
+	//	http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
+#define	WAVE_FORMAT_PCM			0x0001
+#define	WAVE_FORMAT_IEEE_FLOAT	0x0003
+#define	WAVE_FORMAT_ALAW	0x0006	//	8-bit ITU-T G.711 A-law
+#define	WAVE_FORMAT_MULAW	0x0007	//	8-bit ITU-T G.711 µ-law
+#define	WAVE_FORMAT_EXTENSIBLE	0xFFFE	//	Determined by SubFormat
+	
 	//	The "WAVE" format consists of two subchunks: "fmt " and "data":
 	//	The "fmt " subchunk describes the sound data's format:
-	uint16 AudioFormat = 1;	//	PCM
+	uint16 AudioFormat = (mBitsPerSample == SoyWaveBitsPerSample::Float) ? WAVE_FORMAT_IEEE_FLOAT : WAVE_FORMAT_PCM;
+	
 	uint32 ByteRate = mSampleRate * mChannelCount * (BytesPerSample);
-	uint16 BlockAlignment = mChannelCount * (BytesPerSample);
+	uint16 BlockAlignment = mChannelCount * (BytesPerSample);	//	block size
 	Data.PushBackReinterpret( AudioFormat );
 	Data.PushBackReinterpret( size_cast<uint16>( mChannelCount ) );
-	Data.PushBackReinterpret( size_cast<uint32>( mSampleRate ) );
+	Data.PushBackReinterpret( size_cast<uint32>( mSampleRate ) );	//	blocks per second
 	Data.PushBackReinterpret( ByteRate );
 	Data.PushBackReinterpret( BlockAlignment );
 	Data.PushBackReinterpret( size_cast<uint16>( BytesPerSample*8 ) );
@@ -86,7 +94,7 @@ void Wave::WriteSample(float Samplef,SoyWaveBitsPerSample::Type Bits,ArrayBridge
 	{
 		case SoyWaveBitsPerSample::Eight:
 		{
-			uint8 Sample = size_cast<uint8>( Samplef * 255.f );
+			uint8 Sample = size_cast<uint8>( (Samplef + 1.f) * 127.f );
 			Data.PushBack( Sample );
 			return;
 		}
