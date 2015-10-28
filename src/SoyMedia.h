@@ -65,6 +65,7 @@ namespace SoyMediaFormat
 		
 		Audio,			//	remove this and specialise only
 		Wave,			//	audio
+		Aac,
 		
 		Text,
 		Subtitle,

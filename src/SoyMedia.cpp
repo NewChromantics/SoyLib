@@ -12,6 +12,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Mpeg2,			"Mpeg2" },
 	{ SoyMediaFormat::Audio,			"audio" },
 	{ SoyMediaFormat::Wave,				"wave" },
+	{ SoyMediaFormat::Aac,				"aac" },
 	{ SoyMediaFormat::Text,				"text" },
 	{ SoyMediaFormat::Subtitle,			"subtitle" },
 	{ SoyMediaFormat::ClosedCaption,	"closedcaption" },
@@ -127,6 +128,7 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Mpeg2:		return "video/mpeg2";	//	find the proper version of this
 	
 		case SoyMediaFormat::Wave:		return "audio/wave";
+		case SoyMediaFormat::Aac:		return "audio/x-aac";
 			
 		default:						return "invalid/invalid";
 	}
@@ -140,6 +142,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg2TS ) )	return SoyMediaFormat::Mpeg2TS;
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg2 ) )		return SoyMediaFormat::Mpeg2;
 	if ( Mime == ToMime( SoyMediaFormat::Wave ) )		return SoyMediaFormat::Wave;
+	if ( Mime == ToMime( SoyMediaFormat::Aac ) )		return SoyMediaFormat::Aac;
 	
 	std::Debug << "Unknown mime type: " << Mime << std::endl;
 	return SoyMediaFormat::Invalid;
@@ -147,11 +150,13 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 
 SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc)
 {
-	//	gr: handle reverse here?
+	//	gr: handle reverse here automatically?
 	switch ( Fourcc )
 	{
 		case 'avc1':	return SoyMediaFormat::H264;
 		case '1cva':	return SoyMediaFormat::H264;
+		case 'aac ':	return SoyMediaFormat::Aac;
+		case ' caa':	return SoyMediaFormat::Aac;
 	}
 	
 	std::Debug << "Unknown fourcc type: " << Soy::FourCCToString(Fourcc) << std::endl;

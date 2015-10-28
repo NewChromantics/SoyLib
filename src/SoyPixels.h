@@ -77,7 +77,7 @@ namespace SoyPixelsFormat
 
 
 
-		Count,
+		Count=99,
 	};
 
 	size_t		GetChannelCount(Type Format);
