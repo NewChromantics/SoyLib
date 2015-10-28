@@ -52,7 +52,7 @@ TSocketWriteThread::~TSocketWriteThread()
 {
 	//	try to abort the thread before we wait for it
 	mSocket.reset();
-	Stop();
+	WaitToFinish();
 }
 
 
