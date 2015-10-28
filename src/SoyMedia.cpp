@@ -206,6 +206,8 @@ bool TMediaDecoder::CanSleep()
 
 bool TMediaDecoder::Iteration()
 {
+	bool FatalCleared = false;
+	
 	try
 	{
 		Soy::Assert( mInput!=nullptr, "Input missing");
@@ -221,6 +223,9 @@ bool TMediaDecoder::Iteration()
 	catch (std::exception& e)
 	{
 		std::Debug << "Error processing input packet " << e.what() << std::endl;
+		if ( !FatalCleared )
+			mFatalError.clear();
+		FatalCleared = true;
 		mFatalError << "Error processing input packet " << e.what();
 	}
 	
@@ -236,6 +241,9 @@ bool TMediaDecoder::Iteration()
 	catch (std::exception& e)
 	{
 		std::Debug << "Error processing output packet " << e.what() << std::endl;
+		if ( !FatalCleared )
+			mFatalError.clear();
+		FatalCleared = true;
 		mFatalError << "Error processing output packet " << e.what();
 	}
 	
