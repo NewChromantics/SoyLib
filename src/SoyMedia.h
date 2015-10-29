@@ -345,7 +345,7 @@ private:
 class TMediaDecoder : public SoyWorkerThread
 {
 public:
-	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer);
+	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer,bool IterateOnMainThread);
 	virtual ~TMediaDecoder();
 	
 	bool							HasFatalError(std::string& Error)
@@ -353,6 +353,8 @@ public:
 		Error = mFatalError.str();
 		return !Error.empty();
 	}
+	
+	void							MainThreadIteration();
 	
 protected:
 	virtual void					ProcessPacket(const TMediaPacket& Packet)=0;
@@ -373,6 +375,9 @@ protected:
 	std::shared_ptr<TMediaPacketBuffer>		mInput;
 	std::shared_ptr<TPixelBufferManagerBase>	mOutput;
 	std::stringstream					mFatalError;
+	
+	bool								mIterateOnMainThread;
+	bool								mMainThreadStarted;
 	
 private:
 	SoyListenerId						mOnNewPacketListener;
