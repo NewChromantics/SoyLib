@@ -246,8 +246,6 @@ public:
 	{
 	}
 	
-	SoyTime					GetSortTimecode() const		{	return mDecodeTimecode.IsValid() ? mDecodeTimecode : mTimecode;	}
-	
 public:
 	bool					mEof;
 	SoyTime					mTimecode;	//	presentation time

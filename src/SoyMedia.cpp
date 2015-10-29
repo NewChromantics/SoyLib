@@ -123,7 +123,7 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 	switch ( Format )
 	{
 		case SoyMediaFormat::H264:		return "video/avc";
-		case SoyMediaFormat::H264Ts:	return "video/avc_ES";	//	find the proper version of this
+		case SoyMediaFormat::H264Ts:	return "video/avc";		//	find the proper version of this
 		case SoyMediaFormat::Mpeg2TS:	return "video/ts";		//	find the proper version of this
 		case SoyMediaFormat::Mpeg2:		return "video/mpeg2";	//	find the proper version of this
 	
@@ -295,22 +295,32 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 	{
 		std::lock_guard<std::mutex> Lock( mPacketsLock );
 		
-		//	sort by decode order
-		auto SortPackets = [](const std::shared_ptr<TMediaPacket>& a,const std::shared_ptr<TMediaPacket>& b)
+		//	if no decode order, push as they come in...
+		//	gr: handle mixes of these... eg. one stream has decode order and one doesnt...
+		//	gr: I believe SortArray may push new packets to the start of the array if compare==0 all the way
+		if ( Packet->mDecodeTimecode.IsValid() )
 		{
-			auto Timea = a->GetSortTimecode();
-			auto Timeb = b->GetSortTimecode();
+			//	sort by decode order
+			auto SortPackets = [](const std::shared_ptr<TMediaPacket>& a,const std::shared_ptr<TMediaPacket>& b)
+			{
+				auto Timea = a->mDecodeTimecode;
+				auto Timeb = b->mDecodeTimecode;
+				
+				if ( Timea < Timeb )
+					return -1;
+				if ( Timea > Timeb )
+					return 1;
+				
+				return 0;
+			};
 			
-			if ( Timea < Timeb )
-				return -1;
-			if ( Timea > Timeb )
-				return 1;
-			
-			return 0;
-		};
-		
-		SortArrayLambda<std::shared_ptr<TMediaPacket>> SortedPackets( GetArrayBridge(mPackets), SortPackets );
-		SortedPackets.Push( Packet );
+			SortArrayLambda<std::shared_ptr<TMediaPacket>> SortedPackets( GetArrayBridge(mPackets), SortPackets );
+			SortedPackets.Push( Packet );
+		}
+		else
+		{
+			mPackets.PushBack( Packet );
+		}
 		
 		//std::Debug << "Pushed intput packet to buffer " << *Packet << std::endl;
 	}
