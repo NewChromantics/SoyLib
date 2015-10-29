@@ -19,8 +19,9 @@
 	typedef size_t socket_data_size_t;
 #endif
 
-#if defined(TARGET_ANDROID)
-	typedef __in_addr_t in_addr_t;
+#if defined(TARGET_POSIX)
+	#include <arpa/inet.h>	//	in_addr_t
+//	typedef __in_addr_t in_addr_t;
 #endif
 
 namespace Soy

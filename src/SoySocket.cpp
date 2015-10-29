@@ -4,7 +4,6 @@
 
 
 #if defined(TARGET_POSIX)
-#include <arpa/inet.h>
 #include <fcntl.h>	//	fcntl
 #include <unistd.h>	//	close
 #include <netdb.h>	//	gethostbyname
