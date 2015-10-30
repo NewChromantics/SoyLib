@@ -177,9 +177,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc)
 TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer,bool IterateOnMainThread) :
 	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
 	mInput			( InputBuffer ),
-	mOutput			( OutputBuffer ),
-	mIterateOnMainThread	( IterateOnMainThread ),
-	mMainThreadStarted	( false )
+	mOutput			( OutputBuffer )
 {
 	//	wake when new packets arrive
 	mOnNewPacketListener = WakeOnEvent( mInput->mOnNewPacket );
@@ -192,18 +190,6 @@ TMediaDecoder::~TMediaDecoder()
 		mInput->mOnNewPacket.RemoveListener( mOnNewPacketListener );
 	}
 	WaitToFinish();
-}
-
-void TMediaDecoder::MainThreadIteration()
-{
-	if ( !mIterateOnMainThread )
-		return;
-	if ( !mMainThreadStarted )
-	{
-		mOnStart.OnTriggered(mMainThreadStarted);
-		mMainThreadStarted = true;
-	}
-	Iteration();
 }
 
 bool TMediaDecoder::CanSleep()
