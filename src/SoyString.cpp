@@ -267,7 +267,9 @@ std::string Soy::StreamToString(std::stringstream&& Stream)
 std::string Soy::StreamToString(std::ostream& Stream)
 {
 	std::stringstream TempStream;
-	TempStream << Stream.rdbuf();
+	auto* Buffer = Stream.rdbuf();
+	if ( Buffer )
+		TempStream << Buffer;
 	return TempStream.str();
 }
 
