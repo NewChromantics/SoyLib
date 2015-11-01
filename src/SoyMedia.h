@@ -3,6 +3,9 @@
 #include "SoyPixels.h"
 #include "SoyThread.h"
 
+
+class TStreamBuffer;
+
 namespace Soy
 {
 	class TYuvParams;
@@ -291,6 +294,25 @@ private:
 };
 
 
+
+//	rename this and TMediaExtractor to match (muxer and demuxer?)
+class TMediaMuxer : public SoyWorkerThread
+{
+public:
+	TMediaMuxer(std::shared_ptr<TStreamBuffer>& Output,std::shared_ptr<TMediaPacketBuffer>& Input);
+	
+protected:
+	virtual void		PushPacket(const TMediaPacket& Packet)=0;
+	
+public:
+	std::shared_ptr<TStreamBuffer>		mOutput;
+	std::shared_ptr<TMediaPacketBuffer>	mInput;
+};
+
+
+
+
+//	demuxer
 class TMediaExtractor : public SoyWorkerThread
 {
 public:
@@ -345,7 +367,7 @@ private:
 class TMediaDecoder : public SoyWorkerThread
 {
 public:
-	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer,bool IterateOnMainThread);
+	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer);
 	virtual ~TMediaDecoder();
 	
 	bool							HasFatalError(std::string& Error)
@@ -379,7 +401,7 @@ private:
 };
 
 
-//	encode to binary
+//	encode to binary - merge this with TMediaDecoder to arbitraily go from any format to another
 class TMediaEncoder
 {
 public:

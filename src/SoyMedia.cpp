@@ -174,7 +174,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc)
 
 
 
-TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer,bool IterateOnMainThread) :
+TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer) :
 	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
 	mInput			( InputBuffer ),
 	mOutput			( OutputBuffer )
