@@ -78,7 +78,7 @@ public:
 	TStreamWriter(const std::string& Name);
 	
 	virtual bool							Iteration() override;
-	void									Push(std::shared_ptr<Soy::TWriteProtocol>& Data);
+	void									Push(std::shared_ptr<Soy::TWriteProtocol> Data);
 
 protected:
 	virtual void							Write(TStreamBuffer& Buffer)=0;	//	write next chunk
@@ -96,4 +96,22 @@ private:
 	Array<std::shared_ptr<Soy::TWriteProtocol>>		mQueue;
 };
 
+
+
+
+//	gr: really this should be away from the base header, but for now...
+#include <fstream>
+
+class TFileStreamWriter : public TStreamWriter
+{
+public:
+	TFileStreamWriter(const std::string& Filename);
+	~TFileStreamWriter();
+	
+protected:
+	virtual void		Write(TStreamBuffer& Buffer) override;
+	
+private:
+	std::ofstream		mFile;
+};
 

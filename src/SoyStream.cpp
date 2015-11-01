@@ -424,7 +424,7 @@ bool TStreamWriter::Iteration()
 	return true;
 }
 
-void TStreamWriter::Push(std::shared_ptr<Soy::TWriteProtocol>& Data)
+void TStreamWriter::Push(std::shared_ptr<Soy::TWriteProtocol> Data)
 {
 	std::lock_guard<std::mutex> Lock( mQueueLock );
 	mQueue.PushBack( Data );
@@ -434,3 +434,44 @@ void TStreamWriter::Push(std::shared_ptr<Soy::TWriteProtocol>& Data)
 
 
 
+TFileStreamWriter::TFileStreamWriter(const std::string& Filename) :
+	TStreamWriter	( std::string("TFileStreamWriter " ) + Filename )
+{
+	mFile = std::ofstream( Filename, std::ios::out );
+	Soy::Assert( mFile.is_open(), std::string("Failed to open ")+Filename );
+
+}
+
+TFileStreamWriter::~TFileStreamWriter()
+{
+	mFile.close();
+}
+
+void TFileStreamWriter::Write(TStreamBuffer& Data)
+{
+	//	write to file
+	while ( Data.GetBufferedSize() > 0 && IsWorking() )
+	{
+		try
+		{
+			Array<char> Buffer;
+			if ( !Data.Pop( Data.GetBufferedSize(), GetArrayBridge(Buffer) ) )
+				break;
+			
+			if ( Buffer.IsEmpty() )
+				break;
+			
+			//	write frame
+			mFile.write( Buffer.GetArray(), Buffer.GetDataSize() );
+			
+			//Soy::Assert( File.fail(), "Error writing to file" );
+			Soy::Assert( !mFile.bad(), "Error writing to file" );
+		}
+		catch (std::exception& e)
+		{
+			std::Debug << "TFileCaster write-file error: " << e.what() << std::endl;
+			break;
+		}
+	}
+
+}
