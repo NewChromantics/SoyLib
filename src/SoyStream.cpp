@@ -380,7 +380,7 @@ bool TStreamWriter::Iteration()
 
 	auto AsyncWrite = [&Buffer,&EncodingFinished,&WriteError,this]
 	{
-		while ( !EncodingFinished )
+		while ( !EncodingFinished || Buffer.GetBufferedSize()>0 )
 		{
 			try
 			{
@@ -392,6 +392,7 @@ bool TStreamWriter::Iteration()
 				break;
 			}
 		}
+		Soy::Assert( Buffer.GetBufferedSize() == 0, "Still some data to write");
 	};
 
 	auto Future = std::async( AsyncWrite );
@@ -444,6 +445,7 @@ TFileStreamWriter::TFileStreamWriter(const std::string& Filename) :
 
 TFileStreamWriter::~TFileStreamWriter()
 {
+	WaitToFinish();
 	mFile.close();
 }
 
