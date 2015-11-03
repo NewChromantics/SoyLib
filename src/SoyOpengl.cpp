@@ -1063,11 +1063,18 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	
 		//	only for "new" textures
 		
+		//	es requires target & internal format to match
+		//	https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexImage2D.xml
+		//	gr: android only?
+#if defined(OPENGL_ES)
+		GLuint TargetFormat = GlPixelsFormat;
+#else
 		GLuint TargetFormat = GL_RGBA;
+#endif
 	
 		ofScopeTimerWarning Timer("glTexImage2D", 10 );
 		glTexImage2D( mType, MipLevel, TargetFormat,  Width, Height, Border, GlPixelsFormat, GlPixelsStorage, PixelsArrayData );
-		Opengl_IsOkay();
+		Opengl::IsOkay("glTexImage2D !subimage",false);
 	}
 	else
 	{
@@ -1103,10 +1110,10 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 
 	//	gr: crashes often on OSX... only on NPOT textures?
 	//glGenerateMipmap( mType );
-	Opengl_IsOkay();
+	Opengl::IsOkay( std::string(__func__) + " post mipmap" );
 	
 	Unbind();
-	Opengl_IsOkay();
+	Opengl::IsOkay( std::string(__func__) + " unbind()" );
 	
 	OnWrite();
 }
@@ -1650,13 +1657,19 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::RGBA, GL_RGBA8, GL_RGBA8, GL_RGBA8 ),
 #endif
 
+		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_RED, GL_RED, GL_RED ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_RED, GL_RED, GL_RED ),
+
+		//	GL_LUMINANCE_ALPHA: RGB and A! not R & G!
+		//TPixelFormatMapping( SoyPixelsFormat::Chroma2, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA ),
+		TPixelFormatMapping( SoyPixelsFormat::Chroma2, GL_RG, GL_RG, GL_RG ),
+
 #if defined(TARGET_IOS)
 		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_BGRA, GL_BGRA, GL_BGRA ),
 		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
 		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
 		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
 		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA ),
-
 #endif
 #if defined(TARGET_WINDOWS)
 		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_RED, GL_RED, GL_RED),
