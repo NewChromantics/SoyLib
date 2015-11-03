@@ -6,8 +6,12 @@
 std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 {
 	{ SoyMediaFormat::Invalid,			"Invalid" },
-	{ SoyMediaFormat::H264,				"H264" },
-	{ SoyMediaFormat::H264Ts,			"H264Ts" },
+	{ SoyMediaFormat::H264_8,			"H264_8" },
+	{ SoyMediaFormat::H264_16,			"H264_16" },
+	{ SoyMediaFormat::H264_32,			"H264_32" },
+	{ SoyMediaFormat::H264_ES,			"H264_ES" },
+	{ SoyMediaFormat::H264_SPS_ES,		"H264_SPS_ES" },
+	{ SoyMediaFormat::H264_PPS_ES,		"H264_PPS_ES" },
 	{ SoyMediaFormat::Mpeg2TS,			"Mpeg2TS" },
 	{ SoyMediaFormat::Mpeg2,			"Mpeg2" },
 	{ SoyMediaFormat::Audio,			"audio" },
@@ -101,11 +105,15 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 	
 	switch ( Format )
 	{
-		case SoyMediaFormat::H264:		return true;
-		case SoyMediaFormat::H264Ts:	return true;
-		case SoyMediaFormat::Mpeg2TS:	return true;
-		case SoyMediaFormat::Mpeg2:		return true;
-		default:						return false;
+		case SoyMediaFormat::H264_8:		return true;
+		case SoyMediaFormat::H264_16:		return true;
+		case SoyMediaFormat::H264_32:		return true;
+		case SoyMediaFormat::H264_ES:		return true;
+		case SoyMediaFormat::H264_SPS_ES:	return true;
+		case SoyMediaFormat::H264_PPS_ES:	return true;
+		case SoyMediaFormat::Mpeg2TS:		return true;
+		case SoyMediaFormat::Mpeg2:			return true;
+		default:							return false;
 	}
 }
 
@@ -122,8 +130,13 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
 	{
-		case SoyMediaFormat::H264:		return "video/avc";
-		case SoyMediaFormat::H264Ts:	return "video/avc";		//	find the proper version of this
+		case SoyMediaFormat::H264_8:		return "video/avc";
+		case SoyMediaFormat::H264_16:		return "video/avc";
+		case SoyMediaFormat::H264_32:		return "video/avc";
+		case SoyMediaFormat::H264_ES:		return "video/avc";		//	find the proper version of this
+		case SoyMediaFormat::H264_PPS_ES:	return "video/avc";		//	find the proper version of this
+		case SoyMediaFormat::H264_SPS_ES:	return "video/avc";		//	find the proper version of this
+			
 		case SoyMediaFormat::Mpeg2TS:	return "video/ts";		//	find the proper version of this
 		case SoyMediaFormat::Mpeg2:		return "video/mpeg2";	//	find the proper version of this
 	
@@ -143,24 +156,37 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 
 SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 {
-	if ( Mime == ToMime( SoyMediaFormat::H264 ) )		return SoyMediaFormat::H264;
-	if ( Mime == ToMime( SoyMediaFormat::H264Ts ) )		return SoyMediaFormat::H264Ts;
-	if ( Mime == ToMime( SoyMediaFormat::Mpeg2TS ) )	return SoyMediaFormat::Mpeg2TS;
-	if ( Mime == ToMime( SoyMediaFormat::Mpeg2 ) )		return SoyMediaFormat::Mpeg2;
-	if ( Mime == ToMime( SoyMediaFormat::Wave ) )		return SoyMediaFormat::Wave;
-	if ( Mime == ToMime( SoyMediaFormat::Aac ) )		return SoyMediaFormat::Aac;
+	if ( Mime == ToMime( SoyMediaFormat::H264_8 ) )			return SoyMediaFormat::H264_8;
+	if ( Mime == ToMime( SoyMediaFormat::H264_16 ) )		return SoyMediaFormat::H264_16;
+	if ( Mime == ToMime( SoyMediaFormat::H264_32 ) )		return SoyMediaFormat::H264_32;
+	if ( Mime == ToMime( SoyMediaFormat::H264_ES ) )		return SoyMediaFormat::H264_ES;
+	if ( Mime == ToMime( SoyMediaFormat::H264_PPS_ES ) )	return SoyMediaFormat::H264_PPS_ES;
+	if ( Mime == ToMime( SoyMediaFormat::H264_SPS_ES ) )	return SoyMediaFormat::H264_SPS_ES;
+	if ( Mime == ToMime( SoyMediaFormat::Mpeg2TS ) )		return SoyMediaFormat::Mpeg2TS;
+	if ( Mime == ToMime( SoyMediaFormat::Mpeg2 ) )			return SoyMediaFormat::Mpeg2;
+	if ( Mime == ToMime( SoyMediaFormat::Wave ) )			return SoyMediaFormat::Wave;
+	if ( Mime == ToMime( SoyMediaFormat::Aac ) )			return SoyMediaFormat::Aac;
 	
 	std::Debug << "Unknown mime type: " << Mime << std::endl;
 	return SoyMediaFormat::Invalid;
 }
 
-SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc)
+SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize)
 {
 	//	gr: handle reverse here automatically?
 	switch ( Fourcc )
 	{
-		case 'avc1':	return SoyMediaFormat::H264;
-		case '1cva':	return SoyMediaFormat::H264;
+		case 'avc1':
+		case '1cva':
+			if ( H264LengthSize == 0 )
+				return SoyMediaFormat::H264_ES;
+			if ( H264LengthSize == 1 )
+				return SoyMediaFormat::H264_8;
+			if ( H264LengthSize == 2 )
+				return SoyMediaFormat::H264_16;
+			if ( H264LengthSize == 4 )
+				return SoyMediaFormat::H264_32;
+			
 		case 'aac ':	return SoyMediaFormat::Aac;
 		case ' caa':	return SoyMediaFormat::Aac;
 	}

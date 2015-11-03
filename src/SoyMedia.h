@@ -59,9 +59,13 @@ namespace SoyMediaFormat
 		NotPixels = SoyPixelsFormat::Count,
 		
 		//	file:///Users/grahamr/Downloads/513_direct_access_to_media_encoding_and_decoding.pdf
-		//	gr: seperate PPS/SPS here?
-		H264,			//	specialise this? or go the other way and call it compressed-video? or should this just be a pixel format?
-		H264Ts,			//	elementry/transport/annexb/Nal stream (H264 ES in MF)
+		//	gr: too specific? extended/sub modes?... prefer this really...
+		H264_8,			//	AVCC format (length8+payload)
+		H264_16,		//	AVCC format (length16+payload)
+		H264_32,		//	AVCC format (length32+payload)
+		H264_ES,		//	ES format (0001+payload)	elementry/transport/annexb/Nal stream (H264 ES in MF)
+		H264_SPS_ES,	//	SPS data, nalu
+		H264_PPS_ES,	//	PPS data, nalu
 		
 		Mpeg2TS,
 		Mpeg2,
@@ -84,7 +88,7 @@ namespace SoyMediaFormat
 	bool		IsVideo(Type Format);	//	or pixels
 	inline bool	IsPixels(Type Format)	{	return GetPixelFormat( Format ) != SoyPixelsFormat::Invalid;	}
 	bool		IsAudio(Type Format);
-	Type		FromFourcc(uint32 Fourcc);
+	Type		FromFourcc(uint32 Fourcc,int H264LengthSize);
 	std::string	ToMime(Type Format);
 	Type		FromMime(const std::string& Mime);
 	
@@ -248,7 +252,7 @@ public:
 	mEof			( false )
 	{
 	}
-	
+
 public:
 	bool					mEof;
 	SoyTime					mTimecode;	//	presentation time
