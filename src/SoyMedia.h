@@ -3,7 +3,7 @@
 #include "SoyPixels.h"
 #include "SoyThread.h"
 
-
+class TStreamWriter;
 class TStreamBuffer;
 
 namespace Soy
@@ -303,15 +303,22 @@ private:
 class TMediaMuxer : public SoyWorkerThread
 {
 public:
-	TMediaMuxer(std::shared_ptr<TStreamBuffer>& Output,std::shared_ptr<TMediaPacketBuffer>& Input);
+	TMediaMuxer(std::shared_ptr<TStreamWriter>& Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName="TMediaMuxer");
+	~TMediaMuxer();
 	
 protected:
-	virtual void		PushPacket(const TMediaPacket& Packet)=0;
+	virtual void			ProcessPacket(std::shared_ptr<TMediaPacket> Packet,TStreamWriter& Output)=0;
+	
+private:
+	virtual bool			Iteration() override;
+	virtual bool			CanSleep() override;
 	
 public:
-	std::shared_ptr<TStreamBuffer>		mOutput;
-	std::shared_ptr<TMediaPacketBuffer>	mInput;
+	SoyListenerId							mOnPacketListener;
+	std::shared_ptr<TStreamWriter>			mOutput;
+	std::shared_ptr<TMediaPacketBuffer>		mInput;
 };
+
 
 
 

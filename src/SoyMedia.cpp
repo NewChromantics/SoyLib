@@ -497,3 +497,57 @@ void TMediaEncoder::PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::functio
 	mOutput->PushPacket( Packet, Block );
 }
 
+
+
+TMediaMuxer::TMediaMuxer(std::shared_ptr<TStreamWriter>& Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName) :
+	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
+	mOutput			( Output ),
+	mInput			( Input )
+{
+	Soy::Assert( mOutput!=nullptr, "TMpeg2TsMuxer output missing");
+	Soy::Assert( mInput!=nullptr, "TMpeg2TsMuxer input missing");
+	mOnPacketListener = WakeOnEvent( mInput->mOnNewPacket );
+	
+	Start();
+}
+
+TMediaMuxer::~TMediaMuxer()
+{
+	WaitToFinish();
+}
+
+
+
+bool TMediaMuxer::CanSleep()
+{
+	if ( !mInput )
+		return true;
+	if ( !mInput->HasPackets() )
+		return true;
+	
+	return false;
+}
+
+
+bool TMediaMuxer::Iteration()
+{
+	//	pop next packet
+	if ( !mInput )
+		return true;
+	
+	auto Packet = mInput->PopPacket();
+	if ( !Packet )
+		return true;
+	
+	try
+	{
+		ProcessPacket( Packet, *mOutput );
+	}
+	catch (std::exception& e)
+	{
+		std::Debug << __func__ << " error; " << e.what() << std::endl;
+	}
+	
+	return true;
+}
+
