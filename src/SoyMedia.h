@@ -88,7 +88,9 @@ namespace SoyMediaFormat
 	bool		IsVideo(Type Format);	//	or pixels
 	inline bool	IsPixels(Type Format)	{	return GetPixelFormat( Format ) != SoyPixelsFormat::Invalid;	}
 	bool		IsAudio(Type Format);
-	Type		FromFourcc(uint32 Fourcc,int H264LengthSize);
+	bool		IsH264(Type Format);
+	Type		FromFourcc(uint32 Fourcc,int H264LengthSize=-1);
+	bool		IsH264Fourcc(uint32 Fourcc);
 	std::string	ToMime(Type Format);
 	Type		FromMime(const std::string& Mime);
 	

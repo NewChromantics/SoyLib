@@ -102,7 +102,19 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 {
 	if ( IsPixels(Format) )
 		return true;
+	if ( IsH264(Format) )
+		return true;
 	
+	switch ( Format )
+	{
+		case SoyMediaFormat::Mpeg2TS:		return true;
+		case SoyMediaFormat::Mpeg2:			return true;
+		default:							return false;
+	}
+}
+
+bool SoyMediaFormat::IsH264(SoyMediaFormat::Type Format)
+{
 	switch ( Format )
 	{
 		case SoyMediaFormat::H264_8:		return true;
@@ -111,8 +123,6 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::H264_ES:		return true;
 		case SoyMediaFormat::H264_SPS_ES:	return true;
 		case SoyMediaFormat::H264_PPS_ES:	return true;
-		case SoyMediaFormat::Mpeg2TS:		return true;
-		case SoyMediaFormat::Mpeg2:			return true;
 		default:							return false;
 	}
 }
@@ -170,6 +180,19 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	std::Debug << "Unknown mime type: " << Mime << std::endl;
 	return SoyMediaFormat::Invalid;
 }
+
+bool SoyMediaFormat::IsH264Fourcc(uint32 Fourcc)
+{
+	switch ( Fourcc )
+	{
+		case 'avc1':
+		case '1cva':
+			return true;
+		default:
+			return false;
+	};
+}
+
 
 SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize)
 {
@@ -242,7 +265,7 @@ bool TMediaDecoder::Iteration()
 		auto Packet = mInput->PopPacket();
 		if ( Packet )
 		{
-			//std::Debug << "Encoder Processing packet " << Packet->mTimecode << std::endl;
+			std::Debug << "Encoder Processing packet " << Packet->mTimecode << "(pts) " << Packet->mDecodeTimecode << "(dts)" << std::endl;
 			ProcessPacket( *Packet );
 		}
 	}
