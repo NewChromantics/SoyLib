@@ -436,9 +436,9 @@ void TStreamWriter::Push(std::shared_ptr<Soy::TWriteProtocol> Data)
 
 
 TFileStreamWriter::TFileStreamWriter(const std::string& Filename) :
-	TStreamWriter	( std::string("TFileStreamWriter " ) + Filename )
+	TStreamWriter	( std::string("TFileStreamWriter " ) + Filename ),
+	mFile			( Filename, std::ios::out )
 {
-	mFile = std::ofstream( Filename, std::ios::out );
 	Soy::Assert( mFile.is_open(), std::string("Failed to open ")+Filename );
 
 }
