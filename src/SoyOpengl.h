@@ -113,9 +113,9 @@ namespace Opengl
 	void			FlushError(const char* Context);
 	std::string		GetEnumString(GLenum Type);
 
-	GLenum	GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
-	GLenum	GetNewTexturePixelFormat(SoyPixelsFormat::Type Format);
-	GLenum	GetDownloadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat);
+	void					GetUploadPixelFormats(ArrayBridge<GLenum>&& Formats,const Opengl::TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
+	void					GetNewTexturePixelFormats(ArrayBridge<GLenum>&& Formats,SoyPixelsFormat::Type Format);
+	void					GetDownloadPixelFormats(ArrayBridge<GLenum>&& Formats,const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat);
 	SoyPixelsFormat::Type	GetDownloadPixelFormat(GLenum Format);
 
 	//	helpers
