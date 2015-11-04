@@ -299,7 +299,7 @@ void SoyThread::SetThreadName(const std::string& Name,std::thread::native_handle
 	
 	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
 	
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX)||defined(TARGET_IOS)
 	//	has to be called whilst in this thread as OSX doesn't take a thread parameter
 	if ( CurrentThread != ThreadId )
 	{

@@ -108,14 +108,16 @@ namespace Opengl
 	//#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__)+ " flush", false )
 	#define Opengl_IsOkayFlush()	Opengl::FlushError( __func__ )
 
+	bool			IsOkay(const char* Context,std::function<void(const std::string&)>& ExceptionContainer);	//	if container is null, we throw
+	//inline bool		IsOkay(const std::string& Context,std::function<void(const std::string&)> ExceptionContainer)	{	return IsOkay( Context.c_str(), ExceptionContainer );	}
 	bool			IsOkay(const char* Context,bool ThrowException=true);
 	inline bool		IsOkay(const std::string& Context,bool ThrowException=true)	{	return IsOkay( Context.c_str(), ThrowException );	}
 	void			FlushError(const char* Context);
 	std::string		GetEnumString(GLenum Type);
 
-	GLenum	GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
-	GLenum	GetNewTexturePixelFormat(SoyPixelsFormat::Type Format);
-	GLenum	GetDownloadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat);
+	void					GetUploadPixelFormats(ArrayBridge<GLenum>&& Formats,const Opengl::TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
+	void					GetNewTexturePixelFormats(ArrayBridge<GLenum>&& Formats,SoyPixelsFormat::Type Format);
+	void					GetDownloadPixelFormats(ArrayBridge<GLenum>&& Formats,const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat);
 	SoyPixelsFormat::Type	GetDownloadPixelFormat(GLenum Format);
 
 	//	helpers
