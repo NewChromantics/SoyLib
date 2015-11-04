@@ -158,6 +158,9 @@ std::string Opengl::GetEnumString(GLenum Type)
 #if defined(GL_RG8)
 			CASE_ENUM_STRING( GL_RG8 );
 #endif
+			CASE_ENUM_STRING( GL_ALPHA );
+			CASE_ENUM_STRING( GL_LUMINANCE );
+			CASE_ENUM_STRING( GL_LUMINANCE_ALPHA );
 
 #if defined(GL_TEXTURE_1D)
 			CASE_ENUM_STRING( GL_TEXTURE_1D );
@@ -327,12 +330,26 @@ void Opengl::FlushError(const char* Context)
 }
 
 
-bool Opengl::IsOkay(const char* Context,bool ThrowException)
+bool Opengl::IsOkay(const char* Context,std::function<void(const std::string&)>& ExceptionContainer)
 {
 	auto Error = glGetError();
 	if ( Error == GL_NONE )
 		return true;
 	
+	std::stringstream ErrorStr;
+	ErrorStr << "Opengl error in " << Context << ": " << Opengl::GetEnumString(Error);
+	
+	ExceptionContainer( ErrorStr.str() );
+	return false;
+}
+
+
+bool Opengl::IsOkay(const char* Context,bool ThrowException)
+{
+	auto Error = glGetError();
+	if ( Error == GL_NONE )
+		return true;
+
 	std::stringstream ErrorStr;
 	ErrorStr << "Opengl error in " << Context << ": " << Opengl::GetEnumString(Error);
 	
@@ -342,8 +359,31 @@ bool Opengl::IsOkay(const char* Context,bool ThrowException)
 		return false;
 	}
 	
-	return Soy::Assert( Error == GL_NONE , ErrorStr.str() );
+	throw Soy::AssertException( ErrorStr.str() );
 }
+
+
+/*
+bool Opengl::IsOkay(const char* Context,bool ThrowException)
+{
+	if ( ThrowException )
+	{
+		auto Throw = [](const std::string& Error)
+		{
+			throw Soy::AssertException( Error );
+		};
+		return IsOkay( Context, Throw );
+	}
+	else
+	{
+		auto Print = [](const std::string& Error)
+		{
+			std::Debug << Error << std::endl;
+		};
+		return IsOkay( Context, Print );
+	}
+}
+ */
 
 
 Opengl::TFbo::TFbo(TTexture Texture) :
@@ -935,6 +975,13 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBridge<GLenum>&& ExternalTextureFormats,const std::string& Context,std::function<void(GLenum,GLenum)> Function)
 {
 	bool Finished = false;
+	bool HadErrors = false;
+	std::stringstream AttemptErrors;
+	auto AccumulateErrors = [&](const std::string& Error)
+	{
+		AttemptErrors << Error << "; ";
+	};
+	
 	for ( int i=0;	!Finished && i<InternalTextureFormats.GetSize();	i++ )
 	{
 		for ( int e=0;	!Finished && e<ExternalTextureFormats.GetSize();	e++ )
@@ -942,12 +989,22 @@ void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBr
 			auto InternalFormat = InternalTextureFormats[i];
 			auto ExternalFormat = ExternalTextureFormats[e];
 			Function( InternalFormat, ExternalFormat );
-			//	gr: change context to include formats in scope
-			Finished = Opengl::IsOkay( Context, false );
+			
+			std::stringstream ScopeContext;
+			ScopeContext << Context << " (InternalFormat=" << Opengl::GetEnumString(InternalFormat) << ", ExternalFormat=" << Opengl::GetEnumString(ExternalFormat) << ")";
+			
+			std::function<void(const std::string&)> f = AccumulateErrors;
+			Finished = Opengl::IsOkay( ScopeContext.str().c_str(), f );
+			
+			//	debug the cases that didn't work
+			if ( Finished && !AttemptErrors.str().empty() )
+			{
+				std::Debug << ScopeContext.str() << " succeeded after failing; " << AttemptErrors.str() << std::endl;
+			}
 		}
 	}
 	if ( !Finished )
-		throw Soy::AssertException( Context );
+		throw Soy::AssertException( AttemptErrors.str() );
 }
 
 
@@ -1132,7 +1189,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		};
 		try
 		{
-			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D !subimage", PushTexture );
+			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D subimage", PushTexture );
 			//	gr: crashes often on OSX... only on NPOT textures?
 			//glGenerateMipmap( mType );
 			Opengl::IsOkay( std::string(__func__) + " post mipmap" );
@@ -1719,11 +1776,11 @@ Opengl::TGeometry::~TGeometry()
 const std::initializer_list<GLenum> Opengl8BitFormats =
 {
 	GL_RED,
-	GL_ALPHA,
 	GL_R8,
 #if defined(GL_LUMINANCE)
 	GL_LUMINANCE,
 #endif
+	GL_ALPHA,
 };
 const std::initializer_list<GLenum> Opengl16BitFormats =
 {
