@@ -120,7 +120,7 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case FreenectDepth10bit:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
 
-		case ChromaUV_4_4:	return 2;
+		case ChromaUV_4_4:	return 1;
 		case ChromaUV_88:	return 2;
 	}
 }
@@ -1487,7 +1487,8 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes) const
 			
 		case SoyPixelsFormat::Yuv_8_4_4_Full:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaFull ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_4_4 ) );
+			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_4_4 ) );
 			break;
 			
 		default:
