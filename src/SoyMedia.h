@@ -284,6 +284,7 @@ public:
 	//		where we skip over all frames until the prev-to-Time keyframe
 	//std::shared_ptr<TMediaPacket>	PopPacket(SoyTime Time);
 	std::shared_ptr<TMediaPacket>	PopPacket();
+	void							UnPopPacket(std::shared_ptr<TMediaPacket> Packet);		//	gr: force a packet back into the buffer at the start; todo; enforce a decoder timestamp and just use push(but with a forced re-insertion)
 	void							PushPacket(std::shared_ptr<TMediaPacket> Packet,std::function<bool()> Block);
 	bool							HasPackets() const	{	return !mPackets.IsEmpty();	}
 	
@@ -389,7 +390,7 @@ public:
 	}
 	
 protected:
-	virtual void					ProcessPacket(const TMediaPacket& Packet)=0;
+	virtual bool					ProcessPacket(const TMediaPacket& Packet)=0;		//	return false to return the frame to the buffer and not discard
 	
 	//	gr: added this for android as I'm not sure about the thread safety, but other platforms generally have a callback
 	//		if we can do input&output on different threads, remove this

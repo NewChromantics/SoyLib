@@ -264,12 +264,19 @@ bool TMediaDecoder::Iteration()
 		auto Packet = mInput->PopPacket();
 		if ( Packet )
 		{
-			std::Debug << "Encoder Processing packet " << Packet->mTimecode << "(pts) " << Packet->mDecodeTimecode << "(dts)" << std::endl;
-			ProcessPacket( *Packet );
+			//std::Debug << "Encoder Processing packet " << Packet->mTimecode << "(pts) " << Packet->mDecodeTimecode << "(dts)" << std::endl;
+			if ( !ProcessPacket( *Packet ) )
+			{
+				std::Debug << "Returned decoder input packet (" << *Packet << ") back to buffer" << std::endl;
+				//	gr: only do this for important frames?
+				mInput->UnPopPacket( Packet );
+			}
 		}
 	}
 	catch (std::exception& e)
 	{
+		//	gr: unpop packet?
+		
 		std::Debug << "Error processing input packet " << e.what() << std::endl;
 		if ( !FatalCleared )
 			mFatalError.clear();
@@ -324,6 +331,16 @@ std::shared_ptr<TMediaPacket> TMediaPacketBuffer::PopPacket()
 	//	return nullptr;
 	
 	return mPackets.PopAt(0);
+}
+
+
+void TMediaPacketBuffer::UnPopPacket(std::shared_ptr<TMediaPacket> Packet)
+{
+	std::lock_guard<std::mutex> Lock( mPacketsLock );
+	
+	//	gr: no sorted insert, assuming this was the last packet popped (assuming we onlyhave one thing popping packets from this buffer)
+	//		so go straight back to the start
+	GetArrayBridge(mPackets).InsertAt( 0, Packet );
 }
 
 void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::function<bool()> Block)
