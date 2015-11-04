@@ -36,14 +36,22 @@ namespace SoyPixelsFormat
 		//	Full range is 0..255
 		//	video LUMA range 16-235 (chroma is still 0-255)	http://stackoverflow.com/a/10129300/355753
 		//	Y=luma	uv=ChromaUv
-		Yuv420_Biplanar_Full	= 16,
-		Yuv420_Biplanar_Video	= 17,
-		Yuv422_Biplanar_Full	= 18,
-		Yuv444_Biplanar_Full	= 19,
+		
+		//	gr: naming convention; planes seperated by underscore
+		Yuv_8_88_Full			= 13,	//	8 bit Luma, interleaved Chroma uv plane
+		Yuv_8_88_Video			= 14,	//	8 bit Luma, interleaved Chroma uv plane
+		Yuv_8_4_4_Full			= 20,	//	8bit Y plane, then 4bit U plane, then 4bit V plane
+		ChromaUV_4_4			= 21,	//	4 bit plane, 4 bit plane - might be nice to split this into multiple planes but 8 bit will upload....
+		ChromaUV_88				= 22,	//	16 bit interleaved plane
+
+		//	shorthand names
+		//	http://www.fourcc.org/yuv.php
+		Nv12					= Yuv_8_88_Full,
+		I420					= Yuv_8_4_4_Full,
 		
 		//	https://github.com/ofTheo/ofxKinect/blob/ebb9075bcb5ab2543220b4dec598fd73cec40904/libs/libfreenect/src/cameras.c
 		//	kinect (16bit?) yuv. See if its the same as a standard one 
-		uyvy					= 20,
+		uyvy					= 23,
 		/*
 		 int u  = raw_buf[2*i];
 			int y1 = raw_buf[2*i+1];
@@ -69,14 +77,8 @@ namespace SoyPixelsFormat
 			proc_buf[3*i+5]=b2;		 */
 
 		LumaFull		= Greyscale,	//	Luma plane of a YUV
-		LumaVideo		= 21,			//	Video-range luma plane
-		Chroma2			= GreyscaleAlpha,	//	16 bit chroma plane
+		LumaVideo		= 24,			//	Video-range luma plane
 		
-		//	shorthand names for different platforms
-		Nv12			= Yuv420_Biplanar_Video,
-
-
-
 		Count=99,
 	};
 

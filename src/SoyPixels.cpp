@@ -119,6 +119,9 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case FreenectDepth11bit:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepth10bit:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
+
+		case ChromaUV_4_4:	return 2;
+		case ChromaUV_88:	return 2;
 	}
 }
 
@@ -138,14 +141,19 @@ void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneForma
 {
 	switch ( Format )
 	{
-		case Yuv420_Biplanar_Full:
+		case Yuv_8_88_Full:
 			PlaneFormats.PushBack( LumaFull );
-			PlaneFormats.PushBack( Chroma2 );
+			PlaneFormats.PushBack( ChromaUV_88 );
 			break;
 			
-		case Yuv420_Biplanar_Video:
+		case Yuv_8_88_Video:
 			PlaneFormats.PushBack( LumaVideo );
-			PlaneFormats.PushBack( Chroma2 );
+			PlaneFormats.PushBack( ChromaUV_88 );
+			break;
+			
+		case Yuv_8_4_4_Full:
+			PlaneFormats.PushBack( LumaFull );
+			PlaneFormats.PushBack( ChromaUV_4_4 );
 			break;
 			
 		default:
@@ -171,10 +179,13 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::FreenectDepth10bit,	"FreenectDepth10bit"	},
 	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},
 	{ SoyPixelsFormat::FreenectDepthmm,		"FreenectDepthmm"	},
-	{ SoyPixelsFormat::Yuv420_Biplanar_Full,	"Yuv420_Biplanar_Full"	},
-	{ SoyPixelsFormat::Yuv420_Biplanar_Video,	"Yuv420_Biplanar_Video"	},
+	{ SoyPixelsFormat::Yuv_8_88_Full,		"Yuv_8_88_Full"	},
+	{ SoyPixelsFormat::Yuv_8_88_Video,		"Yuv_8_88_Video"	},
+	{ SoyPixelsFormat::Yuv_8_4_4_Full,		"Yuv_8_4_4_Full"	},
 	{ SoyPixelsFormat::LumaFull,			"LumaFull"	},
 	{ SoyPixelsFormat::LumaVideo,			"LumaVideo"	},
+	{ SoyPixelsFormat::ChromaUV_4_4,		"ChromaUV_4_4"	},
+	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
 };
 
 
@@ -1265,7 +1276,17 @@ void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Pl
 		DataOffset += PlaneMeta.GetDataSize();
 	}
 
-	Soy::Assert( DataOffset == ThisArray.GetDataSize(), "Split pixel planes but data hasn't aligned after split");
+	std::stringstream Error;
+	Error << "Split pixel planes but data hasn't aligned after split; ";
+	for ( int p=0;	p<Formats.GetSize();	p++ )
+	{
+		auto PlaneMeta = Formats[p];
+		auto PlaneDataSize = PlaneMeta.GetDataSize();
+		Error << "#" << p << " " << PlaneMeta << " = " << PlaneDataSize << " bytes; ";
+	}
+	Error << "total " << DataOffset << " out of " << ThisArray.GetDataSize() << " bytes";
+	
+	Soy::Assert( DataOffset == ThisArray.GetDataSize(), Error.str() );
 }
 
 
@@ -1454,14 +1475,19 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes) const
 {
 	switch ( GetFormat() )
 	{
-		case SoyPixelsFormat::Yuv420_Biplanar_Full:
+		case SoyPixelsFormat::Yuv_8_88_Full:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaFull ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::Chroma2 ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_88 ) );
 			break;
 			
-		case SoyPixelsFormat::Yuv420_Biplanar_Video:
+		case SoyPixelsFormat::Yuv_8_88_Video:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaVideo ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::Chroma2 ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_88 ) );
+			break;
+			
+		case SoyPixelsFormat::Yuv_8_4_4_Full:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaFull ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_4_4 ) );
 			break;
 			
 		default:

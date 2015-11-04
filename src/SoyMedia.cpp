@@ -35,14 +35,13 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::FreenectDepth10bit,	"FreenectDepth10bit" },
 	{ SoyMediaFormat::FreenectDepth11bit,	"FreenectDepth11bit" },
 	{ SoyMediaFormat::FreenectDepthmm,		"FreenectDepthmm" },
-	{ SoyMediaFormat::Yuv420_Biplanar_Full,	"Yuv420_Biplanar_Full" },
-	{ SoyMediaFormat::Yuv420_Biplanar_Video,	"Yuv420_Biplanar_Video" },
-	{ SoyMediaFormat::Yuv422_Biplanar_Full,			"Yuv422_Biplanar_Full" },
-	{ SoyMediaFormat::Yuv444_Biplanar_Full,			"Yuv444_Biplanar_Full" },
 	{ SoyMediaFormat::LumaFull,			"LumaFull" },
 	{ SoyMediaFormat::LumaVideo,		"LumaVideo" },
-	{ SoyMediaFormat::Chroma2,			"Chroma2" },
-	{ SoyMediaFormat::Nv12,				"Nv12" },
+	{ SoyMediaFormat::Yuv_8_88_Full,	"Yuv_8_88_Full" },
+	{ SoyMediaFormat::Yuv_8_88_Video,	"Yuv_8_88_Video" },
+	{ SoyMediaFormat::Yuv_8_4_4_Full,	"Yuv_8_4_4_Full" },
+	{ SoyMediaFormat::ChromaUV_4_4,		"ChromaUV_4_4" },
+	{ SoyMediaFormat::ChromaUV_88,		"ChromaUV_88" },
 };
 
 

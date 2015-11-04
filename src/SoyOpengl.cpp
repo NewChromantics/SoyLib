@@ -1661,8 +1661,9 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_RED, GL_RED, GL_RED ),
 
 		//	GL_LUMINANCE_ALPHA: RGB and A! not R & G!
-		//TPixelFormatMapping( SoyPixelsFormat::Chroma2, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA ),
-		TPixelFormatMapping( SoyPixelsFormat::Chroma2, GL_RG, GL_RG, GL_RG ),
+		//TPixelFormatMapping( SoyPixelsFormat::ChromaUV_88, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA ),
+		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_88, GL_RG, GL_RG, GL_RG ),
+		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_4_4, GL_RG, GL_RG, GL_RG ),
 
 #if defined(TARGET_IOS)
 		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_BGRA, GL_BGRA, GL_BGRA ),
