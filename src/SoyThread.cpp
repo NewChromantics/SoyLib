@@ -239,17 +239,54 @@ void SoyThread::Start()
 	auto ThreadFuncWrapper = [this](void*)
 	{
 		this->mIsRunning = true;
+
 		SoyThread::OnThreadStart.OnTriggered(*this);
 		while ( this->mIsRunning )
+		{
 			this->Thread();
+		}
 		SoyThread::OnThreadFinish.OnTriggered(*this);
+		
 		return 0;
 	};
 	
-	//	start thread
-	mThread = std::thread( ThreadFuncWrapper, nullptr );
-}
+	auto CatchException_ThreadFuncWrapper = [=](void* x)
+	{
+		try
+		{
+			return ThreadFuncWrapper(x);
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Caught SoyThread " << GetThreadName() << " exception: " << e.what() << std::endl;
+		}
+		catch(...)
+		{
+			std::Debug << "Caught SoyThread " << GetThreadName() << " unknown exception." << std::endl;
+		}
+		
+		return 0;
+	};
 
+	//	gr: catch all. Maybe only enable this for "release" builds?
+	//		android is throwing an exception, but callstack doesn't contain exception handler/throw indicator... so seeing if we can trap it
+	//	crash with exception is still useful in release though...
+	#if defined(TARGET_ANDROID)
+	bool CatchExceptions = true;
+	#else
+	bool CatchExceptions = !Soy::Platform::IsDebuggerAttached();
+	#endif
+	
+	//	start thread
+	if ( CatchExceptions )
+	{
+		mThread = std::thread( CatchException_ThreadFuncWrapper, nullptr );
+	}
+	else
+	{
+		mThread = std::thread( ThreadFuncWrapper, nullptr );
+	}
+}
 
 std::thread::native_handle_type SoyThread::GetCurrentThreadNativeHandle()
 {
@@ -284,6 +321,13 @@ std::string SoyThread::GetCurrentThreadName()
 	}
 	
 	return OldThreadName;
+#elif defined(TARGET_ANDROID)
+	//	pthread_getname_np is oddly missing from the ndk. not in the kernel, but people are referencing it in stack overflow?!
+	//	gr: styled to the DEBUG log thread names in adb logcat
+	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
+	std::stringstream OldThreadName;
+	OldThreadName << "Thread-" << CurrentThread;
+	return OldThreadName.str();
 #else
 	return "<NoThreadNameOnThisPlatform>";
 #endif
@@ -291,16 +335,27 @@ std::string SoyThread::GetCurrentThreadName()
 
 
 
-void SoyThread::SetThreadName(const std::string& Name,std::thread::native_handle_type ThreadId)
+void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handle_type ThreadId)
 {
+	//	max name length found from kernel source;
+	//	https://android.googlesource.com/platform/bionic/+/40eabe2/libc/bionic/pthread_setname_np.cpp
+#if defined(TARGET_ANDROID)
+	// "This value is not exported by kernel headers."
+#define MAX_TASK_COMM_LEN 16
+	std::string Name = _Name.substr( 0, MAX_TASK_COMM_LEN-1 );
+#else
+	auto& Name = _Name;
+#endif
+	
+	
 	auto OldThreadName = GetCurrentThreadName();
+	
 	
 #if defined(TARGET_POSIX)
 	
-	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
-	
 #if defined(TARGET_OSX)||defined(TARGET_IOS)
 	//	has to be called whilst in this thread as OSX doesn't take a thread parameter
+	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
 	if ( CurrentThread != ThreadId )
 	{
 		std::Debug << "Trying to change thread name from " << OldThreadName << " to " << Name << ", out-of-thread" << std::endl;
@@ -317,7 +372,8 @@ void SoyThread::SetThreadName(const std::string& Name,std::thread::native_handle
 	}
 	else
 	{
-		std::Debug << "Failed to change thread name from " << OldThreadName << " to " << Name << ": " << Soy::Platform::GetLastErrorString() << std::endl;
+		std::string Error = (Result==ERANGE) ? "Name too long" : Soy::Platform::GetErrorString(Result);
+		std::Debug << "Failed to change thread name from " << OldThreadName << " to " << Name << ": " << Error << std::endl;
 	}
 
 #endif
@@ -448,28 +504,8 @@ void SoyWorker::Loop()
 
 		mOnPreIteration.OnTriggered(Dummy);
 		
-		static bool CatchExceptions = !Soy::Platform::IsDebuggerAttached();
-
-		if ( CatchExceptions )
-		{
-			try
-			{
-				if ( !Iteration() )
-					break;
-			} catch ( std::exception& e )
-			{
-				std::Debug << "caught exception in SoyWorker" << e.what() << std::endl;
-				break;
-			} catch ( ... )
-			{
-				std::Debug << "caught unknown-type-of exception in SoyWorker";
-			}
-		}
-		else
-		{
-			if ( !Iteration() )
-				break;
-		}
+		if ( !Iteration() )
+			break;
 	}
 	
 	mOnFinish.OnTriggered(Dummy);
