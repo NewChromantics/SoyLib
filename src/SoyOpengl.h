@@ -468,6 +468,7 @@ public:
 	void				Write(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
 	void				Read(SoyPixelsImpl& Pixels) const;
 	void				SetRepeat(bool Repeat=true);
+	void				SetFilter(bool Linear);		//	as soon as we need it, implement min/mag options and mipmap levels rather than nearest/linear
 	void				SetClamped()				{	SetRepeat(false);	}
 	void				GenerateMipMaps();
 

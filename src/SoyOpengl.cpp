@@ -159,8 +159,12 @@ std::string Opengl::GetEnumString(GLenum Type)
 			CASE_ENUM_STRING( GL_RG8 );
 #endif
 			CASE_ENUM_STRING( GL_ALPHA );
+#if defined(GL_LUMINANCE)
 			CASE_ENUM_STRING( GL_LUMINANCE );
+#endif
+#if defined(GL_LUMINANCE_ALPHA)
 			CASE_ENUM_STRING( GL_LUMINANCE_ALPHA );
+#endif
 
 #if defined(GL_TEXTURE_1D)
 			CASE_ENUM_STRING( GL_TEXTURE_1D );
@@ -660,6 +664,9 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	
 	Unbind();
 	
+	//	default to linear
+	SetFilter(true);
+	
 	//	built, save meta
 	mMeta = Meta;
 }
@@ -731,6 +738,16 @@ void Opengl::TTexture::SetRepeat(bool Repeat)
 #endif
 	glTexParameteri( Type, GL_TEXTURE_WRAP_S, Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 	glTexParameteri( Type, GL_TEXTURE_WRAP_T, Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+	Opengl_IsOkay();
+	Unbind();
+}
+
+void Opengl::TTexture::SetFilter(bool Linear)
+{
+	Bind();
+	auto Type = mType;
+	glTexParameteri( Type, GL_TEXTURE_MIN_FILTER, Linear ? GL_LINEAR : GL_NEAREST );
+	glTexParameteri( Type, GL_TEXTURE_MAG_FILTER, Linear ? GL_LINEAR : GL_NEAREST );
 	Opengl_IsOkay();
 	Unbind();
 }
@@ -1372,7 +1389,7 @@ bool Opengl::TShaderState::SetUniform(const char* Name,const float& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
 	if ( !Uniform.IsValid() )
-	return false;
+		return false;
 	Opengl::SetUniform( Uniform, v );
 	return true;
 }
@@ -1381,7 +1398,7 @@ bool Opengl::TShaderState::SetUniform(const char* Name,const int& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
 	if ( !Uniform.IsValid() )
-	return false;
+		return false;
 	Opengl::SetUniform( Uniform, v );
 	return true;
 }
