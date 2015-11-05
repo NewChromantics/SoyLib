@@ -994,10 +994,12 @@ void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBr
 	bool Finished = false;
 	bool HadErrors = false;
 	std::stringstream AttemptErrors;
+	static bool DebugFails = false;
 	auto AccumulateErrors = [&](const std::string& Error)
 	{
 		AttemptErrors << Error << "; ";
 	};
+
 	
 	for ( int i=0;	!Finished && i<InternalTextureFormats.GetSize();	i++ )
 	{
@@ -1009,8 +1011,10 @@ void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBr
 			
 			std::stringstream ScopeContext;
 			ScopeContext << Context << " (InternalFormat=" << Opengl::GetEnumString(InternalFormat) << ", ExternalFormat=" << Opengl::GetEnumString(ExternalFormat) << ")";
-			
+		
 			std::function<void(const std::string&)> f = AccumulateErrors;
+			if ( !DebugFails )
+				f = [](const std::string& Error){};
 			Finished = Opengl::IsOkay( ScopeContext.str().c_str(), f );
 			
 			//	debug the cases that didn't work
@@ -1790,10 +1794,11 @@ Opengl::TGeometry::~TGeometry()
 	}
 }
 
+//	gr: put R8 first as note4 works with glTexImage R8->RED, but not RED->RED or RED->R8
 const std::initializer_list<GLenum> Opengl8BitFormats =
 {
-	GL_RED,
 	GL_R8,
+	GL_RED,
 #if defined(GL_LUMINANCE)
 	GL_LUMINANCE,
 #endif
