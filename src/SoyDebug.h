@@ -290,7 +290,7 @@ public:
 protected:
 	void		ReportStr(SoyTime Time)
 	{
-		std::Debug << mName << " took " << Time.mTime << "ms to execute" << std::endl;
+		std::Debug << mName << " took " << Time.mTime << "ms/" << mWarningTimeMs << "ms to execute" << std::endl;
 	}
 
 protected:
