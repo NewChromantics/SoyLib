@@ -222,6 +222,11 @@ public:
 			Stop();
 	}
 	
+	void				SetName(const std::string& Name)
+	{
+		Soy::StringToBuffer( Name, mName );
+	}
+	
 	//	returns accumulated time since last stop
 	SoyTime				Stop(bool DoReport=true)
 	{
@@ -272,7 +277,7 @@ protected:
 	std::function<void(SoyTime)>	mReportFunc;
 	SoyTime				mStartTime;
 	uint64				mWarningTimeMs;
-	char				mName[100];
+	char				mName[300];
 	bool				mStopped;
 	bool				mReportedOnLastStop;
 	uint64				mAccumulatedTime;
