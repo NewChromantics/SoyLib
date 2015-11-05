@@ -83,6 +83,8 @@ namespace Soy
 	inline void	StringToBuffer(const std::string& Source,char* Buffer,size_t BufferSize)	{	StringToBuffer( Source.c_str(), Buffer, BufferSize );	}
 	template <size_t BUFFERSIZE>
 	void		StringToBuffer(const char* Source,char (& Buffer)[BUFFERSIZE])				{	StringToBuffer( Source, Buffer, BUFFERSIZE );	}
+	template <size_t BUFFERSIZE>
+	void		StringToBuffer(const std::string&Source,char (& Buffer)[BUFFERSIZE])		{	StringToBuffer( Source.c_str(), Buffer, BUFFERSIZE );	}
 
 	std::string	StreamToString(std::ostream& Stream);	//	windows
 	std::string	StreamToString(std::stringstream&& Stream);	//	osx
