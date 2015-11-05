@@ -405,7 +405,12 @@ SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake )
 void TMediaExtractor::Seek(SoyTime Time)
 {
 	//	update the target seek time
-	Soy::Assert( Time >= mSeekTime, "Can't currently handle seeking backwards");
+	if ( Time >= mSeekTime )
+	{
+		std::stringstream Error;
+		Error << "Can't currently handle seeking backwards " << Time << " < " << mSeekTime;
+		Soy::Assert( Time >= mSeekTime, Error.str() );
+	}
 	
 	//	update the target time and wake up thread in case we need to read frames
 	mSeekTime = Time;
@@ -468,6 +473,12 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			//	block thread unless it's stopped
 			auto Block = [this]()
 			{
+				//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
+				if ( IsWorking() )
+				{
+					std::Debug << "MediaExtractor blocking in push packet" << std::endl;
+					std::this_thread::sleep_for( std::chrono::milliseconds(100) );
+				}
 				return IsWorking();
 			};
 			mBuffer->PushPacket( NextPacket, Block );
