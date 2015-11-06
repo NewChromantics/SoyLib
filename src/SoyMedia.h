@@ -350,10 +350,13 @@ public:
 	//	change this to one-per stream
 	std::shared_ptr<TMediaPacketBuffer>	GetVideoStreamBuffer()		{	return mBuffer;	}
 	
+public:
+	SoyEvent<const ArrayBridge<TStreamMeta>>	mOnStreamsChanged;
 	
 protected:
 	void							OnEof();
 	void							OnError(const std::string& Error);
+	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)	{	mOnStreamsChanged.OnTriggered( Streams );	}
 	
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);
