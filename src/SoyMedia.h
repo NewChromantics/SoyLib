@@ -170,7 +170,11 @@ public:
 	
 public:
 	SoyMediaFormat::Type	mCodec;
-	Array<uint8>		mExtensions;		//	codec extensions
+	
+	//	specific to h264... make this more generic
+	BufferArray<uint8,200>	mSps;
+	BufferArray<uint8,200>	mPps;
+	
 	std::string			mDescription;		//	other meta that doesnt fit here (eg. unsupported type)
 	bool				mCompressed;
 	float				mFramesPerSecond;	//	0 when not known. in audio this is samples per second (hz)
