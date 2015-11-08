@@ -12,7 +12,7 @@ class TSocketReadThread : public TStreamReader
 public:
 	TSocketReadThread(std::shared_ptr<SoySocket>& Socket,SoyRef ConnectionRef);
 	
-	virtual void					Read() override;	//	read next chunk of data into buffer
+	virtual void					Read(TStreamBuffer& Buffer) override;	//	read next chunk of data into buffer
 	
 public:
 	Array<char>						mRecvBuffer;		//	static buffer, just alloc once
@@ -38,11 +38,12 @@ private:
 
 
 
-class THttpReadThread : public TSocketReadThread
+template<class PROTOCOL>
+class TSocketReadThread_Impl : public TSocketReadThread
 {
 public:
-	THttpReadThread(std::shared_ptr<SoySocket>& Socket,SoyRef ConnectionRef) :
-	TSocketReadThread	( Socket, ConnectionRef )
+	TSocketReadThread_Impl(std::shared_ptr<SoySocket>& Socket,SoyRef ConnectionRef) :
+		TSocketReadThread	( Socket, ConnectionRef )
 	{
 	}
 	
@@ -52,14 +53,17 @@ public:
 	}
 };
 
+
+
+
+typedef TSocketReadThread_Impl<Http::TResponseProtocol> THttpReadThread;
+
 class THttpWriteThread : public TSocketWriteThread
 {
 public:
 	THttpWriteThread(std::shared_ptr<SoySocket>& Socket,SoyRef ConnectionRef) :
-	TSocketWriteThread	( Socket, ConnectionRef )
+		TSocketWriteThread	( Socket, ConnectionRef )
 	{
 	}
 	
 };
-
-
