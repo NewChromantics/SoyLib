@@ -1,6 +1,60 @@
 #include "SoyH264.h"
 
 
+
+std::map<H264NaluContent::Type,std::string> H264NaluContent::EnumMap =
+{
+#define ENUM_CASE(e)	{	e,	#e	}
+	ENUM_CASE( Invalid ),
+	ENUM_CASE( Unspecified ),
+	ENUM_CASE( Slice_NonIDRPicture ),
+	ENUM_CASE( Slice_CodedPartitionA ),
+	ENUM_CASE( Slice_CodedPartitionB ),
+	ENUM_CASE( Slice_CodedPartitionC ),
+	ENUM_CASE( Slice_CodedIDRPicture ),
+	ENUM_CASE( SupplimentalEnhancementInformation ),
+	ENUM_CASE( SequenceParameterSet ),
+	ENUM_CASE( PictureParameterSet ),
+	ENUM_CASE( AccessUnitDelimiter ),
+	ENUM_CASE( EndOfSequence ),
+	ENUM_CASE( EndOfStream ),
+	ENUM_CASE( FillerData ),
+	ENUM_CASE( SequenceParameterSetExtension ),
+	ENUM_CASE( Reserved14 ),
+	ENUM_CASE( Reserved15 ),
+	ENUM_CASE( Reserved16 ),
+	ENUM_CASE( Reserved17 ),
+	ENUM_CASE( Reserved18 ),
+	ENUM_CASE( Slice_AuxCodedUnpartitioned ),
+	ENUM_CASE( Reserved20 ),
+	ENUM_CASE( Reserved21 ),
+	ENUM_CASE( Reserved22 ),
+	ENUM_CASE( Reserved23 ),
+	ENUM_CASE( Unspecified24 ),
+	ENUM_CASE( Unspecified25 ),
+	ENUM_CASE( Unspecified26 ),
+	ENUM_CASE( Unspecified27 ),
+	ENUM_CASE( Unspecified28 ),
+	ENUM_CASE( Unspecified29 ),
+	ENUM_CASE( Unspecified30 ),
+	ENUM_CASE( Unspecified31 ),
+#undef ENUM_CASE
+};
+
+std::map<H264NaluPriority::Type,std::string> H264NaluPriority::EnumMap =
+{
+#define ENUM_CASE(e)	{	e,	#e	}
+	ENUM_CASE( Invalid ),
+	ENUM_CASE( Important ),
+	ENUM_CASE( Two ),
+	ENUM_CASE( One ),
+	ENUM_CASE( Zero ),
+#undef ENUM_CASE
+};
+
+
+
+
 size_t H264::GetNaluLengthSize(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
@@ -57,7 +111,9 @@ bool H264::IsNalu3(ArrayBridge<uint8>& Data)
 	uint32 Magic;
 	memcpy( &Magic, Data.GetArray(), sizeof(Magic) );
 
-	if ( (Magic & 0xffffff) != 0x000001 )
+	//	gr: big endian
+	if ( (Magic & 0xffffff) != 0x010000 )
+	//if ( (Magic & 0xffffff) != 0x000001 )
 		return false;
 	
 	//	next bit MUST be zero
@@ -76,7 +132,10 @@ bool H264::IsNalu4(ArrayBridge<uint8>& Data)
 	
 	uint32 Magic;
 	memcpy( &Magic, Data.GetArray(), sizeof(Magic) );
-	if ( (Magic & 0xffffffff) != 0x00000001 )
+	
+	//	gr: big endian
+	//if ( (Magic & 0xffffffff) != 0x00000001 )
+	if ( (Magic & 0xffffffff) != 0x01000000 )
 		return false;
 	
 	uint8 NextBit = Data[4];
@@ -87,14 +146,40 @@ bool H264::IsNalu4(ArrayBridge<uint8>& Data)
 	return true;
 }
 
-
-void H264::ResolveH264Format(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data)
+void H264::RemoveHeader(SoyMediaFormat::Type Format,ArrayBridge<uint8>&& Data)
 {
-	if ( IsNalu3( Data ) || IsNalu4( Data ) )
+	
+}
+
+bool H264::ResolveH264Format(SoyMediaFormat::Type& Format,ArrayBridge<uint8>& Data)
+{
+	uint8 NaluByte = 0xff;
+	if ( IsNalu3( Data ) )
 	{
-		Format = SoyMediaFormat::H264_ES;
-		return;
+		NaluByte = Data[3];
 	}
+	else if ( IsNalu4( Data ) )
+	{
+		NaluByte = Data[4];
+	}
+	else
+	{
+		//	todo: could try and decode length size from Data size...
+		return false;
+	}
+	
+	H264NaluContent::Type Content;
+	H264NaluPriority::Type Priority;
+	DecodeNaluByte( NaluByte, Content, Priority );
+		
+	if ( Content == H264NaluContent::SequenceParameterSet )
+		Format = SoyMediaFormat::H264_SPS_ES;
+	else if ( Content == H264NaluContent::PictureParameterSet )
+		Format = SoyMediaFormat::H264_PPS_ES;
+	else
+		Format = SoyMediaFormat::H264_ES;
+	
+	return true;
 }
 
 
@@ -102,15 +187,10 @@ void H264::ConvertToEs(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data)
 {
 	//	verify header
 	Soy::Assert( Data.GetDataSize() > 5, "Missing H264 packet header" );
-	Soy::Assert( Format == SoyMediaFormat::H264_8 ||
-				Format == SoyMediaFormat::H264_16 ||
-				Format == SoyMediaFormat::H264_32 ||
-				Format == SoyMediaFormat::H264_ES
-				, "Expecting a kind of H264 format input" );
+	Soy::Assert( SoyMediaFormat::IsH264(Format), "Expecting a kind of H264 format input" );
 	
-	if ( IsNalu3( Data ) || IsNalu4( Data ) )
+	if ( ResolveH264Format( Format, Data ) )
 	{
-		Format = SoyMediaFormat::H264_ES;
 		return;
 	}
 
@@ -124,13 +204,14 @@ void H264::ConvertToEs(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data)
 	{
 		//	insert new delim
 		//	gr: this is missing the importance flag!
-		uint8 Delim[] =
-		{
-			0, 0, 0, 1,
-			9,			// NAL type = Access Unit Delimiter;
-			0xF0		// Slice types = ANY
-		};
-		Data.InsertArray( GetRemoteArray(Delim), Position );
+		BufferArray<uint8,10> Delim;
+		Delim.PushBack(0);
+		Delim.PushBack(0);
+		Delim.PushBack(0);
+		Delim.PushBack(1);
+		Delim.PushBack( EncodeNaluByte( H264NaluContent::AccessUnitDelimiter, H264NaluPriority::Zero ) );
+		Delim.PushBack(0xF0);// Slice types = ANY
+		Data.InsertArray( GetArrayBridge(Delim), Position );
 		Position += sizeof( Delim );
 	};
 	
@@ -170,7 +251,27 @@ void H264::ConvertToEs(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data)
 
 
 
+uint8 H264::EncodeNaluByte(H264NaluContent::Type Content,H264NaluPriority::Type Priority)
+{
+//	uint8 Idc_Important = 0x3 << 5;	//	0x60
+	//	uint8 Idc = Idc_Important;	//	011 XXXXX
+	uint8 Idc = Priority;
+	Idc <<= 5;
+	uint8 Type = Content;
+	
+	uint8 Byte = Idc|Type;
+	return Byte;
+}
 
+void H264::DecodeNaluByte(uint8 Byte,H264NaluContent::Type& Content,H264NaluPriority::Type& Priority)
+{
+	uint8 Zero = (Byte >> 7) & 0x1;
+	uint8 Idc = (Byte >> 5) & 0x3;
+	uint8 Content8 = (Byte >> 0) & (0x1f);
+	Soy::Assert( Zero ==0, "Nalu zero bit non-zero");
+	Priority = H264NaluPriority::Validate( Idc );
+	Content = H264NaluContent::Validate( Content8 );
+}
 
 
 
