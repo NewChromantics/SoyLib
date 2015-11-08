@@ -12,7 +12,7 @@ TSocketReadThread::TSocketReadThread(std::shared_ptr<SoySocket>& Socket,SoyRef C
 
 
 
-void TSocketReadThread::Read()
+void TSocketReadThread::Read(TStreamBuffer& Buffer)
 {
 	SoySocketConnection	ClientSocket = mSocket->GetConnection( mConnectionRef );
 	if ( !ClientSocket.IsValid() )
@@ -24,18 +24,18 @@ void TSocketReadThread::Read()
 	//	gr use a larger static buffer so we can stream locally much faster than in 1024 chunks
 	//static int BufferSize = 1024*1024*20;	//	Xmb a time should be plenty... maybe query for the actual socket limit jsut so we don't go silly with memory
 	static int BufferSize = 100;	//	Xmb a time should be plenty... maybe query for the actual socket limit jsut so we don't go silly with memory
-	auto& Buffer = mRecvBuffer;
-	Buffer.SetSize( BufferSize );
+	auto& RecvBuffer = mRecvBuffer;
+	RecvBuffer.SetSize( BufferSize );
 	
 	
 	//	throws on error
-	if ( !ClientSocket.Recieve( GetArrayBridge(Buffer) ) )
+	if ( !ClientSocket.Recieve( GetArrayBridge(RecvBuffer) ) )
 	{
 		//	graceful close
 		throw Soy::AssertException("Gracefull close");
 	}
 	
-	mReadBuffer.Push( GetArrayBridge( Buffer ) );
+	Buffer.Push( GetArrayBridge( RecvBuffer ) );
 }
 
 

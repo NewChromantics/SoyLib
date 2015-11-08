@@ -170,7 +170,11 @@ public:
 	
 public:
 	SoyMediaFormat::Type	mCodec;
-	Array<uint8>		mExtensions;		//	codec extensions
+	
+	//	specific to h264... make this more generic
+	BufferArray<uint8,200>	mSps;
+	BufferArray<uint8,200>	mPps;
+	
 	std::string			mDescription;		//	other meta that doesnt fit here (eg. unsupported type)
 	bool				mCompressed;
 	float				mFramesPerSecond;	//	0 when not known. in audio this is samples per second (hz)
@@ -350,10 +354,13 @@ public:
 	//	change this to one-per stream
 	std::shared_ptr<TMediaPacketBuffer>	GetVideoStreamBuffer()		{	return mBuffer;	}
 	
+public:
+	SoyEvent<const ArrayBridge<TStreamMeta>>	mOnStreamsChanged;
 	
 protected:
 	void							OnEof();
 	void							OnError(const std::string& Error);
+	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)	{	mOnStreamsChanged.OnTriggered( Streams );	}
 	
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);
