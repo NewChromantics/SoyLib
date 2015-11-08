@@ -1,6 +1,29 @@
 #include "SoyH264.h"
 
 
+size_t H264::GetNaluLengthSize(SoyMediaFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyMediaFormat::H264_8:	return 1;
+		case SoyMediaFormat::H264_16:	return 2;
+		case SoyMediaFormat::H264_32:	return 4;
+	
+		case SoyMediaFormat::H264_ES:
+		case SoyMediaFormat::H264_SPS_ES:
+		case SoyMediaFormat::H264_PPS_ES:
+			return 0;
+			
+		default:
+			break;
+	}
+	
+	std::stringstream Error;
+	Error << __func__ << " unhandled format " << Format;
+	throw Soy::AssertException( Error.str() );
+}
+
+
 
 void ReformatDeliminator(ArrayBridge<uint8>& Data,
 						 std::function<size_t(ArrayBridge<uint8>& Data,size_t Position)> ExtractChunk,
@@ -94,14 +117,7 @@ void H264::ConvertToEs(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data)
 	//	packet can contain multiple NALU's
 	//	gr: maybe split these... BUT... this packet is for a particular timecode so err... maintain multiple NALU's for a packet
 	//	check for the leading size...
-	int LengthSize = 0;
-	if ( Format == SoyMediaFormat::H264_8 )
-		LengthSize = 1;
-	else if ( Format == SoyMediaFormat::H264_16 )
-		LengthSize = 2;
-	else if ( Format == SoyMediaFormat::H264_32 )
-		LengthSize = 4;
-
+	auto LengthSize = GetNaluLengthSize( Format );
 	Soy::Assert( LengthSize != 0, "Unhandled H264 type");
 	
 	auto InsertChunkDelin = [](size_t ChunkLength,ArrayBridge<uint8>& Data,size_t& Position)
@@ -151,6 +167,7 @@ void H264::ConvertToEs(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data)
 	//	finally update the format
 	Format = SoyMediaFormat::H264_ES;
 }
+
 
 
 
