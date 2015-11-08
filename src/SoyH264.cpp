@@ -148,7 +148,47 @@ bool H264::IsNalu4(ArrayBridge<uint8>& Data)
 
 void H264::RemoveHeader(SoyMediaFormat::Type Format,ArrayBridge<uint8>&& Data)
 {
+	switch ( Format )
+	{
+		case SoyMediaFormat::H264_ES:
+		case SoyMediaFormat::H264_SPS_ES:
+		case SoyMediaFormat::H264_PPS_ES:
+		{
+			//	gr: CMVideoFormatDescriptionCreateFromH264ParameterSets requires the byte!
+			static bool RemoveNalByte = false;
+			if ( IsNalu3( Data ) )
+			{
+				Data.RemoveBlock( 0, 3+RemoveNalByte );
+				return;
+			}
+			else if ( IsNalu4( Data ) )
+			{
+				Data.RemoveBlock( 0, 4+RemoveNalByte );
+				return;
+			}
+			throw Soy::AssertException("Tried to trim header from h264 ES data but couldn't find nalu header");
+		}
+			
+			//	gr: is there more to remove than the length?
+		case SoyMediaFormat::H264_8:
+			Data.RemoveBlock( 0, 1 );
+			return;
+			
+		case SoyMediaFormat::H264_16:
+			Data.RemoveBlock( 0, 2 );
+			return;
+			
+		case SoyMediaFormat::H264_32:
+			Data.RemoveBlock( 0, 4 );
+			return;
 	
+		default:
+			break;
+	}
+	
+	std::stringstream Error;
+	Error << __func__ << " trying to trim header from non h264 format " << Format;
+	throw Soy::AssertException( Error.str() );
 }
 
 bool H264::ResolveH264Format(SoyMediaFormat::Type& Format,ArrayBridge<uint8>& Data)
