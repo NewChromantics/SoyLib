@@ -208,6 +208,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 				return SoyMediaFormat::H264_16;
 			if ( H264LengthSize == 4 )
 				return SoyMediaFormat::H264_32;
+			break;
 			
 		case 'aac ':	return SoyMediaFormat::Aac;
 		case ' caa':	return SoyMediaFormat::Aac;
@@ -272,6 +273,7 @@ bool TMediaDecoder::Iteration()
 				mInput->UnPopPacket( Packet );
 			}
 		}
+		Soy::StringStreamClear(mFatalError);
 	}
 	catch (std::exception& e)
 	{
@@ -292,6 +294,7 @@ bool TMediaDecoder::Iteration()
 		{
 			ProcessOutputPacket( *mOutput );
 		}
+		Soy::StringStreamClear(mFatalError);
 	}
 	catch (std::exception& e)
 	{
