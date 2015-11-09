@@ -102,52 +102,65 @@ void ReformatDeliminator(ArrayBridge<uint8>& Data,
 
 
 
-bool H264::IsNalu3(ArrayBridge<uint8>& Data)
+bool H264::IsNalu(ArrayBridge<uint8>& Data,size_t& NaluSize,size_t& HeaderSize)
 {
 	//	too small to be nalu3
 	if ( Data.GetDataSize() < 4 )
 		return false;
 
-	//	check in case it's already NALU
+	//	read magic
 	uint32 Magic;
 	memcpy( &Magic, Data.GetArray(), sizeof(Magic) );
 
-	//	gr: big endian
-	if ( (Magic & 0xffffff) != 0x010000 )
-	//if ( (Magic & 0xffffff) != 0x000001 )
+	//	test for nalu sizes
+	//	gr: big endian!
+	if ( (Magic & 0xffffffff) == 0x01000000 )
+	{
+		NaluSize = 4;
+	}
+	else if ( (Magic & 0xffffff) == 0x010000 )
+	{
+		NaluSize = 3;
+	}
+	else
+	{
 		return false;
+	}
 	
-	//	next bit MUST be zero
-	if ( (Magic & 0x00000080) != 0 )
+	//	missing next byte
+	if ( Data.GetDataSize() < NaluSize+1 )
 		return false;
+
+	//	eat nalu byte
+	H264NaluContent::Type Content;
+	H264NaluPriority::Type Priority;
+	uint8 NaluByte = Data[NaluSize];
+	try
+	{
+		H264::DecodeNaluByte( NaluByte, Content, Priority );
+	}
+	catch(...)
+	{
+		return false;
+	}
 	
-	//	next is nalu code etc
+	//	+nalubyte
+	HeaderSize = NaluSize+1;
+	
+	//	eat another spare byte...
+	//	todo: verify this is the proper way of doing things...
+	if ( Content == H264NaluContent::AccessUnitDelimiter )
+	{
+		//	eat the AUD type value
+		HeaderSize += 1;
+	}
+
+	//	real data should follow now
 	return true;
 }
 
-bool H264::IsNalu4(ArrayBridge<uint8>& Data)
-{
-	//	too small to be nalu4
-	if ( Data.GetDataSize() < 5 )
-		return false;
-	
-	uint32 Magic;
-	memcpy( &Magic, Data.GetArray(), sizeof(Magic) );
-	
-	//	gr: big endian
-	//if ( (Magic & 0xffffffff) != 0x00000001 )
-	if ( (Magic & 0xffffffff) != 0x01000000 )
-		return false;
-	
-	uint8 NextBit = Data[4];
-	//	next bit MUST be zero
-	if ( (NextBit & 0x80) != 0 )
-		return false;
-	
-	return true;
-}
 
-void H264::RemoveHeader(SoyMediaFormat::Type Format,ArrayBridge<uint8>&& Data)
+void H264::RemoveHeader(SoyMediaFormat::Type Format,ArrayBridge<uint8>&& Data,bool KeepNaluByte)
 {
 	switch ( Format )
 	{
@@ -156,15 +169,13 @@ void H264::RemoveHeader(SoyMediaFormat::Type Format,ArrayBridge<uint8>&& Data)
 		case SoyMediaFormat::H264_PPS_ES:
 		{
 			//	gr: CMVideoFormatDescriptionCreateFromH264ParameterSets requires the byte!
-			static bool RemoveNalByte = false;
-			if ( IsNalu3( Data ) )
+			size_t NaluSize,HeaderSize;
+			if ( IsNalu( Data, NaluSize, HeaderSize ) )
 			{
-				Data.RemoveBlock( 0, 3+RemoveNalByte );
-				return;
-			}
-			else if ( IsNalu4( Data ) )
-			{
-				Data.RemoveBlock( 0, 4+RemoveNalByte );
+				if ( KeepNaluByte )
+					Data.RemoveBlock( 0, NaluSize );
+				else
+					Data.RemoveBlock( 0, HeaderSize );
 				return;
 			}
 			throw Soy::AssertException("Tried to trim header from h264 ES data but couldn't find nalu header");
@@ -194,20 +205,14 @@ void H264::RemoveHeader(SoyMediaFormat::Type Format,ArrayBridge<uint8>&& Data)
 
 bool H264::ResolveH264Format(SoyMediaFormat::Type& Format,ArrayBridge<uint8>& Data)
 {
-	uint8 NaluByte = 0xff;
-	if ( IsNalu3( Data ) )
-	{
-		NaluByte = Data[3];
-	}
-	else if ( IsNalu4( Data ) )
-	{
-		NaluByte = Data[4];
-	}
-	else
-	{
-		//	todo: could try and decode length size from Data size...
+	size_t NaluSize = 0;
+	size_t HeaderSize = 0;
+	
+	//	todo: could try and decode length size from Data size...
+	if ( !IsNalu( Data, NaluSize, HeaderSize ) )
 		return false;
-	}
+	
+	uint8 NaluByte = Data[NaluSize];
 	
 	H264NaluContent::Type Content;
 	H264NaluPriority::Type Priority;
@@ -229,23 +234,17 @@ void H264::ConvertToEs(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data)
 }
 
 
-ssize_t H264::FindNaluStartIndex(ArrayBridge<uint8>&& Data,size_t& NaluSize)
+ssize_t H264::FindNaluStartIndex(ArrayBridge<uint8>&& Data,size_t& NaluSize,size_t& HeaderSize)
 {
 	//	look for start of nalu
 	for ( ssize_t i=0;	i<Data.GetSize();	i++ )
 	{
 		auto ChunkPart = GetRemoteArray( &Data[i], Data.GetSize()-i );
-		//	gr: searching for naul4 is a little OTT, but will save a re-alloc/memmove.
-		if ( H264::IsNalu4( GetArrayBridge(ChunkPart) ) )
-		{
-			NaluSize = 4;
-			return i;
-		}
-		if ( H264::IsNalu3( GetArrayBridge(ChunkPart) ) )
-		{
-			NaluSize = 3;
-			return i;
-		}
+
+		if ( !H264::IsNalu( GetArrayBridge(ChunkPart), NaluSize, HeaderSize ) )
+			continue;
+		
+		return i;
 	}
 	return -1;
 }
@@ -354,7 +353,8 @@ void H264::ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type
 	{
 		//	re-search for next nalu (offset from the start or we'll just match it again)
 		//	gr: be careful, SPS is only 6/7 bytes including the nalu header
-		static int _SearchOffset = 1;
+		//	gr: some packets are 1 byte long. so no offset.
+		static int _SearchOffset = 0;
 		
 		//	extract header
 		size_t NaluSize = 0;
@@ -363,33 +363,20 @@ void H264::ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type
 		if ( GetArrayBridge(StartData).IsEmpty() )
 			return 0ul;
 		
-		auto Start = H264::FindNaluStartIndex( GetArrayBridge(StartData), NaluSize );
+		size_t HeaderSize = 0;
+		auto Start = H264::FindNaluStartIndex( GetArrayBridge(StartData), NaluSize, HeaderSize );
 		Soy::Assert( Start >= 0, "Failed to find NALU header in annex b packet");
 		Soy::Assert( NaluSize != 0, "Failed to find NALU header size in annex b packet");
-		size_t HeaderSize = Start + NaluSize;
-		
-		//	calc other bytes to eat
-		{
-			//	eat nalu byte
-			auto NaluByte = Data[Start+StartOffset+HeaderSize];
-			HeaderSize += 1;
-			H264NaluContent::Type Content;
-			H264NaluPriority::Type Priority;
-			H264::DecodeNaluByte( NaluByte, Content, Priority );
-			if ( Content == H264NaluContent::AccessUnitDelimiter )
-			{
-				//	eat type value
-				HeaderSize += 1;
-			}
-		}
 		
 		//	recalc data start
 		Start = StartOffset + HeaderSize;
 		
-		size_t NextNaluSize = 0;
+		size_t EndNaluSize = 0;
+		size_t EndHeaderSize = 0;
 		auto EndOffset = Start + _SearchOffset;
+		Soy::Assert( EndOffset <= Data.GetDataSize(), "search nalu end is too far forward" );
 		auto EndData = GetRemoteArray( Data.GetArray()+EndOffset, Data.GetDataSize()-EndOffset );
-		auto End = FindNaluStartIndex( GetArrayBridge(EndData), NextNaluSize );
+		auto End = FindNaluStartIndex( GetArrayBridge(EndData), EndNaluSize, EndHeaderSize );
 		if ( End < 0 )
 			End = Data.GetDataSize();
 		else
@@ -463,7 +450,9 @@ void H264::DecodeNaluByte(uint8 Byte,H264NaluContent::Type& Content,H264NaluPrio
 	uint8 Zero = (Byte >> 7) & 0x1;
 	uint8 Idc = (Byte >> 5) & 0x3;
 	uint8 Content8 = (Byte >> 0) & (0x1f);
-	Soy::Assert( Zero ==0, "Nalu zero bit non-zero");
+	Soy::Assert( Zero==0, "Nalu zero bit non-zero");
+	//	catch bad cases. look out for genuine cases, but if this is zero, NALU delin might have been read wrong
+	Soy::Assert( Content8!=0, "Nalu content type is invalid (zero)");
 	Priority = H264NaluPriority::Validate( Idc );
 	Content = H264NaluContent::Validate( Content8 );
 }

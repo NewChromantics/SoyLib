@@ -70,13 +70,11 @@ namespace H264
 	inline void	ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type NewFormat,ArrayBridge<uint8>&& Data)	{	ConvertToFormat( DataFormat, NewFormat, Data);	}
 
 	size_t		GetNaluLengthSize(SoyMediaFormat::Type Format);
-	void		RemoveHeader(SoyMediaFormat::Type Format,ArrayBridge<uint8>&& Data);
-	ssize_t		FindNaluStartIndex(ArrayBridge<uint8>&& Data,size_t& NaluSize);
+	void		RemoveHeader(SoyMediaFormat::Type Format,ArrayBridge<uint8>&& Data,bool KeepNaluByte);
+	ssize_t		FindNaluStartIndex(ArrayBridge<uint8>&& Data,size_t& NaluSize,size_t& HeaderSize);
 
-	bool		IsNalu4(ArrayBridge<uint8>& Data);
-	bool		IsNalu3(ArrayBridge<uint8>& Data);
-	inline bool	IsNalu4(ArrayBridge<uint8>&& Data)	{	return IsNalu4( Data );	}
-	inline bool	IsNalu3(ArrayBridge<uint8>&& Data)	{	return IsNalu3( Data );	}
+	bool		IsNalu(ArrayBridge<uint8>& Data,size_t& NaluSize,size_t& HeaderSize);
+	inline bool	IsNalu(ArrayBridge<uint8>&& Data,size_t& NaluSize,size_t& HeaderSize)	{	return IsNalu( Data, NaluSize, HeaderSize );	}
 	
 	uint8		EncodeNaluByte(H264NaluContent::Type Content,H264NaluPriority::Type Priority);
 	void		DecodeNaluByte(uint8 Byte,H264NaluContent::Type& Content,H264NaluPriority::Type& Priority);	//	throws on error (eg. reservered-zero not zero)
