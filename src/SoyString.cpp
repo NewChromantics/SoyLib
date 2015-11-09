@@ -607,3 +607,29 @@ void Soy::SplitHostnameAndPort(std::string& Hostname,uint16& Port,const std::str
 	Soy::StringToType( Porti, PortStr );
 	Port = size_cast<uint16>(Porti);
 }
+
+
+std::string Soy::DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes)
+{
+	std::stringstream String;
+	DataToHexString( String, Data, MaxBytes );
+	return String.str();
+}
+
+	
+void Soy::DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,int MaxBytes)
+{
+	if ( MaxBytes < 0 )
+		MaxBytes = size_cast<int>(Data.GetDataSize());
+	else
+		MaxBytes = std::min( MaxBytes, size_cast<int>(Data.GetDataSize()) );
+	
+	Soy::TPushPopStreamSettings StreamSettings(String);
+	String << std::hex;
+	String.width(2);
+	for ( int i=0;	i<MaxBytes;	i++ )
+	{
+		String << (int)Data[i] << ' ';
+	}
+}
+

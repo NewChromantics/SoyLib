@@ -114,6 +114,10 @@ namespace Soy
 	inline bool	StringParseVecNx(const std::string& String,ArrayBridge<TYPE>&& Vector);
 
 	std::string		FourCCToString(uint32 Fourcc);	//	on IOS, don't forget CFSwapInt32BigToHost()
+	
+	std::string		DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes);
+	void			DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,int MaxBytes=-1);
+	inline void		DataToHexString(std::ostream& String,const ArrayBridge<uint8>&& Data,int MaxBytes=-1)	{	DataToHexString( String, Data, MaxBytes );	}
 };
 
 #if defined(__OBJC__)
