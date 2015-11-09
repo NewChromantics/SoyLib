@@ -279,7 +279,7 @@ bool TMediaDecoder::Iteration()
 		
 		std::Debug << "Error processing input packet " << e.what() << std::endl;
 		if ( !FatalCleared )
-			mFatalError.clear();
+			Soy::StringStreamClear(mFatalError);
 		FatalCleared = true;
 		mFatalError << "Error processing input packet " << e.what();
 	}
@@ -297,7 +297,7 @@ bool TMediaDecoder::Iteration()
 	{
 		std::Debug << "Error processing output packet " << e.what() << std::endl;
 		if ( !FatalCleared )
-			mFatalError.clear();
+			Soy::StringStreamClear(mFatalError);
 		FatalCleared = true;
 		mFatalError << "Error processing output packet " << e.what();
 	}

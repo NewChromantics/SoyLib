@@ -88,6 +88,7 @@ namespace Soy
 
 	std::string	StreamToString(std::ostream& Stream);	//	windows
 	std::string	StreamToString(std::stringstream&& Stream);	//	osx
+	inline void	StringStreamClear(std::stringstream& Stream)	{	Stream.str(std::string());	}	//	not .clear, not .empty
 
 	void		SplitStringLines(ArrayBridge<std::string>& StringLines,const std::string& String);
 	void		SplitStringLines(ArrayBridge<std::string>&& StringLines,const std::string& String);
