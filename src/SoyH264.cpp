@@ -222,25 +222,60 @@ bool H264::ResolveH264Format(SoyMediaFormat::Type& Format,ArrayBridge<uint8>& Da
 	return true;
 }
 
-
 void H264::ConvertToEs(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data)
+{
+	ConvertToFormat( Format, Format, Data );
+}
+
+
+ssize_t H264::FindNaluStartIndex(ArrayBridge<uint8>&& Data,size_t& NaluSize)
+{
+	//	look for start of nalu
+	for ( ssize_t i=0;	i<Data.GetSize();	i++ )
+	{
+		auto ChunkPart = GetRemoteArray( &Data[i], Data.GetSize()-i );
+		//	gr: searching for naul4 is a little OTT, but will save a re-alloc/memmove.
+		if ( H264::IsNalu4( GetArrayBridge(ChunkPart) ) )
+		{
+			NaluSize = 4;
+			return i;
+		}
+		if ( H264::IsNalu3( GetArrayBridge(ChunkPart) ) )
+		{
+			NaluSize = 3;
+			return i;
+		}
+	}
+	return -1;
+}
+
+
+void H264::ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type NewFormat,ArrayBridge<uint8>& Data)
 {
 	//	verify header
 	Soy::Assert( Data.GetDataSize() > 5, "Missing H264 packet header" );
-	Soy::Assert( SoyMediaFormat::IsH264(Format), "Expecting a kind of H264 format input" );
+	Soy::Assert( SoyMediaFormat::IsH264(DataFormat), "Expecting a kind of H264 format input" );
 	
-	if ( ResolveH264Format( Format, Data ) )
+	//	find real format of data
+	ResolveH264Format( DataFormat, Data );
+	
+	//	check if already in desired format
+	if ( NewFormat == SoyMediaFormat::H264_ES )
 	{
-		return;
+		if ( DataFormat == SoyMediaFormat::H264_ES ||
+			DataFormat == SoyMediaFormat::H264_SPS_ES ||
+			DataFormat == SoyMediaFormat::H264_PPS_ES )
+		{
+			return;
+		}
 	}
-
+	if ( NewFormat == DataFormat )
+		return;
+	
 	//	packet can contain multiple NALU's
 	//	gr: maybe split these... BUT... this packet is for a particular timecode so err... maintain multiple NALU's for a packet
-	//	check for the leading size...
-	auto LengthSize = GetNaluLengthSize( Format );
-	Soy::Assert( LengthSize != 0, "Unhandled H264 type");
 	
-	auto InsertChunkDelin = [](size_t ChunkLength,ArrayBridge<uint8>& Data,size_t& Position)
+	auto InsertChunk_AnnexB = [](size_t ChunkLength,ArrayBridge<uint8>& Data,size_t& Position)
 	{
 		//	insert new delim
 		//	gr: this is missing the importance flag!
@@ -252,11 +287,39 @@ void H264::ConvertToEs(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data)
 		Delim.PushBack( EncodeNaluByte( H264NaluContent::AccessUnitDelimiter, H264NaluPriority::Zero ) );
 		Delim.PushBack(0xF0);// Slice types = ANY
 		Data.InsertArray( GetArrayBridge(Delim), Position );
-		Position += sizeof( Delim );
+		Position += Delim.GetDataSize();
 	};
 	
-	auto ExtractChunkDelin = [LengthSize](ArrayBridge<uint8>& Data,size_t Position)
+	auto InsertChunk_Avcc = [NewFormat](size_t ChunkLength,ArrayBridge<uint8>& Data,size_t& Position)
 	{
+		BufferArray<uint8,4> Delin;
+		
+		//	find all the proper prefix stuff
+		if ( NewFormat == SoyMediaFormat::H264_8 )
+		{
+			auto Size = size_cast<uint8>( ChunkLength );
+			Delin.PushBackReinterpret( Size );
+		}
+		if ( NewFormat == SoyMediaFormat::H264_16 )
+		{
+			auto Size = size_cast<uint16>( ChunkLength );
+			Delin.PushBackReinterpret( Size );
+		}
+		if ( NewFormat == SoyMediaFormat::H264_32 )
+		{
+			auto Size = size_cast<uint32>( ChunkLength );
+			Delin.PushBackReinterpret( Size );
+		}
+		
+		Data.InsertArray( GetArrayBridge(Delin), Position );
+		Position += Delin.GetDataSize();
+	};
+	
+	auto ExtractChunk_Avcc = [DataFormat](ArrayBridge<uint8>& Data,size_t Position)
+	{
+		auto LengthSize = GetNaluLengthSize( DataFormat );
+		Soy::Assert( LengthSize != 0, "Unhandled H264 type");
+		
 		if (Position == Data.GetDataSize() )
 			return (size_t)0;
 		Soy::Assert( Position < Data.GetDataSize(), "H264 ExtractChunkDelin position gone out of bounds" );
@@ -283,10 +346,80 @@ void H264::ConvertToEs(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data)
 		return ChunkLength;
 	};
 	
-	ReformatDeliminator( Data, ExtractChunkDelin, InsertChunkDelin );
+	auto ExtractChunk_AnnexB = [DataFormat](ArrayBridge<uint8>& Data,size_t Position)
+	{
+		//	re-search for next nalu (offset from the start or we'll just match it again)
+		//	gr: be careful, SPS is only 6/7 bytes including the nalu header
+		static int _SearchOffset = 4;
+		static bool RemoveNaluByte = true;
+		
+		//	extract header
+		size_t NaluSize = 0;
+		auto StartOffset = Position;
+		auto StartData = GetRemoteArray( Data.GetArray()+StartOffset, Data.GetDataSize()-StartOffset );
+		if ( GetArrayBridge(StartData).IsEmpty() )
+			return 0ul;
+		
+		auto Start = H264::FindNaluStartIndex( GetArrayBridge(StartData), NaluSize );
+		Soy::Assert( Start >= 0, "Failed to find NALU header in annex b packet");
+		Soy::Assert( NaluSize != 0, "Failed to find NALU header size in annex b packet");
+		Start += StartOffset;
+		Start += RemoveNaluByte;
+		
+		size_t NextNaluSize = 0;
+		auto EndOffset = _SearchOffset + Start + Position;
+		auto EndData = GetRemoteArray( Data.GetArray()+EndOffset, Data.GetDataSize()-EndOffset );
+		auto End = FindNaluStartIndex( GetArrayBridge(EndData), NextNaluSize );
+		if ( End < 0 )
+			End = Data.GetDataSize();
+		else
+			End += EndOffset;
 
-	//	finally update the format
-	Format = SoyMediaFormat::H264_ES;
+		//	calc length
+		size_t ChunkLength = End - Start;
+		
+		//	remove the header
+		Data.RemoveBlock( Position, Start + NaluSize );
+		ChunkLength -= NaluSize;
+		
+		return ChunkLength;
+	};
+	
+	
+	std::function<size_t(ArrayBridge<uint8>& Data,size_t Position)> Extracter;
+	std::function<void(size_t ChunkLength,ArrayBridge<uint8>& Data,size_t& Position)> Inserter;
+
+	if ( DataFormat == SoyMediaFormat::H264_8 ||
+		DataFormat == SoyMediaFormat::H264_16 ||
+		DataFormat == SoyMediaFormat::H264_32
+		)
+	{
+		Extracter = ExtractChunk_Avcc;
+	}
+	if ( DataFormat == SoyMediaFormat::H264_ES ||
+		DataFormat == SoyMediaFormat::H264_PPS_ES ||
+		DataFormat == SoyMediaFormat::H264_SPS_ES )
+	{
+		Extracter = ExtractChunk_AnnexB;
+	}
+	
+	if ( NewFormat == SoyMediaFormat::H264_8 ||
+		NewFormat == SoyMediaFormat::H264_16 ||
+		NewFormat == SoyMediaFormat::H264_32
+		)
+	{
+		Inserter = InsertChunk_Avcc;
+	}
+	if ( NewFormat == SoyMediaFormat::H264_ES ||
+		NewFormat == SoyMediaFormat::H264_PPS_ES ||
+		NewFormat == SoyMediaFormat::H264_SPS_ES )
+	{
+		Inserter = InsertChunk_AnnexB;
+	}
+	
+	//	reformat & save
+	ReformatDeliminator( Data, Extracter, Inserter );
+	DataFormat = NewFormat;
 }
 
 

@@ -66,9 +66,12 @@ namespace H264
 	bool		ResolveH264Format(SoyMediaFormat::Type& Format,ArrayBridge<uint8>& Data);
 	inline bool	ResolveH264Format(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data)	{	return ResolveH264Format( Format, Data );	}
 	void		ConvertToEs(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data);
+	void		ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type NewFormat,ArrayBridge<uint8>& Data);
+	inline void	ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type NewFormat,ArrayBridge<uint8>&& Data)	{	ConvertToFormat( DataFormat, NewFormat, Data);	}
 
 	size_t		GetNaluLengthSize(SoyMediaFormat::Type Format);
 	void		RemoveHeader(SoyMediaFormat::Type Format,ArrayBridge<uint8>&& Data);
+	ssize_t		FindNaluStartIndex(ArrayBridge<uint8>&& Data,size_t& NaluSize);
 
 	bool		IsNalu4(ArrayBridge<uint8>& Data);
 	bool		IsNalu3(ArrayBridge<uint8>& Data);

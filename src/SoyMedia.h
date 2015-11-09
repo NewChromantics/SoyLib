@@ -172,8 +172,8 @@ public:
 	SoyMediaFormat::Type	mCodec;
 	
 	//	specific to h264... make this more generic
-	BufferArray<uint8,200>	mSps;
-	BufferArray<uint8,200>	mPps;
+	BufferArray<uint8,200>	mSps;			//	no size/nalu header!
+	BufferArray<uint8,200>	mPps;			//	no size/nalu header!
 	
 	std::string			mDescription;		//	other meta that doesnt fit here (eg. unsupported type)
 	bool				mCompressed;
