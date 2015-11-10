@@ -152,7 +152,7 @@ std::shared_ptr<TSocketReadThread> THttpConnection::CreateReadThread(std::shared
 #if defined(ENABLE_RTTI)
 		auto pHttpProtocol = std::dynamic_pointer_cast<Http::TResponseProtocol>( pProtocol );
 #else
-		auto pHttpProtocol = static_cast<Http::TResponseProtocol*>( pProtocol.get() );
+		auto pHttpProtocol = std::static_pointer_cast<Http::TResponseProtocol>( pProtocol );
 #endif
 		mOnResponse.OnTriggered( *pHttpProtocol );
 	};
@@ -174,7 +174,11 @@ std::shared_ptr<TSocketWriteThread> THttpConnection::CreateWriteThread(std::shar
 void THttpConnection::SendRequest(std::shared_ptr<Http::TRequestProtocol> Request)
 {
 	Soy::Assert( Request != nullptr, "Request expected" );
+#if defined(ENABLE_RTTI)
 	auto pRequest = std::dynamic_pointer_cast<Soy::TWriteProtocol>( Request );
+#else
+	auto pRequest = std::static_pointer_cast<Soy::TWriteProtocol>( Request );
+#endif
 	
 	//	set host automatically
 	if ( Request->mHost.empty() )

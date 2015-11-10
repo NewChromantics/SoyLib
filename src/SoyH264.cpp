@@ -361,7 +361,7 @@ void H264::ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type
 		auto StartOffset = Position;
 		auto StartData = GetRemoteArray( Data.GetArray()+StartOffset, Data.GetDataSize()-StartOffset );
 		if ( GetArrayBridge(StartData).IsEmpty() )
-			return 0ul;
+			return static_cast<size_t>(0);
 		
 		size_t HeaderSize = 0;
 		auto Start = H264::FindNaluStartIndex( GetArrayBridge(StartData), NaluSize, HeaderSize );
@@ -543,7 +543,7 @@ void TBitReader::ReadBytes(STORAGE& Data,size_t BitCount)
 	auto ComponentBitCount = BitCount;
 	while ( ComponentBitCount > 0 )
 	{
-		Read( Bytes.PushBack(), std::min(8ul,ComponentBitCount) );
+		Read( Bytes.PushBack(), std::min<size_t>(8,ComponentBitCount) );
 		ComponentBitCount -= 8;
 	}
 	
