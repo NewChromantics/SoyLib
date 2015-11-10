@@ -14,6 +14,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::H264_PPS_ES,		"H264_PPS_ES" },
 	{ SoyMediaFormat::Mpeg2TS,			"Mpeg2TS" },
 	{ SoyMediaFormat::Mpeg2,			"Mpeg2" },
+	{ SoyMediaFormat::Mpeg4,			"Mpeg4" },
 	{ SoyMediaFormat::Audio,			"audio" },
 	{ SoyMediaFormat::Wave,				"wave" },
 	{ SoyMediaFormat::Aac,				"aac" },
@@ -108,6 +109,7 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 	{
 		case SoyMediaFormat::Mpeg2TS:		return true;
 		case SoyMediaFormat::Mpeg2:			return true;
+		case SoyMediaFormat::Mpeg4:			return true;
 		default:							return false;
 	}
 }
@@ -148,6 +150,7 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 			
 		case SoyMediaFormat::Mpeg2TS:	return "video/ts";		//	find the proper version of this
 		case SoyMediaFormat::Mpeg2:		return "video/mpeg2";	//	find the proper version of this
+		case SoyMediaFormat::Mpeg4:		return "video/mp4";	//	find the proper version of this
 	
 		case SoyMediaFormat::Wave:		return "audio/wave";
 			
@@ -173,6 +176,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::H264_SPS_ES ) )	return SoyMediaFormat::H264_SPS_ES;
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg2TS ) )		return SoyMediaFormat::Mpeg2TS;
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg2 ) )			return SoyMediaFormat::Mpeg2;
+	if ( Mime == ToMime( SoyMediaFormat::Mpeg4 ) )			return SoyMediaFormat::Mpeg4;
 	if ( Mime == ToMime( SoyMediaFormat::Wave ) )			return SoyMediaFormat::Wave;
 	if ( Mime == ToMime( SoyMediaFormat::Aac ) )			return SoyMediaFormat::Aac;
 	
@@ -212,6 +216,8 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 			
 		case 'aac ':	return SoyMediaFormat::Aac;
 		case ' caa':	return SoyMediaFormat::Aac;
+		case 'mp4v':	return SoyMediaFormat::Mpeg4;
+		case 'v4pm':	return SoyMediaFormat::Mpeg4;
 	}
 	
 	std::Debug << "Unknown fourcc type: " << Soy::FourCCToString(Fourcc) << std::endl;

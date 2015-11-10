@@ -68,6 +68,7 @@ namespace SoyMediaFormat
 		
 		Mpeg2TS,
 		Mpeg2,
+		Mpeg4,
 		
 		Audio,			//	remove this and specialise only
 		Wave,			//	audio
