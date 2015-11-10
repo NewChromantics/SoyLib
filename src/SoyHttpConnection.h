@@ -29,6 +29,7 @@ private:
 
 public:
 	SoyEvent<const std::string>		mOnError;
+	SoyEvent<bool>					mOnConnected;
 
 protected:
 	std::string						mServerAddress;
@@ -36,7 +37,6 @@ protected:
 private:
 	SoyRef							mConnectionRef;
 	std::shared_ptr<SoySocket>		mSocket;
-	SoyEvent<bool>					mOnConnected;
 	SoyEvent<const Http::TResponseProtocol>	mOnResponse;
 	
 	std::shared_ptr<TSocketReadThread>	mReadThread;
