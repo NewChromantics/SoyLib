@@ -125,8 +125,8 @@ public:
 	uint32		frame_crop_top_offset;
 	uint32		frame_crop_bottom_offset;
 	
-	int32		offset_for_non_ref_pic;
-	int32		offset_for_top_to_bottom_field;
+	sint32		offset_for_non_ref_pic;
+	sint32		offset_for_top_to_bottom_field;
 	uint32		num_ref_frames_in_pic_order_cnt_cycle;
 };
 

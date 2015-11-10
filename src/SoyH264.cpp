@@ -481,7 +481,7 @@ public:
 	void			ReadBytes(STORAGE& Data,size_t BitCount);
 
 	void			ReadExponentialGolombCode(uint32& Data);
-	void			ReadExponentialGolombCodeSigned(int32& Data);
+	void			ReadExponentialGolombCodeSigned(sint32& Data);
 	
 private:
 	const ArrayBridge<uint8>&	mData;
@@ -518,7 +518,7 @@ void TBitReader::ReadExponentialGolombCode(uint32& Data)
 	Data += (1 << i) - 1;
 }
 
-void TBitReader::ReadExponentialGolombCodeSigned(int32& Data)
+void TBitReader::ReadExponentialGolombCodeSigned(sint32& Data)
 {
 	uint32 r;
 	ReadExponentialGolombCode(r);
@@ -908,7 +908,7 @@ H264::TSpsParams H264::ParseSps(const ArrayBridge<uint8>&& Data)
 		Reader.ReadExponentialGolombCode( Params.num_ref_frames_in_pic_order_cnt_cycle );
 		for( int i = 0; i <Params.num_ref_frames_in_pic_order_cnt_cycle; i++ )
 		{
-			int32 Dummy;
+			sint32 Dummy;
 			Reader.ReadExponentialGolombCodeSigned( Dummy );
 			//sps->offset_for_ref_frame[ i ] = ReadSE();
 		}

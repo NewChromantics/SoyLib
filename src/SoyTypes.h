@@ -1,11 +1,5 @@
 #pragma once
 
-typedef	signed char			int8;
-typedef	unsigned char		uint8;
-typedef	signed short		int16;
-typedef	unsigned short		uint16;
-typedef	signed short		sint16;
-
 
 //	earlier as used by some TARGET_X specific smart pointers
 struct NonCopyable {
@@ -30,6 +24,16 @@ struct NonCopyable {
 #else
 #error no TARGET_XXX defined
 #endif
+
+
+typedef	int8_t		sint8;
+typedef	uint8_t		uint8;
+typedef	int16_t		sint16;
+typedef	uint16_t	uint16;
+typedef	int32_t		sint32;
+typedef	uint32_t	uint32;
+typedef	int64_t		sint64;
+typedef	uint64_t	uint64;
 
 
 //	all platforms
@@ -195,13 +199,13 @@ namespace Soy
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( float );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( char );
-DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int8 );
+DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( sint8 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint8 );
-DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int16 );
+DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( sint16 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint16 );
-//DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int32 );	//	int
+//DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( sint32 );	//	int
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint32 );
-DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int64 );
+DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( sint64 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint64 );
 
 DECLARE_TYPE_NAME_AS( std::string, "text" );
