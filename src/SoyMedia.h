@@ -335,10 +335,7 @@ class TMediaExtractor : public SoyWorkerThread
 {
 public:
 	TMediaExtractor(const std::string& ThreadName);
-	virtual ~TMediaExtractor()
-	{
-		WaitToFinish();
-	}
+	~TMediaExtractor();
 	
 	void							Seek(SoyTime Time);				//	keep calling this, controls the packet read-ahead
 	

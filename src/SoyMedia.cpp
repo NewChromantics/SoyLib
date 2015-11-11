@@ -411,6 +411,11 @@ SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake )
 	mBuffer.reset( new TMediaPacketBuffer );
 }
 
+TMediaExtractor::~TMediaExtractor()
+{
+	WaitToFinish();
+}
+
 void TMediaExtractor::Seek(SoyTime Time)
 {
 	//	update the target seek time
