@@ -1261,9 +1261,12 @@ void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Pl
 	//	get the mid-formats
 	auto& ThisMeta = GetMeta();
 	auto& ThisArray = GetPixelsArray();
-	BufferArray<SoyPixelsMeta,2> Formats;
+	BufferArray<SoyPixelsMeta,10> Formats;
 	ThisMeta.GetPlanes( GetArrayBridge(Formats) );
 
+	//	build error as we go in case we assert mid-way
+	std::stringstream Error;
+	Error << "Split pixel planes (" << ThisMeta << " -> " << Soy::StringJoin( GetArrayBridge(Formats), "," ) << ") but data hasn't aligned after split; ";
 
 	size_t DataOffset = 0;
 	for ( int p=0;	p<Formats.GetSize();	p++ )
@@ -1272,21 +1275,26 @@ void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Pl
 		auto* PlaneData = ThisArray.GetArray() + DataOffset;
 		auto PlaneDataSize = PlaneMeta.GetDataSize();
 		std::shared_ptr<SoyPixelsRemote> Pixels(new SoyPixelsRemote( PlaneData, PlaneDataSize, PlaneMeta ) );
-		Planes.PushBack(Pixels);
 		DataOffset += PlaneMeta.GetDataSize();
+		
+		Error << "#" << p << "/" << Formats.GetSize() << " " << PlaneMeta << " = " << PlaneDataSize << " bytes; ";
+		//	check for overflow
+		Soy::Assert( DataOffset <= ThisArray.GetDataSize(), Error.str() );
+
+		Planes.PushBack(Pixels);
 	}
 
-	std::stringstream Error;
-	Error << "Split pixel planes but data hasn't aligned after split; ";
-	for ( int p=0;	p<Formats.GetSize();	p++ )
-	{
-		auto PlaneMeta = Formats[p];
-		auto PlaneDataSize = PlaneMeta.GetDataSize();
-		Error << "#" << p << " " << PlaneMeta << " = " << PlaneDataSize << " bytes; ";
-	}
+	//	error, but don't fail if underrun. overrun should be caught in the loop
 	Error << "total " << DataOffset << " out of " << ThisArray.GetDataSize() << " bytes";
-	
-	Soy::Assert( DataOffset == ThisArray.GetDataSize(), Error.str() );
+	static bool ThrowOnUnderflow = false;
+	if ( ThrowOnUnderflow )
+	{
+		Soy::Assert( DataOffset == ThisArray.GetDataSize(), Error.str() );
+	}
+	else if ( DataOffset != ThisArray.GetDataSize() )
+	{
+		std::Debug << Error.str() << std::endl;
+	}
 }
 
 
