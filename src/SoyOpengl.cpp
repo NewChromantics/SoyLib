@@ -598,11 +598,12 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	GLint Border = 0;
 	
 	//	disable other mip map levels
+	//	gr: this fails if building with opengl_es3 in opengles2 mode...
 #if (OPENGL_ES!=2)
 	//	gr: change this to glGenerateMipMaps etc
 	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, MipLevel );
 	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, MipLevel );
-	Opengl::IsOkay("glTexParameteri set mip levels");
+	Opengl::IsOkay("glTexParameteri set mip levels", false);
 #endif
 	
 	//	debug construction
