@@ -7,7 +7,7 @@
 //
 
 GCC_PREPROCESSOR_DEFINITIONS = $(inherited) TARGET_OSX MATHFU_COMPILE_WITHOUT_SIMD_SUPPORT
-HEADER_SEARCH_PATHS = $(inherited) $(SOY_PATH)/src/** $(POP_PATH)/src/** $(CUDA_PATH)/include/ $(LIBUSB_PATH)/include/ $(LIBFREENECT_PATH)/include/
+HEADER_SEARCH_PATHS = $(inherited) $(SOY_PATH)/src/** $(POP_PATH)/src/** $(CUDA_PATH)/include/ $(LIBUSB_PATH)/include/ $(LIBFREENECT_PATH)/include/ $(LIBAV_PATH)/
 LIBRARY_SEARCH_PATHS = $(inherited) $(CUDA_PATH)/lib $(LIBUSB_PATH)/lib/ $(LIBFREENECT_PATH)/lib/
 
 
