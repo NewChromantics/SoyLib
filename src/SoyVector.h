@@ -318,12 +318,32 @@ public:
 	TYPE	Right() const	{	return x+w;	}
 	TYPE	Top() const		{	return y;	}
 	TYPE	Bottom() const	{	return y+h;	}
+	vec4x<TYPE>	GetVec4() const	{	return vec4x<TYPE>(x,y,w,h);	}
+	void	FitToRect(const Rectx& Parent);		//	align into rect (scale down, scale up, move etc). Kinda assume this is normalised...
 	
 	TYPE	x;
 	TYPE	y;
 	TYPE	w;
 	TYPE	h;
 };
+
+
+template<typename TYPE>
+inline void Soy::Rectx<TYPE>::FitToRect(const Rectx& Parent)
+{
+	//	https://github.com/SoylentGraham/PopUnityCommon/blob/master/PopMath.cs
+	auto& RectNorm = *this;
+	auto& Body = Parent;
+	
+	RectNorm.x *= Body.w;
+	RectNorm.w *= Body.w;
+	RectNorm.y *= Body.h;
+	RectNorm.h *= Body.h;
+
+	RectNorm.x += Body.x;
+	RectNorm.y += Body.y;
+}
+
 
 
 //	gr: rename these types float2, float3, float4
