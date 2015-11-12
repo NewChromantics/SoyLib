@@ -3,7 +3,7 @@
 
 #include <iomanip>
 #include "SoyTypes.h"
-
+#include "SoyMath.h"	//	just for the range specialisation... maybe move it to reduce includes
 #if defined(TARGET_OSX)||defined(TARGET_IOS)
 #include <sys/time.h>
 #endif
@@ -115,6 +115,8 @@ public:
 	inline SoyTime&	operator+=(const SoyTime& Step)			{	mTime += Step.GetTime();	return *this;	}
 	inline SoyTime&	operator-=(const uint64& Step) 			{	mTime -= Step;	return *this;	}
 	inline SoyTime&	operator-=(const SoyTime& Step)			{	mTime -= Step.GetTime();	return *this;	}
+	inline SoyTime	operator+(const SoyTime& B) const		{	return SoyTime( mTime + B.mTime );	}
+	inline SoyTime	operator-(const SoyTime& B) const		{	return SoyTime( mTime - B.mTime );	}
 
 public:	//	gr: temporarily public during android/ios merge
 	uint64	mTime;
@@ -142,3 +144,12 @@ inline std::istream& operator>> (std::istream &in,SoyTime &out)
 	return in;
 }
 
+
+template<>
+inline float Soy::Range(const SoyTime& Value,const SoyTime& Start,const SoyTime& End)
+{
+	auto Value_Start = size_cast<ssize_t>(Value.GetTime()) - size_cast<ssize_t>(Start.GetTime());
+	auto End_Start = size_cast<ssize_t>(End.GetTime()) - size_cast<ssize_t>(Start.GetTime());
+	
+	return static_cast<float>(Value_Start) / static_cast<float>(End_Start);
+}
