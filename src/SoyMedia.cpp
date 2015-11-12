@@ -321,7 +321,11 @@ TPixelBufferManagerBase& TMediaDecoder::GetPixelBufferManager()
 	return *mOutput;
 }
 
-
+void TMediaDecoder::OnDecodeFrameSubmitted(const SoyTime& Time)
+{
+	auto& PixelBufferManager = GetPixelBufferManager();
+	PixelBufferManager.mOnFrameDecodeSubmission.OnTriggered( Time );
+}
 
 
 
@@ -404,11 +408,19 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 
 
 
-TMediaExtractor::TMediaExtractor(const std::string& ThreadName) :
-SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake )
+TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent) :
+	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake )
 {
 	//	todo: allocate per-stream
 	mBuffer.reset( new TMediaPacketBuffer );
+	
+	//	maybe unsafe?
+	auto OnNewPacket = [&OnFrameExtractedEvent](std::shared_ptr<TMediaPacket>& Packet)
+	{
+		//	should the perf graph be showing... the newest? the presentation time? the deocde-time?
+		OnFrameExtractedEvent.OnTriggered( Packet->mTimecode );
+	};
+	mBuffer->mOnNewPacket.AddListener( OnNewPacket );
 }
 
 TMediaExtractor::~TMediaExtractor()
@@ -558,6 +570,7 @@ TStreamMeta TMediaExtractor::GetVideoStream(size_t Index)
 
 void TMediaEncoder::PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block)
 {
+	Soy::Assert( mOutput!=nullptr, "TMediaEncoder::PushFrame output expected" );
 	mOutput->PushPacket( Packet, Block );
 }
 

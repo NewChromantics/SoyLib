@@ -238,14 +238,14 @@ public:
 	virtual bool		PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::function<bool()> Block)=0;
 
 public:
-	SoyEvent<SoyTime>				mOnFramePushed;	//	decoded and pushed into buffer
-	SoyEvent<SoyTime>				mOnFramePushSkipped;
-	SoyEvent<SoyTime>				mOnFramePushFailed;		//	triggered if the buffer is full and we didn't block when pushing
+	SoyEvent<const SoyTime>				mOnFramePushed;	//	decoded and pushed into buffer
+	SoyEvent<const SoyTime>				mOnFramePushSkipped;
+	SoyEvent<const SoyTime>				mOnFramePushFailed;		//	triggered if the buffer is full and we didn't block when pushing
 	SoyEvent<const ArrayBridge<SoyTime>>	mOnFramePopSkipped;
-	SoyEvent<SoyTime>				mOnFrameDecodeSubmission;
-	SoyEvent<SoyTime>				mOnFrameDecoded;
-	SoyEvent<SoyTime>				mOnFrameExtracted;			//	extracted, but not decoded yet
-	SoyEvent<SoyTime>				mOnFrameDecodeFailed;
+	SoyEvent<const SoyTime>				mOnFrameDecodeSubmission;
+	SoyEvent<const SoyTime>				mOnFrameDecoded;
+	SoyEvent<const SoyTime>				mOnFrameExtracted;			//	extracted, but not decoded yet
+	SoyEvent<const SoyTime>				mOnFrameDecodeFailed;
 
 };
 
@@ -335,7 +335,7 @@ public:
 class TMediaExtractor : public SoyWorkerThread
 {
 public:
-	TMediaExtractor(const std::string& ThreadName);
+	TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent);
 	~TMediaExtractor();
 	
 	void							Seek(SoyTime Time);				//	keep calling this, controls the packet read-ahead
@@ -396,6 +396,7 @@ public:
 	}
 	
 protected:
+	void							OnDecodeFrameSubmitted(const SoyTime& Time);
 	virtual bool					ProcessPacket(const TMediaPacket& Packet)=0;		//	return false to return the frame to the buffer and not discard
 	
 	//	gr: added this for android as I'm not sure about the thread safety, but other platforms generally have a callback
