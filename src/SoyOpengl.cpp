@@ -225,6 +225,15 @@ void Opengl::SetUniform(const TUniform& Uniform,const vec4f& Value)
 }
 
 template<>
+void Opengl::SetUniform(const TUniform& Uniform,const vec3f& Value)
+{
+	GLsizei ArraySize = 1;
+	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
+	glUniform3fv( Uniform.mIndex, ArraySize, &Value.x );
+	Opengl_IsOkay();
+}
+
+template<>
 void Opengl::SetUniform(const TUniform& Uniform,const vec2f& Value)
 {
 	GLsizei ArraySize = 1;
@@ -1410,6 +1419,15 @@ bool Opengl::TShaderState::SetUniform(const char* Name,const int& v)
 
 
 bool Opengl::TShaderState::SetUniform(const char* Name,const vec4f& v)
+{
+	auto Uniform = mShader.GetUniform( Name );
+	if ( !Uniform.IsValid() )
+		return false;
+	Opengl::SetUniform( Uniform, v );
+	return true;
+}
+
+bool Opengl::TShaderState::SetUniform(const char* Name,const vec3f& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
 	if ( !Uniform.IsValid() )

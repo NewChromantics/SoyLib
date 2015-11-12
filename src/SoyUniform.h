@@ -40,6 +40,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const int& v)=0;
 	virtual bool	SetUniform(const char* Name,const float& v)=0;
 	virtual bool	SetUniform(const char* Name,const vec2f& v)=0;
+	virtual bool	SetUniform(const char* Name,const vec3f& v)=0;
 	virtual bool	SetUniform(const char* Name,const vec4f& v)=0;
 	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v)=0;
 	
