@@ -126,6 +126,29 @@ private:
 
 
 
+//	common, maybe rename
+template<typename TYPE>
+class TDefferedDeleteJob : public PopWorker::TJob
+{
+public:
+	TDefferedDeleteJob(std::shared_ptr<TYPE>& Pointer) :
+	mPointer	( Pointer )
+	{
+	}
+	
+	virtual void		Run() override
+	{
+		//	clear pointer to release in opengl thread!
+		auto RefCount = mPointer.use_count();
+		if ( RefCount > 1 )
+			std::Debug << "Warning: TDefferedDeleteJob<" << Soy::GetTypeName<TYPE>() << "> has refcount=" << RefCount << ", won't deallocate on opengl thread!" << std::endl;
+		
+		mPointer.reset();
+	}
+	
+	std::shared_ptr<TYPE>	mPointer;
+};
+
 
 
 
