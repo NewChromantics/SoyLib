@@ -150,7 +150,10 @@ DECLARE_NONCOMPLEX_TYPE( Soy::THsl );
 class Soy::TRgb
 {
 public:
-	TRgb();
+	TRgb() :
+		TRgb	( 0, 0, 0 )
+	{
+	}
 	TRgb(float r,float g,float b) :
 		mRgb	( r,g,b )
 	{		
