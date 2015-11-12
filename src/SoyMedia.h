@@ -242,6 +242,7 @@ public:
 	SoyEvent<SoyTime>				mOnFramePushSkipped;
 	SoyEvent<SoyTime>				mOnFramePushFailed;		//	triggered if the buffer is full and we didn't block when pushing
 	SoyEvent<const ArrayBridge<SoyTime>>	mOnFramePopSkipped;
+	SoyEvent<SoyTime>				mOnFrameDecodeSubmission;
 	SoyEvent<SoyTime>				mOnFrameDecoded;
 	SoyEvent<SoyTime>				mOnFrameExtracted;			//	extracted, but not decoded yet
 	SoyEvent<SoyTime>				mOnFrameDecodeFailed;
