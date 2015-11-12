@@ -1002,7 +1002,6 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBridge<GLenum>&& ExternalTextureFormats,const std::string& Context,std::function<void(GLenum,GLenum)> Function)
 {
 	bool Finished = false;
-	bool HadErrors = false;
 	std::stringstream AttemptErrors;
 	static bool DebugFails = false;
 	auto AccumulateErrors = [&](const std::string& Error)

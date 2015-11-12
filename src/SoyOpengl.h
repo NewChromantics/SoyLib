@@ -225,6 +225,8 @@ public:
 	}
 	
 	bool	IsValid() const		{	return mName != GL_ASSET_INVALID;	}
+	bool	operator==(const TAsset& Asset) const	{	return mName == Asset.mName;	}
+	bool	operator!=(const TAsset& Asset) const	{	return mName != Asset.mName;	}
 	
 	GLuint	mName;
 };
@@ -474,6 +476,9 @@ public:
 	void				GenerateMipMaps();
 
 	void				OnWrite();
+	
+	bool				operator==(const TTexture& that) const	{	return mTexture == that.mTexture;	}
+	bool				operator!=(const TTexture& that) const	{	return mTexture != that.mTexture;	}
 	
 public:
 	bool				mAutoRelease;
