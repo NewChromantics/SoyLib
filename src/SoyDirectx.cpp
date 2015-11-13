@@ -775,6 +775,11 @@ bool Directx::TShaderState::SetUniform(const char* Name,const vec4f& v)
 	return false;
 }
 
+bool Directx::TShaderState::SetUniform(const char* Name,const vec3f& v)
+{
+	return false;
+}
+
 bool Directx::TShaderState::SetUniform(const char* Name,const vec2f& v)
 {
 	return false;

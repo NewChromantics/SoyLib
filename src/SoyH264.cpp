@@ -4,7 +4,11 @@
 
 std::map<H264NaluContent::Type,std::string> H264NaluContent::EnumMap =
 {
+#if defined(TARGET_WINDOWS)
+#define ENUM_CASE(e)	{	H264NaluContent::e,	#e	}
+#else
 #define ENUM_CASE(e)	{	e,	#e	}
+#endif
 	ENUM_CASE( Invalid ),
 	ENUM_CASE( Unspecified ),
 	ENUM_CASE( Slice_NonIDRPicture ),
@@ -43,7 +47,11 @@ std::map<H264NaluContent::Type,std::string> H264NaluContent::EnumMap =
 
 std::map<H264NaluPriority::Type,std::string> H264NaluPriority::EnumMap =
 {
+#if defined(TARGET_WINDOWS)
+#define ENUM_CASE(e)	{	H264NaluPriority::e,	#e	}
+#else
 #define ENUM_CASE(e)	{	e,	#e	}
+#endif
 	ENUM_CASE( Invalid ),
 	ENUM_CASE( Important ),
 	ENUM_CASE( Two ),
@@ -528,7 +536,7 @@ void TBitReader::ReadExponentialGolombCodeSigned(sint32& Data)
 	}
 	else
 	{
-		Data = -(r/2);
+		Data = -size_cast<sint32>(r/2);
 	}
 }
 

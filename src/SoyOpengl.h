@@ -225,7 +225,9 @@ public:
 	}
 	
 	bool	IsValid() const		{	return mName != GL_ASSET_INVALID;	}
-	
+	bool	operator==(const TAsset& that) const	{	return mName == that.mName;	}
+	bool	operator!=(const TAsset& that) const	{	return mName != that.mName;	}
+
 	GLuint	mName;
 };
 
@@ -475,6 +477,9 @@ public:
 
 	void				OnWrite();
 	
+	bool				operator==(const TTexture& that) const	{	return mTexture == that.mTexture;	}
+	bool				operator!=(const TTexture& that) const	{	return mTexture != that.mTexture;	}
+
 public:
 	bool				mAutoRelease;
 	std::shared_ptr<SoyPixelsImpl>	mClientBuffer;	//	for CPU-buffered textures, it's kept here. ownership should go with mAutoRelease, but shared_ptr maybe takes care of that?
