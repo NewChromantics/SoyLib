@@ -54,10 +54,16 @@ DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
 		case SoyPixelsFormat::Greyscale:		return DXGI_FORMAT_R8_UNORM;
 		case SoyPixelsFormat::LumaVideo:		return DXGI_FORMAT_R8_UNORM;
 		case SoyPixelsFormat::GreyscaleAlpha:	return DXGI_FORMAT_R8G8_UNORM;
+		case SoyPixelsFormat::ChromaUV_88:		return DXGI_FORMAT_R8G8_UNORM;
 
 		default:
+		{
 			//	gr: throw here so we can start handling more formats
+			std::stringstream Error;
+			Error << "Don't know how to convert " << Format << " into DXGI_ format";
+			throw Soy::AssertException( Error.str() );
 			return DXGI_FORMAT_UNKNOWN;
+		}
 	}
 }
 
