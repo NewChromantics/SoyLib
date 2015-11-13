@@ -664,7 +664,7 @@ void TBitReader::Read(uint8& Data,size_t BitCount)
 	Data >>= 8-CurrentBit-BitCount;
 	Data &= (1<<BitCount)-1;
 }
-
+/*
 
 const unsigned char * m_pStart;
 unsigned short m_nLength;
@@ -832,11 +832,12 @@ void Parse(const unsigned char * pStart, unsigned short nLen)
 	
 }
 
-
+*/
 
 H264::TSpsParams H264::ParseSps(const ArrayBridge<uint8>&& Data)
 {
-	Parse( Data.GetArray(), Data.GetDataSize() );
+	//	test against the working version from stackoverflow
+	//Parse( Data.GetArray(), Data.GetDataSize() );
 	
 	TSpsParams Params;
 	

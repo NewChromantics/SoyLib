@@ -41,7 +41,7 @@ void Wave::TMeta::GetFormatSubChunkData(ArrayBridge<char>&& Data)
 	//	The "fmt " subchunk describes the sound data's format:
 	uint16 AudioFormat = (mBitsPerSample == SoyWaveBitsPerSample::Float) ? WAVE_FORMAT_IEEE_FLOAT : WAVE_FORMAT_PCM;
 	
-	uint32 ByteRate = mSampleRate * mChannelCount * (BytesPerSample);
+	uint32 ByteRate = size_cast<uint32>( mSampleRate * mChannelCount * BytesPerSample );
 	uint16 BlockAlignment = mChannelCount * (BytesPerSample);	//	block size
 	Data.PushBackReinterpret( AudioFormat );
 	Data.PushBackReinterpret( size_cast<uint16>( mChannelCount ) );
@@ -72,7 +72,7 @@ void Wave::TMeta::WriteHeader(ArrayBridge<char>&& Data,size_t DataSize)
 	uint32 SubChunk2Size = size_cast<uint32>( DataSize );
 
 	Data.PushBackReinterpret("RIFF",4);		//	0x52494646
-	uint32 SubChunk1Size = SubChunk1.GetDataSize();	//	PCM
+	uint32 SubChunk1Size = size_cast<uint32>( SubChunk1.GetDataSize() );	//	PCM
 	uint32 ChunkSize = 4 + 8 + SubChunk1Size + 8 + SubChunk2Size;
 	Data.PushBackReinterpret( ChunkSize );
 	Data.PushBackReinterpret("WAVE",4);		//	0x57415645

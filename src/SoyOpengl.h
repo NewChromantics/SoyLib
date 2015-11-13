@@ -225,9 +225,9 @@ public:
 	}
 	
 	bool	IsValid() const		{	return mName != GL_ASSET_INVALID;	}
-	bool	operator==(const TAsset& that) const	{	return mName == that.mName;	}
-	bool	operator!=(const TAsset& that) const	{	return mName != that.mName;	}
-
+	bool	operator==(const TAsset& Asset) const	{	return mName == Asset.mName;	}
+	bool	operator!=(const TAsset& Asset) const	{	return mName != Asset.mName;	}
+	
 	GLuint	mName;
 };
 
