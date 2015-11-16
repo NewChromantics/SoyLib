@@ -4,6 +4,7 @@
 #define AV_HAVE_BIGENDIAN 0
 #define AV_HAVE_FAST_UNALIGNED 0
 
+
 #if defined(TARGET_OSX)
 #define HAVE_CBRTF	1
 #define HAVE_ISINF	1
@@ -972,9 +973,12 @@
 #define CONFIG_SDL_OUTDEV 0
 #define CONFIG_SNDIO_OUTDEV 0
 
+typedef long ssize_t;
+extern ssize_t	 read(int, void *, size_t);// __DARWIN_ALIAS_C(read);
+extern ssize_t	 write(int, const void *, size_t);// __DARWIN_ALIAS_C(write);
 
-
-#include <libavutil/internal.h>
+//#include <libavutil/internal.h>
+//#include <libavutil/time_internal.h>
 #include <libavformat/avio.h>
 
 #endif /* AVUTIL_AVCONFIG_H */
