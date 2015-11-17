@@ -313,7 +313,9 @@ class TMediaMuxer : public SoyWorkerThread
 public:
 	TMediaMuxer(std::shared_ptr<TStreamWriter>& Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName="TMediaMuxer");
 	~TMediaMuxer();
-	
+
+	void					SetStreams(const ArrayBridge<TStreamMeta>&& Streams);
+
 protected:
 	//	todo: handle the setup of streams. if not pre-known, make base class hold packets until we've decided we have enough, then write streams & packets
 	virtual void			SetupStreams(const ArrayBridge<TStreamMeta>&& Streams)=0;
@@ -327,6 +329,7 @@ public:
 	SoyListenerId							mOnPacketListener;
 	std::shared_ptr<TStreamWriter>			mOutput;
 	std::shared_ptr<TMediaPacketBuffer>		mInput;
+	Array<TStreamMeta>						mStreams;		//	streams, once setup, fixed
 };
 
 

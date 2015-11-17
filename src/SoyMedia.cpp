@@ -616,6 +616,13 @@ bool TMediaMuxer::Iteration()
 	if ( !Packet )
 		return true;
 	
+	//	do some kinda queue to auto setup streams
+	if ( mStreams.IsEmpty() )
+	{
+		auto Streams = GetRemoteArray( &Packet->mMeta, 1 );
+		SetStreams( GetArrayBridge(Streams) );
+	}
+	
 	try
 	{
 		ProcessPacket( Packet, *mOutput );
@@ -626,5 +633,15 @@ bool TMediaMuxer::Iteration()
 	}
 	
 	return true;
+}
+
+
+void TMediaMuxer::SetStreams(const ArrayBridge<TStreamMeta>&& Streams)
+{
+	Soy::Assert( mStreams.IsEmpty(), "Streams already configured");
+	
+	mStreams.Copy( Streams );
+	SetupStreams( GetArrayBridge(mStreams) );
+	
 }
 
