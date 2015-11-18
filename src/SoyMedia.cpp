@@ -446,14 +446,14 @@ TMediaExtractor::~TMediaExtractor()
 	WaitToFinish();
 }
 
-std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::GetStreamBuffer(size_t StreamIndex)
+std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::AllocStreamBuffer(size_t StreamIndex)
 {
 	auto& Buffer = mStreamBuffers[StreamIndex];
 	
 	if ( !Buffer )
 	{
 		Buffer.reset( new TMediaPacketBuffer );
-	
+		
 		//	maybe unsafe?
 		auto OnNewPacket = [this](std::shared_ptr<TMediaPacket>& Packet)
 		{
@@ -464,6 +464,14 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::GetStreamBuffer(size_t Stre
 	}
 	
 	return Buffer;
+}
+
+std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::GetStreamBuffer(size_t StreamIndex)
+{
+	if ( mStreamBuffers.find( StreamIndex ) == mStreamBuffers.end() )
+		return nullptr;
+	
+	return mStreamBuffers[StreamIndex];
 }
 
 void TMediaExtractor::Seek(SoyTime Time)
@@ -542,9 +550,15 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 				}
 				return IsWorking();
 			};
-			auto Buffer = GetStreamBuffer( NextPacket->mMeta.mStreamIndex );
-			Buffer->PushPacket( NextPacket, Block );
 			
+			auto Buffer = GetStreamBuffer( NextPacket->mMeta.mStreamIndex );
+			//	if the buffer doesn't exist, we drop the packet. todo; make it easy to skip in ReadNextPacket!
+			if ( Buffer )
+			{
+				Buffer->PushPacket( NextPacket, Block );
+			}
+
+			//	end/break even for packets we don't save
 			if ( NextPacket->mEof )
 				OnEof();
 			

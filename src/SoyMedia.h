@@ -354,6 +354,7 @@ public:
 		return !Error.empty();
 	}
 	
+	std::shared_ptr<TMediaPacketBuffer>	AllocStreamBuffer(size_t StreamIndex);
 	std::shared_ptr<TMediaPacketBuffer>	GetStreamBuffer(size_t StreamIndex);
 	
 public:
