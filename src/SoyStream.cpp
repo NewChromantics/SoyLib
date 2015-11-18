@@ -229,7 +229,7 @@ bool TStreamBuffer::Push(const ArrayBridge<char>& Data)
 }
 
 
-bool TStreamBuffer::Push(const ArrayBridge<uint8>&& Data)
+bool TStreamBuffer::Push(const ArrayBridge<uint8>& Data)
 {
 	//	convert to char
 	auto DataChar = GetRemoteArray( reinterpret_cast<const char*>( Data.GetArray() ), Data.GetDataSize() );

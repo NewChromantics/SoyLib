@@ -31,7 +31,8 @@ public:
 	
 	bool		Push(const std::string& Data);
 	bool		Push(const ArrayBridge<char>& Data);
-	bool		Push(const ArrayBridge<uint8>&& Data);
+	bool		Push(const ArrayBridge<uint8>& Data);
+	inline bool	Push(const ArrayBridge<uint8>&& Data)	{	return Push( Data );	}
 	bool		UnPop(const ArrayBridge<char>& Data);
 	inline bool	UnPop(const ArrayBridge<char>&& Data)	{	return UnPop( Data );	}
 	bool		UnPop(const ArrayBridge<uint8>& Data);
