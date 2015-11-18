@@ -210,7 +210,10 @@ uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::H264_8:
 		case SoyMediaFormat::H264_16:
 		case SoyMediaFormat::H264_32:
-			return 'avc1 ';
+			return 'avc1';
+			
+		default:
+			break;
 	}
 
 	std::stringstream Error;
