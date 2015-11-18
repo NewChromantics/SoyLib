@@ -90,6 +90,7 @@ namespace SoyMediaFormat
 	bool		IsAudio(Type Format);
 	bool		IsH264(Type Format);
 	Type		FromFourcc(uint32 Fourcc,int H264LengthSize=-1);
+	uint32		ToFourcc(Type Format);
 	bool		IsH264Fourcc(uint32 Fourcc);
 	std::string	ToMime(Type Format);
 	Type		FromMime(const std::string& Mime);

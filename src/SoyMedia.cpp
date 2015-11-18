@@ -132,6 +132,7 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
 	{
+		case SoyMediaFormat::Aac:	return true;
 		case SoyMediaFormat::Audio:	return true;
 		default:					return false;
 	}
@@ -196,6 +197,28 @@ bool SoyMediaFormat::IsH264Fourcc(uint32 Fourcc)
 	};
 }
 
+uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyMediaFormat::Aac:	return 'aac ';
+		case SoyMediaFormat::Mpeg4:	return 'mp4v';
+		
+		case SoyMediaFormat::H264_ES:
+		case SoyMediaFormat::H264_SPS_ES:
+		case SoyMediaFormat::H264_PPS_ES:
+		case SoyMediaFormat::H264_8:
+		case SoyMediaFormat::H264_16:
+		case SoyMediaFormat::H264_32:
+			return 'avc1 ';
+	}
+
+	std::stringstream Error;
+	Error << __func__ << " unhandled format -> fourcc " << Format;
+	throw Soy::AssertException( Error.str() );
+}
+
+	
 
 SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize)
 {
