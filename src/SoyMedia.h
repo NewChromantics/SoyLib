@@ -261,6 +261,9 @@ public:
 	{
 	}
 
+	//	gr: re-instating this, we should enforce decode timecodes in the extractor.
+	SoyTime					GetSortingTimecode() const	{	return mDecodeTimecode.IsValid() ? mDecodeTimecode : mTimecode;	}
+	
 public:
 	bool					mEof;
 	SoyTime					mTimecode;	//	presentation time
@@ -351,8 +354,7 @@ public:
 		return !Error.empty();
 	}
 	
-	//	change this to one-per stream
-	std::shared_ptr<TMediaPacketBuffer>	GetVideoStreamBuffer()		{	return mBuffer;	}
+	std::shared_ptr<TMediaPacketBuffer>	GetStreamBuffer(size_t StreamIndex);
 	
 public:
 	SoyEvent<const ArrayBridge<TStreamMeta>>	mOnStreamsChanged;
@@ -370,11 +372,12 @@ private:
 	virtual bool					Iteration() override;
 	
 protected:
-	std::shared_ptr<TMediaPacketBuffer>		mBuffer;
+	std::map<size_t,std::shared_ptr<TMediaPacketBuffer>>	mStreamBuffers;
 	
 private:
 	std::string						mFatalError;
 	SoyTime							mSeekTime;
+	SoyEvent<const SoyTime>&		mOnFrameExtractedEvent;
 };
 
 

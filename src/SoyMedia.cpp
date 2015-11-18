@@ -210,7 +210,10 @@ uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::H264_8:
 		case SoyMediaFormat::H264_16:
 		case SoyMediaFormat::H264_32:
-			return 'avc1 ';
+			return 'avc1';
+			
+		default:
+			break;
 	}
 
 	std::stringstream Error;
@@ -432,23 +435,35 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 
 
 TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent) :
-	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake )
+	SoyWorkerThread			( ThreadName, SoyWorkerWaitMode::Wake ),
+	mOnFrameExtractedEvent	( OnFrameExtractedEvent )
 {
-	//	todo: allocate per-stream
-	mBuffer.reset( new TMediaPacketBuffer );
-	
-	//	maybe unsafe?
-	auto OnNewPacket = [&OnFrameExtractedEvent](std::shared_ptr<TMediaPacket>& Packet)
-	{
-		//	should the perf graph be showing... the newest? the presentation time? the deocde-time?
-		OnFrameExtractedEvent.OnTriggered( Packet->mTimecode );
-	};
-	mBuffer->mOnNewPacket.AddListener( OnNewPacket );
+
 }
 
 TMediaExtractor::~TMediaExtractor()
 {
 	WaitToFinish();
+}
+
+std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::GetStreamBuffer(size_t StreamIndex)
+{
+	auto& Buffer = mStreamBuffers[StreamIndex];
+	
+	if ( !Buffer )
+	{
+		Buffer.reset( new TMediaPacketBuffer );
+	
+		//	maybe unsafe?
+		auto OnNewPacket = [this](std::shared_ptr<TMediaPacket>& Packet)
+		{
+			//	should the perf graph be showing... the newest? the presentation time? the deocde-time?
+			mOnFrameExtractedEvent.OnTriggered( Packet->mTimecode );
+		};
+		Buffer->mOnNewPacket.AddListener( OnNewPacket );
+	}
+	
+	return Buffer;
 }
 
 void TMediaExtractor::Seek(SoyTime Time)
@@ -516,9 +531,6 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			if ( NextPacket->mEof )
 				return;
 			
-			//	save what we read
-			Soy::Assert( mBuffer!=nullptr, "Buffer expected" );
-			
 			//	block thread unless it's stopped
 			auto Block = [this]()
 			{
@@ -530,7 +542,8 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 				}
 				return IsWorking();
 			};
-			mBuffer->PushPacket( NextPacket, Block );
+			auto Buffer = GetStreamBuffer( NextPacket->mMeta.mStreamIndex );
+			Buffer->PushPacket( NextPacket, Block );
 			
 			if ( NextPacket->mEof )
 				OnEof();
