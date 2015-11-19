@@ -63,15 +63,34 @@ namespace H264NaluPriority
 }
 
 
-namespace H264ProfileLevel
+namespace H264Profile
 {
+	//	http://stackoverflow.com/questions/21120717/h-264-video-wont-play-on-ios
+	//	file:///Users/grahamr/Downloads/T-REC-H.264-201304-S!!PDF-E%20(2).pdf	page 71
 	enum Type
 	{
-		Invalid,
-		Baseline,
+		Invalid		= 0,
+		Baseline	= 0x42,	//	66
+		Main		= 0x4D,	//	77
+		Extended	= 0x58,	//	88
+		High		= 0x64,	//	100
+		
+		//	these were used in my SPS parsing, but I can't find what they correspond to...
+		//	http://blog.mediacoderhq.com/h264-profiles-and-levels/
+		High10Intra		= 0x6E,	//	110	10 bit intra... IF constraint3?
+		High422Intra	= 0x7A,	//	122 4:2:2 intra... IF constraint3?
+		High4		= 0xF4,	//	244
+		High5		= 0x2C,	//	44 requires constraint_set3_flag
+		High6		= 0x53,	//	83
+		High7		= 0x56,	//	86
+		
+		High8		= 0x76,	//	118
+		High9		= 0x80,	//	128
+		
+		HighMultiviewDepth	= 0x8A,	//	138
 	};
 	
-	DECLARE_SOYENUM(H264ProfileLevel);
+	DECLARE_SOYENUM(H264Profile);
 }
 
 
@@ -97,7 +116,13 @@ namespace H264
 	uint8		EncodeNaluByte(H264NaluContent::Type Content,H264NaluPriority::Type Priority);
 	void		DecodeNaluByte(uint8 Byte,H264NaluContent::Type& Content,H264NaluPriority::Type& Priority);	//	throws on error (eg. reservered-zero not zero)
 	
+	TSpsParams	ParseSps(const ArrayBridge<uint8>& Data);
 	TSpsParams	ParseSps(const ArrayBridge<uint8>&& Data);
+	
+	//	modify sps!
+	Soy::TVersion	DecodeLevel(uint8 Level8);
+	void			SetSpsProfile(ArrayBridge<uint8>&& Data,H264Profile::Type Profile);
+	void			SetSpsLevel(ArrayBridge<uint8>&& Data,Soy::TVersion Level);
 }
 
 
@@ -107,13 +132,19 @@ public:
 	TSpsParams()
 	{
 		memset( this, 0, sizeof(*this) );
+		
+		mProfile = H264Profile::Invalid;
+		mLevel = Soy::TVersion();
 	}
-	size_t		mWidth;
-	size_t		mHeight;
-	uint8		mProfile;
+
+	size_t				mWidth;
+	size_t				mHeight;
+	H264Profile::Type	mProfile;
+	Soy::TVersion		mLevel;
+	
+	
 	uint8		mConstraintFlag[6];
 	uint8		mReservedZero;
-	uint8		mLevel;
 	uint32		seq_parameter_set_id;
 	uint32		chroma_format_idc;
 	uint8		residual_colour_transform_flag;
