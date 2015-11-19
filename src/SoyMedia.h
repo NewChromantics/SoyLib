@@ -51,8 +51,9 @@ namespace SoyMediaFormat
 		LumaVideo = SoyPixelsFormat::LumaVideo,
 		Yuv_8_88_Full = SoyPixelsFormat::Yuv_8_88_Full,
 		Yuv_8_88_Video = SoyPixelsFormat::Yuv_8_88_Video,
-		Yuv_8_4_4_Full = SoyPixelsFormat::Yuv_8_4_4_Full,
-		ChromaUV_4_4 = SoyPixelsFormat::ChromaUV_4_4,
+		Yuv_8_8_8_Full = SoyPixelsFormat::Yuv_8_8_8_Full,
+		Yuv_8_8_8_Video = SoyPixelsFormat::Yuv_8_8_8_Video,
+		ChromaUV_8_8 = SoyPixelsFormat::ChromaUV_8_8,
 		ChromaUV_88 = SoyPixelsFormat::ChromaUV_88,
 		
 		NotPixels = SoyPixelsFormat::Count,
@@ -336,7 +337,7 @@ public:
 class TMediaExtractor : public SoyWorkerThread
 {
 public:
-	TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent);
+	TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent,SoyTime ReadAheadMs);
 	~TMediaExtractor();
 	
 	void							Seek(SoyTime Time);				//	keep calling this, controls the packet read-ahead
@@ -354,9 +355,6 @@ public:
 	//	change this to one-per stream
 	std::shared_ptr<TMediaPacketBuffer>	GetVideoStreamBuffer()		{	return mBuffer;	}
 	
-public:
-	SoyEvent<const ArrayBridge<TStreamMeta>>	mOnStreamsChanged;
-	
 protected:
 	void							OnEof();
 	void							OnError(const std::string& Error);
@@ -368,6 +366,11 @@ protected:
 
 private:
 	virtual bool					Iteration() override;
+	
+	
+public:
+	SoyEvent<const ArrayBridge<TStreamMeta>>	mOnStreamsChanged;
+	SoyTime							mExtractAheadMs;
 	
 protected:
 	std::shared_ptr<TMediaPacketBuffer>		mBuffer;

@@ -40,8 +40,9 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::LumaVideo,		"LumaVideo" },
 	{ SoyMediaFormat::Yuv_8_88_Full,	"Yuv_8_88_Full" },
 	{ SoyMediaFormat::Yuv_8_88_Video,	"Yuv_8_88_Video" },
-	{ SoyMediaFormat::Yuv_8_4_4_Full,	"Yuv_8_4_4_Full" },
-	{ SoyMediaFormat::ChromaUV_4_4,		"ChromaUV_4_4" },
+	{ SoyMediaFormat::Yuv_8_8_8_Full,	"Yuv_8_8_8_Full" },
+	{ SoyMediaFormat::Yuv_8_8_8_Video,	"Yuv_8_8_8_Video" },
+	{ SoyMediaFormat::ChromaUV_8_8,		"ChromaUV_8_8" },
 	{ SoyMediaFormat::ChromaUV_88,		"ChromaUV_88" },
 };
 
@@ -434,8 +435,9 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 
 
 
-TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent) :
-	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake )
+TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent,SoyTime ExtractAheadMs) :
+	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake ),
+	mExtractAheadMs		( ExtractAheadMs )
 {
 	//	todo: allocate per-stream
 	mBuffer.reset( new TMediaPacketBuffer );
@@ -465,7 +467,7 @@ void TMediaExtractor::Seek(SoyTime Time)
 	}
 	
 	//	update the target time and wake up thread in case we need to read frames
-	mSeekTime = Time;
+	mSeekTime = Time + mExtractAheadMs;
 	Wake();
 }
 
