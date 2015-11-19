@@ -60,6 +60,7 @@ class TStreamReader : public SoyWorkerThread
 {
 public:
 	TStreamReader(const std::string& Name,std::shared_ptr<TStreamBuffer> ReadBuffer=nullptr);
+	~TStreamReader();
 	
 	virtual bool									Iteration() override;
 	virtual void									Read(TStreamBuffer& Buffer)=0;	//	read next chunk of data into buffer
