@@ -34,12 +34,12 @@ std::map<H264NaluContent::Type,std::string> H264NaluContent::EnumMap =
 	ENUM_CASE( Reserved21 ),
 	ENUM_CASE( Reserved22 ),
 	ENUM_CASE( Reserved23 ),
-	ENUM_CASE( Unspecified24 ),
-	ENUM_CASE( Unspecified25 ),
-	ENUM_CASE( Unspecified26 ),
-	ENUM_CASE( Unspecified27 ),
-	ENUM_CASE( Unspecified28 ),
-	ENUM_CASE( Unspecified29 ),
+	ENUM_CASE( STAP_A ),
+	ENUM_CASE( STAP_B ),
+	ENUM_CASE( MTAP_16 ),
+	ENUM_CASE( MTAP_24 ),
+	ENUM_CASE( FU_A ),
+	ENUM_CASE( FU_B ),
 	ENUM_CASE( Unspecified30 ),
 	ENUM_CASE( Unspecified31 ),
 #undef ENUM_CASE
@@ -60,6 +60,12 @@ std::map<H264NaluPriority::Type,std::string> H264NaluPriority::EnumMap =
 #undef ENUM_CASE
 };
 
+
+std::map<H264ProfileLevel::Type, std::string> H264ProfileLevel::EnumMap =
+{
+	{ H264ProfileLevel::Invalid,	"Invalid" },
+	{ H264ProfileLevel::Baseline,	"Baseline" },
+};
 
 
 
@@ -371,12 +377,14 @@ void H264::ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type
 		if ( GetArrayBridge(StartData).IsEmpty() )
 			return static_cast<size_t>(0);
 		
-		size_t HeaderSize = 0;
-		auto Start = H264::FindNaluStartIndex( GetArrayBridge(StartData), NaluSize, HeaderSize );
+		size_t RealHeaderSize = 0;
+		auto Start = H264::FindNaluStartIndex( GetArrayBridge(StartData), NaluSize, RealHeaderSize );
 		Soy::Assert( Start >= 0, "Failed to find NALU header in annex b packet");
 		Soy::Assert( NaluSize != 0, "Failed to find NALU header size in annex b packet");
 		
 		//	recalc data start
+		static bool EatNaluByte = false;
+		auto HeaderSize = EatNaluByte ? RealHeaderSize : NaluSize;
 		Start = StartOffset + HeaderSize;
 		
 		size_t EndNaluSize = 0;

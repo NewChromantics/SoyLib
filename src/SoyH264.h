@@ -32,12 +32,15 @@ namespace H264NaluContent
 		Reserved21					= 21,
 		Reserved22					= 22,
 		Reserved23					= 23,
-		Unspecified24				= 24,
-		Unspecified25				= 25,
-		Unspecified26				= 26,
-		Unspecified27				= 27,
-		Unspecified28				= 28,
-		Unspecified29				= 29,
+		
+		//	gr: are these specific to RTP ?
+		//	names from libav rtp_h264.c
+		STAP_A						= 24,	//	one packet, multiple nals). is this just for RTP?
+		STAP_B						= 25,
+		MTAP_16						= 26,
+		MTAP_24						= 27,
+		FU_A						= 28,	// fragmented nal. Is this just for RTP?
+		FU_B						= 29,
 		Unspecified30				= 30,
 		Unspecified31				= 31,
 	};
@@ -58,6 +61,19 @@ namespace H264NaluPriority
 	};
 	DECLARE_SOYENUM(H264NaluPriority);
 }
+
+
+namespace H264ProfileLevel
+{
+	enum Type
+	{
+		Invalid,
+		Baseline,
+	};
+	
+	DECLARE_SOYENUM(H264ProfileLevel);
+}
+
 
 
 
