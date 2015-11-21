@@ -229,7 +229,7 @@ bool TStreamBuffer::Push(const ArrayBridge<char>& Data)
 }
 
 
-bool TStreamBuffer::Push(const ArrayBridge<uint8>&& Data)
+bool TStreamBuffer::Push(const ArrayBridge<uint8>& Data)
 {
 	//	convert to char
 	auto DataChar = GetRemoteArray( reinterpret_cast<const char*>( Data.GetArray() ), Data.GetDataSize() );
@@ -320,6 +320,10 @@ TStreamReader::TStreamReader(const std::string& Name,std::shared_ptr<TStreamBuff
 	}
 }
 
+TStreamReader::~TStreamReader()
+{
+	WaitToFinish();
+}
 
 bool TStreamReader::Iteration()
 {
@@ -338,17 +342,20 @@ bool TStreamReader::Iteration()
 	//	nothing to do
 	if ( mReadBuffer->IsEmpty() )
 		return true;
+	if ( !IsWorking() )
+		return true;
 	
 	//	alloc protocol instance to process
 	if ( !mCurrentProtocol )
-	{
 		mCurrentProtocol = AllocProtocol();
-		if ( !mCurrentProtocol )
-			return true;
-	}
+
+	//	in case it's been released capture a local copy
+	auto CurrentProtocol = mCurrentProtocol;
+	if ( !CurrentProtocol )
+		return true;
 	
 	//	process
-	auto DecodeResult = mCurrentProtocol->Decode( *mReadBuffer );
+	auto DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
 	
 	switch ( DecodeResult )
 	{
@@ -375,7 +382,7 @@ bool TStreamReader::Iteration()
 	}
 	
 	//	notify (with shared ptr so data can be cheaply saved)
-	mOnDataRecieved.OnTriggered( mCurrentProtocol );
+	mOnDataRecieved.OnTriggered( CurrentProtocol );
 	
 	//	dealloc for next
 	mCurrentProtocol.reset();

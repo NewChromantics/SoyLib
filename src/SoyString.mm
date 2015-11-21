@@ -1,6 +1,6 @@
 #include "SoyString.h"
 #import <Foundation/Foundation.h>
-
+#include "HeapArray.hpp"
 
 std::string Soy::NSStringToString(NSString* String)
 {
@@ -65,4 +65,27 @@ void Soy::NSDictionaryToStrings(ArrayBridge<std::pair<std::string,std::string>>&
 }
 
 
+std::string Soy::NSDictionaryToString(NSDictionary* Dictionary)
+{
+	Array<std::pair<std::string,std::string>> Strings;
+	NSDictionaryToStrings( GetArrayBridge(Strings), Dictionary );
+
+	std::stringstream String;
+	String << "Dictionary x" << Strings.GetSize() << "; ";
+	for ( int i=0;	i<Strings.GetSize();	i++ )
+	{
+		auto& Key = Strings[i].first;
+		auto& Value = Strings[i].second;
+		
+		String << Key << "=" << Value << "; ";
+	}
+	
+	return String.str();
+}
+
+std::string	Soy::NSDictionaryToString(CFDictionaryRef Dictionary)
+{
+	NSDictionary* DictionaryNs = (__bridge NSDictionary*)Dictionary;
+	return NSDictionaryToString( DictionaryNs );
+}
 

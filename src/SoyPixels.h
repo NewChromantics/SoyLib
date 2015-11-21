@@ -17,18 +17,18 @@ namespace SoyPixelsFormat
 		UnityUnknown	=-1,	//	gr: temp for this project
 
 		Invalid			= 0,
-		Greyscale		= 1,
-		GreyscaleAlpha	= 2,	//	png has this for 2 channel, so why not us!
-		RGB				= 3,
-		RGBA			= 4,
+		Greyscale,
+		GreyscaleAlpha,		//	png has this for 2 channel, so why not us!
+		RGB,
+		RGBA,
 
 		//	non integer-based channel counts
-		BGRA			= 5,
-		BGR				= 6,
-		KinectDepth		= 7,	//	16 bit, so "two channels". 13 bits of depth, 3 bits of user-index
-		FreenectDepth10bit	= 8,	//	16 bit
-		FreenectDepth11bit	= 9,	//	16 bit
-		FreenectDepthmm	= 10,	//	16 bit
+		BGRA,
+		BGR,
+		KinectDepth,		//	16 bit, so "two channels". 13 bits of depth, 3 bits of user-index
+		FreenectDepth10bit,	//	16 bit
+		FreenectDepth11bit,	//	16 bit
+		FreenectDepthmm,	//	16 bit
 	
 
 		//	http://stackoverflow.com/a/6315159/355753
@@ -38,20 +38,16 @@ namespace SoyPixelsFormat
 		//	Y=luma	uv=ChromaUv
 		
 		//	gr: naming convention; planes seperated by underscore
-		Yuv_8_88_Full			= 13,	//	8 bit Luma, interleaved Chroma uv plane
-		Yuv_8_88_Video			= 14,	//	8 bit Luma, interleaved Chroma uv plane
-		Yuv_8_4_4_Full			= 20,	//	8bit Y plane, then 4bit U plane, then 4bit V plane
-		ChromaUV_4_4			= 21,	//	4 bit plane, 4 bit plane - might be nice to split this into multiple planes but 8 bit will upload....
-		ChromaUV_88				= 22,	//	16 bit interleaved plane
+		Yuv_8_88_Full,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
+		Yuv_8_88_Video,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
+		Yuv_8_8_8_Full,		//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
+		Yuv_8_8_8_Video,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
+		ChromaUV_8_8,		//	8 bit plane, 8 bit plane
+		ChromaUV_88,		//	16 bit interleaved plane
 
-		//	shorthand names
-		//	http://www.fourcc.org/yuv.php
-		Nv12					= Yuv_8_88_Full,
-		I420					= Yuv_8_4_4_Full,
-		
 		//	https://github.com/ofTheo/ofxKinect/blob/ebb9075bcb5ab2543220b4dec598fd73cec40904/libs/libfreenect/src/cameras.c
 		//	kinect (16bit?) yuv. See if its the same as a standard one 
-		uyvy					= 23,
+		uyvy,
 		/*
 		 int u  = raw_buf[2*i];
 			int y1 = raw_buf[2*i+1];
@@ -76,8 +72,14 @@ namespace SoyPixelsFormat
 			proc_buf[3*i+4]=g2;
 			proc_buf[3*i+5]=b2;		 */
 
+		LumaVideo,			//	Video-range luma plane
+
+		//	shorthand names
+		//	http://www.fourcc.org/yuv.php
 		LumaFull		= Greyscale,	//	Luma plane of a YUV
-		LumaVideo		= 24,			//	Video-range luma plane
+		Nv12			= Yuv_8_88_Full,
+		I420			= Yuv_8_8_8_Full,
+		
 		
 		Count=99,
 	};

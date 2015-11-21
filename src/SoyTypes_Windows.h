@@ -45,15 +45,15 @@
 
 
 #include <math.h>
+#include <stdint.h>
 
-
-
+/*
 typedef signed __int32		int32;
 typedef unsigned __int32	uint32;
 typedef signed __int64		int64;
 typedef unsigned __int64	uint64;
+*/
 typedef SSIZE_T				ssize_t;
-
 
 
 

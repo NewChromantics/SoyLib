@@ -979,6 +979,6 @@ extern ssize_t	 write(int, const void *, size_t);// __DARWIN_ALIAS_C(write);
 
 //#include <libavutil/internal.h>
 //#include <libavutil/time_internal.h>
-#include <libavformat/avio.h>
+//#include <libavformat/avio.h>
 
 #endif /* AVUTIL_AVCONFIG_H */

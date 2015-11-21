@@ -40,8 +40,9 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::LumaVideo,		"LumaVideo" },
 	{ SoyMediaFormat::Yuv_8_88_Full,	"Yuv_8_88_Full" },
 	{ SoyMediaFormat::Yuv_8_88_Video,	"Yuv_8_88_Video" },
-	{ SoyMediaFormat::Yuv_8_4_4_Full,	"Yuv_8_4_4_Full" },
-	{ SoyMediaFormat::ChromaUV_4_4,		"ChromaUV_4_4" },
+	{ SoyMediaFormat::Yuv_8_8_8_Full,	"Yuv_8_8_8_Full" },
+	{ SoyMediaFormat::Yuv_8_8_8_Video,	"Yuv_8_8_8_Video" },
+	{ SoyMediaFormat::ChromaUV_8_8,		"ChromaUV_8_8" },
 	{ SoyMediaFormat::ChromaUV_88,		"ChromaUV_88" },
 };
 
@@ -132,6 +133,7 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
 	{
+		case SoyMediaFormat::Aac:	return true;
 		case SoyMediaFormat::Audio:	return true;
 		default:					return false;
 	}
@@ -196,6 +198,31 @@ bool SoyMediaFormat::IsH264Fourcc(uint32 Fourcc)
 	};
 }
 
+uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyMediaFormat::Aac:	return 'aac ';
+		case SoyMediaFormat::Mpeg4:	return 'mp4v';
+		
+		case SoyMediaFormat::H264_ES:
+		case SoyMediaFormat::H264_SPS_ES:
+		case SoyMediaFormat::H264_PPS_ES:
+		case SoyMediaFormat::H264_8:
+		case SoyMediaFormat::H264_16:
+		case SoyMediaFormat::H264_32:
+			return 'avc1';
+			
+		default:
+			break;
+	}
+
+	std::stringstream Error;
+	Error << __func__ << " unhandled format -> fourcc " << Format;
+	throw Soy::AssertException( Error.str() );
+}
+
+	
 
 SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize)
 {
@@ -408,8 +435,9 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 
 
 
-TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent) :
-	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake )
+TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent,SoyTime ExtractAheadMs) :
+	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake ),
+	mExtractAheadMs		( ExtractAheadMs )
 {
 	//	todo: allocate per-stream
 	mBuffer.reset( new TMediaPacketBuffer );
@@ -439,7 +467,7 @@ void TMediaExtractor::Seek(SoyTime Time)
 	}
 	
 	//	update the target time and wake up thread in case we need to read frames
-	mSeekTime = Time;
+	mSeekTime = Time + mExtractAheadMs;
 	Wake();
 }
 

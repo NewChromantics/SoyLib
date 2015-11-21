@@ -129,6 +129,8 @@ namespace Soy
 	std::string	NSErrorToString(NSError* Error);
 	std::string	NSErrorToString(NSException* Exception);
 	void		NSDictionaryToStrings(ArrayBridge<std::pair<std::string,std::string>>&& Elements,NSDictionary* Dictionary);
+	std::string	NSDictionaryToString(NSDictionary* Dictionary);
+	std::string	NSDictionaryToString(CFDictionaryRef Dictionary);
 };
 #endif
 

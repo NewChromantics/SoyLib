@@ -31,7 +31,8 @@ public:
 	
 	bool		Push(const std::string& Data);
 	bool		Push(const ArrayBridge<char>& Data);
-	bool		Push(const ArrayBridge<uint8>&& Data);
+	bool		Push(const ArrayBridge<uint8>& Data);
+	inline bool	Push(const ArrayBridge<uint8>&& Data)	{	return Push( Data );	}
 	bool		UnPop(const ArrayBridge<char>& Data);
 	inline bool	UnPop(const ArrayBridge<char>&& Data)	{	return UnPop( Data );	}
 	bool		UnPop(const ArrayBridge<uint8>& Data);
@@ -59,6 +60,7 @@ class TStreamReader : public SoyWorkerThread
 {
 public:
 	TStreamReader(const std::string& Name,std::shared_ptr<TStreamBuffer> ReadBuffer=nullptr);
+	~TStreamReader();
 	
 	virtual bool									Iteration() override;
 	virtual void									Read(TStreamBuffer& Buffer)=0;	//	read next chunk of data into buffer
