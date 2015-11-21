@@ -776,7 +776,7 @@ void Opengl::TTexture::GenerateMipMaps()
 		return;
 	
 	//	gr: this can be slow, highlight it
-	Soy::TScopeTimerPrint Timer("glGenerateMipmap",1);
+	Soy::TScopeTimerPrint Timer("glGenerateMipmap",2);
 	
 	glGenerateMipmap( mType );
 	std::stringstream Error;
