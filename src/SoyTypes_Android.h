@@ -8,7 +8,7 @@
 #define __export	extern "C"
 #define __thread				//	thread local not supported on android
 #define __stdcall
-#define __pure		__attribute__((pure))
+//#define __pure		__attribute__((pure))
 
 
 #include <stdint.h>
