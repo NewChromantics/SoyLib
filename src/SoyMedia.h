@@ -285,7 +285,7 @@ class TMediaPacketBuffer
 public:
 	TMediaPacketBuffer(size_t MaxBufferSize=10) :
 		mMaxBufferSize			( MaxBufferSize ),
-		mAutoTimestampDuration	( 16ull )
+		mAutoTimestampDuration	( 33ull )
 	{
 	}
 	

@@ -440,7 +440,7 @@ void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 		{
 			Packet.mTimecode = Packet.mDecodeTimecode;
 		}
-		std::Debug << "Corrected incoming packet presentation timecode to " << Packet.mTimecode << std::endl;
+		//std::Debug << "Corrected incoming packet presentation timecode to " << Packet.mTimecode << std::endl;
 	}
 	
 	mLastPacketTimestamp = Packet.mTimecode;
@@ -453,7 +453,7 @@ void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 			DtsOffset = SoyTime(0ull);
 		
 		Packet.mDecodeTimecode = Packet.mTimecode - DtsOffset;
-		std::Debug << "Corrected incoming packet decode-timecode to " << Packet.mDecodeTimecode << std::endl;
+		//std::Debug << "Corrected incoming packet decode-timecode to " << Packet.mDecodeTimecode << std::endl;
 	}
 }
 
