@@ -324,6 +324,7 @@ public:
 	~TMediaMuxer();
 
 	void					SetStreams(const ArrayBridge<TStreamMeta>&& Streams);
+	virtual void			Finish()=0;
 
 protected:
 	//	todo: handle the setup of streams. if not pre-known, make base class hold packets until we've decided we have enough, then write streams & packets
