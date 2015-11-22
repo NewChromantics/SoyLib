@@ -110,11 +110,12 @@ namespace H264
 	void		RemoveHeader(SoyMediaFormat::Type Format,ArrayBridge<uint8>&& Data,bool KeepNaluByte);
 	ssize_t		FindNaluStartIndex(ArrayBridge<uint8>&& Data,size_t& NaluSize,size_t& HeaderSize);
 
-	bool		IsNalu(ArrayBridge<uint8>& Data,size_t& NaluSize,size_t& HeaderSize);
-	inline bool	IsNalu(ArrayBridge<uint8>&& Data,size_t& NaluSize,size_t& HeaderSize)	{	return IsNalu( Data, NaluSize, HeaderSize );	}
+	bool		IsNalu(const ArrayBridge<uint8>& Data,size_t& NaluSize,size_t& HeaderSize);
+	inline bool	IsNalu(const ArrayBridge<uint8>&& Data,size_t& NaluSize,size_t& HeaderSize)	{	return IsNalu( Data, NaluSize, HeaderSize );	}
 	
 	uint8		EncodeNaluByte(H264NaluContent::Type Content,H264NaluPriority::Type Priority);
 	void		DecodeNaluByte(uint8 Byte,H264NaluContent::Type& Content,H264NaluPriority::Type& Priority);	//	throws on error (eg. reservered-zero not zero)
+	void		DecodeNaluByte(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&& Data,H264NaluContent::Type& Content,H264NaluPriority::Type& Priority);	//	throws on error (eg. reservered-zero not zero)
 	
 	TSpsParams	ParseSps(const ArrayBridge<uint8>& Data);
 	TSpsParams	ParseSps(const ArrayBridge<uint8>&& Data);
