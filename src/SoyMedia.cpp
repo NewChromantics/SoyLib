@@ -633,7 +633,7 @@ TMediaMuxer::TMediaMuxer(std::shared_ptr<TStreamWriter>& Output,std::shared_ptr<
 	mOutput			( Output ),
 	mInput			( Input )
 {
-	Soy::Assert( mOutput!=nullptr, "TMpeg2TsMuxer output missing");
+	//Soy::Assert( mOutput!=nullptr, "TMpeg2TsMuxer output missing");
 	Soy::Assert( mInput!=nullptr, "TMpeg2TsMuxer input missing");
 	mOnPacketListener = WakeOnEvent( mInput->mOnNewPacket );
 	
