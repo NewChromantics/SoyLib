@@ -353,7 +353,7 @@ public:
 	virtual std::shared_ptr<Platform::TMediaFormat>	GetStreamFormat(size_t StreamIndex)=0;
 	bool							HasFatalError(std::string& Error)
 	{
-		Error = mFatalError;
+		Error += mFatalError;
 		return !Error.empty();
 	}
 	
@@ -400,7 +400,7 @@ public:
 	
 	bool							HasFatalError(std::string& Error)
 	{
-		Error = mFatalError.str();
+		Error += mFatalError.str();
 		return !Error.empty();
 	}
 	
