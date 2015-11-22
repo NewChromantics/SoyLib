@@ -55,7 +55,6 @@ std::ostream& operator<<(std::ostream& out,const TStreamMeta& in)
 	out << "mDescription=" << in.mDescription << ", ";
 	out << "mCompressed=" << in.mCompressed << ", ";
 	out << "mFramesPerSecond=" << in.mFramesPerSecond << ", ";
-	out << "mFramesPerSecond=" << in.mFramesPerSecond << ", ";
 	out << "mDuration=" << in.mDuration << ", ";
 	out << "mEncodingBitRate=" << in.mEncodingBitRate << ", ";
 	out << "mStreamIndex=" << in.mStreamIndex << ", ";
@@ -397,41 +396,66 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 		}
 	}
 	
+	//	gr: fix incoming timestamps
+	CorrectIncomingPacketTimecode( *Packet );
+
 	{
 		std::lock_guard<std::mutex> Lock( mPacketsLock );
 		
-		//	if no decode order, push as they come in...
-		//	gr: handle mixes of these... eg. one stream has decode order and one doesnt...
-		//	gr: I believe SortArray may push new packets to the start of the array if compare==0 all the way
-		if ( Packet->mDecodeTimecode.IsValid() )
+		//	sort by decode order
+		auto SortPackets = [](const std::shared_ptr<TMediaPacket>& a,const std::shared_ptr<TMediaPacket>& b)
 		{
-			//	sort by decode order
-			auto SortPackets = [](const std::shared_ptr<TMediaPacket>& a,const std::shared_ptr<TMediaPacket>& b)
-			{
-				auto Timea = a->mDecodeTimecode;
-				auto Timeb = b->mDecodeTimecode;
+			auto Timea = a->mDecodeTimecode;
+			auto Timeb = b->mDecodeTimecode;
 				
-				if ( Timea < Timeb )
-					return -1;
-				if ( Timea > Timeb )
-					return 1;
+			if ( Timea < Timeb )
+				return -1;
+			if ( Timea > Timeb )
+				return 1;
 				
-				return 0;
-			};
+			return 0;
+		};
 			
-			SortArrayLambda<std::shared_ptr<TMediaPacket>> SortedPackets( GetArrayBridge(mPackets), SortPackets );
-			SortedPackets.Push( Packet );
-		}
-		else
-		{
-			mPackets.PushBack( Packet );
-		}
+		SortArrayLambda<std::shared_ptr<TMediaPacket>> SortedPackets( GetArrayBridge(mPackets), SortPackets );
+		SortedPackets.Push( Packet );
 		
 		//std::Debug << "Pushed intput packet to buffer " << *Packet << std::endl;
 	}
 	mOnNewPacket.OnTriggered( Packet );
 }
 
+void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
+{
+	//	make up a presentation timecode if it's missing
+	if ( !Packet.mTimecode.IsValid() )
+	{
+		if ( !Packet.mDecodeTimecode.IsValid() )
+		{
+			if ( !mLastPacketTimestamp.IsValid() )
+				Packet.mTimecode = SoyTime( 1ull );
+			else
+				Packet.mTimecode = mLastPacketTimestamp + mAutoTimestampDuration;
+		}
+		else
+		{
+			Packet.mTimecode = Packet.mDecodeTimecode;
+		}
+		std::Debug << "Corrected incoming packet presentation timecode to " << Packet.mTimecode << std::endl;
+	}
+	
+	mLastPacketTimestamp = Packet.mTimecode;
+	
+	//	if we don't have a decode-timestamp, make it
+	if ( !Packet.mDecodeTimecode.IsValid() )
+	{
+		SoyTime DtsOffset( 1ull );
+		if ( Packet.mTimecode <= DtsOffset )
+			DtsOffset = SoyTime(0ull);
+		
+		Packet.mDecodeTimecode = Packet.mTimecode - DtsOffset;
+		std::Debug << "Corrected incoming packet decode-timecode to " << Packet.mDecodeTimecode << std::endl;
+	}
+}
 
 
 

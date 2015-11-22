@@ -284,7 +284,8 @@ class TMediaPacketBuffer
 {
 public:
 	TMediaPacketBuffer(size_t MaxBufferSize=10) :
-	mMaxBufferSize	( MaxBufferSize )
+		mMaxBufferSize			( MaxBufferSize ),
+		mAutoTimestampDuration	( 16ull )
 	{
 	}
 	
@@ -296,6 +297,9 @@ public:
 	void							PushPacket(std::shared_ptr<TMediaPacket> Packet,std::function<bool()> Block);
 	bool							HasPackets() const	{	return !mPackets.IsEmpty();	}
 	
+protected:
+	void							CorrectIncomingPacketTimecode(TMediaPacket& Packet);
+
 public:
 	SoyEvent<std::shared_ptr<TMediaPacket>>	mOnNewPacket;
 	
@@ -305,6 +309,9 @@ private:
 	size_t									mMaxBufferSize;
 	Array<std::shared_ptr<TMediaPacket>>	mPackets;
 	std::mutex								mPacketsLock;
+
+	SoyTime									mLastPacketTimestamp;	//	for when we have to calculate timecodes ourselves
+	SoyTime									mAutoTimestampDuration;
 };
 
 
