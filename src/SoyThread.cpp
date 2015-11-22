@@ -251,6 +251,11 @@ void SoyThread::Start()
 			}
 			SoyThread::OnThreadFinish.OnTriggered(*this);
 		}
+		catch(std::exception& e)
+		{
+			SoyThread::OnThreadFinish.OnTriggered(*this);
+			throw;
+		}
 		catch(...)
 		{
 			SoyThread::OnThreadFinish.OnTriggered(*this);
