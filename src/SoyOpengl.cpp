@@ -17,6 +17,14 @@ public:
 		for ( auto OpenglFormat : OpenglFormats )
 			mOpenglFormats.PushBack( OpenglFormat );
 	}
+	TPixelFormatMapping(SoyPixelsFormat::Type PixelFormat,const std::initializer_list<GLenum>& OpenglFormats,const std::initializer_list<GLenum>& InternalOpenglFormats) :
+		mPixelFormat		( PixelFormat )
+	{
+		for ( auto OpenglFormat : OpenglFormats )
+			mOpenglFormats.PushBack( OpenglFormat );
+		for ( auto OpenglFormat : InternalOpenglFormats )
+			mOpenglInternalFormats.PushBack( OpenglFormat );
+	}
 	
 	bool					operator==(const SoyPixelsFormat::Type Format) const	{	return mPixelFormat == Format;	}
 	
@@ -25,7 +33,9 @@ public:
 	//	gr: after exhaustive work.... these have all ended up being the same.
 	//	ES requires this, some don't but in the end they've all been the same anyway...
 	//	BUT, some platforms (android ES2) don't support all formats, so we want alternatives...
+	//	gr: there is ONE case; BGRA can be uploaded, but not an internal format (OSX)
 	BufferArray<GLenum,5>	mOpenglFormats;
+	BufferArray<GLenum,5>	mOpenglInternalFormats;	//	if empty, use OpenglFormats
 };
 
 namespace Opengl
@@ -776,7 +786,7 @@ void Opengl::TTexture::GenerateMipMaps()
 		return;
 	
 	//	gr: this can be slow, highlight it
-	Soy::TScopeTimerPrint Timer("glGenerateMipmap",1);
+	Soy::TScopeTimerPrint Timer("glGenerateMipmap",2);
 	
 	glGenerateMipmap( mType );
 	std::stringstream Error;
@@ -1858,9 +1868,9 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth11bit,	Opengl16BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::FreenectDepthmm,		Opengl16BitFormats ),
 
-		//	ios has no BGRA
 #if defined(GL_BGRA)
-		TPixelFormatMapping( SoyPixelsFormat::BGRA,			{ GL_BGRA	} ),
+		//	BGRA is not a valid internal format
+		TPixelFormatMapping( SoyPixelsFormat::BGRA,			{ GL_BGRA	}, { GL_RGBA	} ),
 #else
 		TPixelFormatMapping( SoyPixelsFormat::BGRA,			{ GL_RGBA	} ),
 #endif
@@ -1915,7 +1925,15 @@ void Opengl::GetUploadPixelFormats(ArrayBridge<GLenum>&& Formats,const Opengl::T
 void Opengl::GetNewTexturePixelFormats(ArrayBridge<GLenum>&& Formats,SoyPixelsFormat::Type Format)
 {
 	auto Mapping = GetPixelMapping( Format );
-	Formats.PushBackArray( Mapping.mOpenglFormats );
+	
+	if ( Mapping.mOpenglInternalFormats.IsEmpty() )
+	{
+		Formats.PushBackArray( Mapping.mOpenglFormats );
+	}
+	else
+	{
+		Formats.PushBackArray( Mapping.mOpenglInternalFormats );
+	}
 }
 
 

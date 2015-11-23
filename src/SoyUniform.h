@@ -78,6 +78,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const int& v) override;
 	virtual bool	SetUniform(const char* Name,const float& v) override;
 	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
+	virtual bool	SetUniform(const char* Name,const vec3f& v) override;
 	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v) override;
 	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v) override
@@ -128,6 +129,12 @@ bool TUniformWrapper<TYPE>::SetUniform(const char* Name,const std::string& v)
 
 template<typename TYPE>
 bool TUniformWrapper<TYPE>::SetUniform(const char* Name,const vec2f& v)
+{
+	return false;
+}
+
+template<typename TYPE>
+bool TUniformWrapper<TYPE>::SetUniform(const char* Name,const vec3f& v)
 {
 	return false;
 }

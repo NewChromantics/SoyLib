@@ -135,7 +135,7 @@ void ReformatDeliminator(ArrayBridge<uint8>& Data,
 
 
 
-bool H264::IsNalu(ArrayBridge<uint8>& Data,size_t& NaluSize,size_t& HeaderSize)
+bool H264::IsNalu(const ArrayBridge<uint8>& Data,size_t& NaluSize,size_t& HeaderSize)
 {
 	//	too small to be nalu3
 	if ( Data.GetDataSize() < 4 )
@@ -249,8 +249,15 @@ bool H264::ResolveH264Format(SoyMediaFormat::Type& Format,ArrayBridge<uint8>& Da
 	
 	H264NaluContent::Type Content;
 	H264NaluPriority::Type Priority;
-	DecodeNaluByte( NaluByte, Content, Priority );
-		
+	try
+	{
+		DecodeNaluByte( NaluByte, Content, Priority );
+	}
+	catch(std::exception&e)
+	{
+		std::Debug << __func__ << " exception: " << e.what() << std::endl;
+		throw;
+	}
 	if ( Content == H264NaluContent::SequenceParameterSet )
 		Format = SoyMediaFormat::H264_SPS_ES;
 	else if ( Content == H264NaluContent::PictureParameterSet )
@@ -492,6 +499,18 @@ void H264::DecodeNaluByte(uint8 Byte,H264NaluContent::Type& Content,H264NaluPrio
 	Content = H264NaluContent::Validate( Content8 );
 }
 
+void H264::DecodeNaluByte(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&& Data,H264NaluContent::Type& Content,H264NaluPriority::Type& Priority)
+{
+	size_t NaluSize;
+	size_t HeaderSize;
+	if ( !IsNalu( Data, NaluSize, HeaderSize ) )
+	{
+		Content = H264NaluContent::Invalid;
+		return;
+	}
+	
+	DecodeNaluByte( Data[HeaderSize], Content, Priority );
+}
 
 class TBitReader
 {
@@ -678,7 +697,7 @@ void TBitReader::Read(uint8& Data,size_t BitCount)
 	auto CurrentBit = mBitPos % 8;
 	
 	//	out of range
-		Soy::Assert( CurrentByte < mData.GetSize(), "Reading byte out of range");
+	Soy::Assert( CurrentByte < mData.GetSize(), "Reading byte out of range");
 	
 	//	move along
 	mBitPos += BitCount;

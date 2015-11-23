@@ -157,12 +157,13 @@ private:
 };
 
 
-class TFileStreamReader_ProtocolLambda : public TFileStreamReader
+template<class SUPER=TFileStreamReader>
+class TFileStreamReader_ProtocolLambda : public SUPER
 {
 public:
 	TFileStreamReader_ProtocolLambda(const std::string& Filename,std::function<std::shared_ptr<Soy::TReadProtocol>()> ProtocolAllocFunc) :
 		mProtocolAllocFunc	( ProtocolAllocFunc ),
-		TFileStreamReader	( Filename )
+		SUPER				( Filename )
 	{
 	}
 	

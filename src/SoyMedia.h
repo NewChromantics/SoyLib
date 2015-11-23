@@ -284,7 +284,8 @@ class TMediaPacketBuffer
 {
 public:
 	TMediaPacketBuffer(size_t MaxBufferSize=10) :
-	mMaxBufferSize	( MaxBufferSize )
+		mMaxBufferSize			( MaxBufferSize ),
+		mAutoTimestampDuration	( 33ull )
 	{
 	}
 	
@@ -296,6 +297,9 @@ public:
 	void							PushPacket(std::shared_ptr<TMediaPacket> Packet,std::function<bool()> Block);
 	bool							HasPackets() const	{	return !mPackets.IsEmpty();	}
 	
+protected:
+	void							CorrectIncomingPacketTimecode(TMediaPacket& Packet);
+
 public:
 	SoyEvent<std::shared_ptr<TMediaPacket>>	mOnNewPacket;
 	
@@ -305,6 +309,9 @@ private:
 	size_t									mMaxBufferSize;
 	Array<std::shared_ptr<TMediaPacket>>	mPackets;
 	std::mutex								mPacketsLock;
+
+	SoyTime									mLastPacketTimestamp;	//	for when we have to calculate timecodes ourselves
+	SoyTime									mAutoTimestampDuration;
 };
 
 
@@ -315,8 +322,13 @@ class TMediaMuxer : public SoyWorkerThread
 public:
 	TMediaMuxer(std::shared_ptr<TStreamWriter>& Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName="TMediaMuxer");
 	~TMediaMuxer();
-	
+
+	void					SetStreams(const ArrayBridge<TStreamMeta>&& Streams);
+	virtual void			Finish()=0;
+
 protected:
+	//	todo: handle the setup of streams. if not pre-known, make base class hold packets until we've decided we have enough, then write streams & packets
+	virtual void			SetupStreams(const ArrayBridge<TStreamMeta>&& Streams)=0;
 	virtual void			ProcessPacket(std::shared_ptr<TMediaPacket> Packet,TStreamWriter& Output)=0;
 	
 private:
@@ -327,6 +339,7 @@ public:
 	SoyListenerId							mOnPacketListener;
 	std::shared_ptr<TStreamWriter>			mOutput;
 	std::shared_ptr<TMediaPacketBuffer>		mInput;
+	Array<TStreamMeta>						mStreams;		//	streams, once setup, fixed
 };
 
 
@@ -348,7 +361,7 @@ public:
 	virtual std::shared_ptr<Platform::TMediaFormat>	GetStreamFormat(size_t StreamIndex)=0;
 	bool							HasFatalError(std::string& Error)
 	{
-		Error = mFatalError;
+		Error += mFatalError;
 		return !Error.empty();
 	}
 	
@@ -395,7 +408,7 @@ public:
 	
 	bool							HasFatalError(std::string& Error)
 	{
-		Error = mFatalError.str();
+		Error += mFatalError.str();
 		return !Error.empty();
 	}
 	

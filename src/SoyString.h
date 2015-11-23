@@ -115,7 +115,7 @@ namespace Soy
 
 	std::string		FourCCToString(uint32 Fourcc);	//	on IOS, don't forget CFSwapInt32BigToHost()
 	
-	std::string		DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes);
+	std::string		DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes=-1);
 	void			DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,int MaxBytes=-1);
 	inline void		DataToHexString(std::ostream& String,const ArrayBridge<uint8>&& Data,int MaxBytes=-1)	{	DataToHexString( String, Data, MaxBytes );	}
 };
