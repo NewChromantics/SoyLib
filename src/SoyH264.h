@@ -116,6 +116,9 @@ namespace H264
 	uint8		EncodeNaluByte(H264NaluContent::Type Content,H264NaluPriority::Type Priority);
 	void		DecodeNaluByte(uint8 Byte,H264NaluContent::Type& Content,H264NaluPriority::Type& Priority);	//	throws on error (eg. reservered-zero not zero)
 	void		DecodeNaluByte(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&& Data,H264NaluContent::Type& Content,H264NaluPriority::Type& Priority);	//	throws on error (eg. reservered-zero not zero)
+
+	bool		IsKeyframe(H264NaluContent::Type Content) __noexcept;
+	bool		IsKeyframe(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&& Data) __noexcept;
 	
 	TSpsParams	ParseSps(const ArrayBridge<uint8>& Data);
 	TSpsParams	ParseSps(const ArrayBridge<uint8>&& Data);

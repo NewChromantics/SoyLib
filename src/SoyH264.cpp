@@ -1052,4 +1052,31 @@ Soy::TVersion H264::DecodeLevel(uint8 Level8)
 	return Soy::TVersion( Major, Minor );
 }
 
+bool H264::IsKeyframe(H264NaluContent::Type Content)
+{
+	//	gr: maybe we should take priority into effect too?
+	switch ( Content )
+	{
+		case H264NaluContent::Slice_CodedIDRPicture:
+			return true;
+			
+		default:
+			return false;
+	}
+}
+
+bool H264::IsKeyframe(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&& Data)
+{
+	try
+	{
+		H264NaluContent::Type Content;
+		H264NaluPriority::Type Priority;
+		DecodeNaluByte( Format, GetArrayBridge(Data), Content, Priority );
+		return IsKeyframe( Content );
+	}
+	catch(...)
+	{
+		return false;
+	}
+}
 
