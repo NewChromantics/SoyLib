@@ -415,7 +415,17 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 				
 			return 0;
 		};
-			
+
+		//	it is going to be rare for DTS to be out of order, and on android(note4 especially) it really slows down up the GPU, so issue a warning
+		if ( !mPackets.IsEmpty() )
+		{
+			auto TailTimecode = mPackets.GetBack()->mDecodeTimecode;
+			if ( Packet->mDecodeTimecode < TailTimecode )
+			{
+				std::Debug << "Warning; adding DTS " << Packet->mDecodeTimecode << " out of order (tail=" << TailTimecode << ")" << std::endl;
+			}
+		}
+		
 		SortArrayLambda<std::shared_ptr<TMediaPacket>> SortedPackets( GetArrayBridge(mPackets), SortPackets );
 		SortedPackets.Push( Packet );
 		
@@ -426,35 +436,28 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 
 void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 {
-	//	make up a presentation timecode if it's missing
-	if ( !Packet.mTimecode.IsValid() )
-	{
-		if ( !Packet.mDecodeTimecode.IsValid() )
-		{
-			if ( !mLastPacketTimestamp.IsValid() )
-				Packet.mTimecode = SoyTime( 1ull );
-			else
-				Packet.mTimecode = mLastPacketTimestamp + mAutoTimestampDuration;
-		}
-		else
-		{
-			Packet.mTimecode = Packet.mDecodeTimecode;
-		}
-		//std::Debug << "Corrected incoming packet presentation timecode to " << Packet.mTimecode << std::endl;
-	}
+	//	apparently (not seen it yet) in some formats (eg. ts) some players (eg. vlc) can't cope if DTS is same as PTS
+	static SoyTime DecodeToPresentationOffset( 1ull );
+
+	if ( !mLastPacketTimestamp.IsValid() )
+		mLastPacketTimestamp = SoyTime( 1ull ) + DecodeToPresentationOffset;
 	
-	mLastPacketTimestamp = Packet.mTimecode;
-	
-	//	if we don't have a decode-timestamp, make it
+	//	gr: if there is no decode timestamp, assume it needs to be in the order it comes in
 	if ( !Packet.mDecodeTimecode.IsValid() )
 	{
-		SoyTime DtsOffset( 1ull );
-		if ( Packet.mTimecode <= DtsOffset )
-			DtsOffset = SoyTime(0ull);
-		
-		Packet.mDecodeTimecode = Packet.mTimecode - DtsOffset;
-		//std::Debug << "Corrected incoming packet decode-timecode to " << Packet.mDecodeTimecode << std::endl;
+		Packet.mDecodeTimecode = mLastPacketTimestamp + mAutoTimestampDuration;
+		std::Debug << "Corrected incoming packet DECODE timecode; now " << Packet.mTimecode << "(PTS) and " << Packet.mDecodeTimecode << "(DTS)" << std::endl;
 	}
+
+	//	don't have any timecodes
+	if ( !Packet.mTimecode.IsValid() )
+	{
+		Packet.mTimecode = Packet.mDecodeTimecode + DecodeToPresentationOffset;
+		std::Debug << "Corrected incoming packet PRESENTATION timecode; now " << Packet.mTimecode << "(PTS) and " << Packet.mDecodeTimecode << "(DTS)" << std::endl;
+	}
+
+	//	gr: store last DECODE timestamp so this basically forces packets to be ordered by decode timestamps
+	mLastPacketTimestamp = Packet.mDecodeTimecode;
 }
 
 
