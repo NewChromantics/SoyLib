@@ -1052,7 +1052,7 @@ Soy::TVersion H264::DecodeLevel(uint8 Level8)
 	return Soy::TVersion( Major, Minor );
 }
 
-bool H264::IsKeyframe(H264NaluContent::Type Content)
+bool H264::IsKeyframe(H264NaluContent::Type Content) __noexcept
 {
 	//	gr: maybe we should take priority into effect too?
 	switch ( Content )
@@ -1065,7 +1065,7 @@ bool H264::IsKeyframe(H264NaluContent::Type Content)
 	}
 }
 
-bool H264::IsKeyframe(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&& Data)
+bool H264::IsKeyframe(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&& Data) __noexcept
 {
 	try
 	{
