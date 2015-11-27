@@ -511,6 +511,11 @@ void TMediaExtractor::OnError(const std::string& Error)
 	mFatalError = Error;
 }
 
+void TMediaExtractor::OnClearError()
+{
+	mFatalError = std::string();
+}
+
 bool TMediaExtractor::Iteration()
 {
 	//	tell extractor to read more frames
