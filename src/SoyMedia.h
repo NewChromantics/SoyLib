@@ -343,6 +343,22 @@ public:
 };
 
 
+class TMediaExtractorParams
+{
+public:
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent,SoyTime ReadAheadMs) :
+		mFilename				( Filename ),
+		mOnFrameExtractedEvent	( OnFrameExtractedEvent ),
+		mReadAheadMs			( ReadAheadMs )
+	{
+	}
+	
+public:
+	std::string					mFilename;
+	std::string					mThreadName;
+	SoyEvent<const SoyTime>&	mOnFrameExtractedEvent;
+	SoyTime						mReadAheadMs;
+};
 
 
 
@@ -350,7 +366,7 @@ public:
 class TMediaExtractor : public SoyWorkerThread
 {
 public:
-	TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent,SoyTime ReadAheadMs);
+	TMediaExtractor(const TMediaExtractorParams& Params);
 	~TMediaExtractor();
 	
 	void							Seek(SoyTime Time);				//	keep calling this, controls the packet read-ahead

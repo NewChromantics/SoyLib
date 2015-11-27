@@ -462,18 +462,18 @@ void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 
 
 
-TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent,SoyTime ExtractAheadMs) :
-	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake ),
-	mExtractAheadMs		( ExtractAheadMs )
+TMediaExtractor::TMediaExtractor(const TMediaExtractorParams& Params) :
+	SoyWorkerThread		( Params.mThreadName, SoyWorkerWaitMode::Wake ),
+	mExtractAheadMs		( Params.mReadAheadMs )
 {
 	//	todo: allocate per-stream
 	mBuffer.reset( new TMediaPacketBuffer );
 	
 	//	maybe unsafe?
-	auto OnNewPacket = [&OnFrameExtractedEvent](std::shared_ptr<TMediaPacket>& Packet)
+	auto OnNewPacket = [Params](std::shared_ptr<TMediaPacket>& Packet)
 	{
 		//	should the perf graph be showing... the newest? the presentation time? the deocde-time?
-		OnFrameExtractedEvent.OnTriggered( Packet->mTimecode );
+		Params.mOnFrameExtractedEvent.OnTriggered( Packet->mTimecode );
 	};
 	mBuffer->mOnNewPacket.AddListener( OnNewPacket );
 }
