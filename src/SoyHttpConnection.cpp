@@ -96,51 +96,9 @@ void TSocketConnection::FlushRequestQueue()
 }
 
 
-std::string ExtractServerFromUrl(const std::string& Url)
-{
-	//	parse address
-	std::string mServerAddress = Url;
-	std::string HttpPrefix("http://");
-	if ( !Soy::StringTrimLeft( mServerAddress, HttpPrefix, false ) )
-	{
-		std::stringstream Error;
-		Error << __func__ << " Url " << Url << " did not start with " << HttpPrefix;
-		throw Soy::AssertException( Error.str() );
-	}
-	
-	//	now split url from server
-	BufferArray<std::string,2> ServerAndUrl;
-	Soy::StringSplitByMatches( GetArrayBridge(ServerAndUrl), mServerAddress, "/" );
-	Soy::Assert( ServerAndUrl.GetSize() != 0, "Url did not split at all" );
-	if ( ServerAndUrl.GetSize() == 1 )
-		ServerAndUrl.PushBack("/");
-	
-	mServerAddress = ServerAndUrl[0];
-	
-	//	if no port provided, try and add it
-	{
-		std::string Hostname;
-		uint16 Port;
-		try
-		{
-			Soy::SplitHostnameAndPort( Hostname, Port, mServerAddress );
-		}
-		catch (...)
-		{
-			mServerAddress += ":80";
-		}
-		
-		//	fail if it doesn't succeed again
-		Soy::SplitHostnameAndPort( Hostname, Port, mServerAddress );
-	}
-	
-	return mServerAddress;
-}
-
-
 
 THttpConnection::THttpConnection(const std::string& Url) :
-	TSocketConnection	( ExtractServerFromUrl(Url), "THttpConnection" )
+	TSocketConnection	( Soy::ExtractServerFromUrl(Url), "THttpConnection" )
 {
 	std::Debug << "Split Http fetch to server=" << mServerAddress << std::endl;
 }
