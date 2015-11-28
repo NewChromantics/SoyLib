@@ -22,8 +22,7 @@ void TSocketReadThread::Read(TStreamBuffer& Buffer)
 	}
 	
 	//	gr use a larger static buffer so we can stream locally much faster than in 1024 chunks
-	//static int BufferSize = 1024*1024*20;	//	Xmb a time should be plenty... maybe query for the actual socket limit jsut so we don't go silly with memory
-	static int BufferSize = 100;	//	Xmb a time should be plenty... maybe query for the actual socket limit jsut so we don't go silly with memory
+	static int BufferSize = 1024*1024*4;	//	Xmb a time should be plenty... maybe query for the actual socket limit jsut so we don't go silly with memory
 	auto& RecvBuffer = mRecvBuffer;
 	RecvBuffer.SetSize( BufferSize );
 	
