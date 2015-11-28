@@ -102,6 +102,9 @@ namespace Soy
 	std::string	ExtractServerFromUrl(const std::string& Url);
 	void		SplitHostnameAndPort(std::string& Hostname,uint16& Port,const std::string& HostnameAndPort);
 	void		SplitUrl(const std::string& Url,std::string& Protocol,std::string& Hostname,uint16& Port,std::string& Path);
+	std::string	GetUrlPath(const std::string& Url);
+	std::string	GetUrlHostname(const std::string& Url);
+	std::string	GetUrlProtocol(const std::string& Url);
 	
 	std::wstring	StringToWString(const std::string& s);
 	

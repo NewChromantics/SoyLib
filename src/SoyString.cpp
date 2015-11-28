@@ -532,6 +532,30 @@ void Soy::SplitUrl(const std::string& Url,std::string& Protocol,std::string& Hos
 	}
 }
 
+std::string	Soy::GetUrlPath(const std::string& Url)
+{
+	std::string Protocol,Hostname,Path;
+	uint16 Port;
+	SplitUrl( Url, Protocol, Hostname, Port, Path );
+	return Path;
+}
+
+std::string	Soy::GetUrlHostname(const std::string& Url)
+{
+	std::string Protocol,Hostname,Path;
+	uint16 Port;
+	SplitUrl( Url, Protocol, Hostname, Port, Path );
+	return Hostname;
+}
+
+std::string	Soy::GetUrlProtocol(const std::string& Url)
+{
+	std::string Protocol,Hostname,Path;
+	uint16 Port;
+	SplitUrl( Url, Protocol, Hostname, Port, Path );
+	return Protocol;
+}
+
 
 std::string	Soy::ExtractServerFromUrl(const std::string& Url)
 {
