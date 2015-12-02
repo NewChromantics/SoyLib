@@ -241,11 +241,26 @@ void SoyThread::Start()
 		this->mIsRunning = true;
 
 		SoyThread::OnThreadStart.OnTriggered(*this);
-		while ( this->mIsRunning )
+		
+		//	gr: even if we're not catching exceptions, java NEEDS us to cleanup the threads or the OS will abort us
+		try
 		{
-			this->Thread();
+			while ( this->mIsRunning )
+			{
+				this->Thread();
+			}
+			SoyThread::OnThreadFinish.OnTriggered(*this);
 		}
-		SoyThread::OnThreadFinish.OnTriggered(*this);
+		catch(std::exception& e)
+		{
+			SoyThread::OnThreadFinish.OnTriggered(*this);
+			throw;
+		}
+		catch(...)
+		{
+			SoyThread::OnThreadFinish.OnTriggered(*this);
+			throw;
+		}
 		
 		return 0;
 	};

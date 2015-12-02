@@ -60,6 +60,7 @@ class TStreamReader : public SoyWorkerThread
 {
 public:
 	TStreamReader(const std::string& Name,std::shared_ptr<TStreamBuffer> ReadBuffer=nullptr);
+	~TStreamReader();
 	
 	virtual bool									Iteration() override;
 	virtual void									Read(TStreamBuffer& Buffer)=0;	//	read next chunk of data into buffer
@@ -156,12 +157,13 @@ private:
 };
 
 
-class TFileStreamReader_ProtocolLambda : public TFileStreamReader
+template<class SUPER=TFileStreamReader>
+class TFileStreamReader_ProtocolLambda : public SUPER
 {
 public:
 	TFileStreamReader_ProtocolLambda(const std::string& Filename,std::function<std::shared_ptr<Soy::TReadProtocol>()> ProtocolAllocFunc) :
 		mProtocolAllocFunc	( ProtocolAllocFunc ),
-		TFileStreamReader	( Filename )
+		SUPER				( Filename )
 	{
 	}
 	

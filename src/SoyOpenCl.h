@@ -428,6 +428,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const int& v) override;
 	virtual bool	SetUniform(const char* Name,const float& v) override;
 	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
+	virtual bool	SetUniform(const char* Name,const vec3f& v) override;
 	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v) override
 	{

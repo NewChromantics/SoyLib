@@ -38,11 +38,11 @@ namespace SoyPixelsFormat
 		//	Y=luma	uv=ChromaUv
 		
 		//	gr: naming convention; planes seperated by underscore
-		Yuv_8_88_Full,		//	8 bit Luma, interleaved Chroma uv plane
-		Yuv_8_88_Video,		//	8 bit Luma, interleaved Chroma uv plane
-		Yuv_8_4_4_Full,		//	8bit Y plane, then 4bit U plane, then 4bit V plane
-		Yuv_8_4_4_Video,	//	8bit Y plane, then 4bit U plane, then 4bit V plane
-		ChromaUV_4_4,		//	4 bit plane, 4 bit plane - might be nice to split this into multiple planes but 8 bit will upload....
+		Yuv_8_88_Full,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
+		Yuv_8_88_Video,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
+		Yuv_8_8_8_Full,		//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
+		Yuv_8_8_8_Video,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
+		ChromaUV_8_8,		//	8 bit plane, 8 bit plane
 		ChromaUV_88,		//	16 bit interleaved plane
 
 		//	https://github.com/ofTheo/ofxKinect/blob/ebb9075bcb5ab2543220b4dec598fd73cec40904/libs/libfreenect/src/cameras.c
@@ -78,7 +78,7 @@ namespace SoyPixelsFormat
 		//	http://www.fourcc.org/yuv.php
 		LumaFull		= Greyscale,	//	Luma plane of a YUV
 		Nv12			= Yuv_8_88_Full,
-		I420			= Yuv_8_4_4_Full,
+		I420			= Yuv_8_8_8_Full,
 		
 		
 		Count=99,

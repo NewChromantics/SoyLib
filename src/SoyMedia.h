@@ -51,8 +51,9 @@ namespace SoyMediaFormat
 		LumaVideo = SoyPixelsFormat::LumaVideo,
 		Yuv_8_88_Full = SoyPixelsFormat::Yuv_8_88_Full,
 		Yuv_8_88_Video = SoyPixelsFormat::Yuv_8_88_Video,
-		Yuv_8_4_4_Full = SoyPixelsFormat::Yuv_8_4_4_Full,
-		ChromaUV_4_4 = SoyPixelsFormat::ChromaUV_4_4,
+		Yuv_8_8_8_Full = SoyPixelsFormat::Yuv_8_8_8_Full,
+		Yuv_8_8_8_Video = SoyPixelsFormat::Yuv_8_8_8_Video,
+		ChromaUV_8_8 = SoyPixelsFormat::ChromaUV_8_8,
 		ChromaUV_88 = SoyPixelsFormat::ChromaUV_88,
 		
 		NotPixels = SoyPixelsFormat::Count,
@@ -286,7 +287,8 @@ class TMediaPacketBuffer
 {
 public:
 	TMediaPacketBuffer(size_t MaxBufferSize=10) :
-	mMaxBufferSize	( MaxBufferSize )
+		mMaxBufferSize			( MaxBufferSize ),
+		mAutoTimestampDuration	( 33ull )
 	{
 	}
 	
@@ -298,6 +300,9 @@ public:
 	void							PushPacket(std::shared_ptr<TMediaPacket> Packet,std::function<bool()> Block);
 	bool							HasPackets() const	{	return !mPackets.IsEmpty();	}
 	
+protected:
+	void							CorrectIncomingPacketTimecode(TMediaPacket& Packet);
+
 public:
 	SoyEvent<std::shared_ptr<TMediaPacket>>	mOnNewPacket;
 	
@@ -307,6 +312,9 @@ private:
 	size_t									mMaxBufferSize;
 	Array<std::shared_ptr<TMediaPacket>>	mPackets;
 	std::mutex								mPacketsLock;
+
+	SoyTime									mLastPacketTimestamp;	//	for when we have to calculate timecodes ourselves
+	SoyTime									mAutoTimestampDuration;
 };
 
 
@@ -317,8 +325,13 @@ class TMediaMuxer : public SoyWorkerThread
 public:
 	TMediaMuxer(std::shared_ptr<TStreamWriter>& Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName="TMediaMuxer");
 	~TMediaMuxer();
-	
+
+	void					SetStreams(const ArrayBridge<TStreamMeta>&& Streams);
+	virtual void			Finish()=0;
+
 protected:
+	//	todo: handle the setup of streams. if not pre-known, make base class hold packets until we've decided we have enough, then write streams & packets
+	virtual void			SetupStreams(const ArrayBridge<TStreamMeta>&& Streams)=0;
 	virtual void			ProcessPacket(std::shared_ptr<TMediaPacket> Packet,TStreamWriter& Output)=0;
 	
 private:
@@ -329,6 +342,7 @@ public:
 	SoyListenerId							mOnPacketListener;
 	std::shared_ptr<TStreamWriter>			mOutput;
 	std::shared_ptr<TMediaPacketBuffer>		mInput;
+	Array<TStreamMeta>						mStreams;		//	streams, once setup, fixed
 };
 
 
@@ -339,7 +353,7 @@ public:
 class TMediaExtractor : public SoyWorkerThread
 {
 public:
-	TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent);
+	TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent,SoyTime ReadAheadMs);
 	~TMediaExtractor();
 	
 	void							Seek(SoyTime Time);				//	keep calling this, controls the packet read-ahead
@@ -350,27 +364,33 @@ public:
 	virtual std::shared_ptr<Platform::TMediaFormat>	GetStreamFormat(size_t StreamIndex)=0;
 	bool							HasFatalError(std::string& Error)
 	{
-		Error = mFatalError;
+		Error += mFatalError;
 		return !Error.empty();
 	}
 	
 	std::shared_ptr<TMediaPacketBuffer>	AllocStreamBuffer(size_t StreamIndex);
 	std::shared_ptr<TMediaPacketBuffer>	GetStreamBuffer(size_t StreamIndex);
 	
-public:
-	SoyEvent<const ArrayBridge<TStreamMeta>>	mOnStreamsChanged;
-	
+
+
+//protected:	//	gr: only for subclasses, but the playlist media extractor needs to call this on it's children
+	virtual std::shared_ptr<TMediaPacket>	ReadNextPacket()=0;
+
 protected:
 	void							OnEof();
 	void							OnError(const std::string& Error);
+	void							OnClearError();
 	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)	{	mOnStreamsChanged.OnTriggered( Streams );	}
 	
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);
-	virtual std::shared_ptr<TMediaPacket>	ReadNextPacket()=0;
 
 private:
 	virtual bool					Iteration() override;
+	
+public:
+	SoyEvent<const ArrayBridge<TStreamMeta>>	mOnStreamsChanged;
+	SoyTime							mExtractAheadMs;
 	
 protected:
 	std::map<size_t,std::shared_ptr<TMediaPacketBuffer>>	mStreamBuffers;
@@ -396,7 +416,7 @@ public:
 	
 	bool							HasFatalError(std::string& Error)
 	{
-		Error = mFatalError.str();
+		Error += mFatalError.str();
 		return !Error.empty();
 	}
 	

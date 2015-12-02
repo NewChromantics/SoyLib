@@ -40,8 +40,9 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::LumaVideo,		"LumaVideo" },
 	{ SoyMediaFormat::Yuv_8_88_Full,	"Yuv_8_88_Full" },
 	{ SoyMediaFormat::Yuv_8_88_Video,	"Yuv_8_88_Video" },
-	{ SoyMediaFormat::Yuv_8_4_4_Full,	"Yuv_8_4_4_Full" },
-	{ SoyMediaFormat::ChromaUV_4_4,		"ChromaUV_4_4" },
+	{ SoyMediaFormat::Yuv_8_8_8_Full,	"Yuv_8_8_8_Full" },
+	{ SoyMediaFormat::Yuv_8_8_8_Video,	"Yuv_8_8_8_Video" },
+	{ SoyMediaFormat::ChromaUV_8_8,		"ChromaUV_8_8" },
 	{ SoyMediaFormat::ChromaUV_88,		"ChromaUV_88" },
 };
 
@@ -53,7 +54,6 @@ std::ostream& operator<<(std::ostream& out,const TStreamMeta& in)
 	out << "Mime=" << in.GetMime() << ", ";
 	out << "mDescription=" << in.mDescription << ", ";
 	out << "mCompressed=" << in.mCompressed << ", ";
-	out << "mFramesPerSecond=" << in.mFramesPerSecond << ", ";
 	out << "mFramesPerSecond=" << in.mFramesPerSecond << ", ";
 	out << "mDuration=" << in.mDuration << ", ";
 	out << "mEncodingBitRate=" << in.mEncodingBitRate << ", ";
@@ -396,46 +396,74 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 		}
 	}
 	
+	//	gr: fix incoming timestamps
+	CorrectIncomingPacketTimecode( *Packet );
+
 	{
 		std::lock_guard<std::mutex> Lock( mPacketsLock );
 		
-		//	if no decode order, push as they come in...
-		//	gr: handle mixes of these... eg. one stream has decode order and one doesnt...
-		//	gr: I believe SortArray may push new packets to the start of the array if compare==0 all the way
-		if ( Packet->mDecodeTimecode.IsValid() )
+		//	sort by decode order
+		auto SortPackets = [](const std::shared_ptr<TMediaPacket>& a,const std::shared_ptr<TMediaPacket>& b)
 		{
-			//	sort by decode order
-			auto SortPackets = [](const std::shared_ptr<TMediaPacket>& a,const std::shared_ptr<TMediaPacket>& b)
+			auto Timea = a->mDecodeTimecode;
+			auto Timeb = b->mDecodeTimecode;
+				
+			if ( Timea < Timeb )
+				return -1;
+			if ( Timea > Timeb )
+				return 1;
+				
+			return 0;
+		};
+
+		//	it is going to be rare for DTS to be out of order, and on android(note4 especially) it really slows down up the GPU, so issue a warning
+		if ( !mPackets.IsEmpty() )
+		{
+			auto TailTimecode = mPackets.GetBack()->mDecodeTimecode;
+			if ( Packet->mDecodeTimecode < TailTimecode )
 			{
-				auto Timea = a->mDecodeTimecode;
-				auto Timeb = b->mDecodeTimecode;
-				
-				if ( Timea < Timeb )
-					return -1;
-				if ( Timea > Timeb )
-					return 1;
-				
-				return 0;
-			};
-			
-			SortArrayLambda<std::shared_ptr<TMediaPacket>> SortedPackets( GetArrayBridge(mPackets), SortPackets );
-			SortedPackets.Push( Packet );
+				std::Debug << "Warning; adding DTS " << Packet->mDecodeTimecode << " out of order (tail=" << TailTimecode << ")" << std::endl;
+			}
 		}
-		else
-		{
-			mPackets.PushBack( Packet );
-		}
+		
+		SortArrayLambda<std::shared_ptr<TMediaPacket>> SortedPackets( GetArrayBridge(mPackets), SortPackets );
+		SortedPackets.Push( Packet );
 		
 		//std::Debug << "Pushed intput packet to buffer " << *Packet << std::endl;
 	}
 	mOnNewPacket.OnTriggered( Packet );
 }
 
+void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
+{
+	//	apparently (not seen it yet) in some formats (eg. ts) some players (eg. vlc) can't cope if DTS is same as PTS
+	static SoyTime DecodeToPresentationOffset( 1ull );
+
+	if ( !mLastPacketTimestamp.IsValid() )
+		mLastPacketTimestamp = SoyTime( 1ull ) + DecodeToPresentationOffset;
+	
+	//	gr: if there is no decode timestamp, assume it needs to be in the order it comes in
+	if ( !Packet.mDecodeTimecode.IsValid() )
+	{
+		Packet.mDecodeTimecode = mLastPacketTimestamp + mAutoTimestampDuration;
+		std::Debug << "Corrected incoming packet DECODE timecode; now " << Packet.mTimecode << "(PTS) and " << Packet.mDecodeTimecode << "(DTS)" << std::endl;
+	}
+
+	//	don't have any timecodes
+	if ( !Packet.mTimecode.IsValid() )
+	{
+		Packet.mTimecode = Packet.mDecodeTimecode + DecodeToPresentationOffset;
+		std::Debug << "Corrected incoming packet PRESENTATION timecode; now " << Packet.mTimecode << "(PTS) and " << Packet.mDecodeTimecode << "(DTS)" << std::endl;
+	}
+
+	//	gr: store last DECODE timestamp so this basically forces packets to be ordered by decode timestamps
+	mLastPacketTimestamp = Packet.mDecodeTimecode;
+}
 
 
-
-TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent) :
-	SoyWorkerThread			( ThreadName, SoyWorkerWaitMode::Wake ),
+TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent,SoyTime ExtractAheadMs) :
+	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake ),
+	mExtractAheadMs		( ExtractAheadMs ),
 	mOnFrameExtractedEvent	( OnFrameExtractedEvent )
 {
 
@@ -485,7 +513,7 @@ void TMediaExtractor::Seek(SoyTime Time)
 	}
 	
 	//	update the target time and wake up thread in case we need to read frames
-	mSeekTime = Time;
+	mSeekTime = Time + mExtractAheadMs;
 	Wake();
 }
 
@@ -500,6 +528,11 @@ void TMediaExtractor::OnError(const std::string& Error)
 	//	set fatal error, stop thread?
 	std::Debug << "Media extractor OnError(" << Error << ")" << std::endl;
 	mFatalError = Error;
+}
+
+void TMediaExtractor::OnClearError()
+{
+	mFatalError = std::string();
 }
 
 bool TMediaExtractor::Iteration()
@@ -631,7 +664,7 @@ TMediaMuxer::TMediaMuxer(std::shared_ptr<TStreamWriter>& Output,std::shared_ptr<
 	mOutput			( Output ),
 	mInput			( Input )
 {
-	Soy::Assert( mOutput!=nullptr, "TMpeg2TsMuxer output missing");
+	//Soy::Assert( mOutput!=nullptr, "TMpeg2TsMuxer output missing");
 	Soy::Assert( mInput!=nullptr, "TMpeg2TsMuxer input missing");
 	mOnPacketListener = WakeOnEvent( mInput->mOnNewPacket );
 	
@@ -666,6 +699,13 @@ bool TMediaMuxer::Iteration()
 	if ( !Packet )
 		return true;
 	
+	//	do some kinda queue to auto setup streams
+	if ( mStreams.IsEmpty() )
+	{
+		auto Streams = GetRemoteArray( &Packet->mMeta, 1 );
+		SetStreams( GetArrayBridge(Streams) );
+	}
+	
 	try
 	{
 		ProcessPacket( Packet, *mOutput );
@@ -676,5 +716,15 @@ bool TMediaMuxer::Iteration()
 	}
 	
 	return true;
+}
+
+
+void TMediaMuxer::SetStreams(const ArrayBridge<TStreamMeta>&& Streams)
+{
+	Soy::Assert( mStreams.IsEmpty(), "Streams already configured");
+	
+	mStreams.Copy( Streams );
+	SetupStreams( GetArrayBridge(mStreams) );
+	
 }
 

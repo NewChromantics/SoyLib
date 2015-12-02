@@ -34,12 +34,12 @@ std::map<H264NaluContent::Type,std::string> H264NaluContent::EnumMap =
 	ENUM_CASE( Reserved21 ),
 	ENUM_CASE( Reserved22 ),
 	ENUM_CASE( Reserved23 ),
-	ENUM_CASE( Unspecified24 ),
-	ENUM_CASE( Unspecified25 ),
-	ENUM_CASE( Unspecified26 ),
-	ENUM_CASE( Unspecified27 ),
-	ENUM_CASE( Unspecified28 ),
-	ENUM_CASE( Unspecified29 ),
+	ENUM_CASE( STAP_A ),
+	ENUM_CASE( STAP_B ),
+	ENUM_CASE( MTAP_16 ),
+	ENUM_CASE( MTAP_24 ),
+	ENUM_CASE( FU_A ),
+	ENUM_CASE( FU_B ),
 	ENUM_CASE( Unspecified30 ),
 	ENUM_CASE( Unspecified31 ),
 #undef ENUM_CASE
@@ -60,6 +60,31 @@ std::map<H264NaluPriority::Type,std::string> H264NaluPriority::EnumMap =
 #undef ENUM_CASE
 };
 
+
+std::map<H264Profile::Type, std::string> H264Profile::EnumMap =
+{
+#if defined(TARGET_WINDOWS)
+#define ENUM_CASE(e)	{	H264NaluPriority::e,	#e	}
+#else
+#define ENUM_CASE(e)	{	e,	#e	}
+#endif
+	ENUM_CASE( Invalid ),
+	ENUM_CASE( Baseline ),
+	ENUM_CASE( Main ),
+	ENUM_CASE( Extended ),
+	ENUM_CASE( High ),
+	
+	ENUM_CASE( High10Intra ),
+	ENUM_CASE( High422Intra ),
+	ENUM_CASE( High4 ),
+	ENUM_CASE( High5 ),
+	ENUM_CASE( High6 ),
+	ENUM_CASE( High7 ),
+	ENUM_CASE( High8 ),
+	ENUM_CASE( High9 ),
+	ENUM_CASE( HighMultiviewDepth ),
+#undef ENUM_CASE
+};
 
 
 
@@ -110,7 +135,7 @@ void ReformatDeliminator(ArrayBridge<uint8>& Data,
 
 
 
-bool H264::IsNalu(ArrayBridge<uint8>& Data,size_t& NaluSize,size_t& HeaderSize)
+bool H264::IsNalu(const ArrayBridge<uint8>& Data,size_t& NaluSize,size_t& HeaderSize)
 {
 	//	too small to be nalu3
 	if ( Data.GetDataSize() < 4 )
@@ -224,8 +249,15 @@ bool H264::ResolveH264Format(SoyMediaFormat::Type& Format,ArrayBridge<uint8>& Da
 	
 	H264NaluContent::Type Content;
 	H264NaluPriority::Type Priority;
-	DecodeNaluByte( NaluByte, Content, Priority );
-		
+	try
+	{
+		DecodeNaluByte( NaluByte, Content, Priority );
+	}
+	catch(std::exception&e)
+	{
+		std::Debug << __func__ << " exception: " << e.what() << std::endl;
+		throw;
+	}
 	if ( Content == H264NaluContent::SequenceParameterSet )
 		Format = SoyMediaFormat::H264_SPS_ES;
 	else if ( Content == H264NaluContent::PictureParameterSet )
@@ -371,12 +403,14 @@ void H264::ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type
 		if ( GetArrayBridge(StartData).IsEmpty() )
 			return static_cast<size_t>(0);
 		
-		size_t HeaderSize = 0;
-		auto Start = H264::FindNaluStartIndex( GetArrayBridge(StartData), NaluSize, HeaderSize );
+		size_t RealHeaderSize = 0;
+		auto Start = H264::FindNaluStartIndex( GetArrayBridge(StartData), NaluSize, RealHeaderSize );
 		Soy::Assert( Start >= 0, "Failed to find NALU header in annex b packet");
 		Soy::Assert( NaluSize != 0, "Failed to find NALU header size in annex b packet");
 		
 		//	recalc data start
+		static bool EatNaluByte = true;
+		auto HeaderSize = EatNaluByte ? RealHeaderSize : NaluSize;
 		Start = StartOffset + HeaderSize;
 		
 		size_t EndNaluSize = 0;
@@ -465,6 +499,18 @@ void H264::DecodeNaluByte(uint8 Byte,H264NaluContent::Type& Content,H264NaluPrio
 	Content = H264NaluContent::Validate( Content8 );
 }
 
+void H264::DecodeNaluByte(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&& Data,H264NaluContent::Type& Content,H264NaluPriority::Type& Priority)
+{
+	size_t NaluSize;
+	size_t HeaderSize;
+	if ( !IsNalu( Data, NaluSize, HeaderSize ) )
+	{
+		Content = H264NaluContent::Invalid;
+		return;
+	}
+	
+	DecodeNaluByte( Data[HeaderSize], Content, Priority );
+}
 
 class TBitReader
 {
@@ -548,12 +594,13 @@ void TBitReader::ReadBytes(STORAGE& Data,size_t BitCount)
 	Data = 0;
 	
 	BufferArray<uint8,BYTECOUNT> Bytes;
-	auto ComponentBitCount = BitCount;
+	int ComponentBitCount = size_cast<int>(BitCount);
 	while ( ComponentBitCount > 0 )
 	{
 		Read( Bytes.PushBack(), std::min<size_t>(8,ComponentBitCount) );
 		ComponentBitCount -= 8;
 	}
+	//	gr: should we check for mis-aligned bitcount?
 	
 	Data = 0;
 	for ( int i=0;	i<Bytes.GetSize();	i++ )
@@ -650,7 +697,7 @@ void TBitReader::Read(uint8& Data,size_t BitCount)
 	auto CurrentBit = mBitPos % 8;
 	
 	//	out of range
-		Soy::Assert( CurrentByte < mData.GetSize(), "Reading byte out of range");
+	Soy::Assert( CurrentByte < mData.GetSize(), "Reading byte out of range");
 	
 	//	move along
 	mBitPos += BitCount;
@@ -833,17 +880,39 @@ void Parse(const unsigned char * pStart, unsigned short nLen)
 }
 
 */
-
 H264::TSpsParams H264::ParseSps(const ArrayBridge<uint8>&& Data)
+{
+	return ParseSps( Data );
+}
+
+
+H264::TSpsParams H264::ParseSps(const ArrayBridge<uint8>& Data)
 {
 	//	test against the working version from stackoverflow
 	//Parse( Data.GetArray(), Data.GetDataSize() );
 	
 	TSpsParams Params;
 	
-	TBitReader Reader( Data );
+	auto _DataSkipNaluByte = GetRemoteArray( Data.GetArray()+1, Data.GetDataSize()-1 );
+	auto DataSkipNaluByte = GetArrayBridge( _DataSkipNaluByte );
+	bool SkipNaluByte = false;
+	try
+	{
+		H264NaluContent::Type Content;
+		H264NaluPriority::Type Priority;
+		DecodeNaluByte( Data[0], Content, Priority );
+		SkipNaluByte = true;
+	}
+	catch (...)
+	{
+	}
+	TBitReader Reader( SkipNaluByte ? DataSkipNaluByte : Data );
+	
 //	http://stackoverflow.com/questions/12018535/get-the-width-height-of-the-video-from-h-264-nalu
-	Reader.Read( Params.mProfile, 8 );
+	uint8 Param8;
+	Reader.Read( Param8, 8 );
+	Params.mProfile = H264Profile::Validate( Param8 );
+	
 	Reader.Read( Params.mConstraintFlag[0], 1 );
 	Reader.Read( Params.mConstraintFlag[1], 1 );
 	Reader.Read( Params.mConstraintFlag[2], 1 );
@@ -852,14 +921,24 @@ H264::TSpsParams H264::ParseSps(const ArrayBridge<uint8>&& Data)
 	Reader.Read( Params.mConstraintFlag[5], 1 );
 	
 	Reader.Read( Params.mReservedZero, 2 );
-	Reader.Read( Params.mLevel, 8 );
+
+	uint8 Level;
+	Reader.Read( Level, 8 );
+	Params.mLevel = H264::DecodeLevel( Level );
+	
 	Reader.ReadExponentialGolombCode( Params.seq_parameter_set_id );
 	
 	
-	if( Params.mProfile == 100 || Params.mProfile == 110 ||
-	   Params.mProfile == 122 || Params.mProfile == 244 ||
-	   Params.mProfile == 44 || Params.mProfile == 83 ||
-	   Params.mProfile == 86 || Params.mProfile == 118 )
+	if( Params.mProfile == H264Profile::High ||
+	   Params.mProfile == H264Profile::High10Intra ||
+	   Params.mProfile == H264Profile::High422Intra ||
+	   Params.mProfile == H264Profile::High4 ||
+	   Params.mProfile == H264Profile::High5 ||
+	   Params.mProfile == H264Profile::High6 ||
+	   Params.mProfile == H264Profile::High7 ||
+	   Params.mProfile == H264Profile::High8 ||
+	   Params.mProfile == H264Profile::High9 ||
+	   Params.mProfile == H264Profile::HighMultiviewDepth )
 	{
 		Reader.ReadExponentialGolombCode( Params.chroma_format_idc );
 		
@@ -952,7 +1031,52 @@ H264::TSpsParams H264::ParseSps(const ArrayBridge<uint8>&& Data)
 }
 
 
+void H264::SetSpsProfile(ArrayBridge<uint8>&& Data,H264Profile::Type Profile)
+{
+	Soy::Assert( Data.GetSize() > 0, "Not enough SPS data");
+	auto& ProfileByte = Data[0];
 
+	//	simple byte
+	ProfileByte = size_cast<uint8>( Profile );
+}
 
+Soy::TVersion H264::DecodeLevel(uint8 Level8)
+{
+	//	show level
+	//	https://github.com/ford-prefect/gst-plugins-bad/blob/master/sys/applemedia/vtdec.c
+	//	http://stackoverflow.com/questions/21120717/h-264-video-wont-play-on-ios
+	//	value is decimal * 10. Even if the data is bad, this should still look okay
+	int Minor = Level8 % 10;
+	int Major = (Level8-Minor) / 10;
 
+	return Soy::TVersion( Major, Minor );
+}
+
+bool H264::IsKeyframe(H264NaluContent::Type Content) __noexcept
+{
+	//	gr: maybe we should take priority into effect too?
+	switch ( Content )
+	{
+		case H264NaluContent::Slice_CodedIDRPicture:
+			return true;
+			
+		default:
+			return false;
+	}
+}
+
+bool H264::IsKeyframe(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&& Data) __noexcept
+{
+	try
+	{
+		H264NaluContent::Type Content;
+		H264NaluPriority::Type Priority;
+		DecodeNaluByte( Format, GetArrayBridge(Data), Content, Priority );
+		return IsKeyframe( Content );
+	}
+	catch(...)
+	{
+		return false;
+	}
+}
 

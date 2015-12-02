@@ -1336,6 +1336,14 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const vec2f& Value)
 	return Result;
 }
 
+bool Opencl::TKernelState::SetUniform(const char* Name,const vec3f& Value)
+{
+	auto Value3 = Soy::VectorToCl( Value );
+	bool Result = SetKernelArg( *this, Name, Value3 );
+	OnAssignedUniform( Name, Result );
+	return Result;
+}
+
 bool Opencl::TKernelState::SetUniform(const char* Name,const int& Value)
 {
 	static_assert( sizeof(cl_int) == sizeof(Value), "cl_int doesn't match int" );

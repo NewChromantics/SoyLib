@@ -120,7 +120,7 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case FreenectDepth10bit:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
 
-		case ChromaUV_4_4:	return 1;
+		case ChromaUV_8_8:	return 1;
 		case ChromaUV_88:	return 2;
 	}
 }
@@ -151,9 +151,14 @@ void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneForma
 			PlaneFormats.PushBack( ChromaUV_88 );
 			break;
 			
-		case Yuv_8_4_4_Full:
+		case Yuv_8_8_8_Full:
 			PlaneFormats.PushBack( LumaFull );
-			PlaneFormats.PushBack( ChromaUV_4_4 );
+			PlaneFormats.PushBack( ChromaUV_8_8 );
+			break;
+			
+		case Yuv_8_8_8_Video:
+			PlaneFormats.PushBack( LumaVideo );
+			PlaneFormats.PushBack( ChromaUV_8_8 );
 			break;
 			
 		default:
@@ -181,10 +186,11 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::FreenectDepthmm,		"FreenectDepthmm"	},
 	{ SoyPixelsFormat::Yuv_8_88_Full,		"Yuv_8_88_Full"	},
 	{ SoyPixelsFormat::Yuv_8_88_Video,		"Yuv_8_88_Video"	},
-	{ SoyPixelsFormat::Yuv_8_4_4_Full,		"Yuv_8_4_4_Full"	},
+	{ SoyPixelsFormat::Yuv_8_8_8_Full,		"Yuv_8_8_8_Full"	},
+	{ SoyPixelsFormat::Yuv_8_8_8_Video,		"Yuv_8_8_8_Video"	},
 	{ SoyPixelsFormat::LumaFull,			"LumaFull"	},
 	{ SoyPixelsFormat::LumaVideo,			"LumaVideo"	},
-	{ SoyPixelsFormat::ChromaUV_4_4,		"ChromaUV_4_4"	},
+	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
 	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
 };
 
@@ -1493,10 +1499,16 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes) const
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_88 ) );
 			break;
 			
-		case SoyPixelsFormat::Yuv_8_4_4_Full:
+		case SoyPixelsFormat::Yuv_8_8_8_Full:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaFull ) );
 			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_4_4 ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
+			break;
+			
+		case SoyPixelsFormat::Yuv_8_8_8_Video:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaVideo ) );
+			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
 			break;
 			
 		default:

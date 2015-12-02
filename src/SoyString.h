@@ -99,8 +99,9 @@ namespace Soy
 	uint8		HexToByte(char HexA,char HexB);
 
 	std::string	ResolveUrl(const std::string& BaseUrl,const std::string& Path);	//	work out the full path of Path from the base url. if it starts from / then use the server. if it starts with protocol, don't modify, otherwise place in directory
-
+	std::string	ExtractServerFromUrl(const std::string& Url);
 	void		SplitHostnameAndPort(std::string& Hostname,uint16& Port,const std::string& HostnameAndPort);
+	void		SplitUrl(const std::string& Url,std::string& Protocol,std::string& Hostname,uint16& Port,std::string& Path);
 	
 	std::wstring	StringToWString(const std::string& s);
 	
@@ -115,7 +116,7 @@ namespace Soy
 
 	std::string		FourCCToString(uint32 Fourcc);	//	on IOS, don't forget CFSwapInt32BigToHost()
 	
-	std::string		DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes);
+	std::string		DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes=-1);
 	void			DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,int MaxBytes=-1);
 	inline void		DataToHexString(std::ostream& String,const ArrayBridge<uint8>&& Data,int MaxBytes=-1)	{	DataToHexString( String, Data, MaxBytes );	}
 };

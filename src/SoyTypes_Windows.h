@@ -41,6 +41,8 @@
 // Attribute to make function be exported from a plugin
 #define __export	extern "C" __declspec(dllexport)
 #define __noexcept	
+#define __pure
+
 
 #include <math.h>
 #include <stdint.h>
