@@ -255,11 +255,25 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 
 
 
-TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer) :
+TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManager> OutputBuffer) :
 	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
 	mInput			( InputBuffer ),
-	mOutput			( OutputBuffer )
+	mPixelOutput	( OutputBuffer )
 {
+	Soy::Assert( mInput!=nullptr, "Expected input");
+	Soy::Assert( mPixelOutput!=nullptr, "Expected output target");
+	//	wake when new packets arrive
+	mOnNewPacketListener = WakeOnEvent( mInput->mOnNewPacket );
+}
+
+
+TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManagerBase> OutputBuffer) :
+	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
+	mInput			( InputBuffer ),
+	mAudioOutput	( OutputBuffer )
+{
+	Soy::Assert( mInput!=nullptr, "Expected input");
+	Soy::Assert( mAudioOutput!=nullptr, "Expected output target");
 	//	wake when new packets arrive
 	mOnNewPacketListener = WakeOnEvent( mInput->mOnNewPacket );
 }
@@ -322,9 +336,13 @@ bool TMediaDecoder::Iteration()
 	//	read outputs
 	try
 	{
-		if ( mOutput )
+		if ( mPixelOutput )
 		{
-			ProcessOutputPacket( *mOutput );
+			ProcessOutputPacket( *mPixelOutput );
+		}
+		if ( mAudioOutput )
+		{
+			ProcessOutputPacket( *mAudioOutput );
 		}
 		Soy::StringStreamClear(mFatalError);
 	}
@@ -341,10 +359,17 @@ bool TMediaDecoder::Iteration()
 	return true;
 }
 
-TPixelBufferManagerBase& TMediaDecoder::GetPixelBufferManager()
+TPixelBufferManager& TMediaDecoder::GetPixelBufferManager()
 {
-	Soy::Assert( mOutput != nullptr, "MediaEncoder missing pixel buffer" );
-	return *mOutput;
+	Soy::Assert( mPixelOutput != nullptr, "MediaEncoder missing pixel buffer" );
+	return *mPixelOutput;
+}
+
+
+TAudioBufferManagerBase& TMediaDecoder::GetAudioBufferManager()
+{
+	Soy::Assert( mAudioOutput != nullptr, "MediaEncoder missing audio buffer" );
+	return *mAudioOutput;
 }
 
 void TMediaDecoder::OnDecodeFrameSubmitted(const SoyTime& Time)
@@ -461,10 +486,10 @@ void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 }
 
 
-TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent,SoyTime ExtractAheadMs) :
+TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyTime ExtractAheadMs,std::function<void(const SoyTime,size_t)> OnPacketExtracted) :
 	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake ),
 	mExtractAheadMs		( ExtractAheadMs ),
-	mOnFrameExtractedEvent	( OnFrameExtractedEvent )
+	mOnPacketExtracted	( OnPacketExtracted )
 {
 
 }
@@ -482,13 +507,12 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::AllocStreamBuffer(size_t St
 	{
 		Buffer.reset( new TMediaPacketBuffer );
 		
-		//	maybe unsafe?
-		auto OnNewPacket = [this](std::shared_ptr<TMediaPacket>& Packet)
+		auto OnPacketExtracted = [StreamIndex,this](std::shared_ptr<TMediaPacket>& Packet)
 		{
-			//	should the perf graph be showing... the newest? the presentation time? the deocde-time?
-			mOnFrameExtractedEvent.OnTriggered( Packet->mTimecode );
+			mOnPacketExtracted( Packet->mTimecode, Packet->mMeta.mStreamIndex );
 		};
-		Buffer->mOnNewPacket.AddListener( OnNewPacket );
+		
+		Buffer->mOnNewPacket.AddListener( OnPacketExtracted );
 	}
 	
 	return Buffer;
@@ -650,6 +674,11 @@ TStreamMeta TMediaExtractor::GetVideoStream(size_t Index)
 	return Streams[Index];
 }
 
+bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyframe)
+{
+	//	todo; pass a func from the decoder which accesses the buffers/current time
+	return true;
+}
 
 void TMediaEncoder::PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block)
 {
@@ -726,5 +755,50 @@ void TMediaMuxer::SetStreams(const ArrayBridge<TStreamMeta>&& Streams)
 	mStreams.Copy( Streams );
 	SetupStreams( GetArrayBridge(mStreams) );
 	
+}
+
+
+
+void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
+{
+	//	gr: assuming we should never get here with an invalid timestamp, we force the first timestamp to 1 instead of 0 (so it doesn't clash with "invalid")
+	//	if we add something to handle when we get no timestamps from the decoder, maybe revise this a little (but maybe that should be handled by the decoder)
+	if ( Timestamp.mTime == 0 )
+		Timestamp.mTime = 1;
+	
+	if ( !mFirstTimestamp.IsValid() )
+	{
+		//	disregard pre seek
+		if ( mParams.mPreSeek > Timestamp )
+		{
+			std::Debug << "Pre-seek " << mParams.mPreSeek << " is more than first timestamp " << Timestamp << "... pre-seek didn't work? Ignoring for Internal timestamp reset" << std::endl;
+			mFirstTimestamp = Timestamp;
+		}
+		else
+		{
+			SoyTime PreSeekTime = mParams.mPreSeek;
+			mFirstTimestamp = SoyTime( Timestamp.GetTime() - PreSeekTime.GetTime() );
+			std::Debug << "First timestamp after pre-seek correction (" << PreSeekTime << ") is " << mFirstTimestamp << std::endl;
+		}
+	}
+	
+	//	correct timestamp
+	if ( mParams.mResetInternalTimestamp )
+	{
+		if ( Timestamp < mFirstTimestamp )
+		{
+			std::Debug << "error correcting timestamp " << Timestamp << " against first timestamp: " << mFirstTimestamp << std::endl;
+		}
+		else
+		{
+			Timestamp.mTime -= mFirstTimestamp.mTime;
+		}
+	}
+}
+
+
+void TMediaBufferManager::SetPlayerTime(const SoyTime &Time)
+{
+	mPlayerTime = Time;
 }
 
