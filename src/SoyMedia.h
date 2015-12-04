@@ -337,16 +337,35 @@ private:
 };
 
 
-
-class TAudioBufferManagerBase : public TMediaBufferManager
+//	gr: hacky for now but work it back to a media packet buffer
+class TAudioBufferBlock
 {
 public:
-	TAudioBufferManagerBase(const TPixelBufferParams& Params) :
+	//	consider using stream meta here
+	size_t				mChannels;
+	size_t				mFrequency;
+	
+	//	gr: maybe change this into some format where we can access mData[Time]
+	SoyTime				mStartTime;
+	SoyTime				mEndTime;
+	Array<float>		mData;
+};
+
+class TAudioBufferManager : public TMediaBufferManager
+{
+public:
+	TAudioBufferManager(const TPixelBufferParams& Params) :
 		TMediaBufferManager	( Params )
 	{
 	}
 
-	virtual bool		PushAudioBuffer(std::shared_ptr<TMediaPacket>& Packet,std::function<bool()> Block)=0;
+	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
+	void			PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,SoyTime StartTime,SoyTime EndTime);
+	virtual void	ReleaseFrames() override;
+
+private:
+	std::mutex					mBlocksLock;
+	Array<TAudioBufferBlock>	mBlocks;
 };
 
 
@@ -511,7 +530,7 @@ class TMediaDecoder : public SoyWorkerThread
 {
 public:
 	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManager> OutputBuffer);
-	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManagerBase> OutputBuffer);
+	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer);
 	virtual ~TMediaDecoder();
 	
 	bool							HasFatalError(std::string& Error)
@@ -529,12 +548,12 @@ protected:
 	virtual void					ProcessOutputPacket(TPixelBufferManager& FrameBuffer)
 	{
 	}
-	virtual void					ProcessOutputPacket(TAudioBufferManagerBase& FrameBuffer)
+	virtual void					ProcessOutputPacket(TAudioBufferManager& FrameBuffer)
 	{
 	}
 	
 	TPixelBufferManager&			GetPixelBufferManager();
-	TAudioBufferManagerBase&		GetAudioBufferManager();
+	TAudioBufferManager&			GetAudioBufferManager();
 	
 private:
 	virtual bool					Iteration() final;
@@ -543,7 +562,7 @@ private:
 protected:
 	std::shared_ptr<TMediaPacketBuffer>		mInput;
 	std::shared_ptr<TPixelBufferManager>	mPixelOutput;
-	std::shared_ptr<TAudioBufferManagerBase>	mAudioOutput;
+	std::shared_ptr<TAudioBufferManager>	mAudioOutput;
 	std::stringstream					mFatalError;
 	
 private:

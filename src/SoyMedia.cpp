@@ -303,7 +303,7 @@ TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMedi
 }
 
 
-TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManagerBase> OutputBuffer) :
+TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer) :
 	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
 	mInput			( InputBuffer ),
 	mAudioOutput	( OutputBuffer )
@@ -402,7 +402,7 @@ TPixelBufferManager& TMediaDecoder::GetPixelBufferManager()
 }
 
 
-TAudioBufferManagerBase& TMediaDecoder::GetAudioBufferManager()
+TAudioBufferManager& TMediaDecoder::GetAudioBufferManager()
 {
 	Soy::Assert( mAudioOutput != nullptr, "MediaEncoder missing audio buffer" );
 	return *mAudioOutput;
@@ -836,5 +836,48 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 void TMediaBufferManager::SetPlayerTime(const SoyTime &Time)
 {
 	mPlayerTime = Time;
+}
+
+
+
+
+void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+	mBlocks.PushBack( AudioData );
+}
+
+void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,SoyTime StartTime,SoyTime EndTime)
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+
+	//	init output
+	for ( int i=0;	i<Data.GetSize();	i++ )
+		Data[i] = 0.5f;
+	
+	//	work out where audio starts and pop chunks out of each block
+	int DataIndex = 0;
+	
+	while ( DataIndex < Data.GetSize() )
+	{
+		//	eat from head block until its empty
+		if ( mBlocks.IsEmpty() )
+			break;
+		
+		auto& Block = mBlocks[0];
+		if ( Block.mData.IsEmpty() )
+		{
+			mBlocks.RemoveBlock( 0, 1 );
+			continue;
+		}
+		Data[DataIndex] = Block.mData.PopAt(0);
+		DataIndex++;
+	}
+}
+
+void TAudioBufferManager::ReleaseFrames()
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+	mBlocks.Clear();
 }
 
