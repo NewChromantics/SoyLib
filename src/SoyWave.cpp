@@ -86,6 +86,15 @@ void Wave::TMeta::WriteHeader(ArrayBridge<char>&& Data,size_t DataSize)
 };
 
 
+void Wave::ConvertSample(const sint16 Input,float& Output)
+{
+	//	0..1
+	Output = Soy::Range<sint16>( Input, -32768, 32767 );
+	Output *= 2.f;
+	Output -= 1.f;
+}
+
+
 void Wave::WriteSample(float Samplef,SoyWaveBitsPerSample::Type Bits,ArrayBridge<uint8>&& Data)
 {
 	Soy::Assert( Samplef >= -1.f && Samplef <= 1.f, "Float sample out of range");

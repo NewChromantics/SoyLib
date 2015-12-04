@@ -30,6 +30,7 @@ namespace Wave
 	class TMeta;
 
 	void	WriteSample(float Sample,SoyWaveBitsPerSample::Type Bits,ArrayBridge<uint8>&& Data);
+	void	ConvertSample(const sint16 Input,float& Output);
 };
 
 
