@@ -76,9 +76,10 @@ namespace SoyMediaFormat
 		Wave,
 		Aac,
 		PcmLinear_8,
-		PcmLinear_16,
+		PcmLinear_16,		//	signed, see SoyWave
 		PcmLinear_20,
 		PcmLinear_24,
+		PcmLinear_float,	//	-1..1 see SoyWave
 		
 		Text,
 		Subtitle,
