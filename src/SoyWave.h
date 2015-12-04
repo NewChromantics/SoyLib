@@ -1,27 +1,11 @@
 #pragma once
 
-#include "SoyTypes.h"
+#include "SoyMedia.h"
 
-
-
-namespace SoyWaveEncoding
-{
-	enum Type
-	{
-		PCM
-	};
-}
 
 namespace SoyWaveBitsPerSample
 {
-	enum Type
-	{
-		Eight,
-		Sixteen,
-		Float,		//	32 bit -1 to 1
-	};
-
-	size_t	GetByteSize(Type Format);
+	size_t	GetByteSize(SoyMediaFormat::Type Format);
 };
 
 //	gr: not sure if this is a good namespace name?
@@ -29,11 +13,28 @@ namespace Wave
 {
 	class TMeta;
 
-	void	WriteSample(float Sample,SoyWaveBitsPerSample::Type Bits,ArrayBridge<uint8>&& Data);
 	void	ConvertSample(const sint16 Input,float& Output);
+	void	ConvertSample(const sint8 Input,float& Output);
+	void	ConvertSample(const float Input,sint8& Output);
+	void	ConvertSample(const float Input,sint16& Output);
+
+	
+	template<typename OLDTYPE,typename NEWTYPE>
+	inline void	ConvertSamples(const ArrayBridge<OLDTYPE>&& Input,ArrayBridge<NEWTYPE>&& Output)
+	{
+		for ( int i=0;	i<Input.GetSize();	i++ )
+		{
+			auto& SampleIn = Input[i];
+			NEWTYPE SampleOut;
+			ConvertSample( SampleIn, SampleOut );
+			Output.PushBack( SampleOut );
+		}
+	}
+
 };
 
 
+//	this is superceeded by TStreamMeta
 class Wave::TMeta
 {
 public:
@@ -44,8 +45,7 @@ public:
 	void		GetFormatSubChunkData(ArrayBridge<char>&& Data);
 
 public:
-	SoyWaveEncoding::Type	mEncoding;
+	SoyMediaFormat::Type	mFormat;
 	size_t					mChannelCount;
 	size_t					mSampleRate;		//	samples per second(freq/hz) 8000	44100	(440hz)
-	SoyWaveBitsPerSample::Type	mBitsPerSample;		//	normal 8 or 16
 };
