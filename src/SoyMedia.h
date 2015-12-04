@@ -72,9 +72,13 @@ namespace SoyMediaFormat
 		Mpeg2,
 		Mpeg4,
 		
-		Audio,			//	remove this and specialise only
-		Wave,			//	audio
+		//	audio
+		Wave,
 		Aac,
+		PcmLinear_8,
+		PcmLinear_16,
+		PcmLinear_20,
+		PcmLinear_24,
 		
 		Text,
 		Subtitle,
@@ -165,7 +169,12 @@ public:
 	mMaxKeyframeSpacing	( 0 ),
 	mAverageBitRate		( 0 ),
 	mYuvMatrix			( Soy::TYuvParams::Full() ),
-	mEncodingBitRate	( 0 )
+	mEncodingBitRate	( 0 ),
+	mAudioSampleRate	( 0 ),
+	mAudioBytesPerPacket	( 0 ),
+	mAudioBytesPerFrame		( 0 ),
+	mAudioFramesPerPacket	( 0 ),
+	mAudioSampleCount		( 0 )
 	{
 	};
 	
@@ -197,11 +206,19 @@ public:
 	Soy::TYuvParams		mYuvMatrix;
 	bool				mDrmProtected;
 	size_t				mMaxKeyframeSpacing;	//	gr: not sure of entropy yet
-	size_t				mAverageBitRate;	//	gr: not sure of entropy yet
+	size_t				mAverageBitRate;		//	gr: not sure of entropy yet
 	float3x3			mTransform;
 	
 	//	audio
-	size_t				mChannelCount;		//	for audio. Maybe expand to planes? but mPixelMeta tell us this
+	size_t				mChannelCount;			//	for audio. Maybe expand to planes? but mPixelMeta tell us this
+	float				mAudioSampleRate;		//	todo: standardise this to khz?
+	size_t				mAudioBytesPerPacket;
+	size_t				mAudioBytesPerFrame;
+	size_t				mAudioFramesPerPacket;
+	size_t				mAudioBitsPerChannel;	//	change this to be like H264 different formats; AAC_8, AAC_16, AAC_float etc
+	
+	//	this is more meta for the data... not the stream... should it be here? should it be split?
+	size_t				mAudioSampleCount;
 };
 std::ostream& operator<<(std::ostream& out,const TStreamMeta& in);
 

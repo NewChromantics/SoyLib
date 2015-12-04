@@ -15,9 +15,12 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Mpeg2TS,			"Mpeg2TS" },
 	{ SoyMediaFormat::Mpeg2,			"Mpeg2" },
 	{ SoyMediaFormat::Mpeg4,			"Mpeg4" },
-	{ SoyMediaFormat::Audio,			"audio" },
 	{ SoyMediaFormat::Wave,				"wave" },
 	{ SoyMediaFormat::Aac,				"aac" },
+	{ SoyMediaFormat::PcmLinear_8,		"PcmLinear_8" },
+	{ SoyMediaFormat::PcmLinear_16,		"PcmLinear_16" },
+	{ SoyMediaFormat::PcmLinear_20,		"PcmLinear_20" },
+	{ SoyMediaFormat::PcmLinear_24,		"PcmLinear_24" },
 	{ SoyMediaFormat::Text,				"text" },
 	{ SoyMediaFormat::Subtitle,			"subtitle" },
 	{ SoyMediaFormat::ClosedCaption,	"closedcaption" },
@@ -132,9 +135,16 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
 	{
-		case SoyMediaFormat::Aac:	return true;
-		case SoyMediaFormat::Audio:	return true;
-		default:					return false;
+		case SoyMediaFormat::Aac:
+		case SoyMediaFormat::PcmLinear_8:
+		case SoyMediaFormat::PcmLinear_16:
+		case SoyMediaFormat::PcmLinear_20:
+		case SoyMediaFormat::PcmLinear_24:
+		case SoyMediaFormat::Wave:
+			return true;
+			
+		default:
+			return false;
 	}
 }
 
@@ -161,6 +171,11 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 #else
 		case SoyMediaFormat::Aac:		return "audio/x-aac";
 #endif
+		//	https://en.wikipedia.org/wiki/Pulse-code_modulation
+		case SoyMediaFormat::PcmLinear_8:	return "audio/L8";
+		case SoyMediaFormat::PcmLinear_16:	return "audio/L16";
+		case SoyMediaFormat::PcmLinear_20:	return "audio/L20";
+		case SoyMediaFormat::PcmLinear_24:	return "audio/L24";
 			
 		default:						return "invalid/invalid";
 	}
@@ -180,6 +195,10 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg4 ) )			return SoyMediaFormat::Mpeg4;
 	if ( Mime == ToMime( SoyMediaFormat::Wave ) )			return SoyMediaFormat::Wave;
 	if ( Mime == ToMime( SoyMediaFormat::Aac ) )			return SoyMediaFormat::Aac;
+	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_8 ) )	return SoyMediaFormat::PcmLinear_8;
+	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_16 ) )	return SoyMediaFormat::PcmLinear_16;
+	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_20 ) )	return SoyMediaFormat::PcmLinear_20;
+	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_24 ) )	return SoyMediaFormat::PcmLinear_24;
 	
 	std::Debug << "Unknown mime type: " << Mime << std::endl;
 	return SoyMediaFormat::Invalid;
@@ -203,6 +222,12 @@ uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
 	{
 		case SoyMediaFormat::Aac:	return 'aac ';
 		case SoyMediaFormat::Mpeg4:	return 'mp4v';
+
+		case SoyMediaFormat::PcmLinear_8:
+		case SoyMediaFormat::PcmLinear_16:
+		case SoyMediaFormat::PcmLinear_20:
+		case SoyMediaFormat::PcmLinear_24:
+			return 'lpcm';
 		
 		case SoyMediaFormat::H264_ES:
 		case SoyMediaFormat::H264_SPS_ES:
@@ -225,7 +250,7 @@ uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
 
 SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize)
 {
-	//	gr: handle reverse here automatically?
+	//	todo: handle reverse here automatically and use ToFourcc()
 	switch ( Fourcc )
 	{
 		case 'avc1':
@@ -244,6 +269,17 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 		case ' caa':	return SoyMediaFormat::Aac;
 		case 'mp4v':	return SoyMediaFormat::Mpeg4;
 		case 'v4pm':	return SoyMediaFormat::Mpeg4;
+		case 'lpcm':
+		case 'mcpl':
+			if ( H264LengthSize == 8 )
+				return SoyMediaFormat::PcmLinear_8;
+			if ( H264LengthSize == 16 )
+				return SoyMediaFormat::PcmLinear_16;
+			if ( H264LengthSize == 20 )
+				return SoyMediaFormat::PcmLinear_20;
+			if ( H264LengthSize == 24 )
+				return SoyMediaFormat::PcmLinear_24;
+			break;
 	}
 	
 	std::Debug << "Unknown fourcc type: " << Soy::FourCCToString(Fourcc) << std::endl;
@@ -597,12 +633,12 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 				return;
 			
 			//	block thread unless it's stopped
-			auto Block = [this]()
+			auto Block = [this,&NextPacket]()
 			{
 				//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
 				if ( IsWorking() )
 				{
-					std::Debug << "MediaExtractor blocking in push packet" << std::endl;
+					std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << std::endl;
 					std::this_thread::sleep_for( std::chrono::milliseconds(100) );
 				}
 				return IsWorking();
