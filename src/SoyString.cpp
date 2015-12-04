@@ -450,7 +450,8 @@ void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 			break;
 		Buffer[Len] = Source[Len];
 	}
-	Buffer[Len] = '\0';
+	Soy::Assert( Len < BufferSize, "StringToBuffer Len OOB");
+	Buffer[std::min<ssize_t>(Len,BufferSize-1)] = '\0';
 }
 
 
