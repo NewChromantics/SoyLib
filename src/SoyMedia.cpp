@@ -100,6 +100,12 @@ SoyPixelsFormat::Type SoyMediaFormat::GetPixelFormat(SoyMediaFormat::Type MediaF
 }
 
 
+SoyMediaFormat::Type SoyMediaFormat::FromPixelFormat(SoyPixelsFormat::Type PixelFormat)
+{
+	return static_cast<SoyMediaFormat::Type>( PixelFormat );
+}
+
+
 
 bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 {
