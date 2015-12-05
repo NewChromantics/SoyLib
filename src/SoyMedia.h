@@ -327,19 +327,22 @@ public:
 	virtual void			Finish()=0;
 
 protected:
-	//	todo: handle the setup of streams. if not pre-known, make base class hold packets until we've decided we have enough, then write streams & packets
 	virtual void			SetupStreams(const ArrayBridge<TStreamMeta>&& Streams)=0;
 	virtual void			ProcessPacket(std::shared_ptr<TMediaPacket> Packet,TStreamWriter& Output)=0;
-	
+
 private:
 	virtual bool			Iteration() override;
 	virtual bool			CanSleep() override;
+
+	bool					IsStreamsReady(std::shared_ptr<TMediaPacket> Packet);	//	if this returns false, not ready to ProcessPacket yet
 	
 public:
 	SoyListenerId							mOnPacketListener;
 	std::shared_ptr<TStreamWriter>			mOutput;
 	std::shared_ptr<TMediaPacketBuffer>		mInput;
 	Array<TStreamMeta>						mStreams;		//	streams, once setup, fixed
+	
+	Array<std::shared_ptr<TMediaPacket>>	mDefferedPackets;	//	when auto-calculating streams we buffer up some packets
 };
 
 

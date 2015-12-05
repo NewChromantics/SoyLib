@@ -676,20 +676,79 @@ bool TMediaMuxer::Iteration()
 	if ( !Packet )
 		return true;
 	
-	//	do some kinda queue to auto setup streams
-	if ( mStreams.IsEmpty() )
-	{
-		auto Streams = GetRemoteArray( &Packet->mMeta, 1 );
-		SetStreams( GetArrayBridge(Streams) );
-	}
-	
 	try
 	{
+		if ( !IsStreamsReady( Packet ) )
+			return true;
+
 		ProcessPacket( Packet, *mOutput );
 	}
 	catch (std::exception& e)
 	{
 		std::Debug << __func__ << " error; " << e.what() << std::endl;
+	}
+	
+	return true;
+}
+
+bool TMediaMuxer::IsStreamsReady(std::shared_ptr<TMediaPacket> Packet)
+{
+	//	if streams already setup, check this packet can be accepted
+	if ( !mStreams.IsEmpty() )
+	{
+		bool StreamExists = false;
+		for ( int i=0;	i<mStreams.GetSize();	i++ )
+			StreamExists |= (mStreams[i].mStreamIndex == Packet->mMeta.mStreamIndex);
+		
+		if ( !StreamExists )
+		{
+			std::stringstream Error;
+			Error << "Trying to add packet (" << *Packet << ") for missing stream " << Packet->mMeta.mStreamIndex << " but streams already set";
+			throw Soy::AssertException( Error.str() );
+		}
+	}
+	
+	//	shall we setup the streams?
+	if ( mStreams.IsEmpty() )
+	{
+		//	wait for a minimum number of packets for a stream before starting.
+		//	assume that normally each stream will get at least 1 packet before we go onto the second[timecode]
+		static int MinPacketsPerStream = 3;
+		bool AllStreamsHaveMinPackets = (!mDefferedPackets.IsEmpty());
+		std::map<size_t,int> PacketsPerStream;
+		std::map<size_t,TStreamMeta> StreamMetas;
+		
+		for ( int i=0;	i<mDefferedPackets.GetSize();	i++ )
+		{
+			auto& DefferedPacket = *mDefferedPackets[i];
+			PacketsPerStream[ DefferedPacket.mMeta.mStreamIndex ]++;
+			StreamMetas[ DefferedPacket.mMeta.mStreamIndex ] = DefferedPacket.mMeta;
+		}
+		for ( auto& PacketsInStream : PacketsPerStream )
+		{
+			bool HasMin = (PacketsInStream.second >= MinPacketsPerStream);
+			AllStreamsHaveMinPackets &= HasMin;
+		}
+		
+		if ( !AllStreamsHaveMinPackets )
+		{
+			std::Debug << "Deffering creation of streams (x" << PacketsPerStream.size() << ") until all have at least " << MinPacketsPerStream << " packets" << std::endl;
+			mDefferedPackets.PushBack( Packet );
+			return false;
+		}
+
+		//	streams need setting up
+		Array<TStreamMeta> Streams;
+		for ( auto& StreamMeta : StreamMetas )
+			Streams.PushBack( StreamMeta.second );
+		SetStreams( GetArrayBridge(Streams) );
+	}
+
+	//	flush deffered packets
+	while ( !mDefferedPackets.IsEmpty() )
+	{
+		auto DefferedPacket = mDefferedPackets.PopAt(0);
+		ProcessPacket( DefferedPacket, *mOutput );
 	}
 	
 	return true;
