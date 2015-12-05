@@ -15,9 +15,12 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Mpeg2TS,			"Mpeg2TS" },
 	{ SoyMediaFormat::Mpeg2,			"Mpeg2" },
 	{ SoyMediaFormat::Mpeg4,			"Mpeg4" },
-	{ SoyMediaFormat::Audio,			"audio" },
 	{ SoyMediaFormat::Wave,				"wave" },
 	{ SoyMediaFormat::Aac,				"aac" },
+	{ SoyMediaFormat::PcmLinear_8,		"PcmLinear_8" },
+	{ SoyMediaFormat::PcmLinear_16,		"PcmLinear_16" },
+	{ SoyMediaFormat::PcmLinear_20,		"PcmLinear_20" },
+	{ SoyMediaFormat::PcmLinear_24,		"PcmLinear_24" },
 	{ SoyMediaFormat::Text,				"text" },
 	{ SoyMediaFormat::Subtitle,			"subtitle" },
 	{ SoyMediaFormat::ClosedCaption,	"closedcaption" },
@@ -97,6 +100,12 @@ SoyPixelsFormat::Type SoyMediaFormat::GetPixelFormat(SoyMediaFormat::Type MediaF
 }
 
 
+SoyMediaFormat::Type SoyMediaFormat::FromPixelFormat(SoyPixelsFormat::Type PixelFormat)
+{
+	return static_cast<SoyMediaFormat::Type>( PixelFormat );
+}
+
+
 
 bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 {
@@ -132,9 +141,16 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
 	{
-		case SoyMediaFormat::Aac:	return true;
-		case SoyMediaFormat::Audio:	return true;
-		default:					return false;
+		case SoyMediaFormat::Aac:
+		case SoyMediaFormat::PcmLinear_8:
+		case SoyMediaFormat::PcmLinear_16:
+		case SoyMediaFormat::PcmLinear_20:
+		case SoyMediaFormat::PcmLinear_24:
+		case SoyMediaFormat::Wave:
+			return true;
+			
+		default:
+			return false;
 	}
 }
 
@@ -161,6 +177,11 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 #else
 		case SoyMediaFormat::Aac:		return "audio/x-aac";
 #endif
+		//	https://en.wikipedia.org/wiki/Pulse-code_modulation
+		case SoyMediaFormat::PcmLinear_8:	return "audio/L8";
+		case SoyMediaFormat::PcmLinear_16:	return "audio/L16";
+		case SoyMediaFormat::PcmLinear_20:	return "audio/L20";
+		case SoyMediaFormat::PcmLinear_24:	return "audio/L24";
 			
 		default:						return "invalid/invalid";
 	}
@@ -180,6 +201,10 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg4 ) )			return SoyMediaFormat::Mpeg4;
 	if ( Mime == ToMime( SoyMediaFormat::Wave ) )			return SoyMediaFormat::Wave;
 	if ( Mime == ToMime( SoyMediaFormat::Aac ) )			return SoyMediaFormat::Aac;
+	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_8 ) )	return SoyMediaFormat::PcmLinear_8;
+	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_16 ) )	return SoyMediaFormat::PcmLinear_16;
+	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_20 ) )	return SoyMediaFormat::PcmLinear_20;
+	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_24 ) )	return SoyMediaFormat::PcmLinear_24;
 	
 	std::Debug << "Unknown mime type: " << Mime << std::endl;
 	return SoyMediaFormat::Invalid;
@@ -203,6 +228,12 @@ uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
 	{
 		case SoyMediaFormat::Aac:	return 'aac ';
 		case SoyMediaFormat::Mpeg4:	return 'mp4v';
+
+		case SoyMediaFormat::PcmLinear_8:
+		case SoyMediaFormat::PcmLinear_16:
+		case SoyMediaFormat::PcmLinear_20:
+		case SoyMediaFormat::PcmLinear_24:
+			return 'lpcm';
 		
 		case SoyMediaFormat::H264_ES:
 		case SoyMediaFormat::H264_SPS_ES:
@@ -225,7 +256,7 @@ uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
 
 SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize)
 {
-	//	gr: handle reverse here automatically?
+	//	todo: handle reverse here automatically and use ToFourcc()
 	switch ( Fourcc )
 	{
 		case 'avc1':
@@ -244,6 +275,17 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 		case ' caa':	return SoyMediaFormat::Aac;
 		case 'mp4v':	return SoyMediaFormat::Mpeg4;
 		case 'v4pm':	return SoyMediaFormat::Mpeg4;
+		case 'lpcm':
+		case 'mcpl':
+			if ( H264LengthSize == 8 )
+				return SoyMediaFormat::PcmLinear_8;
+			if ( H264LengthSize == 16 )
+				return SoyMediaFormat::PcmLinear_16;
+			if ( H264LengthSize == 20 )
+				return SoyMediaFormat::PcmLinear_20;
+			if ( H264LengthSize == 24 )
+				return SoyMediaFormat::PcmLinear_24;
+			break;
 	}
 	
 	std::Debug << "Unknown fourcc type: " << Soy::FourCCToString(Fourcc) << std::endl;
@@ -255,11 +297,25 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 
 
 
-TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer) :
+TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManager> OutputBuffer) :
 	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
 	mInput			( InputBuffer ),
-	mOutput			( OutputBuffer )
+	mPixelOutput	( OutputBuffer )
 {
+	Soy::Assert( mInput!=nullptr, "Expected input");
+	Soy::Assert( mPixelOutput!=nullptr, "Expected output target");
+	//	wake when new packets arrive
+	mOnNewPacketListener = WakeOnEvent( mInput->mOnNewPacket );
+}
+
+
+TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer) :
+	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
+	mInput			( InputBuffer ),
+	mAudioOutput	( OutputBuffer )
+{
+	Soy::Assert( mInput!=nullptr, "Expected input");
+	Soy::Assert( mAudioOutput!=nullptr, "Expected output target");
 	//	wake when new packets arrive
 	mOnNewPacketListener = WakeOnEvent( mInput->mOnNewPacket );
 }
@@ -322,9 +378,13 @@ bool TMediaDecoder::Iteration()
 	//	read outputs
 	try
 	{
-		if ( mOutput )
+		if ( mPixelOutput )
 		{
-			ProcessOutputPacket( *mOutput );
+			ProcessOutputPacket( *mPixelOutput );
+		}
+		if ( mAudioOutput )
+		{
+			ProcessOutputPacket( *mAudioOutput );
 		}
 		Soy::StringStreamClear(mFatalError);
 	}
@@ -341,10 +401,17 @@ bool TMediaDecoder::Iteration()
 	return true;
 }
 
-TPixelBufferManagerBase& TMediaDecoder::GetPixelBufferManager()
+TPixelBufferManager& TMediaDecoder::GetPixelBufferManager()
 {
-	Soy::Assert( mOutput != nullptr, "MediaEncoder missing pixel buffer" );
-	return *mOutput;
+	Soy::Assert( mPixelOutput != nullptr, "MediaEncoder missing pixel buffer" );
+	return *mPixelOutput;
+}
+
+
+TAudioBufferManager& TMediaDecoder::GetAudioBufferManager()
+{
+	Soy::Assert( mAudioOutput != nullptr, "MediaEncoder missing audio buffer" );
+	return *mAudioOutput;
 }
 
 void TMediaDecoder::OnDecodeFrameSubmitted(const SoyTime& Time)
@@ -461,26 +528,44 @@ void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 }
 
 
-
-TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent,SoyTime ExtractAheadMs) :
+TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyTime ExtractAheadMs,std::function<void(const SoyTime,size_t)> OnPacketExtracted) :
 	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake ),
-	mExtractAheadMs		( ExtractAheadMs )
+	mExtractAheadMs		( ExtractAheadMs ),
+	mOnPacketExtracted	( OnPacketExtracted )
 {
-	//	todo: allocate per-stream
-	mBuffer.reset( new TMediaPacketBuffer );
-	
-	//	maybe unsafe?
-	auto OnNewPacket = [&OnFrameExtractedEvent](std::shared_ptr<TMediaPacket>& Packet)
-	{
-		//	should the perf graph be showing... the newest? the presentation time? the deocde-time?
-		OnFrameExtractedEvent.OnTriggered( Packet->mTimecode );
-	};
-	mBuffer->mOnNewPacket.AddListener( OnNewPacket );
+
 }
 
 TMediaExtractor::~TMediaExtractor()
 {
 	WaitToFinish();
+}
+
+std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::AllocStreamBuffer(size_t StreamIndex)
+{
+	auto& Buffer = mStreamBuffers[StreamIndex];
+	
+	if ( !Buffer )
+	{
+		Buffer.reset( new TMediaPacketBuffer );
+		
+		auto OnPacketExtracted = [StreamIndex,this](std::shared_ptr<TMediaPacket>& Packet)
+		{
+			mOnPacketExtracted( Packet->mTimecode, Packet->mMeta.mStreamIndex );
+		};
+		
+		Buffer->mOnNewPacket.AddListener( OnPacketExtracted );
+	}
+	
+	return Buffer;
+}
+
+std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::GetStreamBuffer(size_t StreamIndex)
+{
+	if ( mStreamBuffers.find( StreamIndex ) == mStreamBuffers.end() )
+		return nullptr;
+	
+	return mStreamBuffers[StreamIndex];
 }
 
 void TMediaExtractor::Seek(SoyTime Time)
@@ -553,22 +638,26 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			if ( NextPacket->mEof )
 				return;
 			
-			//	save what we read
-			Soy::Assert( mBuffer!=nullptr, "Buffer expected" );
-			
 			//	block thread unless it's stopped
-			auto Block = [this]()
+			auto Block = [this,&NextPacket]()
 			{
 				//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
 				if ( IsWorking() )
 				{
-					std::Debug << "MediaExtractor blocking in push packet" << std::endl;
+					std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << std::endl;
 					std::this_thread::sleep_for( std::chrono::milliseconds(100) );
 				}
 				return IsWorking();
 			};
-			mBuffer->PushPacket( NextPacket, Block );
 			
+			auto Buffer = GetStreamBuffer( NextPacket->mMeta.mStreamIndex );
+			//	if the buffer doesn't exist, we drop the packet. todo; make it easy to skip in ReadNextPacket!
+			if ( Buffer )
+			{
+				Buffer->PushPacket( NextPacket, Block );
+			}
+
+			//	end/break even for packets we don't save
 			if ( NextPacket->mEof )
 				OnEof();
 			
@@ -627,6 +716,11 @@ TStreamMeta TMediaExtractor::GetVideoStream(size_t Index)
 	return Streams[Index];
 }
 
+bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyframe)
+{
+	//	todo; pass a func from the decoder which accesses the buffers/current time
+	return true;
+}
 
 void TMediaEncoder::PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block)
 {
@@ -762,5 +856,93 @@ void TMediaMuxer::SetStreams(const ArrayBridge<TStreamMeta>&& Streams)
 	mStreams.Copy( Streams );
 	SetupStreams( GetArrayBridge(mStreams) );
 	
+}
+
+
+
+void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
+{
+	//	gr: assuming we should never get here with an invalid timestamp, we force the first timestamp to 1 instead of 0 (so it doesn't clash with "invalid")
+	//	if we add something to handle when we get no timestamps from the decoder, maybe revise this a little (but maybe that should be handled by the decoder)
+	if ( Timestamp.mTime == 0 )
+		Timestamp.mTime = 1;
+	
+	if ( !mFirstTimestamp.IsValid() )
+	{
+		//	disregard pre seek
+		if ( mParams.mPreSeek > Timestamp )
+		{
+			std::Debug << "Pre-seek " << mParams.mPreSeek << " is more than first timestamp " << Timestamp << "... pre-seek didn't work? Ignoring for Internal timestamp reset" << std::endl;
+			mFirstTimestamp = Timestamp;
+		}
+		else
+		{
+			SoyTime PreSeekTime = mParams.mPreSeek;
+			mFirstTimestamp = SoyTime( Timestamp.GetTime() - PreSeekTime.GetTime() );
+			std::Debug << "First timestamp after pre-seek correction (" << PreSeekTime << ") is " << mFirstTimestamp << std::endl;
+		}
+	}
+	
+	//	correct timestamp
+	if ( mParams.mResetInternalTimestamp )
+	{
+		if ( Timestamp < mFirstTimestamp )
+		{
+			std::Debug << "error correcting timestamp " << Timestamp << " against first timestamp: " << mFirstTimestamp << std::endl;
+		}
+		else
+		{
+			Timestamp.mTime -= mFirstTimestamp.mTime;
+		}
+	}
+}
+
+
+void TMediaBufferManager::SetPlayerTime(const SoyTime &Time)
+{
+	mPlayerTime = Time;
+}
+
+
+
+
+void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+	mBlocks.PushBack( AudioData );
+}
+
+void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,SoyTime StartTime,SoyTime EndTime)
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+
+	//	init output
+	for ( int i=0;	i<Data.GetSize();	i++ )
+		Data[i] = 0.5f;
+	
+	//	work out where audio starts and pop chunks out of each block
+	int DataIndex = 0;
+	
+	while ( DataIndex < Data.GetSize() )
+	{
+		//	eat from head block until its empty
+		if ( mBlocks.IsEmpty() )
+			break;
+		
+		auto& Block = mBlocks[0];
+		if ( Block.mData.IsEmpty() )
+		{
+			mBlocks.RemoveBlock( 0, 1 );
+			continue;
+		}
+		Data[DataIndex] = Block.mData.PopAt(0);
+		DataIndex++;
+	}
+}
+
+void TAudioBufferManager::ReleaseFrames()
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+	mBlocks.Clear();
 }
 
