@@ -44,6 +44,7 @@ namespace SoyMediaFormat
 		RGBA = SoyPixelsFormat::RGBA,
 		BGRA = SoyPixelsFormat::BGRA,
 		BGR = SoyPixelsFormat::BGR,
+		ARGB = SoyPixelsFormat::ARGB,
 		KinectDepth = SoyPixelsFormat::KinectDepth,
 		FreenectDepth10bit = SoyPixelsFormat::FreenectDepth10bit,
 		FreenectDepth11bit = SoyPixelsFormat::FreenectDepth11bit,

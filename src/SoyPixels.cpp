@@ -115,6 +115,7 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case RGB:			return 3;
 	case RGBA:			return 4;
 	case BGRA:			return 4;
+	case ARGB:			return 4;
 	case KinectDepth:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepth11bit:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepth10bit:	return 2;	//	only 1 channel, but 16 bit
@@ -180,6 +181,7 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::RGBA,				"RGBA"	},
 	{ SoyPixelsFormat::BGRA,				"BGRA"	},
 	{ SoyPixelsFormat::BGR,					"BGR"	},
+	{ SoyPixelsFormat::ARGB,				"ARGB"	},
 	{ SoyPixelsFormat::KinectDepth,			"KinectDepth"	},
 	{ SoyPixelsFormat::FreenectDepth10bit,	"FreenectDepth10bit"	},
 	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},

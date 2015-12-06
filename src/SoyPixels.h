@@ -21,10 +21,11 @@ namespace SoyPixelsFormat
 		GreyscaleAlpha,		//	png has this for 2 channel, so why not us!
 		RGB,
 		RGBA,
-
-		//	non integer-based channel counts
+		ARGB,
 		BGRA,
 		BGR,
+
+		//	non integer-based channel counts
 		KinectDepth,		//	16 bit, so "two channels". 13 bits of depth, 3 bits of user-index
 		FreenectDepth10bit,	//	16 bit
 		FreenectDepth11bit,	//	16 bit
