@@ -724,6 +724,7 @@ bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyfr
 
 void TMediaEncoder::PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block)
 {
+	//	gr: check/assign stream index here?
 	Soy::Assert( mOutput!=nullptr, "TMediaEncoder::PushFrame output expected" );
 	mOutput->PushPacket( Packet, Block );
 }
