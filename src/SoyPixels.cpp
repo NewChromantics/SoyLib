@@ -1228,12 +1228,14 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 		auto RowBytes = GetChannels() * GetWidth();
 		RowBytes *= Height - GetHeight();
 		Pixels.PushBlock( RowBytes );
+		GetMeta().DumbSetHeight( Height );
 	}
 	else if ( Height < GetHeight() )
 	{
 		auto RowBytes = GetChannels() * GetWidth();
 		RowBytes *= GetHeight() - Height;
 		Pixels.SetSize( Pixels.GetDataSize() - RowBytes );
+		GetMeta().DumbSetHeight( Height );
 	}
 	
 	//	insert/remove data on the end of each row
