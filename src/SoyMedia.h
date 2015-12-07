@@ -308,7 +308,10 @@ public:
 protected:
 	TPixelBufferParams				mParams;
 	SoyTime							mPlayerTime;
+
 	SoyTime							mFirstTimestamp;
+	SoyTime							mAdjustmentTimestamp;
+	SoyTime							mLastTimestamp;		//	to cope with errors with incoming timestamps, we record the last output timestamp to re-adjust against
 };
 
 

@@ -887,15 +887,21 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 	//	correct timestamp
 	if ( mParams.mResetInternalTimestamp )
 	{
+		//	timestamp is out of order, need to re-adjust the base
 		if ( Timestamp < mFirstTimestamp )
 		{
-			std::Debug << "error correcting timestamp " << Timestamp << " against first timestamp: " << mFirstTimestamp << std::endl;
+			std::Debug << "error correcting timestamp " << Timestamp << " against first timestamp: " << mFirstTimestamp << ". resetting base timestamp" << std::endl;
+
+			//	"now" should be last + 1 for correction, as we can't know the frame-step here(maybe we can get this from some stream meta)
+			mFirstTimestamp = Timestamp;	//	this==0
+			mAdjustmentTimestamp.mTime = mLastTimestamp.mTime+1;
 		}
-		else
-		{
-			Timestamp.mTime -= mFirstTimestamp.mTime;
-		}
+
+		Timestamp.mTime += mAdjustmentTimestamp.mTime;
+		Timestamp.mTime -= mFirstTimestamp.mTime;
 	}
+	
+	mLastTimestamp = Timestamp;
 }
 
 
