@@ -470,7 +470,7 @@ public:
 	bool				IsValid(bool InvasiveTest=true) const;	//	only use InvasiveTest on opengl threads
 	void				Delete();
 	void				Write(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
-	void				Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat=SoyPixelsFormat::Invalid) const;
+	void				Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat=SoyPixelsFormat::Invalid,bool Flip=true) const;
 	void				SetRepeat(bool Repeat=true);
 	void				SetFilter(bool Linear);		//	as soon as we need it, implement min/mag options and mipmap levels rather than nearest/linear
 	void				SetClamped()				{	SetRepeat(false);	}

@@ -1404,7 +1404,7 @@ void SoyPixelsImpl::ResizeFastSample(uint16 NewWidth, uint16 NewHeight)
 }
 
 
-void SoyPixelsImpl::RotateFlip()
+void SoyPixelsImpl::Flip()
 {
 	if ( !IsValid() )
 		return;

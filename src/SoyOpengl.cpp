@@ -915,7 +915,7 @@ void Opengl::TPbo::UnlockBuffer()
 #endif
 }
 
-void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat) const
+void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat,bool Flip) const
 {
 	Soy::Assert( IsValid(), "Trying to read from invalid texture" );
 	
@@ -1075,6 +1075,12 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 	
 	Unbind();
 	Opengl_IsOkay();
+	
+	//	textures are stored upside down so flip here. (maybe store as transform meta data?)
+	if ( Flip )
+	{
+		Pixels.Flip();
+	}
 #endif
 }
 

@@ -222,7 +222,7 @@ public:
 	void			ResizeClip(uint16 Width,uint16 Height);
 	void			ResizeFastSample(uint16 Width,uint16 Height);
 	
-	void			RotateFlip();
+	void			Flip();
 
 	//	split these pixels into multiple pixels if there are multiple planes
 	void			SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes);
