@@ -649,7 +649,7 @@ std::string Soy::FourCCToString(uint32 Fourcc)
 		!IsFourccChar(CodecStrBuffer[3]) )
 	{
 		//	gr: maybe platform/framework specific? should be flipped beforehand?
-		static bool ReverseChars = true;
+		static bool ReverseChars = false;
 		
 		std::stringstream Error;
 		Error << "Fourcc["
