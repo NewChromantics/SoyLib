@@ -1016,11 +1016,6 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 	}
 	
 	
-	//	gr: move this to glGetTexImage only?
-	//	make sure no padding is applied so glGetTexImage doesn't override tail memory
-	glPixelStorei(GL_PACK_ALIGNMENT, 1);
-	Opengl_IsOkay();
-
 	GLint MipLevel = 0;
 	GLenum PixelStorage = GL_UNSIGNED_BYTE;
 
@@ -1035,8 +1030,12 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 		auto ChannelCount = Pixels.GetChannels();
 
 		FrameBuffer.Bind();
-		
-		glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
+		//	make sure no padding is applied so glGetTexImage & glReadPixels doesn't override tail memory
+		glPixelStorei(GL_PACK_ROW_LENGTH,0);	//	gr: not sure this had any effect, but implemented anyway
+		Opengl_IsOkay();
+		glPixelStorei(GL_PACK_ALIGNMENT, 1);
+		Opengl_IsOkay();
+		glReadPixels( x, y, Pixels.GetWidth(), Pixels.GetHeight(), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
 		Opengl::IsOkay("glReadPixels");
 
 		//	as glReadPixels forces us to a format, we need to update the meta on the pixels
@@ -1048,6 +1047,12 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 	}
 	else
 	{
+		//	make sure no padding is applied so glGetTexImage & glReadPixels doesn't override tail memory
+		glPixelStorei(GL_PACK_ROW_LENGTH,0);	//	gr: not sure this had any effect, but implemented anyway
+		Opengl_IsOkay();
+		glPixelStorei(GL_PACK_ALIGNMENT, 1);
+		Opengl_IsOkay();
+		
 		bool Success = false;
 		for ( int i=0;	!Success && i<DownloadFormats.GetSize();	i++ )
 		{
