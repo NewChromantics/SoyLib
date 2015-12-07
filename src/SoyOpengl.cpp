@@ -1032,7 +1032,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 		GLint y = 0;
 	
 		//	gr: this code is forcing us to use the pixels.init we did earlier...
-		auto ChannelCount = mMeta.GetChannels();
+		auto ChannelCount = Pixels.GetChannels();
 
 		FrameBuffer.Bind();
 		
