@@ -409,6 +409,22 @@ bool Opengl::IsOkay(const char* Context,bool ThrowException)
  */
 
 
+void Opengl::GetReadPixelsFormats(ArrayBridge<GLenum> &&Formats)
+{
+	Formats.SetSize(5);
+	
+	Formats[0] = GL_INVALID_VALUE;
+	#if defined(OPENGL_ES)
+	Formats[1] = GL_ALPHA;
+	#else
+	Formats[1] = GL_RED;
+	#endif
+	Formats[2] = GL_INVALID_VALUE;
+	Formats[3] = GL_RGB;
+	Formats[4] = GL_RGBA;
+}
+
+
 Opengl::TFbo::TFbo(TTexture Texture) :
 	mFbo		( GL_ASSET_INVALID ),
 	mTarget		( Texture )
@@ -691,6 +707,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	mMeta = Meta;
 }
 
+
 bool Opengl::TTexture::IsValid(bool InvasiveTest) const
 {
 #if defined(TARGET_IOS)
@@ -862,17 +879,14 @@ void Opengl::TPbo::ReadPixels()
 	GLint x = 0;
 	GLint y = 0;
 	
-	BufferArray<GLint,5> Formats;
-	Formats.PushBack( GL_INVALID_VALUE );
-	Formats.PushBack( GL_ALPHA );
-	Formats.PushBack( GL_INVALID_VALUE );
-	Formats.PushBack( GL_RGB );
-	Formats.PushBack( GL_RGBA );
+	BufferArray<GLenum,5> FboFormats;
+	GetReadPixelsFormats( GetArrayBridge(FboFormats) );
+
 	auto ChannelCount = mMeta.GetChannels();
 	
 	Bind();
 
-	glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), Formats[ChannelCount], GL_UNSIGNED_BYTE, nullptr );
+	glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, nullptr );
 	Opengl_IsOkay();
 	
 	Unbind();
@@ -901,40 +915,76 @@ void Opengl::TPbo::UnlockBuffer()
 #endif
 }
 
-void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
+void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat) const
 {
 	Soy::Assert( IsValid(), "Trying to read from invalid texture" );
-
+	
 	//	not currently supported directly in opengl ES (need to make a pixel buffer, copy to it and read, I think)
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
 	throw Soy::AssertException( std::string(__func__) + " not supported on opengl es yet");
 	return;
 #else
 	
-
-	
 	Bind();
 	
-	//	resolve GL & soy pixel formats
-	SoyPixelsFormat::Type PixelFormat = GetFormat();
-	BufferArray<GLenum,10> DownloadFormats;
-	Opengl::GetDownloadPixelFormats( GetArrayBridge(DownloadFormats), *this, PixelFormat );
-	if ( DownloadFormats.IsEmpty() || PixelFormat == SoyPixelsFormat::Invalid )
+	if ( !Pixels.IsValid() )
 	{
-		std::stringstream Error;
-		Error << "Failed to resolve pixel(" << PixelFormat << ") and opengl(" << "XXX" << ") for downloading texture (" << mMeta << ")";
-		throw Soy::AssertException( Error.str() );
+		if ( ForceFormat == SoyPixelsFormat::Invalid )
+		{
+			//	todo: work out fastest format!
+			static SoyPixelsFormat::Type DefaultFormat = SoyPixelsFormat::RGBA;
+			
+			//	gr: assuming the fastest is the same as the internal format, but that doesn't allow FBO
+			static bool UseInternalFormatAsDefault = false;
+			if ( UseInternalFormatAsDefault )
+				ForceFormat = GetFormat();
+			else
+				ForceFormat = DefaultFormat;
+		}
 	}
 	
-	//	pre-alloc data
-	if ( !Pixels.Init( GetWidth(), GetHeight(), PixelFormat ) )
-		throw Soy::AssertException("Failed to allocate pixels for texture read");
+	//	allocate pixels
+	if ( !Pixels.IsValid() )
+	{
+		Soy::Assert( ForceFormat != SoyPixelsFormat::Invalid, "Format should be valid here");
+		if ( !Pixels.Init( GetWidth(), GetHeight(), ForceFormat ) )
+			throw Soy::AssertException("Failed to allocate pixels for texture read");
+	}
+
+	{
+		//	gr: it's important for memory reasons that the sizes are correct.
+		//	glGetTexImage will be corrupt if they mismatch (smaller), which is kinda fine, but maybe will crash on some driver?
+		//	glReadPixels from fbo will be in the corner.
+		GLenum InternalType;
+		auto InternalMeta = GetInternalMeta( InternalType );
+		if ( Pixels.GetWidth() != InternalMeta.GetWidth() || Pixels.GetHeight() != InternalMeta.GetHeight() )
+		{
+			std::Debug << __func__ << " warning; meta (" << Pixels.GetMeta() << ") dimensions different to internal " << InternalMeta << " forcing resize of pixels" << std::endl;
+		
+			Pixels.ResizeClip( InternalMeta.GetWidth(), InternalMeta.GetHeight() );
+		}
+	}
+	
+	//	resolve GL & soy pixel formats
+	BufferArray<GLenum,10> DownloadFormats;
+	{
+		Opengl::GetDownloadPixelFormats( GetArrayBridge(DownloadFormats), *this, Pixels.GetFormat() );
+		if ( DownloadFormats.IsEmpty() || Pixels.GetFormat() == SoyPixelsFormat::Invalid )
+		{
+			std::stringstream Error;
+			Error << "Failed to resolve pixel(" << Pixels.GetFormat() << ") and opengl(" << "XXX" << ") for downloading texture (" << mMeta << ")";
+			throw Soy::AssertException( Error.str() );
+		}
+	}
 	auto* PixelBytes = Pixels.GetPixelsArray().GetArray();
 
 	
 	//	try to use PBO's
-	static bool UsePbo = false;
-	static bool UseFbo = true;
+	static bool Default_UsePbo = false;
+	static bool Default_UseFbo = true;
+
+	bool UsePbo = Default_UsePbo;
+	bool UseFbo = Default_UseFbo;
 	
 	if ( UsePbo )
 	{
@@ -949,41 +999,60 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 		return;
 	}
 	
+	//	glReadPixels only accepts the formats below
+	BufferArray<GLenum,5> FboFormats;
+	GetReadPixelsFormats( GetArrayBridge(FboFormats) );
 	
-	//	make sure no padding is applied so glGetTexImage doesn't override tail memory
-	glPixelStorei(GL_PACK_ALIGNMENT, 1);
-	Opengl_IsOkay();
-
+	//	gr: sometimes the caller wants a specific format, and FBO(glReadPixels) doesn't allow that
+	if ( UseFbo )
+	{
+		auto PrefferedFormat = Pixels.GetFormat();
+		if ( PrefferedFormat != GetDownloadPixelFormat(FboFormats[1]) &&
+			PrefferedFormat != GetDownloadPixelFormat(FboFormats[3]) &&
+			PrefferedFormat != GetDownloadPixelFormat(FboFormats[4]) )
+		{
+			UseFbo = false;
+		}
+	}
+	
+	
 	GLint MipLevel = 0;
 	GLenum PixelStorage = GL_UNSIGNED_BYTE;
-	
+
+
 	if ( UseFbo )
 	{
 		TFbo FrameBuffer( *this );
 		GLint x = 0;
 		GLint y = 0;
-		BufferArray<GLint,5> Formats;
-		
-		Formats.PushBack( GL_INVALID_VALUE );
-#if defined(OPENGL_ES)
-		Formats.PushBack( GL_ALPHA );
-#else
-		Formats.PushBack( GL_RED );
-#endif
-		Formats.PushBack( GL_INVALID_VALUE );
-		Formats.PushBack( GL_RGB );
-		Formats.PushBack( GL_RGBA );
+	
+		//	gr: this code is forcing us to use the pixels.init we did earlier...
+		auto ChannelCount = Pixels.GetChannels();
 
-		auto ChannelCount = mMeta.GetChannels();
 		FrameBuffer.Bind();
-		
-		glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), Formats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
+		//	make sure no padding is applied so glGetTexImage & glReadPixels doesn't override tail memory
+		glPixelStorei(GL_PACK_ROW_LENGTH,0);	//	gr: not sure this had any effect, but implemented anyway
+		Opengl_IsOkay();
+		glPixelStorei(GL_PACK_ALIGNMENT, 1);
+		Opengl_IsOkay();
+		glReadPixels( x, y, Pixels.GetWidth(), Pixels.GetHeight(), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
 		Opengl::IsOkay("glReadPixels");
+
+		//	as glReadPixels forces us to a format, we need to update the meta on the pixels
+		auto NewFormat = GetDownloadPixelFormat( FboFormats[ChannelCount] );
+		Pixels.GetMeta().DumbSetFormat( NewFormat );
+		
 		FrameBuffer.Unbind();
 		Opengl_IsOkay();
 	}
 	else
 	{
+		//	make sure no padding is applied so glGetTexImage & glReadPixels doesn't override tail memory
+		glPixelStorei(GL_PACK_ROW_LENGTH,0);	//	gr: not sure this had any effect, but implemented anyway
+		Opengl_IsOkay();
+		glPixelStorei(GL_PACK_ALIGNMENT, 1);
+		Opengl_IsOkay();
+		
 		bool Success = false;
 		for ( int i=0;	!Success && i<DownloadFormats.GetSize();	i++ )
 		{
@@ -1291,7 +1360,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	}
 }
 
-SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType)
+SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType) const
 {
 #if defined(OPENGL_ES)
 	std::Debug << "Warning, using " << __func__ << " on opengl es (no such info)" << std::endl;
@@ -1855,6 +1924,9 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 #else
 		TPixelFormatMapping( SoyPixelsFormat::RGBA,			{GL_RGBA} ),
 #endif
+
+		//	gr: untested
+		TPixelFormatMapping( SoyPixelsFormat::ARGB,			{GL_RGBA, GL_RGBA8} ),
 		
 		TPixelFormatMapping( SoyPixelsFormat::LumaFull,		Opengl8BitFormats ),
 		TPixelFormatMapping( SoyPixelsFormat::LumaVideo,	Opengl8BitFormats ),
@@ -1937,7 +2009,7 @@ void Opengl::GetNewTexturePixelFormats(ArrayBridge<GLenum>&& Formats,SoyPixelsFo
 }
 
 
-void Opengl::GetDownloadPixelFormats(ArrayBridge<GLenum>&& Formats,const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat)
+void Opengl::GetDownloadPixelFormats(ArrayBridge<GLenum>&& Formats,const TTexture& Texture,SoyPixelsFormat::Type PixelFormat)
 {
 	auto Mapping = GetPixelMapping( PixelFormat );
 	Formats.PushBackArray( Mapping.mOpenglFormats );

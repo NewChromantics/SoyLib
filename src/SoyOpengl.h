@@ -117,8 +117,9 @@ namespace Opengl
 
 	void					GetUploadPixelFormats(ArrayBridge<GLenum>&& Formats,const Opengl::TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
 	void					GetNewTexturePixelFormats(ArrayBridge<GLenum>&& Formats,SoyPixelsFormat::Type Format);
-	void					GetDownloadPixelFormats(ArrayBridge<GLenum>&& Formats,const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat);
+	void					GetDownloadPixelFormats(ArrayBridge<GLenum>&& Formats,const TTexture& Texture,SoyPixelsFormat::Type PixelFormat);
 	SoyPixelsFormat::Type	GetDownloadPixelFormat(GLenum Format);
+	void					GetReadPixelsFormats(ArrayBridge<GLenum>&& Formats);	//	glReadPixels has a limited range of formats. Array[channelcount] = format
 
 	//	helpers
 	void	ClearColour(Soy::TRgb Colour,float Alpha=1);
@@ -457,7 +458,7 @@ public:
 		return *this;
 	}
 
-	SoyPixelsMeta		GetInternalMeta(GLenum& Type);	//	read meta from opengl
+	SoyPixelsMeta		GetInternalMeta(GLenum& Type) const;	//	read meta from opengl
 
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 	size_t				GetWidth() const	{	return mMeta.GetWidth();	}
@@ -469,7 +470,7 @@ public:
 	bool				IsValid(bool InvasiveTest=true) const;	//	only use InvasiveTest on opengl threads
 	void				Delete();
 	void				Write(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
-	void				Read(SoyPixelsImpl& Pixels) const;
+	void				Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat=SoyPixelsFormat::Invalid) const;
 	void				SetRepeat(bool Repeat=true);
 	void				SetFilter(bool Linear);		//	as soon as we need it, implement min/mag options and mipmap levels rather than nearest/linear
 	void				SetClamped()				{	SetRepeat(false);	}
