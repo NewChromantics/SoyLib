@@ -4,34 +4,44 @@
 
 
 
-size_t SoyWaveBitsPerSample::GetByteSize(SoyWaveBitsPerSample::Type Format)
+size_t SoyWaveBitsPerSample::GetByteSize(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
 	{
-		case SoyWaveBitsPerSample::Eight:
-			return 1;
-		case SoyWaveBitsPerSample::Sixteen:
-			return 2;
-		case SoyWaveBitsPerSample::Float:
-			return 4;
+		case SoyMediaFormat::PcmLinear_8:		return 1;
+		case SoyMediaFormat::PcmLinear_16:		return 2;
+		case SoyMediaFormat::PcmLinear_24:		return 3;
+		case SoyMediaFormat::PcmLinear_float:	return 4;
+	
+		default:
+			break;
 	}
+	
+	std::stringstream Error;
+	Error << "Don't know how many wave bytes " << Format << " takes";
+	throw Soy::AssertException( Error.str() );
 }
 
 Wave::TMeta::TMeta() :
-	mEncoding		( SoyWaveEncoding::PCM ),
+	mFormat			( SoyMediaFormat::PcmLinear_float ),
 	mChannelCount	( 2 ),
-	mSampleRate		( 44100 ),
-	mBitsPerSample	( SoyWaveBitsPerSample::Float )
+	mSampleRate		( 44100 )
 {
 }
 	
 
 void Wave::TMeta::GetFormatSubChunkData(ArrayBridge<char>&& Data)
 {
-	auto BytesPerSample = SoyWaveBitsPerSample::GetByteSize( mBitsPerSample );
+	auto BytesPerSample = SoyWaveBitsPerSample::GetByteSize( mFormat );
 
+	//	gr: WAVE_FORMAT_PCM already defined in windows 8.1 headers, but check it's the same value
 	//	http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
+#if defined(WAVE_FORMAT_PCM)
+	static_assert(WAVE_FORMAT_PCM == 0x0001,"WAVE_FORMAT_PCM value mis match");
+#else
 #define	WAVE_FORMAT_PCM			0x0001
+#endif
+
 #define	WAVE_FORMAT_IEEE_FLOAT	0x0003
 #define	WAVE_FORMAT_ALAW	0x0006	//	8-bit ITU-T G.711 A-law
 #define	WAVE_FORMAT_MULAW	0x0007	//	8-bit ITU-T G.711 µ-law
@@ -39,7 +49,7 @@ void Wave::TMeta::GetFormatSubChunkData(ArrayBridge<char>&& Data)
 	
 	//	The "WAVE" format consists of two subchunks: "fmt " and "data":
 	//	The "fmt " subchunk describes the sound data's format:
-	uint16 AudioFormat = (mBitsPerSample == SoyWaveBitsPerSample::Float) ? WAVE_FORMAT_IEEE_FLOAT : WAVE_FORMAT_PCM;
+	uint16 AudioFormat = (mFormat == SoyMediaFormat::PcmLinear_float) ? WAVE_FORMAT_IEEE_FLOAT : WAVE_FORMAT_PCM;
 	
 	uint32 ByteRate = size_cast<uint32>( mSampleRate * mChannelCount * BytesPerSample );
 	uint16 BlockAlignment = mChannelCount * (BytesPerSample);	//	block size
@@ -59,7 +69,7 @@ void Wave::TMeta::GetFormatSubChunkData(ArrayBridge<char>&& Data)
 void Wave::TMeta::WriteHeader(ArrayBridge<char>&& Data,size_t DataSize)
 {
 	//	http://soundfile.sapp.org/doc/WaveFormat/
-	Soy::Assert( mEncoding == SoyWaveEncoding::PCM, "Expected PCM encoding");
+	//Soy::Assert( mEncoding == SoyWaveEncoding::PCM, "Expected PCM encoding");
 	
 
 	//	generate subchunk 1 data
@@ -86,31 +96,31 @@ void Wave::TMeta::WriteHeader(ArrayBridge<char>&& Data,size_t DataSize)
 };
 
 
-void Wave::WriteSample(float Samplef,SoyWaveBitsPerSample::Type Bits,ArrayBridge<uint8>&& Data)
+void Wave::ConvertSample(const sint16 Input,float& Output)
 {
-	Soy::Assert( Samplef >= -1.f && Samplef <= 1.f, "Float sample out of range");
+	//	0..1
+	Output = Soy::Range<sint16>( Input, -32768, 32767 );
+	Output *= 2.f;
+	Output -= 1.f;
+}
 
-	switch ( Bits )
-	{
-		case SoyWaveBitsPerSample::Eight:
-		{
-			uint8 Sample = size_cast<uint8>( (Samplef + 1.f) * 127.f );
-			Data.PushBack( Sample );
-			return;
-		}
-		
-		case SoyWaveBitsPerSample::Sixteen:
-		{
-			//	16bit samples are signed
-			auto Sample = Soy::Lerp<sint16>( -32768, 32767, Samplef );
-			Data.PushBackReinterpret( Sample );
-			return;
-		}
 
-		case SoyWaveBitsPerSample::Float:
-			Data.PushBackReinterpret( Samplef );
-			return;
-	}
+void Wave::ConvertSample(const sint8 Input,float& Output)
+{
+	//	0..1
+	Output = Soy::Range<sint8>( Input, -127, 127 );
+	Output *= 2.f;
+	Output -= 1.f;
+}
 
+
+void Wave::ConvertSample(const float Input,sint8& Output)
+{
+	Output = size_cast<sint8>( (Input + 1.f) * 127.f );
+}
+
+void Wave::ConvertSample(const float Input,sint16& Output)
+{
+	Output = Soy::Lerp<sint16>( -32768, 32767, Input );
 }
 
