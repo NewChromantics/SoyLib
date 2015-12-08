@@ -33,6 +33,7 @@ namespace Directx
 	class TShaderState;
 	class TShaderBlob;
 	class TTextureSamplingParams;
+	class TCompiler;			//	wrapper to hold the compile func and a reference to the runtime library. Defined in source for cleaner code
 
 	std::string		GetEnumString(HRESULT Error);
 	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
@@ -67,11 +68,13 @@ public:
 
 	ID3D11DeviceContext&	LockGetContext();
 	ID3D11Device&			LockGetDevice();
+	TCompiler&				GetCompiler();
 
 public:
 	AutoReleasePtr<ID3D11DeviceContext>	mLockedContext;
-	size_t					mLockCount;		//	for recursive locking
-	ID3D11Device*			mDevice;
+	size_t						mLockCount;		//	for recursive locking
+	ID3D11Device*				mDevice;
+	std::shared_ptr<TCompiler>	mCompiler;
 };
 
 
@@ -170,7 +173,7 @@ public:
 class Directx::TShaderBlob
 {
 public:
-	TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name);
+	TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name,TCompiler& Compiler);
 
 	void*		GetBuffer()			{	return mBlob ? mBlob->GetBufferPointer() : nullptr;	}
 	size_t		GetBufferSize()		{	return mBlob ? mBlob->GetBufferSize() : 0;	}

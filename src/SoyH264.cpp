@@ -64,7 +64,7 @@ std::map<H264NaluPriority::Type,std::string> H264NaluPriority::EnumMap =
 std::map<H264Profile::Type, std::string> H264Profile::EnumMap =
 {
 #if defined(TARGET_WINDOWS)
-#define ENUM_CASE(e)	{	H264NaluPriority::e,	#e	}
+#define ENUM_CASE(e)	{	H264Profile::e,	#e	}
 #else
 #define ENUM_CASE(e)	{	e,	#e	}
 #endif
