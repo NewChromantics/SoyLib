@@ -116,6 +116,16 @@ Directx::TContext& Unity::GetDirectxContext()
 }
 #endif
 
+#if defined(TARGET_WINDOWS)
+std::shared_ptr<Directx::TContext>& Unity::GetDirectxContextPtr()
+{
+	if (!DirectxContext)
+		throw Soy::AssertException("Getting directx context on non-directx run");
+	
+	return DirectxContext;
+}
+#endif
+
 Metal::TContext& Unity::GetMetalContext()
 {
 	if (!MetalContext)
@@ -186,6 +196,16 @@ void Unity::RenderEvent(Unity::sint eventID)
 	if (Unity::OpenglContext)
 	{
 		Unity::OpenglContext->Iteration();
+	}
+
+	if ( Unity::DirectxContext )
+	{
+		Unity::DirectxContext->Iteration();
+	}
+
+	if ( Unity::MetalContext )
+	{
+		Unity::MetalContext->Iteration();
 	}
 }
 

@@ -168,6 +168,7 @@ namespace Unity
 	bool							HasOpenglContext();
 #if defined(TARGET_WINDOWS)
 	Directx::TContext&				GetDirectxContext();
+	std::shared_ptr<Directx::TContext>&	GetDirectxContextPtr();
 	bool							HasDirectxContext();
 #endif
 	Metal::TContext&				GetMetalContext();
@@ -190,5 +191,6 @@ class Metal::TContext : public PopWorker::TContext
 public:
 	virtual bool	Lock() override { return true; }
 	virtual void	Unlock() override {	}
+	void			Iteration()		{}
 };
 
