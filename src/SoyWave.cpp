@@ -30,8 +30,14 @@ void Wave::TMeta::GetFormatSubChunkData(ArrayBridge<char>&& Data)
 {
 	auto BytesPerSample = SoyWaveBitsPerSample::GetByteSize( mBitsPerSample );
 
+	//	gr: WAVE_FORMAT_PCM already defined in windows 8.1 headers, but check it's the same value
 	//	http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
+#if defined(WAVE_FORMAT_PCM)
+	static_assert(WAVE_FORMAT_PCM == 0x0001,"WAVE_FORMAT_PCM value mis match");
+#else
 #define	WAVE_FORMAT_PCM			0x0001
+#endif
+
 #define	WAVE_FORMAT_IEEE_FLOAT	0x0003
 #define	WAVE_FORMAT_ALAW	0x0006	//	8-bit ITU-T G.711 A-law
 #define	WAVE_FORMAT_MULAW	0x0007	//	8-bit ITU-T G.711 µ-law
