@@ -543,17 +543,17 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 
 
 
-Directx::TRenderTarget::TRenderTarget(std::shared_ptr<TTexture>& Texture,TContext& ContextDx) :
+Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 	mTexture		( Texture )
 {
-	Soy::Assert( Texture && Texture->IsValid(), "Render target needs a valid texture target" );
-	auto& Meta = Texture->GetMeta();
+	Soy::Assert(mTexture.IsValid(), "Render target needs a valid texture target" );
+	auto& Meta = mTexture.GetMeta();
 	
 	// Create the render target view.
 	auto& Device = ContextDx.LockGetDevice();
 	try
 	{
-		auto* TextureDx = mTexture->mTexture.mObject;
+		auto* TextureDx = mTexture.mTexture.mObject;
 		D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
 		renderTargetViewDesc.Format = GetFormat( Meta.GetFormat() );
 		renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;

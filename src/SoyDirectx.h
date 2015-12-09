@@ -131,21 +131,21 @@ std::ostream& operator<<(std::ostream &out,const Directx::TTexture& in);
 class Directx::TRenderTarget
 {
 public:
-	TRenderTarget(std::shared_ptr<TTexture>& Texture,TContext& ContextDx);
+	TRenderTarget(TTexture& Texture,TContext& ContextDx);
 
 	void			Bind(TContext& Context);
 	void			Unbind(TContext& ContextDx);
 
 	void			Clear(TContext& ContextDx,Soy::TRgb Colour,float Alpha=1.f);
-	SoyPixelsMeta	GetMeta() const									{	return mTexture ? mTexture->GetMeta() : SoyPixelsMeta();	}
+	SoyPixelsMeta	GetMeta() const									{	return mTexture.GetMeta();	}
 
-	bool			operator==(const TTexture& Texture) const		{	return mTexture ? (*mTexture == Texture) : false;	}
+	bool			operator==(const TTexture& Texture) const		{	return mTexture == Texture;	}
 	bool			operator!=(const TTexture& Texture) const		{	return !(*this == Texture);	}
 
 private:
 	AutoReleasePtr<ID3D11ShaderResourceView>	mShaderResourceView;
 	AutoReleasePtr<ID3D11RenderTargetView>		mRenderTargetView;
-	std::shared_ptr<TTexture>					mTexture;
+	TTexture									mTexture;
 
 	AutoReleasePtr<ID3D11RenderTargetView>		mRestoreRenderTarget;
 	AutoReleasePtr<ID3D11DepthStencilView>		mRestoreStencilTarget;
@@ -186,8 +186,12 @@ public:
 
 //	clever class which does the binding, auto texture mapping, and unbinding
 //	why? so we can use const TShaders and share them across threads
-class Directx::TShaderState : public Soy::TUniformContainer, public NonCopyable
+class Directx::TShaderState : public Soy::TUniformContainer
 {
+private:
+	//	gr: inheriting from noncopyable means we cannot use this scoped class in lambdas, not sure why it works if we specify the =delete here
+	TShaderState& operator=(const TShaderState&) = delete;
+	//TShaderState(const TShaderState&) = delete;
 public:
 	TShaderState(const TShader& Shader);
 	~TShaderState();
