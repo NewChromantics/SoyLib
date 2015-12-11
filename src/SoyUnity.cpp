@@ -236,6 +236,24 @@ __export void UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::
 
 
 
+//	gr: check this is okay with multiple plugins linking, which was the original reason for a unique function name...
+#if defined(TARGET_IOS)
+__export void UnityRenderEvent_Ios(Unity::sint eventID)
+#else
+__export void UnityRenderEvent(Unity::sint eventID)
+#endif
+{
+	//	event triggered by other plugin
+	if ( eventID != Unity::GetPluginEventId() )
+	{
+	//	if ( Unity::mDebugPluginEvent )
+		std::Debug << "UnityRenderEvent(" << eventID << ") Not ours " << Unity::GetPluginEventId() << std::endl;
+		return;
+	}
+	
+	Unity::RenderEvent( eventID );
+}
+
 
 void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 {
@@ -257,7 +275,7 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 	//	ios needs to manually register callbacks
 	//	http://gamedev.stackexchange.com/questions/100485/how-do-i-get-gl-issuerenderevent-to-work-on-ios-with-unity-5
 #if defined(TARGET_IOS)
-	UnityRegisterRenderingPlugin( nullptr, &UnityRenderEvent_Ios_PopCastTexture );
+	UnityRegisterRenderingPlugin( nullptr, &UnityRenderEvent_Ios );
 #endif
 
 	//	allocate appropriate context and init
