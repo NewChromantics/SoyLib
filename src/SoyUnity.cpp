@@ -198,11 +198,13 @@ void Unity::RenderEvent(Unity::sint eventID)
 		Unity::OpenglContext->Iteration();
 	}
 
+#if defined(TARGET_WINDOWS)
 	if ( Unity::DirectxContext )
 	{
 		Unity::DirectxContext->Iteration();
 	}
-
+#endif
+	
 	if ( Unity::MetalContext )
 	{
 		Unity::MetalContext->Iteration();
