@@ -755,6 +755,54 @@ TJniObject::TJniObject(const char* ClassName,TJniObject& Value) :
 	Alloc( ConstructorCallback );
 }
 
+
+TJniObject::TJniObject(const char* ClassName,const std::string& ParamA) :
+TJniClass		( ClassName ),
+mObject			( nullptr ),
+mAutoReleaseObject	( false )
+{
+	auto ConstructorSignature = GetSignature<void>(GetSignatureType<std::string>());
+	auto Constructor = GetMethod( "<init>", ConstructorSignature );
+	if ( !Constructor )
+	{
+		ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
+		return;
+	}
+	
+	auto ConstructorCallback = [this,&ParamA,&Constructor]()
+	{
+		TJniString ParamAj( ParamA );
+		return java().NewObject( mClass, Constructor, ParamAj.mString );
+	};
+	
+	Alloc( ConstructorCallback );
+}
+
+
+TJniObject::TJniObject(const char* ClassName,const std::string& ParamA,const std::string& ParamB) :
+	TJniClass			( ClassName ),
+	mObject				( nullptr ),
+	mAutoReleaseObject	( false )
+{
+	auto ConstructorSignature = GetSignature<void>(GetSignatureType<std::string>(),GetSignatureType<std::string>());
+	auto Constructor = GetMethod( "<init>", ConstructorSignature );
+	if ( !Constructor )
+	{
+		ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
+		return;
+	}
+	
+	auto ConstructorCallback = [this,&ParamA,&ParamB,&Constructor]()
+	{
+		TJniString ParamAj( ParamA );
+		TJniString ParamBj( ParamB );
+		return java().NewObject( mClass, Constructor, ParamAj.mString, ParamBj.mString );
+	};
+	
+	Alloc( ConstructorCallback );
+}
+
+
 TJniObject::TJniObject(const TJniObject& that) :
 	TJniClass			( that ),
 	mObject				( nullptr ),
@@ -980,6 +1028,15 @@ void TJniObject::CallVoidMethod(const std::string& MethodName,TJniObject& ParamA
 	auto ParamCj = ParamC.GetWeakObject();
 	auto ParamDj = ParamD;
 	java().CallVoidMethod( GetWeakObject(), Method, ParamAj, ParamBj, ParamCj, ParamDj );
+	ThrowJavaException( std::string(__func__) + MethodName );
+}
+
+void TJniObject::CallVoidMethod(const std::string& MethodName,TJniObject& ParamA)
+{
+	PreFunctionCall(__func__,MethodName);
+	auto Method = GetMethod<void>( MethodName, GetSignatureType(ParamA) );
+	auto ParamAj = ParamA.GetWeakObject();
+	java().CallVoidMethod( GetWeakObject(), Method, ParamAj );
 	ThrowJavaException( std::string(__func__) + MethodName );
 }
 
@@ -1524,6 +1581,17 @@ void JniMediaExtractor::SetDataSourceAssets(const std::string& Path)
 	}
 }
 
+void JniMediaExtractor::SetDataSourcePath(const std::string& Path)
+{
+	//	gr: this is unreliable;
+	//	http://stackoverflow.com/questions/23612250/mediaextractor-setdatasource-throws-ioexception-failed-to-instantiate-extractor
+	//CallVoidMethod( "setDataSource", Path );
+	
+	Java::TRandomAccessFileHandle FileHandle(Path);
+	Soy::Assert( FileHandle.mFileDescriptor!=nullptr, "File descriptor missing" );
+	CallVoidMethod( "setDataSource", *FileHandle.mFileDescriptor );
+}
+
 /*
 
 void JniMediaExtractor::SetDataSourceAssets(const std::string& Path)
@@ -1556,8 +1624,24 @@ void JniMediaExtractor::SetDataSourceAssets(const std::string& Path)
 */
 
 
+
+Java::TFileHandle::TFileHandle() :
+	mFd			( INVALID_FILE_HANDLE )
+{
+}
+
+
+Java::TFileHandle::~TFileHandle()
+{
+	if ( mFd )
+	{
+		//	close( mFd );
+		mFd = INVALID_FILE_HANDLE;
+	}
+}
+
+
 Java::TAssetFileHandle::TAssetFileHandle(const std::string& Path) :
-	mFd			( INVALID_FILE_HANDLE ),
 	mFdOffset	( 0 ),
 	mFdLength	( 0 )
 {
@@ -1624,19 +1708,57 @@ Java::TAssetFileHandle::TAssetFileHandle(const std::string& Path) :
 
 Java::TAssetFileHandle::~TAssetFileHandle()
 {
-	if ( mFd )
-	{
-	//	close( mFd );
-		mFd = INVALID_FILE_HANDLE;
-	}
-	
 	if ( mAssetFileDescriptor )
 	{
 		mAssetFileDescriptor->CallVoidMethod("close");
 		mAssetFileDescriptor.reset();
 	}
 }
+
+
+Java::TRandomAccessFileHandle::TRandomAccessFileHandle(const std::string& Path)
+{
+	//	trying to stream right out of assets
+	std::Debug << "Loading android file descriptor " << Path << std::endl;
 	
+	std::string Mode = "r";
+	TJniObject RandomAccessFile("java.io.RandomAccessFile",Path,Mode);
+	TJniObject Fd = RandomAccessFile.CallObjectMethod("getFD","java.io.FileDescriptor");
+	mRandomAccessFile.reset( new TJniObject(RandomAccessFile) );
+	mFileDescriptor.reset( new TJniObject( Fd ) );
+	
+	if ( mFileDescriptor )
+	{
+		auto& FileDescriptor = *mFileDescriptor;
+		
+		bool FileDescriptorIsValid = FileDescriptor.CallBoolMethod("valid");
+		std::Debug << "File descriptor is valid: "  << (FileDescriptorIsValid?"true":"false") << std::endl;
+		
+		//	need to retrieve a private field to get actual file handle
+		//	this may fail, but we still have the asset file descriptor for jni funcs that use it
+		try
+		{
+			mFd = Java::GetField<int>( FileDescriptor, "descriptor" );
+			std::Debug << "Extracted filedescriptor handle; " << mFd << std::endl;
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Warning: Android OS does not expose file descriptor handle; " << e.what() << std::endl;
+		}
+	}
+	
+}
+
+
+Java::TRandomAccessFileHandle::~TRandomAccessFileHandle()
+{
+	if ( mRandomAccessFile )
+	{
+		mRandomAccessFile->CallVoidMethod("close");
+		mRandomAccessFile.reset();
+	}
+}
+
 
 
 Java::TFileStreamReader::TFileStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer) :
