@@ -1297,9 +1297,14 @@ void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Pl
 	//	error, but don't fail if underrun. overrun should be caught in the loop
 	Error << "total " << DataOffset << " out of " << ThisArray.GetDataSize() << " bytes";
 	static bool ThrowOnUnderflow = false;
-	if ( ThrowOnUnderflow )
+	static bool ThrowOnOverflow = true;
+	if ( DataOffset < ThisArray.GetDataSize() && ThrowOnUnderflow )
 	{
-		Soy::Assert( DataOffset == ThisArray.GetDataSize(), Error.str() );
+		throw Soy::AssertException( Error.str() );
+	}
+	else if ( DataOffset > ThisArray.GetDataSize() && ThrowOnOverflow )
+	{
+		throw Soy::AssertException( Error.str() );
 	}
 	else if ( DataOffset != ThisArray.GetDataSize() )
 	{
