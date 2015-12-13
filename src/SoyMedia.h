@@ -76,6 +76,7 @@ namespace SoyMediaFormat
 		//	audio
 		Wave,
 		Aac,
+		PcmAndroidRaw,		//	temp until I work out what this actually is
 		PcmLinear_8,
 		PcmLinear_16,		//	signed, see SoyWave
 		PcmLinear_20,
@@ -294,6 +295,7 @@ public:
 	virtual void				SetPlayerTime(const SoyTime& Time);			//	maybe turn this into a func to PULL the time rather than maintain it in here...
 	virtual void				CorrectDecodedFrameTimestamp(SoyTime& Timestamp);	//	adjust timestamp if neccessary
 	virtual void				ReleaseFrames()=0;
+	virtual bool				PrePushPixelBuffer(SoyTime Timestamp)=0;
 
 public:
 	SoyEvent<const SoyTime>				mOnFramePushed;	//	decoded and pushed into buffer
@@ -328,7 +330,7 @@ public:
 	SoyTime				GetNextPixelBufferTime(bool Safe=true);
 	std::shared_ptr<TPixelBuffer>	PopPixelBuffer(SoyTime& Timestamp);
 	bool				PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::function<bool()> Block);
-	bool				PrePushPixelBuffer(SoyTime Timestamp);
+	virtual bool		PrePushPixelBuffer(SoyTime Timestamp) override;
 	bool				PeekPixelBuffer(SoyTime Timestamp);	//	is there a new pixel buffer?
 	bool				IsPixelBufferFull() const;
 	
@@ -367,6 +369,7 @@ public:
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
 	void			PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,SoyTime StartTime,SoyTime EndTime);
 	virtual void	ReleaseFrames() override;
+	virtual bool	PrePushPixelBuffer(SoyTime Timestamp)	{	return true;	}	//	no skipping atm
 
 private:
 	std::mutex					mBlocksLock;
