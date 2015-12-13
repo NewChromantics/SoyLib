@@ -424,8 +424,15 @@ TAudioBufferManager& TMediaDecoder::GetAudioBufferManager()
 
 void TMediaDecoder::OnDecodeFrameSubmitted(const SoyTime& Time)
 {
-	auto& PixelBufferManager = GetPixelBufferManager();
-	PixelBufferManager.mOnFrameDecodeSubmission.OnTriggered( Time );
+	if ( mPixelOutput )
+	{
+		mPixelOutput->mOnFrameDecodeSubmission.OnTriggered( Time );
+	}
+
+	if ( mAudioOutput )
+	{
+		mAudioOutput->mOnFrameDecodeSubmission.OnTriggered( Time );
+	}
 }
 
 
@@ -923,8 +930,11 @@ void TMediaBufferManager::SetPlayerTime(const SoyTime &Time)
 
 void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 {
-	std::lock_guard<std::mutex> Lock( mBlocksLock );
-	mBlocks.PushBack( AudioData );
+	{
+		std::lock_guard<std::mutex> Lock( mBlocksLock );
+		mBlocks.PushBack( AudioData );
+	}
+	mOnFramePushed.OnTriggered( AudioData.mStartTime );
 }
 
 void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,SoyTime StartTime,SoyTime EndTime)
