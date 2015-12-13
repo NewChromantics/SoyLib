@@ -214,7 +214,7 @@ public:
 	
 	//	audio
 	size_t				mChannelCount;			//	for audio. Maybe expand to planes? but mPixelMeta tell us this
-	float				mAudioSampleRate;		//	todo: standardise this to khz?
+	size_t				mAudioSampleRate;		//	todo: standardise this to khz?
 	size_t				mAudioBytesPerPacket;
 	size_t				mAudioBytesPerFrame;
 	size_t				mAudioFramesPerPacket;
@@ -369,7 +369,7 @@ public:
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
 	void			PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,SoyTime StartTime,SoyTime EndTime);
 	virtual void	ReleaseFrames() override;
-	virtual bool	PrePushPixelBuffer(SoyTime Timestamp)	{	return true;	}	//	no skipping atm
+	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
 
 private:
 	std::mutex					mBlocksLock;
