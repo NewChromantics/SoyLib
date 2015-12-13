@@ -17,6 +17,7 @@ namespace Wave
 	void	ConvertSample(const sint8 Input,float& Output);
 	void	ConvertSample(const float Input,sint8& Output);
 	void	ConvertSample(const float Input,sint16& Output);
+	void	ConvertSample(const float Input,float& Output);
 
 	
 	template<typename OLDTYPE,typename NEWTYPE>
