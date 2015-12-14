@@ -5,6 +5,7 @@
 
 class TStreamWriter;
 class TStreamBuffer;
+class TMediaPacket;
 
 namespace Soy
 {
@@ -43,6 +44,7 @@ namespace SoyMediaFormat
 		RGBA = SoyPixelsFormat::RGBA,
 		BGRA = SoyPixelsFormat::BGRA,
 		BGR = SoyPixelsFormat::BGR,
+		ARGB = SoyPixelsFormat::ARGB,
 		KinectDepth = SoyPixelsFormat::KinectDepth,
 		FreenectDepth10bit = SoyPixelsFormat::FreenectDepth10bit,
 		FreenectDepth11bit = SoyPixelsFormat::FreenectDepth11bit,
@@ -71,9 +73,15 @@ namespace SoyMediaFormat
 		Mpeg2,
 		Mpeg4,
 		
-		Audio,			//	remove this and specialise only
-		Wave,			//	audio
+		//	audio
+		Wave,
 		Aac,
+		PcmAndroidRaw,		//	temp until I work out what this actually is
+		PcmLinear_8,
+		PcmLinear_16,		//	signed, see SoyWave
+		PcmLinear_20,
+		PcmLinear_24,
+		PcmLinear_float,	//	-1..1 see SoyWave
 		
 		Text,
 		Subtitle,
@@ -164,7 +172,12 @@ public:
 	mMaxKeyframeSpacing	( 0 ),
 	mAverageBitRate		( 0 ),
 	mYuvMatrix			( Soy::TYuvParams::Full() ),
-	mEncodingBitRate	( 0 )
+	mEncodingBitRate	( 0 ),
+	mAudioSampleRate	( 0 ),
+	mAudioBytesPerPacket	( 0 ),
+	mAudioBytesPerFrame		( 0 ),
+	mAudioFramesPerPacket	( 0 ),
+	mAudioSampleCount		( 0 )
 	{
 	};
 	
@@ -196,11 +209,19 @@ public:
 	Soy::TYuvParams		mYuvMatrix;
 	bool				mDrmProtected;
 	size_t				mMaxKeyframeSpacing;	//	gr: not sure of entropy yet
-	size_t				mAverageBitRate;	//	gr: not sure of entropy yet
+	size_t				mAverageBitRate;		//	gr: not sure of entropy yet
 	float3x3			mTransform;
 	
 	//	audio
-	size_t				mChannelCount;		//	for audio. Maybe expand to planes? but mPixelMeta tell us this
+	size_t				mChannelCount;			//	for audio. Maybe expand to planes? but mPixelMeta tell us this
+	size_t				mAudioSampleRate;		//	todo: standardise this to khz?
+	size_t				mAudioBytesPerPacket;
+	size_t				mAudioBytesPerFrame;
+	size_t				mAudioFramesPerPacket;
+	size_t				mAudioBitsPerChannel;	//	change this to be like H264 different formats; AAC_8, AAC_16, AAC_float etc
+	
+	//	this is more meta for the data... not the stream... should it be here? should it be split?
+	size_t				mAudioSampleCount;
 };
 std::ostream& operator<<(std::ostream& out,const TStreamMeta& in);
 
@@ -234,10 +255,47 @@ public:
 };
 
 
-class TPixelBufferManagerBase
+
+class TPixelBufferParams
 {
 public:
-	virtual bool		PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::function<bool()> Block)=0;
+	TPixelBufferParams() :
+	mPopFrameSync			( true ),
+	mAllowPushRejection		( true ),
+	mDebugFrameSkipping		( false ),
+	mPushBlockSleepMs		( 3 ),
+	mResetInternalTimestamp	( false ),
+	mBufferFrameSize		( 10 ),
+	mPopNearestFrame		( false )
+	{
+	}
+	
+	size_t		mPushBlockSleepMs;
+	bool		mDebugFrameSkipping;
+	size_t		mBufferFrameSize;
+	bool		mResetInternalTimestamp;
+	SoyTime		mPreSeek;					//	gr: put this somewhere else!
+	bool		mPopFrameSync;				//	false to pop ASAP (out of sync)
+	bool		mPopNearestFrame;			//	instead of skipping to the latest frame (<= now), we find the nearest frame (98 will pop frame 99) and allow looking ahead
+	bool		mAllowPushRejection;		//	early frame rejection
+};
+
+
+
+//	gr: I want to merge these pixel & audio types into the TPacketMediaBuffer type
+class TMediaBufferManager
+{
+public:
+	TMediaBufferManager(const TPixelBufferParams& Params) :
+		mParams	( Params )
+	{
+		
+	}
+	
+	virtual void				SetPlayerTime(const SoyTime& Time);			//	maybe turn this into a func to PULL the time rather than maintain it in here...
+	virtual void				CorrectDecodedFrameTimestamp(SoyTime& Timestamp);	//	adjust timestamp if neccessary
+	virtual void				ReleaseFrames()=0;
+	virtual bool				PrePushPixelBuffer(SoyTime Timestamp)=0;
 
 public:
 	SoyEvent<const SoyTime>				mOnFramePushed;	//	decoded and pushed into buffer
@@ -249,6 +307,73 @@ public:
 	SoyEvent<const SoyTime>				mOnFrameExtracted;			//	extracted, but not decoded yet
 	SoyEvent<const SoyTime>				mOnFrameDecodeFailed;
 
+protected:
+	TPixelBufferParams				mParams;
+	SoyTime							mPlayerTime;
+
+	SoyTime							mFirstTimestamp;
+	SoyTime							mAdjustmentTimestamp;
+	SoyTime							mLastTimestamp;		//	to cope with errors with incoming timestamps, we record the last output timestamp to re-adjust against
+};
+
+
+//	gr: abstracted so we can share or redirect pixel buffers
+class TPixelBufferManager : public TMediaBufferManager
+{
+public:
+	TPixelBufferManager(const TPixelBufferParams& Params) :
+		TMediaBufferManager	( Params )
+	{
+	}
+	
+	//	gr: most of these will move to base
+	SoyTime				GetNextPixelBufferTime(bool Safe=true);
+	std::shared_ptr<TPixelBuffer>	PopPixelBuffer(SoyTime& Timestamp);
+	bool				PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::function<bool()> Block);
+	virtual bool		PrePushPixelBuffer(SoyTime Timestamp) override;
+	bool				PeekPixelBuffer(SoyTime Timestamp);	//	is there a new pixel buffer?
+	bool				IsPixelBufferFull() const;
+	
+	virtual void		ReleaseFrames() override;
+	
+	
+private:
+	std::mutex						mFrameLock;
+	std::vector<TPixelBufferFrame>	mFrames;
+	
+};
+
+
+//	gr: hacky for now but work it back to a media packet buffer
+class TAudioBufferBlock
+{
+public:
+	//	consider using stream meta here
+	size_t				mChannels;
+	size_t				mFrequency;
+	
+	//	gr: maybe change this into some format where we can access mData[Time]
+	SoyTime				mStartTime;
+	SoyTime				mEndTime;
+	Array<float>		mData;
+};
+
+class TAudioBufferManager : public TMediaBufferManager
+{
+public:
+	TAudioBufferManager(const TPixelBufferParams& Params) :
+		TMediaBufferManager	( Params )
+	{
+	}
+
+	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
+	void			PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,size_t SampleRate,SoyTime StartTime,SoyTime EndTime);
+	virtual void	ReleaseFrames() override;
+	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
+
+private:
+	std::mutex					mBlocksLock;
+	Array<TAudioBufferBlock>	mBlocks;
 };
 
 
@@ -262,6 +387,9 @@ public:
 	{
 	}
 
+	//	gr: re-instating this, we should enforce decode timecodes in the extractor.
+	SoyTime					GetSortingTimecode() const	{	return mDecodeTimecode.IsValid() ? mDecodeTimecode : mTimecode;	}
+	
 public:
 	bool					mEof;
 	SoyTime					mTimecode;	//	presentation time
@@ -327,36 +455,39 @@ public:
 	virtual void			Finish()=0;
 
 protected:
-	//	todo: handle the setup of streams. if not pre-known, make base class hold packets until we've decided we have enough, then write streams & packets
 	virtual void			SetupStreams(const ArrayBridge<TStreamMeta>&& Streams)=0;
 	virtual void			ProcessPacket(std::shared_ptr<TMediaPacket> Packet,TStreamWriter& Output)=0;
-	
+
 private:
 	virtual bool			Iteration() override;
 	virtual bool			CanSleep() override;
+
+	bool					IsStreamsReady(std::shared_ptr<TMediaPacket> Packet);	//	if this returns false, not ready to ProcessPacket yet
 	
 public:
 	SoyListenerId							mOnPacketListener;
 	std::shared_ptr<TStreamWriter>			mOutput;
 	std::shared_ptr<TMediaPacketBuffer>		mInput;
 	Array<TStreamMeta>						mStreams;		//	streams, once setup, fixed
+	
+	Array<std::shared_ptr<TMediaPacket>>	mDefferedPackets;	//	when auto-calculating streams we buffer up some packets
 };
 
 
 class TMediaExtractorParams
 {
 public:
-	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,SoyEvent<const SoyTime>& OnFrameExtractedEvent,SoyTime ReadAheadMs) :
-		mFilename				( Filename ),
-		mOnFrameExtractedEvent	( OnFrameExtractedEvent ),
-		mReadAheadMs			( ReadAheadMs )
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs) :
+		mFilename			( Filename ),
+		mOnFrameExtracted	( OnFrameExtracted ),
+		mReadAheadMs		( ReadAheadMs )
 	{
 	}
 	
 public:
 	std::string					mFilename;
 	std::string					mThreadName;
-	SoyEvent<const SoyTime>&	mOnFrameExtractedEvent;
+	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
 	SoyTime						mReadAheadMs;
 };
 
@@ -381,11 +512,14 @@ public:
 		return !Error.empty();
 	}
 	
-	//	change this to one-per stream
-	std::shared_ptr<TMediaPacketBuffer>	GetVideoStreamBuffer()		{	return mBuffer;	}
+	std::shared_ptr<TMediaPacketBuffer>	AllocStreamBuffer(size_t StreamIndex);
+	std::shared_ptr<TMediaPacketBuffer>	GetStreamBuffer(size_t StreamIndex);
+	
+
 
 //protected:	//	gr: only for subclasses, but the playlist media extractor needs to call this on it's children
 	virtual std::shared_ptr<TMediaPacket>	ReadNextPacket()=0;
+	bool							CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyframe);
 
 protected:
 	void							OnEof();
@@ -399,13 +533,13 @@ protected:
 private:
 	virtual bool					Iteration() override;
 	
-	
 public:
-	SoyEvent<const ArrayBridge<TStreamMeta>>	mOnStreamsChanged;
-	SoyTime							mExtractAheadMs;
+	SoyEvent<const ArrayBridge<TStreamMeta>>		mOnStreamsChanged;
+	SoyTime											mExtractAheadMs;
 	
 protected:
-	std::shared_ptr<TMediaPacketBuffer>		mBuffer;
+	std::map<size_t,std::shared_ptr<TMediaPacketBuffer>>	mStreamBuffers;
+	std::function<void(const SoyTime,size_t)>	mOnPacketExtracted;
 	
 private:
 	std::string						mFatalError;
@@ -422,7 +556,8 @@ private:
 class TMediaDecoder : public SoyWorkerThread
 {
 public:
-	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManagerBase> OutputBuffer);
+	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManager> OutputBuffer);
+	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer);
 	virtual ~TMediaDecoder();
 	
 	bool							HasFatalError(std::string& Error)
@@ -437,11 +572,15 @@ protected:
 	
 	//	gr: added this for android as I'm not sure about the thread safety, but other platforms generally have a callback
 	//		if we can do input&output on different threads, remove this
-	virtual void					ProcessOutputPacket(TPixelBufferManagerBase& FrameBuffer)
+	virtual void					ProcessOutputPacket(TPixelBufferManager& FrameBuffer)
+	{
+	}
+	virtual void					ProcessOutputPacket(TAudioBufferManager& FrameBuffer)
 	{
 	}
 	
-	TPixelBufferManagerBase&		GetPixelBufferManager();
+	TPixelBufferManager&			GetPixelBufferManager();
+	TAudioBufferManager&			GetAudioBufferManager();
 	
 private:
 	virtual bool					Iteration() final;
@@ -449,7 +588,8 @@ private:
 	
 protected:
 	std::shared_ptr<TMediaPacketBuffer>		mInput;
-	std::shared_ptr<TPixelBufferManagerBase>	mOutput;
+	std::shared_ptr<TPixelBufferManager>	mPixelOutput;
+	std::shared_ptr<TAudioBufferManager>	mAudioOutput;
 	std::stringstream					mFatalError;
 	
 private:

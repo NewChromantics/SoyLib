@@ -21,10 +21,11 @@ namespace SoyPixelsFormat
 		GreyscaleAlpha,		//	png has this for 2 channel, so why not us!
 		RGB,
 		RGBA,
-
-		//	non integer-based channel counts
+		ARGB,
 		BGRA,
 		BGR,
+
+		//	non integer-based channel counts
 		KinectDepth,		//	16 bit, so "two channels". 13 bits of depth, 3 bits of user-index
 		FreenectDepth10bit,	//	16 bit
 		FreenectDepth11bit,	//	16 bit
@@ -221,7 +222,7 @@ public:
 	void			ResizeClip(uint16 Width,uint16 Height);
 	void			ResizeFastSample(uint16 Width,uint16 Height);
 	
-	void			RotateFlip();
+	void			Flip();
 
 	//	split these pixels into multiple pixels if there are multiple planes
 	void			SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes);

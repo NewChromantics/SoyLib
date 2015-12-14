@@ -33,6 +33,7 @@ namespace Directx
 	class TShaderState;
 	class TShaderBlob;
 	class TTextureSamplingParams;
+	class TCompiler;			//	wrapper to hold the compile func and a reference to the runtime library. Defined in source for cleaner code
 
 	std::string		GetEnumString(HRESULT Error);
 	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
@@ -67,11 +68,13 @@ public:
 
 	ID3D11DeviceContext&	LockGetContext();
 	ID3D11Device&			LockGetDevice();
+	TCompiler&				GetCompiler();
 
 public:
 	AutoReleasePtr<ID3D11DeviceContext>	mLockedContext;
-	size_t					mLockCount;		//	for recursive locking
-	ID3D11Device*			mDevice;
+	size_t						mLockCount;		//	for recursive locking
+	ID3D11Device*				mDevice;
+	std::shared_ptr<TCompiler>	mCompiler;
 };
 
 
@@ -128,21 +131,21 @@ std::ostream& operator<<(std::ostream &out,const Directx::TTexture& in);
 class Directx::TRenderTarget
 {
 public:
-	TRenderTarget(std::shared_ptr<TTexture>& Texture,TContext& ContextDx);
+	TRenderTarget(TTexture& Texture,TContext& ContextDx);
 
 	void			Bind(TContext& Context);
 	void			Unbind(TContext& ContextDx);
 
 	void			Clear(TContext& ContextDx,Soy::TRgb Colour,float Alpha=1.f);
-	SoyPixelsMeta	GetMeta() const									{	return mTexture ? mTexture->GetMeta() : SoyPixelsMeta();	}
+	SoyPixelsMeta	GetMeta() const									{	return mTexture.GetMeta();	}
 
-	bool			operator==(const TTexture& Texture) const		{	return mTexture ? (*mTexture == Texture) : false;	}
+	bool			operator==(const TTexture& Texture) const		{	return mTexture == Texture;	}
 	bool			operator!=(const TTexture& Texture) const		{	return !(*this == Texture);	}
 
 private:
 	AutoReleasePtr<ID3D11ShaderResourceView>	mShaderResourceView;
 	AutoReleasePtr<ID3D11RenderTargetView>		mRenderTargetView;
-	std::shared_ptr<TTexture>					mTexture;
+	TTexture									mTexture;
 
 	AutoReleasePtr<ID3D11RenderTargetView>		mRestoreRenderTarget;
 	AutoReleasePtr<ID3D11DepthStencilView>		mRestoreStencilTarget;
@@ -170,7 +173,7 @@ public:
 class Directx::TShaderBlob
 {
 public:
-	TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name);
+	TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name,TCompiler& Compiler);
 
 	void*		GetBuffer()			{	return mBlob ? mBlob->GetBufferPointer() : nullptr;	}
 	size_t		GetBufferSize()		{	return mBlob ? mBlob->GetBufferSize() : 0;	}
@@ -183,8 +186,12 @@ public:
 
 //	clever class which does the binding, auto texture mapping, and unbinding
 //	why? so we can use const TShaders and share them across threads
-class Directx::TShaderState : public Soy::TUniformContainer, public NonCopyable
+class Directx::TShaderState : public Soy::TUniformContainer
 {
+private:
+	//	gr: inheriting from noncopyable means we cannot use this scoped class in lambdas, not sure why it works if we specify the =delete here
+	TShaderState& operator=(const TShaderState&) = delete;
+	//TShaderState(const TShaderState&) = delete;
 public:
 	TShaderState(const TShader& Shader);
 	~TShaderState();

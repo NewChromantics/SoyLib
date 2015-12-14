@@ -450,7 +450,8 @@ void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 			break;
 		Buffer[Len] = Source[Len];
 	}
-	Buffer[Len] = '\0';
+	Soy::Assert( Len < BufferSize, "StringToBuffer Len OOB");
+	Buffer[std::min<ssize_t>(Len,BufferSize-1)] = '\0';
 }
 
 
@@ -668,15 +669,18 @@ std::string Soy::FourCCToString(uint32 Fourcc)
 	//	check for invalid Fourcc's
 	if ( !IsFourccChar(CodecStrBuffer[0]) || 
 		!IsFourccChar(CodecStrBuffer[1]) || 
-	!IsFourccChar(CodecStrBuffer[2]) || 
-	!IsFourccChar(CodecStrBuffer[3]) )
+		!IsFourccChar(CodecStrBuffer[2]) ||
+		!IsFourccChar(CodecStrBuffer[3]) )
 	{
+		//	gr: maybe platform/framework specific? should be flipped beforehand?
+		static bool ReverseChars = false;
+		
 		std::stringstream Error;
-		Error << "Fourcc[" 
-			<< static_cast<int>(CodecStrBuffer[0]) << "," 
-			<< static_cast<int>(CodecStrBuffer[1]) << ","
-			<< static_cast<int>(CodecStrBuffer[2]) << ","
-			<< static_cast<int>(CodecStrBuffer[3]) << "/" << Fourcc << "]";
+		Error << "Fourcc["
+			<< static_cast<int>(CodecStrBuffer[ReverseChars?3:0]) << ","
+			<< static_cast<int>(CodecStrBuffer[ReverseChars?2:1]) << ","
+			<< static_cast<int>(CodecStrBuffer[ReverseChars?1:2]) << ","
+			<< static_cast<int>(CodecStrBuffer[ReverseChars?0:3]) << "/" << Fourcc << "]";
 		return Error.str();
 	}
 	return std::string( CodecStrBuffer );

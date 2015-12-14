@@ -115,6 +115,9 @@
     <ClCompile Include="..\src\SoySocketStream.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\SoyUnity.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\SoyThread.h">
@@ -253,6 +256,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\SoySocketStream.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyUnity.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

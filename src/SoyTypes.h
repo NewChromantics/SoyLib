@@ -72,6 +72,14 @@ inline SMALLSIZE size_cast(BIGSIZE Size)
 }
 
 
+//	remove annoying warning C4800 in windows without turning it off
+template<typename TYPE>
+inline bool		bool_cast(const TYPE& Value)
+{
+	return Value != 0;
+}
+
+
 
 
 namespace std

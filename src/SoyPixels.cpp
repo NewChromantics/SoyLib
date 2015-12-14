@@ -115,6 +115,7 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case RGB:			return 3;
 	case RGBA:			return 4;
 	case BGRA:			return 4;
+	case ARGB:			return 4;
 	case KinectDepth:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepth11bit:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepth10bit:	return 2;	//	only 1 channel, but 16 bit
@@ -180,6 +181,7 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::RGBA,				"RGBA"	},
 	{ SoyPixelsFormat::BGRA,				"BGRA"	},
 	{ SoyPixelsFormat::BGR,					"BGR"	},
+	{ SoyPixelsFormat::ARGB,				"ARGB"	},
 	{ SoyPixelsFormat::KinectDepth,			"KinectDepth"	},
 	{ SoyPixelsFormat::FreenectDepth10bit,	"FreenectDepth10bit"	},
 	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},
@@ -1226,12 +1228,14 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 		auto RowBytes = GetChannels() * GetWidth();
 		RowBytes *= Height - GetHeight();
 		Pixels.PushBlock( RowBytes );
+		GetMeta().DumbSetHeight( Height );
 	}
 	else if ( Height < GetHeight() )
 	{
 		auto RowBytes = GetChannels() * GetWidth();
 		RowBytes *= GetHeight() - Height;
 		Pixels.SetSize( Pixels.GetDataSize() - RowBytes );
+		GetMeta().DumbSetHeight( Height );
 	}
 	
 	//	insert/remove data on the end of each row
@@ -1293,9 +1297,14 @@ void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Pl
 	//	error, but don't fail if underrun. overrun should be caught in the loop
 	Error << "total " << DataOffset << " out of " << ThisArray.GetDataSize() << " bytes";
 	static bool ThrowOnUnderflow = false;
-	if ( ThrowOnUnderflow )
+	static bool ThrowOnOverflow = true;
+	if ( DataOffset < ThisArray.GetDataSize() && ThrowOnUnderflow )
 	{
-		Soy::Assert( DataOffset == ThisArray.GetDataSize(), Error.str() );
+		throw Soy::AssertException( Error.str() );
+	}
+	else if ( DataOffset > ThisArray.GetDataSize() && ThrowOnOverflow )
+	{
+		throw Soy::AssertException( Error.str() );
 	}
 	else if ( DataOffset != ThisArray.GetDataSize() )
 	{
@@ -1400,7 +1409,7 @@ void SoyPixelsImpl::ResizeFastSample(uint16 NewWidth, uint16 NewHeight)
 }
 
 
-void SoyPixelsImpl::RotateFlip()
+void SoyPixelsImpl::Flip()
 {
 	if ( !IsValid() )
 		return;

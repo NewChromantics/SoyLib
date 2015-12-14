@@ -15,20 +15,21 @@ namespace Directx
 	//typedef pD3DCompile D3DCompileFunc;
 	typedef HRESULT (__stdcall D3DCompileFunc)(LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs);
 	typedef void (__stdcall LPD3DX11COMPILEFROMMEMORY)(LPCSTR pSrcData, SIZE_T SrcDataLen, LPCSTR pFileName, const D3D10_SHADER_MACRO *pDefines, LPD3D10INCLUDE pInclude, LPCSTR pFunctionName, LPCSTR pProfile, UINT Flags1, UINT Flags2, ID3DX11ThreadPump *pPump, ID3D10Blob **ppShader, ID3D10Blob **ppErrorMsgs, HRESULT *pHResult);
+}
 
+class Directx::TCompiler
+{
+public:
+	TCompiler();
 
 	//	use win8 sdk d3dcompiler if possible
 	//	https://gist.github.com/rygorous/7936047
-	std::function<D3DCompileFunc>				GetCompilerFunc();
+	std::function<D3DCompileFunc>				GetCompilerFunc()	{	return mD3dCompileFunc;	}
 	
-	namespace Private
-	{
-		std::function<D3DCompileFunc>			D3dCompileFunc;
-		std::shared_ptr<Soy::TRuntimeLibrary>	D3dCompileLib;
-	}
-}
-
-
+private:
+	std::function<D3DCompileFunc>			mD3dCompileFunc;
+	std::shared_ptr<Soy::TRuntimeLibrary>	mD3dCompileLib;
+};
 
 std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap = 
 {
@@ -144,12 +145,8 @@ std::ostream& Directx::operator<<(std::ostream &out,const Directx::TTexture& in)
 }
 
 
-std::function<Directx::D3DCompileFunc> Directx::GetCompilerFunc()
+Directx::TCompiler::TCompiler()
 {
-	//	already setup
-	if ( Private::D3dCompileFunc )
-		return Private::D3dCompileFunc;
-
 	//	dynamically link compiler functions
 	//	https://github.com/pathscale/nvidia_sdk_samples/blob/master/matrixMul/common/inc/dynlink_d3d11.h
 	//	https://gist.github.com/rygorous/7936047
@@ -182,12 +179,12 @@ std::function<Directx::D3DCompileFunc> Directx::GetCompilerFunc()
 		auto& Dll = DllFunctions[d];
 		try
 		{
-			Private::D3dCompileLib.reset( new Soy::TRuntimeLibrary(Dll.LibraryName) );
+			mD3dCompileLib.reset( new Soy::TRuntimeLibrary(Dll.LibraryName) );
 
 			if ( Dll.FunctionName == "D3DCompile" )
-				Private::D3dCompileLib->SetFunction( Private::D3dCompileFunc, Dll.FunctionName.c_str() );
+				mD3dCompileLib->SetFunction( mD3dCompileFunc, Dll.FunctionName.c_str() );
 			else
-				Private::D3dCompileLib->SetFunction( CompileFromMemoryFunc, Dll.FunctionName.c_str() );
+				mD3dCompileLib->SetFunction( CompileFromMemoryFunc, Dll.FunctionName.c_str() );
 			std::Debug << "Using DX compiler from " << Dll.Description << std::endl;
 			break;
 		}
@@ -195,25 +192,19 @@ std::function<Directx::D3DCompileFunc> Directx::GetCompilerFunc()
 		{
 			std::Debug << "Failed to load " << Dll.FunctionName << " from " << Dll.LibraryName << " (" << Dll.Description << ")" << std::endl;
 
-			Private::D3dCompileLib.reset();
-			Private::D3dCompileFunc = nullptr;
+			mD3dCompileLib.reset();
+			mD3dCompileFunc = nullptr;
 			CompileFromMemoryFunc = nullptr;
 		}
 	}
 
-	//	didn't find any func
-	if ( !Private::D3dCompileFunc && !CompileFromMemoryFunc )
+	//	assigned direct func
+	if ( mD3dCompileFunc )
+		return;
+
+	//	need a wrapper to old func
+	if ( !mD3dCompileFunc && CompileFromMemoryFunc )
 	{
-		std::function<D3DCompileFunc> UnsupportedFunc = [](LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs)
-		{
-			throw Soy::AssertException( "D3D shader compiling unsupported." );
-			return (HRESULT)S_FALSE;
-		};
-		Private::D3dCompileFunc = UnsupportedFunc;
-	}
-	else if ( !Private::D3dCompileFunc && CompileFromMemoryFunc )
-	{
-		//	need a wrapper to old func
 		std::function<D3DCompileFunc> WrapperFunc = [CompileFromMemoryFunc](LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs)
 		{
 			//	make wrapper!
@@ -225,12 +216,19 @@ std::function<Directx::D3DCompileFunc> Directx::GetCompilerFunc()
 			CompileFromMemoryFunc( Source, SrcDataSize, pSourceName, pDefines, pInclude, pEntrypoint, Profile, Flags1, Flags2, Pump, ppCode, ppErrorMsgs, &Result );
 			return Result;
 		};
-		Private::D3dCompileFunc = WrapperFunc;
+		mD3dCompileFunc = WrapperFunc;
+		return;
 	}
 
-	//	reached here, did we assign a func?
-	return Private::D3dCompileFunc;
-
+	//	didn't find any func
+	//	gr: should this throw here? or during compile...as current code does...
+//	throw Soy::AssertException("Failed to load directx shader compiler");
+	std::function<D3DCompileFunc> UnsupportedFunc = [](LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs)
+	{
+		throw Soy::AssertException( "D3D shader compiling unsupported." );
+		return (HRESULT)S_FALSE;
+	};
+	mD3dCompileFunc = UnsupportedFunc;
 }
 
 
@@ -266,8 +264,8 @@ Directx::TContext::TContext(ID3D11Device& Device) :
 	mDevice			( &Device ),
 	mLockCount		( 0 )
 {
-	//	gr: just pre-empting for testing
-	auto Func = Directx::GetCompilerFunc();
+	//	gr: just pre-empting for testing, could be done on-demand
+	mCompiler.reset( new TCompiler );
 }
 
 ID3D11DeviceContext& Directx::TContext::LockGetContext()
@@ -318,7 +316,12 @@ void Directx::TContext::Unlock()
 	}
 }
 
-
+Directx::TCompiler& Directx::TContext::GetCompiler()
+{
+	if ( !mCompiler )
+		mCompiler.reset( new TCompiler );
+	return *mCompiler;
+}
 
 Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode)
 {
@@ -540,17 +543,17 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 
 
 
-Directx::TRenderTarget::TRenderTarget(std::shared_ptr<TTexture>& Texture,TContext& ContextDx) :
+Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 	mTexture		( Texture )
 {
-	Soy::Assert( Texture && Texture->IsValid(), "Render target needs a valid texture target" );
-	auto& Meta = Texture->GetMeta();
+	Soy::Assert(mTexture.IsValid(), "Render target needs a valid texture target" );
+	auto& Meta = mTexture.GetMeta();
 	
 	// Create the render target view.
 	auto& Device = ContextDx.LockGetDevice();
 	try
 	{
-		auto* TextureDx = mTexture->mTexture.mObject;
+		auto* TextureDx = mTexture.mTexture.mObject;
 		D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
 		renderTargetViewDesc.Format = GetFormat( Meta.GetFormat() );
 		renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
@@ -895,7 +898,7 @@ void Directx::TShaderState::Bake()
 	}
 }
 
-Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name) :
+Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name,TCompiler& Compiler) :
 	mName	( Name )
 {
 	Array<char> SourceBuffer;
@@ -907,7 +910,7 @@ Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& F
 
 	AutoReleasePtr<ID3DBlob> ErrorBlob;
 
-	auto Compile = GetCompilerFunc();
+	auto Compile = Compiler.GetCompilerFunc();
 	Soy::Assert( Compile!=nullptr, "Compile func missing" );
 
 	auto Result = Compile( SourceBuffer.GetArray(), SourceBuffer.GetDataSize(),
@@ -931,8 +934,8 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 
 	try
 	{
-		TShaderBlob VertBlob( vertexSrc, "Vert", "vs_5_0", ShaderName + " vert shader");
-		TShaderBlob FragBlob( fragmentSrc, "Frag", "ps_5_0", ShaderName + " frag shader");
+		TShaderBlob VertBlob( vertexSrc, "Vert", "vs_5_0", ShaderName + " vert shader", ContextDx.GetCompiler() );
+		TShaderBlob FragBlob( fragmentSrc, "Frag", "ps_5_0", ShaderName + " frag shader", ContextDx.GetCompiler() );
 	
 		auto Result = Device.CreateVertexShader( VertBlob.GetBuffer(), VertBlob.GetBufferSize(), nullptr, &mVertexShader.mObject );
 		Directx::IsOkay( Result, "CreateVertexShader" );
