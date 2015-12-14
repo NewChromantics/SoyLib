@@ -546,7 +546,8 @@ void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 
 TMediaExtractor::TMediaExtractor(const TMediaExtractorParams& Params) :
 	SoyWorkerThread		( Params.mThreadName, SoyWorkerWaitMode::Wake ),
-	mExtractAheadMs		( Params.mReadAheadMs )
+	mExtractAheadMs		( Params.mReadAheadMs ),
+	mOnPacketExtracted	( Params.mOnFrameExtracted )
 {
 }
 
@@ -565,6 +566,9 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::AllocStreamBuffer(size_t St
 		
 		auto OnPacketExtracted = [StreamIndex,this](std::shared_ptr<TMediaPacket>& Packet)
 		{
+			if ( !mOnPacketExtracted )
+				return;
+			
 			mOnPacketExtracted( Packet->mTimecode, Packet->mMeta.mStreamIndex );
 		};
 		
