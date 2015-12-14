@@ -34,22 +34,43 @@ namespace Java
 	
 	
 	class TFileStreamReader;	//	special file reader that uses JNI to read from APK
+	class TFileHandle;
 	class TAssetFileHandle;		//	special access to files in Assets which need to be loaded in a special way
+	class TRandomAccessFileHandle;
 }
 
 
-class Java::TAssetFileHandle
+
+class Java::TFileHandle
+{
+public:
+	TFileHandle();
+	~TFileHandle();
+	
+	int				mFd;
+	
+	std::shared_ptr<TJniObject>	mFileDescriptor;
+};
+
+class Java::TAssetFileHandle : public Java::TFileHandle
 {
 public:
 	TAssetFileHandle(const std::string& Path);
 	~TAssetFileHandle();
 	
-	int				mFd;
 	int				mFdOffset;
 	int				mFdLength;
 	
 	std::shared_ptr<TJniObject>	mAssetFileDescriptor;
-	std::shared_ptr<TJniObject>	mFileDescriptor;
+};
+
+class Java::TRandomAccessFileHandle : public Java::TFileHandle
+{
+public:
+	TRandomAccessFileHandle(const std::string& Path);
+	~TRandomAccessFileHandle();
+	
+	std::shared_ptr<TJniObject>	mRandomAccessFile;
 };
 
 
@@ -318,6 +339,8 @@ public:
 	//	sort these out so we don't have a thousand combos
 	explicit TJniObject(const char* ClassName,const int& ParamA);
 	explicit TJniObject(const char* ClassName,const int& ParamA,const bool& ParamB);
+	explicit TJniObject(const char* ClassName,const std::string& ParamA);
+	explicit TJniObject(const char* ClassName,const std::string& ParamA,const std::string& ParamB);
 	explicit TJniObject(const char* ClassName,TJniObject& ParamA);
 	TJniObject(const TJniObject& that);
 	
@@ -343,6 +366,7 @@ public:
 	void		CallVoidMethod(const std::string& MethodName,const int& ParamA);
 	void		CallVoidMethod(const std::string& MethodName,const long& ParamA);
 	void		CallVoidMethod(const std::string& MethodName,int ParamA,bool ParamB);
+	void		CallVoidMethod(const std::string& MethodName,TJniObject& ParamA);
 	void		CallVoidMethod(const std::string& MethodName,TJniObject& ParamA,TJniObject& ParamB,TJniObject& ParamC,int ParamD);
 	void		CallVoidMethod(const std::string& MethodName,int ParamA,int ParamB,int ParamC,long ParamD,int ParamE);
 	void		CallVoidMethod(const std::string& MethodName,const std::string& ParamA);
@@ -477,6 +501,7 @@ public:
 	}
 	
 	void			SetDataSourceAssets(const std::string& Path);
+	void			SetDataSourcePath(const std::string& Path);
 	int				GetTrackCount()		{	return TJniObject::CallIntMethod("getTrackCount");	}
 	JniMediaFormat	GetTrack(int TrackIndex)
 	{

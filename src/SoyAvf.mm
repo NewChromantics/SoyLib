@@ -109,7 +109,7 @@ std::shared_ptr<TMediaPacket> Avf::GetH264Packet(CMSampleBufferRef SampleBuffer,
 	//	get bytes, either blocks of data or a CVImageBuffer
 	{
 		CMBlockBufferRef BlockBuffer = CMSampleBufferGetDataBuffer( SampleBuffer );
-		CVImageBufferRef ImageBuffer = CMSampleBufferGetImageBuffer( SampleBuffer );
+		//CVImageBufferRef ImageBuffer = CMSampleBufferGetImageBuffer( SampleBuffer );
 		
 		if ( BlockBuffer )
 		{
@@ -394,7 +394,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 
 			//	change this to be like H264 different formats; AAC_8, AAC_16, AAC_float etc
 			Meta.mAudioBitsPerChannel = AudioFormat.mBitsPerChannel;
-			H264LengthSize = Meta.mAudioBitsPerChannel;
+			H264LengthSize = size_cast<int>(Meta.mAudioBitsPerChannel);
 		}
 	}
 	
@@ -789,10 +789,10 @@ bool Avf::IsKeyframe(CMSampleBufferRef SampleBuffer,bool DefaultValue)
 	// If the NotSync key is not present, it implies Sync, which indicates a
 	// keyframe (at least I think, VT documentation is, erm, sparse). Could
 	// alternatively use kCMSampleAttachmentKey_DependsOnOthers == false.
-	bool IsDependent = CFDictionaryContainsKey(sample_attachments,kCMSampleAttachmentKey_DependsOnOthers);
+	//bool IsDependent = CFDictionaryContainsKey(sample_attachments,kCMSampleAttachmentKey_DependsOnOthers);
 	bool NotSync = CFDictionaryContainsKey(sample_attachments,kCMSampleAttachmentKey_NotSync);
-	bool PartialSync = CFDictionaryContainsKey(sample_attachments,kCMSampleAttachmentKey_PartialSync);
-	bool IsDependedOnByOthers = CFDictionaryContainsKey(sample_attachments,kCMSampleAttachmentKey_IsDependedOnByOthers);
+	//bool PartialSync = CFDictionaryContainsKey(sample_attachments,kCMSampleAttachmentKey_PartialSync);
+	//bool IsDependedOnByOthers = CFDictionaryContainsKey(sample_attachments,kCMSampleAttachmentKey_IsDependedOnByOthers);
 	
 	//	bool Keyframe = (!NotSync) || (!IsDependent);
 	bool Keyframe = (!NotSync);

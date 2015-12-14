@@ -2,6 +2,9 @@
 #include "SortArray.h"
 
 
+//	android define
+#define MIMETYPE_AUDIO_RAW	"audio/raw"
+
 
 std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 {
@@ -17,6 +20,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Mpeg4,			"Mpeg4" },
 	{ SoyMediaFormat::Wave,				"wave" },
 	{ SoyMediaFormat::Aac,				"aac" },
+	{ SoyMediaFormat::PcmAndroidRaw,	"PcmAndroidRaw" },
 	{ SoyMediaFormat::PcmLinear_8,		"PcmLinear_8" },
 	{ SoyMediaFormat::PcmLinear_16,		"PcmLinear_16" },
 	{ SoyMediaFormat::PcmLinear_20,		"PcmLinear_20" },
@@ -147,6 +151,7 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::PcmLinear_20:
 		case SoyMediaFormat::PcmLinear_24:
 		case SoyMediaFormat::Wave:
+		case SoyMediaFormat::PcmAndroidRaw:
 			return true;
 			
 		default:
@@ -183,6 +188,8 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::PcmLinear_20:	return "audio/L20";
 		case SoyMediaFormat::PcmLinear_24:	return "audio/L24";
 			
+		case SoyMediaFormat::PcmAndroidRaw:	return MIMETYPE_AUDIO_RAW;
+			
 		default:						return "invalid/invalid";
 	}
 	
@@ -205,6 +212,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_16 ) )	return SoyMediaFormat::PcmLinear_16;
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_20 ) )	return SoyMediaFormat::PcmLinear_20;
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_24 ) )	return SoyMediaFormat::PcmLinear_24;
+	if ( Mime == ToMime( SoyMediaFormat::PcmAndroidRaw ) )	return SoyMediaFormat::PcmAndroidRaw;
 	
 	std::Debug << "Unknown mime type: " << Mime << std::endl;
 	return SoyMediaFormat::Invalid;
@@ -416,8 +424,15 @@ TAudioBufferManager& TMediaDecoder::GetAudioBufferManager()
 
 void TMediaDecoder::OnDecodeFrameSubmitted(const SoyTime& Time)
 {
-	auto& PixelBufferManager = GetPixelBufferManager();
-	PixelBufferManager.mOnFrameDecodeSubmission.OnTriggered( Time );
+	if ( mPixelOutput )
+	{
+		mPixelOutput->mOnFrameDecodeSubmission.OnTriggered( Time );
+	}
+
+	if ( mAudioOutput )
+	{
+		mAudioOutput->mOnFrameDecodeSubmission.OnTriggered( Time );
+	}
 }
 
 
@@ -915,8 +930,11 @@ void TMediaBufferManager::SetPlayerTime(const SoyTime &Time)
 
 void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 {
-	std::lock_guard<std::mutex> Lock( mBlocksLock );
-	mBlocks.PushBack( AudioData );
+	{
+		std::lock_guard<std::mutex> Lock( mBlocksLock );
+		mBlocks.PushBack( AudioData );
+	}
+	mOnFramePushed.OnTriggered( AudioData.mStartTime );
 }
 
 void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,SoyTime StartTime,SoyTime EndTime)

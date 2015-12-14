@@ -179,6 +179,8 @@ namespace Unity
 	SoyPixelsFormat::Type		GetPixelFormat(RenderTexturePixelFormat::Type Format);
 	SoyPixelsFormat::Type		GetPixelFormat(Texture2DPixelFormat::Type Format);
 	
+	//	define these in your project
+	extern int			GetPluginEventId();
 };
 
 
