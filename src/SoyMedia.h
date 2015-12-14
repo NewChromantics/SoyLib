@@ -367,7 +367,7 @@ public:
 	}
 
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
-	void			PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,SoyTime StartTime,SoyTime EndTime);
+	void			PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,size_t SampleRate,SoyTime StartTime,SoyTime EndTime);
 	virtual void	ReleaseFrames() override;
 	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
 

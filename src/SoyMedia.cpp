@@ -937,13 +937,19 @@ void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 	mOnFramePushed.OnTriggered( AudioData.mStartTime );
 }
 
-void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,SoyTime StartTime,SoyTime EndTime)
+void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,size_t SampleRate,SoyTime StartTime,SoyTime EndTime)
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
 
-	//	init output
-	for ( int i=0;	i<Data.GetSize();	i++ )
-		Data[i] = 0.5f;
+	//	gr: this code needs to re-sample
+	if ( !mBlocks.IsEmpty() )
+	{
+		auto& Block0 = mBlocks[0];
+		if ( Block0.mFrequency != SampleRate )
+		{
+			std::Debug << "Warning: data sample rate (" << Block0.mFrequency << ") doesn't match desired rate (" << SampleRate << ")" << std::endl;
+		}
+	}
 	
 	//	work out where audio starts and pop chunks out of each block
 	int DataIndex = 0;
@@ -962,6 +968,12 @@ void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channe
 		}
 		Data[DataIndex] = Block.mData.PopAt(0);
 		DataIndex++;
+	}
+	
+	//	clear data we haven't written
+	for ( int i=DataIndex;	i<Data.GetSize();	i++ )
+	{
+		Data[i] = 0.f;
 	}
 }
 
