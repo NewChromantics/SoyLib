@@ -69,13 +69,19 @@ namespace SoyMediaFormat
 		H264_SPS_ES,	//	SPS data, nalu
 		H264_PPS_ES,	//	PPS data, nalu
 		
-		Mpeg2TS,
+		Mpeg2TS,		//	general TS data
+		Mpeg2TS_PSI,	//	PSI table from TS
+		
 		Mpeg2,
 		Mpeg4,
+		VC1,			//	in TS files, not sure what this is yet
 		
 		//	audio
 		Wave,
 		Aac,
+		Ac3,
+		Mpeg2Audio,			//	in TS files, not sure what format this is yet
+		Dts,
 		PcmAndroidRaw,		//	temp until I work out what this actually is
 		PcmLinear_8,
 		PcmLinear_16,		//	signed, see SoyWave
