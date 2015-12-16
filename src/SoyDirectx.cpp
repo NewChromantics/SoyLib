@@ -727,13 +727,28 @@ void Directx::TGeometry::Draw(TContext& ContextDx)
 
 Directx::TShaderState::TShaderState(const Directx::TShader& Shader) :
 	mTextureBindCount	( 0 ),
-	mShader				( Shader )
+	mShader				( Shader ),
+	mBaked				( false )
 {
 	//	opengl unbinds here rather than in TShader
+	/*
+	//	setup constants buffer for shader[s]
+	D3D11_BUFFER_DESC BufferDesc;
+	BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	BufferDesc.ByteWidth = Data.GetDataSize();//Vertex.GetDataSize();
+	BufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	BufferDesc.MiscFlags = 0;
+	BufferDesc.StructureByteStride = Vertex.GetStride(0);	//	should be 0
+
+
+	nstant buffer can only use a single bind flag (D3D11_BIND_CONSTANT_BUFFER), which cannot be combined with any other bind flag. To bind a shader-constant buffer to the pipeline, call one of the following methods: ID3D11DeviceContext::GSSetConstantBuffers, ID3D11DeviceContext::PSSetConstantBuffers, or ID3D11DeviceContext::VSSetConstantBuffers.
+	*/
 }
 
 Directx::TShaderState::~TShaderState()
 {
+	Soy::Assert( mBaked, "ShaderState was never baked before being destroyed. Code maybe missing a .Bake() (needed for directx)");
 	/*
 	//	unbind textures
 	TTexture NullTexture;
@@ -766,32 +781,62 @@ ID3D11Device& Directx::TShaderState::GetDevice()
 
 bool Directx::TShaderState::SetUniform(const char* Name,const float3x3& v)
 {
-	return false;
+	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
+	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
+	if ( !VertUniform && !PixelUniform )
+		return false;
+	
+	Soy_ThrowTodo;
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const float& v)
 {
-	return false;
+	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
+	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
+	if ( !VertUniform && !PixelUniform )
+		return false;
+	
+	Soy_ThrowTodo;
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const int& v)
 {
-	return false;
+	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
+	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
+	if ( !VertUniform && !PixelUniform )
+		return false;
+	
+	Soy_ThrowTodo;
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const vec4f& v)
 {
-	return false;
+	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
+	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
+	if ( !VertUniform && !PixelUniform )
+		return false;
+	
+	Soy_ThrowTodo;
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const vec3f& v)
 {
-	return false;
+	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
+	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
+	if ( !VertUniform && !PixelUniform )
+		return false;
+	
+	Soy_ThrowTodo;
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const vec2f& v)
 {
-	return false;
+	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
+	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
+	if ( !VertUniform && !PixelUniform )
+		return false;
+	
+	Soy_ThrowTodo;
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
@@ -810,14 +855,22 @@ bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTexture& 
 
 bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture)
 {
-	Soy_AssertTodo();
-	return false;
+	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
+	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
+	if ( !VertUniform && !PixelUniform )
+		return false;
+	
+	Soy_ThrowTodo;
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const SoyPixelsImpl& Texture)
 {
-	Soy_AssertTodo();
-	return false;
+	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
+	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
+	if ( !VertUniform && !PixelUniform )
+		return false;
+	
+	Soy_ThrowTodo;
 }
 
 
@@ -896,6 +949,8 @@ void Directx::TShaderState::Bake()
 		//	gr: can I use a temporary here?
 		Context.PSSetShaderResources( ResourceFirstSlot, Resources.GetSize(), Resources.GetArray() );
 	}
+
+	mBaked = true;
 }
 
 Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name,TCompiler& Compiler) :
