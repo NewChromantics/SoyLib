@@ -625,7 +625,7 @@ void Directx::TRenderTarget::Unbind(TContext& ContextDx)
 	ContextDx.Unlock();
 }
 
-void Directx::TRenderTarget::Clear(TContext& ContextDx,Soy::TRgb Colour,float Alpha)
+void Directx::TRenderTarget::ClearColour(TContext& ContextDx,Soy::TRgb Colour,float Alpha)
 {
 	float Colour4[4] = { Colour.r(), Colour.g(), Colour.b(), Alpha };
 
@@ -633,6 +633,16 @@ void Directx::TRenderTarget::Clear(TContext& ContextDx,Soy::TRgb Colour,float Al
 	Context.ClearRenderTargetView( mRenderTargetView, Colour4 );
     //Context.ClearDepthStencilView( depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	ContextDx.Unlock();
+}
+
+void Directx::TRenderTarget::ClearDepth(TContext& ContextDx)
+{
+	std::Debug << "Render target depth not currently implemented" << std::endl;
+}
+
+void Directx::TRenderTarget::ClearStencil(TContext& ContextDx)
+{
+	std::Debug << "Render target stencil not currently implemented" << std::endl;
 }
 
 Directx::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& _Indexes,const Opengl::TGeometryVertex& Vertex,TContext& ContextDx) :

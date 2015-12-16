@@ -136,7 +136,9 @@ public:
 	void			Bind(TContext& Context);
 	void			Unbind(TContext& ContextDx);
 
-	void			Clear(TContext& ContextDx,Soy::TRgb Colour,float Alpha=1.f);
+	void			ClearColour(TContext& ContextDx,Soy::TRgb Colour,float Alpha=1.f);
+	void			ClearDepth(TContext& ContextDx);
+	void			ClearStencil(TContext& ContextDx);
 	SoyPixelsMeta	GetMeta() const									{	return mTexture.GetMeta();	}
 
 	bool			operator==(const TTexture& Texture) const		{	return mTexture == Texture;	}
