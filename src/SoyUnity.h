@@ -61,6 +61,7 @@ namespace Unity
 {
 #if defined(TARGET_IOS)||defined(TARGET_ANDROID)
 	typedef uint64	ulong;
+	//	gr: this ONLY applies to float args. NOT float* (which is floats)
 	typedef double	Float;	//	floats are 64 bit... but number seems to come through mangled... maybe don't use this at all!
 #elif defined(TARGET_OSX) || defined(TARGET_WINDOWS)
 	typedef uint32	ulong;
