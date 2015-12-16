@@ -16,10 +16,15 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::H264_SPS_ES,		"H264_SPS_ES" },
 	{ SoyMediaFormat::H264_PPS_ES,		"H264_PPS_ES" },
 	{ SoyMediaFormat::Mpeg2TS,			"Mpeg2TS" },
+	{ SoyMediaFormat::Mpeg2TS_PSI,		"Mpeg2TS_PSI" },
 	{ SoyMediaFormat::Mpeg2,			"Mpeg2" },
 	{ SoyMediaFormat::Mpeg4,			"Mpeg4" },
+	{ SoyMediaFormat::VC1,				"VC1" },
 	{ SoyMediaFormat::Wave,				"wave" },
 	{ SoyMediaFormat::Aac,				"aac" },
+	{ SoyMediaFormat::Ac3,				"Ac3" },
+	{ SoyMediaFormat::Mpeg2Audio,		"Mpeg2Audio" },
+	{ SoyMediaFormat::Dts,				"Dts" },
 	{ SoyMediaFormat::PcmAndroidRaw,	"PcmAndroidRaw" },
 	{ SoyMediaFormat::PcmLinear_8,		"PcmLinear_8" },
 	{ SoyMediaFormat::PcmLinear_16,		"PcmLinear_16" },
@@ -120,10 +125,15 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 	
 	switch ( Format )
 	{
-		case SoyMediaFormat::Mpeg2TS:		return true;
-		case SoyMediaFormat::Mpeg2:			return true;
-		case SoyMediaFormat::Mpeg4:			return true;
-		default:							return false;
+		case SoyMediaFormat::Mpeg2TS:
+		case SoyMediaFormat::Mpeg2TS_PSI:
+		case SoyMediaFormat::Mpeg2:
+		case SoyMediaFormat::Mpeg4:
+		case SoyMediaFormat::VC1:
+			return true;
+			
+		default:
+			return false;
 	}
 }
 
@@ -131,13 +141,16 @@ bool SoyMediaFormat::IsH264(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
 	{
-		case SoyMediaFormat::H264_8:		return true;
-		case SoyMediaFormat::H264_16:		return true;
-		case SoyMediaFormat::H264_32:		return true;
-		case SoyMediaFormat::H264_ES:		return true;
-		case SoyMediaFormat::H264_SPS_ES:	return true;
-		case SoyMediaFormat::H264_PPS_ES:	return true;
-		default:							return false;
+		case SoyMediaFormat::H264_8:
+		case SoyMediaFormat::H264_16:
+		case SoyMediaFormat::H264_32:
+		case SoyMediaFormat::H264_ES:
+		case SoyMediaFormat::H264_SPS_ES:
+		case SoyMediaFormat::H264_PPS_ES:
+			return true;
+			
+		default:
+			return false;
 	}
 }
 
@@ -146,6 +159,9 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 	switch ( Format )
 	{
 		case SoyMediaFormat::Aac:
+		case SoyMediaFormat::Ac3:
+		case SoyMediaFormat::Mpeg2Audio:
+		case SoyMediaFormat::Dts:
 		case SoyMediaFormat::PcmLinear_8:
 		case SoyMediaFormat::PcmLinear_16:
 		case SoyMediaFormat::PcmLinear_20:
@@ -557,12 +573,12 @@ void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 }
 
 
-TMediaExtractor::TMediaExtractor(const std::string& ThreadName,SoyTime ExtractAheadMs,std::function<void(const SoyTime,size_t)> OnPacketExtracted) :
-	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake ),
-	mExtractAheadMs		( ExtractAheadMs ),
-	mOnPacketExtracted	( OnPacketExtracted )
-{
 
+TMediaExtractor::TMediaExtractor(const TMediaExtractorParams& Params) :
+	SoyWorkerThread		( Params.mThreadName, SoyWorkerWaitMode::Wake ),
+	mExtractAheadMs		( Params.mReadAheadMs ),
+	mOnPacketExtracted	( Params.mOnFrameExtracted )
+{
 }
 
 TMediaExtractor::~TMediaExtractor()
@@ -580,6 +596,9 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::AllocStreamBuffer(size_t St
 		
 		auto OnPacketExtracted = [StreamIndex,this](std::shared_ptr<TMediaPacket>& Packet)
 		{
+			if ( !mOnPacketExtracted )
+				return;
+			
 			mOnPacketExtracted( Packet->mTimecode, Packet->mMeta.mStreamIndex );
 		};
 		

@@ -69,13 +69,19 @@ namespace SoyMediaFormat
 		H264_SPS_ES,	//	SPS data, nalu
 		H264_PPS_ES,	//	PPS data, nalu
 		
-		Mpeg2TS,
+		Mpeg2TS,		//	general TS data
+		Mpeg2TS_PSI,	//	PSI table from TS
+		
 		Mpeg2,
 		Mpeg4,
+		VC1,			//	in TS files, not sure what this is yet
 		
 		//	audio
 		Wave,
 		Aac,
+		Ac3,
+		Mpeg2Audio,			//	in TS files, not sure what format this is yet
+		Dts,
 		PcmAndroidRaw,		//	temp until I work out what this actually is
 		PcmLinear_8,
 		PcmLinear_16,		//	signed, see SoyWave
@@ -474,6 +480,22 @@ public:
 };
 
 
+class TMediaExtractorParams
+{
+public:
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs) :
+		mFilename			( Filename ),
+		mOnFrameExtracted	( OnFrameExtracted ),
+		mReadAheadMs		( ReadAheadMs )
+	{
+	}
+	
+public:
+	std::string					mFilename;
+	std::string					mThreadName;
+	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
+	SoyTime						mReadAheadMs;
+};
 
 
 
@@ -481,7 +503,7 @@ public:
 class TMediaExtractor : public SoyWorkerThread
 {
 public:
-	TMediaExtractor(const std::string& ThreadName,SoyTime ReadAheadMs,std::function<void(const SoyTime,size_t)> OnFrameExtracted);
+	TMediaExtractor(const TMediaExtractorParams& Params);
 	~TMediaExtractor();
 	
 	void							Seek(SoyTime Time);				//	keep calling this, controls the packet read-ahead
@@ -523,9 +545,9 @@ public:
 	
 protected:
 	std::map<size_t,std::shared_ptr<TMediaPacketBuffer>>	mStreamBuffers;
+	std::function<void(const SoyTime,size_t)>	mOnPacketExtracted;
 	
 private:
-	std::function<void(const SoyTime,size_t)>	mOnPacketExtracted;
 	std::string						mFatalError;
 	SoyTime							mSeekTime;
 };

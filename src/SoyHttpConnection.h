@@ -30,6 +30,7 @@ private:
 public:
 	SoyEvent<const std::string>		mOnError;
 	SoyEvent<bool>					mOnConnected;
+	SoyEvent<const Http::TResponseProtocol>	mOnResponse;
 
 protected:
 	std::string						mServerAddress;
@@ -37,7 +38,6 @@ protected:
 private:
 	SoyRef							mConnectionRef;
 	std::shared_ptr<SoySocket>		mSocket;
-	SoyEvent<const Http::TResponseProtocol>	mOnResponse;
 	
 	std::shared_ptr<TSocketReadThread>	mReadThread;
 	std::shared_ptr<TSocketWriteThread>	mWriteThread;
@@ -60,8 +60,10 @@ protected:
 	virtual std::shared_ptr<TSocketWriteThread>	CreateWriteThread(std::shared_ptr<SoySocket> Socket,SoyRef ConnectionRef) override;
 
 public:
-	SoyListenerId						mOnDataRecievedListener;
 	SoyEvent<const Http::TResponseProtocol>	mOnResponse;
+	
+private:
+	SoyListenerId						mOnDataRecievedListener;
 };
 
 
