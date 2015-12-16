@@ -34,6 +34,7 @@
     <ClCompile Include="..\src\SoyHttpConnection.cpp" />
     <ClCompile Include="..\src\SoyMath.cpp" />
     <ClCompile Include="..\src\SoyMedia.cpp" />
+    <ClCompile Include="..\src\SoyOpenCl.cpp" />
     <ClCompile Include="..\src\SoyOpengl.cpp" />
     <ClCompile Include="..\src\SoyOpenglContext.cpp" />
     <ClCompile Include="..\src\SoyPixels.cpp" />
@@ -80,6 +81,7 @@
     <ClInclude Include="..\src\SoyHttpConnection.h" />
     <ClInclude Include="..\src\soymath.h" />
     <ClInclude Include="..\src\SoyMedia.h" />
+    <ClInclude Include="..\src\SoyOpenCl.h" />
     <ClInclude Include="..\src\SoyOpengl.h" />
     <ClInclude Include="..\src\SoyOpenglContext.h" />
     <ClInclude Include="..\src\SoyPixels.h" />

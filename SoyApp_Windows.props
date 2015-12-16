@@ -6,9 +6,9 @@
     <OutDir>bin\</OutDir>
     <TargetName>$(ProjectName)_$(Configuration)</TargetName>
     <ExecutablePath>D:\gstreamer-sdk\0.10\x86\bin;$(ExecutablePath)</ExecutablePath>
-    <IncludePath>$(SOY_PATH)/src;$(AMDAPPSDKROOT)\include;$(KINECTSDK10_DIR)\inc;$(IncludePath)</IncludePath>
+    <IncludePath>$(SOY_PATH)/src;$(KINECTSDK10_DIR)\inc;$(IncludePath)</IncludePath>
     <ReferencePath>D:\gstreamer-sdk\0.10\x86\bin;$(VCInstallDir)atlmfc\lib;$(VCInstallDir)lib</ReferencePath>
-    <LibraryPath>$(SOY_PATH)\soylib.visualstudio\bin;$(AMDAPPSDKROOT)\lib\x86;$(KINECTSDK10_DIR)\lib\x86;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SOY_PATH)\soylib.visualstudio\bin;$(KINECTSDK10_DIR)\lib\x86;$(LibraryPath)</LibraryPath>
     <IntDir>$(Configuration)\$(MSBuildProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
