@@ -53,7 +53,9 @@ std::map<UnityDevice::Type, std::string> UnityDevice::EnumMap =
 	{ UnityDevice::kGfxRendererGXM,		"PSVita"	},
 	{ UnityDevice::kGfxRendererPS4,		"PS4"	},
 	{ UnityDevice::kGfxRendererXboxOne,	"XboxOne"	},
-	{ UnityDevice::kGfxRendererMetal,	"Metal"	}
+	{ UnityDevice::kGfxRendererMetal,	"Metal"	},
+	{ UnityDevice::kGfxRendererOpenGLCore,		"Opengl Core"	},
+	{ UnityDevice::kGfxRendererD3D12,		"Directx12"	},
 };
 
 std::map<UnityEvent::Type, std::string> UnityEvent::EnumMap =
@@ -284,6 +286,7 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 		case UnityDevice::kGfxRendererOpenGL:
 		case UnityDevice::kGfxRendererOpenGLES20:
 		case UnityDevice::kGfxRendererOpenGLES30:
+		case UnityDevice::kGfxRendererOpenGLCore:
 		{
 			//	init context on first run
 			auto InitOpenglContext = []
@@ -298,6 +301,7 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 
 #if defined(TARGET_WINDOWS)
 		case UnityDevice::kGfxRendererD3D11:
+		case UnityDevice::kGfxRendererD3D12:
 		{
 			auto* DeviceDx = static_cast<ID3D11Device*>( DevicePtr );
 			Soy::Assert( DeviceDx != nullptr, "Missing device pointer to create directx context");
@@ -314,7 +318,19 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 			
 		default:
 		{
-			std::Debug << "Unsupported device type " << UnityDevice::ToString(Device) << std::endl;
+			std::string DeviceName;
+			try
+			{
+				DeviceName = UnityDevice::ToString(Device);
+			}
+			catch(...)
+			{
+				std::stringstream Error;
+				Error << "(Unknown device id " << static_cast<int>(Device) << ")";
+				DeviceName = Error.str();
+			}
+			
+			std::Debug << "Unsupported device type " << DeviceName << std::endl;
 		}
 		break;
 	};

@@ -38,6 +38,10 @@ namespace UnityDevice
 		kGfxRendererPS4 = 13, // PlayStation 4
 		kGfxRendererXboxOne = 14, // Xbox One
 		kGfxRendererMetal = 16, // iOS Metal,
+		
+		//	new in 5.3
+		kGfxRendererOpenGLCore	= 17, // Desktop OpenGL core
+		kGfxRendererD3D12		= 18, // Direct3D 12
 	};
 	DECLARE_SOYENUM(UnityDevice);
 }
