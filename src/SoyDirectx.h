@@ -221,6 +221,9 @@ public:
 private:
 	ID3D11DeviceContext&		GetContext();
 	ID3D11Device&				GetDevice();
+	bool						mBaked;			//	warning for code; if we never baked the shader on destruction, we may have never sent data pre-geo. DirectX needs a bake but others dont...
+
+	void						AllocConstantBuffer();
 
 public:
 	const TShader&		mShader;

@@ -278,11 +278,25 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 			if ( H264LengthSize == 4 )
 				return SoyMediaFormat::H264_32;
 			break;
+
+		//	win7 MF - don't know how to get size atm so assuming 32bit (if it matters)
+		case 'H264':
+		case '462H':
+			return SoyMediaFormat::H264_32;
+			break;
 			
-		case 'aac ':	return SoyMediaFormat::Aac;
-		case ' caa':	return SoyMediaFormat::Aac;
-		case 'mp4v':	return SoyMediaFormat::Mpeg4;
-		case 'v4pm':	return SoyMediaFormat::Mpeg4;
+
+		case 'aac ':
+		case ' caa':
+			return SoyMediaFormat::Aac;
+
+		//	windows/MediaFoundation have fourcc's in caps
+		case 'MP4V':
+		case 'V4PM':
+		case 'mp4v':
+		case 'v4pm':	
+			return SoyMediaFormat::Mpeg4;
+
 		case 'lpcm':
 		case 'mcpl':
 			if ( H264LengthSize == 8 )
