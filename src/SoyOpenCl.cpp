@@ -42,30 +42,35 @@ std::map<OpenclDevice::Type,std::string> OpenclDevice::EnumMap =
 	{ OpenclDevice::ANY,	"ANY" },
 };
 
+#if defined(TARGET_WINDOWS)
+	#define CL_STRUCT_PREFIX
+#else
+	#define CL_STRUCT_PREFIX	.s=
+#endif
 
 cl_float8 Soy::VectorToCl8(const ArrayBridge<float>& v)
 {
-	return cl_float8{ .s={ v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7] } };
+	return cl_float8{ CL_STRUCT_PREFIX{ v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7] } };
 }
 
 cl_int4 Soy::VectorToCl(const vec4x<int>& v)
 {
-	return cl_int4{ .s={ v.x, v.y, v.z, v.w } };
+	return cl_int4{ CL_STRUCT_PREFIX{ v.x, v.y, v.z, v.w } };
 }
 
 cl_float2 Soy::VectorToCl(const vec2f& v)
 {
-	return cl_float2{ .s={ v.x, v.y } };
+	return cl_float2{ CL_STRUCT_PREFIX{ v.x, v.y } };
 }
 
 cl_float3 Soy::VectorToCl(const vec3f& v)
 {
-	return cl_float3{ .s={ v.x, v.y, v.z } };
+	return cl_float3{ CL_STRUCT_PREFIX{ v.x, v.y, v.z } };
 }
 
 cl_float4 Soy::VectorToCl(const vec4f& v)
 {
-	return cl_float4{ .s={ v.x, v.y, v.z, v.w } };
+	return cl_float4{ CL_STRUCT_PREFIX{ v.x, v.y, v.z, v.w } };
 }
 
 vec2f Soy::ClToVector(const cl_float2& v)
@@ -119,7 +124,9 @@ std::string Opencl::GetErrorString(cl_int Error)
 	switch ( Error )
 	{
 		//	extension errors
+#if defined(CL_INVALID_ARG_NAME_APPLE)
 			CASE_ENUM_STRING(CL_INVALID_ARG_NAME_APPLE);
+#endif
 			
 		CASE_ENUM_STRING( CL_SUCCESS );
 			CASE_ENUM_STRING( CL_DEVICE_NOT_FOUND );
@@ -398,16 +405,20 @@ void Opencl::GetDevices(ArrayBridge<TDeviceMeta>&& Metas,OpenclDevice::Type Filt
 
 
 Opencl::TDevice::TDevice(const ArrayBridge<cl_device_id>& Devices,Opengl::TContext* OpenglContext) :
-	mContext				( nullptr ),
-	mSharedOpenglContext	( nullptr )
+#if defined(TARGET_OSX)
+	mSharedOpenglContext	( nullptr ),
+#endif
+	mContext				( nullptr )
 {
 	CreateContext( Devices, OpenglContext );
 }
 
 
 Opencl::TDevice::TDevice(const ArrayBridge<TDeviceMeta>& Devices,Opengl::TContext* OpenglContext) :
-	mContext				( nullptr ),
-	mSharedOpenglContext	( nullptr )
+#if defined(TARGET_OSX)
+	mSharedOpenglContext	( nullptr ),
+#endif
+	mContext				( nullptr )
 {
 	Array<cl_device_id> DeviceIds;
 	for ( int i=0;	i<Devices.GetSize();	i++ )
@@ -786,6 +797,7 @@ bool SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Valu
 	if ( !Uniform.IsValid() )
 		return false;
 	
+#if defined(TARGET_OSX)
 	//	gr: ByNameAPPLE will fail if we haven't compiled kernel info
 	//		Opencl::BuildOption_KernelInfo
 	auto Error = clSetKernelArgByNameAPPLE( Kernel.mKernel.mKernel, Name, sizeof(TYPE), &Value );
@@ -793,6 +805,9 @@ bool SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Valu
 	std::stringstream ErrorString;
 	ErrorString << "SetKernelArg(" << Name << ", " << Soy::GetTypeName<TYPE>() << ")";
 	Opencl::IsOkay(Error, ErrorString.str() );
+#else 
+	throw Soy::AssertException("No setting kernel args by name on non-apple");
+#endif
 	return true;
 }
 
@@ -1063,7 +1078,11 @@ Opencl::TBufferImage::TBufferImage(const Opengl::TTexture& Texture,Opengl::TCont
 				}
 				else if ( FlushApple )
 				{
+#if defined(TARGET_OSX)
 					OpenglContext.PushJob( glFlushRenderAPPLE, Sync );
+#else
+					throw Soy::AssertException("No apple flush on non-osx");
+#endif
 				}
 				else if ( Flush )
 				{

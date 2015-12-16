@@ -16,6 +16,7 @@ namespace Opengl
 
 
 #if defined(TARGET_WINDOWS)
+//	set OPENCL_PATH in macros 
 //	gr: amd APP sdk, other includes/libs may be different?
 #include <cl/Opencl.h>
 #pragma comment( lib, "OpenCL.lib" )
