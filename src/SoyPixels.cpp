@@ -107,12 +107,12 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
 	{
-	default:
 	case Invalid:		return 0;
 	case Greyscale:		return 1;
 	case LumaVideo:		return 1;
 	case GreyscaleAlpha:	return 2;
 	case RGB:			return 3;
+	case BGR:			return 3;
 	case RGBA:			return 4;
 	case BGRA:			return 4;
 	case ARGB:			return 4;
@@ -120,10 +120,17 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case FreenectDepth11bit:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepth10bit:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
+	case ChromaUV_8_8:	return 1;
+	case ChromaUV_88:	return 2;
 
-		case ChromaUV_8_8:	return 1;
-		case ChromaUV_88:	return 2;
+
+	default:
+		break;
 	}
+
+	std::stringstream Error;
+	Error << __func__ << " not implemented for " << Format;
+	throw Soy::AssertException( Error.str() );
 }
 
 SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(size_t ChannelCount)
