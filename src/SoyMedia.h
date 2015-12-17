@@ -288,6 +288,29 @@ public:
 
 
 
+class TDumbPixelBuffer : public TPixelBuffer
+{
+public:
+	TDumbPixelBuffer(SoyPixelsMeta Meta);
+	TDumbPixelBuffer(const SoyPixelsImpl& Pixels);
+	
+	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context) override	{}
+	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context) override	{}
+	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures) override
+	{
+		Textures.PushBack( &mPixels );
+	}
+
+	virtual void	Unlock() override
+	{
+	}
+
+public:
+	SoyPixels		mPixels;
+};
+
+
+
 //	gr: I want to merge these pixel & audio types into the TPacketMediaBuffer type
 class TMediaBufferManager
 {

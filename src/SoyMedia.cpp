@@ -682,6 +682,9 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			if ( !NextPacket )
 				continue;
 			
+			//	if we successfully read a packet, clear the last error
+			OnClearError();
+
 			//	temp
 			if ( NextPacket->mEof )
 				return;
@@ -1038,7 +1041,7 @@ bool TMediaPassThroughDecoder::ProcessPacket(const TMediaPacket& Packet)
 			return false;
 		return true;
 	};
-	
+		
 	//	pass through pixel buffers
 	if ( Packet.mPixelBuffer )
 	{
@@ -1053,8 +1056,46 @@ bool TMediaPassThroughDecoder::ProcessPacket(const TMediaPacket& Packet)
 		return true;
 	}
 
+	//	handle generic pixels
+	if ( Packet.mMeta.mPixelMeta.IsValid() )
+	{
+		auto& PixelBufferManager = GetPixelBufferManager();
+		if ( !PixelBufferManager.PrePushPixelBuffer( Packet.mTimecode ) )
+			return true;
+
+		SoyPixelsRemote Pixels( GetArrayBridge(Packet.mData), Packet.mMeta.mPixelMeta );
+
+		TPixelBufferFrame Frame;
+		Frame.mTimestamp = Packet.mTimecode;
+		Frame.mPixels.reset( new TDumbPixelBuffer( Pixels ) );
+		PixelBufferManager.PushPixelBuffer( Frame, Block );
+		return true;
+	}
+
+
 	std::Debug << "TMediaPassThroughDecoder doesn't know how to handle " << Packet.mMeta.mCodec << std::endl;
 
 	return true;
 }
+
+
+
+TDumbPixelBuffer::TDumbPixelBuffer(SoyPixelsMeta Meta)
+{
+	if (!Meta.IsValid())
+	{
+		std::stringstream Error;
+		Error << "Pixel buffer meta invalid " << Meta;
+		throw Soy::AssertException(Error.str());
+	}
+	
+	mPixels.Init( Meta );
+}
+
+TDumbPixelBuffer::TDumbPixelBuffer(const SoyPixelsImpl& Pixels)
+{
+	mPixels.Copy( Pixels );
+}
+
+
 
