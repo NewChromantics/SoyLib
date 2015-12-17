@@ -382,14 +382,14 @@ private:
 	Array<TAudioBufferBlock>	mBlocks;
 };
 
-
+//	don't overload this? or replace TPixelBuffer (hardware abstraction) with this
 class TMediaPacket
 {
 public:
 	TMediaPacket() :
-	mIsKeyFrame		( false ),
-	mEncrypted		( false ),
-	mEof			( false )
+		mIsKeyFrame		( false ),
+		mEncrypted		( false ),
+		mEof			( false )
 	{
 	}
 
@@ -407,7 +407,8 @@ public:
 	std::shared_ptr<Platform::TMediaFormat>	mFormat;
 	TStreamMeta				mMeta;			//	format info
 	
-	Array<uint8>			mData;
+	Array<uint8>					mData;
+	std::shared_ptr<TPixelBuffer>	mPixelBuffer;	//	some extractors go straight to hardware, TPixelBuffer is that encapsulation, so this is in place of data
 };
 std::ostream& operator<<(std::ostream& out,const TMediaPacket& in);
 
@@ -631,4 +632,14 @@ protected:
 
 
 
+//	"decoder" that passes TPixelBuffers through, or turns raw data into pixel buffers (cannot work on compressed data)
+class TMediaPassThroughDecoder : public TMediaDecoder
+{
+public:
+	TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManager> OutputBuffer);
+	TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer);
+	
+protected:
+	virtual bool					ProcessPacket(const TMediaPacket& Packet) override;
+};
 

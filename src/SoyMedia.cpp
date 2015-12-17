@@ -1016,3 +1016,45 @@ void TAudioBufferManager::ReleaseFrames()
 	mBlocks.Clear();
 }
 
+
+
+TMediaPassThroughDecoder::TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManager> OutputBuffer) :
+	TMediaDecoder	( ThreadName, InputBuffer, OutputBuffer )
+{
+	Start();
+}
+
+TMediaPassThroughDecoder::TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer) :
+	TMediaDecoder	( ThreadName, InputBuffer, OutputBuffer )
+{
+	Start();
+}
+
+bool TMediaPassThroughDecoder::ProcessPacket(const TMediaPacket& Packet)
+{
+	auto Block = [this]
+	{
+		if ( !IsWorking() )
+			return false;
+		return true;
+	};
+	
+	//	pass through pixel buffers
+	if ( Packet.mPixelBuffer )
+	{
+		auto& PixelBufferManager = GetPixelBufferManager();
+		if ( !PixelBufferManager.PrePushPixelBuffer( Packet.mTimecode ) )
+			return true;
+
+		TPixelBufferFrame Frame;
+		Frame.mPixels = Packet.mPixelBuffer;
+		Frame.mTimestamp = Packet.mTimecode;
+		PixelBufferManager.PushPixelBuffer( Frame, Block );
+		return true;
+	}
+
+	std::Debug << "TMediaPassThroughDecoder doesn't know how to handle " << Packet.mMeta.mCodec << std::endl;
+
+	return true;
+}
+
