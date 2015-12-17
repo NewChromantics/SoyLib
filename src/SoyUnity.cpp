@@ -95,9 +95,6 @@ std::shared_ptr<Opengl::TContext>& Unity::GetOpenglContextPtr()
 		UnitySetGraphicsDevice( nullptr, UnityDevice::kGfxRendererOpenGLES30, UnityEvent::kGfxDeviceEventInitialize );
 #endif
 	
-	if (!OpenglContext)
-		throw Soy::AssertException("Getting opengl context on non-opengl run");
-	
 	return OpenglContext;
 }
 
@@ -121,9 +118,6 @@ Directx::TContext& Unity::GetDirectxContext()
 #if defined(TARGET_WINDOWS)
 std::shared_ptr<Directx::TContext>& Unity::GetDirectxContextPtr()
 {
-	if (!DirectxContext)
-		throw Soy::AssertException("Getting directx context on non-directx run");
-	
 	return DirectxContext;
 }
 #endif
