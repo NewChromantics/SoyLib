@@ -7,6 +7,7 @@
 #include "SoyDebug.h"
 #include <atomic>
 #include "string.hpp"
+#include <SoyThread.h>
 
 #if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
@@ -20,42 +21,49 @@
 #include <map>
 #endif
 
-
-
-namespace Soy
-{
-	namespace Platform
-	{
-#if defined(TARGET_ANDROID)
-		JavaVM*		vm = nullptr;
-		JNIEnv*		MainEnv = nullptr;
-		std::map<std::thread::id,JNIEnv*>	ThreadEnv;
-		
-		bool		HasJavaVm()	{	return vm!=nullptr;	}
-		JNIEnv&		Java();
+#if defined(TARGET_OSX)
+#include <sys/stat.h>
 #endif
-	}
+
+
+namespace Java
+{
+#if defined(TARGET_ANDROID)
+	JavaVM*		vm = nullptr;
+	JNIEnv*		MainEnv = nullptr;
+	std::map<std::thread::id,JNIEnv*>	ThreadEnv;
+	SoyListenerId	mShutdownThreadListener;
+	SoyListenerId	mInitThreadListener;
+#endif
 }
 
-bool Soy::Platform::InitThread()
+bool Java::HasVm()
+{
+#if defined(TARGET_ANDROID)
+	return vm!=nullptr;
+#else
+	return false;
+#endif
+}
+
+
+void Java::InitThread(SoyThread& Thread)
 {
 #if defined(TARGET_ANDROID)
 #endif
-	return true;
 }
 
-void Soy::Platform::ShutdownThread()
+void Java::ShutdownThread(SoyThread& Thread)
 {
 #if defined(TARGET_ANDROID)
-	//	cleanup java env
+	//	cleanup this thread's java env
 	if ( vm )
 	{
 		auto Thread = std::this_thread::get_id();
-		auto ThreadEnvEntry = Soy::Platform::ThreadEnv.find( Thread );
-		if ( ThreadEnvEntry != Soy::Platform::ThreadEnv.end() )
+		auto ThreadEnvEntry = Java::ThreadEnv.find( Thread );
+		if ( ThreadEnvEntry != Java::ThreadEnv.end() )
 		{
-			Soy::Platform::ThreadEnv.erase( ThreadEnvEntry );
-			JNIEnv* env = nullptr;
+			Java::ThreadEnv.erase( ThreadEnvEntry );
 			auto EnvId = vm->DetachCurrentThread();
 			Soy::Assert( EnvId == JNI_OK, "Failed to detatch java thread");
 		}
@@ -67,9 +75,9 @@ void Soy::Platform::ShutdownThread()
 //	called by android OS on lib load
 __export JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 {
-	Soy::Platform::vm = vm;
+	Java::vm = vm;
 	
-	if ( vm->GetEnv( reinterpret_cast<void**>(&Soy::Platform::MainEnv), JNI_VERSION_1_6) != JNI_OK)
+	if ( vm->GetEnv( reinterpret_cast<void**>(&Java::MainEnv), JNI_VERSION_1_6) != JNI_OK)
 	{
 		std::Debug << "Failed to get Java Env" << std::endl;
 		return -1;
@@ -81,28 +89,31 @@ __export JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 
 
 #if defined(TARGET_ANDROID)
-JNIEnv& Soy::Platform::Java()
+JNIEnv& Java::GetContext()
 {
-	//	gr: better error
-	static JNIEnv Dummy;
-	if ( !Soy::Platform::vm )
-		return Dummy;
+	Soy::Assert( Java::vm!=nullptr, "VM expected" );
 	
-	auto& vm = *Soy::Platform::vm;
+	auto& vm = *Java::vm;
 	
 	auto Thread = std::this_thread::get_id();
 	
-	if ( Soy::Platform::ThreadEnv.find( Thread ) == Soy::Platform::ThreadEnv.end() )
+	if ( Java::ThreadEnv.find( Thread ) == Java::ThreadEnv.end() )
 	{
-		std::Debug << "Allocating java env for thread" << std::endl;
+		std::Debug << "Allocating java env for thread " << SoyThread::GetCurrentThreadName() << std::endl;
 		JNIEnv* env = nullptr;
 		auto EnvId = vm.AttachCurrentThread( &env, nullptr );
-		if ( EnvId != JNI_OK )
-			return Dummy;
-		Soy::Platform::ThreadEnv[Thread] = env;
+		Soy::Assert( EnvId == JNI_OK, "Failed to get java env for current thread" );
+		Java::ThreadEnv[Thread] = env;
 	}
 	
-	return *Soy::Platform::ThreadEnv[Thread];
+	//	register thread init & cleanup
+	if ( !mInitThreadListener.IsValid() )
+		mInitThreadListener = SoyThread::OnThreadStart.AddListener( Java::InitThread );
+	
+	if ( !mShutdownThreadListener.IsValid() )
+		mShutdownThreadListener = SoyThread::OnThreadFinish.AddListener( Java::ShutdownThread );
+	
+	return *Java::ThreadEnv[Thread];
 }
 #endif
 
@@ -110,7 +121,7 @@ JNIEnv& Soy::Platform::Java()
 bool Soy::Platform::Init()
 {
 #if defined(TARGET_ANDROID)
-	if ( !Soy::Platform::HasJavaVm() )
+	if ( !Java::HasVm() )
 		return false;
 #endif
 	
@@ -229,17 +240,37 @@ const uint32_t TCrc32::Crc32Table[256] = {
 }; // kCrc32Table
 
 
-int Soy::Platform::GetLastError()
+int Soy::Platform::GetLastError(bool FlushError)
 {
 #if defined(TARGET_WINDOWS)
-	return ::GetLastError();
+	auto Error = ::GetLastError();
 #else
-	//	gr: pop error number. This seems to be getting left set as an error after a successfull winsock call...
 	int Error = errno;
-	errno = 0;
+#endif
+
+	if ( FlushError )
+		FlushLastError();
+
 	return Error;
+}
+
+void Soy::Platform::FlushLastError()
+{
+#if defined(TARGET_WINDOWS)
+	::SetLastError(0);
+#else
+	errno = 0;
 #endif
 }
+
+#if defined(TARGET_WINDOWS)
+std::string Soy::Platform::GetErrorString(HRESULT Error)
+{
+	//	http://stackoverflow.com/a/7008279/355753
+	int ErrorInt = Error & 0xffff;
+	return GetErrorString( ErrorInt );
+}
+#endif
 
 std::string Soy::Platform::GetErrorString(int Error)
 {
@@ -347,21 +378,25 @@ bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::ostream& 
 	return true;
 }
 
-bool Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename,std::ostream& Error)
+void Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename)
 {
 	//	gr: would be nice to have an array! MemFileArray maybe, if it can be cross paltform...
 	std::ifstream Stream( Filename, std::ios::binary|std::ios::in );
+	
 	if ( !Stream.is_open() )
 	{
+		std::stringstream Error;
 		Error << "Failed to open " << Filename << " (" << Soy::Platform::GetLastErrorString() << ")";
-		return false;
+		throw Soy::AssertException(Error.str());
 	}
 	
 	//	read block by block
+	std::stringstream Error;
 	bool Result = ReadStream( Data, Stream, Error );
 	Stream.close();
 	
-	return Result;
+	if ( !Result )
+		throw Soy::AssertException( Error.str() );
 }
 
 
@@ -474,6 +509,72 @@ void Soy::base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Deco
 	}
 }
 
+void Soy::CreateDirectory(const std::string& Path)
+{
+	//	does path have any folder deliniators?
+	auto LastForwardSlash = Path.find_last_of('/');
+	auto LastBackSlash = Path.find_last_of('\\');
+	
+	//	gr: assumes standard npos is <0. but turns out its unsigned, so >0!
+	//static_assert( std::string::npos < 0, "Expecting string npos to be -1");
+	auto Last = LastBackSlash;
+	if ( Last == std::string::npos )
+		Last = LastForwardSlash;
+	if ( Last == std::string::npos )
+		return;
+	
+	//	real path string
+	auto Directory = Path.substr(0, Last);
+	if ( Directory.empty() )
+		return;
+	
+#if defined(TARGET_OSX)
+	mode_t Permissions = S_IRWXU|S_IRWXG|S_IRWXO;
+//	mode_t Permissions = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
+	if ( mkdir( Directory.c_str(), Permissions ) != 0 )
+#elif defined(TARGET_WINDOWS)
+	SECURITY_ATTRIBUTES* Permissions = nullptr;
+	if ( !CreateDirectory( Directory.c_str(), Permissions ) )
+#else
+	if ( false )
+#endif
+	{
+		auto LastError = Platform::GetLastError();
+#if defined(TARGET_WINDOWS)
+		if ( LastError != ERROR_ALREADY_EXISTS )
+#else
+		if ( LastError != EEXIST )
+#endif
+		{
+			std::stringstream Error;
+			Error << "Failed to create directory " << Directory << ": " << Platform::GetLastErrorString();
+			throw Soy::AssertException( Error.str() );
+		}
+	}
+}
+
+
+void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename)
+{
+	CreateDirectory(Filename);
+	
+	std::ofstream File( Filename, std::ios::out );
+	Soy::Assert( File.is_open(), std::string("Failed to open ")+Filename );
+
+	if ( !Data.IsEmpty() )
+		File.write( Data.GetArray(), Data.GetDataSize() );
+
+	if ( File.fail() )
+	{
+		File.close();
+		
+		std::stringstream Error;
+		Error << "Failed to write " << Soy::FormatSizeBytes( Data.GetDataSize() ) << " to " << Filename;
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	File.close();
+}
 
 bool Soy::StringToFile(std::string Filename,std::string String)
 {
@@ -502,8 +603,15 @@ bool Soy::FileToString(std::string Filename,std::string& String,std::ostream& Er
 	//	gr: err surely a better way
 	Array<char> StringData;
 	auto StringDataBridge = GetArrayBridge( StringData );
-	if ( !LoadBinaryFile( StringDataBridge, Filename, Error ) )
+	try
+	{
+		LoadBinaryFile( StringDataBridge, Filename );
+	}
+	catch(std::exception& e)
+	{
+		Error << e.what();
 		return false;
+	}
 
 	String = Soy::ArrayToString( StringDataBridge );
 	return true;

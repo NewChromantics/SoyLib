@@ -26,6 +26,8 @@ namespace Soy
 	
 	//	delineators for strings. First is used for output
 	static const char* VecNXDelins = ",x";
+	
+	class TPushPopStreamSettings;	//	scoped push/pop of stream flags
 };
 
 //	string that uses a prmem::Heap
@@ -62,6 +64,7 @@ namespace Soy
 	bool		StringTrimRight(std::string& String, const ArrayBridge<char>& TrimAnyChars);
 	inline bool	StringTrimRight(std::string& String, const ArrayBridge<char>&& TrimAnyChars) {	return StringTrimRight(String, TrimAnyChars);	}
 	bool		StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool CaseSensitive);
+	bool		StringTrimRight(std::string& Haystack,const std::string& Suffix,bool CaseSensitive);
 
 	std::string	StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim=false);
 	
@@ -80,9 +83,12 @@ namespace Soy
 	inline void	StringToBuffer(const std::string& Source,char* Buffer,size_t BufferSize)	{	StringToBuffer( Source.c_str(), Buffer, BufferSize );	}
 	template <size_t BUFFERSIZE>
 	void		StringToBuffer(const char* Source,char (& Buffer)[BUFFERSIZE])				{	StringToBuffer( Source, Buffer, BUFFERSIZE );	}
+	template <size_t BUFFERSIZE>
+	void		StringToBuffer(const std::string&Source,char (& Buffer)[BUFFERSIZE])		{	StringToBuffer( Source.c_str(), Buffer, BUFFERSIZE );	}
 
 	std::string	StreamToString(std::ostream& Stream);	//	windows
 	std::string	StreamToString(std::stringstream&& Stream);	//	osx
+	inline void	StringStreamClear(std::stringstream& Stream)	{	Stream.str(std::string());	}	//	not .clear, not .empty
 
 	void		SplitStringLines(ArrayBridge<std::string>& StringLines,const std::string& String);
 	void		SplitStringLines(ArrayBridge<std::string>&& StringLines,const std::string& String);
@@ -93,7 +99,14 @@ namespace Soy
 	uint8		HexToByte(char HexA,char HexB);
 
 	std::string	ResolveUrl(const std::string& BaseUrl,const std::string& Path);	//	work out the full path of Path from the base url. if it starts from / then use the server. if it starts with protocol, don't modify, otherwise place in directory
-
+	std::string	ExtractServerFromUrl(const std::string& Url);
+	void		SplitHostnameAndPort(std::string& Hostname,uint16& Port,const std::string& HostnameAndPort);
+	void		SplitUrl(const std::string& Url,std::string& Protocol,std::string& Hostname,uint16& Port,std::string& Path);
+	std::string	GetUrlPath(const std::string& Url);
+	std::string	GetUrlHostname(const std::string& Url);
+	std::string	GetUrlProtocol(const std::string& Url);
+	
+	std::wstring	StringToWString(const std::string& s);
 	
 	template<typename TYPE>
 	bool		StringToType(TYPE& Out,const std::string& String);
@@ -103,6 +116,12 @@ namespace Soy
 	//	max size of vector (ie. buffer array/remote array) dictates expected size
 	template<typename TYPE>
 	inline bool	StringParseVecNx(const std::string& String,ArrayBridge<TYPE>&& Vector);
+
+	std::string		FourCCToString(uint32 Fourcc);	//	on IOS, don't forget CFSwapInt32BigToHost()
+	
+	std::string		DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes=-1);
+	void			DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,int MaxBytes=-1);
+	inline void		DataToHexString(std::ostream& String,const ArrayBridge<uint8>&& Data,int MaxBytes=-1)	{	DataToHexString( String, Data, MaxBytes );	}
 };
 
 #if defined(__OBJC__)
@@ -113,8 +132,29 @@ namespace Soy
 	std::string	NSStringToString(NSString* String);
 	std::string	NSErrorToString(NSError* Error);
 	std::string	NSErrorToString(NSException* Exception);
+	void		NSDictionaryToStrings(ArrayBridge<std::pair<std::string,std::string>>&& Elements,NSDictionary* Dictionary);
+	std::string	NSDictionaryToString(NSDictionary* Dictionary);
+	std::string	NSDictionaryToString(CFDictionaryRef Dictionary);
 };
 #endif
+
+
+class Soy::TPushPopStreamSettings
+{
+public:
+	TPushPopStreamSettings(std::ostream& Stream) :
+		mPushedFlags	( Stream.flags() ),
+		mStream			( Stream )
+	{
+	}
+	~TPushPopStreamSettings()
+	{
+		mStream.flags( mPushedFlags );
+	}
+	
+	std::ostream&				mStream;
+	std::ios_base::fmtflags		mPushedFlags;
+};
 
 
 

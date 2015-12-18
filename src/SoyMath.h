@@ -8,6 +8,7 @@
 #include "SoyVector.h"
 
 #if defined(TARGET_WINDOWS)
+#include <math.h>
 //	turn the double into a float - todo: make sure this is done at compile time
 #define PIf	static_cast<float>(M_PI)
 #else
@@ -32,6 +33,8 @@ namespace Soy
 		return Degrees * (PIf / 180.f);
 	}
 	
+	
+	float	AngleDegDiff(float Angle,float Base);	//	get the smallest signed difference from Base
 	
 	template<typename T>
 	T	Lerp(const T& Start,const T& End,float Time)
@@ -117,6 +120,7 @@ public:
 };
 
 
+
 class Soy::THsl
 {
 public:
@@ -146,7 +150,10 @@ DECLARE_NONCOMPLEX_TYPE( Soy::THsl );
 class Soy::TRgb
 {
 public:
-	TRgb();
+	TRgb() :
+		TRgb	( 0, 0, 0 )
+	{
+	}
 	TRgb(float r,float g,float b) :
 		mRgb	( r,g,b )
 	{		

@@ -618,7 +618,7 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 		std::Debug << AllocInfo.ToString();
 		
 		//	show age
-		int64 AgeSecs = (ofGetElapsedTimeMillis() - AllocInfo.mAllocTick) / 1000;
+		auto AgeSecs = (ofGetElapsedTimeMillis() - AllocInfo.mAllocTick) / 1000;
 		std::Debug << " " << AgeSecs << " secs ago.";
 
 		//	show callstack

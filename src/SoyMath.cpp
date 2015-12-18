@@ -4,6 +4,18 @@
 
 
 
+float Soy::AngleDegDiff(float Angle,float Base)
+{
+	float Diff = Angle - Base;
+	while ( Diff < -180.f )
+		Diff += 360.f;
+	while ( Diff > 180.f )
+		Diff -= 360.f;
+	return Diff;
+}
+
+
+
 
 float hue2rgb(float p,float q,float t)
 {

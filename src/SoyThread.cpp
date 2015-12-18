@@ -1,11 +1,19 @@
 #include "SoyThread.h"
 #include "SoyDebug.h"
+#if defined(PLATFORM_OSX)
+#include <pthread.h>
+#endif
 
+namespace Soy
+{
+	namespace Private
+	{
+		std::map<std::thread::native_handle_type,std::shared_ptr<prmem::Heap>>	ThreadHeaps;
+	}
+}
 
-
-std::mutex SoyThread::mCleanupEventLock;
-std::map<std::thread::native_handle_type,std::shared_ptr<SoyEvent<const std::thread::native_handle_type>>> SoyThread::mCleanupEvents;
-std::map<std::thread::native_handle_type,std::shared_ptr<prmem::Heap>> SoyThread::mThreadHeaps;
+SoyEvent<SoyThread> SoyThread::OnThreadFinish;
+SoyEvent<SoyThread> SoyThread::OnThreadStart;
 
 
 void Soy::TSemaphore::OnCompleted()
@@ -59,11 +67,6 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 
 void PopWorker::TJobQueue::Flush(TContext& Context)
 {
-	auto AutoUnlockContext = [&Context]
-	{
-		Context.Unlock();
-	};
-	
 	bool FlushError = true;
 	
 	ofScopeTimerWarning LockTimer("Waiting for job lock",5,false);
@@ -104,30 +107,41 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 			FlushError = false;
 		}
 		
-		//	gr: will this work after a throw?
-		auto ContextLock = SoyScope( nullptr, AutoUnlockContext );
-
 		RunJob( Job );
+		Context.Unlock();
 	}
 }
 
 
 void PopWorker::TJobQueue::RunJob(std::shared_ptr<TJob>& Job)
 {
-	try
+	Soy::Assert( Job!=nullptr, "Job expected" );
+
+	if ( Job->mCatchExceptions )
+	{
+		try
+		{
+			Job->Run();
+			
+			//	mark job as finished
+			if ( Job->mSemaphore )
+				Job->mSemaphore->OnCompleted();
+		}
+		catch (std::exception& e)
+		{
+			if ( Job->mSemaphore )
+				Job->mSemaphore->OnFailed( e.what() );
+			else
+				std::Debug << "Exception executing job " << e.what() << " (no semaphore)" << std::endl;
+		}
+	}
+	else
 	{
 		Job->Run();
 		
 		//	mark job as finished
 		if ( Job->mSemaphore )
 			Job->mSemaphore->OnCompleted();
-	}
-	catch (std::exception& e)
-	{
-		if ( Job->mSemaphore )
-			Job->mSemaphore->OnFailed( e.what() );
-		else
-			std::Debug << "Exception executing job " << e.what() << " (no semaphore)" << std::endl;
 	}
 }
 
@@ -170,110 +184,213 @@ void PopWorker::TJobQueue::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphor
 }
 
 
-
-
-ofThread::ofThread() :
-	mIsRunning		( false )
+SoyThread::SoyThread(const std::string& ThreadName) :
+	mThreadName	( ThreadName ),
+	mIsRunning	( false )
 {
-}
-
-
-ofThread::~ofThread()
-{
-	waitForThread();
-
-	destroy();
-}
-
-bool ofThread::create(unsigned int stackSize)
-{
-    return true;
-}
-
-void ofThread::destroy()
-{
-}
-
-void ofThread::waitForThread(bool Stop)
-{
-	if ( isThreadRunning() )
+	//	POSIX needs to name threads IN the thread. so do that for everyone by default
+	auto NameThread = [this](SoyThread& Thread)
 	{
-		if ( Stop )
-			stopThread();
-	}
+	//	Soy::Assert( std::this_thread::id == Thread.get_id(), "Shouldn't call this outside of thread" );
+		if ( !mThreadName.empty() )
+			SetThreadName( mThreadName );
+	};
+	mNameThreadListener = OnThreadStart.AddListener( NameThread );
 	
-	//	if thread is active, then wait for it to finish and join it
-	if ( mThread.joinable() )
+	auto CleanupHeapWrapper = [this](SoyThread&)
 	{
-		auto ThreadHandle = mThread.native_handle();
-		
-		mThread.join();
-
-		//	gr: before or after join?
-		SoyThread::OnThreadCleanup( ThreadHandle );
-	}
-
-	mThread = std::thread();
+		CleanupHeap();
+	};
+	mHeapThreadListener = OnThreadFinish.AddListener( CleanupHeapWrapper );
 }
 
-void ofThread::stopThread()
+SoyThread::~SoyThread()
+{
+	OnThreadStart.RemoveListener( mNameThreadListener );
+	OnThreadFinish.RemoveListener( mHeapThreadListener );
+}
+
+
+void SoyThread::Stop(bool WaitToFinish)
 {
 	//	thread's loop will stop on next loop
 	mIsRunning = false;
-}
-
-bool ofThread::startThread(bool blocking, bool verbose)
-{
-	if ( !create() )
-		return false;
-
-	//	already running 
-	if ( isThreadRunning() )
-		return true;
-
-	//	mark as running
-	mIsRunning = true;
-
-	//	start thread
-    mThread = std::thread( threadFunc, this );
-	return true;
-}
-
-unsigned int ofThread::threadFunc(void *args)
-{
-	ofThread* pThread = reinterpret_cast<ofThread*>(args);
 	
-	if ( pThread )
+	//	wait for thread to exit
+	if ( WaitToFinish )
 	{
-		pThread->threadedFunction();
-		pThread->mIsRunning = false;
-		std::Debug << "Thread " << pThread->GetThreadName() << " finished" << std::endl;
+		//	if thread is active, then wait for it to finish and join it
+		if ( mThread.joinable() )
+			mThread.join();
+
+		mThread = std::thread();
 	}
-	return 0;
+}
+
+void SoyThread::Start()
+{
+	//	already running
+	if ( mThread.get_id() != std::thread::id() )
+		return;
+	
+	//	maybe stopping...
+	Soy::Assert( !mIsRunning, "Thread doesn't exist, but is marked as running");
+	
+	auto ThreadFuncWrapper = [this](void*)
+	{
+		this->mIsRunning = true;
+
+		SoyThread::OnThreadStart.OnTriggered(*this);
+		
+		//	gr: even if we're not catching exceptions, java NEEDS us to cleanup the threads or the OS will abort us
+		try
+		{
+			while ( this->mIsRunning )
+			{
+				this->Thread();
+			}
+			SoyThread::OnThreadFinish.OnTriggered(*this);
+		}
+		catch(std::exception& e)
+		{
+			SoyThread::OnThreadFinish.OnTriggered(*this);
+			throw;
+		}
+		catch(...)
+		{
+			SoyThread::OnThreadFinish.OnTriggered(*this);
+			throw;
+		}
+		
+		return 0;
+	};
+	
+	auto CatchException_ThreadFuncWrapper = [=](void* x)
+	{
+		try
+		{
+			return ThreadFuncWrapper(x);
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Caught SoyThread " << GetThreadName() << " exception: " << e.what() << std::endl;
+		}
+		catch(...)
+		{
+			std::Debug << "Caught SoyThread " << GetThreadName() << " unknown exception." << std::endl;
+		}
+		
+		return 0;
+	};
+
+	//	gr: catch all. Maybe only enable this for "release" builds?
+	//		android is throwing an exception, but callstack doesn't contain exception handler/throw indicator... so seeing if we can trap it
+	//	crash with exception is still useful in release though...
+	#if defined(TARGET_ANDROID)
+	bool CatchExceptions = true;
+	#else
+	bool CatchExceptions = !Soy::Platform::IsDebuggerAttached();
+	#endif
+	
+	//	start thread
+	if ( CatchExceptions )
+	{
+		mThread = std::thread( CatchException_ThreadFuncWrapper, nullptr );
+	}
+	else
+	{
+		mThread = std::thread( ThreadFuncWrapper, nullptr );
+	}
+}
+
+std::thread::native_handle_type SoyThread::GetCurrentThreadNativeHandle()
+{
+#if defined(TARGET_WINDOWS)
+	return ::GetCurrentThread();
+#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
+	return ::pthread_self();
+#endif
 }
 
 
-#if defined(PLATFORM_OSX)
-#include <pthread.h>
-#endif
-
-void SoyThread::SetThreadName(std::string name,std::thread::native_handle_type ThreadId)
+std::string SoyThread::GetCurrentThreadName()
 {
 #if defined(TARGET_OSX)
-
-	auto CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
 	
+	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
+	
+	//	grab current thread name
+	char OldNameBuffer[200] = "<initialised>";
+	std::string OldThreadName;
+	auto Result = pthread_getname_np( CurrentThread, OldNameBuffer, sizeof(OldNameBuffer) );
+	OldNameBuffer[sizeof(OldNameBuffer)-1] = '\0';
+	if ( Result == 0 )
+	{
+		OldThreadName = OldNameBuffer;
+		if ( OldThreadName.empty() )
+			OldThreadName = "<no name>";
+	}
+	else
+	{
+		OldThreadName = Soy::Platform::GetLastErrorString();
+	}
+	
+	return OldThreadName;
+#elif defined(TARGET_ANDROID)
+	//	pthread_getname_np is oddly missing from the ndk. not in the kernel, but people are referencing it in stack overflow?!
+	//	gr: styled to the DEBUG log thread names in adb logcat
+	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
+	std::stringstream OldThreadName;
+	OldThreadName << "Thread-" << CurrentThread;
+	return OldThreadName.str();
+#else
+	return "<NoThreadNameOnThisPlatform>";
+#endif
+}
+
+
+
+void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handle_type ThreadId)
+{
+	//	max name length found from kernel source;
+	//	https://android.googlesource.com/platform/bionic/+/40eabe2/libc/bionic/pthread_setname_np.cpp
+#if defined(TARGET_ANDROID)
+	// "This value is not exported by kernel headers."
+#define MAX_TASK_COMM_LEN 16
+	std::string Name = _Name.substr( 0, MAX_TASK_COMM_LEN-1 );
+#else
+	auto& Name = _Name;
+#endif
+	
+	
+	auto OldThreadName = GetCurrentThreadName();
+	
+	
+#if defined(TARGET_POSIX)
+	
+#if defined(TARGET_OSX)||defined(TARGET_IOS)
 	//	has to be called whilst in this thread as OSX doesn't take a thread parameter
+	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
 	if ( CurrentThread != ThreadId )
 	{
-		std::Debug << "Trying to set thread name " << name << ", out-of-thread" << std::endl;
+		std::Debug << "Trying to change thread name from " << OldThreadName << " to " << Name << ", out-of-thread" << std::endl;
 		return;
 	}
-	int Result = pthread_setname_np( name.c_str() );
-	if ( Result != 0 )
+	auto Result = pthread_setname_np( Name.c_str() );
+#else
+	auto Result = pthread_setname_np( ThreadId, Name.c_str() );
+#endif
+	
+	if ( Result == 0 )
 	{
-		std::Debug << "Failed to set thread name to " << name << ": " << Soy::Platform::GetLastErrorString() << std::endl;
+		std::Debug << "Renamed thread from " << OldThreadName << " to " << Name << ": " << std::endl;
 	}
+	else
+	{
+		std::string Error = (Result==ERANGE) ? "Name too long" : Soy::Platform::GetErrorString(Result);
+		std::Debug << "Failed to change thread name from " << OldThreadName << " to " << Name << ": " << Error << std::endl;
+	}
+
 #endif
 	
 #if defined(TARGET_WINDOWS)
@@ -314,7 +431,7 @@ void SoyThread::SetThreadName(std::string name,std::thread::native_handle_type T
 		}
 	};
 	
-	SetNameFunc( name.c_str(), ThreadId );
+	SetNameFunc( Name.c_str(), ThreadId );
 
 #endif
 }
@@ -373,7 +490,6 @@ void SoyWorker::Wake()
 	mWaitConditional.notify_all();
 }
 
-
 void SoyWorker::Loop()
 {
 	std::unique_lock<std::mutex> Lock( mWaitMutex );
@@ -403,28 +519,8 @@ void SoyWorker::Loop()
 
 		mOnPreIteration.OnTriggered(Dummy);
 		
-		static bool CatchExceptions = !Soy::Platform::IsDebuggerAttached();
-
-		if ( CatchExceptions )
-		{
-			try
-			{
-				if ( !Iteration() )
-					break;
-			} catch ( std::exception& e )
-			{
-				std::Debug << "caught exception in SoyWorker" << e.what() << std::endl;
-				break;
-			} catch ( ... )
-			{
-				std::Debug << "caught unknown-type-of exception in SoyWorker";
-			}
-		}
-		else
-		{
-			if ( !Iteration() )
-				break;
-		}
+		if ( !Iteration() )
+			break;
 	}
 	
 	mOnFinish.OnTriggered(Dummy);
@@ -439,101 +535,37 @@ void SoyWorkerThread::Start(bool ThrowIfAlreadyStarted)
 	if ( !Soy::Assert( !HasThread(), "Thread already created" ) )
 		return;
 	
-	auto StartFunc = [this]
-	{
-		//	enable thread cancellation
-#if defined(TARGET_OSX)
-		auto EnabledCancel = 0 == pthread_setcancelstate(PTHREAD_CANCEL_ENABLE,nullptr);
-		if ( !EnabledCancel )
-			std::Debug << "unable to enable thread cancelling" << std::endl;
-		auto EnabledAsyncCancel = 0 == pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS,nullptr);
-		if ( !EnabledAsyncCancel )
-			std::Debug << "unable to enable async thread cancelling" << std::endl;
-#endif
-		//	name thread!
-		SoyThread::SetThreadName( mThreadName, SoyThread::GetCurrentThreadNativeHandle() );
-		this->SoyWorker::Start();
-	};
-	
-	//	start thread
-	mThread = std::thread( StartFunc );
-}
-
-void SoyWorkerThread::WaitToFinish()
-{
-	Stop();
-	
-	//	if thread is active, then wait for it to finish and join it
-	if ( mThread.joinable() )
-	{
-		auto Thread = mThread.native_handle();
-		mThread.join();
-		
-		//	gr: before or after join?
-		SoyThread::OnThreadCleanup( Thread );
-	}
-	mThread = std::thread();
+	SoyThread::Start();
 }
 
 
-std::shared_ptr<SoyEvent<const std::thread::native_handle_type>> SoyThread::GetOnThreadCleanupEvent()
+void SoyWorkerThread::Thread()
 {
-	auto Thread = SoyThread::GetCurrentThreadNativeHandle();
-	//	gr: look out for bad thread id's!
-//	if ( !Soy::Assert( ThreadId != std::thread::id(), "Adding thread cleanup, but cannot resolve thread id" ) )
-//		return nullptr;
-
-	//	create/get map entry for cleanup events
-	std::lock_guard<std::mutex> Lock( mCleanupEventLock );
-	auto& Event = mCleanupEvents[Thread];
-	if ( !Event )
-		Event.reset( new SoyEvent<const std::thread::native_handle_type>() );
-
-	return Event;
+	SoyWorker::Start();
 }
 
-bool SoyThread::OnThreadCleanup(std::thread::native_handle_type Thread)
+void SoyThread::CleanupHeap()
 {
-	//	get cleanup event
-	mCleanupEventLock.lock();
-	auto pEvent = mCleanupEvents.find(Thread);
-	mCleanupEventLock.unlock();
-
-	//	no callbacks
-	if ( pEvent == mCleanupEvents.end() )
-		return true;
-	
-	auto& Event = pEvent->second;
-	if ( Event )
-	{
-		Event->OnTriggered( Thread );
-		Event.reset();
-	}
-	
-	mCleanupEventLock.lock();
-	mCleanupEvents.erase(pEvent);
-	mCleanupEventLock.unlock();
-	
 	//	cleanup all memory in thread's heap
-	auto HeapIt = mThreadHeaps.find(Thread);
-	if ( HeapIt != mThreadHeaps.end() )
+	auto HeapIt = Soy::Private::ThreadHeaps.find( mThread.native_handle() );
+	if ( HeapIt != Soy::Private::ThreadHeaps.end() )
 	{
 		//	deallocate the heap and all it's allocations
 		HeapIt->second.reset();
 		//	keep map small, but maybe have thread instability
 	//	mThreadHeaps.erase( HeapIt );
 	}
-	
-	return true;
 }
 
 
 prmem::Heap& SoyThread::GetHeap(std::thread::native_handle_type Thread)
 {
-	//	grab heap
-	auto HeapIt = mThreadHeaps.find(Thread);
+	auto& Heaps = Soy::Private::ThreadHeaps;
 	
-	if ( HeapIt != mThreadHeaps.end() )
+	//	grab heap
+	auto HeapIt = Heaps.find(Thread);
+	
+	if ( HeapIt != Heaps.end() )
 	{
 		auto pHeap = HeapIt->second;
 
@@ -551,7 +583,7 @@ prmem::Heap& SoyThread::GetHeap(std::thread::native_handle_type Thread)
 	std::stringstream HeapName;
 	HeapName << "Thread Heap " << GetThreadName(Thread);
 	std::shared_ptr<prmem::Heap> NewHeap( new prmem::Heap( true, true, HeapName.str().c_str() ) );
-	mThreadHeaps[Thread] = NewHeap;
+	Heaps[Thread] = NewHeap;
 	return *NewHeap;
 }
 

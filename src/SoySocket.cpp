@@ -4,7 +4,6 @@
 
 
 #if defined(TARGET_POSIX)
-#include <arpa/inet.h>
 #include <fcntl.h>	//	fcntl
 #include <unistd.h>	//	close
 #include <netdb.h>	//	gethostbyname
@@ -55,11 +54,17 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 #elif defined(TARGET_WINDOWS)
 	auto ExpectedLength = sizeof(sockaddr_storage);
 #endif
+
+	//	gr: on windows, accepting unity WWW connection was 16 bytes...
 	if ( AddrLen != ExpectedLength )
 	{
 		std::stringstream err;
 		err << "sockaddr length (" << ExpectedLength << ") doesn't match specification " << AddrLen;
+#if defined(TARGET_WINDOWS)
+		std::Debug << err.str() << std::endl;
+#else
 		throw Soy::AssertException( err.str() );
+#endif
 	}
 
 	if ( AddrLen > sizeof(mAddr) )
@@ -480,29 +485,6 @@ bool SoySocket::ListenUdp(int Port)
 }
 
 
-
-bool SoySocket::GetHostnameAndPortFromAddress(std::string& Hostname,uint16& Port,const std::string Address)
-{
-//	extract port from address
-	std::regex Pattern("([^:]+):([0-9]+)$" );
-	std::smatch Match;
-
-	//	address is empty, or malformed
-	if ( !std::regex_match( Address, Match, Pattern ) )
-	{
-		std::Debug << "Invalid hostname:port: " << Address << std::endl;
-		return false;
-	}
-	
-	Hostname = Match[1].str();
-	std::string PortStr = Match[2].str();
-	int Porti;
-	Soy::StringToType( Porti, PortStr );
-	Port = size_cast<uint16>(Porti);
-
-	return true;
-}
-
 bool SoySocket::IsConnected()
 {
 	bool Connected = !mConnections.empty();
@@ -516,8 +498,7 @@ SoyRef SoySocket::Connect(std::string Address)
 
 	u_short Port;
 	std::string Hostname;
-	if ( !GetHostnameAndPortFromAddress( Hostname, Port, Address ) )
-		return SoyRef();
+	Soy::SplitHostnameAndPort( Hostname, Port, Address );
 
 	SoySockAddr HostAddr( Hostname, Port );
 	if ( !HostAddr.IsValid() )

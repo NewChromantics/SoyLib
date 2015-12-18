@@ -8,10 +8,19 @@
 //	some c++11 anomlies so highlight them and maybe one day we can remove them
 //	currently need VS2013 for windows 7
 //	http://stackoverflow.com/questions/70013/how-to-detect-if-im-compiling-code-with-visual-studio-2008
+//	note: this is for the COMPILER not for the SDK (below)
 #if defined(_MSC_VER) && _MSC_VER<=1800
 #define OLD_VISUAL_STUDIO
 #endif
 
+//	when vs2013 is set to windows vista/7 SDK, it adds this define
+#if defined(_USING_V110_SDK71_) && (WINVER >= _WIN32_WINNT_WIN7)
+	#define WINDOWS_TARGET_SDK	7
+#elif (WINVER >= _WIN32_WINNT_WIN8)
+	#define WINDOWS_TARGET_SDK	8
+#else
+	#error Not sure which windows SDK we're building against.
+#endif
 
 //	see ofConstants
 #define WIN32_LEAN_AND_MEAN
@@ -32,17 +41,19 @@
 // Attribute to make function be exported from a plugin
 #define __export	extern "C" __declspec(dllexport)
 #define __noexcept	
+#define __pure
+
 
 #include <math.h>
+#include <stdint.h>
 
-
-
+/*
 typedef signed __int32		int32;
 typedef unsigned __int32	uint32;
 typedef signed __int64		int64;
 typedef unsigned __int64	uint64;
+*/
 typedef SSIZE_T				ssize_t;
-
 
 
 
@@ -69,13 +80,22 @@ public:
 	
 	TYPE*		operator ->()	{	return mObject;	}
 	operator	TYPE*()			{	return mObject;	}
+	operator	bool() const	{	return mObject!=nullptr; }
 	
 	void		Set(TYPE* Object,bool AddRef)
 	{
 		Release();
 		mObject = Object;
-		if ( AddRef && mObject )
+		if ( AddRef )
+			Retain();
+	}
+
+	void		Retain()
+	{
+		if ( mObject )
+		{
 			mObject->AddRef();
+		}
 	}
 	
 	void		Release()

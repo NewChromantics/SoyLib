@@ -108,15 +108,18 @@ namespace Opengl
 	//#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__)+ " flush", false )
 	#define Opengl_IsOkayFlush()	Opengl::FlushError( __func__ )
 
+	bool			IsOkay(const char* Context,std::function<void(const std::string&)>& ExceptionContainer);	//	if container is null, we throw
+	//inline bool		IsOkay(const std::string& Context,std::function<void(const std::string&)> ExceptionContainer)	{	return IsOkay( Context.c_str(), ExceptionContainer );	}
 	bool			IsOkay(const char* Context,bool ThrowException=true);
 	inline bool		IsOkay(const std::string& Context,bool ThrowException=true)	{	return IsOkay( Context.c_str(), ThrowException );	}
 	void			FlushError(const char* Context);
 	std::string		GetEnumString(GLenum Type);
 
-	GLenum	GetUploadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
-	GLenum	GetNewTexturePixelFormat(SoyPixelsFormat::Type Format);
-	GLenum	GetDownloadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat);
+	void					GetUploadPixelFormats(ArrayBridge<GLenum>&& Formats,const Opengl::TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion);
+	void					GetNewTexturePixelFormats(ArrayBridge<GLenum>&& Formats,SoyPixelsFormat::Type Format);
+	void					GetDownloadPixelFormats(ArrayBridge<GLenum>&& Formats,const TTexture& Texture,SoyPixelsFormat::Type PixelFormat);
 	SoyPixelsFormat::Type	GetDownloadPixelFormat(GLenum Format);
+	void					GetReadPixelsFormats(ArrayBridge<GLenum>&& Formats);	//	glReadPixels has a limited range of formats. Array[channelcount] = format
 
 	//	helpers
 	void	ClearColour(Soy::TRgb Colour,float Alpha=1);
@@ -163,17 +166,22 @@ public:
 	TUniform(const std::string& Name=std::string()) :
 		Soy::TUniform	( Name, std::string() ),
 		mIndex			( GL_UNIFORM_INVALID ),
-		mType			( GL_ASSET_INVALID ),
+		mTypeEnum		( GL_ASSET_INVALID ),
 		mArraySize		( 0 )
 	{
 	}
 	
 	bool		IsValid() const	{	return mIndex != GL_UNIFORM_INVALID;	}
 	bool		operator==(const std::string& Name) const	{	return mName == Name;	}
-	
-	GLenum		mType;
+	void		SetType(GLenum Type)	{	mTypeEnum = Type;	mType = GetEnumString(Type);	}
+	GLenum		GetTypeEnum() const		{	return mTypeEnum;	}
+
+public:
 	GLsizei		mArraySize;	//	for arrays of mType
 	GLint		mIndex;		//	attrib index
+
+private:	//	gr: private to catch refactoring
+	GLenum		mTypeEnum;
 };
 namespace Opengl
 {
@@ -194,6 +202,7 @@ public:
 	size_t							GetDataSize() const;	//	size of vertex struct
 	size_t							GetOffset(size_t ElementIndex) const;
 	size_t							GetStride(size_t ElementIndex) const;
+	size_t							GetVertexSize() const;
 
 	void							EnableAttribs(bool Enable=true) const;
 	void							DisableAttribs() const				{	EnableAttribs(false);	}
@@ -217,6 +226,8 @@ public:
 	}
 	
 	bool	IsValid() const		{	return mName != GL_ASSET_INVALID;	}
+	bool	operator==(const TAsset& Asset) const	{	return mName == Asset.mName;	}
+	bool	operator!=(const TAsset& Asset) const	{	return mName != Asset.mName;	}
 	
 	GLuint	mName;
 };
@@ -262,18 +273,21 @@ public:
 
 //	clever class which does the binding, auto texture mapping, and unbinding
 //	why? so we can use const TShaders and share them across threads
-class Opengl::TShaderState : public Soy::TUniformContainer
+class Opengl::TShaderState : public Soy::TUniformContainer//, public NonCopyable
 {
 public:
 	TShaderState(const TShader& Shader);
 	~TShaderState();
 	
+	virtual bool	SetUniform(const char* Name,const int& v) override;
 	virtual bool	SetUniform(const char* Name,const float& v) override;
 	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
+	virtual bool	SetUniform(const char* Name,const vec3f& v) override;
 	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
 	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& Texture);	//	special case which tracks how many textures are bound
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override	{	return SetUniform( Name, Texture.mTexture );	}
 	bool			SetUniform(const char* Name,const float3x3& v);
+	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& Texture) override	{	return Soy_AssertTodo();	}
 
 	template<typename TYPE>
 	bool	SetUniform(const std::string& Name,const TYPE& v)
@@ -321,7 +335,7 @@ public:
 class Opengl::TGeometry
 {
 public:
-	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex);
+	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const Opengl::TGeometryVertex& Vertex);
 	~TGeometry();
 
 	void	Draw();
@@ -444,7 +458,7 @@ public:
 		return *this;
 	}
 
-	SoyPixelsMeta		GetInternalMeta(GLenum& Type);	//	read meta from opengl
+	SoyPixelsMeta		GetInternalMeta(GLenum& Type) const;	//	read meta from opengl
 
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 	size_t				GetWidth() const	{	return mMeta.GetWidth();	}
@@ -456,13 +470,17 @@ public:
 	bool				IsValid(bool InvasiveTest=true) const;	//	only use InvasiveTest on opengl threads
 	void				Delete();
 	void				Write(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
-	void				Read(SoyPixelsImpl& Pixels) const;
+	void				Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat=SoyPixelsFormat::Invalid,bool Flip=true) const;
 	void				SetRepeat(bool Repeat=true);
+	void				SetFilter(bool Linear);		//	as soon as we need it, implement min/mag options and mipmap levels rather than nearest/linear
 	void				SetClamped()				{	SetRepeat(false);	}
 	void				GenerateMipMaps();
 
 	void				OnWrite();
 	
+	bool				operator==(const TTexture& that) const	{	return mTexture == that.mTexture;	}
+	bool				operator!=(const TTexture& that) const	{	return mTexture != that.mTexture;	}
+
 public:
 	bool				mAutoRelease;
 	std::shared_ptr<SoyPixelsImpl>	mClientBuffer;	//	for CPU-buffered textures, it's kept here. ownership should go with mAutoRelease, but shared_ptr maybe takes care of that?

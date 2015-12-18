@@ -537,11 +537,10 @@ Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture Existi
 }
 
 
-bool Opengl::TRenderTargetFbo::Bind()
+void Opengl::TRenderTargetFbo::Bind()
 {
-	if ( !mFbo )
-		return false;
-	return mFbo->Bind();
+	Soy::Assert( mFbo!=nullptr, "FBO expected in render target");
+	mFbo->Bind();
 }
 
 void Opengl::TRenderTargetFbo::Unbind()

@@ -20,8 +20,9 @@ public:
 		mSize			( BUFFERSIZE )
 	{
 	}
+	//	gr: null if zero. should this be in just GetArray() ?
 	explicit FixedRemoteArray(T* Buffer,const size_t BufferSize) :
-		mData		( Buffer ),
+		mData		( (BufferSize>0) ? Buffer : nullptr ),
 		mSize		( BufferSize )
 	{
 	}
