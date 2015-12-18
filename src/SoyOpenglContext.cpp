@@ -255,28 +255,13 @@ void SetUnsupportedFunction(FUNCTION& Function,const char* Name,RETURN Return)
 }
 
 
+//	android's egl function lookup returns a function pointer, not a void pointer
+template<typename FUNCTYPE>
 #if defined(TARGET_ANDROID)
-
-/*
-void SetFunction(void (* xxxx)())
-{
-	//FUNCTYPE* ff = (FUNCTYPE*)x;
-	//f = ff;
-}
-*/
-template<typename FUNCTYPE>
-void SetFunction(std::function<FUNCTYPE>& f,void (* xxxx)() )
-{
-	if ( !xxxx )
-		throw Soy::AssertException("Function not found");
-	
-	FUNCTYPE* ff = (FUNCTYPE*)xxxx;
-	f = ff;
-}
-
+void SetFunction(std::function<FUNCTYPE>& f,void (* x)(),const char* FunctionName)
 #else
-template<typename FUNCTYPE>
 void SetFunction(std::function<FUNCTYPE>& f,void* x,const char* FunctionName)
+#endif
 {
 	if ( !x )
 	{
@@ -288,7 +273,6 @@ void SetFunction(std::function<FUNCTYPE>& f,void* x,const char* FunctionName)
 	FUNCTYPE* ff = (FUNCTYPE*)x;
 	f = ff;
 }
-#endif
 
 
 
@@ -435,7 +419,7 @@ void Opengl::TContext::BindDrawBuffersExtension()
 		auto RealFunction = glDrawBuffers;
 		//	does not exist on ES2, but dont need to replace it
 	#elif defined(TARGET_IOS) || defined(TARGET_ANDROID)
-		auto RealFunction = [](GLsizei,const GLenum *){}
+		auto RealFunction = [](GLsizei,const GLenum *){};
 		if ( mVersion.mMajor <= 2 )
 		{
 			ForceUnsupported = true;
