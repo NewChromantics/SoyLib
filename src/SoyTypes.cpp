@@ -240,15 +240,26 @@ const uint32_t TCrc32::Crc32Table[256] = {
 }; // kCrc32Table
 
 
-int Soy::Platform::GetLastError()
+int Soy::Platform::GetLastError(bool FlushError)
 {
 #if defined(TARGET_WINDOWS)
-	return ::GetLastError();
+	auto Error = ::GetLastError();
 #else
-	//	gr: pop error number. This seems to be getting left set as an error after a successfull winsock call...
 	int Error = errno;
-	errno = 0;
+#endif
+
+	if ( FlushError )
+		FlushLastError();
+
 	return Error;
+}
+
+void Soy::Platform::FlushLastError()
+{
+#if defined(TARGET_WINDOWS)
+	::SetLastError(0);
+#else
+	errno = 0;
 #endif
 }
 

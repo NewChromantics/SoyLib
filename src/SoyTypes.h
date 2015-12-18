@@ -279,7 +279,8 @@ namespace Soy
 	{
 		bool				Init();
 
-		int					GetLastError();
+		void				FlushLastError();
+		int					GetLastError(bool Flush=true);	//	gr: default on OSX was flushing for winsock...
 		std::string			GetErrorString(int Error);
 #if defined(TARGET_WINDOWS)
 		std::string			GetErrorString(HRESULT Error);
