@@ -2,6 +2,9 @@
 
 
 #include "SoyTypes.h"
+
+#define MATHFU_COMPILE_WITHOUT_SIMD_SUPPORT
+
 #include "mathfu/vector.h"
 #include "mathfu/vector_2.h"
 #include "mathfu/vector_3.h"
