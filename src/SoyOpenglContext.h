@@ -17,9 +17,12 @@ namespace OpenglExtensions
 		AppleClientStorage,
 		VertexArrayObjects,
 		VertexBuffers,
+
+		//	gr: change these funcs to a collection
 		DrawBuffers,
-		GenFrameBuffers,
-		BindFrameBuffer,
+
+		FrameBuffers,
+
 		ImageExternal,
 		ImageExternalSS3,
 	};
@@ -46,8 +49,14 @@ namespace Opengl
 	extern std::function<void(GLsizei,const GLuint*)>	DeleteVertexArrays;
 	extern std::function<GLboolean(GLuint)>				IsVertexArray;
 	
-	extern std::function<void(GLsizei,GLuint*)>			GenFrameBuffers;
-	extern std::function<void(GLenum,GLuint)>			BindFrameBuffer;
+	extern std::function<void(GLsizei,GLuint*)>			GenFramebuffers;
+	extern std::function<void(GLenum,GLuint)>			BindFramebuffer;
+	extern std::function<void(GLenum,GLenum,GLenum,GLuint,GLint)>	FramebufferTexture2D;
+	extern std::function<void(GLsizei,const GLuint*)>	DeleteFramebuffers;
+	extern std::function<GLboolean(GLuint)>				IsFramebuffer;
+	extern std::function<GLenum(GLenum)>				CheckFramebufferStatus;
+	extern std::function<void(GLenum,GLenum,GLenum,GLint*)>		GetFramebufferAttachmentParameteriv;
+
 	extern std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
 };
 
@@ -70,15 +79,18 @@ public:
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
 	
-	void			BindVertexArrayObjectsExtension();
-	void			BindDrawBuffersExtension();
-	void			BindGenFrameBuffersExtension();
-	void			BindBindFrameBuffersExtension();
 
 #if defined(TARGET_OSX)
 	virtual CGLContextObj	GetPlatformContext()	{	return nullptr;	}
 #endif
 	
+private:
+	void			BindVertexArrayObjectsExtension();
+	void			BindDrawBuffersExtension();
+	void			BindFramebuffersExtension();
+
+	void			BindExtension(OpenglExtensions::Type Extension,std::function<void(bool)> BindFunctions,std::function<void(void)> BindUnsupportedFunctions);
+
 public:
 	Soy::TVersion	mVersion;
 	Soy::TVersion	mShaderVersion;	//	max version supported

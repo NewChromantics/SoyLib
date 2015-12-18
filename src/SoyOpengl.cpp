@@ -455,14 +455,14 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	
 	//std::Debug << "Creating FBO " << mFboMeta << ", texture name: " << mFboTextureName << std::endl;
 	Opengl_IsOkayFlush();
-	Opengl::GenFrameBuffers( 1, &mFbo.mName );
+	Opengl::GenFramebuffers( 1, &mFbo.mName );
 	Opengl::IsOkay("FBO glGenFramebuffers");
-	Opengl::BindFrameBuffer( GL_FRAMEBUFFER, mFbo.mName );
+	Opengl::BindFramebuffer( GL_FRAMEBUFFER, mFbo.mName );
 	Opengl::IsOkay("FBO glBindFramebuffer2");
 
 	GLint MipLevel = 0;
 	if ( mType == GL_TEXTURE_2D )
-		glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, MipLevel );
+		Opengl::FramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, MipLevel );
 	else
 		throw Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
@@ -493,7 +493,7 @@ void Opengl::TFbo::Delete(Opengl::TContext &Context,bool Blocking)
 	GLuint FboName = mFbo.mName;
 	auto DefferedDelete = [FboName]
 	{
-		glDeleteFramebuffers( 1, &FboName );
+		Opengl::DeleteFramebuffers( 1, &FboName );
 		Opengl::IsOkay("Deffered FBO delete");
 	};
 
@@ -519,7 +519,7 @@ void Opengl::TFbo::Delete()
 		//	gr: this often gives an error that shouldn't occur, try flushing
 		Opengl_IsOkayFlush();
 		
-		glDeleteFramebuffers( 1, &mFbo.mName );
+		Opengl::DeleteFramebuffers( 1, &mFbo.mName );
 		Opengl::IsOkay("glDeleteFramebuffers", false);
 		mFbo.mName = GL_ASSET_INVALID;
 	}
@@ -546,12 +546,12 @@ bool Opengl::TFbo::Bind()
 {
 	Opengl_IsOkayFlush();
 
-	bool IsFrameBuffer = glIsFramebuffer(mFbo.mName);
+	bool IsFrameBuffer = Opengl::IsFramebuffer(mFbo.mName);
 	Opengl_IsOkay();
 	if ( !Soy::Assert( IsFrameBuffer, "Frame buffer no longer valid" ) )
 		return false;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, mFbo.mName );
+	Opengl::BindFramebuffer(GL_FRAMEBUFFER, mFbo.mName );
 	Opengl_IsOkay();
 	
 	glDisable( GL_DEPTH_TEST );
@@ -571,7 +571,7 @@ bool Opengl::TFbo::Bind()
 
 void Opengl::TFbo::CheckStatus()
 {
-	auto FrameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	auto FrameBufferStatus = Opengl::CheckFramebufferStatus(GL_FRAMEBUFFER);
 	Opengl::IsOkay("glCheckFramebufferStatus");
 	Soy::Assert(FrameBufferStatus == GL_FRAMEBUFFER_COMPLETE, "DIdn't complete framebuffer setup");
 
@@ -582,7 +582,7 @@ void Opengl::TFbo::CheckStatus()
 void Opengl::TFbo::Unbind()
 {
 	CheckStatus();
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	Opengl::BindFramebuffer(GL_FRAMEBUFFER, 0);
 	Opengl_IsOkay();
 }
 
@@ -593,7 +593,7 @@ size_t Opengl::TFbo::GetAlphaBits() const
 	return 0;
 #else
 	GLint AlphaSize = -1;
-	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE, &AlphaSize );
+	Opengl::GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE, &AlphaSize );
 	Opengl::IsOkay("Get FBO GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE");
 	std::Debug << "FBO has " << AlphaSize << " alpha bits" << std::endl;
 

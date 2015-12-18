@@ -52,6 +52,8 @@
 #error expected GLEW_STATIC to be defined
 #endif
 #pragma comment(lib,"opengl32.lib")
+//#include <gl/GL.h>
+//#include "gl/glext.h"
 #include <GL/glew.h>
 #endif
 
