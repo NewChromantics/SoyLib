@@ -41,6 +41,8 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 	{	OpenglExtensions::VertexArrayObjects,	"GL_OES_vertex_array_object"	},
 #endif
 	{	OpenglExtensions::DrawBuffers,			"glDrawBuffer"	},
+	{	OpenglExtensions::GenFrameBuffers,		"glGenFramebuffers"	},
+	{	OpenglExtensions::BindFrameBuffer,		"glBindFrameBuffers"	},
 	{	OpenglExtensions::ImageExternal,		"GL_OES_EGL_image_external"	},
 	{	OpenglExtensions::ImageExternalSS3,		"GL_OES_EGL_image_external_essl3"	},
 };
@@ -61,6 +63,8 @@ namespace Opengl
 	std::function<GLboolean(GLuint)>			IsVertexArray;
 	
 	std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
+	std::function<void(GLenum,GLuint)>			BindFrameBuffer;
+	std::function<void(GLsizei,GLuint*)>		GenFrameBuffers;
 }
 
 
@@ -338,19 +342,21 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 }
 
 
-void Opengl::TContext::BindVertexBuffersExtension()
+namespace Opengl
 {
-	auto Extension = OpenglExtensions::DrawBuffers;
-	
-	//	does not exist on ES2, but dont need to replace it
-#if defined(TARGET_IOS) || defined(TARGET_ANDROID)
-	if ( mVersion.mMajor <= 2 )
+	template<typename BINDFUNCTIONTYPE,typename REALFUNCTIONTYPE>
+	void	BindExtension(BINDFUNCTIONTYPE& BindFunction,OpenglExtensions::Type Extension,const std::initializer_list<const char*>& FunctionNames,REALFUNCTIONTYPE RealFunction,bool ForceUnsupported);
+}
+
+
+template<typename BINDFUNCTIONTYPE,typename REALFUNCTIONTYPE>
+void Opengl::BindExtension(BINDFUNCTIONTYPE& BindFunction,OpenglExtensions::Type Extension,const std::initializer_list<const char*>& FunctionNames,REALFUNCTIONTYPE RealFunction,bool ForceUnsupported)
+{
+	if ( ForceUnsupported )
 	{
-		DrawBuffers = [](GLsizei,const GLenum *){};
 		SupportedExtensions[Extension] = false;
-		return;
+		BindFunction = RealFunction;
 	}
-#endif
 
 	//	explicitly supported without an extension
 	bool IsSupported = true;
@@ -361,17 +367,32 @@ void Opengl::TContext::BindVertexBuffersExtension()
 	{
 		try
 		{
-#if defined(TARGET_OSX)
-			DrawBuffers = glDrawBuffersARB;
-#elif defined(TARGET_WINDOWS)
-			SetFunction( DrawBuffers, wglGetProcAddress("glDrawBuffers") );
+			bool Success = false;	//	gr; can replace with BindFunction != null?
+			std::string LastError;
+			//	try each name until we get a non-throwing case
+			for ( auto FunctionName : FunctionNames )
+			{
+				try
+				{
+#if defined(TARGET_WINDOWS)
+					SetFunction( BindFunction, wglGetProcAddress(FunctionName) );
 #elif defined(TARGET_ANDROID)
-			SetFunction( DrawBuffers, eglGetProcAddress("glDrawBuffers") );
-#elif defined(TARGET_IOS) && (OPENGL_ES==3)
-			DrawBuffers = glDrawBuffers;
+					SetFunction( BindFunction, eglGetProcAddress(FunctionName) );
 #else
-			throw Soy::AssertException("Support unknown on this platform");
+					if ( RealFunction == nullptr )
+						throw Soy::AssertException("No function on this platform");
+					BindFunction = RealFunction;
 #endif
+					Success = true;
+					break;
+				}
+				catch(std::exception& e)
+				{
+					LastError = e.what();
+				}
+			}
+			if ( !Success )
+				throw Soy::AssertException( LastError );
 		}
 		catch ( std::exception& e )
 		{
@@ -384,10 +405,71 @@ void Opengl::TContext::BindVertexBuffersExtension()
 	if ( !IsSupported )
 	{
 		SupportedExtensions[Extension] = false;
-		SetUnsupportedFunction(DrawBuffers, "glDrawBuffers" );
+		std::stringstream FunctionNameDisplay;
+		bool First = true;
+		for ( auto FunctionName : FunctionNames )
+		{
+			if ( !First )
+				FunctionNameDisplay << "/";
+			First = false;
+			FunctionNameDisplay << FunctionName;
+		}
+		SetUnsupportedFunction( BindFunction, FunctionNameDisplay.str().c_str() );
 	}
 	
 }
+
+void Opengl::TContext::BindDrawBuffersExtension()
+{
+	bool ForceUnsupported = false;
+#if defined(TARGET_OSX)
+	auto RealFunction = glDrawBuffersARB;
+#elif defined(TARGET_IOS) && (OPENGL_ES==3)
+	auto RealFunction = glDrawBuffers;
+	//	does not exist on ES2, but dont need to replace it
+#elif defined(TARGET_IOS) || defined(TARGET_ANDROID)
+	auto RealFunction = [](GLsizei,const GLenum *){}
+	if ( mVersion.mMajor <= 2 )
+	{
+		ForceUnsupported = true;
+	}
+#else
+	auto RealFunction = nullptr;
+#endif
+
+	BindExtension( DrawBuffers, OpenglExtensions::DrawBuffers, {"glDrawBuffers"}, RealFunction, ForceUnsupported );
+}
+
+
+void Opengl::TContext::BindGenFrameBuffersExtension()
+{
+	bool ForceUnsupported = false;
+
+	//	with unity opengl core mode on windows, this function doesnt exist, so generate it
+#if defined(TARGET_WINDOWS)
+	auto RealFunction = nullptr;
+#else
+	auto RealFunction = glGenFrameBuffers;
+#endif
+
+	BindExtension( GenFrameBuffers, OpenglExtensions::GenFrameBuffers, {"glGenFramebuffers","glGenFramebuffersEXT"}, RealFunction, ForceUnsupported );
+}
+
+
+void Opengl::TContext::BindBindFrameBuffersExtension()
+{
+	bool ForceUnsupported = false;
+
+	//	with unity opengl core mode on windows, this function doesnt exist, so generate it
+#if defined(TARGET_WINDOWS)
+	auto RealFunction = nullptr;
+#else
+	auto RealFunction = glBindFrameBuffer;
+#endif
+	
+	BindExtension( BindFrameBuffer, OpenglExtensions::BindFrameBuffer, {"glBindFramebuffer"}, RealFunction, ForceUnsupported );
+}
+
 
 
 
@@ -456,8 +538,10 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		
 		//	setup extensions
 		pContext->BindVertexArrayObjectsExtension();
-		pContext->BindVertexBuffersExtension();
-		
+		pContext->BindDrawBuffersExtension();
+		pContext->BindGenFrameBuffersExtension();
+		pContext->BindBindFrameBuffersExtension();
+	
 		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
 		SupportedExtensions[OpenglExtensions::Invalid] = false;
 		

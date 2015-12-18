@@ -455,9 +455,9 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	
 	//std::Debug << "Creating FBO " << mFboMeta << ", texture name: " << mFboTextureName << std::endl;
 	Opengl_IsOkayFlush();
-	glGenFramebuffers( 1, &mFbo.mName );
+	Opengl::GenFrameBuffers( 1, &mFbo.mName );
 	Opengl::IsOkay("FBO glGenFramebuffers");
-	glBindFramebuffer( GL_FRAMEBUFFER, mFbo.mName );
+	Opengl::BindFrameBuffer( GL_FRAMEBUFFER, mFbo.mName );
 	Opengl::IsOkay("FBO glBindFramebuffer2");
 
 	GLint MipLevel = 0;

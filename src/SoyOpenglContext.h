@@ -18,6 +18,8 @@ namespace OpenglExtensions
 		VertexArrayObjects,
 		VertexBuffers,
 		DrawBuffers,
+		GenFrameBuffers,
+		BindFrameBuffer,
 		ImageExternal,
 		ImageExternalSS3,
 	};
@@ -44,6 +46,8 @@ namespace Opengl
 	extern std::function<void(GLsizei,const GLuint*)>	DeleteVertexArrays;
 	extern std::function<GLboolean(GLuint)>				IsVertexArray;
 	
+	extern std::function<void(GLsizei,GLuint*)>			GenFrameBuffers;
+	extern std::function<void(GLenum,GLuint)>			BindFrameBuffer;
 	extern std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
 };
 
@@ -67,7 +71,9 @@ public:
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
 	
 	void			BindVertexArrayObjectsExtension();
-	void			BindVertexBuffersExtension();
+	void			BindDrawBuffersExtension();
+	void			BindGenFrameBuffersExtension();
+	void			BindBindFrameBuffersExtension();
 
 #if defined(TARGET_OSX)
 	virtual CGLContextObj	GetPlatformContext()	{	return nullptr;	}
