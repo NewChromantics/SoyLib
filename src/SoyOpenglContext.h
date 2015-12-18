@@ -17,12 +17,9 @@ namespace OpenglExtensions
 		AppleClientStorage,
 		VertexArrayObjects,
 		VertexBuffers,
-
-		//	gr: change these funcs to a collection
 		DrawBuffers,
-
 		FrameBuffers,
-
+		GenerateMipMap,
 		ImageExternal,
 		ImageExternalSS3,
 	};
@@ -58,6 +55,8 @@ namespace Opengl
 	extern std::function<void(GLenum,GLenum,GLenum,GLint*)>		GetFramebufferAttachmentParameteriv;
 
 	extern std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
+
+	extern std::function<void(GLenum)>					GenerateMipmap;
 };
 
 
@@ -88,6 +87,7 @@ private:
 	void			BindVertexArrayObjectsExtension();
 	void			BindDrawBuffersExtension();
 	void			BindFramebuffersExtension();
+	void			BindGenerateMipMapExtension();
 
 	void			BindExtension(OpenglExtensions::Type Extension,std::function<void(bool)> BindFunctions,std::function<void(void)> BindUnsupportedFunctions);
 

@@ -40,10 +40,11 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 #elif defined(TARGET_ANDROID) || defined(TARGET_IOS)
 	{	OpenglExtensions::VertexArrayObjects,	"GL_OES_vertex_array_object"	},
 #endif
-	{	OpenglExtensions::DrawBuffers,			"glDrawBuffer"	},
-	{	OpenglExtensions::FrameBuffers,			"glGenFramebuffers"	},
+	{	OpenglExtensions::DrawBuffers,			"DrawBuffers"	},
+	{	OpenglExtensions::FrameBuffers,			"FrameBuffers"	},
 	{	OpenglExtensions::ImageExternal,		"GL_OES_EGL_image_external"	},
 	{	OpenglExtensions::ImageExternalSS3,		"GL_OES_EGL_image_external_essl3"	},
+	{	OpenglExtensions::GenerateMipMap,		"GenerateMipMap"	},
 };
 
 std::map<OpenglExtensions::Type,Soy::TVersion> Opengl::ImplicitExtensions =
@@ -51,6 +52,7 @@ std::map<OpenglExtensions::Type,Soy::TVersion> Opengl::ImplicitExtensions =
 	{	OpenglExtensions::VertexArrayObjects,	Soy::TVersion(3,0)	},
 	{	OpenglExtensions::DrawBuffers,			Soy::TVersion(3,0)	},
 	{	OpenglExtensions::FrameBuffers,			Soy::TVersion(3,0)	},
+	{	OpenglExtensions::GenerateMipMap,		Soy::TVersion(1,0)	},
 };
 
 
@@ -71,6 +73,8 @@ namespace Opengl
 	std::function<void(GLenum,GLenum,GLenum,GLint*)>	GetFramebufferAttachmentParameteriv;
 
 	std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
+	
+	std::function<void(GLenum)>					GenerateMipmap;
 
 }
 
@@ -267,10 +271,14 @@ void SetFunction(std::function<FUNCTYPE>& f,void (* xxxx)() )
 
 #else
 template<typename FUNCTYPE>
-void SetFunction(std::function<FUNCTYPE>& f,void* x)
+void SetFunction(std::function<FUNCTYPE>& f,void* x,const char* FunctionName)
 {
 	if ( !x )
-		throw Soy::AssertException("Function not found");
+	{
+		std::stringstream Error;
+		Error << "Function " << FunctionName << " not found";
+		throw Soy::AssertException( Error.str() );
+	}
 	
 	FUNCTYPE* ff = (FUNCTYPE*)x;
 	f = ff;
@@ -297,9 +305,9 @@ void BindFunction(BINDFUNCTIONTYPE& BindFunction,const std::initializer_list<con
 		try
 		{
 #if defined(TARGET_WINDOWS)
-			SetFunction( BindFunction, wglGetProcAddress(FunctionName) );
+			SetFunction( BindFunction, wglGetProcAddress(FunctionName), FunctionName );
 #elif defined(TARGET_ANDROID)
-			SetFunction( BindFunction, eglGetProcAddress(FunctionName) );
+			SetFunction( BindFunction, eglGetProcAddress(FunctionName), FunctionName );
 #else
 			if ( RealFunction == nullptr )
 				throw Soy::AssertException("No function on this platform");
@@ -451,6 +459,22 @@ void Opengl::TContext::BindFramebuffersExtension()
 }
 
 
+void Opengl::TContext::BindGenerateMipMapExtension()
+{
+	auto BindFunctions = [&](bool ImplicitSupport)
+	{
+		BindFunction( GenerateMipmap, {"glGenerateMipmap"}, glGenerateMipmap );
+	};
+
+	auto BindUnsupportedFunctions = []
+	{
+		SetUnsupportedFunction( GenerateMipmap, "glGenerateMipmap" );
+	};
+
+	BindExtension( OpenglExtensions::GenerateMipMap, BindFunctions, BindUnsupportedFunctions );
+}
+
+
 
 bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TContext* pContext)
 {
@@ -519,6 +543,7 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		pContext->BindVertexArrayObjectsExtension();
 		pContext->BindDrawBuffersExtension();
 		pContext->BindFramebuffersExtension();
+		pContext->BindGenerateMipMapExtension();
 	
 		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
 		SupportedExtensions[OpenglExtensions::Invalid] = false;

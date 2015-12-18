@@ -805,7 +805,7 @@ void Opengl::TTexture::GenerateMipMaps()
 	//	gr: this can be slow, highlight it
 	Soy::TScopeTimerPrint Timer("glGenerateMipmap",2);
 	
-	glGenerateMipmap( mType );
+	Opengl::GenerateMipmap( mType );
 	std::stringstream Error;
 	Error << "Texture(" << Opengl::GetEnumString(mType) << " " << mMeta << ")::GenerateMipMaps";
 	Opengl::IsOkay( Error.str(), false );
@@ -1273,7 +1273,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		Opengl::IsOkay("glTexImage2D(GL_APPLE_client_storage) glPixelStorei");
 		
 		//	gr: crashes often on OSX... only on NPOT textures?
-		//glGenerateMipmap( mType );
+		//Opengl::GenerateMipmap( mType );
 		Opengl::IsOkay( std::string(__func__) + " post mipmap" );
 		
 		Unbind();
@@ -1355,7 +1355,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		TryFunctionWithFormats( GetArrayBridge(TargetFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D !subimage", PushTexture );
 
 		//	gr: crashes often on OSX... only on NPOT textures?
-		//glGenerateMipmap( mType );
+		//Opengl::GenerateMipmap( mType );
 		Opengl::IsOkay( std::string(__func__) + " post mipmap" );
 		
 		Unbind();
