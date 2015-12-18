@@ -72,9 +72,14 @@ namespace Opengl
 	std::function<GLenum(GLenum)>					CheckFramebufferStatus;
 	std::function<void(GLenum,GLenum,GLenum,GLint*)>	GetFramebufferAttachmentParameteriv;
 
-	std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
+	std::function<void(GLsizei,const GLenum *)>		DrawBuffers;
 	
-	std::function<void(GLenum)>					GenerateMipmap;
+	std::function<void(GLenum)>						GenerateMipmap;
+
+	std::function<GLsync(GLenum,GLbitfield)>			FenceSync;
+	std::function<void(GLsync)>							DeleteSync;
+	std::function<GLboolean(GLsync)>					IsSync;
+	std::function<GLenum(GLsync,GLbitfield,GLuint64)>	ClientWaitSync;
 
 }
 
@@ -389,12 +394,34 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 		SetUnsupportedFunction(BindVertexArray, "glBindVertexArray" );
 		SetUnsupportedFunction(GenVertexArrays, "GenVertexArrays" );
 		SetUnsupportedFunction(DeleteVertexArrays, "DeleteVertexArrays" );
-		SetUnsupportedFunction(IsVertexArray, "IsVertexArray", (GLboolean)false );
+		SetUnsupportedFunction(IsVertexArray, "IsVertexArray", GLboolean() );
 	};
 
 	BindExtension( OpenglExtensions::VertexArrayObjects, BindFunctions, BindUnsupportedFunctions );
 }
 
+
+void Opengl::TContext::BindSyncExtension()
+{
+	auto BindFunctions = [&](bool ImplicitSupport)
+	{
+		BindFunction( FenceSync, {"glFenceSync"}, glFenceSync );
+		BindFunction( DeleteSync, {"glDeleteSync"}, glDeleteSync );
+		BindFunction( IsSync, {"glIsSync"}, glIsSync );
+		BindFunction( ClientWaitSync, {"glClientWaitSync"}, glClientWaitSync );
+	};
+
+	auto BindUnsupportedFunctions = []
+	{
+		//	gr: set error/throw function wrappers
+		SetUnsupportedFunction(FenceSync, "glFenceSync", GLsync() );
+		SetUnsupportedFunction(DeleteSync, "glDeleteSync" );
+		SetUnsupportedFunction(IsSync, "glIsSync", GLboolean() );
+		SetUnsupportedFunction(ClientWaitSync, "glClientWaitSync", GLenum() );
+	};
+
+	BindExtension( OpenglExtensions::Sync, BindFunctions, BindUnsupportedFunctions );
+}
 
 
 void Opengl::TContext::BindDrawBuffersExtension()
@@ -544,6 +571,7 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		pContext->BindDrawBuffersExtension();
 		pContext->BindFramebuffersExtension();
 		pContext->BindGenerateMipMapExtension();
+		pContext->BindSyncExtension();
 	
 		//	force an entry so this won't be initialised again (for platforms with no extensions specified)
 		SupportedExtensions[OpenglExtensions::Invalid] = false;

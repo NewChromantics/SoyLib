@@ -22,6 +22,7 @@ namespace OpenglExtensions
 		GenerateMipMap,
 		ImageExternal,
 		ImageExternalSS3,
+		Sync,
 	};
 	
 	DECLARE_SOYENUM( OpenglExtensions );
@@ -57,6 +58,11 @@ namespace Opengl
 	extern std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
 
 	extern std::function<void(GLenum)>					GenerateMipmap;
+
+	extern std::function<GLsync(GLenum,GLbitfield)>		FenceSync;
+	extern std::function<void(GLsync)>					DeleteSync;
+	extern std::function<GLboolean(GLsync)>				IsSync;
+	extern std::function<GLenum(GLsync,GLbitfield,GLuint64)>	ClientWaitSync;
 };
 
 
@@ -88,6 +94,7 @@ private:
 	void			BindDrawBuffersExtension();
 	void			BindFramebuffersExtension();
 	void			BindGenerateMipMapExtension();
+	void			BindSyncExtension();
 
 	void			BindExtension(OpenglExtensions::Type Extension,std::function<void(bool)> BindFunctions,std::function<void(void)> BindUnsupportedFunctions);
 

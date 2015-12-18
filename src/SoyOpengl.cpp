@@ -1840,10 +1840,17 @@ void Opengl::TGeometry::Bind()
 void Opengl::TGeometry::Unbind()
 {
 	//	unbinding so nothing alters it
+	//	gr: if we don't unbind on windows, we crash in nvidia driver (win7)
 #if defined(TARGET_IOS)|| defined(TARGET_WINDOWS)
-	Opengl::BindVertexArray( 0 );
-	Opengl_IsOkay();
+	static bool DoUnbind = true;
+#else
+	static bool DoUnbind = false;
 #endif
+	if ( DoUnbind )
+	{
+		Opengl::BindVertexArray( 0 );
+		Opengl_IsOkay();
+	}
 }
 
 
@@ -1857,12 +1864,18 @@ void Opengl::TGeometry::Draw()
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
 	Opengl_IsOkay();
 
-#if !defined(TARGET_IOS)
-	//	should be left enabled
-	mVertexDescription.EnableAttribs();
-	Opengl_IsOkay();
+#if defined(TARGET_IOS)
+	static bool EnableAttribs = false;
+#else
+	static bool EnableAttribs = true;
 #endif
-	
+	if ( EnableAttribs )
+	{
+		//	should be left enabled
+		mVertexDescription.EnableAttribs();
+		Opengl_IsOkay();
+	}
+
 	//	gr: shouldn't use this, only for debug
 	//glDrawArrays( GL_TRIANGLES, 0, this->vertexCount );
 	//Opengl_IsOkay();
@@ -2097,10 +2110,11 @@ void Opengl::ClearColour(Soy::TRgb Colour,float Alpha)
 Opengl::TSync::TSync(bool Create) :
 	mSyncObject	( nullptr )
 {
+	//	gr: swap this for Context::IsSupported
 	if ( Create )
 #if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	{
-		mSyncObject = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+		mSyncObject = Opengl::FenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
 		Opengl::IsOkay("glFenceSync");
 	}
 #else
@@ -2115,7 +2129,7 @@ void Opengl::TSync::Delete()
 #if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	if ( mSyncObject )
 	{
-		glDeleteSync( mSyncObject );
+		Opengl::DeleteSync( mSyncObject );
 		Opengl::IsOkay("glDeleteSync");
 		mSyncObject = nullptr;
 	}
@@ -2127,7 +2141,7 @@ void Opengl::TSync::Delete()
 void Opengl::TSync::Wait(const char* TimerName)
 {
 #if (OPENGL_ES==3) || (OPENGL_CORE==3)
-	if ( !glIsSync( mSyncObject ) )
+	if ( !Opengl::IsSync( mSyncObject ) )
 		return;
 	
 	//glWaitSync( mSyncObject, 0, GL_TIMEOUT_IGNORED );
@@ -2137,7 +2151,7 @@ void Opengl::TSync::Wait(const char* TimerName)
 	GLenum Result = GL_INVALID_ENUM;
 	do
 	{
-		Result = glClientWaitSync( mSyncObject, Flags, TimeoutNs );
+		Result = Opengl::ClientWaitSync( mSyncObject, Flags, TimeoutNs );
 	}
 	while ( Result == GL_TIMEOUT_EXPIRED );
 	
