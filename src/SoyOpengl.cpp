@@ -455,14 +455,14 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	
 	//std::Debug << "Creating FBO " << mFboMeta << ", texture name: " << mFboTextureName << std::endl;
 	Opengl_IsOkayFlush();
-	glGenFramebuffers( 1, &mFbo.mName );
+	Opengl::GenFramebuffers( 1, &mFbo.mName );
 	Opengl::IsOkay("FBO glGenFramebuffers");
-	glBindFramebuffer( GL_FRAMEBUFFER, mFbo.mName );
+	Opengl::BindFramebuffer( GL_FRAMEBUFFER, mFbo.mName );
 	Opengl::IsOkay("FBO glBindFramebuffer2");
 
 	GLint MipLevel = 0;
 	if ( mType == GL_TEXTURE_2D )
-		glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, MipLevel );
+		Opengl::FramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, MipLevel );
 	else
 		throw Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
@@ -493,7 +493,7 @@ void Opengl::TFbo::Delete(Opengl::TContext &Context,bool Blocking)
 	GLuint FboName = mFbo.mName;
 	auto DefferedDelete = [FboName]
 	{
-		glDeleteFramebuffers( 1, &FboName );
+		Opengl::DeleteFramebuffers( 1, &FboName );
 		Opengl::IsOkay("Deffered FBO delete");
 	};
 
@@ -519,7 +519,7 @@ void Opengl::TFbo::Delete()
 		//	gr: this often gives an error that shouldn't occur, try flushing
 		Opengl_IsOkayFlush();
 		
-		glDeleteFramebuffers( 1, &mFbo.mName );
+		Opengl::DeleteFramebuffers( 1, &mFbo.mName );
 		Opengl::IsOkay("glDeleteFramebuffers", false);
 		mFbo.mName = GL_ASSET_INVALID;
 	}
@@ -546,12 +546,12 @@ bool Opengl::TFbo::Bind()
 {
 	Opengl_IsOkayFlush();
 
-	bool IsFrameBuffer = glIsFramebuffer(mFbo.mName);
+	bool IsFrameBuffer = Opengl::IsFramebuffer(mFbo.mName);
 	Opengl_IsOkay();
 	if ( !Soy::Assert( IsFrameBuffer, "Frame buffer no longer valid" ) )
 		return false;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, mFbo.mName );
+	Opengl::BindFramebuffer(GL_FRAMEBUFFER, mFbo.mName );
 	Opengl_IsOkay();
 	
 	glDisable( GL_DEPTH_TEST );
@@ -571,7 +571,7 @@ bool Opengl::TFbo::Bind()
 
 void Opengl::TFbo::CheckStatus()
 {
-	auto FrameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	auto FrameBufferStatus = Opengl::CheckFramebufferStatus(GL_FRAMEBUFFER);
 	Opengl::IsOkay("glCheckFramebufferStatus");
 	Soy::Assert(FrameBufferStatus == GL_FRAMEBUFFER_COMPLETE, "DIdn't complete framebuffer setup");
 
@@ -582,7 +582,7 @@ void Opengl::TFbo::CheckStatus()
 void Opengl::TFbo::Unbind()
 {
 	CheckStatus();
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	Opengl::BindFramebuffer(GL_FRAMEBUFFER, 0);
 	Opengl_IsOkay();
 }
 
@@ -593,7 +593,7 @@ size_t Opengl::TFbo::GetAlphaBits() const
 	return 0;
 #else
 	GLint AlphaSize = -1;
-	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE, &AlphaSize );
+	Opengl::GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE, &AlphaSize );
 	Opengl::IsOkay("Get FBO GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE");
 	std::Debug << "FBO has " << AlphaSize << " alpha bits" << std::endl;
 
@@ -805,7 +805,7 @@ void Opengl::TTexture::GenerateMipMaps()
 	//	gr: this can be slow, highlight it
 	Soy::TScopeTimerPrint Timer("glGenerateMipmap",2);
 	
-	glGenerateMipmap( mType );
+	Opengl::GenerateMipmap( mType );
 	std::stringstream Error;
 	Error << "Texture(" << Opengl::GetEnumString(mType) << " " << mMeta << ")::GenerateMipMaps";
 	Opengl::IsOkay( Error.str(), false );
@@ -1273,7 +1273,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		Opengl::IsOkay("glTexImage2D(GL_APPLE_client_storage) glPixelStorei");
 		
 		//	gr: crashes often on OSX... only on NPOT textures?
-		//glGenerateMipmap( mType );
+		//Opengl::GenerateMipmap( mType );
 		Opengl::IsOkay( std::string(__func__) + " post mipmap" );
 		
 		Unbind();
@@ -1355,7 +1355,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		TryFunctionWithFormats( GetArrayBridge(TargetFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D !subimage", PushTexture );
 
 		//	gr: crashes often on OSX... only on NPOT textures?
-		//glGenerateMipmap( mType );
+		//Opengl::GenerateMipmap( mType );
 		Opengl::IsOkay( std::string(__func__) + " post mipmap" );
 		
 		Unbind();
@@ -1840,10 +1840,17 @@ void Opengl::TGeometry::Bind()
 void Opengl::TGeometry::Unbind()
 {
 	//	unbinding so nothing alters it
+	//	gr: if we don't unbind on windows, we crash in nvidia driver (win7)
 #if defined(TARGET_IOS)|| defined(TARGET_WINDOWS)
-	Opengl::BindVertexArray( 0 );
-	Opengl_IsOkay();
+	static bool DoUnbind = true;
+#else
+	static bool DoUnbind = false;
 #endif
+	if ( DoUnbind )
+	{
+		Opengl::BindVertexArray( 0 );
+		Opengl_IsOkay();
+	}
 }
 
 
@@ -1857,12 +1864,18 @@ void Opengl::TGeometry::Draw()
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
 	Opengl_IsOkay();
 
-#if !defined(TARGET_IOS)
-	//	should be left enabled
-	mVertexDescription.EnableAttribs();
-	Opengl_IsOkay();
+#if defined(TARGET_IOS)
+	static bool EnableAttribs = false;
+#else
+	static bool EnableAttribs = true;
 #endif
-	
+	if ( EnableAttribs )
+	{
+		//	should be left enabled
+		mVertexDescription.EnableAttribs();
+		Opengl_IsOkay();
+	}
+
 	//	gr: shouldn't use this, only for debug
 	//glDrawArrays( GL_TRIANGLES, 0, this->vertexCount );
 	//Opengl_IsOkay();
@@ -2097,10 +2110,11 @@ void Opengl::ClearColour(Soy::TRgb Colour,float Alpha)
 Opengl::TSync::TSync(bool Create) :
 	mSyncObject	( nullptr )
 {
+	//	gr: swap this for Context::IsSupported
 	if ( Create )
 #if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	{
-		mSyncObject = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+		mSyncObject = Opengl::FenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
 		Opengl::IsOkay("glFenceSync");
 	}
 #else
@@ -2115,7 +2129,7 @@ void Opengl::TSync::Delete()
 #if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	if ( mSyncObject )
 	{
-		glDeleteSync( mSyncObject );
+		Opengl::DeleteSync( mSyncObject );
 		Opengl::IsOkay("glDeleteSync");
 		mSyncObject = nullptr;
 	}
@@ -2127,7 +2141,7 @@ void Opengl::TSync::Delete()
 void Opengl::TSync::Wait(const char* TimerName)
 {
 #if (OPENGL_ES==3) || (OPENGL_CORE==3)
-	if ( !glIsSync( mSyncObject ) )
+	if ( !Opengl::IsSync( mSyncObject ) )
 		return;
 	
 	//glWaitSync( mSyncObject, 0, GL_TIMEOUT_IGNORED );
@@ -2137,7 +2151,7 @@ void Opengl::TSync::Wait(const char* TimerName)
 	GLenum Result = GL_INVALID_ENUM;
 	do
 	{
-		Result = glClientWaitSync( mSyncObject, Flags, TimeoutNs );
+		Result = Opengl::ClientWaitSync( mSyncObject, Flags, TimeoutNs );
 	}
 	while ( Result == GL_TIMEOUT_EXPIRED );
 	

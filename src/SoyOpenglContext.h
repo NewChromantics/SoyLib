@@ -18,8 +18,11 @@ namespace OpenglExtensions
 		VertexArrayObjects,
 		VertexBuffers,
 		DrawBuffers,
+		FrameBuffers,
+		GenerateMipMap,
 		ImageExternal,
 		ImageExternalSS3,
+		Sync,
 	};
 	
 	DECLARE_SOYENUM( OpenglExtensions );
@@ -44,7 +47,22 @@ namespace Opengl
 	extern std::function<void(GLsizei,const GLuint*)>	DeleteVertexArrays;
 	extern std::function<GLboolean(GLuint)>				IsVertexArray;
 	
+	extern std::function<void(GLsizei,GLuint*)>			GenFramebuffers;
+	extern std::function<void(GLenum,GLuint)>			BindFramebuffer;
+	extern std::function<void(GLenum,GLenum,GLenum,GLuint,GLint)>	FramebufferTexture2D;
+	extern std::function<void(GLsizei,const GLuint*)>	DeleteFramebuffers;
+	extern std::function<GLboolean(GLuint)>				IsFramebuffer;
+	extern std::function<GLenum(GLenum)>				CheckFramebufferStatus;
+	extern std::function<void(GLenum,GLenum,GLenum,GLint*)>		GetFramebufferAttachmentParameteriv;
+
 	extern std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
+
+	extern std::function<void(GLenum)>					GenerateMipmap;
+
+	extern std::function<GLsync(GLenum,GLbitfield)>		FenceSync;
+	extern std::function<void(GLsync)>					DeleteSync;
+	extern std::function<GLboolean(GLsync)>				IsSync;
+	extern std::function<GLenum(GLsync,GLbitfield,GLuint64)>	ClientWaitSync;
 };
 
 
@@ -66,13 +84,20 @@ public:
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
 	
-	void			BindVertexArrayObjectsExtension();
-	void			BindVertexBuffersExtension();
 
 #if defined(TARGET_OSX)
 	virtual CGLContextObj	GetPlatformContext()	{	return nullptr;	}
 #endif
 	
+private:
+	void			BindVertexArrayObjectsExtension();
+	void			BindDrawBuffersExtension();
+	void			BindFramebuffersExtension();
+	void			BindGenerateMipMapExtension();
+	void			BindSyncExtension();
+
+	void			BindExtension(OpenglExtensions::Type Extension,std::function<void(bool)> BindFunctions,std::function<void(void)> BindUnsupportedFunctions);
+
 public:
 	Soy::TVersion	mVersion;
 	Soy::TVersion	mShaderVersion;	//	max version supported

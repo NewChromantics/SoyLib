@@ -552,7 +552,6 @@ public:
 	bool							CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyframe);
 
 protected:
-	void							OnEof();
 	void							OnError(const std::string& Error);
 	void							OnClearError();
 	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)	{	mOnStreamsChanged.OnTriggered( Streams );	}

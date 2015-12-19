@@ -631,11 +631,6 @@ void TMediaExtractor::Seek(SoyTime Time)
 	Wake();
 }
 
-void TMediaExtractor::OnEof()
-{
-	//	stop the thread?
-	//std::Debug << "Media extractor EOF" << std::endl;
-}
 
 void TMediaExtractor::OnError(const std::string& Error)
 {
@@ -685,9 +680,14 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			//	if we successfully read a packet, clear the last error
 			OnClearError();
 
-			//	temp
+			//	todo handling stream EOF
 			if ( NextPacket->mEof )
+			{
+				//	slow down the now-idle-ish thread
+				static int SleepEofMs = 400;
+				std::this_thread::sleep_for( std::chrono::milliseconds(SleepEofMs) );
 				return;
+			}
 			
 			//	block thread unless it's stopped
 			auto Block = [this,&NextPacket]()
@@ -707,10 +707,6 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			{
 				Buffer->PushPacket( NextPacket, Block );
 			}
-
-			//	end/break even for packets we don't save
-			if ( NextPacket->mEof )
-				OnEof();
 			
 			//	passed the time we were reading until, abort current loop
 			if ( NextPacket->mTimecode >= Time )
