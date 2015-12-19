@@ -50,7 +50,12 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 std::map<OpenglExtensions::Type,Soy::TVersion> Opengl::ImplicitExtensions =
 {
 	{	OpenglExtensions::VertexArrayObjects,	Soy::TVersion(3,0)	},
+	//	gr: check this is right for ES
+#if defined(OPENGL_CORE)
+	{	OpenglExtensions::DrawBuffers,			Soy::TVersion(2,0)	},
+#elif defined(OPENGL_ES)
 	{	OpenglExtensions::DrawBuffers,			Soy::TVersion(3,0)	},
+#endif
 	{	OpenglExtensions::FrameBuffers,			Soy::TVersion(3,0)	},
 	{	OpenglExtensions::GenerateMipMap,		Soy::TVersion(1,0)	},
 };
@@ -319,6 +324,9 @@ void BindExtension(bool& Supported,bool ImplicitSupport,std::function<void(bool)
 {
 	try
 	{
+		//	gr: Implicit support should set this.
+		//		Maybe we should always TRY bind functions?
+		//		perhaps this depends on whether it's a per-version-function (which has no extension) or an actual extension
 		if ( !Supported )
 			throw Soy::AssertException("Not supported");
 
@@ -417,8 +425,8 @@ void Opengl::TContext::BindDrawBuffersExtension()
 		auto RealFunction = glDrawBuffersARB;
 	#elif defined(TARGET_IOS) && (OPENGL_ES==3)
 		auto RealFunction = glDrawBuffers;
-		//	does not exist on ES2, but dont need to replace it
 	#elif defined(TARGET_IOS) || defined(TARGET_ANDROID)
+		//	does not exist on ES2, but dont need to replace it
 		auto RealFunction = [](GLsizei,const GLenum *){};
 		if ( mVersion.mMajor <= 2 )
 		{
