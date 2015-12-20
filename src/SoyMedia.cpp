@@ -1095,3 +1095,214 @@ TDumbPixelBuffer::TDumbPixelBuffer(const SoyPixelsImpl& Pixels)
 
 
 
+SoyTime TPixelBufferManager::GetNextPixelBufferTime(bool Safe)
+{
+	if ( mFrames.empty() )
+		return SoyTime();
+	
+	if ( Safe )
+	{
+		std::lock_guard<std::mutex> Lock( mFrameLock );
+		return mFrames[0].mTimestamp;
+	}
+	else
+	{
+		return mFrames[0].mTimestamp;
+	}
+}
+
+bool TPixelBufferManager::IsPixelBufferFull() const
+{
+	//	gr: avoid a lock please! just have to assume number won't be corrupt
+	auto FrameCount = mFrames.size();
+	
+	//	just in case number is corrupted due to [lack of] threadsafety
+	std::clamp<size_t>( FrameCount, 0, 100 );
+	
+	return FrameCount >= mParams.mBufferFrameSize;
+}
+
+bool TPixelBufferManager::PeekPixelBuffer(SoyTime Timestamp)
+{
+	if ( mFrames.empty() )
+		return false;
+	
+	//	if the first is in the past, or now, then we have one, otherwise it's in the future and not ready to be popped
+	//	gr: be safe, lock
+	static bool ContentionPeekResult = true;
+	if ( !mFrameLock.try_lock() )
+		return ContentionPeekResult;
+	
+	auto& NextFrameTime = mFrames[0].mTimestamp;
+	bool Result = NextFrameTime <= Timestamp;
+	
+	mFrameLock.unlock();
+	
+	return Result;
+}
+
+
+std::shared_ptr<TPixelBuffer> TPixelBufferManager::PopPixelBuffer(SoyTime& Timestamp)
+{
+	SoyTime RequestedTimestamp = Timestamp;
+	static bool AvoidLockContention = true;
+	
+	if ( AvoidLockContention )
+	{
+		//	pre-empty jump out to avoid lock contention
+		if ( mFrames.empty() )
+			return nullptr;
+	}
+	
+	//	frames are sorted so need to pick the frame closest to us in the past
+	if ( AvoidLockContention )
+	{
+		if ( !mFrameLock.try_lock() )
+			return nullptr;
+	}
+	else
+	{
+		mFrameLock.lock();
+	}
+	
+	if ( !mParams.mPopFrameSync )
+	{
+		if ( mFrames.empty() )
+		{
+			mFrameLock.unlock();
+			return nullptr;
+		}
+		
+		auto& Frame = *mFrames.begin();
+		Timestamp = Frame.mTimestamp;
+		std::shared_ptr<TPixelBuffer> LastPixelBuffer = Frame.mPixels;
+		mFrames.erase( mFrames.begin() );
+		mFrameLock.unlock();
+		return LastPixelBuffer;
+	}
+	
+	BufferArray<SoyTime,100> FramesSkipped;
+	std::shared_ptr<TPixelBuffer> LastPixelBuffer;
+	for ( auto it=mFrames.begin();	it!=mFrames.end();	)
+	{
+		auto& Frame = *it;
+		
+		if ( mParams.mPopNearestFrame )
+		{
+			//	if this frame is further away than the currently found one, abort
+			if ( LastPixelBuffer )
+			{
+				auto OldDiff = Timestamp.GetDiff( RequestedTimestamp );
+				auto NewDiff = Frame.mTimestamp.GetDiff( RequestedTimestamp );
+				if ( labs(NewDiff) > labs(OldDiff) )
+					break;
+			}
+			else
+			{
+				//	don't pop if the only frame in the buffer is in the future.
+				//	this means we'll look ahead... IF there is one ahead that's better.
+				if ( Frame.mTimestamp > RequestedTimestamp )
+					break;
+			}
+		}
+		else
+		{
+			//	future frame, stop looking
+			if ( Frame.mTimestamp > RequestedTimestamp )
+				break;
+		}
+		
+		//	in the past, pop this
+		LastPixelBuffer = Frame.mPixels;
+		Timestamp = Frame.mTimestamp;
+		FramesSkipped.PushBack( Frame.mTimestamp );
+		it = mFrames.erase( it );
+	}
+	
+	mFrameLock.unlock();
+	
+	//	gr: last frame, wasn't skipped, it was returned!
+	if ( !FramesSkipped.IsEmpty() )
+		FramesSkipped.PopBack();
+	
+	//	must have skipped a frame, report it
+	if ( !FramesSkipped.IsEmpty() )
+		mOnFramePopSkipped.OnTriggered( GetArrayBridge(FramesSkipped) );
+	
+	return LastPixelBuffer;
+}
+
+bool ComparePixelBuffers(const TPixelBufferFrame& a,const TPixelBufferFrame& b)
+{
+	return a.mTimestamp < b.mTimestamp;
+}
+
+bool TPixelBufferManager::PrePushPixelBuffer(SoyTime Timestamp)
+{
+	//	always let frame through
+	if ( !mParams.mAllowPushRejection )
+		return true;
+	
+	if ( mPlayerTime <= Timestamp )
+		return true;
+	
+	//	frame already in the past, skip
+	mOnFramePushSkipped.OnTriggered( Timestamp );
+	return false;
+}
+
+bool TPixelBufferManager::PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::function<bool()> Block)
+{
+	do
+	{
+		//	wait for frames to be popped
+		if ( mFrames.size() >= std::max<size_t>(mParams.mBufferFrameSize,1) )
+		{
+			if ( mParams.mDebugFrameSkipping )
+				std::Debug << "Frame buffer full... (" << mFrames.size() << ") " << std::endl;
+			
+			if ( !Block )
+				break;
+			
+			auto PauseMs = mParams.mPushBlockSleepMs * mFrames.size();
+			if ( mParams.mDebugFrameSkipping )
+				std::Debug << __func__ << " pausing for " << PauseMs << "ms" << std::endl;
+			std::this_thread::sleep_for( std::chrono::milliseconds(PauseMs) );
+			continue;
+		}
+		
+		mFrameLock.lock();
+		mFrames.push_back( PixelBuffer );
+		std::sort( mFrames.begin(), mFrames.end(), ComparePixelBuffers );
+		mFrameLock.unlock();
+		
+		mOnFramePushed.OnTriggered( PixelBuffer.mTimestamp );
+		return true;
+	}
+	while ( Block() );
+	
+	mOnFramePushFailed.OnTriggered( PixelBuffer.mTimestamp );
+	
+	return false;
+}
+
+
+
+void TPixelBufferManager::ReleaseFrames()
+{
+	//	free up frames
+	mFrameLock.lock();
+	//	erroenous loop, just here for debugging
+	for ( auto it=mFrames.begin();	it!=mFrames.end();	)
+	{
+		//	gr: any frames in here shouldn't be locked/in use as they should have been popped before use
+		auto& Frame = *it;
+		Frame.mPixels.reset();
+		it = mFrames.erase(it);
+	}
+	mFrames.clear();
+	mFrameLock.unlock();
+}
+
+
+
