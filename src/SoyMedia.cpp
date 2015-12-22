@@ -695,7 +695,7 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 				//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
 				if ( IsWorking() )
 				{
-					std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << std::endl;
+					//std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << std::endl;
 					std::this_thread::sleep_for( std::chrono::milliseconds(100) );
 				}
 				return IsWorking();
