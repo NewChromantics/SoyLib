@@ -85,15 +85,16 @@ namespace SoyPixelsFormat
 		Count=99,
 	};
 
-	size_t		GetChannelCount(Type Format);
-	Type		GetFormatFromChannelCount(size_t ChannelCount);
-	void		GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats);
+	inline size_t	GetBitsPerChannel(Type Format)	{	return 8;	}
+	size_t			GetChannelCount(Type Format);
+	Type			GetFormatFromChannelCount(size_t ChannelCount);
+	void			GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats);
 	
-	int			GetMaxValue(SoyPixelsFormat::Type Format);
-	int			GetMinValue(SoyPixelsFormat::Type Format);
-	int			GetInvalidValue(SoyPixelsFormat::Type Format);
-	int			GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format);
-	bool		GetIsFrontToBackDepth(SoyPixelsFormat::Type Format);
+	int				GetMaxValue(SoyPixelsFormat::Type Format);
+	int				GetMinValue(SoyPixelsFormat::Type Format);
+	int				GetInvalidValue(SoyPixelsFormat::Type Format);
+	int				GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format);
+	bool			GetIsFrontToBackDepth(SoyPixelsFormat::Type Format);
 	
 	DECLARE_SOYENUM( SoyPixelsFormat );
 };
