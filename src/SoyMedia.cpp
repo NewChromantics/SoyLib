@@ -550,6 +550,7 @@ void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 {
 	//	apparently (not seen it yet) in some formats (eg. ts) some players (eg. vlc) can't cope if DTS is same as PTS
 	static SoyTime DecodeToPresentationOffset( 1ull );
+	static bool DebugCorrection = false;
 
 	if ( !mLastPacketTimestamp.IsValid() )
 		mLastPacketTimestamp = SoyTime( 1ull ) + DecodeToPresentationOffset;
@@ -558,14 +559,16 @@ void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 	if ( !Packet.mDecodeTimecode.IsValid() )
 	{
 		Packet.mDecodeTimecode = mLastPacketTimestamp + mAutoTimestampDuration;
-		std::Debug << "Corrected incoming packet DECODE timecode; now " << Packet.mTimecode << "(PTS) and " << Packet.mDecodeTimecode << "(DTS)" << std::endl;
+		if ( DebugCorrection )
+			std::Debug << "Corrected incoming packet DECODE timecode; now " << Packet.mTimecode << "(PTS) and " << Packet.mDecodeTimecode << "(DTS)" << std::endl;
 	}
 
 	//	don't have any timecodes
 	if ( !Packet.mTimecode.IsValid() )
 	{
 		Packet.mTimecode = Packet.mDecodeTimecode + DecodeToPresentationOffset;
-		std::Debug << "Corrected incoming packet PRESENTATION timecode; now " << Packet.mTimecode << "(PTS) and " << Packet.mDecodeTimecode << "(DTS)" << std::endl;
+		if ( DebugCorrection )
+			std::Debug << "Corrected incoming packet PRESENTATION timecode; now " << Packet.mTimecode << "(PTS) and " << Packet.mDecodeTimecode << "(DTS)" << std::endl;
 	}
 
 	//	gr: store last DECODE timestamp so this basically forces packets to be ordered by decode timestamps

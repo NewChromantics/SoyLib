@@ -448,7 +448,9 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 			Meta.mAudioBitsPerChannel = AudioFormat.mBitsPerChannel;
 			
 			//	flags per format
-			std::Debug << Meta.mCodec << " sample flags: " << AudioFormat.mFormatFlags << std::endl;
+			static bool DebugFlags = false;
+			if ( DebugFlags )
+				std::Debug << Meta.mCodec << " sample flags: " << AudioFormat.mFormatFlags << std::endl;
 		}
 		else if ( SoyMediaFormat::IsAudio(Meta.mCodec) )
 		{
