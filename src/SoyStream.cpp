@@ -423,6 +423,10 @@ bool TStreamWriter::Iteration()
 	{
 		while ( !EncodingFinished || Buffer.GetBufferedSize()>0 )
 		{
+			static bool BreakIfThreadStopped = false;
+			if ( !IsWorking() && BreakIfThreadStopped )
+				break;
+			
 			try
 			{
 				Write( Buffer );
@@ -433,7 +437,7 @@ bool TStreamWriter::Iteration()
 				break;
 			}
 		}
-		Soy::Assert( Buffer.GetBufferedSize() == 0, "Still some data to write");
+		//Soy::Assert( Buffer.GetBufferedSize() == 0, "Still some data to write");
 	};
 
 	auto Future = std::async( AsyncWrite );
@@ -473,6 +477,33 @@ void TStreamWriter::Push(std::shared_ptr<Soy::TWriteProtocol> Data)
 	Wake();
 }
 
+void TStreamWriter::WaitForQueueToFinish()
+{
+	Wake();
+	
+	static int SleepMs = 100;
+	static bool BreakIfNotWorking = false;
+	static int WarningWaitTime = 3000;
+	
+	int WaitTime = 0;
+	
+	//	wait for queue to empty
+	while ( !mQueue.IsEmpty() )
+	{
+		//	if the thread has been killed... this loop may never finish...
+		if ( !IsWorking() )
+			if ( BreakIfNotWorking )
+				break;
+
+		std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
+		WaitTime += SleepMs;
+		
+		if ( WaitTime > WarningWaitTime )
+		{
+			std::Debug << __func__ << "/" << this->GetThreadName() << " has been waiting for " << (WaitTime/1000) << " secs" << std::endl;
+		}
+	}
+}
 
 
 
@@ -487,13 +518,21 @@ TFileStreamWriter::TFileStreamWriter(const std::string& Filename) :
 TFileStreamWriter::~TFileStreamWriter()
 {
 	WaitToFinish();
+	
+	auto QueueSize = GetQueueSize();
+	if ( QueueSize > 0 )
+	{
+		std::Debug << "Warning, TFileStreamWriter closed with " << QueueSize << " items unwritten" << std::endl;
+	}
+	
 	mFile.close();
 }
 
 void TFileStreamWriter::Write(TStreamBuffer& Data)
 {
 	//	write to file
-	while ( Data.GetBufferedSize() > 0 && IsWorking() )
+	//	gr: don't break if thread has finished, let that be controlled externally
+	while ( Data.GetBufferedSize() > 0 )
 	{
 		try
 		{
