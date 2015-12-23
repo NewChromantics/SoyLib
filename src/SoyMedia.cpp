@@ -467,6 +467,18 @@ void TMediaDecoder::OnDecodeFrameSubmitted(const SoyTime& Time)
 
 
 
+TMediaPacketBuffer::~TMediaPacketBuffer()
+{
+	//	make sure everyone has finished accessing
+	if ( !mPacketsLock.try_lock() )
+	{
+		std::Debug << "Something still accessing media packet buffer on destruction! clear up accessor first!" << std::endl;
+	}
+	
+	std::lock_guard<std::mutex> Lock( mPacketsLock );
+	mPackets.Clear();
+}
+
 std::shared_ptr<TMediaPacket> TMediaPacketBuffer::PopPacket()
 {
 	if ( mPackets.IsEmpty() )

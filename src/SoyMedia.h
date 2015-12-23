@@ -446,6 +446,7 @@ public:
 		mAutoTimestampDuration	( 33ull )
 	{
 	}
+	~TMediaPacketBuffer();
 	
 	//	todo: options here so we can get the next packet we need
 	//		where we skip over all frames until the prev-to-Time keyframe
