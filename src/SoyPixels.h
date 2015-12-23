@@ -75,6 +75,11 @@ namespace SoyPixelsFormat
 
 		LumaVideo,			//	Video-range luma plane
 
+		//	2 planes, RGB (palette) Greyscale (indexes)
+		Paletteised_8_8,	//	PaletteLength[1]PaletteAlphaIndex[1]Palette[1xNxRGB]Indexes[WxHxI] mixed for gif
+
+		
+		
 		//	shorthand names
 		//	http://www.fourcc.org/yuv.php
 		LumaFull		= Greyscale,	//	Luma plane of a YUV
@@ -208,11 +213,23 @@ public:
 	bool			GetPng(ArrayBridge<char>& PngData) const;
 	bool			GetRawSoyPixels(ArrayBridge<char>& RawData) const;
 	bool			GetRawSoyPixels(ArrayBridge<char>&& RawData) const	{	return GetRawSoyPixels( RawData );	}
-	const uint8&	GetPixel(uint16 x,uint16 y,uint16 Channel) const;
-	bool			SetPixel(uint16 x,uint16 y,uint16 Channel,const uint8& Component);
-	void			SetColour(const ArrayBridge<uint8>& Components);
+
+	uint8&			GetPixelPtr(size_t x,size_t y,size_t ChannelOffset);		//	throws if OOB
+	const uint8&	GetPixelPtr(size_t x,size_t y,size_t ChannelOffset) const;	//	throws if OOB
+	uint8			GetPixel(size_t x,size_t y,size_t Channel) const;
+	vec2x<uint8>	GetPixel2(size_t x,size_t y) const;
+	vec3x<uint8>	GetPixel3(size_t x,size_t y) const;
+	vec4x<uint8>	GetPixel4(size_t x,size_t y) const;
+	
+	void			SetPixel(size_t x,size_t y,size_t Channel,uint8 Component);
+	void			SetPixel(size_t x,size_t y,const vec2x<uint8>& Colour);
+	void			SetPixel(size_t x,size_t y,const vec3x<uint8>& Colour);
+	void			SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour);
+	void			SetPixels(const ArrayBridge<uint8>& Components);
+							 
 	vec2f			GetUv(size_t PixelIndex) const;
 	vec2x<size_t>	GetXy(size_t PixelIndex) const;
+	size_t			GetIndex(size_t x,size_t y,size_t ChannelOffset=0) const;	//	throws if OOB
 
 	bool			SetFormat(SoyPixelsFormat::Type Format);
 	bool			SetChannels(uint8 Channels);

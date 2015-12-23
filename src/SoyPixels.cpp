@@ -1189,40 +1189,109 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 }
 
 
-const uint8& SoyPixelsImpl::GetPixel(uint16 x,uint16 y,uint16 Channel) const
+
+size_t SoyPixelsImpl::GetIndex(size_t x,size_t y,size_t ChannelOffset) const
 {
 	auto w = GetWidth();
 	auto h = GetHeight();
-	auto Channels = GetChannels();
-	if ( x < 0 || x >= w || y<0 || y>=h || Channel<0 || Channel>=Channels )
+	auto ChannelCount = GetChannels();
+	auto& Pixels = GetPixelsArray();
+	if ( x >= w || y >= h || ChannelOffset >= ChannelCount )
 	{
-		assert(false);
-		static uint8 Fake = 0;
-		return Fake;
+		std::stringstream Error;
+		Error << "Pixel OOB x=" << x << '/' << w << " y=" << y << '/' << h << " ch=" << ChannelOffset << '/' << ChannelCount;
+		throw Soy::AssertException( Error.str() );
 	}
-	int Index = x + (y*w);
-	Index *= Channels;
-	Index += Channel;
-	return GetPixelsArray()[Index];
+	
+	auto Index = y * (w*ChannelCount);
+	Index += x * ChannelCount;
+	Index += ChannelOffset;
+	return Index;
 }
 
-bool SoyPixelsImpl::SetPixel(uint16 x,uint16 y,uint16 Channel,const uint8& Component)
+uint8& SoyPixelsImpl::GetPixelPtr(size_t x,size_t y,size_t ChannelOffset)
 {
-	int w = GetWidth();
-	int h = GetHeight();
-	int Channels = GetChannels();
-	if ( x < 0 || x >= w || y<0 || y>=h || Channel<0 || Channel>=Channels )
-	{
-		assert(false);
-		return false;
-	}
-	int Index = x + (y*w);
-	Index *= Channels;
-	Index += Channel;
-	GetPixelsArray()[Index] = Component;
-	return true;
+	auto Index = GetIndex( x, y, ChannelOffset );
+	auto& Pixels = GetPixelsArray();
+	auto* PixelsPtr = Pixels.GetArray();
+	return PixelsPtr[Index];
 }
 
+const uint8& SoyPixelsImpl::GetPixelPtr(size_t x,size_t y,size_t ChannelOffset) const
+{
+	auto Index = GetIndex( x, y, ChannelOffset );
+	auto& Pixels = GetPixelsArray();
+	auto* PixelsPtr = Pixels.GetArray();
+	return PixelsPtr[Index];
+}
+
+uint8 SoyPixelsImpl::GetPixel(size_t x,size_t y,size_t Channel) const
+{
+	return GetPixelPtr( x, y, Channel );
+}
+
+vec2x<uint8> SoyPixelsImpl::GetPixel2(size_t x,size_t y) const
+{
+	auto ChannelCount = GetChannels();
+	Soy::Assert( ChannelCount >= 2, "Accessing channel OOB");
+	auto* Pixel = &GetPixelPtr( x, y, 0 );
+	return vec2x<uint8>( Pixel[0], Pixel[1] );
+}
+
+vec3x<uint8> SoyPixelsImpl::GetPixel3(size_t x,size_t y) const
+{
+	auto ChannelCount = GetChannels();
+	Soy::Assert( ChannelCount >= 3, "Accessing channel OOB");
+	auto* Pixel = &GetPixelPtr( x, y, 0 );
+	return vec3x<uint8>( Pixel[0], Pixel[1], Pixel[2] );
+}
+
+vec4x<uint8> SoyPixelsImpl::GetPixel4(size_t x,size_t y) const
+{
+	auto ChannelCount = GetChannels();
+	Soy::Assert( ChannelCount >= 4, "Accessing channel OOB");
+	auto* Pixel = &GetPixelPtr( x, y, 0 );
+	return vec4x<uint8>( Pixel[0], Pixel[1], Pixel[2], Pixel[3] );
+}
+
+void SoyPixelsImpl::SetPixel(size_t x,size_t y,size_t Channel,uint8 Component)
+{
+	auto& Pixel = GetPixelPtr( x, y, Channel );
+	Pixel = Component;
+}
+
+void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec2x<uint8>& Colour)
+{
+	auto ChannelCount = GetChannels();
+	Soy::Assert( ChannelCount >= 2, "Accessing channel OOB");
+
+	auto* Pixel = &GetPixelPtr( x, y, 0 );
+	Pixel[0] = Colour.x;
+	Pixel[1] = Colour.y;
+}
+
+void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec3x<uint8>& Colour)
+{
+	auto ChannelCount = GetChannels();
+	Soy::Assert( ChannelCount >= 3, "Accessing channel OOB");
+	
+	auto* Pixel = &GetPixelPtr( x, y, 0 );
+	Pixel[0] = Colour.x;
+	Pixel[1] = Colour.y;
+	Pixel[2] = Colour.z;
+}
+
+void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour)
+{
+	auto ChannelCount = GetChannels();
+	Soy::Assert( ChannelCount >= 4, "Accessing channel OOB");
+
+	auto* Pixel = &GetPixelPtr( x, y, 0 );
+	Pixel[0] = Colour.x;
+	Pixel[1] = Colour.y;
+	Pixel[2] = Colour.z;
+	Pixel[4] = Colour.w;
+}
 
 
 void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
@@ -1339,7 +1408,7 @@ void SetPixelComponents(ArrayInterface<uint8>& Pixels,const ArrayBridge<uint8>& 
 	
 }
 
-void SoyPixelsImpl::SetColour(const ArrayBridge<uint8>& Components)
+void SoyPixelsImpl::SetPixels(const ArrayBridge<uint8>& Components)
 {
 	if ( !IsValid() )
 		return;
