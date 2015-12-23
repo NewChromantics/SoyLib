@@ -122,6 +122,8 @@ public:
 		TYPE* Elements[] = { &x,&y,&z };
 		return *Elements[i];
 	}
+
+	bool	operator==(const vec3x& that) const	{	return x==that.x && y==that.y && z==that.z;	}
 	
 public:
 	TYPE	x;
