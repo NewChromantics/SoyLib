@@ -8,6 +8,7 @@
 
 
 class SoyPixelsMeta;
+class SoyPixelsImpl;
 
 
 namespace SoyPixelsFormat
@@ -75,9 +76,9 @@ namespace SoyPixelsFormat
 
 		LumaVideo,			//	Video-range luma plane
 
-		//	2 planes, RGB (palette) Greyscale (indexes)
-		Paletteised_8_8,	//	PaletteLength[1]PaletteAlphaIndex[1]Palette[1xNxRGB]Indexes[WxHxI] mixed for gif
-
+		//	2 planes, RGB (palette+length8) Greyscale (indexes)
+		//	warning, palette's first byte is the size of the palette! need to work out how to auto skip over this when extracting the plane...
+		Paletteised_8_8,
 		
 		
 		//	shorthand names
@@ -100,6 +101,12 @@ namespace SoyPixelsFormat
 	int				GetInvalidValue(SoyPixelsFormat::Type Format);
 	int				GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format);
 	bool			GetIsFrontToBackDepth(SoyPixelsFormat::Type Format);
+	size_t			GetHeaderSize(SoyPixelsFormat::Type Format);
+	void			GetHeaderPalettised(ArrayBridge<uint8>&& Data,size_t& PaletteSize,size_t& TransparentIndex);
+
+	//	merge index & palette into Paletteised_8_8
+	void			MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPixelsImpl& IndexedImage,const SoyPixelsImpl& Palette,uint8 TransparentIndex);
+
 	
 	DECLARE_SOYENUM( SoyPixelsFormat );
 };
@@ -148,7 +155,7 @@ public:
 	size_t			GetDataSize() const;			//	probes multiple planes to get full data size
 	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
 	size_t			GetRowDataSize() const			{	return GetChannels() * GetWidth();	}
-	void			GetPlanes(ArrayBridge<SoyPixelsMeta>&& PlaneFormats) const;	//	extract multiple plane formats where applicable (returns self if one plane)
+	void			GetPlanes(ArrayBridge<SoyPixelsMeta>&& PlaneFormats,ArrayInterface<uint8>* Data=nullptr) const;	//	extract multiple plane formats where applicable (returns self if one plane)
 
 	//	unsafe funcs. (note: they WERE unsafe...)
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}

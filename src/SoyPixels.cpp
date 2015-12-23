@@ -176,6 +176,72 @@ void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneForma
 	};
 }
 
+//	merge index & palette into Paletteised_8_8
+void SoyPixelsFormat::MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPixelsImpl& IndexedImage,const SoyPixelsImpl& Palette,uint8 TransparentIndex)
+{
+	Soy::Assert( IndexedImage.GetFormat() == SoyPixelsFormat::Greyscale, "Expected IndexedImage to be Greyscale" );
+	Soy::Assert( Palette.GetFormat() == SoyPixelsFormat::RGB, "Expected Palette to be RGB" );
+	Soy::Assert( Palette.GetHeight() == 1, "Expected palette to have height of 1" );
+	Soy::Assert( Palette.GetWidth() <= ((1<<16)-1), "Expected palette to have max width of 65535" );
+
+	auto& PaletteArray = Palette.GetPixelsArray();
+	auto& IndexedArray = IndexedImage.GetPixelsArray();
+	
+	//	manually construct this image
+	auto& PiMeta = PalettisedImage.GetMeta();
+	auto& PiArray = PalettisedImage.GetPixelsArray();
+	PiMeta.DumbSetFormat( SoyPixelsFormat::Paletteised_8_8 );
+	PiMeta.DumbSetWidth( IndexedImage.GetWidth() );
+	PiMeta.DumbSetHeight( IndexedImage.GetHeight() );
+
+	PiArray.Clear();
+	
+	//	write header
+	uint8 PaletteSizeA = (Palette.GetWidth()>>0) & 0xff;
+	uint8 PaletteSizeB = (Palette.GetWidth()>>8) & 0xff;
+	GetArrayBridge(PiArray).PushBack( PaletteSizeA );
+	GetArrayBridge(PiArray).PushBack( PaletteSizeB );
+	GetArrayBridge(PiArray).PushBack( TransparentIndex );
+
+	//	write data
+	PiArray.PushBackArray( PaletteArray );
+	PiArray.PushBackArray( IndexedArray );
+	
+	//	todo: verify by splitting
+	static bool Verify = false;
+	if ( Verify )
+	{
+		Array<std::shared_ptr<SoyPixelsImpl>> Planes;
+		PalettisedImage.SplitPlanes( GetArrayBridge(Planes) );
+		Soy::Assert( Planes.GetSize() == 2, "Paletteised image not split into 2");
+		Soy::Assert( Planes[0]->GetMeta() == Palette.GetMeta(), "Paletteised image split; palette meta check failed");
+		Soy::Assert( Planes[1]->GetMeta() == IndexedImage.GetMeta(), "Paletteised image split; index meta check failed");
+	}
+}
+
+size_t SoyPixelsFormat::GetHeaderSize(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyPixelsFormat::Paletteised_8_8:
+			return 3;
+			
+		default:
+			return 0;
+	}
+}
+
+void SoyPixelsFormat::GetHeaderPalettised(ArrayBridge<uint8>&& Data,size_t& PaletteSize,size_t& TransparentIndex)
+{
+	auto HeaderSize = GetHeaderSize( SoyPixelsFormat::Paletteised_8_8 );
+	Soy::Assert( HeaderSize == 3, "Header size mismatch");
+	Soy::Assert( Data.GetSize() >= HeaderSize, "SoyPixelsFormat::GetHeaderPalettised Data underrun" );
+	
+	PaletteSize = Data[0];
+	PaletteSize = Data[1] << 8;
+	TransparentIndex = Data[2];
+}
+
 
 
 std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
@@ -201,6 +267,7 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::LumaVideo,			"LumaVideo"	},
 	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
 	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
+	{ SoyPixelsFormat::Paletteised_8_8,		"Paletteised_8_8"	},
 };
 
 
@@ -1348,20 +1415,20 @@ void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Pl
 	auto& ThisMeta = GetMeta();
 	auto& ThisArray = GetPixelsArray();
 	BufferArray<SoyPixelsMeta,10> Formats;
-	ThisMeta.GetPlanes( GetArrayBridge(Formats) );
+	ThisMeta.GetPlanes( GetArrayBridge(Formats), &ThisArray );
 
 	//	build error as we go in case we assert mid-way
 	std::stringstream Error;
 	Error << "Split pixel planes (" << ThisMeta << " -> " << Soy::StringJoin( GetArrayBridge(Formats), "," ) << ") but data hasn't aligned after split; ";
 
-	size_t DataOffset = 0;
+	size_t DataOffset = GetHeaderSize( ThisMeta.GetFormat() );
 	for ( int p=0;	p<Formats.GetSize();	p++ )
 	{
 		auto PlaneMeta = Formats[p];
 		auto* PlaneData = ThisArray.GetArray() + DataOffset;
 		auto PlaneDataSize = PlaneMeta.GetDataSize();
 		std::shared_ptr<SoyPixelsRemote> Pixels(new SoyPixelsRemote( PlaneData, PlaneDataSize, PlaneMeta ) );
-		DataOffset += PlaneMeta.GetDataSize();
+		DataOffset += PlaneDataSize;
 		
 		Error << "#" << p << "/" << Formats.GetSize() << " " << PlaneMeta << " = " << PlaneDataSize << " bytes; ";
 		//	check for overflow
@@ -1570,7 +1637,7 @@ size_t SoyPixelsMeta::GetDataSize() const
 	return TotalDataSize;
 }
 
-void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes) const
+void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface<uint8>* Data) const
 {
 	switch ( GetFormat() )
 	{
@@ -1595,6 +1662,19 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes) const
 			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
 			break;
+			
+		case SoyPixelsFormat::Paletteised_8_8:
+		{
+			Soy::Assert( Data!=nullptr, "Cannot split format of Paletteised_8_8 without data");
+			size_t PaletteSize = 0;
+			size_t TransparentIndex = 0;
+			SoyPixelsFormat::GetHeaderPalettised( GetArrayBridge(*Data), PaletteSize, TransparentIndex );
+			//	original meta is the index w/h.
+			//	header of palette is the length of the palette
+			Planes.PushBack( SoyPixelsMeta( PaletteSize, 1, SoyPixelsFormat::RGB ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Greyscale ) );
+			break;
+		}
 			
 		default:
 			Planes.PushBack( *this );
