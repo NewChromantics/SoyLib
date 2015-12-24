@@ -934,10 +934,10 @@ bool SoyPixelsImpl::Init(const SoyPixelsMeta& Meta)
 	auto Format = Meta.GetFormat();
 	
 	//	alloc
-	GetMeta().DumbSetWidth( size_cast<uint16>(Width) );
-	GetMeta().DumbSetHeight( size_cast<uint16>(Height) );
+	GetMeta().DumbSetWidth( Width );
+	GetMeta().DumbSetHeight( Height );
 	GetMeta().DumbSetFormat( Format );
-	size_t Alloc = GetMeta().GetDataSize();
+	auto Alloc = GetMeta().GetDataSize();
 	auto& Pixels = GetPixelsArray();
 	Pixels.SetSize( Alloc, false );
 	return true;
@@ -1361,7 +1361,7 @@ void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour)
 }
 
 
-void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
+void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 {
 	auto& Pixels = GetPixelsArray();
 	
@@ -1507,7 +1507,7 @@ vec2x<size_t> SoyPixelsImpl::GetXy(size_t PixelIndex) const
 	return vec2x<size_t>( x, y );
 }
 
-void SoyPixelsImpl::ResizeFastSample(uint16 NewWidth, uint16 NewHeight)
+void SoyPixelsImpl::ResizeFastSample(size_t NewWidth, size_t NewHeight)
 {
 	//	copy old data
 	SoyPixels Old;
