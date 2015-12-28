@@ -78,7 +78,7 @@ namespace SoyPixelsFormat
 
 		//	2 planes, RGB (palette+length8) Greyscale (indexes)
 		//	warning, palette's first byte is the size of the palette! need to work out how to auto skip over this when extracting the plane...
-		Paletteised_8_8,
+		Palettised_8_8,
 		
 		
 		//	shorthand names

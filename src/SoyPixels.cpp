@@ -190,7 +190,7 @@ void SoyPixelsFormat::MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPi
 	//	manually construct this image
 	auto& PiMeta = PalettisedImage.GetMeta();
 	auto& PiArray = PalettisedImage.GetPixelsArray();
-	PiMeta.DumbSetFormat( SoyPixelsFormat::Paletteised_8_8 );
+	PiMeta.DumbSetFormat( SoyPixelsFormat::Palettised_8_8 );
 	PiMeta.DumbSetWidth( IndexedImage.GetWidth() );
 	PiMeta.DumbSetHeight( IndexedImage.GetHeight() );
 
@@ -213,9 +213,9 @@ void SoyPixelsFormat::MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPi
 	{
 		Array<std::shared_ptr<SoyPixelsImpl>> Planes;
 		PalettisedImage.SplitPlanes( GetArrayBridge(Planes) );
-		Soy::Assert( Planes.GetSize() == 2, "Paletteised image not split into 2");
-		Soy::Assert( Planes[0]->GetMeta() == Palette.GetMeta(), "Paletteised image split; palette meta check failed");
-		Soy::Assert( Planes[1]->GetMeta() == IndexedImage.GetMeta(), "Paletteised image split; index meta check failed");
+		Soy::Assert( Planes.GetSize() == 2, "Palettised image not split into 2");
+		Soy::Assert( Planes[0]->GetMeta() == Palette.GetMeta(), "Palettised image split; palette meta check failed");
+		Soy::Assert( Planes[1]->GetMeta() == IndexedImage.GetMeta(), "Palettised image split; index meta check failed");
 	}
 }
 
@@ -223,7 +223,7 @@ size_t SoyPixelsFormat::GetHeaderSize(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
 	{
-		case SoyPixelsFormat::Paletteised_8_8:
+		case SoyPixelsFormat::Palettised_8_8:
 			return 3;
 			
 		default:
@@ -233,7 +233,7 @@ size_t SoyPixelsFormat::GetHeaderSize(SoyPixelsFormat::Type Format)
 
 void SoyPixelsFormat::GetHeaderPalettised(ArrayBridge<uint8>&& Data,size_t& PaletteSize,size_t& TransparentIndex)
 {
-	auto HeaderSize = GetHeaderSize( SoyPixelsFormat::Paletteised_8_8 );
+	auto HeaderSize = GetHeaderSize( SoyPixelsFormat::Palettised_8_8 );
 	Soy::Assert( HeaderSize == 3, "Header size mismatch");
 	Soy::Assert( Data.GetSize() >= HeaderSize, "SoyPixelsFormat::GetHeaderPalettised Data underrun" );
 	
@@ -267,7 +267,7 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::LumaVideo,			"LumaVideo"	},
 	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
 	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
-	{ SoyPixelsFormat::Paletteised_8_8,		"Paletteised_8_8"	},
+	{ SoyPixelsFormat::Palettised_8_8,		"Palettised_8_8"	},
 };
 
 
@@ -1663,9 +1663,9 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
 			break;
 			
-		case SoyPixelsFormat::Paletteised_8_8:
+		case SoyPixelsFormat::Palettised_8_8:
 		{
-			Soy::Assert( Data!=nullptr, "Cannot split format of Paletteised_8_8 without data");
+			Soy::Assert( Data!=nullptr, "Cannot split format of Palettised_8_8 without data");
 			size_t PaletteSize = 0;
 			size_t TransparentIndex = 0;
 			SoyPixelsFormat::GetHeaderPalettised( GetArrayBridge(*Data), PaletteSize, TransparentIndex );
