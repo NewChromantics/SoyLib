@@ -665,7 +665,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 				{
 					auto InternalPixelFormat = InternalPixelFormats[i];
 					auto ExternalPixelFormat = ExternalPixelsFormats[e];
-					glTexImage2D( mType, MipLevel, InternalPixelFormat, Meta.GetWidth(), Meta.GetHeight(), Border, ExternalPixelFormat, GlPixelsStorage, nullptr );
+					glTexImage2D( mType, MipLevel, InternalPixelFormat, size_cast<GLsizei>(Meta.GetWidth()), size_cast<GLsizei>(Meta.GetHeight()), Border, ExternalPixelFormat, GlPixelsStorage, nullptr );
 					std::stringstream Error;
 					Error << "glTexImage2D texture construction " << Meta << " InternalPixelFormat=" << GetEnumString(InternalPixelFormat) << " PixelsFormat=" << GetEnumString(ExternalPixelFormat) << ", GlPixelsStorage=" << GetEnumString(GlPixelsStorage);
 					Opengl::IsOkay( Error.str() );
@@ -886,7 +886,7 @@ void Opengl::TPbo::ReadPixels()
 	
 	Bind();
 
-	glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, nullptr );
+	glReadPixels( x, y, size_cast<GLsizei>(mMeta.GetWidth()), size_cast<GLsizei>(mMeta.GetHeight()), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, nullptr );
 	Opengl_IsOkay();
 	
 	Unbind();
@@ -1035,7 +1035,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 		Opengl_IsOkay();
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		Opengl_IsOkay();
-		glReadPixels( x, y, Pixels.GetWidth(), Pixels.GetHeight(), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
+		glReadPixels( x, y, size_cast<GLsizei>(Pixels.GetWidth()), size_cast<GLsizei>(Pixels.GetHeight()), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
 		Opengl::IsOkay("glReadPixels");
 
 		//	as glReadPixels forces us to a format, we need to update the meta on the pixels
@@ -1265,7 +1265,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		{
 			auto PushTexture = [&](GLenum InternalFormat,GLenum ExternalFormat)
 			{
-				glTexImage2D( mType, MipLevel, InternalFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, ExternalFormat, FinalPixelsStorage, PixelsBuffer.GetPixelsArray().GetArray() );
+				glTexImage2D( mType, MipLevel, InternalFormat, size_cast<GLsizei>(PixelsBuffer.GetWidth()), size_cast<GLsizei>(PixelsBuffer.GetHeight()), 0, ExternalFormat, FinalPixelsStorage, PixelsBuffer.GetPixelsArray().GetArray() );
 			};
 			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D(GL_APPLE_client_storage) glTexImage2D", PushTexture );
 		}
@@ -1291,8 +1291,8 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		int XOffset = 0;
 		int YOffset = 0;
 		
-		auto Width = std::min<GLsizei>( TextureWidth, FinalPixels.GetWidth() );
-		auto Height = std::min<GLsizei>( TextureHeight, FinalPixels.GetHeight() );
+		auto Width = std::min( TextureWidth, size_cast<GLsizei>(FinalPixels.GetWidth()) );
+		auto Height = std::min( TextureHeight, size_cast<GLsizei>(FinalPixels.GetHeight()) );
 		
 		const ArrayInterface<uint8>& PixelsArray = FinalPixels.GetPixelsArray();
 		auto* PixelsArrayData = PixelsArray.GetArray();
@@ -1328,8 +1328,8 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		//	if texture doesnt fit we'll get GL_INVALID_VALUE
 		//	if frame is bigger than texture, it will mangle (bad stride)
 		//	if pixels is smaller, we'll just get the sub-image drawn
-		auto Width = std::min<GLsizei>( TextureWidth, FinalPixels.GetWidth() );
-		auto Height = std::min<GLsizei>( TextureHeight, FinalPixels.GetHeight() );
+		auto Width = std::min( TextureWidth, size_cast<GLsizei>(FinalPixels.GetWidth()) );
+		auto Height = std::min( TextureHeight, size_cast<GLsizei>(FinalPixels.GetHeight()) );
 		
 		const ArrayInterface<uint8>& PixelsArray = FinalPixels.GetPixelsArray();
 		auto* PixelsArrayData = PixelsArray.GetArray();

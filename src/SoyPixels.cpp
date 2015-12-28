@@ -396,8 +396,8 @@ void SetDepthColour(uint8& Red,uint8& Green,uint8& Blue,float Depth,int PlayerIn
 bool ConvertFormat_KinectDepthToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	bool GreyscaleAlphaFormat = (NewFormat == SoyPixelsFormat::GreyscaleAlpha);
-	int Height = Meta.GetHeight();
-	int PixelCount = Meta.GetWidth() * Height;
+	auto Height = Meta.GetHeight();
+	auto PixelCount = Meta.GetWidth() * Height;
 	for ( int p=0;	p<PixelCount;	p++ )
 	{
 		uint16 KinectDepth = *reinterpret_cast<uint16*>( &Pixels[p*2] );
@@ -429,8 +429,8 @@ bool ConvertFormat_KinectDepthToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta&
 	memcpy( DepthPixels.GetArray(), Pixels.GetArray(), DepthPixels.GetDataSize() );
 	
 	auto Components = SoyPixelsFormat::GetChannelCount( NewFormat );
-	int Height = Meta.GetHeight();
-	int PixelCount = Meta.GetWidth() * Height;
+	auto Height = Meta.GetHeight();
+	auto PixelCount = Meta.GetWidth() * Height;
 	
 	//	realloc
 	Pixels.SetSize( Components * PixelCount );
@@ -590,9 +590,9 @@ bool ConvertFormat_BgrToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,So
 
 bool ConvertFormat_RGBAToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
-	int Height = Meta.GetHeight();
-	int PixelCount = Meta.GetWidth() * Height;
-	int Channels = Meta.GetChannels();
+	auto Height = Meta.GetHeight();
+	auto PixelCount = Meta.GetWidth() * Height;
+	auto Channels = Meta.GetChannels();
 	auto GreyscaleChannels = SoyPixelsFormat::GetChannelCount(NewFormat);
 
 	//	todo: store alpha in loop
@@ -652,7 +652,7 @@ bool ConvertDepth16(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsF
 	//int NewDepthBits = GetDepthFormatBits( NewFormat );
 	
 	uint16* DepthPixels = reinterpret_cast<uint16*>( Pixels.GetArray() );
-	int PixelCount = Meta.GetWidth() * Meta.GetHeight();
+	auto PixelCount = Meta.GetWidth() * Meta.GetHeight();
 
 	static bool Debug = false;
 	
@@ -1262,7 +1262,6 @@ size_t SoyPixelsImpl::GetIndex(size_t x,size_t y,size_t ChannelOffset) const
 	auto w = GetWidth();
 	auto h = GetHeight();
 	auto ChannelCount = GetChannels();
-	auto& Pixels = GetPixelsArray();
 	if ( x >= w || y >= h || ChannelOffset >= ChannelCount )
 	{
 		std::stringstream Error;
@@ -1567,7 +1566,7 @@ void SoyPixelsImpl::Flip()
 	{
 		//	swap lines
 		int TopY = y;
-		int BottomY = (Height-1) - y;
+		ssize_t BottomY = (Height-1) - y;
 
 		auto* TopRow = &Pixels[TopY * LineSize];
 		auto* BottomRow = &Pixels[BottomY  * LineSize];
