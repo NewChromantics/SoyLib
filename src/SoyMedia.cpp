@@ -56,6 +56,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Yuv_8_8_8_Video,	"Yuv_8_8_8_Video" },
 	{ SoyMediaFormat::ChromaUV_8_8,		"ChromaUV_8_8" },
 	{ SoyMediaFormat::ChromaUV_88,		"ChromaUV_88" },
+	{ SoyMediaFormat::Palettised_8_8,	"Palettised_8_8" },
 };
 
 
@@ -473,6 +474,10 @@ TMediaPacketBuffer::~TMediaPacketBuffer()
 	if ( !mPacketsLock.try_lock() )
 	{
 		std::Debug << "Something still accessing media packet buffer on destruction! clear up accessor first!" << std::endl;
+	}
+	else
+	{
+		mPacketsLock.unlock();
 	}
 	
 	std::lock_guard<std::mutex> Lock( mPacketsLock );

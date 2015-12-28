@@ -78,7 +78,7 @@ namespace SoyPixelsFormat
 
 		//	2 planes, RGB (palette+length8) Greyscale (indexes)
 		//	warning, palette's first byte is the size of the palette! need to work out how to auto skip over this when extracting the plane...
-		Paletteised_8_8,
+		Palettised_8_8,
 		
 		
 		//	shorthand names
@@ -137,7 +137,7 @@ public:
 		mHeight		( 0 )
 	{
 	}
-	SoyPixelsMeta(uint16 Width,uint16 Height,SoyPixelsFormat::Type Format) :
+	SoyPixelsMeta(size_t Width,size_t Height,SoyPixelsFormat::Type Format) :
 		mWidth	( Width ),
 		mHeight	( Height ),
 		mFormat	( Format )
@@ -150,8 +150,8 @@ public:
 	
 	//	gr: deprecate this! shouldn't ever use it raw
 	uint8			GetChannels() const				{	return size_cast<uint8>(SoyPixelsFormat::GetChannelCount(mFormat));	}
-	uint16			GetWidth() const				{	return mWidth;	}
-	uint16			GetHeight() const				{	return mHeight;	}
+	size_t			GetWidth() const				{	return mWidth;	}
+	size_t			GetHeight() const				{	return mHeight;	}
 	size_t			GetDataSize() const;			//	probes multiple planes to get full data size
 	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
 	size_t			GetRowDataSize() const			{	return GetChannels() * GetWidth();	}
@@ -160,8 +160,8 @@ public:
 	//	unsafe funcs. (note: they WERE unsafe...)
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
 	void			DumbSetChannels(size_t Channels)	{	mFormat = SoyPixelsFormat::GetFormatFromChannelCount(Channels);	}
-	void			DumbSetWidth(uint16 Width)		{	mWidth = Width;	}
-	void			DumbSetHeight(uint16 Height)	{	mHeight = Height;	}
+	void			DumbSetWidth(size_t Width)		{	mWidth = Width;	}
+	void			DumbSetHeight(size_t Height)	{	mHeight = Height;	}
 
 	bool			operator==(const SoyPixelsMeta& that) const
 	{
@@ -180,8 +180,8 @@ private:
 protected:
 	//	gr: assuming we will always have a length of data so we can determine height/stride
 	SoyPixelsFormat::Type	mFormat;
-	uint16					mWidth;
-	uint16					mHeight;
+	size_t					mWidth;
+	size_t					mHeight;
 };
 DECLARE_NONCOMPLEX_TYPE( SoyPixelsMeta );
 
@@ -210,8 +210,8 @@ public:
 	bool			IsValid() const					{	return GetMeta().IsValid();	}
 	uint8			GetBitDepth() const				{	return GetMeta().GetBitDepth();	}
 	uint8			GetChannels() const				{	return size_cast<uint8>( GetMeta().GetChannels() );	}
-	uint16			GetWidth() const				{	return GetMeta().GetWidth();	}
-	uint16			GetHeight() const				{	return GetMeta().GetHeight();	}
+	size_t			GetWidth() const				{	return GetMeta().GetWidth();	}
+	size_t			GetHeight() const				{	return GetMeta().GetHeight();	}
 	size_t			GetRowPitchBytes() const		{	return sizeof(uint8) * GetChannels() * GetWidth();	}
 	SoyPixelsFormat::Type	GetFormat() const		{	return GetMeta().GetFormat();	}
 	void			PrintPixels(const std::string& Prefix,std::ostream& Stream,bool Hex,const char* PixelSuffix) const;
@@ -244,8 +244,8 @@ public:
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
 	bool			SetRawSoyPixels(const ArrayBridge<char>&& RawData)	{	return SetRawSoyPixels( RawData );	}
 
-	void			ResizeClip(uint16 Width,uint16 Height);
-	void			ResizeFastSample(uint16 Width,uint16 Height);
+	void			ResizeClip(size_t Width,size_t Height);
+	void			ResizeFastSample(size_t Width,size_t Height);
 	
 	void			Flip();
 

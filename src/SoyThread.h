@@ -23,6 +23,7 @@ public:
 	{
 	}
 	
+	bool		IsCompleted() const						{	return mCompleted;	}
 	void		Wait(const char* TimerName=nullptr);
 	void		OnCompleted();
 	
