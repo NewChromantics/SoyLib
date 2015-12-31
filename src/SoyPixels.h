@@ -284,6 +284,11 @@ public:
 class SoyPixels : public SoyPixelsDef<Array<uint8>>
 {
 public:
+	SoyPixels(const SoyPixelsImpl& that) :
+		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
+	{
+		Copy( that );
+	}
 	SoyPixels(prmem::Heap& Heap=prcore::Heap) :
 		mArray						( Heap ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
