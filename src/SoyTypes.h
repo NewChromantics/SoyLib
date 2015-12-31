@@ -214,6 +214,9 @@ DECLARE_TYPE_NAME_AS( std::string, "text" );
 template<typename SMALLSIZE,typename BIGSIZE>
 inline SMALLSIZE size_cast(BIGSIZE Size)
 {
+#if defined(TARGET_ANDROID)
+	
+#else
 	auto Min = std::numeric_limits<SMALLSIZE>::min();
 	auto Max = std::numeric_limits<SMALLSIZE>::max();
 	if ( Size > Max )
@@ -225,8 +228,7 @@ inline SMALLSIZE size_cast(BIGSIZE Size)
 	{
 		Soy::SizeAssert_TooSmall( Size, Min, Soy::GetTypeName<SMALLSIZE>(), Soy::GetTypeName<BIGSIZE>() );
 	}
-	
-	//	gr: do value check
+#endif
 	return static_cast<SMALLSIZE>( Size );
 }
 
