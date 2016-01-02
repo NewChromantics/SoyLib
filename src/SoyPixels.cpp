@@ -238,7 +238,7 @@ void SoyPixelsFormat::GetHeaderPalettised(ArrayBridge<uint8>&& Data,size_t& Pale
 	Soy::Assert( Data.GetSize() >= HeaderSize, "SoyPixelsFormat::GetHeaderPalettised Data underrun" );
 	
 	PaletteSize = Data[0];
-	PaletteSize = Data[1] << 8;
+	PaletteSize |= Data[1] << 8;
 	TransparentIndex = Data[2];
 }
 
