@@ -176,6 +176,21 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 	}
 }
 
+
+bool SoyMediaFormat::IsText(SoyMediaFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyMediaFormat::Text:
+		case SoyMediaFormat::ClosedCaption:
+		case SoyMediaFormat::Subtitle:
+			return true;
+		
+		default:
+			return false;
+	}
+}
+
 std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
@@ -359,6 +374,22 @@ TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMedi
 	mOnNewPacketListener = WakeOnEvent( mInput->mOnNewPacket );
 }
 
+
+TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TTextBufferManager> OutputBuffer) :
+	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
+	mInput			( InputBuffer ),
+	mTextOutput		( OutputBuffer )
+{
+	Soy::Assert( mInput!=nullptr, "Expected input");
+	Soy::Assert( mTextOutput!=nullptr, "Expected output target");
+	//	wake when new packets arrive
+	auto OnNewPacket = [this](std::shared_ptr<TMediaPacket>& Packet)
+	{
+		this->Wake();
+	};
+	mOnNewPacketListener = mInput->mOnNewPacket.AddListener(OnNewPacket);
+}
+
 TMediaDecoder::~TMediaDecoder()
 {
 	if ( mInput )
@@ -393,7 +424,7 @@ bool TMediaDecoder::Iteration()
 		if ( Packet )
 		{
 			//std::Debug << "Encoder Processing packet " << Packet->mTimecode << "(pts) " << Packet->mDecodeTimecode << "(dts)" << std::endl;
-			if ( !ProcessPacket( *Packet ) )
+			if ( !ProcessPacket( Packet ) )
 			{
 				std::Debug << "Returned decoder input packet (" << *Packet << ") back to buffer" << std::endl;
 				//	gr: only do this for important frames?
@@ -425,6 +456,10 @@ bool TMediaDecoder::Iteration()
 		{
 			ProcessOutputPacket( *mAudioOutput );
 		}
+		if ( mTextOutput )
+		{
+			ProcessOutputPacket( *mTextOutput );
+		}
 		Soy::StringStreamClear(mFatalError);
 	}
 	catch (std::exception& e)
@@ -438,6 +473,11 @@ bool TMediaDecoder::Iteration()
 	
 	
 	return true;
+}
+
+bool TMediaDecoder::ProcessPacket(std::shared_ptr<TMediaPacket>& Packet)
+{
+	return ProcessPacket( *Packet );
 }
 
 TPixelBufferManager& TMediaDecoder::GetPixelBufferManager()
@@ -1037,6 +1077,58 @@ void TAudioBufferManager::ReleaseFrames()
 
 
 
+void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
+{
+	{
+		std::lock_guard<std::mutex> Lock( mBlocksLock );
+		mBlocks.PushBack( Buffer );
+	}
+	mOnFramePushed.OnTriggered( Buffer->mTimecode );
+}
+
+bool TTextBufferManager::PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText)
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+	
+	bool Any = false;
+	
+	while ( !mBlocks.IsEmpty() )
+	{
+		auto pBlock = mBlocks[0];
+		if ( pBlock->mTimecode > Time )
+			break;
+		
+		//	in range
+		pBlock = mBlocks.PopAt(0);
+		auto& Block = *pBlock;
+		
+		//	if old, skip
+		if ( SkipOldText )
+		{
+			auto EndTime = Block.mTimecode + Block.mDuration;
+			if ( EndTime < Time )
+				continue;
+		}
+		
+		//	insert line breaks if we have previous entries
+		if ( Any )
+			Output << '\n';
+		
+		Soy::ArrayToString( GetArrayBridge(Block.mData), Output );
+		Any = true;
+	}
+	
+	return Any;
+}
+
+void TTextBufferManager::ReleaseFrames()
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+	mBlocks.Clear();
+}
+
+
+
 TMediaPassThroughDecoder::TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManager> OutputBuffer) :
 	TMediaDecoder	( ThreadName, InputBuffer, OutputBuffer )
 {
@@ -1049,7 +1141,52 @@ TMediaPassThroughDecoder::TMediaPassThroughDecoder(const std::string& ThreadName
 	Start();
 }
 
+TMediaPassThroughDecoder::TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TTextBufferManager> OutputBuffer) :
+	TMediaDecoder	( ThreadName, InputBuffer, OutputBuffer )
+{
+	Start();
+}
+
+bool TMediaPassThroughDecoder::ProcessPacket(std::shared_ptr<TMediaPacket>& Packet)
+{
+	if ( mTextOutput )
+	{
+		if ( ProcessTextPacket( Packet ) )
+			return true;
+	}
+	
+	return ProcessPacket( *Packet );
+}
+
 bool TMediaPassThroughDecoder::ProcessPacket(const TMediaPacket& Packet)
+{
+	try
+	{
+		if ( mPixelOutput )
+		{
+			if ( ProcessPixelPacket( Packet ) )
+				return true;
+		}
+		
+		if ( mAudioOutput )
+		{
+			if ( ProcessAudioPacket( Packet ) )
+				return true;
+		}
+
+		std::stringstream Error;
+		Error << "TMediaPassThroughDecoder doesn't know how to handle " << Packet;
+		throw Soy::AssertException( Error.str() );
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "TMediaPassThroughDecoder error; " << e.what() << std::endl;
+	}
+	
+	return true;
+}
+
+bool TMediaPassThroughDecoder::ProcessPixelPacket(const TMediaPacket& Packet)
 {
 	auto Block = [this]
 	{
@@ -1057,7 +1194,7 @@ bool TMediaPassThroughDecoder::ProcessPacket(const TMediaPacket& Packet)
 			return false;
 		return true;
 	};
-		
+	
 	//	pass through pixel buffers
 	if ( Packet.mPixelBuffer )
 	{
@@ -1088,9 +1225,18 @@ bool TMediaPassThroughDecoder::ProcessPacket(const TMediaPacket& Packet)
 		return true;
 	}
 
+	return false;
+}
 
-	std::Debug << "TMediaPassThroughDecoder doesn't know how to handle " << Packet.mMeta.mCodec << std::endl;
+bool TMediaPassThroughDecoder::ProcessAudioPacket(const TMediaPacket& Packet)
+{
+	//	todo
+	return false;
+}
 
+bool TMediaPassThroughDecoder::ProcessTextPacket(std::shared_ptr<TMediaPacket>& Packet)
+{
+	mTextOutput->PushBuffer( Packet );
 	return true;
 }
 

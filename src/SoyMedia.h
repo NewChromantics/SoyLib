@@ -104,6 +104,7 @@ namespace SoyMediaFormat
 	bool		IsVideo(Type Format);	//	or pixels
 	inline bool	IsPixels(Type Format)	{	return GetPixelFormat( Format ) != SoyPixelsFormat::Invalid;	}
 	bool		IsAudio(Type Format);
+	bool		IsText(Type Format);
 	bool		IsH264(Type Format);
 	Type		FromFourcc(uint32 Fourcc,int H264LengthSize=-1);
 	uint32		ToFourcc(Type Format);
@@ -392,19 +393,39 @@ class TAudioBufferManager : public TMediaBufferManager
 {
 public:
 	TAudioBufferManager(const TPixelBufferParams& Params) :
-		TMediaBufferManager	( Params )
+	TMediaBufferManager	( Params )
 	{
 	}
-
+	
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
 	void			PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,size_t SampleRate,SoyTime StartTime,SoyTime EndTime);
 	virtual void	ReleaseFrames() override;
 	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
-
+	
 private:
 	std::mutex					mBlocksLock;
 	Array<TAudioBufferBlock>	mBlocks;
 };
+
+
+class TTextBufferManager : public TMediaBufferManager
+{
+public:
+	TTextBufferManager(const TPixelBufferParams& Params) :
+		TMediaBufferManager	( Params )
+	{
+	}
+	
+	void			PushBuffer(std::shared_ptr<TMediaPacket> Buffer);
+	bool			PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText);
+	virtual void	ReleaseFrames() override;
+	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
+	
+private:
+	std::mutex			mBlocksLock;
+	Array<std::shared_ptr<TMediaPacket>>	mBlocks;
+};
+
 
 //	don't overload this? or replace TPixelBuffer (hardware abstraction) with this
 class TMediaPacket
@@ -589,6 +610,7 @@ class TMediaDecoder : public SoyWorkerThread
 public:
 	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManager> OutputBuffer);
 	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer);
+	TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TTextBufferManager> OutputBuffer);
 	virtual ~TMediaDecoder();
 	
 	bool							HasFatalError(std::string& Error)
@@ -599,6 +621,7 @@ public:
 	
 protected:
 	void							OnDecodeFrameSubmitted(const SoyTime& Time);
+	virtual bool					ProcessPacket(std::shared_ptr<TMediaPacket>& Packet);			//	return false to return the frame to the buffer and not discard
 	virtual bool					ProcessPacket(const TMediaPacket& Packet)=0;		//	return false to return the frame to the buffer and not discard
 	
 	//	gr: added this for android as I'm not sure about the thread safety, but other platforms generally have a callback
@@ -609,9 +632,13 @@ protected:
 	virtual void					ProcessOutputPacket(TAudioBufferManager& FrameBuffer)
 	{
 	}
+	virtual void					ProcessOutputPacket(TTextBufferManager& FrameBuffer)
+	{
+	}
 	
 	TPixelBufferManager&			GetPixelBufferManager();
 	TAudioBufferManager&			GetAudioBufferManager();
+	TTextBufferManager&				GetTextBufferManager();
 	
 private:
 	virtual bool					Iteration() final;
@@ -621,10 +648,11 @@ protected:
 	std::shared_ptr<TMediaPacketBuffer>		mInput;
 	std::shared_ptr<TPixelBufferManager>	mPixelOutput;
 	std::shared_ptr<TAudioBufferManager>	mAudioOutput;
-	std::stringstream					mFatalError;
+	std::shared_ptr<TTextBufferManager>		mTextOutput;
+	std::stringstream						mFatalError;
 	
 private:
-	SoyListenerId						mOnNewPacketListener;
+	SoyListenerId							mOnNewPacketListener;
 };
 
 
@@ -662,8 +690,15 @@ class TMediaPassThroughDecoder : public TMediaDecoder
 public:
 	TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManager> OutputBuffer);
 	TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer);
+	TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TTextBufferManager> OutputBuffer);
 	
 protected:
+	virtual bool					ProcessPacket(std::shared_ptr<TMediaPacket>& Packet) override;
 	virtual bool					ProcessPacket(const TMediaPacket& Packet) override;
+	
+	//	return true if handled
+	bool							ProcessTextPacket(std::shared_ptr<TMediaPacket>& Packet);
+	bool							ProcessAudioPacket(const TMediaPacket& Packet);
+	bool							ProcessPixelPacket(const TMediaPacket& Packet);
 };
 
