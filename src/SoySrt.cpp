@@ -72,9 +72,10 @@ void Srt::EncodeTime(std::stringstream& Out,const SoyTime& Time)
 
 void Srt::DecodeTimeRange(const std::string& TimeString,SoyTime& Start,SoyTime& End)
 {
-	std::regex ResponsePattern("^([0-9]+):([0-9]{2}):([0-9]{2}),:([0-9]{3}) --> ([0-9]+):([0-9]{2}):([0-9]{2}),:([0-9]{3})$", std::regex::icase );
+	static const char* PatternStr = "^([0-9]+):([0-9]+):([0-9]+),([0-9]+) --> ([0-9]+):([0-9]+):([0-9]+),([0-9]+)$";
+	std::regex Pattern(PatternStr);
 	std::smatch Match;
-	if ( !std::regex_match( TimeString, Match, ResponsePattern ) )
+	if ( !std::regex_match( TimeString, Match, Pattern ) )
 	{
 		std::stringstream Error;
 		Error << "Failed to parse time range; \"" << TimeString << "\"";
