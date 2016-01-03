@@ -135,6 +135,11 @@ void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String
 	String.write( Array.GetArray(), Array.GetSize() );
 }
 
+void Soy::ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String)
+{
+	String.write( reinterpret_cast<const char*>(Array.GetArray()), Array.GetSize() );
+}
+
 void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
 {
 	auto CommandStrArray = GetRemoteArray( String.c_str(), String.length() );
