@@ -935,7 +935,8 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 			static SoyPixelsFormat::Type DefaultFormat = SoyPixelsFormat::RGBA;
 			
 			//	gr: assuming the fastest is the same as the internal format, but that doesn't allow FBO
-			static bool UseInternalFormatAsDefault = false;
+			//	gr: changed this default to true for reading gif greyscale/index. rather than forcing format, I want to know what it is internally...
+			static bool UseInternalFormatAsDefault = true;
 			if ( UseInternalFormatAsDefault )
 				ForceFormat = GetFormat();
 			else
