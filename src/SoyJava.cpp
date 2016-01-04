@@ -1596,7 +1596,7 @@ void JniMediaExtractor::SetDataSourcePath(const std::string& Path)
 
 void JniMediaExtractor::SetDataSourceAssets(const std::string& Path)
 {
-	std::shared_ptr<Java::TAssetFileHandle> pFileHandle( new Java::TAssetFileHandle( Path ) );
+	std::shared_ptr<Java::TApkFileHandle> pFileHandle( new Java::TApkFileHandle( Path ) );
 	auto& FileHandle = *pFileHandle;
 	auto& FileDescriptor = *FileHandle.mFileDescriptor;
 	try
@@ -1641,7 +1641,7 @@ Java::TFileHandle::~TFileHandle()
 }
 
 
-Java::TAssetFileHandle::TAssetFileHandle(const std::string& Path) :
+Java::TApkFileHandle::TApkFileHandle(const std::string& Path) :
 	mFdOffset	( 0 ),
 	mFdLength	( 0 )
 {
@@ -1706,7 +1706,7 @@ Java::TAssetFileHandle::TAssetFileHandle(const std::string& Path) :
 	mFdLength = AssetFileDescriptor.CallLongMethod("getLength");
 }
 
-Java::TAssetFileHandle::~TAssetFileHandle()
+Java::TApkFileHandle::~TApkFileHandle()
 {
 	if ( mAssetFileDescriptor )
 	{
@@ -1761,20 +1761,20 @@ Java::TRandomAccessFileHandle::~TRandomAccessFileHandle()
 
 
 
-Java::TFileStreamReader::TFileStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer) :
+Java::TApkFileStreamReader::TApkFileStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer) :
 	TStreamReader	( std::string("java::TFileStreamReader ") + Filename, ReadBuffer )
 {
-	mHandle.reset( new Java::TAssetFileHandle( Filename ) );
+	mHandle.reset( new Java::TApkFileHandle( Filename ) );
 }
 
-Java::TFileStreamReader::~TFileStreamReader()
+Java::TApkFileStreamReader::~TApkFileStreamReader()
 {
 	WaitToFinish();
 	mHandle.reset();
 }
 
 	
-void Java::TFileStreamReader::Read(TStreamBuffer& Buffer)
+void Java::TApkFileStreamReader::Read(TStreamBuffer& Buffer)
 {
 	if ( !mHandle )
 		return;
