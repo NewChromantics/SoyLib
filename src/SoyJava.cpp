@@ -248,12 +248,18 @@ public:
 		mOffset	( 0 )
 	{
 		//	todo: check type of Buffer is java.nio.bytebuffer
-		try
+		
+		//	gr: arrayOffset() throws and we can catch it, but produces spurious exception output, so check first
+		if ( Buffer.CallBoolMethod("hasArray") )
 		{
-			mOffset = Buffer.CallIntMethod("arrayOffset");
-		}
-		catch(...)
-		{
+			try
+			{
+				//	throws if !hasArray (array backed in OS)
+				mOffset = Buffer.CallIntMethod("arrayOffset");
+			}
+			catch(...)
+			{
+			}
 		}
 		mLimit = Buffer.CallIntMethod("limit");
 		mCapacity = Buffer.CallIntMethod("capacity");
