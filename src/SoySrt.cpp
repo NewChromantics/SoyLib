@@ -12,8 +12,14 @@ namespace Srt
 	void		DecodeTimeRange(const std::string& TimeString,SoyTime& Start,SoyTime& End);
 	void		EncodeTimeRange(std::stringstream& Out,const SoyTime& Start,const SoyTime& End);
 	
-	const char*	LineFeed = "\r\n";
-	const char*	DoubleLineFeed = "\r\n\r\n";
+	//	gr: something(osx textedit?) stripped my linefeeds, so we might as well support them anyway
+	const char* LineFeed_rn = "\r\n";
+	const char* LineFeed_n = "\n";
+	const char* DoubleLineFeed_rn = "\r\n\r\n";
+	const char* DoubleLineFeed_n = "\n\n";
+
+	const char* OutputLineFeed = LineFeed_n;
+	const char* OutputDoubleLineFeed = DoubleLineFeed_n;
 }
 
 
@@ -104,12 +110,13 @@ TProtocolState::Type Srt::TFrame::Decode(TStreamBuffer& Buffer)
 {
 	//	look for double terminator
 	std::string SrtData;
-	if ( !Buffer.Pop( DoubleLineFeed, SrtData, false ) )
-		return TProtocolState::Waiting;
+	if ( !Buffer.Pop( DoubleLineFeed_n, SrtData, false ) )
+		if ( !Buffer.Pop( DoubleLineFeed_rn, SrtData, false ) )
+			return TProtocolState::Waiting;
 
 	//	split lines
 	Array<std::string> Lines;
-	Soy::StringSplitByString( GetArrayBridge(Lines), SrtData, LineFeed, false );
+	Soy::StringSplitByMatches( GetArrayBridge(Lines), SrtData, LineFeed_rn, false );
 
 	try
 	{
@@ -122,7 +129,7 @@ TProtocolState::Type Srt::TFrame::Decode(TStreamBuffer& Buffer)
 		for ( int i=2;	i<Lines.GetSize();	i++ )
 		{
 			if ( i > 2 )
-				mString += '\n';
+				mString += LineFeed_n;
 			mString += Lines[i];
 		}
 	}
@@ -139,25 +146,25 @@ void Srt::TFrame::Encode(TStreamBuffer& Buffer)
 {
 	std::stringstream Output;
 	
-	Output << mIndex << LineFeed;
+	Output << mIndex << OutputLineFeed;
 	EncodeTimeRange( Output, mStart, mEnd );
-	Output << LineFeed;
+	Output << OutputLineFeed;
 	
 	//	split the line so we don't get empty lines (double line feed=terminator)
 	bool HasOutputTrailingLinefeed = false;
 	auto OutputLine = [&Output,&HasOutputTrailingLinefeed](const std::string& Chunk,const char& Splitter)
 	{
-		Output << Chunk << LineFeed;
+		Output << Chunk << OutputLineFeed;
 		HasOutputTrailingLinefeed = true;
 		return true;
 	};
-	Soy::StringSplitByMatches( OutputLine, mString, LineFeed, false );
+	Soy::StringSplitByMatches( OutputLine, mString, LineFeed_rn, false );
 
 	if ( !HasOutputTrailingLinefeed )
-		Output << LineFeed;
+		Output << OutputLineFeed;
 	
 	//	final empty line
-	Output << LineFeed;
+	Output << OutputLineFeed;
 	
 	Buffer.Push( Output.str() );
 }
