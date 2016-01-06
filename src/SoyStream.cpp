@@ -136,7 +136,7 @@ bool TStreamBuffer::Pop(const std::string Delim,std::string& Data,bool KeepDelim
 		return false;
 	
 	//	search for match
-	auto MaxSearch = size_cast<ssize_t>(mData.GetSize()-DelimArray.GetSize());
+	auto MaxSearch = size_cast<ssize_t>(mData.GetSize()) - size_cast<ssize_t>(DelimArray.GetSize());
 	for ( int a=0;	a<=MaxSearch;	a++ )
 	{
 		bool Match = memcmp( &mData[a], DelimArray.GetArray(), DelimArray.GetDataSize() )==0;
