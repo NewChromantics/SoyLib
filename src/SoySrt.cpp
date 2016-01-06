@@ -118,7 +118,7 @@ TProtocolState::Type Srt::TFrame::Decode(TStreamBuffer& Buffer)
 			static int WarningSize = 1000;
 			if ( Buffer.GetBufferedSize() > WarningSize )
 			{
-				Array<char> SampleArray( 30ul );
+				Array<char> SampleArray( 30 );
 				Buffer.Peek( GetArrayBridge(SampleArray) );
 				std::stringstream Sample;
 				Soy::ArrayToString( GetArrayBridge(SampleArray), Sample );

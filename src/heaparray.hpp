@@ -39,7 +39,13 @@ public:
 		SetHeap( Heap );
 	}
 
-	Array(const size_t size)
+	Array(size_t size)
+	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
+	{
+		SetHeap( GetDefaultHeap() );
+		SetSize(size);
+	}
+	Array(int size)
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
 		SetHeap( GetDefaultHeap() );
@@ -55,7 +61,7 @@ public:
 	}
 
 	//	explicit to avoid accidental implicit array-conversions (eg. when passing BufferArray to Array param)
-	template<typename ARRAYTYPE>
+	template<class ARRAYTYPE>
 	explicit Array(const ARRAYTYPE& v)
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
