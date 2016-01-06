@@ -27,6 +27,10 @@ namespace Soy
 
 namespace Java
 {
+	bool					HasVm();
+	JNIEnv&					GetContext();
+
+	
 	void					ArrayToBuffer(const ArrayBridge<uint8>&& Data,TJniObject& InputBuffer,const std::string& Context,int ExplicitBufferSize=-1);
 	void					BufferToArray(TJniObject& InputBuffer,ArrayBridge<uint8>&& Data,const std::string& Context,int ExplicitBufferSize=-1);
 	FixedRemoteArray<uint8>	GetBufferArray(TJniObject& Buffer,int LimitSize=-1);	//	get buffer as array. throws if this option isn't availible for this buffer
@@ -39,7 +43,42 @@ namespace Java
 	class TRandomAccessFileHandle;
 	
 	typedef ::TFileStreamReader_ProtocolLambda<TApkFileStreamReader> TApkFileStreamReader_ProtocolLambda;
+
+	//	according to android docs
+	//	http://developer.android.com/training/articles/perf-jni.html
+	//	JNI won't auto-free locals in a thread until it detatches (gr: not sure HOW it EVER cleans up then...)
+	//	so instead, we'll manually push&pop frames of locals.
+	//	hopefully this may show up cases where we need global refs, but more importantly we won't overflow the local stack (happens with long movies & ones with audio which use up locals much faster)
+	//	gr: look for a way to auto count locals... not found one yet
+	class TLocalRefStack;
+	class TThread;			//	java thread handler, handles env creation & destruction and local object stack
 }
+
+
+
+class Java::TLocalRefStack
+{
+public:
+	TLocalRefStack(size_t MaxLocals=100);
+	~TLocalRefStack();
+};
+
+class Java::TThread
+{
+public:
+	TThread(JavaVM& vm);
+	~TThread();
+	
+	void			FlushLocals();
+
+public:
+	JavaVM&			mVirtualMachine;
+	JNIEnv*			mThreadEnv;
+	std::shared_ptr<TLocalRefStack>	mLocalStack;	//	ptr so we can destruct & recreate it to flush all local vars
+};
+
+
+
 
 class Java::TFileHandle
 {
@@ -245,6 +284,7 @@ inline std::string	GetSignature(const std::string& SigTypea,const std::string& S
 
 
 //	merge this into TJniObject
+//	gr: use this to explicitly flush variables (eg. loops). For general clear up, use Java::TThread::FlushLocals()
 template<typename TYPE>
 class TJniLocalObject
 {

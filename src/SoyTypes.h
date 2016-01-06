@@ -284,17 +284,6 @@ namespace Soy
 
 class SoyThread;
 
-//	move these into a SoyJava file
-namespace Java
-{
-	void		InitThread(SoyThread& Thread);
-	void		ShutdownThread(SoyThread& Thread);
-
-	bool		HasVm();
-#if defined(TARGET_ANDROID)
-	JNIEnv&		GetContext();
-#endif
-}
 
 namespace Soy
 {
