@@ -474,7 +474,11 @@ void TStreamWriter::Push(std::shared_ptr<Soy::TWriteProtocol> Data)
 {
 	std::lock_guard<std::mutex> Lock( mQueueLock );
 	mQueue.PushBack( Data );
+	
 	Wake();
+
+	//	auto start
+	Start(false);
 }
 
 void TStreamWriter::WaitForQueueToFinish()
@@ -555,7 +559,6 @@ void TFileStreamWriter::Write(TStreamBuffer& Data)
 			break;
 		}
 	}
-
 }
 
 
