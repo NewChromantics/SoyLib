@@ -160,6 +160,10 @@ void Srt::TFrame::Encode(TStreamBuffer& Buffer)
 {
 	std::stringstream Output;
 	
+	//	if the end time is invalid (or just less than start) correct it
+	if ( mEnd < mStart )
+		mEnd = mStart;
+	
 	Output << mIndex << OutputLineFeed;
 	EncodeTimeRange( Output, mStart, mEnd );
 	Output << OutputLineFeed;
