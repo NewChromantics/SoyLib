@@ -140,10 +140,30 @@ public:
 	virtual void		Run() override
 	{
 		//	clear pointer to release in opengl thread!
+		//	gr; quite common for this to result in a crash... so... re-queue?
 		auto RefCount = mPointer.use_count();
-		if ( RefCount > 1 )
-			std::Debug << "Warning: TDefferedDeleteJob<" << Soy::GetTypeName<TYPE>() << "> has refcount=" << RefCount << ", won't deallocate on opengl thread!" << std::endl;
-		
+		int Retrys = 3;
+		while ( RefCount > 1 )
+		{
+			static auto WaitMs = 10;
+			std::Debug << "Warning: TDefferedDeleteJob<" << Soy::GetTypeName<TYPE>() << "> has refcount=" << RefCount << "; ";
+			
+			if ( Retrys > 0 )
+			{
+				std::Debug << "waiting " << WaitMs << "ms (retry x" << Retrys << ")";
+				std::this_thread::sleep_for( std::chrono::milliseconds(WaitMs) );
+				Retrys--;
+			}
+			else
+			{
+				//	gr: check just in case we get spruious output
+				std::Debug << "releasing opengl thread pointer, won't dealloc on opengl thread!";
+			}
+
+			//	try again counter
+			RefCount = mPointer.use_count();
+			std::Debug << " (now refcount=" << RefCount << ")" << std::endl;
+		}
 		mPointer.reset();
 	}
 	
