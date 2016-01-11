@@ -1081,6 +1081,28 @@ void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 {
 	{
 		std::lock_guard<std::mutex> Lock( mBlocksLock );
+		
+		//	gr: fix this in data generation, not here!
+		bool CorrectPreviousDuration = true;
+		static bool Debug_Correction = true;
+		auto Prev = !mBlocks.IsEmpty() ? mBlocks.GetBack() : nullptr;
+		if ( Prev )
+		{
+			if ( !Prev->mDuration.IsValid() )
+			{
+				Prev->mDuration = Buffer->mTimecode - Prev->mTimecode;
+				if ( Debug_Correction )
+					std::Debug << "Corrected prev text data duration from 0 to " << Prev->mDuration << std::endl;
+			}
+		}
+		
+		{
+			std::stringstream SampleStream;
+			Soy::ArrayToString( GetArrayBridge(Buffer->mData), SampleStream );
+			auto Sample = SampleStream.str();
+			std::Debug << "New text push; " << Buffer->mTimecode << "; " << Sample << std::endl;
+		}
+		
 		mBlocks.PushBack( Buffer );
 	}
 	mOnFramePushed.OnTriggered( Buffer->mTimecode );
