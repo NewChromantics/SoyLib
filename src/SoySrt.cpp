@@ -115,14 +115,14 @@ TProtocolState::Type Srt::TFrame::Decode(TStreamBuffer& Buffer)
 		if ( !Buffer.Pop( DoubleLineFeed_rn, SrtData, false ) )
 		{
 			//	should read some data quite quickly...
-			static int WarningSize = 1000;
+			static int WarningSize = 2000;
 			if ( Buffer.GetBufferedSize() > WarningSize )
 			{
 				Array<char> SampleArray( 30 );
 				Buffer.Peek( GetArrayBridge(SampleArray) );
 				std::stringstream Sample;
 				Soy::ArrayToString( GetArrayBridge(SampleArray), Sample );
-				std::Debug << "Warning; .srt buffer size is " << Buffer.GetBufferedSize() << " yet we haven't found any double-line feeds yet. First " << SampleArray.GetSize() << " chars; " << Sample.str() << std::endl;
+				std::Debug << "Warning .srt buffer size is " << Buffer.GetBufferedSize() << " yet we haven't found any double-line feeds yet. First " << SampleArray.GetSize() << " chars; " << Sample.str() << std::endl;
 			}
 			return TProtocolState::Waiting;
 		}
