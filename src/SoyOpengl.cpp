@@ -116,21 +116,20 @@ std::string Opengl::GetEnumString(GLenum Type)
 #endif
 			
 			//	types
-			CASE_ENUM_STRING( GL_BYTE );
-			CASE_ENUM_STRING( GL_UNSIGNED_BYTE );
-			CASE_ENUM_STRING( GL_SHORT );
-			CASE_ENUM_STRING( GL_UNSIGNED_SHORT );
-			CASE_ENUM_STRING( GL_INT );
-			CASE_ENUM_STRING( GL_UNSIGNED_INT );
-			//	CASE_ENUM_STRING( GL_FLOAT );
-		case GL_FLOAT:		return Soy::GetTypeName<float>();
-		case GL_FLOAT_VEC2: return Soy::GetTypeName<vec2f>();
-		case GL_FLOAT_VEC3: return Soy::GetTypeName<vec3f>();
-		case GL_FLOAT_VEC4: return Soy::GetTypeName<vec4f>();
+		case GL_BYTE:			return Soy::GetTypeName<sint8>();
+		case GL_UNSIGNED_BYTE:	return Soy::GetTypeName<uint8>();
+		case GL_SHORT:			return Soy::GetTypeName<sint16>();
+		case GL_UNSIGNED_SHORT:	return Soy::GetTypeName<uint16>();
+		case GL_INT:			return Soy::GetTypeName<int>();
+		case GL_UNSIGNED_INT:	return Soy::GetTypeName<uint32>();
+		case GL_FLOAT:			return Soy::GetTypeName<float>();
+		case GL_FLOAT_VEC2:		return Soy::GetTypeName<vec2f>();
+		case GL_FLOAT_VEC3:		return Soy::GetTypeName<vec3f>();
+		case GL_FLOAT_VEC4:		return Soy::GetTypeName<vec4f>();
 			CASE_ENUM_STRING( GL_INT_VEC2 );
 			CASE_ENUM_STRING( GL_INT_VEC3 );
 			CASE_ENUM_STRING( GL_INT_VEC4 );
-			CASE_ENUM_STRING( GL_BOOL );
+		case GL_BOOL:			return Soy::GetTypeName<bool>();
 			CASE_ENUM_STRING( GL_SAMPLER_2D );
 			CASE_ENUM_STRING( GL_SAMPLER_CUBE );
 			CASE_ENUM_STRING( GL_FLOAT_MAT2 );
@@ -258,6 +257,15 @@ void Opengl::SetUniform(const TUniform& Uniform,const float& Value)
 	GLsizei ArraySize = 1;
 	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
 	glUniform1fv( Uniform.mIndex, ArraySize, &Value );
+	Opengl_IsOkay();
+}
+
+template<>
+void Opengl::SetUniform(const TUniform& Uniform,const int& Value)
+{
+	GLsizei ArraySize = 1;
+	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
+	glUniform1iv( Uniform.mIndex, ArraySize, &Value );
 	Opengl_IsOkay();
 }
 
