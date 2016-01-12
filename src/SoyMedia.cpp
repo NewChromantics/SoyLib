@@ -1083,10 +1083,10 @@ void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 		std::lock_guard<std::mutex> Lock( mBlocksLock );
 		
 		//	gr: fix this in data generation, not here!
-		bool CorrectPreviousDuration = true;
+		static bool CorrectPreviousDuration = true;
 		static bool Debug_Correction = true;
 		auto Prev = !mBlocks.IsEmpty() ? mBlocks.GetBack() : nullptr;
-		if ( Prev )
+		if ( CorrectPreviousDuration && Prev )
 		{
 			if ( !Prev->mDuration.IsValid() )
 			{
