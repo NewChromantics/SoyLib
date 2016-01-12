@@ -209,7 +209,8 @@ DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint64 );
 DECLARE_TYPE_NAME_AS( std::string, "text" );
 
 
-
+//	gr: alternative
+//	http://codereview.stackexchange.com/questions/5515/c-int-cast-function-for-checked-casts
 //	when casting integers down, get rid of warnings using this, so we can add a check later if it EVER comes up as a problem
 template<typename SMALLSIZE,typename BIGSIZE>
 inline SMALLSIZE size_cast(BIGSIZE Size)

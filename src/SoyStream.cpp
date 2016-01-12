@@ -136,7 +136,7 @@ bool TStreamBuffer::Pop(const std::string Delim,std::string& Data,bool KeepDelim
 		return false;
 	
 	//	search for match
-	auto MaxSearch = size_cast<ssize_t>(mData.GetSize()-DelimArray.GetSize());
+	auto MaxSearch = size_cast<ssize_t>(mData.GetSize()) - size_cast<ssize_t>(DelimArray.GetSize());
 	for ( int a=0;	a<=MaxSearch;	a++ )
 	{
 		bool Match = memcmp( &mData[a], DelimArray.GetArray(), DelimArray.GetDataSize() )==0;
@@ -474,7 +474,11 @@ void TStreamWriter::Push(std::shared_ptr<Soy::TWriteProtocol> Data)
 {
 	std::lock_guard<std::mutex> Lock( mQueueLock );
 	mQueue.PushBack( Data );
+	
 	Wake();
+
+	//	auto start
+	Start(false);
 }
 
 void TStreamWriter::WaitForQueueToFinish()
@@ -555,7 +559,6 @@ void TFileStreamWriter::Write(TStreamBuffer& Data)
 			break;
 		}
 	}
-
 }
 
 

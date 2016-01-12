@@ -1321,7 +1321,7 @@ TJniObject TJniObject::CallObjectMethod(const std::string& MethodName,const std:
 
 	//std::Debug << __func__ << " CallObjectMethod " << std::endl;
 	auto ResultObjectj = java().CallObjectMethod( GetWeakObject(), Method );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	ThrowJavaException( std::string(__func__) + MethodName, ResultObjectj==nullptr );
 
 	//	construct returning object
 	//std::Debug << __func__ << " constructing return object... " << std::endl;
@@ -1346,7 +1346,7 @@ TJniObject TJniObject::CallObjectMethod(const std::string& MethodName,const std:
 
 	auto Method = GetMethod( MethodName, Signature );
 	auto ResultObjectj = java().CallObjectMethod( GetWeakObject(), Method, ParamA );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	ThrowJavaException( std::string(__func__) + MethodName, ResultObjectj==nullptr );
 	
 	//	construct returning object
 	TJniObject ResultObject( ResultObjectj, ReturnClass.GetWeakClass(), ReturnClass.GetClassName().c_str() );
@@ -1363,7 +1363,7 @@ TJniObject TJniObject::CallObjectMethod(const std::string& MethodName,const std:
 	
 	auto Method = GetMethod( MethodName, Signature );
 	auto ResultObjectj = java().CallObjectMethod( GetWeakObject(), Method, ParamA );
-	ThrowJavaException( std::string("CallObjectMethod( ") + MethodName + " )" );
+	ThrowJavaException( std::string("CallObjectMethod( ") + MethodName + " )", ResultObjectj==nullptr );
 	
 	//	construct returning object
 	TJniObject ResultObject( ResultObjectj, ReturnClass.GetWeakClass(), ReturnClass.GetClassName().c_str() );
@@ -1381,7 +1381,7 @@ TJniObject TJniObject::CallObjectMethod(const std::string& MethodName,const std:
 	
 	auto Method = GetMethod( MethodName, Signature );
 	auto ResultObjectj = java().CallObjectMethod( GetWeakObject(), Method, ParamA );
-	ThrowJavaException( std::string("CallObjectMethod( ") + MethodName + " )" );
+	ThrowJavaException( std::string("CallObjectMethod( ") + MethodName + " )", ResultObjectj==nullptr );
 	
 	//	construct returning object
 	TJniObject ResultObject( ResultObjectj, ReturnClass.GetWeakClass(), ReturnClass.GetClassName().c_str() );
@@ -1445,7 +1445,7 @@ void JniMediaPlayer::SetDataSourceAssets(const std::string& Path)
 	std::Debug << "getting AssetManager.CallObjectMethod('openFd'),..." << std::endl;
 	//	gr; this throws java.io.FileNotFoundException on large files (400mb bjork)
 	TJniObject AssetFileDescriptor = AssetManager.CallObjectMethod("openFd", AssetFileDescriptorClass.GetClassName(), Filenamej );
-		
+	
 	try
 	{
 		std::Debug << "getting FileDescriptor..." << std::endl;
@@ -1619,6 +1619,56 @@ void JniMediaPlayer::GetState(std::ostream& Stream)
 }
 
 
+void JniMediaExtractor::SetDataSourceJar(const std::string& OrigPath)
+{
+	//	trying to stream right out of assets
+	std::Debug << __func__ << "(" << OrigPath << ")" << std::endl;
+	
+	auto InternalFilenamePrefix = "!/";
+	auto JarFilePrefix = "file://";
+	
+	//	correct filename
+	//	gr: could put this prefix in the protocol, but just in case there are other methods, let our code attempt it
+	std::string Path = OrigPath;
+	if ( !Soy::StringTrimLeft( Path, JarFilePrefix, false ) )
+		std::Debug << "Warning: Expected JAR filename (" << OrigPath << ") to begin with " << JarFilePrefix << std::endl;
+	
+	//	trim the suffix (path inside the jar/obb/zip)
+	BufferArray<std::string,2> JarAndAsset;
+	Soy::StringSplitByString( GetArrayBridge(JarAndAsset), Path, InternalFilenamePrefix, true );
+	if ( JarAndAsset.GetSize() != 2 )
+	{
+		std::stringstream Error;
+		Error << "Path did not split(x" << JarAndAsset.GetSize() << ") into filename" << InternalFilenamePrefix << "asset [" << Path << "]";
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	//	specific error for missing zip resource class
+	auto ZipResourceClass = "com.android.vending.expansion.zipfile.ZipResourceFile";
+	try
+	{
+		TJniClass UnityPlayerClass(ZipResourceClass);
+	}
+	catch(std::exception& e)
+	{
+		std::stringstream Error;
+		Error << "Error getting java class " << ZipResourceClass << ". Maybe need to add jar from android SDK (commonly built as zip_file.jar); " << e.what();
+		//	gr: output to debug and re-throw instead?
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	auto& JarFilename = JarAndAsset[0];
+	auto& AssetFilename = JarAndAsset[1];
+	
+	TJniObject Container(ZipResourceClass,JarFilename);
+	
+	//	gr: returns a null object when filenot found (no exception!) so exception is forced on error
+	TJniObject FileDescriptor = Container.CallObjectMethod("getAssetFileDescriptor", "android/content/res/AssetFileDescriptor", AssetFilename );
+	
+	std::Debug << "SetDataSourceAssetFileDescriptor" << std::endl;
+	SetDataSourceAssetFileDescriptor( FileDescriptor, true );
+}
+
 
 
 void JniMediaExtractor::SetDataSourceAssets(const std::string& Path)
@@ -1656,6 +1706,13 @@ void JniMediaExtractor::SetDataSourceAssets(const std::string& Path)
 	//	gr; this throws java.io.FileNotFoundException on large files (400mb bjork)
 	TJniObject AssetFileDescriptor = AssetManager.CallObjectMethod("openFd", AssetFileDescriptorClass.GetClassName(), Filenamej );
 	
+	SetDataSourceAssetFileDescriptor( AssetFileDescriptor, true );
+	
+}
+
+
+void JniMediaExtractor::SetDataSourceAssetFileDescriptor(TJniObject& AssetFileDescriptor,bool CloseOnFinish)
+{
 	try
 	{
 		std::Debug << "getting FileDescriptor..." << std::endl;
@@ -1672,20 +1729,23 @@ void JniMediaExtractor::SetDataSourceAssets(const std::string& Path)
 		auto Method_setDataSource = GetMethod<void>( "setDataSource", GetSignatureType(FileDescriptor), GetSignatureType<jlong>(), GetSignatureType<jlong>() );
 		std::Debug << "calling SetDataSource..." << std::endl;
 		java().CallVoidMethod( GetWeakObject(), Method_setDataSource, FileDescriptor.GetWeakObject(), FdOffset, FdLength );
-		ThrowJavaException( std::string(__func__) + Path );
+		ThrowJavaException( "SetDataSourceAssetFileDescriptor setDataSource" );
 		
-		//	todo: close FD. According to docs we should close the fd immediately after SetDataSource returns
+		//	close FD. According to docs we should close the fd immediately after SetDataSource returns
 		//	http://developer.android.com/reference/android/media/MediaPlayer.html#setDataSource(android.content.Context, android.net.Uri)
 		//	http://developer.android.com/reference/android/content/res/AssetFileDescriptor.html#close()
-		AssetFileDescriptor.CallVoidMethod("close");
+		if ( CloseOnFinish )
+			AssetFileDescriptor.CallVoidMethod("close");
 	}
 	catch ( ... )
 	{
 		//	close FD here too!
-		AssetFileDescriptor.CallVoidMethod("close");
+		if ( CloseOnFinish )
+			AssetFileDescriptor.CallVoidMethod("close");
 		throw;
 	}
 }
+
 
 void JniMediaExtractor::SetDataSourcePath(const std::string& Path)
 {
