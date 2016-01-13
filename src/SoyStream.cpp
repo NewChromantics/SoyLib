@@ -354,8 +354,20 @@ bool TStreamReader::Iteration()
 	if ( !CurrentProtocol )
 		return true;
 	
-	//	process
-	auto DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
+	//	process protocol
+	auto DecodeResult = TProtocolState::Disconnect;
+	try
+	{
+		DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Protocol " << CurrentProtocol->GetTypeName() << "::Decode threw exception (" << e.what() << ") reverting to " << DecodeResult << std::endl;
+	}
+	catch(...)
+	{
+		std::Debug << "Protocol " << CurrentProtocol->GetTypeName()  << "::Decode threw unknown exception reverting to " << DecodeResult << std::endl;
+	}
 	
 	switch ( DecodeResult )
 	{
