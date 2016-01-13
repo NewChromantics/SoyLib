@@ -441,8 +441,17 @@ public:
 	//	gr: re-instating this, we should enforce decode timecodes in the extractor.
 	SoyTime					GetSortingTimecode() const	{	return mDecodeTimecode.IsValid() ? mDecodeTimecode : mTimecode;	}
 	
+	bool					HasData() const
+	{
+		if ( mPixelBuffer )
+			return true;
+		if ( !mData.IsEmpty() )
+			return true;
+		return false;
+	}
+	
 public:
-	bool					mEof;
+	bool					mEof;		//	if EOF, data is optional (see HasData())
 	SoyTime					mTimecode;	//	presentation time
 	SoyTime					mDuration;
 	SoyTime					mDecodeTimecode;
@@ -567,7 +576,6 @@ public:
 	
 	std::shared_ptr<TMediaPacketBuffer>	AllocStreamBuffer(size_t StreamIndex);
 	std::shared_ptr<TMediaPacketBuffer>	GetStreamBuffer(size_t StreamIndex);
-	
 
 
 //protected:	//	gr: only for subclasses, but the playlist media extractor needs to call this on it's children
@@ -575,9 +583,17 @@ public:
 	bool							CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyframe);
 
 protected:
+	//	gr: maybe we need to correct timecodes in the extractor, not the decoder, as
+	//	+a) we need to sync all streams really
+	//	+b) we calc duration below
+	//	+c) dictate decode order correction here
+	//	-a) decode timecodes may be special...
+	void							CorrectExtractedPacketTimecode(TMediaPacket& Packet)	{}
+	
 	void							OnError(const std::string& Error);
 	void							OnClearError();
-	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)	{	mOnStreamsChanged.OnTriggered( Streams );	}
+	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams);
+	void							OnStreamsChanged();
 	
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);

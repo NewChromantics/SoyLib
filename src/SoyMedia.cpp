@@ -740,32 +740,44 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			//	if we successfully read a packet, clear the last error
 			OnClearError();
 
-			//	todo handling stream EOF
-			if ( NextPacket->mEof )
+			//	packet can have content AND EOF, or just EOF
+			bool EndOfStream = NextPacket->mEof;
+			
+			//	can have a packet with no data (eg. eof) skip this
+			if ( NextPacket->HasData() )
+			{
+				
+				//	block thread unless it's stopped
+				auto Block = [this,&NextPacket]()
+				{
+					//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
+					if ( IsWorking() )
+					{
+						//std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << std::endl;
+						std::this_thread::sleep_for( std::chrono::milliseconds(100) );
+					}
+					return IsWorking();
+				};
+				
+				auto Buffer = GetStreamBuffer( NextPacket->mMeta.mStreamIndex );
+				//	if the buffer doesn't exist, we drop the packet. todo; make it easy to skip in ReadNextPacket!
+				if ( Buffer )
+				{
+					Buffer->PushPacket( NextPacket, Block );
+				}
+			}
+			else if ( !EndOfStream )
+			{
+				std::Debug << "Warning, empty packet AND NOT eof; " << *NextPacket << std::endl;
+			}
+
+			//	todo proper handling stream EOF
+			if ( EndOfStream )
 			{
 				//	slow down the now-idle-ish thread
 				static int SleepEofMs = 400;
 				std::this_thread::sleep_for( std::chrono::milliseconds(SleepEofMs) );
 				return;
-			}
-			
-			//	block thread unless it's stopped
-			auto Block = [this,&NextPacket]()
-			{
-				//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
-				if ( IsWorking() )
-				{
-					//std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << std::endl;
-					std::this_thread::sleep_for( std::chrono::milliseconds(100) );
-				}
-				return IsWorking();
-			};
-			
-			auto Buffer = GetStreamBuffer( NextPacket->mMeta.mStreamIndex );
-			//	if the buffer doesn't exist, we drop the packet. todo; make it easy to skip in ReadNextPacket!
-			if ( Buffer )
-			{
-				Buffer->PushPacket( NextPacket, Block );
 			}
 			
 			//	passed the time we were reading until, abort current loop
@@ -828,6 +840,24 @@ bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyfr
 	//	todo; pass a func from the decoder which accesses the buffers/current time
 	return true;
 }
+
+void TMediaExtractor::OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)
+{
+	mOnStreamsChanged.OnTriggered( Streams );
+}
+
+void TMediaExtractor::OnStreamsChanged()
+{
+	Array<TStreamMeta> Streams;
+	GetStreams( GetArrayBridge(Streams) );
+	OnStreamsChanged( GetArrayBridge(Streams) );
+}
+
+
+
+
+
+
 
 void TMediaEncoder::PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block)
 {
