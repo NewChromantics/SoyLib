@@ -10,6 +10,7 @@
 #define USE_STB
 #if defined(USE_STB)
 #define STB_IMAGE_IMPLEMENTATION
+#define STBI_NO_STDIO				//	all soy file access is abstracted so don't allow it in stb
 
 //	gr: on windows we currently get a whole load of extra stb warnings
 #pragma warning(push)
@@ -1681,3 +1682,35 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 	};
 }
 
+
+
+
+void Png::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer)
+{
+	Soy_AssertTodo();
+}
+
+void Jpeg::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer)
+{
+	Soy_AssertTodo();
+}
+
+void Gif::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer)
+{
+	Soy_AssertTodo();
+}
+
+void Tga::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer)
+{
+	Soy_AssertTodo();
+}
+
+void Bmp::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer)
+{
+	Soy_AssertTodo();
+}
+
+void Psd::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer)
+{
+	Soy_AssertTodo();
+}
