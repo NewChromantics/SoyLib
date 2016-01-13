@@ -15,10 +15,11 @@ namespace TProtocolState
 	enum Type
 	{
 		Invalid,
-		Waiting,		//	waiting for more data
-		Finished,		//	this one is done
-		Ignore,			//	finished, but do nothing with result
-		Disconnect,		//	finished, process and disconnect
+		Waiting,			//	waiting for more data
+		Finished,			//	this one is done
+		Ignore,				//	finished, but do nothing with result
+		Disconnect,			//	finished, process and disconnect
+		Abort,				//	finished, ignore result and disconnect (error)
 	};
 	DECLARE_SOYENUM(TProtocolState);
 };

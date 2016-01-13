@@ -355,7 +355,7 @@ bool TStreamReader::Iteration()
 		return true;
 	
 	//	process protocol
-	auto DecodeResult = TProtocolState::Disconnect;
+	auto DecodeResult = TProtocolState::Abort;
 	try
 	{
 		DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
@@ -380,6 +380,11 @@ bool TStreamReader::Iteration()
 		case TProtocolState::Finished:
 			break;
 			
+		//	invalidate data and continue as disconnection
+		case TProtocolState::Abort:
+			CurrentProtocol.reset();
+			break;
+
 			//	release current and re-iterate
 		default:
 			std::Debug << "Unhandled TProtocolState: " << DecodeResult << " ignoring." << std::endl;
@@ -388,16 +393,20 @@ bool TStreamReader::Iteration()
 			return true;
 	}
 	
-	if ( DecodeResult == TProtocolState::Disconnect )
-	{
-		std::Debug << "Todo: protocol says, disconnect stream. Currently unhandled." << std::endl;
-	}
-	
 	//	notify (with shared ptr so data can be cheaply saved)
-	mOnDataRecieved.OnTriggered( CurrentProtocol );
+	if ( CurrentProtocol )
+		mOnDataRecieved.OnTriggered( CurrentProtocol );
 	
 	//	dealloc for next
 	mCurrentProtocol.reset();
+
+	if ( DecodeResult == TProtocolState::Disconnect || DecodeResult == TProtocolState::Abort )
+	{
+		static auto SleepMs = 5000;
+		std::Debug << "Todo: protocol says, " << DecodeResult << " stream. Currently unhandled. Sleeping for " << SleepMs << "ms" << std::endl;
+		std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
+	}
+	
 	return true;
 }
 
