@@ -12,44 +12,6 @@ class SoyPixelsImpl;
 class TStreamBuffer;
 
 
-//	stb interfaces which haven't yet had any specific Soy stuff yet
-namespace Png
-{
-	void		Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer);
-	static const char*	FileExtensions[] = {".png"};
-}
-
-namespace Jpeg
-{
-	void		Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer);
-	static const char*	FileExtensions[] = {".jpg",".jpeg"};
-}
-
-namespace Gif
-{
-	void		Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer);
-	static const char*	FileExtensions[] = {".gif"};
-}
-
-namespace Tga
-{
-	void		Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer);
-	static const char*	FileExtensions[] = {".tga"};
-}
-
-namespace Bmp
-{
-	void		Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer);
-	static const char*	FileExtensions[] = {".bmp"};
-}
-
-namespace Psd
-{
-	void		Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer);
-	static const char*	FileExtensions[] = {".psd"};
-}
-
-
 
 namespace SoyPixelsFormat
 {
@@ -280,7 +242,7 @@ public:
 
 	bool			SetFormat(SoyPixelsFormat::Type Format);
 	bool			SetChannels(uint8 Channels);
-	void			SetPng(const ArrayBridge<char>& PngData);
+	void			SetPng(const ArrayBridge<char>& PngData) __deprecated;
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
 	bool			SetRawSoyPixels(const ArrayBridge<char>&& RawData)	{	return SetRawSoyPixels( RawData );	}
 
