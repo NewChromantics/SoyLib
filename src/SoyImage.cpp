@@ -4,6 +4,7 @@
 
 #define USE_STB
 #if defined(USE_STB)
+//#define STBI_FAILURE_USERMSG		//	friendly messages (if not always accurate...)
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_STDIO				//	all soy file access is abstracted so don't allow it in stb
 
@@ -28,7 +29,7 @@ void Stb::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,TReadFunction ReadFun
 #if defined(USE_STB)
 	
 	//	store popped data in case we abort and need to put it back into the buffer
-	Array<uint8> PoppedData;
+	Array<char> PoppedData;
 
 	class TLambdaTemp
 	{
@@ -53,33 +54,78 @@ void Stb::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,TReadFunction ReadFun
 		return LambdaTemp.mReadFunction( Destination, DestinationSize );
 	};
 	
-
+	auto Skip = [&PoppedData,&Buffer](int SkipSize)
+	{
+		//	gr: stb doesn't handle no-enough data...
+		if ( SkipSize > Buffer.GetBufferedSize() )
+		{
+			std::stringstream Error;
+			Error << "stb trying to skip " << SkipSize << " bytes but only " << Buffer.GetBufferedSize() << " remaining";
+			throw Soy::AssertException( Error.str() );
+		}
+		auto PopSize = std::min( size_cast<size_t>(SkipSize), Buffer.GetBufferedSize() );
+		Buffer.Pop( PopSize, GetArrayBridge(PoppedData) );
+	};
+	auto SkipWrapper = [](void* Context,int SkipSize)
+	{
+		auto& LambdaTemp = *reinterpret_cast<TLambdaTemp*>(Context);
+		LambdaTemp.mSkipFunction( SkipSize );
+	};
+	
+	
+	auto Eof = [&PoppedData,&Buffer]() -> int
+	{
+		return Buffer.GetBufferedSize() == 0;
+	};
+	auto EofWrapper = [](void* Context)
+	{
+		auto& LambdaTemp = *reinterpret_cast<TLambdaTemp*>(Context);
+		return LambdaTemp.mEofFunction();
+	};
+	
+	
 	TLambdaTemp LambdaTemp;
-	stbi_io_callbacks Callbacks;
 	LambdaTemp.mReadFunction = Read;
+	LambdaTemp.mSkipFunction = Skip;
+	LambdaTemp.mEofFunction = Eof;
+
+	stbi_io_callbacks Callbacks;
 	Callbacks.read = ReadWrapper;
+	Callbacks.skip = SkipWrapper;
+	Callbacks.eof = EofWrapper;
 	
 	stbi__context Context;
 	stbi__start_callbacks( &Context, &Callbacks, &LambdaTemp );
 	
-	int Width = 0;
-	int Height = 0;
-	int Channels = 0;
-	int RequestedChannels = 4;
-	auto* DecodedPixels = ReadFunction( &Context, &Width, &Height, &Channels, RequestedChannels );
-	if ( !DecodedPixels )
+	try
+	{
+		int Width = 0;
+		int Height = 0;
+		int Channels = 0;
+		int RequestedChannels = 4;
+		auto* DecodedPixels = ReadFunction( &Context, &Width, &Height, &Channels, RequestedChannels );
+		if ( !DecodedPixels )
+		{
+			//	gr: as this is not thread safe, it could come out mangled :( maybe add a lock around error popping before read (maybe have to lock around the whole thing)
+			auto* StbError = stbi_failure_reason();
+			if ( !StbError )
+				StbError = "Unknown error";
+			throw Soy::AssertException( StbError );
+		}
+		
+		//	convert output into pixels
+		//	gr: have to assume size
+		auto Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
+		SoyPixelsMeta Meta( Width, Height, Format );
+		SoyPixelsRemote OutputPixels( DecodedPixels, Meta.GetDataSize(), Meta );
+		Pixels.Copy( OutputPixels );
+	}
+	catch(std::exception& e)
 	{
 		//	unpop data so we can try again
 		Buffer.UnPop( GetArrayBridge(PoppedData) );
-		throw Soy::AssertException("Failed to image pixels");
+		throw;
 	}
-
-	//	convert output into pixels
-	//	gr: have to assume size
-	auto Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
-	SoyPixelsMeta Meta( Width, Height, Format );
-	SoyPixelsRemote OutputPixels( DecodedPixels, Meta.GetDataSize(), Meta );
-	Pixels.Copy( OutputPixels );
 
 #else
 	throw Soy::AssertException("No STB support, no image reading");
@@ -99,7 +145,14 @@ void Stb::Read(SoyPixelsImpl& Pixels,const ArrayBridge<char>& ArrayBuffer,TReadF
 	auto* DecodedPixels = stbi_load_from_memory( Buffer, BufferSize, &Width, &Height, &Channels, RequestedChannels );
 	if ( !DecodedPixels )
 	{
-		throw Soy::AssertException("Failed to image pixels");
+		//	gr: as this is not thread safe, it could come out mangled :( maybe add a lock around error popping before read (maybe have to lock around the whole thing)
+		auto* StbError = stbi_failure_reason();
+		if ( !StbError )
+			StbError = "Unknown error";
+		std::stringstream Error;
+		Error << "Failed to read image pixels; " << StbError;
+		
+		throw Soy::AssertException( Error.str() );
 	}
 	
 	//	convert output into pixels
