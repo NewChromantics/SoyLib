@@ -156,6 +156,7 @@ protected:
 	
 private:
 	std::ifstream		mFile;
+	Array<char>			mReadBuffer;	//	alloc once
 };
 
 

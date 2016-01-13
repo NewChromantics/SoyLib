@@ -600,7 +600,8 @@ TFileStreamReader::~TFileStreamReader()
 
 void TFileStreamReader::Read(TStreamBuffer& Buffer)
 {
-	BufferArray<char,100> Data(100);
+	mReadBuffer.SetSize( 1024*1024 );
+	auto& Data = mReadBuffer;
 
 	auto Peek = mFile.peek();
 	if ( Peek == std::char_traits<char>::eof() )
