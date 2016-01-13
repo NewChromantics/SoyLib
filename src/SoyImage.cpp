@@ -102,7 +102,8 @@ void Stb::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,TReadFunction ReadFun
 		int Width = 0;
 		int Height = 0;
 		int Channels = 0;
-		int RequestedChannels = 4;
+		//	gr: use 0 for "defaults"
+		int RequestedChannels = 0;
 		auto* DecodedPixels = ReadFunction( &Context, &Width, &Height, &Channels, RequestedChannels );
 		if ( !DecodedPixels )
 		{
