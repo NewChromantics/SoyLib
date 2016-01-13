@@ -47,6 +47,8 @@ namespace Soy
 	bool		StringContains(const std::string& Haystack, const std::string& Needle, bool CaseSensitive);
 	bool		StringBeginsWith(const std::string& Haystack, const std::string& Needle, bool CaseSensitive);
 	bool		StringEndsWith(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
+	template <size_t BUFFERSIZE>
+	bool		StringEndsWith(const std::string& Haystack,const char* (& Needles)[BUFFERSIZE], bool CaseSensitive);
 	bool		StringMatches(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
 	
 	std::string	StringJoin(const std::vector<std::string>& Strings,const std::string& Glue);
@@ -203,6 +205,15 @@ inline std::string Soy::StringJoin(const ArrayBridge<TYPE>& Elements,const std::
 			Stream << Glue;
 	}
 	return Stream.str();
+}
+
+template <size_t BUFFERSIZE>
+inline bool Soy::StringEndsWith(const std::string& Haystack,const char* (& Needles)[BUFFERSIZE], bool CaseSensitive)
+{
+	for ( int i=0;	i<BUFFERSIZE;	i++ )
+		if ( StringEndsWith( Haystack, Needles[i], CaseSensitive ) )
+			return true;
+	return false;
 }
 
 
