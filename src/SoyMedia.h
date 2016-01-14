@@ -588,7 +588,12 @@ protected:
 	//	+b) we calc duration below
 	//	+c) dictate decode order correction here
 	//	-a) decode timecodes may be special...
-	void							CorrectExtractedPacketTimecode(TMediaPacket& Packet)	{}
+	//	gr: this is AT LEAST needed for correct stats (evident when we have 1 frame movies...)
+	void							CorrectExtractedPacketTimecode(TMediaPacket& Packet)
+	{
+		if ( Packet.mTimecode.mTime == 0 )
+			Packet.mTimecode.mTime = 1;
+	}
 	
 	void							OnError(const std::string& Error);
 	void							OnClearError();
