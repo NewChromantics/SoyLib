@@ -5,19 +5,9 @@
 #include "SoyPng.h"
 #include "RemoteArray.h"
 #include "SoyMath.h"
+#include "SoyStream.h"
+#include "SoyImage.h"
 
-
-#define USE_STB
-#if defined(USE_STB)
-#define STB_IMAGE_IMPLEMENTATION
-
-//	gr: on windows we currently get a whole load of extra stb warnings
-#pragma warning(push)
-#pragma warning(disable: 4312)
-#include "stb/stb_image.h"
-#pragma warning(pop)
-
-#endif
 
 /// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED frame callbacks
 #define FREENECT_DEPTH_MM_MAX_VALUE 10000
@@ -107,19 +97,30 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
 	{
-	default:
 	case Invalid:		return 0;
 	case Greyscale:		return 1;
 	case LumaVideo:		return 1;
 	case GreyscaleAlpha:	return 2;
 	case RGB:			return 3;
+	case BGR:			return 3;
 	case RGBA:			return 4;
 	case BGRA:			return 4;
+	case ARGB:			return 4;
 	case KinectDepth:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepth11bit:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepth10bit:	return 2;	//	only 1 channel, but 16 bit
 	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
+	case ChromaUV_8_8:	return 1;
+	case ChromaUV_88:	return 2;
+
+
+	default:
+		break;
 	}
+
+	std::stringstream Error;
+	Error << __func__ << " not implemented for " << Format;
+	throw Soy::AssertException( Error.str() );
 }
 
 SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(size_t ChannelCount)
@@ -138,20 +139,99 @@ void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneForma
 {
 	switch ( Format )
 	{
-		case Yuv420_Biplanar_Full:
+		case Yuv_8_88_Full:
 			PlaneFormats.PushBack( LumaFull );
-			PlaneFormats.PushBack( Chroma2 );
+			PlaneFormats.PushBack( ChromaUV_88 );
 			break;
 			
-		case Yuv420_Biplanar_Video:
+		case Yuv_8_88_Video:
 			PlaneFormats.PushBack( LumaVideo );
-			PlaneFormats.PushBack( Chroma2 );
+			PlaneFormats.PushBack( ChromaUV_88 );
+			break;
+			
+		case Yuv_8_8_8_Full:
+			PlaneFormats.PushBack( LumaFull );
+			PlaneFormats.PushBack( ChromaUV_8_8 );
+			break;
+			
+		case Yuv_8_8_8_Video:
+			PlaneFormats.PushBack( LumaVideo );
+			PlaneFormats.PushBack( ChromaUV_8_8 );
 			break;
 			
 		default:
+			//	gr: should this return Format?
+			PlaneFormats.PushBack(Format);
 			break;
 	};
 }
+
+//	merge index & palette into Paletteised_8_8
+void SoyPixelsFormat::MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPixelsImpl& IndexedImage,const SoyPixelsImpl& Palette,uint8 TransparentIndex)
+{
+	Soy::Assert( IndexedImage.GetFormat() == SoyPixelsFormat::Greyscale, "Expected IndexedImage to be Greyscale" );
+	Soy::Assert( Palette.GetFormat() == SoyPixelsFormat::RGB, "Expected Palette to be RGB" );
+	Soy::Assert( Palette.GetHeight() == 1, "Expected palette to have height of 1" );
+	Soy::Assert( Palette.GetWidth() <= ((1<<16)-1), "Expected palette to have max width of 65535" );
+
+	auto& PaletteArray = Palette.GetPixelsArray();
+	auto& IndexedArray = IndexedImage.GetPixelsArray();
+	
+	//	manually construct this image
+	auto& PiMeta = PalettisedImage.GetMeta();
+	auto& PiArray = PalettisedImage.GetPixelsArray();
+	PiMeta.DumbSetFormat( SoyPixelsFormat::Palettised_8_8 );
+	PiMeta.DumbSetWidth( IndexedImage.GetWidth() );
+	PiMeta.DumbSetHeight( IndexedImage.GetHeight() );
+
+	PiArray.Clear();
+	
+	//	write header
+	uint8 PaletteSizeA = (Palette.GetWidth()>>0) & 0xff;
+	uint8 PaletteSizeB = (Palette.GetWidth()>>8) & 0xff;
+	GetArrayBridge(PiArray).PushBack( PaletteSizeA );
+	GetArrayBridge(PiArray).PushBack( PaletteSizeB );
+	GetArrayBridge(PiArray).PushBack( TransparentIndex );
+
+	//	write data
+	PiArray.PushBackArray( PaletteArray );
+	PiArray.PushBackArray( IndexedArray );
+	
+	//	todo: verify by splitting
+	static bool Verify = false;
+	if ( Verify )
+	{
+		Array<std::shared_ptr<SoyPixelsImpl>> Planes;
+		PalettisedImage.SplitPlanes( GetArrayBridge(Planes) );
+		Soy::Assert( Planes.GetSize() == 2, "Palettised image not split into 2");
+		Soy::Assert( Planes[0]->GetMeta() == Palette.GetMeta(), "Palettised image split; palette meta check failed");
+		Soy::Assert( Planes[1]->GetMeta() == IndexedImage.GetMeta(), "Palettised image split; index meta check failed");
+	}
+}
+
+size_t SoyPixelsFormat::GetHeaderSize(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyPixelsFormat::Palettised_8_8:
+			return 3;
+			
+		default:
+			return 0;
+	}
+}
+
+void SoyPixelsFormat::GetHeaderPalettised(ArrayBridge<uint8>&& Data,size_t& PaletteSize,size_t& TransparentIndex)
+{
+	auto HeaderSize = GetHeaderSize( SoyPixelsFormat::Palettised_8_8 );
+	Soy::Assert( HeaderSize == 3, "Header size mismatch");
+	Soy::Assert( Data.GetSize() >= HeaderSize, "SoyPixelsFormat::GetHeaderPalettised Data underrun" );
+	
+	PaletteSize = Data[0];
+	PaletteSize |= Data[1] << 8;
+	TransparentIndex = Data[2];
+}
+
 
 
 std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
@@ -164,14 +244,20 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::RGBA,				"RGBA"	},
 	{ SoyPixelsFormat::BGRA,				"BGRA"	},
 	{ SoyPixelsFormat::BGR,					"BGR"	},
+	{ SoyPixelsFormat::ARGB,				"ARGB"	},
 	{ SoyPixelsFormat::KinectDepth,			"KinectDepth"	},
 	{ SoyPixelsFormat::FreenectDepth10bit,	"FreenectDepth10bit"	},
 	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},
 	{ SoyPixelsFormat::FreenectDepthmm,		"FreenectDepthmm"	},
-	{ SoyPixelsFormat::Yuv420_Biplanar_Full,	"Yuv420_Biplanar_Full"	},
-	{ SoyPixelsFormat::Yuv420_Biplanar_Video,	"Yuv420_Biplanar_Video"	},
+	{ SoyPixelsFormat::Yuv_8_88_Full,		"Yuv_8_88_Full"	},
+	{ SoyPixelsFormat::Yuv_8_88_Video,		"Yuv_8_88_Video"	},
+	{ SoyPixelsFormat::Yuv_8_8_8_Full,		"Yuv_8_8_8_Full"	},
+	{ SoyPixelsFormat::Yuv_8_8_8_Video,		"Yuv_8_8_8_Video"	},
 	{ SoyPixelsFormat::LumaFull,			"LumaFull"	},
 	{ SoyPixelsFormat::LumaVideo,			"LumaVideo"	},
+	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
+	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
+	{ SoyPixelsFormat::Palettised_8_8,		"Palettised_8_8"	},
 };
 
 
@@ -300,8 +386,8 @@ void SetDepthColour(uint8& Red,uint8& Green,uint8& Blue,float Depth,int PlayerIn
 bool ConvertFormat_KinectDepthToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	bool GreyscaleAlphaFormat = (NewFormat == SoyPixelsFormat::GreyscaleAlpha);
-	int Height = Meta.GetHeight();
-	int PixelCount = Meta.GetWidth() * Height;
+	auto Height = Meta.GetHeight();
+	auto PixelCount = Meta.GetWidth() * Height;
 	for ( int p=0;	p<PixelCount;	p++ )
 	{
 		uint16 KinectDepth = *reinterpret_cast<uint16*>( &Pixels[p*2] );
@@ -333,8 +419,8 @@ bool ConvertFormat_KinectDepthToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta&
 	memcpy( DepthPixels.GetArray(), Pixels.GetArray(), DepthPixels.GetDataSize() );
 	
 	auto Components = SoyPixelsFormat::GetChannelCount( NewFormat );
-	int Height = Meta.GetHeight();
-	int PixelCount = Meta.GetWidth() * Height;
+	auto Height = Meta.GetHeight();
+	auto PixelCount = Meta.GetWidth() * Height;
 	
 	//	realloc
 	Pixels.SetSize( Components * PixelCount );
@@ -494,9 +580,9 @@ bool ConvertFormat_BgrToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,So
 
 bool ConvertFormat_RGBAToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
-	int Height = Meta.GetHeight();
-	int PixelCount = Meta.GetWidth() * Height;
-	int Channels = Meta.GetChannels();
+	auto Height = Meta.GetHeight();
+	auto PixelCount = Meta.GetWidth() * Height;
+	auto Channels = Meta.GetChannels();
 	auto GreyscaleChannels = SoyPixelsFormat::GetChannelCount(NewFormat);
 
 	//	todo: store alpha in loop
@@ -556,7 +642,7 @@ bool ConvertDepth16(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsF
 	//int NewDepthBits = GetDepthFormatBits( NewFormat );
 	
 	uint16* DepthPixels = reinterpret_cast<uint16*>( Pixels.GetArray() );
-	int PixelCount = Meta.GetWidth() * Meta.GetHeight();
+	auto PixelCount = Meta.GetWidth() * Meta.GetHeight();
 
 	static bool Debug = false;
 	
@@ -838,10 +924,10 @@ bool SoyPixelsImpl::Init(const SoyPixelsMeta& Meta)
 	auto Format = Meta.GetFormat();
 	
 	//	alloc
-	GetMeta().DumbSetWidth( size_cast<uint16>(Width) );
-	GetMeta().DumbSetHeight( size_cast<uint16>(Height) );
+	GetMeta().DumbSetWidth( Width );
+	GetMeta().DumbSetHeight( Height );
 	GetMeta().DumbSetFormat( Format );
-	size_t Alloc = GetMeta().GetDataSize();
+	auto Alloc = GetMeta().GetDataSize();
 	auto& Pixels = GetPixelsArray();
 	Pixels.SetSize( Alloc, false );
 	return true;
@@ -888,151 +974,9 @@ bool SoyPixelsImpl::GetRawSoyPixels(ArrayBridge<char>& RawData) const
 }
 
 
-bool SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData,std::stringstream& Error)
+void SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData)
 {
-	//	http://stackoverflow.com/questions/7942635/write-png-quickly
-	TArrayReader Png( PngData );
-
-	if ( !TPng::CheckMagic( Png ) )
-	{
-		Error << "PNG has invalid magic header";
-		return false;
-	}
-	
-	//	use stb
-#if defined(USE_STB)
-	const stbi_uc* Buffer = reinterpret_cast<const stbi_uc*>( PngData.GetArray() );
-	auto BufferSize = size_cast<int>( PngData.GetDataSize() );
-	int Width = 0;
-	int Height = 0;
-	int Components = 0;
-	int RequestComponents = 0;
-	auto* DecodedPixels = stbi_load_from_memory( Buffer, BufferSize, &Width,&Height, &Components, RequestComponents );
-	if ( !DecodedPixels )
-	{
-		Error << "Failed to decode png pixels";
-		return false;
-	}
-	
-	auto Format = SoyPixelsFormat::GetFormatFromChannelCount(Components);
-	if ( !this->Init( Width, Height, Format ) )
-	{
-		Error << "Failed to init pixels from png (" << Width << "x" << Height << " " << Format << ")";
-		return false;
-	}
-	auto* ThisPixels = this->GetPixelsArray().GetArray();
-	memcpy( ThisPixels, DecodedPixels, this->GetPixelsArray().GetDataSize() );
-	return true;
-#else
-	
-	TPng::THeader Header;
-	assert( !Header.IsValid() );
-	//	all the extracted IDAT chunks together
-	Array<char> ImageData;
-	bool FoundEnd = false;
-	
-	//	read until out of data
-	//	gr: had a png with junk after IEND... so abort after that
-	while ( !Png.Eod() && !FoundEnd )
-	{
-		uint32 BlockLength;
-		if ( !Png.ReadReinterpretReverse<BufferArray<char,20>>( BlockLength ) )
-		{
-			Error << "Failed to read block length";
-			return false;
-		}
-		BufferArray<char,4> BlockType(4);
-		auto BlockTypeBridge = GetArrayBridge( BlockType );
-		if ( !Png.Read( BlockTypeBridge ) )
-		{
-			Error << "Failed to read block type";
-			return false;
-		}
-		std::stringstream BlockTypeStream;
-		BlockTypeStream << BlockType[0] << BlockType[1] << BlockType[2] << BlockType[3];
-		std::string BlockTypeString = BlockTypeStream.str();
-	
-		Array<char> BlockData( BlockLength );
-		auto BlockDataBridge = GetArrayBridge( BlockData );
-		if ( BlockLength > 0 && !Png.Read( BlockDataBridge ) )
-		{
-			Error << "Failed to read block " << BlockTypeString << " data (" << BlockLength << " bytes)";
-			return false;
-		}
-		uint32 BlockCrc;
-		if ( !Png.ReadReinterpretReverse<BufferArray<char,20>>( BlockCrc ) )
-		{
-			Error << "Failed to read block " << BlockTypeString << " CRC";
-			return false;
-		}
-		//	gr: crc doesn't match, needs to include more than just the data I think
-		uint32 BlockDataCrc = BlockDataBridge.GetCrc32();
-		if ( BlockDataCrc != BlockCrc )
-		{
-			std::Debug << "Block " << BlockTypeString << " CRC (" << BlockDataCrc << ") doesn't match header CRC (" << BlockCrc << ")" << std::endl;
-		//	Error << "Block " << BlockTypeString << " CRC (" << BlockDataCrc << ") doesn't match header CRC (" << BlockCrc << ")";
-		//	return false;
-		}
-		
-		if ( BlockTypeString == "IHDR" )
-		{
-			if ( BlockDataBridge.IsEmpty() )
-			{
-				Error << "Header data is empty, aborting";
-				return false;
-			}
-
-			if ( Header.IsValid() )
-			{
-				Error << "Found 2nd header, aborting";
-				return false;
-			}
-			
-			if ( !TPng::ReadHeader( *this, Header, BlockDataBridge, Error ) )
-				return false;
-			assert( Header.IsValid() );
-		}
-		else if ( BlockTypeString == "IDAT" )
-		{
-			if ( BlockDataBridge.IsEmpty() )
-			{
-				Error << "Block data is empty, aborting";
-				return false;
-			}
-			//	these are supposed to be consecutive but I guess it doesn't matter
-			ImageData.PushBackArray( BlockDataBridge );
-		}
-		else if ( BlockTypeString == "IEND" )
-		{
-			if ( !TPng::ReadTail( *this, BlockDataBridge, Error ) )
-				return false;
-			FoundEnd = true;
-		}
-		else
-		{
-			std::Debug << "Ignored unhandled PNG block: " << BlockTypeString << ", " << BlockLength << " bytes" << std::endl;
-		}
-	}
-	
-	if ( !Header.IsValid() )
-	{
-		Error << "PNG missing header";
-		return false;
-	}
-	
-	if ( ImageData.IsEmpty() )
-	{
-		Error << "PNG missing image data";
-		return false;
-	}
-	
-	//	read the image data
-	auto ImageDataBridge = GetArrayBridge( ImageData );
-	if ( !TPng::ReadData( *this, Header, ImageDataBridge, Error ) )
-		return false;
-	
-	return true;
-#endif
+	Png::Read( *this, PngData );
 }
 
 bool SoyPixelsImpl::SetRawSoyPixels(const ArrayBridge<char>& RawData)
@@ -1164,43 +1108,111 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 }
 
 
-const uint8& SoyPixelsImpl::GetPixel(uint16 x,uint16 y,uint16 Channel) const
+
+size_t SoyPixelsImpl::GetIndex(size_t x,size_t y,size_t ChannelOffset) const
 {
 	auto w = GetWidth();
 	auto h = GetHeight();
-	auto Channels = GetChannels();
-	if ( x < 0 || x >= w || y<0 || y>=h || Channel<0 || Channel>=Channels )
+	auto ChannelCount = GetChannels();
+	if ( x >= w || y >= h || ChannelOffset >= ChannelCount )
 	{
-		assert(false);
-		static uint8 Fake = 0;
-		return Fake;
+		std::stringstream Error;
+		Error << "Pixel OOB x=" << x << '/' << w << " y=" << y << '/' << h << " ch=" << ChannelOffset << '/' << ChannelCount;
+		throw Soy::AssertException( Error.str() );
 	}
-	int Index = x + (y*w);
-	Index *= Channels;
-	Index += Channel;
-	return GetPixelsArray()[Index];
+	
+	auto Index = y * (w*ChannelCount);
+	Index += x * ChannelCount;
+	Index += ChannelOffset;
+	return Index;
 }
 
-bool SoyPixelsImpl::SetPixel(uint16 x,uint16 y,uint16 Channel,const uint8& Component)
+uint8& SoyPixelsImpl::GetPixelPtr(size_t x,size_t y,size_t ChannelOffset)
 {
-	int w = GetWidth();
-	int h = GetHeight();
-	int Channels = GetChannels();
-	if ( x < 0 || x >= w || y<0 || y>=h || Channel<0 || Channel>=Channels )
-	{
-		assert(false);
-		return false;
-	}
-	int Index = x + (y*w);
-	Index *= Channels;
-	Index += Channel;
-	GetPixelsArray()[Index] = Component;
-	return true;
+	auto Index = GetIndex( x, y, ChannelOffset );
+	auto& Pixels = GetPixelsArray();
+	auto* PixelsPtr = Pixels.GetArray();
+	return PixelsPtr[Index];
+}
+
+const uint8& SoyPixelsImpl::GetPixelPtr(size_t x,size_t y,size_t ChannelOffset) const
+{
+	auto Index = GetIndex( x, y, ChannelOffset );
+	auto& Pixels = GetPixelsArray();
+	auto* PixelsPtr = Pixels.GetArray();
+	return PixelsPtr[Index];
+}
+
+uint8 SoyPixelsImpl::GetPixel(size_t x,size_t y,size_t Channel) const
+{
+	return GetPixelPtr( x, y, Channel );
+}
+
+vec2x<uint8> SoyPixelsImpl::GetPixel2(size_t x,size_t y) const
+{
+	auto ChannelCount = GetChannels();
+	Soy::Assert( ChannelCount >= 2, "Accessing channel OOB");
+	auto* Pixel = &GetPixelPtr( x, y, 0 );
+	return vec2x<uint8>( Pixel[0], Pixel[1] );
+}
+
+vec3x<uint8> SoyPixelsImpl::GetPixel3(size_t x,size_t y) const
+{
+	auto ChannelCount = GetChannels();
+	Soy::Assert( ChannelCount >= 3, "Accessing channel OOB");
+	auto* Pixel = &GetPixelPtr( x, y, 0 );
+	return vec3x<uint8>( Pixel[0], Pixel[1], Pixel[2] );
+}
+
+vec4x<uint8> SoyPixelsImpl::GetPixel4(size_t x,size_t y) const
+{
+	auto ChannelCount = GetChannels();
+	Soy::Assert( ChannelCount >= 4, "Accessing channel OOB");
+	auto* Pixel = &GetPixelPtr( x, y, 0 );
+	return vec4x<uint8>( Pixel[0], Pixel[1], Pixel[2], Pixel[3] );
+}
+
+void SoyPixelsImpl::SetPixel(size_t x,size_t y,size_t Channel,uint8 Component)
+{
+	auto& Pixel = GetPixelPtr( x, y, Channel );
+	Pixel = Component;
+}
+
+void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec2x<uint8>& Colour)
+{
+	auto ChannelCount = GetChannels();
+	Soy::Assert( ChannelCount >= 2, "Accessing channel OOB");
+
+	auto* Pixel = &GetPixelPtr( x, y, 0 );
+	Pixel[0] = Colour.x;
+	Pixel[1] = Colour.y;
+}
+
+void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec3x<uint8>& Colour)
+{
+	auto ChannelCount = GetChannels();
+	Soy::Assert( ChannelCount >= 3, "Accessing channel OOB");
+	
+	auto* Pixel = &GetPixelPtr( x, y, 0 );
+	Pixel[0] = Colour.x;
+	Pixel[1] = Colour.y;
+	Pixel[2] = Colour.z;
+}
+
+void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour)
+{
+	auto ChannelCount = GetChannels();
+	Soy::Assert( ChannelCount >= 4, "Accessing channel OOB");
+
+	auto* Pixel = &GetPixelPtr( x, y, 0 );
+	Pixel[0] = Colour.x;
+	Pixel[1] = Colour.y;
+	Pixel[2] = Colour.z;
+	Pixel[4] = Colour.w;
 }
 
 
-
-void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
+void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 {
 	auto& Pixels = GetPixelsArray();
 	
@@ -1210,12 +1222,14 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 		auto RowBytes = GetChannels() * GetWidth();
 		RowBytes *= Height - GetHeight();
 		Pixels.PushBlock( RowBytes );
+		GetMeta().DumbSetHeight( Height );
 	}
 	else if ( Height < GetHeight() )
 	{
 		auto RowBytes = GetChannels() * GetWidth();
 		RowBytes *= GetHeight() - Height;
 		Pixels.SetSize( Pixels.GetDataSize() - RowBytes );
+		GetMeta().DumbSetHeight( Height );
 	}
 	
 	//	insert/remove data on the end of each row
@@ -1246,6 +1260,52 @@ void SoyPixelsImpl::ResizeClip(uint16 Width,uint16 Height)
 	}
 }
 
+void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes)
+{
+	//	get the mid-formats
+	auto& ThisMeta = GetMeta();
+	auto& ThisArray = GetPixelsArray();
+	BufferArray<SoyPixelsMeta,10> Formats;
+	ThisMeta.GetPlanes( GetArrayBridge(Formats), &ThisArray );
+
+	//	build error as we go in case we assert mid-way
+	std::stringstream Error;
+	Error << "Split pixel planes (" << ThisMeta << " -> " << Soy::StringJoin( GetArrayBridge(Formats), "," ) << ") but data hasn't aligned after split; ";
+
+	size_t DataOffset = GetHeaderSize( ThisMeta.GetFormat() );
+	for ( int p=0;	p<Formats.GetSize();	p++ )
+	{
+		auto PlaneMeta = Formats[p];
+		auto* PlaneData = ThisArray.GetArray() + DataOffset;
+		auto PlaneDataSize = PlaneMeta.GetDataSize();
+		std::shared_ptr<SoyPixelsRemote> Pixels(new SoyPixelsRemote( PlaneData, PlaneDataSize, PlaneMeta ) );
+		DataOffset += PlaneDataSize;
+		
+		Error << "#" << p << "/" << Formats.GetSize() << " " << PlaneMeta << " = " << PlaneDataSize << " bytes; ";
+		//	check for overflow
+		Soy::Assert( DataOffset <= ThisArray.GetDataSize(), Error.str() );
+
+		Planes.PushBack(Pixels);
+	}
+
+	//	error, but don't fail if underrun. overrun should be caught in the loop
+	Error << "total " << DataOffset << " out of " << ThisArray.GetDataSize() << " bytes";
+	static bool ThrowOnUnderflow = false;
+	static bool ThrowOnOverflow = true;
+	if ( DataOffset < ThisArray.GetDataSize() && ThrowOnUnderflow )
+	{
+		throw Soy::AssertException( Error.str() );
+	}
+	else if ( DataOffset > ThisArray.GetDataSize() && ThrowOnOverflow )
+	{
+		throw Soy::AssertException( Error.str() );
+	}
+	else if ( DataOffset != ThisArray.GetDataSize() )
+	{
+		std::Debug << Error.str() << std::endl;
+	}
+}
+
 
 template<size_t COMPONENTS>
 void SetPixelComponents(ArrayInterface<uint8>& Pixels,const ArrayBridge<uint8>& Components)
@@ -1266,7 +1326,7 @@ void SetPixelComponents(ArrayInterface<uint8>& Pixels,const ArrayBridge<uint8>& 
 	
 }
 
-void SoyPixelsImpl::SetColour(const ArrayBridge<uint8>& Components)
+void SoyPixelsImpl::SetPixels(const ArrayBridge<uint8>& Components)
 {
 	if ( !IsValid() )
 		return;
@@ -1298,7 +1358,7 @@ vec2x<size_t> SoyPixelsImpl::GetXy(size_t PixelIndex) const
 	return vec2x<size_t>( x, y );
 }
 
-void SoyPixelsImpl::ResizeFastSample(uint16 NewWidth, uint16 NewHeight)
+void SoyPixelsImpl::ResizeFastSample(size_t NewWidth, size_t NewHeight)
 {
 	//	copy old data
 	SoyPixels Old;
@@ -1343,7 +1403,7 @@ void SoyPixelsImpl::ResizeFastSample(uint16 NewWidth, uint16 NewHeight)
 }
 
 
-void SoyPixelsImpl::RotateFlip()
+void SoyPixelsImpl::Flip()
 {
 	if ( !IsValid() )
 		return;
@@ -1358,7 +1418,7 @@ void SoyPixelsImpl::RotateFlip()
 	{
 		//	swap lines
 		int TopY = y;
-		int BottomY = (Height-1) - y;
+		ssize_t BottomY = (Height-1) - y;
 
 		auto* TopRow = &Pixels[TopY * LineSize];
 		auto* BottomRow = &Pixels[BottomY  * LineSize];
@@ -1413,4 +1473,64 @@ void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream,b
 	}
 	Stream << std::endl;
 }
+
+
+size_t SoyPixelsMeta::GetDataSize() const
+{
+	BufferArray<SoyPixelsMeta,2> Planes;
+	GetPlanes( GetArrayBridge(Planes) );
+	size_t TotalDataSize = 0;
+	for ( int p=0;	p<Planes.GetSize();	p++ )
+	{
+		//	gr: should be recursive really... but I don't think we ever want that case
+		TotalDataSize += Planes[p].GetSelfDataSize();
+	}
+	return TotalDataSize;
+}
+
+void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface<uint8>* Data) const
+{
+	switch ( GetFormat() )
+	{
+		case SoyPixelsFormat::Yuv_8_88_Full:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaFull ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_88 ) );
+			break;
+			
+		case SoyPixelsFormat::Yuv_8_88_Video:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaVideo ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_88 ) );
+			break;
+			
+		case SoyPixelsFormat::Yuv_8_8_8_Full:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaFull ) );
+			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
+			break;
+			
+		case SoyPixelsFormat::Yuv_8_8_8_Video:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaVideo ) );
+			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
+			break;
+			
+		case SoyPixelsFormat::Palettised_8_8:
+		{
+			Soy::Assert( Data!=nullptr, "Cannot split format of Palettised_8_8 without data");
+			size_t PaletteSize = 0;
+			size_t TransparentIndex = 0;
+			SoyPixelsFormat::GetHeaderPalettised( GetArrayBridge(*Data), PaletteSize, TransparentIndex );
+			//	original meta is the index w/h.
+			//	header of palette is the length of the palette
+			Planes.PushBack( SoyPixelsMeta( PaletteSize, 1, SoyPixelsFormat::RGB ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Greyscale ) );
+			break;
+		}
+			
+		default:
+			Planes.PushBack( *this );
+			break;
+	};
+}
+
 

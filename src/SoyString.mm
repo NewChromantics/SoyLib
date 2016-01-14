@@ -1,6 +1,6 @@
 #include "SoyString.h"
 #import <Foundation/Foundation.h>
-
+#include "HeapArray.hpp"
 
 std::string Soy::NSStringToString(NSString* String)
 {
@@ -43,4 +43,49 @@ std::string Soy::NSErrorToString(NSException* Exception)
 	return String.str();
 }
 
+
+void Soy::NSDictionaryToStrings(ArrayBridge<std::pair<std::string,std::string>>&& Elements,NSDictionary* Dictionary)
+{
+	for ( NSString* KeyNs in Dictionary )
+	{
+		std::string Key = Soy::NSStringToString( KeyNs );
+		std::stringstream Value;
+		@try
+		{
+			NSString* ValueNs = [[Dictionary objectForKey:KeyNs] description];
+			Value << Soy::NSStringToString( ValueNs );
+		}
+		@catch (NSException* e)
+		{
+			Value << "<unkown value " << Soy::NSErrorToString( e ) << ">";
+		}
+	
+		Elements.PushBack( std::make_pair(Key,Value.str() ) );
+	}
+}
+
+
+std::string Soy::NSDictionaryToString(NSDictionary* Dictionary)
+{
+	Array<std::pair<std::string,std::string>> Strings;
+	NSDictionaryToStrings( GetArrayBridge(Strings), Dictionary );
+
+	std::stringstream String;
+	String << "Dictionary x" << Strings.GetSize() << "; ";
+	for ( int i=0;	i<Strings.GetSize();	i++ )
+	{
+		auto& Key = Strings[i].first;
+		auto& Value = Strings[i].second;
+		
+		String << Key << "=" << Value << "; ";
+	}
+	
+	return String.str();
+}
+
+std::string	Soy::NSDictionaryToString(CFDictionaryRef Dictionary)
+{
+	NSDictionary* DictionaryNs = (__bridge NSDictionary*)Dictionary;
+	return NSDictionaryToString( DictionaryNs );
+}
 

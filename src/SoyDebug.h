@@ -162,9 +162,22 @@ namespace std
 		//	toggle std output for this std debug stream
 		void			EnableStdOut(bool Enable)	{	mStream.EnableStdOut(Enable);	}
 		
+		void			PushStreamSettings()
+		{
+			std::shared_ptr<Soy::TPushPopStreamSettings> Push( new Soy::TPushPopStreamSettings(mStream) );
+			mPushPopSettings.push_back( Push );
+		}
+		void			PopStreamSettings()
+		{
+			mPushPopSettings.pop_back();
+		}
+		
 	private:
 		std::recursive_mutex	mStreamLock;
 		DebugStream				mStream;
+		
+		//	gr: find a better stack system than allocating!
+		std::vector<std::shared_ptr<Soy::TPushPopStreamSettings>>	mPushPopSettings;
 	};
 };
 
@@ -207,6 +220,11 @@ public:
 			Report();
 		else
 			Stop();
+	}
+	
+	void				SetName(const std::string& Name)
+	{
+		Soy::StringToBuffer( Name, mName );
 	}
 	
 	//	returns accumulated time since last stop
@@ -259,7 +277,7 @@ protected:
 	std::function<void(SoyTime)>	mReportFunc;
 	SoyTime				mStartTime;
 	uint64				mWarningTimeMs;
-	char				mName[100];
+	char				mName[300];
 	bool				mStopped;
 	bool				mReportedOnLastStop;
 	uint64				mAccumulatedTime;
@@ -277,7 +295,7 @@ public:
 protected:
 	void		ReportStr(SoyTime Time)
 	{
-		std::Debug << mName << " took " << Time.mTime << "ms to execute" << std::endl;
+		std::Debug << mName << " took " << Time.mTime << "ms/" << mWarningTimeMs << "ms to execute" << std::endl;
 	}
 
 protected:

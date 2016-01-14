@@ -7,10 +7,6 @@
 #endif
 
 #include <stdint.h>
-typedef int32_t		int32;
-typedef uint32_t	uint32;
-typedef int64_t		int64;
-typedef uint64_t	uint64;
 
 #define TARGET_POSIX
 
@@ -27,6 +23,9 @@ typedef uint64_t	uint64;
 #if defined(TARGET_IOS)
 #define __thread				//	thread local not supported on IOS devices. todo: make a TLS class!
 #endif
+
+//	unused variable
+#define __unused	__attribute__((unused))
 
 //	smart pointer for core foundation instances
 //	gr: note, TYPE for CF types is already a pointer, hence no *'s on types

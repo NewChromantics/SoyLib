@@ -135,6 +135,11 @@ void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String
 	String.write( Array.GetArray(), Array.GetSize() );
 }
 
+void Soy::ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String)
+{
+	String.write( reinterpret_cast<const char*>(Array.GetArray()), Array.GetSize() );
+}
+
 void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
 {
 	auto CommandStrArray = GetRemoteArray( String.c_str(), String.length() );
@@ -267,7 +272,9 @@ std::string Soy::StreamToString(std::stringstream&& Stream)
 std::string Soy::StreamToString(std::ostream& Stream)
 {
 	std::stringstream TempStream;
-	TempStream << Stream.rdbuf();
+	auto* Buffer = Stream.rdbuf();
+	if ( Buffer )
+		TempStream << Buffer;
 	return TempStream.str();
 }
 
@@ -378,7 +385,7 @@ bool Soy::StringToType(int& Out,const std::string& String)
 	{
 		//std::invalid_argument for non int string etc
 		//	std::out_of_range for numbers that need to be 64bit etc
-		std::Debug << "exception converting string to int; \"" << String << "\"; " << e.what() << std::endl;
+		//std::Debug << "exception converting string to int; \"" << String << "\"; " << e.what() << std::endl;
 		return false;
 	}
 	return true;
@@ -429,6 +436,15 @@ bool Soy::StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool Ca
 	return true;
 }
 
+bool Soy::StringTrimRight(std::string& Haystack,const std::string& Suffix,bool CaseSensitive)
+{
+	if ( !StringEndsWith( Haystack, Suffix, CaseSensitive ) )
+		return false;
+	
+	Haystack.erase( Haystack.end() - Suffix.length(), Haystack.end() );
+	return true;
+}
+
 
 void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 {
@@ -439,7 +455,8 @@ void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 			break;
 		Buffer[Len] = Source[Len];
 	}
-	Buffer[Len] = '\0';
+	Soy::Assert( Len < BufferSize, "StringToBuffer Len OOB");
+	Buffer[std::min<ssize_t>(Len,BufferSize-1)] = '\0';
 }
 
 
@@ -492,6 +509,102 @@ uint8 Soy::HexToByte(char HexA,char HexB)
 	return Byte;
 }
 
+void Soy::SplitUrl(const std::string& Url,std::string& Protocol,std::string& Hostname,uint16& Port,std::string& Path)
+{
+	const std::string& ProtocolDelin("://");
+	auto ProtocolPos = Url.find(ProtocolDelin);
+	if ( ProtocolPos == std::string::npos )
+	{
+		ProtocolPos = 0;
+	}
+
+	auto HostnamePos = ProtocolPos + ProtocolDelin.length();
+	auto PathPos = Url.find('/',HostnamePos);	//	will include the slash
+
+	if ( PathPos == std::string::npos )
+		PathPos = Url.length();
+	
+	Protocol = Url.substr( 0, ProtocolPos );
+	Hostname = Url.substr( HostnamePos, PathPos-HostnamePos );
+	Path = Url.substr( PathPos );
+	
+	try
+	{
+		std::string HostnameAndPort = Hostname;
+		Soy::SplitHostnameAndPort( Hostname, Port, HostnameAndPort );
+	}
+	catch (...)
+	{
+	}
+}
+
+std::string	Soy::GetUrlPath(const std::string& Url)
+{
+	std::string Protocol,Hostname,Path;
+	uint16 Port;
+	SplitUrl( Url, Protocol, Hostname, Port, Path );
+	return Path;
+}
+
+std::string	Soy::GetUrlHostname(const std::string& Url)
+{
+	std::string Protocol,Hostname,Path;
+	uint16 Port;
+	SplitUrl( Url, Protocol, Hostname, Port, Path );
+	return Hostname;
+}
+
+std::string	Soy::GetUrlProtocol(const std::string& Url)
+{
+	std::string Protocol,Hostname,Path;
+	uint16 Port;
+	SplitUrl( Url, Protocol, Hostname, Port, Path );
+	return Protocol;
+}
+
+
+std::string	Soy::ExtractServerFromUrl(const std::string& Url)
+{
+	//	parse address
+	std::string mServerAddress = Url;
+	std::string HttpPrefix("http://");
+	if ( !Soy::StringTrimLeft( mServerAddress, HttpPrefix, false ) )
+	{
+		std::stringstream Error;
+		Error << __func__ << " Url " << Url << " did not start with " << HttpPrefix;
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	//	now split url from server
+	BufferArray<std::string,2> ServerAndUrl;
+	Soy::StringSplitByMatches( GetArrayBridge(ServerAndUrl), mServerAddress, "/" );
+	Soy::Assert( ServerAndUrl.GetSize() != 0, "Url did not split at all" );
+	if ( ServerAndUrl.GetSize() == 1 )
+		ServerAndUrl.PushBack("/");
+	
+	mServerAddress = ServerAndUrl[0];
+	
+	//	if no port provided, try and add it
+	{
+		std::string Hostname;
+		uint16 Port;
+		try
+		{
+			Soy::SplitHostnameAndPort( Hostname, Port, mServerAddress );
+		}
+		catch (...)
+		{
+			mServerAddress += ":80";
+		}
+		
+		//	fail if it doesn't succeed again
+		Soy::SplitHostnameAndPort( Hostname, Port, mServerAddress );
+	}
+	
+	return mServerAddress;
+}
+
+
 std::string	Soy::ResolveUrl(const std::string& BaseUrl,const std::string& Path)
 {
 	//	new path starts with a protocol, return unmodified
@@ -537,7 +650,91 @@ std::string	Soy::ResolveUrl(const std::string& BaseUrl,const std::string& Path)
 	return NewUrl.str();
 }
 
+std::wstring Soy::StringToWString(const std::string& s)
+{
+	std::wstring w;
+	w.assign( s.begin(), s.end() );
+	return w;
+}
+
+std::string Soy::FourCCToString(uint32 Fourcc)
+{
+	char CodecStrBuffer[5] = {0,0,0,0,0};
+	static_assert( sizeof(Fourcc) <= sizeof(CodecStrBuffer), "Bad buffer sizes" );
+	memcpy( CodecStrBuffer, &Fourcc, sizeof(Fourcc) );
+
+	auto IsFourccChar = [](char x)
+	{
+		if ( x >='A' && x <= 'Z' )	return true;
+		if ( x >='a' && x <= 'z' )	return true;
+		if ( x >='0' && x <= '9' )	return true;
+		return false;
+	};
+
+	//	check for invalid Fourcc's
+	if ( !IsFourccChar(CodecStrBuffer[0]) || 
+		!IsFourccChar(CodecStrBuffer[1]) || 
+		!IsFourccChar(CodecStrBuffer[2]) ||
+		!IsFourccChar(CodecStrBuffer[3]) )
+	{
+		//	gr: maybe platform/framework specific? should be flipped beforehand?
+		static bool ReverseChars = false;
+		
+		std::stringstream Error;
+		Error << "Fourcc["
+			<< static_cast<int>(CodecStrBuffer[ReverseChars?3:0]) << ","
+			<< static_cast<int>(CodecStrBuffer[ReverseChars?2:1]) << ","
+			<< static_cast<int>(CodecStrBuffer[ReverseChars?1:2]) << ","
+			<< static_cast<int>(CodecStrBuffer[ReverseChars?0:3]) << "/" << Fourcc << "]";
+		return Error.str();
+	}
+	return std::string( CodecStrBuffer );
+}
 
 
+void Soy::SplitHostnameAndPort(std::string& Hostname,uint16& Port,const std::string& Address)
+{
+	//	extract port from address
+	std::regex Pattern("([^:]+):([0-9]+)$" );
+	std::smatch Match;
+	
+	//	address is empty, or malformed
+	if ( !std::regex_match( Address, Match, Pattern ) )
+	{
+		std::stringstream Error;
+		Error << "Invalid hostname:port (" << Address << ")";
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	Hostname = Match[1].str();
+	std::string PortStr = Match[2].str();
+	int Porti;
+	Soy::StringToType( Porti, PortStr );
+	Port = size_cast<uint16>(Porti);
+}
 
+
+std::string Soy::DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes)
+{
+	std::stringstream String;
+	DataToHexString( String, Data, MaxBytes );
+	return String.str();
+}
+
+	
+void Soy::DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,int MaxBytes)
+{
+	if ( MaxBytes < 0 )
+		MaxBytes = size_cast<int>(Data.GetDataSize());
+	else
+		MaxBytes = std::min( MaxBytes, size_cast<int>(Data.GetDataSize()) );
+	
+	Soy::TPushPopStreamSettings StreamSettings(String);
+	String << std::hex;
+	String.width(2);
+	for ( int i=0;	i<MaxBytes;	i++ )
+	{
+		String << (int)Data[i] << ' ';
+	}
+}
 

@@ -2,7 +2,7 @@
 #include <regex>
 #include "RemoteArray.h"
 #include "SoyProtocol.h"
-
+#include <future>
 
 
 bool TStreamBuffer::Pop(std::string Pattern,ArrayBridge<std::string>& Parts)
@@ -136,7 +136,7 @@ bool TStreamBuffer::Pop(const std::string Delim,std::string& Data,bool KeepDelim
 		return false;
 	
 	//	search for match
-	auto MaxSearch = size_cast<ssize_t>(mData.GetSize()-DelimArray.GetSize());
+	auto MaxSearch = size_cast<ssize_t>(mData.GetSize()) - size_cast<ssize_t>(DelimArray.GetSize());
 	for ( int a=0;	a<=MaxSearch;	a++ )
 	{
 		bool Match = memcmp( &mData[a], DelimArray.GetArray(), DelimArray.GetDataSize() )==0;
@@ -228,6 +228,22 @@ bool TStreamBuffer::Push(const ArrayBridge<char>& Data)
 	return true;
 }
 
+
+bool TStreamBuffer::Push(const ArrayBridge<uint8>& Data)
+{
+	//	convert to char
+	auto DataChar = GetRemoteArray( reinterpret_cast<const char*>( Data.GetArray() ), Data.GetDataSize() );
+	return Push( GetArrayBridge( DataChar ) );
+}
+
+bool TStreamBuffer::UnPop(const ArrayBridge<uint8>& Data)
+{
+	//	convert to char
+	auto DataChar = GetRemoteArray( reinterpret_cast<const char*>( Data.GetArray() ), Data.GetDataSize() );
+	return UnPop( GetArrayBridge( DataChar ) );
+}
+
+
 bool TStreamBuffer::UnPop(const ArrayBridge<char>& Data)
 {
 	std::lock_guard<std::recursive_mutex> Lock( mLock );
@@ -255,6 +271,21 @@ bool TStreamBuffer::UnPop(const std::string& String)
 	return UnPop( DataBridge );
 }
 
+
+bool TStreamBuffer::Peek(ArrayBridge<char> &&Data)
+{
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
+	
+	if ( mData.GetSize() < Data.GetSize() )
+		return false;
+	
+	auto DataTail = GetRemoteArray( &mData[0], Data.GetSize() );
+	Data.Copy( DataTail );
+	
+	return true;
+}
+
+
 bool TStreamBuffer::PeekBack(ArrayBridge<char> &&Data)
 {
 	std::lock_guard<std::recursive_mutex>	Lock( mLock );
@@ -271,19 +302,35 @@ bool TStreamBuffer::PeekBack(ArrayBridge<char> &&Data)
 
 
 
-TStreamReader::TStreamReader(const std::string& Name) :
+TStreamReader::TStreamReader(const std::string& Name,std::shared_ptr<TStreamBuffer> ReadBuffer) :
 	SoyWorkerThread	( Name, SoyWorkerWaitMode::Sleep )
 {
-	
+	//	if we're using an external buffer, wake when it's modified
+	if ( ReadBuffer )
+	{
+		mReadBuffer = ReadBuffer;
+		
+		//	deadlock :(
+		//WakeOnEvent( mReadBuffer->mOnDataPushed );
+	}
+	else
+	{
+		//	allocate a private buffer
+		mReadBuffer.reset( new TStreamBuffer );
+	}
 }
 
+TStreamReader::~TStreamReader()
+{
+	WaitToFinish();
+}
 
 bool TStreamReader::Iteration()
 {
 	//	read next chunk
 	try
 	{
-		Read();
+		Read( *mReadBuffer );
 	}
 	catch (std::exception& e)
 	{
@@ -293,19 +340,34 @@ bool TStreamReader::Iteration()
 	}
 	
 	//	nothing to do
-	if ( mReadBuffer.IsEmpty() )
+	if ( mReadBuffer->IsEmpty() )
+		return true;
+	if ( !IsWorking() )
 		return true;
 	
 	//	alloc protocol instance to process
 	if ( !mCurrentProtocol )
-	{
 		mCurrentProtocol = AllocProtocol();
-		if ( !mCurrentProtocol )
-			return true;
-	}
+
+	//	in case it's been released capture a local copy
+	auto CurrentProtocol = mCurrentProtocol;
+	if ( !CurrentProtocol )
+		return true;
 	
-	//	process
-	auto DecodeResult = mCurrentProtocol->Decode( mReadBuffer );
+	//	process protocol
+	auto DecodeResult = TProtocolState::Abort;
+	try
+	{
+		DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol) << "::Decode threw exception (" << e.what() << ") reverting to " << DecodeResult << std::endl;
+	}
+	catch(...)
+	{
+		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol)  << "::Decode threw unknown exception reverting to " << DecodeResult << std::endl;
+	}
 	
 	switch ( DecodeResult )
 	{
@@ -314,9 +376,15 @@ bool TStreamReader::Iteration()
 			return true;
 			
 			//	fall through
+		case TProtocolState::Disconnect:
 		case TProtocolState::Finished:
 			break;
 			
+		//	invalidate data and continue as disconnection
+		case TProtocolState::Abort:
+			CurrentProtocol.reset();
+			break;
+
 			//	release current and re-iterate
 		default:
 			std::Debug << "Unhandled TProtocolState: " << DecodeResult << " ignoring." << std::endl;
@@ -326,10 +394,19 @@ bool TStreamReader::Iteration()
 	}
 	
 	//	notify (with shared ptr so data can be cheaply saved)
-	mOnDataRecieved.OnTriggered( mCurrentProtocol );
+	if ( CurrentProtocol )
+		mOnDataRecieved.OnTriggered( CurrentProtocol );
 	
 	//	dealloc for next
 	mCurrentProtocol.reset();
+
+	if ( DecodeResult == TProtocolState::Disconnect || DecodeResult == TProtocolState::Abort )
+	{
+		static auto SleepMs = 5000;
+		std::Debug << "Todo: protocol says, " << DecodeResult << " stream. Currently unhandled. Sleeping for " << SleepMs << "ms" << std::endl;
+		std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
+	}
+	
 	return true;
 }
 
@@ -360,28 +437,187 @@ bool TStreamWriter::Iteration()
 	//	todo: have two threads, one writing the Buffer, and one that pops the queue and just keeps pushing data
 	//		onto the buffer. That way we can encode & write at the same time and have infinite write protocols!
 	TStreamBuffer Buffer;
+	bool EncodingFinished = false;
+	std::stringstream WriteError;
+
+	auto AsyncWrite = [&Buffer,&EncodingFinished,&WriteError,this]
+	{
+		while ( !EncodingFinished || Buffer.GetBufferedSize()>0 )
+		{
+			static bool BreakIfThreadStopped = false;
+			if ( !IsWorking() && BreakIfThreadStopped )
+				break;
+			
+			try
+			{
+				Write( Buffer );
+			}
+			catch (std::exception& e)
+			{
+				WriteError << e.what();
+				break;
+			}
+		}
+		//Soy::Assert( Buffer.GetBufferedSize() == 0, "Still some data to write");
+	};
+
+	auto Future = std::async( AsyncWrite );
+
 	try
 	{
 		Data->Encode( Buffer );
 	}
 	catch (std::exception& e)
 	{
-		std::Debug << "Failed to write buffer from protocol: " << e.what() << std::endl;
+		//	end the async thread
+		EncodingFinished = true;
+		Future.wait();
+
+		std::stringstream Error;
+		Error << "Failed to write buffer from protocol: " << e.what();
+		OnError( Error.str() );
 		return true;
 	}
 	
-	//	now write
-	Write( Buffer );
+	//	now wait for writing to finish
+	EncodingFinished = true;
+	Future.wait();
+
+	if ( !WriteError.str().empty() )
+	{
+		OnError( WriteError.str() );
+	}
+	
 	return true;
 }
 
-void TStreamWriter::Push(std::shared_ptr<Soy::TWriteProtocol>& Data)
+void TStreamWriter::Push(std::shared_ptr<Soy::TWriteProtocol> Data)
 {
 	std::lock_guard<std::mutex> Lock( mQueueLock );
 	mQueue.PushBack( Data );
+	
 	Wake();
+
+	//	auto start
+	Start(false);
+}
+
+void TStreamWriter::WaitForQueueToFinish()
+{
+	Wake();
+	
+	static int SleepMs = 100;
+	static bool BreakIfNotWorking = false;
+	static int WarningWaitTime = 3000;
+	
+	int WaitTime = 0;
+	
+	//	wait for queue to empty
+	while ( !mQueue.IsEmpty() )
+	{
+		//	if the thread has been killed... this loop may never finish...
+		if ( !IsWorking() )
+			if ( BreakIfNotWorking )
+				break;
+
+		std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
+		WaitTime += SleepMs;
+		
+		if ( WaitTime > WarningWaitTime )
+		{
+			std::Debug << __func__ << "/" << this->GetThreadName() << " has been waiting for " << (WaitTime/1000) << " secs" << std::endl;
+		}
+	}
 }
 
 
 
+TFileStreamWriter::TFileStreamWriter(const std::string& Filename) :
+	TStreamWriter	( std::string("TFileStreamWriter " ) + Filename ),
+	mFile			( Filename, std::ios::out )
+{
+	Soy::Assert( mFile.is_open(), std::string("Failed to open ")+Filename );
+
+}
+
+TFileStreamWriter::~TFileStreamWriter()
+{
+	WaitToFinish();
+	
+	auto QueueSize = GetQueueSize();
+	if ( QueueSize > 0 )
+	{
+		std::Debug << "Warning, TFileStreamWriter closed with " << QueueSize << " items unwritten" << std::endl;
+	}
+	
+	mFile.close();
+}
+
+void TFileStreamWriter::Write(TStreamBuffer& Data)
+{
+	//	write to file
+	//	gr: don't break if thread has finished, let that be controlled externally
+	while ( Data.GetBufferedSize() > 0 )
+	{
+		try
+		{
+			Array<char> Buffer;
+			if ( !Data.Pop( Data.GetBufferedSize(), GetArrayBridge(Buffer) ) )
+				break;
+			
+			if ( Buffer.IsEmpty() )
+				break;
+			
+			//	write frame
+			mFile.write( Buffer.GetArray(), Buffer.GetDataSize() );
+			
+			//Soy::Assert( File.fail(), "Error writing to file" );
+			Soy::Assert( !mFile.bad(), "Error writing to file" );
+		}
+		catch (std::exception& e)
+		{
+			std::Debug << "TFileCaster write-file error: " << e.what() << std::endl;
+			break;
+		}
+	}
+}
+
+
+
+TFileStreamReader::TFileStreamReader(const std::string& Filename) :
+	TStreamReader	( std::string("TFileStreamReader " ) + Filename ),
+	mFile			( Filename, std::ios::in )
+{
+	Soy::Assert( mFile.is_open(), std::string("Failed to open ")+Filename );
+	
+}
+
+TFileStreamReader::~TFileStreamReader()
+{
+	WaitToFinish();
+	mFile.close();
+}
+
+void TFileStreamReader::Read(TStreamBuffer& Buffer)
+{
+	mReadBuffer.SetSize( 1024*1024 );
+	auto& Data = mReadBuffer;
+
+	auto Peek = mFile.peek();
+	if ( Peek == std::char_traits<char>::eof() )
+	{
+		//	todo: handle finished stream
+		throw Soy::AssertException("TFileStreamReader finished");
+	}
+
+	mFile.read( Data.GetArray(), Data.GetDataSize() );
+	if ( mFile.fail() && !mFile.eof() )
+	{
+		throw Soy::AssertException("TFileStreamReader error");
+	}
+
+	auto BytesRead = mFile.gcount();
+	Data.SetSize( BytesRead );
+	Buffer.Push( GetArrayBridge( Data ) );
+}
 

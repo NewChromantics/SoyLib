@@ -1,10 +1,5 @@
 #pragma once
 
-typedef	signed char			int8;
-typedef	unsigned char		uint8;
-typedef	signed short		int16;
-typedef	unsigned short		uint16;
-
 
 //	earlier as used by some TARGET_X specific smart pointers
 struct NonCopyable {
@@ -29,6 +24,16 @@ struct NonCopyable {
 #else
 #error no TARGET_XXX defined
 #endif
+
+
+typedef	int8_t		sint8;
+typedef	uint8_t		uint8;
+typedef	int16_t		sint16;
+typedef	uint16_t	uint16;
+typedef	int32_t		sint32;
+typedef	uint32_t	uint32;
+typedef	int64_t		sint64;
+typedef	uint64_t	uint64;
 
 
 //	all platforms
@@ -58,12 +63,10 @@ class ArrayInterface;
 
 
 
-//	when casting integers down, get rid of warnings using this, so we can add a check later if it EVER comes up as a problem
-template<typename SMALLSIZE,typename BIGSIZE>
-inline SMALLSIZE size_cast(BIGSIZE Size)
+namespace Soy
 {
-	//	gr: do value check
-	return static_cast<SMALLSIZE>( Size );
+	void	SizeAssert_TooBig(uint64 Value,uint64 Max,const std::string& SmallType,const std::string& BigType);
+	void	SizeAssert_TooSmall(sint64 Value,sint64 Min,const std::string& SmallType,const std::string& BigType);
 }
 
 
@@ -194,16 +197,50 @@ namespace Soy
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( float );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( char );
-DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int8 );
+DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( sint8 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint8 );
-DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int16 );
+DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( sint16 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint16 );
-//DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int32 );	//	int
+//DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( sint32 );	//	int
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint32 );
-DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( int64 );
+DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( sint64 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint64 );
 
 DECLARE_TYPE_NAME_AS( std::string, "text" );
+
+
+//	gr: alternative
+//	http://codereview.stackexchange.com/questions/5515/c-int-cast-function-for-checked-casts
+//	when casting integers down, get rid of warnings using this, so we can add a check later if it EVER comes up as a problem
+template<typename SMALLSIZE,typename BIGSIZE>
+inline SMALLSIZE size_cast(BIGSIZE Size)
+{
+#if defined(TARGET_ANDROID)
+	
+#else
+	auto Min = std::numeric_limits<SMALLSIZE>::min();
+	auto Max = std::numeric_limits<SMALLSIZE>::max();
+	if ( Size > Max )
+	{
+		Soy::SizeAssert_TooBig( Size, Max, Soy::GetTypeName<SMALLSIZE>(), Soy::GetTypeName<BIGSIZE>() );
+	}
+	//	note: be careful about left & right, left is cast to right
+	if ( static_cast<ssize_t>(Size) < static_cast<ssize_t>(Min) )
+	{
+		Soy::SizeAssert_TooSmall( Size, Min, Soy::GetTypeName<SMALLSIZE>(), Soy::GetTypeName<BIGSIZE>() );
+	}
+#endif
+	return static_cast<SMALLSIZE>( Size );
+}
+
+
+//	remove annoying warning C4800 in windows without turning it off
+template<typename TYPE>
+inline bool		bool_cast(const TYPE& Value)
+{
+	return Value != 0;
+}
+
 
 
 
@@ -246,21 +283,32 @@ namespace Soy
 };
 
 
+class SoyThread;
+
+//	move these into a SoyJava file
+namespace Java
+{
+	void		InitThread(SoyThread& Thread);
+	void		ShutdownThread(SoyThread& Thread);
+
+	bool		HasVm();
+#if defined(TARGET_ANDROID)
+	JNIEnv&		GetContext();
+#endif
+}
+
 namespace Soy
 {
 	namespace Platform
 	{
-		bool		Init();
-		bool		InitThread();
-		void		ShutdownThread();
-		
-#if defined(TARGET_ANDROID)
-		bool		HasJavaVm();
-		JNIEnv&		Java();
-#endif
+		bool				Init();
 
-		int					GetLastError();
+		void				FlushLastError();
+		int					GetLastError(bool Flush=true);	//	gr: default on OSX was flushing for winsock...
 		std::string			GetErrorString(int Error);
+#if defined(TARGET_WINDOWS)
+		std::string			GetErrorString(HRESULT Error);
+#endif
 		inline std::string	GetLastErrorString()	{	return GetErrorString( GetLastError() );	}
 	}
 };
@@ -270,9 +318,12 @@ class ArrayBridge;
 
 namespace Soy
 {
-	bool		FileToArray(ArrayBridge<char>& Data,std::string Filename,std::ostream& Error);
-	inline bool	FileToArray(ArrayBridge<char>&& Data,std::string Filename,std::ostream& Error)	{	return FileToArray( Data, Filename, Error );	}
-	inline bool	LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename,std::ostream& Error)	{	return FileToArray( Data, Filename, Error );	}
+	//	gr: move file things to their own files!
+	void		CreateDirectory(const std::string& Path);	//	will strip filenames
+	void		FileToArray(ArrayBridge<char>& Data,std::string Filename);
+	inline void	FileToArray(ArrayBridge<char>&& Data,std::string Filename)		{	FileToArray( Data, Filename );	}
+	void		ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename);
+	inline void	LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename)	{	FileToArray( Data, Filename );	}
 	bool		ReadStream(ArrayBridge<char>& Data, std::istream& Stream, std::ostream& Error);
 	bool		ReadStream(ArrayBridge<char>&& Data, std::istream& Stream, std::ostream& Error);
 	bool		ReadStreamChunk( ArrayBridge<char>& Data, std::istream& Stream );

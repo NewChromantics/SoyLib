@@ -348,7 +348,7 @@ namespace Soy
 		}
 	
 		//	extract the integer from this string 
-		bool GetInteger(int32& Integer) const
+		bool GetInteger(sint32& Integer) const
 		{
 			if ( IsEmpty() )
 			{

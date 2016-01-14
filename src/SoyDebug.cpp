@@ -108,12 +108,16 @@ std::DebugBufferString& std::DebugStreamBuf::GetBuffer()
 		auto& Heap = GetDebugStreamHeap();
 		ThreadBuffer = Heap.Alloc<Soy::HeapString>( Heap.GetStlAllocator() );
 		
+		/*	gr: how is this supposed to work? dealloc when any thread closes??
+				now streambuf is threadsafe... maybe this doesn't matter any more?
 		auto* NonTlsThreadBufferPtr = ThreadBuffer;
-		auto Dealloc = [NonTlsThreadBufferPtr](const std::thread::native_handle_type&)
+		auto Dealloc = [NonTlsThreadBufferPtr](std::thread&)
 		{
 			GetDebugStreamHeap().Free( NonTlsThreadBufferPtr );
 		};
-		SoyThread::GetOnThreadCleanupEvent()->AddListener( Dealloc );
+		
+		SoyThread::OnThreadFinish.AddListener( Dealloc );
+		 */
 #else
 		ThreadBuffer = new std::string();
 #endif
@@ -233,7 +237,7 @@ bool Soy::Platform::IsDebuggerAttached()
 bool Soy::Platform::DebugBreak()
 {
 #if defined(TARGET_OSX)
-	static bool DoBreak = true;
+	static bool DoBreak = false;
 	//	gr: supposedly this works, if you enable it in the scheme, but I don't know where it's declared
 	//Debugger();
 	if (DoBreak)

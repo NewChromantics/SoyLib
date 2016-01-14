@@ -8,32 +8,40 @@ class TPixelFormatMapping
 {
 public:
 	TPixelFormatMapping() :
-	mPixelFormat		( SoyPixelsFormat::Invalid ),
-		mDownloadFormat		( GL_INVALID_ENUM ),
-		mUploadFormat		( GL_INVALID_ENUM ),
-		mNewTextureFormat	( GL_INVALID_ENUM )
+		mPixelFormat		( SoyPixelsFormat::Invalid )
 	{
 	}
-	TPixelFormatMapping(SoyPixelsFormat::Type PixelFormat,GLenum DownloadFormat,GLenum UploadFormat,GLenum NewTextureFormat) :
-		mPixelFormat		( PixelFormat ),
-		mDownloadFormat		( DownloadFormat ),
-		mUploadFormat		( UploadFormat ),
-		mNewTextureFormat	( NewTextureFormat )
+	TPixelFormatMapping(SoyPixelsFormat::Type PixelFormat,const std::initializer_list<GLenum>& OpenglFormats) :
+		mPixelFormat		( PixelFormat )
 	{
+		for ( auto OpenglFormat : OpenglFormats )
+			mOpenglFormats.PushBack( OpenglFormat );
+	}
+	TPixelFormatMapping(SoyPixelsFormat::Type PixelFormat,const std::initializer_list<GLenum>& OpenglFormats,const std::initializer_list<GLenum>& InternalOpenglFormats) :
+		mPixelFormat		( PixelFormat )
+	{
+		for ( auto OpenglFormat : OpenglFormats )
+			mOpenglFormats.PushBack( OpenglFormat );
+		for ( auto OpenglFormat : InternalOpenglFormats )
+			mOpenglInternalFormats.PushBack( OpenglFormat );
 	}
 	
 	bool					operator==(const SoyPixelsFormat::Type Format) const	{	return mPixelFormat == Format;	}
 	
 	SoyPixelsFormat::Type	mPixelFormat;
-	GLenum					mDownloadFormat;
-	GLenum					mUploadFormat;
-	GLenum					mNewTextureFormat;
+	
+	//	gr: after exhaustive work.... these have all ended up being the same.
+	//	ES requires this, some don't but in the end they've all been the same anyway...
+	//	BUT, some platforms (android ES2) don't support all formats, so we want alternatives...
+	//	gr: there is ONE case; BGRA can be uploaded, but not an internal format (OSX)
+	BufferArray<GLenum,5>	mOpenglFormats;
+	BufferArray<GLenum,5>	mOpenglInternalFormats;	//	if empty, use OpenglFormats
 };
 
 namespace Opengl
 {
 	const Array<TPixelFormatMapping>&	GetPixelFormatMap();
-	TPixelFormatMapping					GetPixelMapping(SoyPixelsFormat::Type Format);
+	TPixelFormatMapping							GetPixelMapping(SoyPixelsFormat::Type Format);
 	
 	template<typename TYPE>
 	GLenum			GetTypeEnum()
@@ -108,20 +116,20 @@ std::string Opengl::GetEnumString(GLenum Type)
 #endif
 			
 			//	types
-			CASE_ENUM_STRING( GL_BYTE );
-			CASE_ENUM_STRING( GL_UNSIGNED_BYTE );
-			CASE_ENUM_STRING( GL_SHORT );
-			CASE_ENUM_STRING( GL_UNSIGNED_SHORT );
-			CASE_ENUM_STRING( GL_INT );
-			CASE_ENUM_STRING( GL_UNSIGNED_INT );
-			CASE_ENUM_STRING( GL_FLOAT );
-			CASE_ENUM_STRING( GL_FLOAT_VEC2 );
-			CASE_ENUM_STRING( GL_FLOAT_VEC3 );
-			CASE_ENUM_STRING( GL_FLOAT_VEC4 );
+		case GL_BYTE:			return Soy::GetTypeName<sint8>();
+		case GL_UNSIGNED_BYTE:	return Soy::GetTypeName<uint8>();
+		case GL_SHORT:			return Soy::GetTypeName<sint16>();
+		case GL_UNSIGNED_SHORT:	return Soy::GetTypeName<uint16>();
+		case GL_INT:			return Soy::GetTypeName<int>();
+		case GL_UNSIGNED_INT:	return Soy::GetTypeName<uint32>();
+		case GL_FLOAT:			return Soy::GetTypeName<float>();
+		case GL_FLOAT_VEC2:		return Soy::GetTypeName<vec2f>();
+		case GL_FLOAT_VEC3:		return Soy::GetTypeName<vec3f>();
+		case GL_FLOAT_VEC4:		return Soy::GetTypeName<vec4f>();
 			CASE_ENUM_STRING( GL_INT_VEC2 );
 			CASE_ENUM_STRING( GL_INT_VEC3 );
 			CASE_ENUM_STRING( GL_INT_VEC4 );
-			CASE_ENUM_STRING( GL_BOOL );
+		case GL_BOOL:			return Soy::GetTypeName<bool>();
 			CASE_ENUM_STRING( GL_SAMPLER_2D );
 			CASE_ENUM_STRING( GL_SAMPLER_CUBE );
 			CASE_ENUM_STRING( GL_FLOAT_MAT2 );
@@ -159,6 +167,13 @@ std::string Opengl::GetEnumString(GLenum Type)
 #if defined(GL_RG8)
 			CASE_ENUM_STRING( GL_RG8 );
 #endif
+			CASE_ENUM_STRING( GL_ALPHA );
+#if defined(GL_LUMINANCE)
+			CASE_ENUM_STRING( GL_LUMINANCE );
+#endif
+#if defined(GL_LUMINANCE_ALPHA)
+			CASE_ENUM_STRING( GL_LUMINANCE_ALPHA );
+#endif
 
 #if defined(GL_TEXTURE_1D)
 			CASE_ENUM_STRING( GL_TEXTURE_1D );
@@ -190,7 +205,7 @@ std::string Opengl::GetEnumString(GLenum Type)
 std::ostream& Opengl::operator<<(std::ostream &out,const Opengl::TUniform& in)
 {
 	out << "#" << in.mIndex << " ";
-	out << Opengl::GetEnumString(in.mType);
+	out << in.mType;
 	if ( in.mArraySize != 1 )
 		out << "[" << in.mArraySize << "]";
 	out << " " << in.mName;
@@ -219,6 +234,15 @@ void Opengl::SetUniform(const TUniform& Uniform,const vec4f& Value)
 }
 
 template<>
+void Opengl::SetUniform(const TUniform& Uniform,const vec3f& Value)
+{
+	GLsizei ArraySize = 1;
+	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
+	glUniform3fv( Uniform.mIndex, ArraySize, &Value.x );
+	Opengl_IsOkay();
+}
+
+template<>
 void Opengl::SetUniform(const TUniform& Uniform,const vec2f& Value)
 {
 	GLsizei ArraySize = 1;
@@ -233,6 +257,15 @@ void Opengl::SetUniform(const TUniform& Uniform,const float& Value)
 	GLsizei ArraySize = 1;
 	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
 	glUniform1fv( Uniform.mIndex, ArraySize, &Value );
+	Opengl_IsOkay();
+}
+
+template<>
+void Opengl::SetUniform(const TUniform& Uniform,const int& Value)
+{
+	GLsizei ArraySize = 1;
+	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
+	glUniform1iv( Uniform.mIndex, ArraySize, &Value );
 	Opengl_IsOkay();
 }
 
@@ -328,12 +361,26 @@ void Opengl::FlushError(const char* Context)
 }
 
 
-bool Opengl::IsOkay(const char* Context,bool ThrowException)
+bool Opengl::IsOkay(const char* Context,std::function<void(const std::string&)>& ExceptionContainer)
 {
 	auto Error = glGetError();
 	if ( Error == GL_NONE )
 		return true;
 	
+	std::stringstream ErrorStr;
+	ErrorStr << "Opengl error in " << Context << ": " << Opengl::GetEnumString(Error);
+	
+	ExceptionContainer( ErrorStr.str() );
+	return false;
+}
+
+
+bool Opengl::IsOkay(const char* Context,bool ThrowException)
+{
+	auto Error = glGetError();
+	if ( Error == GL_NONE )
+		return true;
+
 	std::stringstream ErrorStr;
 	ErrorStr << "Opengl error in " << Context << ": " << Opengl::GetEnumString(Error);
 	
@@ -343,7 +390,46 @@ bool Opengl::IsOkay(const char* Context,bool ThrowException)
 		return false;
 	}
 	
-	return Soy::Assert( Error == GL_NONE , ErrorStr.str() );
+	throw Soy::AssertException( ErrorStr.str() );
+}
+
+
+/*
+bool Opengl::IsOkay(const char* Context,bool ThrowException)
+{
+	if ( ThrowException )
+	{
+		auto Throw = [](const std::string& Error)
+		{
+			throw Soy::AssertException( Error );
+		};
+		return IsOkay( Context, Throw );
+	}
+	else
+	{
+		auto Print = [](const std::string& Error)
+		{
+			std::Debug << Error << std::endl;
+		};
+		return IsOkay( Context, Print );
+	}
+}
+ */
+
+
+void Opengl::GetReadPixelsFormats(ArrayBridge<GLenum> &&Formats)
+{
+	Formats.SetSize(5);
+	
+	Formats[0] = GL_INVALID_VALUE;
+	#if defined(OPENGL_ES)
+	Formats[1] = GL_ALPHA;
+	#else
+	Formats[1] = GL_RED;
+	#endif
+	Formats[2] = GL_INVALID_VALUE;
+	Formats[3] = GL_RGB;
+	Formats[4] = GL_RGBA;
 }
 
 
@@ -377,14 +463,14 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 	
 	//std::Debug << "Creating FBO " << mFboMeta << ", texture name: " << mFboTextureName << std::endl;
 	Opengl_IsOkayFlush();
-	glGenFramebuffers( 1, &mFbo.mName );
+	Opengl::GenFramebuffers( 1, &mFbo.mName );
 	Opengl::IsOkay("FBO glGenFramebuffers");
-	glBindFramebuffer( GL_FRAMEBUFFER, mFbo.mName );
+	Opengl::BindFramebuffer( GL_FRAMEBUFFER, mFbo.mName );
 	Opengl::IsOkay("FBO glBindFramebuffer2");
 
 	GLint MipLevel = 0;
 	if ( mType == GL_TEXTURE_2D )
-		glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, MipLevel );
+		Opengl::FramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, MipLevel );
 	else
 		throw Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
@@ -415,7 +501,7 @@ void Opengl::TFbo::Delete(Opengl::TContext &Context,bool Blocking)
 	GLuint FboName = mFbo.mName;
 	auto DefferedDelete = [FboName]
 	{
-		glDeleteFramebuffers( 1, &FboName );
+		Opengl::DeleteFramebuffers( 1, &FboName );
 		Opengl::IsOkay("Deffered FBO delete");
 	};
 
@@ -441,7 +527,7 @@ void Opengl::TFbo::Delete()
 		//	gr: this often gives an error that shouldn't occur, try flushing
 		Opengl_IsOkayFlush();
 		
-		glDeleteFramebuffers( 1, &mFbo.mName );
+		Opengl::DeleteFramebuffers( 1, &mFbo.mName );
 		Opengl::IsOkay("glDeleteFramebuffers", false);
 		mFbo.mName = GL_ASSET_INVALID;
 	}
@@ -468,12 +554,12 @@ bool Opengl::TFbo::Bind()
 {
 	Opengl_IsOkayFlush();
 
-	bool IsFrameBuffer = glIsFramebuffer(mFbo.mName);
+	bool IsFrameBuffer = Opengl::IsFramebuffer(mFbo.mName);
 	Opengl_IsOkay();
 	if ( !Soy::Assert( IsFrameBuffer, "Frame buffer no longer valid" ) )
 		return false;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, mFbo.mName );
+	Opengl::BindFramebuffer(GL_FRAMEBUFFER, mFbo.mName );
 	Opengl_IsOkay();
 	
 	glDisable( GL_DEPTH_TEST );
@@ -493,7 +579,7 @@ bool Opengl::TFbo::Bind()
 
 void Opengl::TFbo::CheckStatus()
 {
-	auto FrameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	auto FrameBufferStatus = Opengl::CheckFramebufferStatus(GL_FRAMEBUFFER);
 	Opengl::IsOkay("glCheckFramebufferStatus");
 	Soy::Assert(FrameBufferStatus == GL_FRAMEBUFFER_COMPLETE, "DIdn't complete framebuffer setup");
 
@@ -504,7 +590,7 @@ void Opengl::TFbo::CheckStatus()
 void Opengl::TFbo::Unbind()
 {
 	CheckStatus();
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	Opengl::BindFramebuffer(GL_FRAMEBUFFER, 0);
 	Opengl_IsOkay();
 }
 
@@ -515,7 +601,7 @@ size_t Opengl::TFbo::GetAlphaBits() const
 	return 0;
 #else
 	GLint AlphaSize = -1;
-	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE, &AlphaSize );
+	Opengl::GetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE, &AlphaSize );
 	Opengl::IsOkay("Get FBO GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE");
 	std::Debug << "FBO has " << AlphaSize << " alpha bits" << std::endl;
 
@@ -530,9 +616,11 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	Soy::Assert( Meta.IsValid(), "Cannot setup texture with invalid meta" );
 	
 	bool AllowOpenglConversion = true;
-	GLuint PixelsFormat = Opengl::GetUploadPixelFormat(*this, Meta.GetFormat(), AllowOpenglConversion );
-	GLuint InternalPixelFormat = Opengl::GetNewTexturePixelFormat( Meta.GetFormat() );
-	if ( PixelsFormat == GL_INVALID_ENUM || InternalPixelFormat == GL_INVALID_ENUM )
+	BufferArray<GLenum,10> ExternalPixelsFormats;
+	Opengl::GetUploadPixelFormats( GetArrayBridge(ExternalPixelsFormats), *this, Meta.GetFormat(), AllowOpenglConversion );
+	BufferArray<GLenum,10> InternalPixelFormats;
+	Opengl::GetNewTexturePixelFormats( GetArrayBridge(InternalPixelFormats), Meta.GetFormat() );
+	if ( ExternalPixelsFormats.IsEmpty() || InternalPixelFormats.IsEmpty() )
 	{
 		std::stringstream Error;
 		Error << "Failed to create texture, unsupported format " << Meta.GetFormat();
@@ -553,31 +641,53 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	GLint Border = 0;
 	
 	//	disable other mip map levels
+	//	gr: this fails if building with opengl_es3 in opengles2 mode...
 #if (OPENGL_ES!=2)
 	//	gr: change this to glGenerateMipMaps etc
 	glTexParameteri(mType, GL_TEXTURE_BASE_LEVEL, MipLevel );
 	glTexParameteri(mType, GL_TEXTURE_MAX_LEVEL, MipLevel );
-	Opengl::IsOkay("glTexParameteri set mip levels");
+	Opengl::IsOkay("glTexParameteri set mip levels", false);
 #endif
 	
 	//	debug construction
 	//std::Debug << "glTexImage2D(" << Opengl::GetEnumString( mType ) << "," << Opengl::GetEnumString( InternalPixelFormat ) << "," << Opengl::GetEnumString( PixelsFormat ) << "," << Opengl::GetEnumString(GlPixelsStorage) << ")" << std::endl;
 	
 	//	initialise to set dimensions
-	static bool InitialiseNull = true;
-	if ( InitialiseNull )
 	{
-		glTexImage2D( mType, MipLevel, InternalPixelFormat, Meta.GetWidth(), Meta.GetHeight(), Border, PixelsFormat, GlPixelsStorage, nullptr );
-	}
-	else
-	{
+		/*
 		SoyPixels InitFramePixels;
 		InitFramePixels.Init( Meta.GetWidth(), Meta.GetHeight(), Meta.GetFormat() );
 		auto& PixelsArray = InitFramePixels.GetPixelsArray();
-		glTexImage2D( mType, MipLevel, InternalPixelFormat, Meta.GetWidth(), Meta.GetHeight(), Border, PixelsFormat, GlPixelsStorage, PixelsArray.GetArray() );
-		OnWrite();
+		 glTexImage2D( mType, MipLevel, InternalPixelFormat, Meta.GetWidth(), Meta.GetHeight(), Border, PixelsFormat, GlPixelsStorage, PixelsArray.GetArray() );
+		 OnWrite();
+		 std::stringstream Error;
+		 Error << "glTexImage2D texture construction " << Meta << " InternalPixelFormat=" << GetEnumString(InternalPixelFormat) << " PixelsFormat=" << GetEnumString(PixelsFormat) << ", GlPixelsStorage=" << GetEnumString(GlPixelsStorage);
+		 Opengl::IsOkay( Error.str() );
+		 */
+		bool Created = false;
+		for ( int e=0;	!Created && e<ExternalPixelsFormats.GetSize();	e++ )
+		{
+			for ( int i=0;	!Created && i<InternalPixelFormats.GetSize();	i++ )
+			{
+				try
+				{
+					auto InternalPixelFormat = InternalPixelFormats[i];
+					auto ExternalPixelFormat = ExternalPixelsFormats[e];
+					glTexImage2D( mType, MipLevel, InternalPixelFormat, size_cast<GLsizei>(Meta.GetWidth()), size_cast<GLsizei>(Meta.GetHeight()), Border, ExternalPixelFormat, GlPixelsStorage, nullptr );
+					std::stringstream Error;
+					Error << "glTexImage2D texture construction " << Meta << " InternalPixelFormat=" << GetEnumString(InternalPixelFormat) << " PixelsFormat=" << GetEnumString(ExternalPixelFormat) << ", GlPixelsStorage=" << GetEnumString(GlPixelsStorage);
+					Opengl::IsOkay( Error.str() );
+					Created = true;
+				}
+				catch( std::exception& e)
+				{
+				}
+			}
+		}
+		std::stringstream Error;
+		Error << "Failed to create texture with " << Meta;
+		Soy::Assert( Created, Error.str() );
 	}
-	Opengl::IsOkay("glTexImage2D texture construction");
 	
 	//	verify params
 #if (OPENGL_CORE==3)
@@ -598,9 +708,13 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	
 	Unbind();
 	
+	//	default to linear
+	SetFilter(true);
+	
 	//	built, save meta
 	mMeta = Meta;
 }
+
 
 bool Opengl::TTexture::IsValid(bool InvasiveTest) const
 {
@@ -616,14 +730,14 @@ bool Opengl::TTexture::IsValid(bool InvasiveTest) const
 		auto IsTexture = glIsTexture( mTexture.mName );
 
 		//	gr: on IOS this is nice and reliable and NEEDED to distinguish from metal textures!
-	#if defined(TARGET_IOS)
+#if defined(TARGET_IOS)
 		return IsTexture;
-	#endif
-		
+#else
 		//	gr: this is returning false [on OSX] from other threads :/ even though they have a context
 		//	other funcs are working though
 		if ( IsTexture )
 			return true;
+#endif
 	}
 	
 	if ( mTexture.mName != GL_ASSET_INVALID )
@@ -673,6 +787,16 @@ void Opengl::TTexture::SetRepeat(bool Repeat)
 	Unbind();
 }
 
+void Opengl::TTexture::SetFilter(bool Linear)
+{
+	Bind();
+	auto Type = mType;
+	glTexParameteri( Type, GL_TEXTURE_MIN_FILTER, Linear ? GL_LINEAR : GL_NEAREST );
+	glTexParameteri( Type, GL_TEXTURE_MAG_FILTER, Linear ? GL_LINEAR : GL_NEAREST );
+	Opengl_IsOkay();
+	Unbind();
+}
+
 void Opengl::TTexture::GenerateMipMaps()
 {
 	Soy::Assert( IsValid(), "Generate mip maps on invalid texture");
@@ -687,9 +811,9 @@ void Opengl::TTexture::GenerateMipMaps()
 		return;
 	
 	//	gr: this can be slow, highlight it
-	Soy::TScopeTimerPrint Timer("glGenerateMipmap",1);
+	Soy::TScopeTimerPrint Timer("glGenerateMipmap",2);
 	
-	glGenerateMipmap( mType );
+	Opengl::GenerateMipmap( mType );
 	std::stringstream Error;
 	Error << "Texture(" << Opengl::GetEnumString(mType) << " " << mMeta << ")::GenerateMipMaps";
 	Opengl::IsOkay( Error.str(), false );
@@ -763,17 +887,14 @@ void Opengl::TPbo::ReadPixels()
 	GLint x = 0;
 	GLint y = 0;
 	
-	BufferArray<GLint,5> Formats;
-	Formats.PushBack( GL_INVALID_VALUE );
-	Formats.PushBack( GL_ALPHA );
-	Formats.PushBack( GL_INVALID_VALUE );
-	Formats.PushBack( GL_RGB );
-	Formats.PushBack( GL_RGBA );
+	BufferArray<GLenum,5> FboFormats;
+	GetReadPixelsFormats( GetArrayBridge(FboFormats) );
+
 	auto ChannelCount = mMeta.GetChannels();
 	
 	Bind();
 
-	glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), Formats[ChannelCount], GL_UNSIGNED_BYTE, nullptr );
+	glReadPixels( x, y, size_cast<GLsizei>(mMeta.GetWidth()), size_cast<GLsizei>(mMeta.GetHeight()), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, nullptr );
 	Opengl_IsOkay();
 	
 	Unbind();
@@ -802,39 +923,77 @@ void Opengl::TPbo::UnlockBuffer()
 #endif
 }
 
-void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
+void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat,bool Flip) const
 {
 	Soy::Assert( IsValid(), "Trying to read from invalid texture" );
-
+	
 	//	not currently supported directly in opengl ES (need to make a pixel buffer, copy to it and read, I think)
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
 	throw Soy::AssertException( std::string(__func__) + " not supported on opengl es yet");
 	return;
 #else
 	
-
-	
 	Bind();
 	
-	//	resolve GL & soy pixel formats
-	SoyPixelsFormat::Type PixelFormat = GetFormat();
-	GLenum GlFormat = Opengl::GetDownloadPixelFormat( *this, PixelFormat );
-	if ( GlFormat == GL_INVALID_ENUM || PixelFormat == SoyPixelsFormat::Invalid )
+	if ( !Pixels.IsValid() )
 	{
-		std::stringstream Error;
-		Error << "Failed to resolve pixel(" << PixelFormat << ") and opengl(" << GetEnumString(GlFormat) << ") for downloading texture (" << mMeta << ")";
-		throw Soy::AssertException( Error.str() );
+		if ( ForceFormat == SoyPixelsFormat::Invalid )
+		{
+			//	todo: work out fastest format!
+			static SoyPixelsFormat::Type DefaultFormat = SoyPixelsFormat::RGBA;
+			
+			//	gr: assuming the fastest is the same as the internal format, but that doesn't allow FBO
+			//	gr: changed this default to true for reading gif greyscale/index. rather than forcing format, I want to know what it is internally...
+			static bool UseInternalFormatAsDefault = true;
+			if ( UseInternalFormatAsDefault )
+				ForceFormat = GetFormat();
+			else
+				ForceFormat = DefaultFormat;
+		}
 	}
 	
-	//	pre-alloc data
-	if ( !Pixels.Init( GetWidth(), GetHeight(), PixelFormat ) )
-		throw Soy::AssertException("Failed to allocate pixels for texture read");
+	//	allocate pixels
+	if ( !Pixels.IsValid() )
+	{
+		Soy::Assert( ForceFormat != SoyPixelsFormat::Invalid, "Format should be valid here");
+		if ( !Pixels.Init( GetWidth(), GetHeight(), ForceFormat ) )
+			throw Soy::AssertException("Failed to allocate pixels for texture read");
+	}
+
+	{
+		//	gr: it's important for memory reasons that the sizes are correct.
+		//	glGetTexImage will be corrupt if they mismatch (smaller), which is kinda fine, but maybe will crash on some driver?
+		//	glReadPixels from fbo will be in the corner.
+		GLenum InternalType;
+		auto InternalMeta = GetInternalMeta( InternalType );
+		if ( Pixels.GetWidth() != InternalMeta.GetWidth() || Pixels.GetHeight() != InternalMeta.GetHeight() )
+		{
+			std::Debug << __func__ << " warning; meta (" << Pixels.GetMeta() << ") dimensions different to internal " << InternalMeta << " forcing resize of pixels" << std::endl;
+		
+			Pixels.ResizeClip( InternalMeta.GetWidth(), InternalMeta.GetHeight() );
+		}
+	}
+	
+	//	resolve GL & soy pixel formats
+	BufferArray<GLenum,10> DownloadFormats;
+	{
+		Opengl::GetDownloadPixelFormats( GetArrayBridge(DownloadFormats), *this, Pixels.GetFormat() );
+		if ( DownloadFormats.IsEmpty() || Pixels.GetFormat() == SoyPixelsFormat::Invalid )
+		{
+			std::stringstream Error;
+			Error << "Failed to resolve pixel(" << Pixels.GetFormat() << ") and opengl(" << "XXX" << ") for downloading texture (" << mMeta << ")";
+			throw Soy::AssertException( Error.str() );
+		}
+	}
 	auto* PixelBytes = Pixels.GetPixelsArray().GetArray();
 
 	
 	//	try to use PBO's
-	static bool UsePbo = false;
-	static bool UseFbo = true;
+	static bool Default_UsePbo = false;
+	static bool Default_UseFbo = true;
+
+	bool UsePbo = Default_UsePbo;
+	bool UseFbo = Default_UseFbo;
 	
 	if ( UsePbo )
 	{
@@ -849,44 +1008,69 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 		return;
 	}
 	
+	//	glReadPixels only accepts the formats below
+	BufferArray<GLenum,5> FboFormats;
+	GetReadPixelsFormats( GetArrayBridge(FboFormats) );
 	
-	//	make sure no padding is applied so glGetTexImage doesn't override tail memory
-	glPixelStorei(GL_PACK_ALIGNMENT, 1);
-	Opengl_IsOkay();
-
+	//	gr: sometimes the caller wants a specific format, and FBO(glReadPixels) doesn't allow that
+	if ( UseFbo )
+	{
+		auto PrefferedFormat = Pixels.GetFormat();
+		if ( PrefferedFormat != GetDownloadPixelFormat(FboFormats[1]) &&
+			PrefferedFormat != GetDownloadPixelFormat(FboFormats[3]) &&
+			PrefferedFormat != GetDownloadPixelFormat(FboFormats[4]) )
+		{
+			UseFbo = false;
+		}
+	}
+	
+	
 	GLint MipLevel = 0;
 	GLenum PixelStorage = GL_UNSIGNED_BYTE;
-	
+
+
 	if ( UseFbo )
 	{
 		TFbo FrameBuffer( *this );
 		GLint x = 0;
 		GLint y = 0;
-		BufferArray<GLint,5> Formats;
-		
-		Formats.PushBack( GL_INVALID_VALUE );
-#if defined(OPENGL_ES)
-		Formats.PushBack( GL_ALPHA );
-#else
-		Formats.PushBack( GL_RED );
-#endif
-		Formats.PushBack( GL_INVALID_VALUE );
-		Formats.PushBack( GL_RGB );
-		Formats.PushBack( GL_RGBA );
+	
+		//	gr: this code is forcing us to use the pixels.init we did earlier...
+		auto ChannelCount = Pixels.GetChannels();
 
-		auto ChannelCount = mMeta.GetChannels();
 		FrameBuffer.Bind();
-		
-		glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), Formats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
+		//	make sure no padding is applied so glGetTexImage & glReadPixels doesn't override tail memory
+		glPixelStorei(GL_PACK_ROW_LENGTH,0);	//	gr: not sure this had any effect, but implemented anyway
+		Opengl_IsOkay();
+		glPixelStorei(GL_PACK_ALIGNMENT, 1);
+		Opengl_IsOkay();
+		glReadPixels( x, y, size_cast<GLsizei>(Pixels.GetWidth()), size_cast<GLsizei>(Pixels.GetHeight()), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
 		Opengl::IsOkay("glReadPixels");
+
+		//	as glReadPixels forces us to a format, we need to update the meta on the pixels
+		auto NewFormat = GetDownloadPixelFormat( FboFormats[ChannelCount] );
+		Pixels.GetMeta().DumbSetFormat( NewFormat );
+		
 		FrameBuffer.Unbind();
 		Opengl_IsOkay();
 	}
 	else
 	{
-		//	4.5 has byte-saftey with glGetTextureImage glGetnTexImage
-		glGetTexImage( mType, MipLevel, GlFormat, PixelStorage, PixelBytes );
+		//	make sure no padding is applied so glGetTexImage & glReadPixels doesn't override tail memory
+		glPixelStorei(GL_PACK_ROW_LENGTH,0);	//	gr: not sure this had any effect, but implemented anyway
 		Opengl_IsOkay();
+		glPixelStorei(GL_PACK_ALIGNMENT, 1);
+		Opengl_IsOkay();
+		
+		bool Success = false;
+		for ( int i=0;	!Success && i<DownloadFormats.GetSize();	i++ )
+		{
+			//	4.5 has byte-saftey with glGetTextureImage glGetnTexImage
+			auto GlFormat = DownloadFormats[i];
+			glGetTexImage( mType, MipLevel, GlFormat, PixelStorage, PixelBytes );
+			Success = Opengl::IsOkay("glGetTexImage", false);
+		}
+		Soy::Assert( Success, "glGetTextImage failed");
 	}
 	
 	static int DebugPixelCount_ = 0;
@@ -900,9 +1084,52 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels) const
 	
 	Unbind();
 	Opengl_IsOkay();
+	
+	//	textures are stored upside down so flip here. (maybe store as transform meta data?)
+	if ( Flip )
+	{
+		Pixels.Flip();
+	}
 #endif
 }
 
+void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBridge<GLenum>&& ExternalTextureFormats,const std::string& Context,std::function<void(GLenum,GLenum)> Function)
+{
+	bool Finished = false;
+	std::stringstream AttemptErrors;
+	static bool DebugFails = false;
+	auto AccumulateErrors = [&](const std::string& Error)
+	{
+		AttemptErrors << Error << "; ";
+	};
+
+	
+	for ( int i=0;	!Finished && i<InternalTextureFormats.GetSize();	i++ )
+	{
+		for ( int e=0;	!Finished && e<ExternalTextureFormats.GetSize();	e++ )
+		{
+			auto InternalFormat = InternalTextureFormats[i];
+			auto ExternalFormat = ExternalTextureFormats[e];
+			Function( InternalFormat, ExternalFormat );
+			
+			std::stringstream ScopeContext;
+			ScopeContext << Context << " (InternalFormat=" << Opengl::GetEnumString(InternalFormat) << ", ExternalFormat=" << Opengl::GetEnumString(ExternalFormat) << ")";
+		
+			std::function<void(const std::string&)> f = AccumulateErrors;
+			if ( !DebugFails )
+				f = [](const std::string& Error){};
+			Finished = Opengl::IsOkay( ScopeContext.str().c_str(), f );
+			
+			//	debug the cases that didn't work
+			if ( Finished && !AttemptErrors.str().empty() )
+			{
+				std::Debug << ScopeContext.str() << " succeeded after failing; " << AttemptErrors.str() << std::endl;
+			}
+		}
+	}
+	if ( !Finished )
+		throw Soy::AssertException( AttemptErrors.str() );
+}
 
 
 void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUploadParams Params)
@@ -917,19 +1144,24 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	//	grab the texture's width & height so we can clip, if we try and copy pixels bigger than the texture we'll get an error
 	GLint TextureWidth = 0;
 	GLint TextureHeight = 0;
-	GLint TextureInternalFormat = 0;
+	Array<GLenum> TextureInternalFormats;
 	
 	//	opengl es doesn't have access!
 #if defined(OPENGL_ES)
-	TextureWidth = size_cast<GLint>( this->GetWidth() );
-	TextureHeight = size_cast<GLint>( this->GetHeight() );
-	//	gr: errr what should this be now?
-	TextureInternalFormat = GetNewTexturePixelFormat( this->GetFormat() );
+	{
+		TextureWidth = size_cast<GLint>( this->GetWidth() );
+		TextureHeight = size_cast<GLint>( this->GetHeight() );
+		GetNewTexturePixelFormats( GetArrayBridge(TextureInternalFormats), this->GetFormat() );
+	}
 #else
-	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth);
-	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight);
-	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &TextureInternalFormat);
-	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()" );
+	{
+		GLint TextureInternalFormat = 0;
+		glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth);
+		glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight);
+		glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &TextureInternalFormat);
+		Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()" );
+		TextureInternalFormats.PushBack( TextureInternalFormat );
+	}
 #endif
 	
 	const SoyPixelsImpl* UsePixels = &SourcePixels;
@@ -975,10 +1207,8 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	if ( UsingAppleStorage )
 		Params.mAllowOpenglConversion = false;
 	
-	//	pixel data format
-	auto GlPixelsFormat = Opengl::GetUploadPixelFormat( *this, SourcePixels.GetFormat(), Params.mAllowOpenglConversion );
 
-
+	/*	gr: re-implement this some time
 	//	gr: take IOS's target-must-match-source requirement into consideration here (replace GetUploadPixelFormat)
 	SoyPixels ConvertedPixels;
 	if ( Params.mAllowCpuConversion )
@@ -1006,16 +1236,20 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		}
 		
 	}
+	 */
 	
-	if (GlPixelsFormat == GL_INVALID_ENUM)
+	
+	auto& FinalPixels = *UsePixels;
+	GLenum FinalPixelsStorage = GL_UNSIGNED_BYTE;
+	//	pixel data format
+	BufferArray<GLenum,10> FinalPixelsFormats;
+	Opengl::GetUploadPixelFormats( GetArrayBridge(FinalPixelsFormats), *this, FinalPixels.GetFormat(), Params.mAllowOpenglConversion );
+	if ( FinalPixelsFormats.IsEmpty() )
 	{
 		std::stringstream Error;
 		Error << "Failed to write texture, unsupported upload format " << SourcePixels.GetFormat();
 		throw Soy::AssertException(Error.str());
 	}
-	
-	auto& FinalPixels = *UsePixels;
-	GLenum GlPixelsStorage = GL_UNSIGNED_BYTE;
 
 
 #if defined(TARGET_OSX)
@@ -1038,79 +1272,110 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		//	need to work out if it's new to the GPU in case pixels were already allocated
 		//if ( NewTexture )
 		{
-			//GLuint InternalPixelFormat = Opengl::GetNewTexturePixelFormat( Meta.GetFormat() );
-			glTexImage2D(mType, MipLevel, TextureInternalFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, GlPixelsFormat, GlPixelsStorage, PixelsBuffer.GetPixelsArray().GetArray() );
-			Opengl::IsOkay("glTexImage2D(GL_APPLE_client_storage) glTexImage2D");
+			auto PushTexture = [&](GLenum InternalFormat,GLenum ExternalFormat)
+			{
+				glTexImage2D( mType, MipLevel, InternalFormat, size_cast<GLsizei>(PixelsBuffer.GetWidth()), size_cast<GLsizei>(PixelsBuffer.GetHeight()), 0, ExternalFormat, FinalPixelsStorage, PixelsBuffer.GetPixelsArray().GetArray() );
+			};
+			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D(GL_APPLE_client_storage) glTexImage2D", PushTexture );
 		}
 		glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
 		Opengl::IsOkay("glTexImage2D(GL_APPLE_client_storage) glPixelStorei");
+		
+		//	gr: crashes often on OSX... only on NPOT textures?
+		//Opengl::GenerateMipmap( mType );
+		Opengl::IsOkay( std::string(__func__) + " post mipmap" );
+		
+		Unbind();
+		Opengl::IsOkay( std::string(__func__) + " unbind()" );
+		
+		OnWrite();
+		return;
 	}
-	else
 #endif
-	if ( !SubImage )	//	gr: if we find glTexImage2D faster add || IsSameDimensions
+	
+	//	try subimage
+	//	gr: if we find glTexImage2D faster add && !IsSameDimensions
+	if ( SubImage )
+	{
+		int XOffset = 0;
+		int YOffset = 0;
+		
+		auto Width = std::min( TextureWidth, size_cast<GLsizei>(FinalPixels.GetWidth()) );
+		auto Height = std::min( TextureHeight, size_cast<GLsizei>(FinalPixels.GetHeight()) );
+		
+		const ArrayInterface<uint8>& PixelsArray = FinalPixels.GetPixelsArray();
+		auto* PixelsArrayData = PixelsArray.GetArray();
+		
+		//	invalid operation here means the unity pixel format is probably different to the pixel data we're trying to push now
+		auto PushTexture = [&](GLenum InternalFormat,GLenum ExternalFormat)
+		{
+			glTexSubImage2D( mType, MipLevel, XOffset, YOffset, Width, Height, ExternalFormat, FinalPixelsStorage, PixelsArrayData );
+		};
+		try
+		{
+			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D subimage", PushTexture );
+			//	gr: crashes often on OSX... only on NPOT textures?
+			//glGenerateMipmap( mType );
+			Opengl::IsOkay( std::string(__func__) + " post mipmap" );
+			
+			Unbind();
+			Opengl::IsOkay( std::string(__func__) + " unbind()" );
+			
+			OnWrite();
+			return;
+		}
+		catch (std::exception& e)
+		{
+			std::Debug << "Sub-image failed; " << e.what() << std::endl;
+		}
+	}
+	
+	//	final try
 	{
 		int Border = 0;
 		
 		//	if texture doesnt fit we'll get GL_INVALID_VALUE
 		//	if frame is bigger than texture, it will mangle (bad stride)
 		//	if pixels is smaller, we'll just get the sub-image drawn
-		auto Width = std::min<GLsizei>( TextureWidth, FinalPixels.GetWidth() );
-		auto Height = std::min<GLsizei>( TextureHeight, FinalPixels.GetHeight() );
+		auto Width = std::min( TextureWidth, size_cast<GLsizei>(FinalPixels.GetWidth()) );
+		auto Height = std::min( TextureHeight, size_cast<GLsizei>(FinalPixels.GetHeight()) );
 		
 		const ArrayInterface<uint8>& PixelsArray = FinalPixels.GetPixelsArray();
 		auto* PixelsArrayData = PixelsArray.GetArray();
 	
-		//	only for "new" textures
+		BufferArray<GLenum,10> TargetFormats;
 		
-		GLuint TargetFormat = GL_RGBA;
+		//	es requires target & internal format to match
+		//	https://www.khronos.org/opengles/sdk/docs/man/xhtml/glTexImage2D.xml
+		//	gr: android only?
+#if defined(OPENGL_ES)
+		TargetFormats.Copy(FinalPixelsFormats);
+#else
+		//	if conversion allowed...
+		TargetFormats.PushBack( GL_RGBA );
+		TargetFormats.PushBackArray(FinalPixelsFormats);
+#endif
 	
-		ofScopeTimerWarning Timer("glTexImage2D", 10 );
-		glTexImage2D( mType, MipLevel, TargetFormat,  Width, Height, Border, GlPixelsFormat, GlPixelsStorage, PixelsArrayData );
-		Opengl_IsOkay();
-	}
-	else
-	{
-		int XOffset = 0;
-		int YOffset = 0;
-		
-		auto Width = std::min<GLsizei>( TextureWidth, FinalPixels.GetWidth() );
-		auto Height = std::min<GLsizei>( TextureHeight, FinalPixels.GetHeight() );
-
-		const ArrayInterface<uint8>& PixelsArray = FinalPixels.GetPixelsArray();
-		auto* PixelsArrayData = PixelsArray.GetArray();
-		
-		//	invalid operation here means the unity pixel format is probably different to the pixel data we're trying to push now
-		//ofScopeTimerWarning Timer("glTexSubImage2D", 10 );
-		glTexSubImage2D( mType, MipLevel, XOffset, YOffset, Width, Height, GlPixelsFormat, GlPixelsStorage, PixelsArrayData );
-		//Timer.Stop();
-		
-		std::stringstream Context;
-		Context << __func__ << "glTexSubImage2D(" << Opengl::GetEnumString(GlPixelsFormat) << ")";
-		
-		if ( !Opengl::IsOkay( Context.str(),false) )
+		auto PushTexture = [&](GLenum InternalFormat,GLenum ExternalFormat)
 		{
-			//	on ios the internal format must match the pixel format. No conversion!
-			GLenum TargetFormat = GlPixelsFormat;
-			int Border = 0;
-			
-			//	gr: first copy needs to initialise the texture... before we can use subimage
-			ofScopeTimerWarning Timer2("glTexImage2D fallback", 10 );
-			glTexImage2D( GL_TEXTURE_2D, MipLevel, TargetFormat, Width, Height, Border, GlPixelsFormat, GL_UNSIGNED_BYTE, PixelsArrayData );
-			Opengl::IsOkay("glTexImage2D",false);
-		}
-	}
+			ofScopeTimerWarning Timer("glTexImage2D", 10 );
+			glTexImage2D( mType, MipLevel, InternalFormat,  Width, Height, Border, ExternalFormat, FinalPixelsStorage, PixelsArrayData );
+		};
+		TryFunctionWithFormats( GetArrayBridge(TargetFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D !subimage", PushTexture );
 
-	//	gr: crashes often on OSX... only on NPOT textures?
-	//glGenerateMipmap( mType );
-	Opengl_IsOkay();
-	
-	Unbind();
-	Opengl_IsOkay();
-	
-	OnWrite();
+		//	gr: crashes often on OSX... only on NPOT textures?
+		//Opengl::GenerateMipmap( mType );
+		Opengl::IsOkay( std::string(__func__) + " post mipmap" );
+		
+		Unbind();
+		Opengl::IsOkay( std::string(__func__) + " unbind()" );
+		
+		OnWrite();
+		return;
+	}
 }
 
-SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType)
+SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType) const
 {
 #if defined(OPENGL_ES)
 	std::Debug << "Warning, using " << __func__ << " on opengl es (no such info)" << std::endl;
@@ -1236,8 +1501,26 @@ bool Opengl::TShaderState::SetUniform(const char* Name,const float& v)
 	return true;
 }
 
+bool Opengl::TShaderState::SetUniform(const char* Name,const int& v)
+{
+	auto Uniform = mShader.GetUniform( Name );
+	if ( !Uniform.IsValid() )
+		return false;
+	Opengl::SetUniform( Uniform, v );
+	return true;
+}
+
 
 bool Opengl::TShaderState::SetUniform(const char* Name,const vec4f& v)
+{
+	auto Uniform = mShader.GetUniform( Name );
+	if ( !Uniform.IsValid() )
+		return false;
+	Opengl::SetUniform( Uniform, v );
+	return true;
+}
+
+bool Opengl::TShaderState::SetUniform(const char* Name,const vec3f& v)
 {
 	auto Uniform = mShader.GetUniform( Name );
 	if ( !Uniform.IsValid() )
@@ -1372,7 +1655,9 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		Uniform.mIndex = attrib;
 		
 		GLsizei actualLength = 0;
-		glGetActiveAttrib( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Uniform.mType, &nameData[0]);
+		GLenum Type;
+		glGetActiveAttrib( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Type, &nameData[0]);
+		Uniform.SetType( Type );
 		Uniform.mName = std::string( nameData.data(), actualLength );
 		
 		//	todo: check is valid type etc
@@ -1387,20 +1672,26 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		Uniform.mIndex = attrib;
 		
 		GLsizei actualLength = 0;
-		glGetActiveUniform( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Uniform.mType, &nameData[0]);
+		GLenum Type;
+		glGetActiveUniform( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Type, &nameData[0]);
+		Uniform.SetType( Type );
 		Uniform.mName = std::string( nameData.data(), actualLength );
 		
 		//	todo: check is valid type etc
 		mUniforms.PushBack( Uniform );
 	}
 
-	std::Debug << ShaderName << " has " << mAttributes.GetSize() << " attributes; " << std::endl;
-	std::Debug << Soy::StringJoin( GetArrayBridge(mAttributes), "\n" );
-	std::Debug << std::endl;
+	static bool DebugUniforms = false;
+	if ( DebugUniforms )
+	{
+		std::Debug << ShaderName << " has " << mAttributes.GetSize() << " attributes; " << std::endl;
+		std::Debug << Soy::StringJoin( GetArrayBridge(mAttributes), "\n" );
+		std::Debug << std::endl;
 
-	std::Debug << ShaderName << " has " << mUniforms.GetSize() << " uniforms; " << std::endl;
-	std::Debug << Soy::StringJoin( GetArrayBridge(mUniforms), "\n" );
-	std::Debug << std::endl;
+		std::Debug << ShaderName << " has " << mUniforms.GetSize() << " uniforms; " << std::endl;
+		std::Debug << Soy::StringJoin( GetArrayBridge(mUniforms), "\n" );
+		std::Debug << std::endl;
+	}
 }
 
 
@@ -1409,9 +1700,9 @@ Opengl::TShaderState Opengl::TShader::Bind()
 	Opengl_IsOkay();
 	glUseProgram( mProgram.mName );
 	Opengl_IsOkay();
-	
-	TShaderState ShaderState( *this );
-	return ShaderState;
+
+	//	gr: this is doing a copy constructor I think. fix this and add NonCopyable to TShaderState
+	return TShaderState( *this );
 }
 
 Opengl::TShader::~TShader()
@@ -1460,6 +1751,15 @@ size_t Opengl::TGeometryVertex::GetStride(size_t ElementIndex) const
 	return Stride;
 }
 
+size_t Opengl::TGeometryVertex::GetVertexSize() const
+{
+	size_t Size = 0;
+	for ( int e=0;	e<mElements.GetSize();	e++ )
+		Size += mElements[e].mElementDataSize;
+
+	return Size;
+}
+
 
 void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
 {
@@ -1476,7 +1776,7 @@ void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
 	}
 }
 
-Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<GLshort>&& Indexes,const Opengl::TGeometryVertex& Vertex) :
+Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const Opengl::TGeometryVertex& Vertex) :
 	mVertexBuffer( GL_ASSET_INVALID ),
 	mIndexBuffer( GL_ASSET_INVALID ),
 	mVertexArrayObject( GL_ASSET_INVALID ),
@@ -1517,17 +1817,20 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<G
 
 		//std::Debug << "Pushing attrib " << AttribIndex << ", arraysize " << Element.mArraySize << ", stride " << Stride << std::endl;
 		glEnableVertexAttribArray( AttribIndex );
-		glVertexAttribPointer( AttribIndex, Element.mArraySize, Element.mType, Normalised, Stride, ElementPointer );
+		glVertexAttribPointer( AttribIndex, Element.mArraySize, Element.GetTypeEnum(), Normalised, Stride, ElementPointer );
 		Opengl_IsOkay();
 	}
 	
 	//	gr: disabling vertex attribs stops rendering on ios
 	//Vertex.DisableAttribs();
 
-	//	push indexes
+	//	push indexes as glshorts
+	Array<GLshort> Indexes16;
+	for ( int i=0;	i<Indexes.GetSize();	i++ )
+		Indexes16.PushBack( size_cast<GLshort>(Indexes[i]) );
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
-	glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes.GetDataSize(), Indexes.GetArray(), GL_STATIC_DRAW );
-	mIndexCount = size_cast<GLsizei>( Indexes.GetSize() );
+	glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes16.GetDataSize(), Indexes16.GetArray(), GL_STATIC_DRAW );
+	mIndexCount = size_cast<GLsizei>( Indexes16.GetSize() );
 	mIndexType = Opengl::GetTypeEnum<GLshort>();
 	Opengl_IsOkay();
 
@@ -1550,10 +1853,17 @@ void Opengl::TGeometry::Bind()
 void Opengl::TGeometry::Unbind()
 {
 	//	unbinding so nothing alters it
+	//	gr: if we don't unbind on windows, we crash in nvidia driver (win7)
 #if defined(TARGET_IOS)|| defined(TARGET_WINDOWS)
-	Opengl::BindVertexArray( 0 );
-	Opengl_IsOkay();
+	static bool DoUnbind = true;
+#else
+	static bool DoUnbind = false;
 #endif
+	if ( DoUnbind )
+	{
+		Opengl::BindVertexArray( 0 );
+		Opengl_IsOkay();
+	}
 }
 
 
@@ -1567,12 +1877,18 @@ void Opengl::TGeometry::Draw()
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
 	Opengl_IsOkay();
 
-#if !defined(TARGET_IOS)
-	//	should be left enabled
-	mVertexDescription.EnableAttribs();
-	Opengl_IsOkay();
+#if defined(TARGET_IOS)
+	static bool EnableAttribs = false;
+#else
+	static bool EnableAttribs = true;
 #endif
-	
+	if ( EnableAttribs )
+	{
+		//	should be left enabled
+		mVertexDescription.EnableAttribs();
+		Opengl_IsOkay();
+	}
+
 	//	gr: shouldn't use this, only for debug
 	//glDrawArrays( GL_TRIANGLES, 0, this->vertexCount );
 	//Opengl_IsOkay();
@@ -1607,44 +1923,66 @@ Opengl::TGeometry::~TGeometry()
 	}
 }
 
-
+//	gr: put R8 first as note4 works with glTexImage R8->RED, but not RED->RED or RED->R8
+const std::initializer_list<GLenum> Opengl8BitFormats =
+{
+	GL_R8,
+	GL_RED,
+#if defined(GL_LUMINANCE)
+	GL_LUMINANCE,
+#endif
+	GL_ALPHA,
+};
+const std::initializer_list<GLenum> Opengl16BitFormats =
+{
+	GL_RG,
+#if defined(GL_LUMINANCE_ALPHA)
+	GL_LUMINANCE_ALPHA,
+#endif
+};
 
 const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 {
 	static TPixelFormatMapping _PixelFormatMap[] =
 	{
-		TPixelFormatMapping( SoyPixelsFormat::RGB, GL_RGB, GL_RGB, GL_RGB ),
-		TPixelFormatMapping( SoyPixelsFormat::RGBA, GL_RGBA, GL_RGBA, GL_RGBA ),
-
-		//	alternatives for GL -> soy
 #if defined(GL_RGB8)
-		TPixelFormatMapping( SoyPixelsFormat::RGB, GL_RGB8, GL_RGB8, GL_RGB8 ),
+		TPixelFormatMapping( SoyPixelsFormat::RGB,			{GL_RGB, GL_RGB8} ),
+#else
+		TPixelFormatMapping( SoyPixelsFormat::RGB,			{GL_RGB} ),
 #endif
+		
 #if defined(GL_RGBA8)
-		TPixelFormatMapping( SoyPixelsFormat::RGBA, GL_RGBA8, GL_RGBA8, GL_RGBA8 ),
+		TPixelFormatMapping( SoyPixelsFormat::RGBA,			{GL_RGBA, GL_RGBA8} ),
+#else
+		TPixelFormatMapping( SoyPixelsFormat::RGBA,			{GL_RGBA} ),
 #endif
 
-#if defined(TARGET_IOS)
-		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_BGRA, GL_BGRA, GL_BGRA ),
-		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
-		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
-		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_LUMINANCE, GL_LUMINANCE, GL_LUMINANCE ),
-		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA ),
-#endif
-#if defined(TARGET_WINDOWS)
-		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_RED, GL_RED, GL_RED),
-		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_RED, GL_RED, GL_RED),
-		TPixelFormatMapping(SoyPixelsFormat::Greyscale, GL_RED, GL_RED, GL_RED),
-		TPixelFormatMapping(SoyPixelsFormat::GreyscaleAlpha, GL_RG, GL_RG, GL_RG),
+		//	gr: untested
+		TPixelFormatMapping( SoyPixelsFormat::ARGB,			{GL_RGBA, GL_RGBA8} ),
+		
+		TPixelFormatMapping( SoyPixelsFormat::LumaFull,		Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::LumaVideo,	Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::Greyscale,	Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_8_8,	Opengl8BitFormats ),
 
+		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_88,			Opengl16BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha,		Opengl16BitFormats ),
+		TPixelFormatMapping(SoyPixelsFormat::KinectDepth,			Opengl16BitFormats ),
+		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth10bit,	Opengl16BitFormats ),
+		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth11bit,	Opengl16BitFormats ),
+		TPixelFormatMapping(SoyPixelsFormat::FreenectDepthmm,		Opengl16BitFormats ),
+
+#if defined(GL_BGRA)
+		//	BGRA is not a valid internal format
+		TPixelFormatMapping( SoyPixelsFormat::BGRA,			{ GL_BGRA	}, { GL_RGBA	} ),
+#else
+		TPixelFormatMapping( SoyPixelsFormat::BGRA,			{ GL_RGBA	} ),
 #endif
-#if defined(GL_VERSION_3_0)
-		TPixelFormatMapping( SoyPixelsFormat::BGR, GL_BGR, GL_BGR, GL_BGR ),
-		TPixelFormatMapping( SoyPixelsFormat::LumaFull, GL_RED, GL_RED, GL_RED ),
-		TPixelFormatMapping( SoyPixelsFormat::LumaVideo, GL_RED, GL_RED, GL_RED ),
-		TPixelFormatMapping( SoyPixelsFormat::Greyscale, GL_RED, GL_RED, GL_RED ),
-		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha, GL_RG, GL_RG, GL_RG ),
-		TPixelFormatMapping( SoyPixelsFormat::BGRA, GL_RGBA, GL_BGRA, GL_RGBA ),
+
+#if defined(GL_BGR)
+		TPixelFormatMapping( SoyPixelsFormat::BGR,			{ GL_BGR	} ),
+#else
+		TPixelFormatMapping( SoyPixelsFormat::BGR,			{ GL_RGB	} ),
 #endif
 	};
 	static Array<TPixelFormatMapping> PixelFormatMap( _PixelFormatMap );
@@ -1660,8 +1998,9 @@ TPixelFormatMapping Opengl::GetPixelMapping(SoyPixelsFormat::Type PixelFormat)
 	return *Mapping;
 }
 
-GLenum Opengl::GetUploadPixelFormat(const Opengl::TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion)
+void Opengl::GetUploadPixelFormats(ArrayBridge<GLenum>&& Formats,const Opengl::TTexture& Texture,SoyPixelsFormat::Type Format,bool AllowConversion)
 {
+	/*
 	if ( Texture.IsValid() )
 	{
 		//	ios requires formats to match, no internal conversion
@@ -1681,38 +2020,46 @@ GLenum Opengl::GetUploadPixelFormat(const Opengl::TTexture& Texture,SoyPixelsFor
 		return Mapping.mUploadFormat;
 	#endif
 	}
-	
+	*/
 	auto Mapping = GetPixelMapping( Format );
-	return Mapping.mUploadFormat;
+	Formats.PushBackArray( Mapping.mOpenglFormats );
 }
 
 
-GLenum Opengl::GetNewTexturePixelFormat(SoyPixelsFormat::Type Format)
+void Opengl::GetNewTexturePixelFormats(ArrayBridge<GLenum>&& Formats,SoyPixelsFormat::Type Format)
 {
 	auto Mapping = GetPixelMapping( Format );
-	return Mapping.mNewTextureFormat;
+	
+	if ( Mapping.mOpenglInternalFormats.IsEmpty() )
+	{
+		Formats.PushBackArray( Mapping.mOpenglFormats );
+	}
+	else
+	{
+		Formats.PushBackArray( Mapping.mOpenglInternalFormats );
+	}
 }
 
 
-GLenum Opengl::GetDownloadPixelFormat(const TTexture& Texture,SoyPixelsFormat::Type& PixelFormat)
+void Opengl::GetDownloadPixelFormats(ArrayBridge<GLenum>&& Formats,const TTexture& Texture,SoyPixelsFormat::Type PixelFormat)
 {
 	auto Mapping = GetPixelMapping( PixelFormat );
-	return Mapping.mNewTextureFormat;
+	Formats.PushBackArray( Mapping.mOpenglFormats );
 }
 
 
-SoyPixelsFormat::Type Opengl::GetDownloadPixelFormat(GLenum PixelFormat)
+SoyPixelsFormat::Type Opengl::GetDownloadPixelFormat(GLenum Format)
 {
 	auto& FormatMaps = GetPixelFormatMap();
 	for ( int i=0;	i<FormatMaps.GetSize();	i++ )
 	{
 		auto& FormatMap = FormatMaps[i];
 		
-		if ( PixelFormat == FormatMap.mDownloadFormat )
+		if ( FormatMap.mOpenglFormats.Find(Format) )
 			return FormatMap.mPixelFormat;
 	}
 
-	std::Debug << "Failed to convert glpixelformat " << PixelFormat << " to soy pixel format" << std::endl;
+	std::Debug << "Failed to convert glpixelformat " << GetEnumString(Format) << " to soy pixel format" << std::endl;
 	return SoyPixelsFormat::Invalid;
 }
 
@@ -1776,10 +2123,11 @@ void Opengl::ClearColour(Soy::TRgb Colour,float Alpha)
 Opengl::TSync::TSync(bool Create) :
 	mSyncObject	( nullptr )
 {
+	//	gr: swap this for Context::IsSupported
 	if ( Create )
 #if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	{
-		mSyncObject = glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+		mSyncObject = Opengl::FenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
 		Opengl::IsOkay("glFenceSync");
 	}
 #else
@@ -1794,7 +2142,7 @@ void Opengl::TSync::Delete()
 #if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	if ( mSyncObject )
 	{
-		glDeleteSync( mSyncObject );
+		Opengl::DeleteSync( mSyncObject );
 		Opengl::IsOkay("glDeleteSync");
 		mSyncObject = nullptr;
 	}
@@ -1806,17 +2154,17 @@ void Opengl::TSync::Delete()
 void Opengl::TSync::Wait(const char* TimerName)
 {
 #if (OPENGL_ES==3) || (OPENGL_CORE==3)
-	if ( !glIsSync( mSyncObject ) )
+	if ( !Opengl::IsSync( mSyncObject ) )
 		return;
 	
 	//glWaitSync( mSyncObject, 0, GL_TIMEOUT_IGNORED );
 	GLbitfield Flags = GL_SYNC_FLUSH_COMMANDS_BIT;
-	GLuint64 TimeoutMs = 1000;
-	GLuint64 TimeoutNs = TimeoutMs * 1000000;
+	SoyTime Timeout( 1000ull );
+	GLuint64 TimeoutNs = Timeout.GetNanoSeconds();
 	GLenum Result = GL_INVALID_ENUM;
 	do
 	{
-		Result = glClientWaitSync( mSyncObject, Flags, TimeoutNs );
+		Result = Opengl::ClientWaitSync( mSyncObject, Flags, TimeoutNs );
 	}
 	while ( Result == GL_TIMEOUT_EXPIRED );
 	

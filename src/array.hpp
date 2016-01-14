@@ -247,6 +247,14 @@ public:
 		return true;
 	}
 	
+	
+	T	PopAt(size_t Index)
+	{
+		T Item = (*this)[Index];
+		RemoveBlock( Index, 1 );
+		return Item;
+	}
+	
 };
 
 
@@ -278,6 +286,14 @@ public:
 		auto* Block = InsertBlock( index, 1 );
 		*Block = item;
 		return *Block;
+	}
+	
+	T&					PushBackUnique(const T& item)
+	{
+		auto Index = this->FindIndex( item );
+		if ( Index != -1 )
+			return (*this)[Index];
+		return PushBack(item);
 	}
 
 	//	compare two arrays of the same type
@@ -325,7 +341,7 @@ public:
 	{
 		//	verify this combination is possible
 		Soy::Assert( ByteOffset < this->GetDataSize(), "Subarray start out of bounds" );
-		size_t ElementLast = ByteOffset + (OutputElements * sizeof(TYPE));
+		size_t ElementLast = ByteOffset + (OutputElements * sizeof(TYPE)) - 1;
 		Soy::Assert( ElementLast < this->GetDataSize(), "Subarray end out of bounds" );
 		
 		auto* Start = reinterpret_cast<uint8*>( this->GetArray() ) + ByteOffset;

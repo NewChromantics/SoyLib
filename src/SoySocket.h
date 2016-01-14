@@ -19,8 +19,9 @@
 	typedef size_t socket_data_size_t;
 #endif
 
-#if defined(TARGET_ANDROID)
-	typedef __in_addr_t in_addr_t;
+#if defined(TARGET_POSIX)
+	#include <arpa/inet.h>	//	in_addr_t
+//	typedef __in_addr_t in_addr_t;
 #endif
 
 namespace Soy
@@ -124,8 +125,6 @@ public:
 
 	void		OnError(SoyRef ConnectionRef,const std::string& Error);	//	error occured, disconnect from this
 
-	static bool	GetHostnameAndPortFromAddress(std::string& Hostname,uint16& Port,const std::string Address);
-	
 	SOCKET		GetSocket()	{	return mSocket;	}	//	gr: don't think I should be providing access here....
 	
 	

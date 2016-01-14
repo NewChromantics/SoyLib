@@ -18,8 +18,11 @@ namespace OpenglExtensions
 		VertexArrayObjects,
 		VertexBuffers,
 		DrawBuffers,
+		FrameBuffers,
+		GenerateMipMap,
 		ImageExternal,
 		ImageExternalSS3,
+		Sync,
 	};
 	
 	DECLARE_SOYENUM( OpenglExtensions );
@@ -33,13 +36,33 @@ namespace Opengl
 	class TRenderTargetFbo;
 	
 	
+	//	safe-as-possible deffered delete of an opengl object (pass in your members here!)
+	template<typename TYPE>
+	void	DeferDelete(std::shared_ptr<Opengl::TContext> Context,std::shared_ptr<TYPE>& pObject);
+
+	
 	//	extension bindings
 	extern std::function<void(GLuint)>					BindVertexArray;
 	extern std::function<void(GLsizei,GLuint*)>			GenVertexArrays;
 	extern std::function<void(GLsizei,const GLuint*)>	DeleteVertexArrays;
 	extern std::function<GLboolean(GLuint)>				IsVertexArray;
 	
+	extern std::function<void(GLsizei,GLuint*)>			GenFramebuffers;
+	extern std::function<void(GLenum,GLuint)>			BindFramebuffer;
+	extern std::function<void(GLenum,GLenum,GLenum,GLuint,GLint)>	FramebufferTexture2D;
+	extern std::function<void(GLsizei,const GLuint*)>	DeleteFramebuffers;
+	extern std::function<GLboolean(GLuint)>				IsFramebuffer;
+	extern std::function<GLenum(GLenum)>				CheckFramebufferStatus;
+	extern std::function<void(GLenum,GLenum,GLenum,GLint*)>		GetFramebufferAttachmentParameteriv;
+
 	extern std::function<void(GLsizei,const GLenum *)>	DrawBuffers;
+
+	extern std::function<void(GLenum)>					GenerateMipmap;
+
+	extern std::function<GLsync(GLenum,GLbitfield)>		FenceSync;
+	extern std::function<void(GLsync)>					DeleteSync;
+	extern std::function<GLboolean(GLsync)>				IsSync;
+	extern std::function<GLenum(GLsync,GLbitfield,GLuint64)>	ClientWaitSync;
 };
 
 
@@ -56,17 +79,25 @@ public:
 	virtual void	Unlock() override;
 	virtual bool	IsLocked(std::thread::id Thread) override;
 	virtual std::shared_ptr<Opengl::TContext>	CreateSharedContext()	{	return nullptr;	}
+	bool			HasMultithreadAccess() const	{	return false;	}
 
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
 	
-	void			BindVertexArrayObjectsExtension();
-	void			BindVertexBuffersExtension();
 
 #if defined(TARGET_OSX)
 	virtual CGLContextObj	GetPlatformContext()	{	return nullptr;	}
 #endif
 	
+private:
+	void			BindVertexArrayObjectsExtension();
+	void			BindDrawBuffersExtension();
+	void			BindFramebuffersExtension();
+	void			BindGenerateMipMapExtension();
+	void			BindSyncExtension();
+
+	void			BindExtension(OpenglExtensions::Type Extension,std::function<void(bool)> BindFunctions,std::function<void(void)> BindUnsupportedFunctions);
+
 public:
 	Soy::TVersion	mVersion;
 	Soy::TVersion	mShaderVersion;	//	max version supported
@@ -87,7 +118,7 @@ public:
 	}
 	virtual ~TRenderTarget()	{}
 	
-	virtual bool				Bind()=0;
+	virtual void				Bind()=0;
 	virtual void				Unbind()=0;
 	virtual Soy::Rectx<size_t>	GetSize()=0;
 	
@@ -109,9 +140,9 @@ public:
 		mFbo.reset();
 	}
 	
-	virtual bool				Bind();
-	virtual void				Unbind();
-	virtual Soy::Rectx<size_t>	GetSize();
+	virtual void				Bind() override;
+	virtual void				Unbind() override;
+	virtual Soy::Rectx<size_t>	GetSize() override;
 	TTexture					GetTexture();
 	
 public:
@@ -119,4 +150,35 @@ public:
 	std::shared_ptr<TFbo>	mFbo;
 	TTexture				mTexture;
 };
+
+
+
+template<typename TYPE>
+inline void Opengl::DeferDelete(std::shared_ptr<Opengl::TContext> Context,std::shared_ptr<TYPE>& pObject)
+{
+	if ( !pObject )
+		return;
+	
+	if ( !Context )
+	{
+		std::Debug << __func__ << " Warning; missing opengl context, objects will free immediately in wrong thread" << std::endl;
+		try
+		{
+			pObject.reset();
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << __func__ << " non deffered delete of geo; " << e.what() << std::endl;
+		}
+		return;
+	}
+	
+	//	push deffered delete with copy of object and release local one in this thread
+	//	note: because of race conditions we capture and release the local one first
+	std::shared_ptr<TYPE> LocalpObject = pObject;
+	pObject.reset();
+	std::shared_ptr<PopWorker::TJob> Job( new TDefferedDeleteJob<TYPE>( LocalpObject ) );
+	Context->PushJob( Job );
+	LocalpObject.reset();
+}
 
