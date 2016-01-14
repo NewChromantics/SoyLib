@@ -31,7 +31,6 @@ namespace TProtocolState
 class Soy::TReadProtocol
 {
 public:
-	const char*						GetTypeName() const		{	return typeid(*this).name();	}
 	virtual TProtocolState::Type	Decode(TStreamBuffer& Buffer)=0;
 };
 

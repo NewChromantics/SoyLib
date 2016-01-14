@@ -362,11 +362,11 @@ bool TStreamReader::Iteration()
 	}
 	catch(std::exception& e)
 	{
-		std::Debug << "Protocol " << CurrentProtocol->GetTypeName() << "::Decode threw exception (" << e.what() << ") reverting to " << DecodeResult << std::endl;
+		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol) << "::Decode threw exception (" << e.what() << ") reverting to " << DecodeResult << std::endl;
 	}
 	catch(...)
 	{
-		std::Debug << "Protocol " << CurrentProtocol->GetTypeName()  << "::Decode threw unknown exception reverting to " << DecodeResult << std::endl;
+		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol)  << "::Decode threw unknown exception reverting to " << DecodeResult << std::endl;
 	}
 	
 	switch ( DecodeResult )
