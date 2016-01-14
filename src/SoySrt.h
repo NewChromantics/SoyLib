@@ -7,6 +7,7 @@
 namespace Srt
 {
 	class TFrame;
+	static const char*	FileExtensions[] = {".srt"};
 }
 
 

@@ -354,8 +354,20 @@ bool TStreamReader::Iteration()
 	if ( !CurrentProtocol )
 		return true;
 	
-	//	process
-	auto DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
+	//	process protocol
+	auto DecodeResult = TProtocolState::Abort;
+	try
+	{
+		DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol) << "::Decode threw exception (" << e.what() << ") reverting to " << DecodeResult << std::endl;
+	}
+	catch(...)
+	{
+		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol)  << "::Decode threw unknown exception reverting to " << DecodeResult << std::endl;
+	}
 	
 	switch ( DecodeResult )
 	{
@@ -368,6 +380,11 @@ bool TStreamReader::Iteration()
 		case TProtocolState::Finished:
 			break;
 			
+		//	invalidate data and continue as disconnection
+		case TProtocolState::Abort:
+			CurrentProtocol.reset();
+			break;
+
 			//	release current and re-iterate
 		default:
 			std::Debug << "Unhandled TProtocolState: " << DecodeResult << " ignoring." << std::endl;
@@ -376,16 +393,20 @@ bool TStreamReader::Iteration()
 			return true;
 	}
 	
-	if ( DecodeResult == TProtocolState::Disconnect )
-	{
-		std::Debug << "Todo: protocol says, disconnect stream. Currently unhandled." << std::endl;
-	}
-	
 	//	notify (with shared ptr so data can be cheaply saved)
-	mOnDataRecieved.OnTriggered( CurrentProtocol );
+	if ( CurrentProtocol )
+		mOnDataRecieved.OnTriggered( CurrentProtocol );
 	
 	//	dealloc for next
 	mCurrentProtocol.reset();
+
+	if ( DecodeResult == TProtocolState::Disconnect || DecodeResult == TProtocolState::Abort )
+	{
+		static auto SleepMs = 5000;
+		std::Debug << "Todo: protocol says, " << DecodeResult << " stream. Currently unhandled. Sleeping for " << SleepMs << "ms" << std::endl;
+		std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
+	}
+	
 	return true;
 }
 
@@ -579,7 +600,8 @@ TFileStreamReader::~TFileStreamReader()
 
 void TFileStreamReader::Read(TStreamBuffer& Buffer)
 {
-	BufferArray<char,100> Data(100);
+	mReadBuffer.SetSize( 1024*1024 );
+	auto& Data = mReadBuffer;
 
 	auto Peek = mFile.peek();
 	if ( Peek == std::char_traits<char>::eof() )

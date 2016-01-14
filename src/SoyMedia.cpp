@@ -740,32 +740,44 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			//	if we successfully read a packet, clear the last error
 			OnClearError();
 
-			//	todo handling stream EOF
-			if ( NextPacket->mEof )
+			//	packet can have content AND EOF, or just EOF
+			bool EndOfStream = NextPacket->mEof;
+			
+			//	can have a packet with no data (eg. eof) skip this
+			if ( NextPacket->HasData() )
+			{
+				
+				//	block thread unless it's stopped
+				auto Block = [this,&NextPacket]()
+				{
+					//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
+					if ( IsWorking() )
+					{
+						//std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << std::endl;
+						std::this_thread::sleep_for( std::chrono::milliseconds(100) );
+					}
+					return IsWorking();
+				};
+				
+				auto Buffer = GetStreamBuffer( NextPacket->mMeta.mStreamIndex );
+				//	if the buffer doesn't exist, we drop the packet. todo; make it easy to skip in ReadNextPacket!
+				if ( Buffer )
+				{
+					Buffer->PushPacket( NextPacket, Block );
+				}
+			}
+			else if ( !EndOfStream )
+			{
+				std::Debug << "Warning, empty packet AND NOT eof; " << *NextPacket << std::endl;
+			}
+
+			//	todo proper handling stream EOF
+			if ( EndOfStream )
 			{
 				//	slow down the now-idle-ish thread
 				static int SleepEofMs = 400;
 				std::this_thread::sleep_for( std::chrono::milliseconds(SleepEofMs) );
 				return;
-			}
-			
-			//	block thread unless it's stopped
-			auto Block = [this,&NextPacket]()
-			{
-				//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
-				if ( IsWorking() )
-				{
-					//std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << std::endl;
-					std::this_thread::sleep_for( std::chrono::milliseconds(100) );
-				}
-				return IsWorking();
-			};
-			
-			auto Buffer = GetStreamBuffer( NextPacket->mMeta.mStreamIndex );
-			//	if the buffer doesn't exist, we drop the packet. todo; make it easy to skip in ReadNextPacket!
-			if ( Buffer )
-			{
-				Buffer->PushPacket( NextPacket, Block );
 			}
 			
 			//	passed the time we were reading until, abort current loop
@@ -828,6 +840,24 @@ bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyfr
 	//	todo; pass a func from the decoder which accesses the buffers/current time
 	return true;
 }
+
+void TMediaExtractor::OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)
+{
+	mOnStreamsChanged.OnTriggered( Streams );
+}
+
+void TMediaExtractor::OnStreamsChanged()
+{
+	Array<TStreamMeta> Streams;
+	GetStreams( GetArrayBridge(Streams) );
+	OnStreamsChanged( GetArrayBridge(Streams) );
+}
+
+
+
+
+
+
 
 void TMediaEncoder::PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block)
 {
@@ -973,7 +1003,10 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 	//	gr: assuming we should never get here with an invalid timestamp, we force the first timestamp to 1 instead of 0 (so it doesn't clash with "invalid")
 	//	if we add something to handle when we get no timestamps from the decoder, maybe revise this a little (but maybe that should be handled by the decoder)
 	if ( Timestamp.mTime == 0 )
+	{
+		std::Debug << "CorrectDecodedFrameTimestamp() got timestamp of 0, should now be corrected with CorrectExtractedTimecode" << std::endl;
 		Timestamp.mTime = 1;
+	}
 	
 	if ( !mFirstTimestamp.IsValid() )
 	{
@@ -1005,7 +1038,11 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 		}
 
 		Timestamp.mTime += mAdjustmentTimestamp.mTime;
-		Timestamp.mTime -= mFirstTimestamp.mTime;
+
+		//	special case, if our frames start at 0(corrected to 1), mFirstTimestamp will be 1, which gives us 0
+		//	do not output 0.
+		if ( mFirstTimestamp.mTime > 1 )
+			Timestamp.mTime -= mFirstTimestamp.mTime;
 	}
 	
 	mLastTimestamp = Timestamp;
@@ -1171,6 +1208,9 @@ TMediaPassThroughDecoder::TMediaPassThroughDecoder(const std::string& ThreadName
 
 bool TMediaPassThroughDecoder::ProcessPacket(std::shared_ptr<TMediaPacket>& Packet)
 {
+	//	note: before correction!
+	OnDecodeFrameSubmitted( Packet->mTimecode );
+
 	if ( mTextOutput )
 	{
 		if ( ProcessTextPacket( Packet ) )
@@ -1220,30 +1260,38 @@ bool TMediaPassThroughDecoder::ProcessPixelPacket(const TMediaPacket& Packet)
 	//	pass through pixel buffers
 	if ( Packet.mPixelBuffer )
 	{
-		auto& PixelBufferManager = GetPixelBufferManager();
-		if ( !PixelBufferManager.PrePushPixelBuffer( Packet.mTimecode ) )
-			return true;
-
 		TPixelBufferFrame Frame;
-		Frame.mPixels = Packet.mPixelBuffer;
 		Frame.mTimestamp = Packet.mTimecode;
-		PixelBufferManager.PushPixelBuffer( Frame, Block );
+
+		auto& Output = GetPixelBufferManager();
+		Output.CorrectDecodedFrameTimestamp( Frame.mTimestamp );
+		Output.mOnFrameDecoded.OnTriggered( Frame.mTimestamp );
+
+		if ( !Output.PrePushPixelBuffer( Frame.mTimestamp ) )
+			return true;
+	
+		Frame.mPixels = Packet.mPixelBuffer;
+		Output.PushPixelBuffer( Frame, Block );
 		return true;
 	}
 
 	//	handle generic pixels
 	if ( Packet.mMeta.mPixelMeta.IsValid() )
 	{
-		auto& PixelBufferManager = GetPixelBufferManager();
-		if ( !PixelBufferManager.PrePushPixelBuffer( Packet.mTimecode ) )
+		TPixelBufferFrame Frame;
+		Frame.mTimestamp = Packet.mTimecode;
+		
+		auto& Output = GetPixelBufferManager();
+		Output.CorrectDecodedFrameTimestamp( Frame.mTimestamp );
+		Output.mOnFrameDecoded.OnTriggered( Frame.mTimestamp );
+		
+		if ( !Output.PrePushPixelBuffer( Frame.mTimestamp ) )
 			return true;
 
 		SoyPixelsRemote Pixels( GetArrayBridge(Packet.mData), Packet.mMeta.mPixelMeta );
 
-		TPixelBufferFrame Frame;
-		Frame.mTimestamp = Packet.mTimecode;
 		Frame.mPixels.reset( new TDumbPixelBuffer( Pixels ) );
-		PixelBufferManager.PushPixelBuffer( Frame, Block );
+		Output.PushPixelBuffer( Frame, Block );
 		return true;
 	}
 
@@ -1258,7 +1306,11 @@ bool TMediaPassThroughDecoder::ProcessAudioPacket(const TMediaPacket& Packet)
 
 bool TMediaPassThroughDecoder::ProcessTextPacket(std::shared_ptr<TMediaPacket>& Packet)
 {
-	mTextOutput->PushBuffer( Packet );
+	auto& Output = *mTextOutput;
+	Output.CorrectDecodedFrameTimestamp( Packet->mTimecode );
+	Output.mOnFrameDecoded.OnTriggered( Packet->mTimecode );
+	
+	Output.PushBuffer( Packet );
 	return true;
 }
 
@@ -1441,6 +1493,12 @@ bool TPixelBufferManager::PrePushPixelBuffer(SoyTime Timestamp)
 
 bool TPixelBufferManager::PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::function<bool()> Block)
 {
+	if ( !PixelBuffer.mTimestamp.IsValid() )
+	{
+		std::Debug << "TPixelBufferManager::PushPixelBuffer packet with invalid timestamp. should ALWAYS be corrected to at least 1" << std::endl;
+		PixelBuffer.mTimestamp.mTime = 1;
+	}
+	
 	do
 	{
 		//	wait for frames to be popped

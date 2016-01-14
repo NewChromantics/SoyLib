@@ -9,6 +9,8 @@
 
 class SoyPixelsMeta;
 class SoyPixelsImpl;
+class TStreamBuffer;
+
 
 
 namespace SoyPixelsFormat
@@ -240,7 +242,7 @@ public:
 
 	bool			SetFormat(SoyPixelsFormat::Type Format);
 	bool			SetChannels(uint8 Channels);
-	void			SetPng(const ArrayBridge<char>& PngData);
+	void			SetPng(const ArrayBridge<char>& PngData) __deprecated;
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
 	bool			SetRawSoyPixels(const ArrayBridge<char>&& RawData)	{	return SetRawSoyPixels( RawData );	}
 
@@ -305,6 +307,7 @@ DECLARE_TYPE_NAME( SoyPixels );
 
 
 
+//	gr: this currently won't modify an ARRAY properly, so those mutable constructors have been removed
 class SoyPixelsRemote : public SoyPixelsImpl
 {
 public:
@@ -312,41 +315,56 @@ public:
 public:
 	SoyPixelsRemote() :
 		mArray			( nullptr, 0 ),
-		mArrayBridge	( mArray )
+		mArrayBridge	( mArray ),
+		mMeta			( mMutableMeta )
 	{
 		Soy::Assert( !IsValid(), "should be invalid" );
 	}
 	SoyPixelsRemote(const SoyPixelsRemote& that) :
 		mArray			( nullptr, 0 ),
-		mArrayBridge	( mArray )
+		mArrayBridge	( mArray ),
+		mMeta			( mMutableMeta )
 	{
 		*this = that;
 	}
 	explicit SoyPixelsRemote(uint8* Array, size_t Width, size_t Height, size_t DataSize, SoyPixelsFormat::Type Format) :
-		mArray(Array, DataSize),
-		mMeta(Width, Height, Format),
-		mArrayBridge(mArray)
+		mArray			(Array, DataSize),
+		mMutableMeta	(Width, Height, Format),
+		mMeta			( mMutableMeta ),
+		mArrayBridge	(mArray)
 	{
 	}
 	explicit SoyPixelsRemote(uint8* Array, size_t DataSize,const SoyPixelsMeta& Meta) :
-		mArray(Array, DataSize),
-		mMeta(Meta),
-		mArrayBridge(mArray)
+		mArray			(Array, DataSize),
+		mMutableMeta	( Meta ),
+		mMeta			(mMutableMeta),
+		mArrayBridge	(mArray)
 	{
 	}
-	explicit SoyPixelsRemote(SoyPixelsImpl& Pixels) :
-		mArray			( Pixels.GetPixelsArray().GetArray(), Pixels.GetPixelsArray().GetDataSize() ),
+	//	const cast so we can USE the pointer, but constructor makes it clear the array/source won't be modified correctly
+	explicit SoyPixelsRemote(const SoyPixelsImpl& Pixels) :
+		mArray			( const_cast<uint8*>(Pixels.GetPixelsArray().GetArray()), Pixels.GetPixelsArray().GetDataSize() ),
 		mArrayBridge	( mArray ),
-		mMeta			( Pixels.GetWidth(), Pixels.GetHeight(), Pixels.GetFormat() )
+		mMeta			( mMutableMeta ),
+		mMutableMeta	( Pixels.GetMeta() )
 	{
 	}
-	explicit SoyPixelsRemote(ArrayBridge<uint8>&& Pixels,const SoyPixelsMeta& Meta) :
+	/*	this array use won't modify the array properly, jsut the data & meta
+	 explicit SoyPixelsRemote(ArrayBridge<uint8>&& Pixels,const SoyPixelsMeta& Meta) :
 		mArray			( Pixels.GetArray(), Pixels.GetDataSize() ),
 		mArrayBridge	( mArray ),
 		mMeta			( Meta )
+	 {
+	 }
+	 */
+	explicit SoyPixelsRemote(const ArrayBridge<uint8>&& Pixels,const SoyPixelsMeta& Meta) :
+		mArray			( const_cast<uint8*>(Pixels.GetArray()), Pixels.GetDataSize() ),
+		mArrayBridge	( mArray ),
+		mMutableMeta	( Meta ),
+		mMeta			( mMutableMeta )
 	{
 	}
-	
+
 	SoyPixelsRemote&	operator=(const SoyPixelsRemote& that)
 	{
 		this->mArray = that.mArray;
@@ -362,14 +380,39 @@ public:
 public:
 	TARRAY					mArray;
 	ArrayBridgeDef<TARRAY>	mArrayBridge;
-	SoyPixelsMeta			mMeta;
+	SoyPixelsMeta&			mMeta;
+
+private:
+	SoyPixelsMeta			mMutableMeta;
 };
 
 
 
+//	like SoyPixelsRemote but modifies underlying array
+template<typename TARRAY>
+class SoyPixelsBridge : public SoyPixelsImpl
+{
+public:
+	//	const cast so we can USE the pointer, but constructor makes it clear the array/source won't be modified correctly
+	explicit SoyPixelsBridge(TARRAY& Array,SoyPixelsMeta& Meta) :
+		mArrayBridge	( Array ),
+		mMeta			( Meta )
+	{
+	}
+	
+	virtual SoyPixelsMeta&					GetMeta() override				{	return mMeta;	}
+	virtual const SoyPixelsMeta&			GetMeta() const override		{	return mMeta;	}
+	virtual ArrayInterface<uint8>&			GetPixelsArray() override		{	return mArrayBridge;	}
+	virtual const ArrayInterface<uint8>&	GetPixelsArray() const override	{	return mArrayBridge;	}
+	
+public:
+	ArrayBridgeDef<TARRAY>	mArrayBridge;
+	SoyPixelsMeta&			mMeta;
+};
 
 
-//	gr; unsupported for now... 
+
+//	gr; unsupported for now...
 #if defined(TARGET_WINDOWS)
 
 inline std::ostream& operator<< ( std::ostream &out, const SoyPixels &in )
