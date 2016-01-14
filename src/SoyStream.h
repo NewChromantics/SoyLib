@@ -6,6 +6,8 @@
 #include "HeapArray.hpp"
 #include "SoyThread.h"
 
+//	gr: really this should be away from the base header, but for now...
+#include <fstream>
 
 namespace Soy
 {
@@ -103,8 +105,10 @@ public:
 	
 	virtual bool							Iteration() override;
 	void									Push(std::shared_ptr<Soy::TWriteProtocol> Data);
-
+	void									WaitForQueueToFinish();
+	
 protected:
+	size_t									GetQueueSize() const				{	return mQueue.GetSize();	}
 	virtual void							Write(TStreamBuffer& Buffer)=0;	//	write next chunk
 	void									OnError(const std::string& Error)	{	mOnStreamError.OnTriggered( Error );	}
 
@@ -123,8 +127,6 @@ private:
 
 
 
-//	gr: really this should be away from the base header, but for now...
-#include <fstream>
 
 class TFileStreamWriter : public TStreamWriter
 {
@@ -154,6 +156,7 @@ protected:
 	
 private:
 	std::ifstream		mFile;
+	Array<char>			mReadBuffer;	//	alloc once
 };
 
 

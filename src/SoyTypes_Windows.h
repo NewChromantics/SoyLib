@@ -36,12 +36,16 @@
 #pragma comment(lib,"winmm.lib")
 
 
-#define __func__	__FUNCTION__
-#define __thread	__declspec( thread )
+#define __func__		__FUNCTION__
+#define __thread		__declspec( thread )
 // Attribute to make function be exported from a plugin
-#define __export	extern "C" __declspec(dllexport)
-#define __noexcept	
+#define __export		extern "C" __declspec(dllexport)
 #define __pure
+#define __unused		//	can't find a declpec for this :/s
+
+//	gr: delspec's need to go BEFORE function declarations on windows... find a nice workaround that isn't __deprecated(int myfunc());
+#define __noexcept		//	__declspec(nothrow)
+#define __deprecated	//	__declspec(deprecated)
 
 
 #include <math.h>

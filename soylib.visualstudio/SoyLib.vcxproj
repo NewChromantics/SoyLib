@@ -45,6 +45,7 @@
     <ClCompile Include="..\src\SoyH264.cpp" />
     <ClCompile Include="..\src\SoyHttp.cpp" />
     <ClCompile Include="..\src\SoyHttpConnection.cpp" />
+    <ClCompile Include="..\src\SoyImage.cpp" />
     <ClCompile Include="..\src\SoyMath.cpp" />
     <ClCompile Include="..\src\SoyMedia.cpp" />
     <ClCompile Include="..\src\SoyOpengl.cpp" />
@@ -59,6 +60,7 @@
     <ClCompile Include="..\src\SoyShader.cpp" />
     <ClCompile Include="..\src\SoySocket.cpp" />
     <ClCompile Include="..\src\SoySocketStream.cpp" />
+    <ClCompile Include="..\src\SoySrt.cpp" />
     <ClCompile Include="..\src\SoyStream.cpp" />
     <ClCompile Include="..\src\SoyString.cpp" />
     <ClCompile Include="..\src\SoyThread.cpp" />
@@ -91,6 +93,7 @@
     <ClInclude Include="..\src\SoyH264.h" />
     <ClInclude Include="..\src\SoyHttp.h" />
     <ClInclude Include="..\src\SoyHttpConnection.h" />
+    <ClInclude Include="..\src\SoyImage.h" />
     <ClInclude Include="..\src\soymath.h" />
     <ClInclude Include="..\src\SoyMedia.h" />
     <ClInclude Include="..\src\SoyOpengl.h" />
@@ -105,6 +108,7 @@
     <ClInclude Include="..\src\SoyShader.h" />
     <ClInclude Include="..\src\SoySocket.h" />
     <ClInclude Include="..\src\SoySocketStream.h" />
+    <ClInclude Include="..\src\SoySrt.h" />
     <ClInclude Include="..\src\SoyStream.h" />
     <ClInclude Include="..\src\SoyString.h" />
     <ClInclude Include="..\src\SoyThread.h" />

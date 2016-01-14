@@ -724,3 +724,22 @@ size_t Soy::TVersion::GetHundred() const
 	return (mMajor * 100) + mMinor;
 }
 
+
+
+
+void Soy::SizeAssert_TooBig(uint64 Value,uint64 Max,const std::string& SmallType,const std::string& BigType)
+{
+	std::stringstream Error;
+	Error << Value << "(" << BigType << ") wont fit into " << Max << "(" << SmallType << ")";
+	throw Soy::AssertException(Error.str());
+	
+}
+
+void Soy::SizeAssert_TooSmall(sint64 Value,sint64 Min,const std::string& SmallType,const std::string& BigType)
+{
+	std::stringstream Error;
+	Error << Value << "(" << BigType << ") smaller than " << Min << "(" << SmallType << ")";
+	throw Soy::AssertException(Error.str());
+	
+}
+

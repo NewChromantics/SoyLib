@@ -63,20 +63,10 @@ class ArrayInterface;
 
 
 
-//	when casting integers down, get rid of warnings using this, so we can add a check later if it EVER comes up as a problem
-template<typename SMALLSIZE,typename BIGSIZE>
-inline SMALLSIZE size_cast(BIGSIZE Size)
+namespace Soy
 {
-	//	gr: do value check
-	return static_cast<SMALLSIZE>( Size );
-}
-
-
-//	remove annoying warning C4800 in windows without turning it off
-template<typename TYPE>
-inline bool		bool_cast(const TYPE& Value)
-{
-	return Value != 0;
+	void	SizeAssert_TooBig(uint64 Value,uint64 Max,const std::string& SmallType,const std::string& BigType);
+	void	SizeAssert_TooSmall(sint64 Value,sint64 Min,const std::string& SmallType,const std::string& BigType);
 }
 
 
@@ -217,6 +207,40 @@ DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( sint64 );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( uint64 );
 
 DECLARE_TYPE_NAME_AS( std::string, "text" );
+
+
+//	gr: alternative
+//	http://codereview.stackexchange.com/questions/5515/c-int-cast-function-for-checked-casts
+//	when casting integers down, get rid of warnings using this, so we can add a check later if it EVER comes up as a problem
+template<typename SMALLSIZE,typename BIGSIZE>
+inline SMALLSIZE size_cast(BIGSIZE Size)
+{
+#if defined(TARGET_ANDROID)
+	
+#else
+	auto Min = std::numeric_limits<SMALLSIZE>::min();
+	auto Max = std::numeric_limits<SMALLSIZE>::max();
+	if ( Size > Max )
+	{
+		Soy::SizeAssert_TooBig( Size, Max, Soy::GetTypeName<SMALLSIZE>(), Soy::GetTypeName<BIGSIZE>() );
+	}
+	//	note: be careful about left & right, left is cast to right
+	if ( static_cast<ssize_t>(Size) < static_cast<ssize_t>(Min) )
+	{
+		Soy::SizeAssert_TooSmall( Size, Min, Soy::GetTypeName<SMALLSIZE>(), Soy::GetTypeName<BIGSIZE>() );
+	}
+#endif
+	return static_cast<SMALLSIZE>( Size );
+}
+
+
+//	remove annoying warning C4800 in windows without turning it off
+template<typename TYPE>
+inline bool		bool_cast(const TYPE& Value)
+{
+	return Value != 0;
+}
+
 
 
 

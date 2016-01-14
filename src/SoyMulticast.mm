@@ -231,7 +231,7 @@ TServiceMeta TService::GetMeta()
 	Meta.mType = Soy::NSStringToString( Service.type );
 	Meta.mDomain = Soy::NSStringToString( Service.domain );
 	Meta.mHostName = Soy::NSStringToString( Service.hostName );
-	Meta.mPort = (Service.port);
+	Meta.mPort = size_cast<int>(Service.port);
 	
 	//	The addresses of the service. This is an NSArray of NSData instances, each of which contains a single struct sockaddr suitable for use with connect(2). In the event that no addresses are resolved for the service or the service has not yet been resolved, an empty NSArray is returned.
 	//@property (readonly, copy) NSArray *addresses;

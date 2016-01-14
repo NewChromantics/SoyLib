@@ -47,6 +47,8 @@ namespace Soy
 	bool		StringContains(const std::string& Haystack, const std::string& Needle, bool CaseSensitive);
 	bool		StringBeginsWith(const std::string& Haystack, const std::string& Needle, bool CaseSensitive);
 	bool		StringEndsWith(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
+	template <size_t BUFFERSIZE>
+	bool		StringEndsWith(const std::string& Haystack,const char* (& Needles)[BUFFERSIZE], bool CaseSensitive);
 	bool		StringMatches(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
 	
 	std::string	StringJoin(const std::vector<std::string>& Strings,const std::string& Glue);
@@ -74,6 +76,8 @@ namespace Soy
 
 	std::string	ArrayToString(const ArrayBridge<char>& Array);
 	void		ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String);
+	void		ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String);
+	inline void	ArrayToString(const ArrayBridge<uint8>&& Array,std::stringstream& String)	{	ArrayToString( Array, String );	}
 	
 	void		StringToArray(std::string String,ArrayBridge<char>& Array);
 	inline void	StringToArray(std::string String,ArrayBridge<char>&& Array)	{	StringToArray( String, Array );	}
@@ -107,6 +111,7 @@ namespace Soy
 	std::string	GetUrlProtocol(const std::string& Url);
 	
 	std::wstring	StringToWString(const std::string& s);
+	std::string	WStringToString(const std::wstring& w);
 	
 	template<typename TYPE>
 	bool		StringToType(TYPE& Out,const std::string& String);
@@ -201,6 +206,15 @@ inline std::string Soy::StringJoin(const ArrayBridge<TYPE>& Elements,const std::
 			Stream << Glue;
 	}
 	return Stream.str();
+}
+
+template <size_t BUFFERSIZE>
+inline bool Soy::StringEndsWith(const std::string& Haystack,const char* (& Needles)[BUFFERSIZE], bool CaseSensitive)
+{
+	for ( int i=0;	i<BUFFERSIZE;	i++ )
+		if ( StringEndsWith( Haystack, Needles[i], CaseSensitive ) )
+			return true;
+	return false;
 }
 
 

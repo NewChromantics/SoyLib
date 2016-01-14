@@ -136,7 +136,7 @@ bool TStreamBuffer::Pop(const std::string Delim,std::string& Data,bool KeepDelim
 		return false;
 	
 	//	search for match
-	auto MaxSearch = size_cast<ssize_t>(mData.GetSize()-DelimArray.GetSize());
+	auto MaxSearch = size_cast<ssize_t>(mData.GetSize()) - size_cast<ssize_t>(DelimArray.GetSize());
 	for ( int a=0;	a<=MaxSearch;	a++ )
 	{
 		bool Match = memcmp( &mData[a], DelimArray.GetArray(), DelimArray.GetDataSize() )==0;
@@ -354,8 +354,20 @@ bool TStreamReader::Iteration()
 	if ( !CurrentProtocol )
 		return true;
 	
-	//	process
-	auto DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
+	//	process protocol
+	auto DecodeResult = TProtocolState::Abort;
+	try
+	{
+		DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol) << "::Decode threw exception (" << e.what() << ") reverting to " << DecodeResult << std::endl;
+	}
+	catch(...)
+	{
+		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol)  << "::Decode threw unknown exception reverting to " << DecodeResult << std::endl;
+	}
 	
 	switch ( DecodeResult )
 	{
@@ -368,6 +380,11 @@ bool TStreamReader::Iteration()
 		case TProtocolState::Finished:
 			break;
 			
+		//	invalidate data and continue as disconnection
+		case TProtocolState::Abort:
+			CurrentProtocol.reset();
+			break;
+
 			//	release current and re-iterate
 		default:
 			std::Debug << "Unhandled TProtocolState: " << DecodeResult << " ignoring." << std::endl;
@@ -376,16 +393,20 @@ bool TStreamReader::Iteration()
 			return true;
 	}
 	
-	if ( DecodeResult == TProtocolState::Disconnect )
-	{
-		std::Debug << "Todo: protocol says, disconnect stream. Currently unhandled." << std::endl;
-	}
-	
 	//	notify (with shared ptr so data can be cheaply saved)
-	mOnDataRecieved.OnTriggered( CurrentProtocol );
+	if ( CurrentProtocol )
+		mOnDataRecieved.OnTriggered( CurrentProtocol );
 	
 	//	dealloc for next
 	mCurrentProtocol.reset();
+
+	if ( DecodeResult == TProtocolState::Disconnect || DecodeResult == TProtocolState::Abort )
+	{
+		static auto SleepMs = 5000;
+		std::Debug << "Todo: protocol says, " << DecodeResult << " stream. Currently unhandled. Sleeping for " << SleepMs << "ms" << std::endl;
+		std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
+	}
+	
 	return true;
 }
 
@@ -423,6 +444,10 @@ bool TStreamWriter::Iteration()
 	{
 		while ( !EncodingFinished || Buffer.GetBufferedSize()>0 )
 		{
+			static bool BreakIfThreadStopped = false;
+			if ( !IsWorking() && BreakIfThreadStopped )
+				break;
+			
 			try
 			{
 				Write( Buffer );
@@ -433,7 +458,7 @@ bool TStreamWriter::Iteration()
 				break;
 			}
 		}
-		Soy::Assert( Buffer.GetBufferedSize() == 0, "Still some data to write");
+		//Soy::Assert( Buffer.GetBufferedSize() == 0, "Still some data to write");
 	};
 
 	auto Future = std::async( AsyncWrite );
@@ -470,9 +495,40 @@ void TStreamWriter::Push(std::shared_ptr<Soy::TWriteProtocol> Data)
 {
 	std::lock_guard<std::mutex> Lock( mQueueLock );
 	mQueue.PushBack( Data );
+	
 	Wake();
+
+	//	auto start
+	Start(false);
 }
 
+void TStreamWriter::WaitForQueueToFinish()
+{
+	Wake();
+	
+	static int SleepMs = 100;
+	static bool BreakIfNotWorking = false;
+	static int WarningWaitTime = 3000;
+	
+	int WaitTime = 0;
+	
+	//	wait for queue to empty
+	while ( !mQueue.IsEmpty() )
+	{
+		//	if the thread has been killed... this loop may never finish...
+		if ( !IsWorking() )
+			if ( BreakIfNotWorking )
+				break;
+
+		std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
+		WaitTime += SleepMs;
+		
+		if ( WaitTime > WarningWaitTime )
+		{
+			std::Debug << __func__ << "/" << this->GetThreadName() << " has been waiting for " << (WaitTime/1000) << " secs" << std::endl;
+		}
+	}
+}
 
 
 
@@ -487,13 +543,21 @@ TFileStreamWriter::TFileStreamWriter(const std::string& Filename) :
 TFileStreamWriter::~TFileStreamWriter()
 {
 	WaitToFinish();
+	
+	auto QueueSize = GetQueueSize();
+	if ( QueueSize > 0 )
+	{
+		std::Debug << "Warning, TFileStreamWriter closed with " << QueueSize << " items unwritten" << std::endl;
+	}
+	
 	mFile.close();
 }
 
 void TFileStreamWriter::Write(TStreamBuffer& Data)
 {
 	//	write to file
-	while ( Data.GetBufferedSize() > 0 && IsWorking() )
+	//	gr: don't break if thread has finished, let that be controlled externally
+	while ( Data.GetBufferedSize() > 0 )
 	{
 		try
 		{
@@ -516,7 +580,6 @@ void TFileStreamWriter::Write(TStreamBuffer& Data)
 			break;
 		}
 	}
-
 }
 
 
@@ -537,7 +600,8 @@ TFileStreamReader::~TFileStreamReader()
 
 void TFileStreamReader::Read(TStreamBuffer& Buffer)
 {
-	BufferArray<char,100> Data(100);
+	mReadBuffer.SetSize( 1024*1024 );
+	auto& Data = mReadBuffer;
 
 	auto Peek = mFile.peek();
 	if ( Peek == std::char_traits<char>::eof() )

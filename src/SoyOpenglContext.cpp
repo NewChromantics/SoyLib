@@ -304,7 +304,11 @@ void BindFunction(BINDFUNCTIONTYPE& BindFunction,const std::initializer_list<con
 			SetFunction( BindFunction, eglGetProcAddress(FunctionName), FunctionName );
 #else
 			if ( RealFunction == nullptr )
-				throw Soy::AssertException("No function on this platform");
+			{
+				std::stringstream Error;
+				Error << "No function \"" << FunctionName << "\" on this platform";
+				throw Soy::AssertException( Error.str() );
+			}
 			BindFunction = RealFunction;
 #endif
 			Success = true;

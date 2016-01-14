@@ -32,14 +32,15 @@ namespace Java
 	FixedRemoteArray<uint8>	GetBufferArray(TJniObject& Buffer,int LimitSize=-1);	//	get buffer as array. throws if this option isn't availible for this buffer
 	void	IsOkay(const std::string& Context,bool ThrowRegardless=false);		//	check for JNI exception
 	
-	
-	class TFileStreamReader;	//	special file reader that uses JNI to read from APK
+	//	todo: factory these
 	class TFileHandle;
-	class TAssetFileHandle;		//	special access to files in Assets which need to be loaded in a special way
+	class TApkFileHandle;		//	special access to files in Assets which need to be loaded in a special way
 	class TRandomAccessFileHandle;
+
+	//	factory for a stream reader too
+	class TApkFileStreamReader;	//	special file reader that uses JNI to read from APK
+	typedef ::TFileStreamReader_ProtocolLambda<TApkFileStreamReader> TApkFileStreamReader_ProtocolLambda;
 }
-
-
 
 class Java::TFileHandle
 {
@@ -52,11 +53,11 @@ public:
 	std::shared_ptr<TJniObject>	mFileDescriptor;
 };
 
-class Java::TAssetFileHandle : public Java::TFileHandle
+class Java::TApkFileHandle : public Java::TFileHandle
 {
 public:
-	TAssetFileHandle(const std::string& Path);
-	~TAssetFileHandle();
+	TApkFileHandle(const std::string& Path);
+	~TApkFileHandle();
 	
 	int				mFdOffset;
 	int				mFdLength;
@@ -74,17 +75,17 @@ public:
 };
 
 
-class Java::TFileStreamReader : public TStreamReader
+class Java::TApkFileStreamReader : public TStreamReader
 {
 public:
-	TFileStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer=nullptr);
-	~TFileStreamReader();
+	TApkFileStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer=nullptr);
+	~TApkFileStreamReader();
 	
 protected:
 	virtual void		Read(TStreamBuffer& Buffer) override;
 	
 private:
-	std::shared_ptr<Java::TAssetFileHandle>	mHandle;
+	std::shared_ptr<Java::TApkFileHandle>	mHandle;
 };
 
 
@@ -500,8 +501,12 @@ public:
 	{
 	}
 	
+	//	gr: change this to a file handle factory and let SetDataSource run off that
 	void			SetDataSourceAssets(const std::string& Path);
+	void			SetDataSourceJar(const std::string& Path);
 	void			SetDataSourcePath(const std::string& Path);
+	void			SetDataSourceAssetFileDescriptor(TJniObject& AssetFileDescriptor,bool CloseOnFinish=true);
+
 	int				GetTrackCount()		{	return TJniObject::CallIntMethod("getTrackCount");	}
 	JniMediaFormat	GetTrack(int TrackIndex)
 	{

@@ -116,21 +116,20 @@ std::string Opengl::GetEnumString(GLenum Type)
 #endif
 			
 			//	types
-			CASE_ENUM_STRING( GL_BYTE );
-			CASE_ENUM_STRING( GL_UNSIGNED_BYTE );
-			CASE_ENUM_STRING( GL_SHORT );
-			CASE_ENUM_STRING( GL_UNSIGNED_SHORT );
-			CASE_ENUM_STRING( GL_INT );
-			CASE_ENUM_STRING( GL_UNSIGNED_INT );
-			//	CASE_ENUM_STRING( GL_FLOAT );
-		case GL_FLOAT:		return Soy::GetTypeName<float>();
-		case GL_FLOAT_VEC2: return Soy::GetTypeName<vec2f>();
-		case GL_FLOAT_VEC3: return Soy::GetTypeName<vec3f>();
-		case GL_FLOAT_VEC4: return Soy::GetTypeName<vec4f>();
+		case GL_BYTE:			return Soy::GetTypeName<sint8>();
+		case GL_UNSIGNED_BYTE:	return Soy::GetTypeName<uint8>();
+		case GL_SHORT:			return Soy::GetTypeName<sint16>();
+		case GL_UNSIGNED_SHORT:	return Soy::GetTypeName<uint16>();
+		case GL_INT:			return Soy::GetTypeName<int>();
+		case GL_UNSIGNED_INT:	return Soy::GetTypeName<uint32>();
+		case GL_FLOAT:			return Soy::GetTypeName<float>();
+		case GL_FLOAT_VEC2:		return Soy::GetTypeName<vec2f>();
+		case GL_FLOAT_VEC3:		return Soy::GetTypeName<vec3f>();
+		case GL_FLOAT_VEC4:		return Soy::GetTypeName<vec4f>();
 			CASE_ENUM_STRING( GL_INT_VEC2 );
 			CASE_ENUM_STRING( GL_INT_VEC3 );
 			CASE_ENUM_STRING( GL_INT_VEC4 );
-			CASE_ENUM_STRING( GL_BOOL );
+		case GL_BOOL:			return Soy::GetTypeName<bool>();
 			CASE_ENUM_STRING( GL_SAMPLER_2D );
 			CASE_ENUM_STRING( GL_SAMPLER_CUBE );
 			CASE_ENUM_STRING( GL_FLOAT_MAT2 );
@@ -258,6 +257,15 @@ void Opengl::SetUniform(const TUniform& Uniform,const float& Value)
 	GLsizei ArraySize = 1;
 	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
 	glUniform1fv( Uniform.mIndex, ArraySize, &Value );
+	Opengl_IsOkay();
+}
+
+template<>
+void Opengl::SetUniform(const TUniform& Uniform,const int& Value)
+{
+	GLsizei ArraySize = 1;
+	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
+	glUniform1iv( Uniform.mIndex, ArraySize, &Value );
 	Opengl_IsOkay();
 }
 
@@ -665,7 +673,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 				{
 					auto InternalPixelFormat = InternalPixelFormats[i];
 					auto ExternalPixelFormat = ExternalPixelsFormats[e];
-					glTexImage2D( mType, MipLevel, InternalPixelFormat, Meta.GetWidth(), Meta.GetHeight(), Border, ExternalPixelFormat, GlPixelsStorage, nullptr );
+					glTexImage2D( mType, MipLevel, InternalPixelFormat, size_cast<GLsizei>(Meta.GetWidth()), size_cast<GLsizei>(Meta.GetHeight()), Border, ExternalPixelFormat, GlPixelsStorage, nullptr );
 					std::stringstream Error;
 					Error << "glTexImage2D texture construction " << Meta << " InternalPixelFormat=" << GetEnumString(InternalPixelFormat) << " PixelsFormat=" << GetEnumString(ExternalPixelFormat) << ", GlPixelsStorage=" << GetEnumString(GlPixelsStorage);
 					Opengl::IsOkay( Error.str() );
@@ -886,7 +894,7 @@ void Opengl::TPbo::ReadPixels()
 	
 	Bind();
 
-	glReadPixels( x, y, mMeta.GetWidth(), mMeta.GetHeight(), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, nullptr );
+	glReadPixels( x, y, size_cast<GLsizei>(mMeta.GetWidth()), size_cast<GLsizei>(mMeta.GetHeight()), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, nullptr );
 	Opengl_IsOkay();
 	
 	Unbind();
@@ -935,7 +943,8 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 			static SoyPixelsFormat::Type DefaultFormat = SoyPixelsFormat::RGBA;
 			
 			//	gr: assuming the fastest is the same as the internal format, but that doesn't allow FBO
-			static bool UseInternalFormatAsDefault = false;
+			//	gr: changed this default to true for reading gif greyscale/index. rather than forcing format, I want to know what it is internally...
+			static bool UseInternalFormatAsDefault = true;
 			if ( UseInternalFormatAsDefault )
 				ForceFormat = GetFormat();
 			else
@@ -1035,7 +1044,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 		Opengl_IsOkay();
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		Opengl_IsOkay();
-		glReadPixels( x, y, Pixels.GetWidth(), Pixels.GetHeight(), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
+		glReadPixels( x, y, size_cast<GLsizei>(Pixels.GetWidth()), size_cast<GLsizei>(Pixels.GetHeight()), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
 		Opengl::IsOkay("glReadPixels");
 
 		//	as glReadPixels forces us to a format, we need to update the meta on the pixels
@@ -1265,7 +1274,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		{
 			auto PushTexture = [&](GLenum InternalFormat,GLenum ExternalFormat)
 			{
-				glTexImage2D( mType, MipLevel, InternalFormat, PixelsBuffer.GetWidth(), PixelsBuffer.GetHeight(), 0, ExternalFormat, FinalPixelsStorage, PixelsBuffer.GetPixelsArray().GetArray() );
+				glTexImage2D( mType, MipLevel, InternalFormat, size_cast<GLsizei>(PixelsBuffer.GetWidth()), size_cast<GLsizei>(PixelsBuffer.GetHeight()), 0, ExternalFormat, FinalPixelsStorage, PixelsBuffer.GetPixelsArray().GetArray() );
 			};
 			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D(GL_APPLE_client_storage) glTexImage2D", PushTexture );
 		}
@@ -1291,8 +1300,8 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		int XOffset = 0;
 		int YOffset = 0;
 		
-		auto Width = std::min<GLsizei>( TextureWidth, FinalPixels.GetWidth() );
-		auto Height = std::min<GLsizei>( TextureHeight, FinalPixels.GetHeight() );
+		auto Width = std::min( TextureWidth, size_cast<GLsizei>(FinalPixels.GetWidth()) );
+		auto Height = std::min( TextureHeight, size_cast<GLsizei>(FinalPixels.GetHeight()) );
 		
 		const ArrayInterface<uint8>& PixelsArray = FinalPixels.GetPixelsArray();
 		auto* PixelsArrayData = PixelsArray.GetArray();
@@ -1328,8 +1337,8 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		//	if texture doesnt fit we'll get GL_INVALID_VALUE
 		//	if frame is bigger than texture, it will mangle (bad stride)
 		//	if pixels is smaller, we'll just get the sub-image drawn
-		auto Width = std::min<GLsizei>( TextureWidth, FinalPixels.GetWidth() );
-		auto Height = std::min<GLsizei>( TextureHeight, FinalPixels.GetHeight() );
+		auto Width = std::min( TextureWidth, size_cast<GLsizei>(FinalPixels.GetWidth()) );
+		auto Height = std::min( TextureHeight, size_cast<GLsizei>(FinalPixels.GetHeight()) );
 		
 		const ArrayInterface<uint8>& PixelsArray = FinalPixels.GetPixelsArray();
 		auto* PixelsArrayData = PixelsArray.GetArray();
@@ -1672,13 +1681,17 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		mUniforms.PushBack( Uniform );
 	}
 
-	std::Debug << ShaderName << " has " << mAttributes.GetSize() << " attributes; " << std::endl;
-	std::Debug << Soy::StringJoin( GetArrayBridge(mAttributes), "\n" );
-	std::Debug << std::endl;
+	static bool DebugUniforms = false;
+	if ( DebugUniforms )
+	{
+		std::Debug << ShaderName << " has " << mAttributes.GetSize() << " attributes; " << std::endl;
+		std::Debug << Soy::StringJoin( GetArrayBridge(mAttributes), "\n" );
+		std::Debug << std::endl;
 
-	std::Debug << ShaderName << " has " << mUniforms.GetSize() << " uniforms; " << std::endl;
-	std::Debug << Soy::StringJoin( GetArrayBridge(mUniforms), "\n" );
-	std::Debug << std::endl;
+		std::Debug << ShaderName << " has " << mUniforms.GetSize() << " uniforms; " << std::endl;
+		std::Debug << Soy::StringJoin( GetArrayBridge(mUniforms), "\n" );
+		std::Debug << std::endl;
+	}
 }
 
 

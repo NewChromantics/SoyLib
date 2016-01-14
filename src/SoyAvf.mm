@@ -191,7 +191,9 @@ std::string Avf::GetString(OSStatus Status)
 	
 	TESTENUMERROR(Status,kCVReturnInvalidArgument);
 	TESTENUMERROR(Status,kCVReturnAllocationFailed);
+#if defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
 	TESTENUMERROR(Status,kCVReturnUnsupported);
+#endif
 	TESTENUMERROR(Status,kCVReturnInvalidDisplay);
 	TESTENUMERROR(Status,kCVReturnDisplayLinkAlreadyRunning);
 	TESTENUMERROR(Status,kCVReturnDisplayLinkNotRunning);
@@ -446,7 +448,9 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 			Meta.mAudioBitsPerChannel = AudioFormat.mBitsPerChannel;
 			
 			//	flags per format
-			std::Debug << Meta.mCodec << " sample flags: " << AudioFormat.mFormatFlags << std::endl;
+			static bool DebugFlags = false;
+			if ( DebugFlags )
+				std::Debug << Meta.mCodec << " sample flags: " << AudioFormat.mFormatFlags << std::endl;
 		}
 		else if ( SoyMediaFormat::IsAudio(Meta.mCodec) )
 		{
@@ -722,11 +726,13 @@ NSString* const Avf::GetFileExtensionType(const std::string& Extension)
 	FileExtensionToType["mp4"] = AVFileTypeMPEG4;
 	FileExtensionToType["m4v"] = AVFileTypeAppleM4V;
 	FileExtensionToType["m4a"] = AVFileTypeAppleM4A;
+#if defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
 	FileExtensionToType["3gp"] = AVFileType3GPP;
 	FileExtensionToType["3gpp"] = AVFileType3GPP;
 	FileExtensionToType["sdv"] = AVFileType3GPP;
 	FileExtensionToType["3g2"] = AVFileType3GPP2;
 	FileExtensionToType["3gp2"] = AVFileType3GPP2;
+#endif
 	FileExtensionToType["caf"] = AVFileTypeCoreAudioFormat;
 	FileExtensionToType["wav"] = AVFileTypeWAVE;
 	FileExtensionToType["wave"] = AVFileTypeWAVE;
@@ -738,7 +744,9 @@ NSString* const Avf::GetFileExtensionType(const std::string& Extension)
 	FileExtensionToType["mp3"] = AVFileTypeMPEGLayer3;
 	FileExtensionToType["au"] = AVFileTypeSunAU;
 	FileExtensionToType["ac3"] = AVFileTypeAC3;
+#if defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
 	FileExtensionToType["eac3"] = AVFileTypeEnhancedAC3;
+#endif
 	
 	auto FileTypeIt = FileExtensionToType.find( Extension );
 	if ( FileTypeIt == FileExtensionToType.end() )

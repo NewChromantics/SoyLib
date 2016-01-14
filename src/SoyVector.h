@@ -122,6 +122,8 @@ public:
 		TYPE* Elements[] = { &x,&y,&z };
 		return *Elements[i];
 	}
+
+	bool	operator==(const vec3x& that) const	{	return x==that.x && y==that.y && z==that.z;	}
 	
 public:
 	TYPE	x;
@@ -311,6 +313,19 @@ public:
 		m[6]==that.m[6] &&
 		m[7]==that.m[7] &&
 		m[8]==that.m[8];
+	}
+	bool	operator!=(const vec3x3& that) const
+	{
+		return
+		m[0]!=that.m[0] ||
+		m[1]!=that.m[1] ||
+		m[2]!=that.m[2] ||
+		m[3]!=that.m[3] ||
+		m[4]!=that.m[4] ||
+		m[5]!=that.m[5] ||
+		m[6]!=that.m[6] ||
+		m[7]!=that.m[7] ||
+		m[8]!=that.m[8];
 	}
 	
 public:

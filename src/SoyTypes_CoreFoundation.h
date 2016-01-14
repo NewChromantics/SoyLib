@@ -24,6 +24,9 @@
 #define __thread				//	thread local not supported on IOS devices. todo: make a TLS class!
 #endif
 
+//	unused variable
+#define __unused	__attribute__((unused))
+
 //	smart pointer for core foundation instances
 //	gr: note, TYPE for CF types is already a pointer, hence no *'s on types
 //	gr: warning! TYPE here passes around without proper type checks!
