@@ -40,10 +40,12 @@
 #define __thread		__declspec( thread )
 // Attribute to make function be exported from a plugin
 #define __export		extern "C" __declspec(dllexport)
-#define __noexcept		//	gr: gives errors, maybe needs to be BEFORE declaration on windows... __declspec(nothrow)
 #define __pure
 #define __unused		//	can't find a declpec for this :/s
-#define __deprecated	__declspec(deprecated)
+
+//	gr: delspec's need to go BEFORE function declarations on windows... find a nice workaround that isn't __deprecated(int myfunc());
+#define __noexcept		//	__declspec(nothrow)
+#define __deprecated	//	__declspec(deprecated)
 
 
 #include <math.h>
