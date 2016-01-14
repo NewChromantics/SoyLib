@@ -111,6 +111,7 @@ namespace Soy
 	std::string	GetUrlProtocol(const std::string& Url);
 	
 	std::wstring	StringToWString(const std::string& s);
+	std::string	WStringToString(const std::wstring& w);
 	
 	template<typename TYPE>
 	bool		StringToType(TYPE& Out,const std::string& String);

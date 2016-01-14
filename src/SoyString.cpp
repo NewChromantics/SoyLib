@@ -657,6 +657,13 @@ std::wstring Soy::StringToWString(const std::string& s)
 	return w;
 }
 
+std::string Soy::WStringToString(const std::wstring& w)
+{
+	std::string s;
+	s.assign( w.begin(), w.end() );
+	return s;
+}
+
 std::string Soy::FourCCToString(uint32 Fourcc)
 {
 	char CodecStrBuffer[5] = {0,0,0,0,0};
