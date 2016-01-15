@@ -1121,7 +1121,7 @@ void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 		
 		//	gr: fix this in data generation, not here!
 		static bool CorrectPreviousDuration = true;
-		static bool Debug_Correction = true;
+		static bool Debug_Correction = false;
 		auto Prev = !mBlocks.IsEmpty() ? mBlocks.GetBack() : nullptr;
 		if ( CorrectPreviousDuration && Prev )
 		{
@@ -1137,7 +1137,10 @@ void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 			std::stringstream SampleStream;
 			Soy::ArrayToString( GetArrayBridge(Buffer->mData), SampleStream );
 			auto Sample = SampleStream.str();
-			std::Debug << "New text push; " << Buffer->mTimecode << "; " << Sample << std::endl;
+			
+			static bool Debug_TextPush = false;
+			if ( Debug_TextPush )
+				std::Debug << "New text push; " << Buffer->mTimecode << "; " << Sample << std::endl;
 		}
 		
 		mBlocks.PushBack( Buffer );
