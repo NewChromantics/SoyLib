@@ -81,8 +81,31 @@ bool Soy::StringBeginsWith(const std::string& Haystack, const std::string& Needl
 
 bool Soy::StringEndsWith(const std::string& Haystack, const std::string& Needle, bool CaseSensitive)
 {
+	if (CaseSensitive)
+	{
+		//	gr: may need to see WHY this doesn't return npos....
+		if ( Needle.empty() )
+			return false;
+		
+		auto Pos = Haystack.rfind(Needle);
+		if ( Pos == std::string::npos )
+			return false;
+		if ( Pos == Haystack.length() - Needle.length() )
+			return true;
+		return false;
+	}
+	else
+	{
+		std::string HaystackLow = Haystack;
+		std::string NeedleLow = Needle;
+		Soy::StringToLower( HaystackLow );
+		Soy::StringToLower( NeedleLow );
+		return StringEndsWith(HaystackLow, NeedleLow, true);
+	}
+	
+	/*	gr: regex not working on android! find out exactly what...
 	std::regex_constants::syntax_option_type Flags = std::regex_constants::ECMAScript;
-	if ( CaseSensitive )
+	if ( !CaseSensitive )
 		Flags |= std::regex::icase;
 	
 	//	escape some chars...
@@ -103,7 +126,9 @@ bool Soy::StringEndsWith(const std::string& Haystack, const std::string& Needle,
 	if ( std::regex_match( HaystackStr, Match, Regex ) )
 		return true;
 
+	std::Debug << "String ends with (haystack=" << Haystack << ", Needle=" << Needle << ") failed" << std::endl;
 	return false;
+	*/
 }
 
 std::string	Soy::StringJoin(const std::vector<std::string>& Strings,const std::string& Glue)
@@ -744,4 +769,3 @@ void Soy::DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,in
 		String << (int)Data[i] << ' ';
 	}
 }
-
