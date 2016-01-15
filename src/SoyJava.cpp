@@ -1692,7 +1692,8 @@ void JniMediaExtractor::SetDataSourceAssets(const std::string& Path)
 
 
 Java::TFileHandle::TFileHandle() :
-	mFd			( INVALID_FILE_HANDLE )
+	mFd					( INVALID_FILE_HANDLE ),
+	mDoneInitialSeek	( false )
 {
 }
 
@@ -1707,6 +1708,26 @@ Java::TFileHandle::~TFileHandle()
 }
 
 
+void Java::TFileHandle::InitSeek()
+{
+	if ( mDoneInitialSeek )
+		return;
+	
+	auto SeekPos = GetInitialSeekPos();
+	auto Result = lseek( mFd, SeekPos, SEEK_SET );
+	
+	if ( Result == (off_t)-1 )
+	{
+		std::stringstream Error;
+		Error << "Java file handle seek failed; " << Soy::Platform::GetLastErrorString();
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	mDoneInitialSeek = true;
+}
+
+	
+	
 Java::TApkFileHandle::TApkFileHandle(const std::string& OrigPath) :
 	mFdOffset	( 0 ),
 	mFdLength	( 0 )
@@ -1851,6 +1872,7 @@ void Java::TApkFileStreamReader::Read(TStreamBuffer& Buffer)
 	auto Fd = mHandle->mFd;
 	BufferArray<char,1024> Data(1024);
 	
+	mHandle->InitSeek();
 	auto BytesRead = read( Fd, Data.GetArray(), Data.GetDataSize() );
 	if ( BytesRead == -1 )
 	{

@@ -47,10 +47,18 @@ class Java::TFileHandle
 public:
 	TFileHandle();
 	~TFileHandle();
+
+	void			InitSeek();
+
+protected:
+	virtual int		GetInitialSeekPos() const	{	return 0;	}
 	
+public:
 	int				mFd;
-	
 	std::shared_ptr<TJniObject>	mFileDescriptor;
+
+protected:
+	bool			mDoneInitialSeek;
 };
 
 class Java::TApkFileHandle : public Java::TFileHandle
@@ -59,6 +67,9 @@ public:
 	TApkFileHandle(const std::string& Path);
 	~TApkFileHandle();
 	
+	virtual int		GetInitialSeekPos() const override 	{	return mFdOffset;	}
+
+protected:
 	int				mFdOffset;
 	int				mFdLength;
 	
