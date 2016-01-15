@@ -1707,10 +1707,13 @@ Java::TFileHandle::~TFileHandle()
 }
 
 
-Java::TApkFileHandle::TApkFileHandle(const std::string& Path) :
+Java::TApkFileHandle::TApkFileHandle(const std::string& OrigPath) :
 	mFdOffset	( 0 ),
 	mFdLength	( 0 )
 {
+	std::string Path = OrigPath;
+	Soy::StringTrimLeft( Path, "apk:", false );
+	
 	//	trying to stream right out of assets
 	std::Debug << "Loading android asset file descriptor " << Path << std::endl;
 	
