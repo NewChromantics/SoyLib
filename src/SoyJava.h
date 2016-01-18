@@ -47,15 +47,18 @@ namespace Java
 
 class Java::TFileHandle
 {
+protected:
+	static const int	UNKNOWN_LENGTH = -1;
 public:
 	TFileHandle();
 	~TFileHandle();
 
-	void			InitSeek();
+	ssize_t			Seek();		//	returns bytes remaining, negative if unknown
 	void			Read(ArrayBridge<uint8>&& Buffer,bool& Eof);
 
 protected:
 	virtual int		GetInitialSeekPos() const	{	return 0;	}
+	virtual int		GetLength() const			{	return UNKNOWN_LENGTH;	}	//	-1 if unknown
 	
 public:
 	int				mFd;
@@ -72,6 +75,7 @@ public:
 	~TApkFileHandle();
 	
 	virtual int		GetInitialSeekPos() const override 	{	return mFdOffset;	}
+	virtual int		GetLength() const override			{	return mFdLength;	}	//	-1 if unknown
 
 protected:
 	int				mFdOffset;
@@ -88,6 +92,7 @@ public:
 	~TZipFileHandle();
 	
 	virtual int		GetInitialSeekPos() const override 	{	return mFdOffset;	}
+	virtual int		GetLength() const override			{	return mFdLength;	}	//	-1 if unknown
 	
 protected:
 	int				mFdOffset;

@@ -1708,22 +1708,48 @@ Java::TFileHandle::~TFileHandle()
 }
 
 
-void Java::TFileHandle::InitSeek()
+ssize_t Java::TFileHandle::Seek()
 {
+	off_t Position = (off_t)-1;
+	
 	if ( mDoneInitialSeek )
-		return;
-	
-	auto SeekPos = GetInitialSeekPos();
-	auto Result = lseek( mFd, SeekPos, SEEK_SET );
-	
-	if ( Result == (off_t)-1 )
 	{
-		std::stringstream Error;
-		Error << "Java file handle seek failed; " << Soy::Platform::GetLastErrorString();
-		throw Soy::AssertException( Error.str() );
+		//	check we haven't read past our end (applies to container files which will let us read past the offset
+		Position = lseek( mFd, 0, SEEK_CUR );
+	}
+	else
+	{
+		auto SeekPos = GetInitialSeekPos();
+		Position = lseek( mFd, SeekPos, SEEK_SET );
 	}
 	
+	if ( Position == (off_t)-1 )
+	{
+		std::stringstream Error;
+		Error << "Java file handle seek/tell(mDoneInitialSeek=" << mDoneInitialSeek << ") failed; " << Soy::Platform::GetLastErrorString();
+		throw Soy::AssertException( Error.str() );
+	}
+
 	mDoneInitialSeek = true;
+	
+	//	check for eof for chunks
+	auto Length = GetLength();
+	
+	//	unknown length
+	if ( Length <= 0 )
+		return -1;
+
+	auto StartPos = GetInitialSeekPos();
+	auto EndPos = StartPos + Length;
+	
+	//	eof file
+	if ( Position >= EndPos )
+	{
+		//std::Debug << "Pos=" << Position << ", EndPos=" << EndPos << ", StartPos=" << StartPos << std::endl;
+		return 0;
+	}
+	
+	return EndPos - Position;
 }
 
 
@@ -1731,7 +1757,19 @@ void Java::TFileHandle::Read(ArrayBridge<uint8>&& Data,bool& Eof)
 {
 	auto Fd = mFd;
 
-	InitSeek();
+	auto Remaining = Seek();
+	//std::Debug << "Reading " << Data.GetDataSize() << "byte of file handle... " << Remaining << " remaining" << std::endl;
+	if ( Remaining == 0 )
+	{
+		Eof = true;
+		Data.SetSize(0);
+		return;
+	}
+	
+	if ( Remaining > Data.GetDataSize() )
+		Data.SetSize( Remaining );
+	
+	
 	auto BytesRead = read( Fd, Data.GetArray(), Data.GetDataSize() );
 	if ( BytesRead == -1 )
 	{
