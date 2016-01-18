@@ -582,6 +582,8 @@ public:
 	virtual std::shared_ptr<TMediaPacket>	ReadNextPacket()=0;
 	bool							CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyframe);
 
+	void							OnError(const std::string& Error);
+
 protected:
 	//	gr: maybe we need to correct timecodes in the extractor, not the decoder, as
 	//	+a) we need to sync all streams really
@@ -595,7 +597,6 @@ protected:
 			Packet.mTimecode.mTime = 1;
 	}
 	
-	void							OnError(const std::string& Error);
 	void							OnClearError();
 	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams);
 	void							OnStreamsChanged();
