@@ -1148,11 +1148,10 @@ void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 	mOnFramePushed.OnTriggered( Buffer->mTimecode );
 }
 
-bool TTextBufferManager::PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText)
+SoyTime TTextBufferManager::PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText)
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
-	
-	bool Any = false;
+	SoyTime OutputTime;
 	
 	while ( !mBlocks.IsEmpty() )
 	{
@@ -1167,20 +1166,23 @@ bool TTextBufferManager::PopBuffer(std::stringstream& Output,SoyTime Time,bool S
 		//	if old, skip
 		if ( SkipOldText )
 		{
-			auto EndTime = Block.mTimecode + Block.mDuration;
+			auto EndTime = Block.GetEndTime();
 			if ( EndTime < Time )
 				continue;
 		}
 		
 		//	insert line breaks if we have previous entries
-		if ( Any )
+		if ( OutputTime.IsValid() )
 			Output << '\n';
 		
 		Soy::ArrayToString( GetArrayBridge(Block.mData), Output );
-		Any = true;
+		
+		//	return the end-time
+		OutputTime = Block.GetEndTime();
+		Soy::Assert( OutputTime.IsValid(), "Expected output time to be valid");
 	}
 	
-	return Any;
+	return OutputTime;
 }
 
 void TTextBufferManager::ReleaseFrames()

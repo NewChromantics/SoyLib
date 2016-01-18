@@ -303,6 +303,20 @@ std::string Soy::StreamToString(std::ostream& Stream)
 	return TempStream.str();
 }
 
+bool Soy::StringTrimLeft(std::string& String,std::function<bool(char)> TrimChar)
+{
+	bool Changed = false;
+	while ( !String.empty() )
+	{
+		if ( !TrimChar(String[0]) )
+			break;
+		String.erase( String.begin() );
+		Changed = true;
+	}
+	return Changed;
+}
+
+
 bool Soy::StringTrimLeft(std::string& String,char TrimChar)
 {
 	bool Changed = false;
@@ -484,25 +498,39 @@ void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 	Buffer[std::min<ssize_t>(Len,BufferSize-1)] = '\0';
 }
 
-
-
-std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim)
+std::string Soy::StringPopUntil(std::string& Haystack,std::function<bool(char)> IsDelim,bool KeepDelim,bool PopDelim)
 {
 	std::stringstream Pop;
 	
 	while ( !Haystack.empty() )
 	{
-		if ( Haystack[0] == Delim )
+		if ( IsDelim(Haystack[0]) )
+		{
+			if ( !KeepDelim )
+				Haystack.erase( Haystack.begin() );
+			if ( PopDelim )
+				Pop << Haystack[0];
 			break;
+		}
 		
 		Pop << Haystack[0];
-		if ( KeepDelim )
-			Pop << Delim;
 		
 		Haystack.erase( Haystack.begin() );
 	}
 	
 	return Pop.str();
+}
+
+
+
+std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim,bool PopDelim)
+{
+	//	gr: make this faster! dont use a lambda!
+	auto IsDelim = [Delim](char Char)
+	{
+		return Char == Delim;
+	};
+	return StringPopUntil( Haystack, IsDelim, KeepDelim, PopDelim );
 }
 
 

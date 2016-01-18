@@ -417,7 +417,7 @@ public:
 	}
 	
 	void			PushBuffer(std::shared_ptr<TMediaPacket> Buffer);
-	bool			PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText);
+	SoyTime			PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText);	//	returns end-time of the data extracted (invalid if none popped)
 	virtual void	ReleaseFrames() override;
 	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
 	
@@ -440,7 +440,7 @@ public:
 
 	//	gr: re-instating this, we should enforce decode timecodes in the extractor.
 	SoyTime					GetSortingTimecode() const	{	return mDecodeTimecode.IsValid() ? mDecodeTimecode : mTimecode;	}
-	
+	SoyTime					GetEndTime() const			{	return mTimecode + mDuration;	}
 	bool					HasData() const
 	{
 		if ( mPixelBuffer )
@@ -582,6 +582,8 @@ public:
 	virtual std::shared_ptr<TMediaPacket>	ReadNextPacket()=0;
 	bool							CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyframe);
 
+	void							OnError(const std::string& Error);
+
 protected:
 	//	gr: maybe we need to correct timecodes in the extractor, not the decoder, as
 	//	+a) we need to sync all streams really
@@ -595,7 +597,6 @@ protected:
 			Packet.mTimecode.mTime = 1;
 	}
 	
-	void							OnError(const std::string& Error);
 	void							OnClearError();
 	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams);
 	void							OnStreamsChanged();
