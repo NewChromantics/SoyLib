@@ -1314,7 +1314,7 @@ TJniObject TJniClass::GetStaticFieldObject(const std::string& FieldName,const st
 void JniMediaPlayer::SetDataSourceAssets(const std::string& Path)
 {
 	//	trying to stream right out of assets
-	std::Debug << "Loading android asset file descriptor " << Path << std::endl;
+	std::Debug << "JniMediaPlayer::SetDataSourceAssets(" << Path << ")" << std::endl;
 	
 	//	load file descriptor from assets
 	TJniString PathJString(Path);
@@ -1574,7 +1574,7 @@ void JniMediaExtractor::SetDataSourceJar(const std::string& OrigPath)
 void JniMediaExtractor::SetDataSourceAssets(const std::string& Path)
 {
 	//	trying to stream right out of assets
-	std::Debug << "Loading android asset file descriptor " << Path << std::endl;
+	std::Debug << "JniMediaExtractor::SetDataSourceAssets(" << Path << ")" << std::endl;
 	
 	//	load file descriptor from assets
 	TJniString Filename( Path );
@@ -1726,6 +1726,32 @@ void Java::TFileHandle::InitSeek()
 	mDoneInitialSeek = true;
 }
 
+
+void Java::TFileHandle::Read(ArrayBridge<uint8>&& Data,bool& Eof)
+{
+	auto Fd = mFd;
+
+	InitSeek();
+	auto BytesRead = read( Fd, Data.GetArray(), Data.GetDataSize() );
+	if ( BytesRead == -1 )
+	{
+		std::stringstream Error;
+		Error << "Error reading file: " << Soy::Platform::GetLastErrorString();
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	Soy::Assert( BytesRead >= 0, "Unexpected return from read()");
+	
+	if ( BytesRead == 0 )
+	{
+		Eof = true;
+		Data.SetSize(0);
+		return;
+	}
+	
+	Data.SetSize( BytesRead );
+}
+
 	
 	
 Java::TApkFileHandle::TApkFileHandle(const std::string& OrigPath) :
@@ -1736,7 +1762,7 @@ Java::TApkFileHandle::TApkFileHandle(const std::string& OrigPath) :
 	Soy::StringTrimLeft( Path, "apk:", false );
 	
 	//	trying to stream right out of assets
-	std::Debug << "Loading android asset file descriptor " << Path << std::endl;
+	std::Debug << "TApkFileHandle(" << Path << ")" << std::endl;
 	
 	//	load file descriptor from assets
 	TJniString Filename( Path );
@@ -1806,6 +1832,101 @@ Java::TApkFileHandle::~TApkFileHandle()
 }
 
 
+
+
+Java::TZipFileHandle::TZipFileHandle(const std::string& OrigPath) :
+	mFdOffset	( 0 ),
+	mFdLength	( 0 )
+{
+	std::string Path = OrigPath;
+	Soy::StringTrimLeft( Path, "apk:", false );
+	Soy::StringTrimLeft( Path, "jar:", false );
+	
+	auto InternalFilenamePrefix = "!/";
+	auto JarFilePrefix = "file://";
+	
+	//	correct filename
+	//	gr: could put this prefix in the protocol, but just in case there are other methods, let our code attempt it
+	if ( !Soy::StringTrimLeft( Path, JarFilePrefix, false ) )
+		std::Debug << "Warning: Expected JAR filename (" << OrigPath << ") to begin with " << JarFilePrefix << std::endl;
+	
+	//	trying to stream right out of assets
+	std::Debug << __func__ << "(" << Path << ")" << std::endl;
+	
+	//	trim the suffix (path inside the jar/obb/zip)
+	BufferArray<std::string,2> JarAndAsset;
+	Soy::StringSplitByString( GetArrayBridge(JarAndAsset), Path, InternalFilenamePrefix, true );
+	if ( JarAndAsset.GetSize() != 2 )
+	{
+		std::stringstream Error;
+		Error << "Path did not split(x" << JarAndAsset.GetSize() << ") into filename" << InternalFilenamePrefix << "asset [" << Path << "]";
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	//	specific error for missing zip resource class
+	auto ZipResourceClass = "com.android.vending.expansion.zipfile.ZipResourceFile";
+	try
+	{
+		TJniClass UnityPlayerClass(ZipResourceClass);
+	}
+	catch(std::exception& e)
+	{
+		std::stringstream Error;
+		Error << "Error getting java class " << ZipResourceClass << ". Maybe need to add jar from android SDK (commonly built as zip_file.jar); " << e.what();
+		//	gr: output to debug and re-throw instead?
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	auto& JarFilename = JarAndAsset[0];
+	auto& AssetFilename = JarAndAsset[1];
+	
+	TJniObject Container(ZipResourceClass,JarFilename);
+	
+	//	gr: returns a null object when filenot found (no exception!) so exception is forced on error
+	TJniObject FileDescriptor = Container.CallObjectMethod("getAssetFileDescriptor", "android/content/res/AssetFileDescriptor", AssetFilename );
+
+	mAssetFileDescriptor.reset( new TJniObject( FileDescriptor ) );
+	auto& AssetFileDescriptor = *mAssetFileDescriptor;
+	
+	std::Debug << "getting FileDescriptor..." << std::endl;
+	mFileDescriptor.reset( new TJniObject( AssetFileDescriptor.CallObjectMethod("getFileDescriptor","java/io/FileDescriptor") ) );
+	
+	if ( mFileDescriptor )
+	{
+		auto& FileDescriptor = *mFileDescriptor;
+		
+		bool FileDescriptorIsValid = FileDescriptor.CallBoolMethod("valid");
+		std::Debug << "File descriptor is valid: "  << (FileDescriptorIsValid?"true":"false") << std::endl;
+		
+		//	need to retrieve a private field to get actual file handle
+		//	this may fail, but we still have the asset file descriptor for jni funcs that use it
+		try
+		{
+			mFd = Java::GetField<int>( FileDescriptor, "descriptor" );
+			std::Debug << "Extracted filedescriptor handle; " << mFd << std::endl;
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Warning: Android OS does not expose file descriptor handle; " << e.what() << std::endl;
+		}
+	}
+	
+	mFdOffset = AssetFileDescriptor.CallLongMethod("getStartOffset");
+	mFdLength = AssetFileDescriptor.CallLongMethod("getLength");
+}
+
+	
+Java::TZipFileHandle::~TZipFileHandle()
+{
+	if ( mAssetFileDescriptor )
+	{
+		mAssetFileDescriptor->CallVoidMethod("close");
+		mAssetFileDescriptor.reset();
+	}
+}
+
+
+
 Java::TRandomAccessFileHandle::TRandomAccessFileHandle(const std::string& Path)
 {
 	//	trying to stream right out of assets
@@ -1849,47 +1970,44 @@ Java::TRandomAccessFileHandle::~TRandomAccessFileHandle()
 	}
 }
 
-
-
-Java::TApkFileStreamReader::TApkFileStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer) :
-	TStreamReader	( std::string("java::TFileStreamReader ") + Filename, ReadBuffer )
+std::shared_ptr<Java::TFileHandle> Java::AllocFileHandle(const std::string& Filename)
 {
-	mHandle.reset( new Java::TApkFileHandle( Filename ) );
+	if ( Soy::StringContains( Filename, "!", true ) )
+	{
+		return std::make_shared<Java::TZipFileHandle>( Filename );
+	}
+	else if ( Soy::StringBeginsWith( Filename, "apk:", false ) )
+	{
+		return std::make_shared<Java::TApkFileHandle>( Filename );
+	}
+	else
+	{
+		return std::make_shared<Java::TRandomAccessFileHandle>( Filename );
+	}
 }
 
-Java::TApkFileStreamReader::~TApkFileStreamReader()
+
+
+Java::TFileHandleStreamReader::TFileHandleStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer) :
+	TStreamReader	( std::string("java::TFileStreamReader ") + Filename, ReadBuffer ),
+	mHandle			( AllocFileHandle( Filename ) )
+{
+}
+
+Java::TFileHandleStreamReader::~TFileHandleStreamReader()
 {
 	WaitToFinish();
 	mHandle.reset();
 }
 
-	
-void Java::TApkFileStreamReader::Read(TStreamBuffer& Buffer)
+void Java::TFileHandleStreamReader::Read(TStreamBuffer& Buffer)
 {
 	if ( !mHandle )
 		return;
 	
-	auto Fd = mHandle->mFd;
-	BufferArray<char,1024> Data(1024);
+	BufferArray<uint8,1024> Data(1024);
+	bool Eof = false;
+	mHandle->Read( GetArrayBridge(Data), Eof );
 	
-	mHandle->InitSeek();
-	auto BytesRead = read( Fd, Data.GetArray(), Data.GetDataSize() );
-	if ( BytesRead == -1 )
-	{
-		std::stringstream Error;
-		Error << "Error reading file: " << Soy::Platform::GetLastErrorString();
-		throw Soy::AssertException( Error.str() );
-	}
-	Soy::Assert( BytesRead >= 0, "Unexpected return from read()");
-	
-	if ( BytesRead == 0 )
-	{
-		//OnEof();
-		return;
-	}
-	
-	Data.SetSize( BytesRead );
 	Buffer.Push( GetArrayBridge(Data) );
 }
-
-

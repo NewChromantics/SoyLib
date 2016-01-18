@@ -35,11 +35,14 @@ namespace Java
 	//	todo: factory these
 	class TFileHandle;
 	class TApkFileHandle;		//	special access to files in Assets which need to be loaded in a special way
+	class TZipFileHandle;		//	expecting a filename like file://file.obb!/internalfilename.txt
 	class TRandomAccessFileHandle;
 
 	//	factory for a stream reader too
-	class TApkFileStreamReader;	//	special file reader that uses JNI to read from APK
-	typedef ::TFileStreamReader_ProtocolLambda<TApkFileStreamReader> TApkFileStreamReader_ProtocolLambda;
+	class TFileHandleStreamReader;	//	special file reader that uses JNI to read from APK
+	typedef ::TFileStreamReader_ProtocolLambda<TFileHandleStreamReader> TApkFileStreamReader_ProtocolLambda;
+	
+	std::shared_ptr<TFileHandle>	AllocFileHandle(const std::string& Filename);
 }
 
 class Java::TFileHandle
@@ -49,6 +52,7 @@ public:
 	~TFileHandle();
 
 	void			InitSeek();
+	void			Read(ArrayBridge<uint8>&& Buffer,bool& Eof);
 
 protected:
 	virtual int		GetInitialSeekPos() const	{	return 0;	}
@@ -76,6 +80,22 @@ protected:
 	std::shared_ptr<TJniObject>	mAssetFileDescriptor;
 };
 
+
+class Java::TZipFileHandle : public Java::TFileHandle
+{
+public:
+	TZipFileHandle(const std::string& Path);
+	~TZipFileHandle();
+	
+	virtual int		GetInitialSeekPos() const override 	{	return mFdOffset;	}
+	
+protected:
+	int				mFdOffset;
+	int				mFdLength;
+	
+	std::shared_ptr<TJniObject>	mAssetFileDescriptor;
+};
+
 class Java::TRandomAccessFileHandle : public Java::TFileHandle
 {
 public:
@@ -85,19 +105,19 @@ public:
 	std::shared_ptr<TJniObject>	mRandomAccessFile;
 };
 
-
-class Java::TApkFileStreamReader : public TStreamReader
+class Java::TFileHandleStreamReader : public TStreamReader
 {
 public:
-	TApkFileStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer=nullptr);
-	~TApkFileStreamReader();
+	TFileHandleStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer=nullptr);
+	~TFileHandleStreamReader();
 	
 protected:
 	virtual void		Read(TStreamBuffer& Buffer) override;
 	
 private:
-	std::shared_ptr<Java::TApkFileHandle>	mHandle;
+	std::shared_ptr<Java::TFileHandle>	mHandle;
 };
+
 
 
 
