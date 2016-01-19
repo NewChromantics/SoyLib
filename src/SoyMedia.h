@@ -379,6 +379,15 @@ private:
 class TAudioBufferBlock
 {
 public:
+	TAudioBufferBlock() :
+		mChannels	( 0 ),
+		mFrequency	( 0 )
+	{
+	}
+	
+	SoyTime				GetSampleTime(size_t SampleIndex) const;
+	
+public:
 	//	consider using stream meta here
 	size_t				mChannels;
 	size_t				mFrequency;
@@ -399,6 +408,8 @@ public:
 	
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
 	void			PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,size_t SampleRate,SoyTime StartTime,SoyTime EndTime);
+	void			PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd);	//	todo: handle channels
+
 	virtual void	ReleaseFrames() override;
 	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
 	

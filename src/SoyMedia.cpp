@@ -1055,6 +1055,13 @@ void TMediaBufferManager::SetPlayerTime(const SoyTime &Time)
 }
 
 
+SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
+{
+	//	todo: use frequency, channel count etc to make this accruate
+	float t = Soy::Range<size_t>( SampleIndex, 0, mData.GetSize() );
+	return SoyTime( Soy::Lerp( mStartTime.GetTime(), mEndTime.GetTime(), t ) );
+}
+
 
 
 void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
@@ -1105,6 +1112,37 @@ void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channe
 		Data[i] = 0.f;
 	}
 }
+
+void TAudioBufferManager::PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd)
+{
+	size_t BlockIndex = 0;
+	while ( Data.GetSize() < MaxSamples )
+	{
+		std::lock_guard<std::mutex> Lock( mBlocksLock );
+		if ( mBlocks.GetSize() == 0 )
+			break;
+		
+		auto& Block = mBlocks[BlockIndex];
+		
+		//	copy some data out
+		auto CopySize = std::min( Block.mData.GetSize(), MaxSamples - Data.GetSize() );
+
+		//	if we get this... empty block? bail, don't get stuck
+		if ( CopySize == 0 )
+			break;
+
+		for ( int i=0;	i<CopySize;	i++ )
+			Data.PushBack( Block.mData[i] );
+		
+		//	update times of the data we've copied
+		if ( !SampleStart.IsValid() )
+			SampleStart = Block.GetSampleTime(0);
+		SampleStart = Block.GetSampleTime(CopySize-1);
+		
+		BlockIndex++;
+	}
+}
+
 
 void TAudioBufferManager::ReleaseFrames()
 {
