@@ -386,6 +386,8 @@ public:
 	}
 	
 	SoyTime				GetSampleTime(size_t SampleIndex) const;
+	ssize_t				GetTimeSampleIndex(SoyTime Time) const;		//	can be out of range of the data
+	size_t				RemoveDataUntil(SoyTime Time);				//	returns number of samples removed
 	
 public:
 	//	consider using stream meta here

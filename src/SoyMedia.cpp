@@ -1064,6 +1064,45 @@ SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
 	return mStartTime + SoyTime(SampleTimeMs);
 }
 
+ssize_t TAudioBufferBlock::GetTimeSampleIndex(SoyTime Time) const
+{
+	float SampleDuration = 1.f / (float)(mFrequency * mChannels);
+	
+	if ( Time == mStartTime )
+		return 0;
+	
+	if ( Time > mStartTime )
+	{
+		SampleDuration *= 1000.f;
+		auto AheadMs = Time.GetTime() - mStartTime.GetTime();
+		auto SampleIndex = AheadMs * SampleDuration;
+		return SampleIndex;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+
+size_t TAudioBufferBlock::RemoveDataUntil(SoyTime Time)
+{
+	if ( mData.IsEmpty() )
+		return 0;
+	
+	auto StartTime = GetSampleTime( 0 );
+	auto EndTime = GetSampleTime( mData.GetSize()-1 );
+	
+	if ( Time <= StartTime )
+		return 0;
+	
+	size_t RemoveCount = GetTimeSampleIndex( Time );
+	RemoveCount = std::min( RemoveCount, mData.GetSize() );
+
+	mData.RemoveBlock( 0, RemoveCount );
+	
+	return RemoveCount;
+}
 
 
 void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
@@ -1102,6 +1141,9 @@ void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channe
 			break;
 		
 		auto& Block = mBlocks[0];
+		
+		Block.RemoveDataUntil( StartTime );
+		
 		if ( Block.mData.IsEmpty() )
 		{
 			mBlocks.RemoveBlock( 0, 1 );
@@ -1124,7 +1166,7 @@ void TAudioBufferManager::PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSa
 	while ( Data.GetSize() < MaxSamples )
 	{
 		std::lock_guard<std::mutex> Lock( mBlocksLock );
-		if ( mBlocks.GetSize() == 0 )
+		if ( BlockIndex >= mBlocks.GetSize() )
 			break;
 		
 		auto& Block = mBlocks[BlockIndex];
