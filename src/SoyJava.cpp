@@ -2038,14 +2038,15 @@ Java::TFileHandleStreamReader::~TFileHandleStreamReader()
 	mHandle.reset();
 }
 
-void Java::TFileHandleStreamReader::Read(TStreamBuffer& Buffer)
+bool Java::TFileHandleStreamReader::Read(TStreamBuffer& Buffer)
 {
-	if ( !mHandle )
-		return;
+	Soy::Assert( mHandle!=nullptr, "Java::TFileHandleStreamReader handle expected");
 	
 	BufferArray<uint8,1024> Data(1024);
 	bool Eof = false;
 	mHandle->Read( GetArrayBridge(Data), Eof );
 	
 	Buffer.Push( GetArrayBridge(Data) );
+	
+	return !Eof;
 }
