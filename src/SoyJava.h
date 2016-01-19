@@ -117,7 +117,7 @@ public:
 	~TFileHandleStreamReader();
 	
 protected:
-	virtual void		Read(TStreamBuffer& Buffer) override;
+	virtual bool		Read(TStreamBuffer& Buffer) override;
 	
 private:
 	std::shared_ptr<Java::TFileHandle>	mHandle;
