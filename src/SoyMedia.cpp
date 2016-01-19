@@ -1057,9 +1057,11 @@ void TMediaBufferManager::SetPlayerTime(const SoyTime &Time)
 
 SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
 {
-	//	todo: use frequency, channel count etc to make this accruate
-	float t = Soy::Range<size_t>( SampleIndex, 0, mData.GetSize() );
-	return SoyTime( Soy::Lerp( mStartTime.GetTime(), mEndTime.GetTime(), t ) );
+	//	frequency is samples per sec
+	float SampleDuration = 1.f / (float)(mFrequency * mChannels);
+	float SampleTime = SampleIndex * SampleDuration;
+	auto SampleTimeMs = size_cast<uint64>( SampleTime * 1000.f );
+	return mStartTime + SoyTime(SampleTimeMs);
 }
 
 
@@ -1068,6 +1070,9 @@ void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 {
 	{
 		std::lock_guard<std::mutex> Lock( mBlocksLock );
+		
+		Soy::Assert( AudioData.mFrequency != 0, "Audio data should not have zero frequency");
+		
 		mBlocks.PushBack( AudioData );
 	}
 	mOnFramePushed.OnTriggered( AudioData.mStartTime );
@@ -1131,13 +1136,16 @@ void TAudioBufferManager::PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSa
 		if ( CopySize == 0 )
 			break;
 
-		for ( int i=0;	i<CopySize;	i++ )
-			Data.PushBack( Block.mData[i] );
+		{
+			auto* Dst = Data.PushBlock( CopySize );
+			auto* Src = Block.mData.GetArray();
+			memcpy( Dst, Src, CopySize * Data.GetElementSize() );
+		}
 		
 		//	update times of the data we've copied
 		if ( !SampleStart.IsValid() )
 			SampleStart = Block.GetSampleTime(0);
-		SampleStart = Block.GetSampleTime(CopySize-1);
+		SampleEnd = Block.GetSampleTime(CopySize-1);
 		
 		BlockIndex++;
 	}

@@ -390,11 +390,10 @@ public:
 public:
 	//	consider using stream meta here
 	size_t				mChannels;
-	size_t				mFrequency;
+	size_t				mFrequency;		//	samples per sec
 	
 	//	gr: maybe change this into some format where we can access mData[Time]
 	SoyTime				mStartTime;
-	SoyTime				mEndTime;
 	Array<float>		mData;
 };
 
