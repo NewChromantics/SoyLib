@@ -5,19 +5,9 @@
 #include "SoyPng.h"
 #include "RemoteArray.h"
 #include "SoyMath.h"
+#include "SoyStream.h"
+#include "SoyImage.h"
 
-
-#define USE_STB
-#if defined(USE_STB)
-#define STB_IMAGE_IMPLEMENTATION
-
-//	gr: on windows we currently get a whole load of extra stb warnings
-#pragma warning(push)
-#pragma warning(disable: 4312)
-#include "stb/stb_image.h"
-#pragma warning(pop)
-
-#endif
 
 /// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED frame callbacks
 #define FREENECT_DEPTH_MM_MAX_VALUE 10000
@@ -986,145 +976,7 @@ bool SoyPixelsImpl::GetRawSoyPixels(ArrayBridge<char>& RawData) const
 
 void SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData)
 {
-	//	http://stackoverflow.com/questions/7942635/write-png-quickly
-	TArrayReader Png( PngData );
-
-	if ( !TPng::CheckMagic( Png ) )
-		throw Soy::AssertException("PNG has invalid magic header");
-	
-	//	use stb
-#if defined(USE_STB)
-	const stbi_uc* Buffer = reinterpret_cast<const stbi_uc*>( PngData.GetArray() );
-	auto BufferSize = size_cast<int>( PngData.GetDataSize() );
-	int Width = 0;
-	int Height = 0;
-	int Components = 0;
-	int RequestComponents = 0;
-	auto* DecodedPixels = stbi_load_from_memory( Buffer, BufferSize, &Width,&Height, &Components, RequestComponents );
-	if ( !DecodedPixels )
-	{
-		throw Soy::AssertException("Failed to decode png pixels");
-	}
-	
-	auto Format = SoyPixelsFormat::GetFormatFromChannelCount(Components);
-	if ( !this->Init( Width, Height, Format ) )
-	{
-		std::stringstream Error;
-		Error << "Failed to init pixels from png (" << Width << "x" << Height << " " << Format << ")";
-		throw Soy::AssertException(Error.str());
-	}
-	auto* ThisPixels = this->GetPixelsArray().GetArray();
-	memcpy( ThisPixels, DecodedPixels, this->GetPixelsArray().GetDataSize() );
-#else
-	
-	TPng::THeader Header;
-	assert( !Header.IsValid() );
-	//	all the extracted IDAT chunks together
-	Array<char> ImageData;
-	bool FoundEnd = false;
-	
-	//	read until out of data
-	//	gr: had a png with junk after IEND... so abort after that
-	while ( !Png.Eod() && !FoundEnd )
-	{
-		uint32 BlockLength;
-		if ( !Png.ReadReinterpretReverse<BufferArray<char,20>>( BlockLength ) )
-		{
-			Error << "Failed to read block length";
-			return false;
-		}
-		BufferArray<char,4> BlockType(4);
-		auto BlockTypeBridge = GetArrayBridge( BlockType );
-		if ( !Png.Read( BlockTypeBridge ) )
-		{
-			Error << "Failed to read block type";
-			return false;
-		}
-		std::stringstream BlockTypeStream;
-		BlockTypeStream << BlockType[0] << BlockType[1] << BlockType[2] << BlockType[3];
-		std::string BlockTypeString = BlockTypeStream.str();
-	
-		Array<char> BlockData( BlockLength );
-		auto BlockDataBridge = GetArrayBridge( BlockData );
-		if ( BlockLength > 0 && !Png.Read( BlockDataBridge ) )
-		{
-			Error << "Failed to read block " << BlockTypeString << " data (" << BlockLength << " bytes)";
-			return false;
-		}
-		uint32 BlockCrc;
-		if ( !Png.ReadReinterpretReverse<BufferArray<char,20>>( BlockCrc ) )
-		{
-			Error << "Failed to read block " << BlockTypeString << " CRC";
-			return false;
-		}
-		//	gr: crc doesn't match, needs to include more than just the data I think
-		uint32 BlockDataCrc = BlockDataBridge.GetCrc32();
-		if ( BlockDataCrc != BlockCrc )
-		{
-			std::Debug << "Block " << BlockTypeString << " CRC (" << BlockDataCrc << ") doesn't match header CRC (" << BlockCrc << ")" << std::endl;
-		//	Error << "Block " << BlockTypeString << " CRC (" << BlockDataCrc << ") doesn't match header CRC (" << BlockCrc << ")";
-		//	return false;
-		}
-		
-		if ( BlockTypeString == "IHDR" )
-		{
-			if ( BlockDataBridge.IsEmpty() )
-			{
-				Error << "Header data is empty, aborting";
-				return false;
-			}
-
-			if ( Header.IsValid() )
-			{
-				Error << "Found 2nd header, aborting";
-				return false;
-			}
-			
-			if ( !TPng::ReadHeader( *this, Header, BlockDataBridge, Error ) )
-				return false;
-			assert( Header.IsValid() );
-		}
-		else if ( BlockTypeString == "IDAT" )
-		{
-			if ( BlockDataBridge.IsEmpty() )
-			{
-				Error << "Block data is empty, aborting";
-				return false;
-			}
-			//	these are supposed to be consecutive but I guess it doesn't matter
-			ImageData.PushBackArray( BlockDataBridge );
-		}
-		else if ( BlockTypeString == "IEND" )
-		{
-			if ( !TPng::ReadTail( *this, BlockDataBridge, Error ) )
-				return false;
-			FoundEnd = true;
-		}
-		else
-		{
-			std::Debug << "Ignored unhandled PNG block: " << BlockTypeString << ", " << BlockLength << " bytes" << std::endl;
-		}
-	}
-	
-	if ( !Header.IsValid() )
-	{
-		Error << "PNG missing header";
-		return false;
-	}
-	
-	if ( ImageData.IsEmpty() )
-	{
-		Error << "PNG missing image data";
-		return false;
-	}
-	
-	//	read the image data
-	auto ImageDataBridge = GetArrayBridge( ImageData );
-	if ( !TPng::ReadData( *this, Header, ImageDataBridge, Error ) )
-		return false;
-	
-	return true;
-#endif
+	Png::Read( *this, PngData );
 }
 
 bool SoyPixelsImpl::SetRawSoyPixels(const ArrayBridge<char>& RawData)
@@ -1680,4 +1532,5 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			break;
 	};
 }
+
 

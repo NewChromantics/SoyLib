@@ -369,7 +369,7 @@ namespace prmem
 	prmem::CRTHeap	gCRTHeap(true);
 	
 	//	real debug tracker class. Cannot be declared in header!
-	class HeapDebug : public HeapDebugBase, public ofMutex
+	class HeapDebug : public HeapDebugBase, public std::mutex
 	{
 	public:
 		HeapDebug(const Heap& OwnerHeap);
@@ -438,7 +438,7 @@ prmem::HeapDebug::HeapDebug(const Heap& OwnerHeap) :
 	mItems	( mHeap )
 {
 	//	probably not needed this early...
-	ofMutex::ScopedLock Lock( *this );	
+	std::lock_guard<std::mutex> Lock( *this );
 
 	//	prealloc items so we don't slow down
 	mItems.Reserve( 10000 );
@@ -447,7 +447,7 @@ prmem::HeapDebug::HeapDebug(const Heap& OwnerHeap) :
 
 void prmem::HeapDebug::OnAlloc(const void* Object,const std::string& Typename,size_t ElementCount,size_t TypeSize)
 {
-	ofMutex::ScopedLock Lock( *this );
+	std::lock_guard<std::mutex> Lock( *this );
 	//	do some prealloc when we get to the edge
 	if ( mItems.MaxSize() - mItems.GetSize() < 10 )
 	{
@@ -480,7 +480,7 @@ void prmem::HeapDebug::OnAlloc(const void* Object,const std::string& Typename,si
 
 void prmem::HeapDebug::OnFree(const void* Object)
 {
-	ofMutex::ScopedLock Lock( *this );
+	std::lock_guard<std::mutex> Lock( *this );
 	auto Index = mItems.FindIndex( Object );
 
 	//	not found?

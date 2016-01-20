@@ -740,32 +740,44 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			//	if we successfully read a packet, clear the last error
 			OnClearError();
 
-			//	todo handling stream EOF
-			if ( NextPacket->mEof )
+			//	packet can have content AND EOF, or just EOF
+			bool EndOfStream = NextPacket->mEof;
+			
+			//	can have a packet with no data (eg. eof) skip this
+			if ( NextPacket->HasData() )
+			{
+				
+				//	block thread unless it's stopped
+				auto Block = [this,&NextPacket]()
+				{
+					//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
+					if ( IsWorking() )
+					{
+						//std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << std::endl;
+						std::this_thread::sleep_for( std::chrono::milliseconds(100) );
+					}
+					return IsWorking();
+				};
+				
+				auto Buffer = GetStreamBuffer( NextPacket->mMeta.mStreamIndex );
+				//	if the buffer doesn't exist, we drop the packet. todo; make it easy to skip in ReadNextPacket!
+				if ( Buffer )
+				{
+					Buffer->PushPacket( NextPacket, Block );
+				}
+			}
+			else if ( !EndOfStream )
+			{
+				std::Debug << "Warning, empty packet AND NOT eof; " << *NextPacket << std::endl;
+			}
+
+			//	todo proper handling stream EOF
+			if ( EndOfStream )
 			{
 				//	slow down the now-idle-ish thread
 				static int SleepEofMs = 400;
 				std::this_thread::sleep_for( std::chrono::milliseconds(SleepEofMs) );
 				return;
-			}
-			
-			//	block thread unless it's stopped
-			auto Block = [this,&NextPacket]()
-			{
-				//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
-				if ( IsWorking() )
-				{
-					//std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << std::endl;
-					std::this_thread::sleep_for( std::chrono::milliseconds(100) );
-				}
-				return IsWorking();
-			};
-			
-			auto Buffer = GetStreamBuffer( NextPacket->mMeta.mStreamIndex );
-			//	if the buffer doesn't exist, we drop the packet. todo; make it easy to skip in ReadNextPacket!
-			if ( Buffer )
-			{
-				Buffer->PushPacket( NextPacket, Block );
 			}
 			
 			//	passed the time we were reading until, abort current loop
@@ -828,6 +840,24 @@ bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyfr
 	//	todo; pass a func from the decoder which accesses the buffers/current time
 	return true;
 }
+
+void TMediaExtractor::OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)
+{
+	mOnStreamsChanged.OnTriggered( Streams );
+}
+
+void TMediaExtractor::OnStreamsChanged()
+{
+	Array<TStreamMeta> Streams;
+	GetStreams( GetArrayBridge(Streams) );
+	OnStreamsChanged( GetArrayBridge(Streams) );
+}
+
+
+
+
+
+
 
 void TMediaEncoder::PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block)
 {
@@ -973,7 +1003,10 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 	//	gr: assuming we should never get here with an invalid timestamp, we force the first timestamp to 1 instead of 0 (so it doesn't clash with "invalid")
 	//	if we add something to handle when we get no timestamps from the decoder, maybe revise this a little (but maybe that should be handled by the decoder)
 	if ( Timestamp.mTime == 0 )
+	{
+		std::Debug << "CorrectDecodedFrameTimestamp() got timestamp of 0, should now be corrected with CorrectExtractedTimecode" << std::endl;
 		Timestamp.mTime = 1;
+	}
 	
 	if ( !mFirstTimestamp.IsValid() )
 	{
@@ -1005,7 +1038,11 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 		}
 
 		Timestamp.mTime += mAdjustmentTimestamp.mTime;
-		Timestamp.mTime -= mFirstTimestamp.mTime;
+
+		//	special case, if our frames start at 0(corrected to 1), mFirstTimestamp will be 1, which gives us 0
+		//	do not output 0.
+		if ( mFirstTimestamp.mTime > 1 )
+			Timestamp.mTime -= mFirstTimestamp.mTime;
 	}
 	
 	mLastTimestamp = Timestamp;
@@ -1018,12 +1055,63 @@ void TMediaBufferManager::SetPlayerTime(const SoyTime &Time)
 }
 
 
+SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
+{
+	//	frequency is samples per sec
+	float SampleDuration = 1.f / (float)(mFrequency * mChannels);
+	float SampleTime = SampleIndex * SampleDuration;
+	auto SampleTimeMs = size_cast<uint64>( SampleTime * 1000.f );
+	return mStartTime + SoyTime(SampleTimeMs);
+}
+
+ssize_t TAudioBufferBlock::GetTimeSampleIndex(SoyTime Time) const
+{
+	float SampleDuration = 1.f / (float)(mFrequency * mChannels);
+	
+	if ( Time == mStartTime )
+		return 0;
+	
+	if ( Time > mStartTime )
+	{
+		SampleDuration *= 1000.f;
+		auto AheadMs = Time.GetTime() - mStartTime.GetTime();
+		auto SampleIndex = AheadMs * SampleDuration;
+		return SampleIndex;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+
+size_t TAudioBufferBlock::RemoveDataUntil(SoyTime Time)
+{
+	if ( mData.IsEmpty() )
+		return 0;
+	
+	auto StartTime = GetSampleTime( 0 );
+	auto EndTime = GetSampleTime( mData.GetSize()-1 );
+	
+	if ( Time <= StartTime )
+		return 0;
+	
+	size_t RemoveCount = GetTimeSampleIndex( Time );
+	RemoveCount = std::min( RemoveCount, mData.GetSize() );
+
+	mData.RemoveBlock( 0, RemoveCount );
+	
+	return RemoveCount;
+}
 
 
 void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 {
 	{
 		std::lock_guard<std::mutex> Lock( mBlocksLock );
+		
+		Soy::Assert( AudioData.mFrequency != 0, "Audio data should not have zero frequency");
+		
 		mBlocks.PushBack( AudioData );
 	}
 	mOnFramePushed.OnTriggered( AudioData.mStartTime );
@@ -1053,6 +1141,9 @@ void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channe
 			break;
 		
 		auto& Block = mBlocks[0];
+		
+		Block.RemoveDataUntil( StartTime );
+		
 		if ( Block.mData.IsEmpty() )
 		{
 			mBlocks.RemoveBlock( 0, 1 );
@@ -1069,6 +1160,40 @@ void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channe
 	}
 }
 
+void TAudioBufferManager::PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd)
+{
+	size_t BlockIndex = 0;
+	while ( Data.GetSize() < MaxSamples )
+	{
+		std::lock_guard<std::mutex> Lock( mBlocksLock );
+		if ( BlockIndex >= mBlocks.GetSize() )
+			break;
+		
+		auto& Block = mBlocks[BlockIndex];
+		
+		//	copy some data out
+		auto CopySize = std::min( Block.mData.GetSize(), MaxSamples - Data.GetSize() );
+
+		//	if we get this... empty block? bail, don't get stuck
+		if ( CopySize == 0 )
+			break;
+
+		{
+			auto* Dst = Data.PushBlock( CopySize );
+			auto* Src = Block.mData.GetArray();
+			memcpy( Dst, Src, CopySize * Data.GetElementSize() );
+		}
+		
+		//	update times of the data we've copied
+		if ( !SampleStart.IsValid() )
+			SampleStart = Block.GetSampleTime(0);
+		SampleEnd = Block.GetSampleTime(CopySize-1);
+		
+		BlockIndex++;
+	}
+}
+
+
 void TAudioBufferManager::ReleaseFrames()
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
@@ -1084,7 +1209,7 @@ void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 		
 		//	gr: fix this in data generation, not here!
 		static bool CorrectPreviousDuration = true;
-		static bool Debug_Correction = true;
+		static bool Debug_Correction = false;
 		auto Prev = !mBlocks.IsEmpty() ? mBlocks.GetBack() : nullptr;
 		if ( CorrectPreviousDuration && Prev )
 		{
@@ -1100,7 +1225,10 @@ void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 			std::stringstream SampleStream;
 			Soy::ArrayToString( GetArrayBridge(Buffer->mData), SampleStream );
 			auto Sample = SampleStream.str();
-			std::Debug << "New text push; " << Buffer->mTimecode << "; " << Sample << std::endl;
+			
+			static bool Debug_TextPush = false;
+			if ( Debug_TextPush )
+				std::Debug << "New text push; " << Buffer->mTimecode << "; " << Sample << std::endl;
 		}
 		
 		mBlocks.PushBack( Buffer );
@@ -1108,11 +1236,10 @@ void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 	mOnFramePushed.OnTriggered( Buffer->mTimecode );
 }
 
-bool TTextBufferManager::PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText)
+SoyTime TTextBufferManager::PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText)
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
-	
-	bool Any = false;
+	SoyTime OutputTime;
 	
 	while ( !mBlocks.IsEmpty() )
 	{
@@ -1127,20 +1254,23 @@ bool TTextBufferManager::PopBuffer(std::stringstream& Output,SoyTime Time,bool S
 		//	if old, skip
 		if ( SkipOldText )
 		{
-			auto EndTime = Block.mTimecode + Block.mDuration;
+			auto EndTime = Block.GetEndTime();
 			if ( EndTime < Time )
 				continue;
 		}
 		
 		//	insert line breaks if we have previous entries
-		if ( Any )
+		if ( OutputTime.IsValid() )
 			Output << '\n';
 		
 		Soy::ArrayToString( GetArrayBridge(Block.mData), Output );
-		Any = true;
+		
+		//	return the end-time
+		OutputTime = Block.GetEndTime();
+		Soy::Assert( OutputTime.IsValid(), "Expected output time to be valid");
 	}
 	
-	return Any;
+	return OutputTime;
 }
 
 void TTextBufferManager::ReleaseFrames()
@@ -1171,6 +1301,9 @@ TMediaPassThroughDecoder::TMediaPassThroughDecoder(const std::string& ThreadName
 
 bool TMediaPassThroughDecoder::ProcessPacket(std::shared_ptr<TMediaPacket>& Packet)
 {
+	//	note: before correction!
+	OnDecodeFrameSubmitted( Packet->mTimecode );
+
 	if ( mTextOutput )
 	{
 		if ( ProcessTextPacket( Packet ) )
@@ -1220,30 +1353,38 @@ bool TMediaPassThroughDecoder::ProcessPixelPacket(const TMediaPacket& Packet)
 	//	pass through pixel buffers
 	if ( Packet.mPixelBuffer )
 	{
-		auto& PixelBufferManager = GetPixelBufferManager();
-		if ( !PixelBufferManager.PrePushPixelBuffer( Packet.mTimecode ) )
-			return true;
-
 		TPixelBufferFrame Frame;
-		Frame.mPixels = Packet.mPixelBuffer;
 		Frame.mTimestamp = Packet.mTimecode;
-		PixelBufferManager.PushPixelBuffer( Frame, Block );
+
+		auto& Output = GetPixelBufferManager();
+		Output.CorrectDecodedFrameTimestamp( Frame.mTimestamp );
+		Output.mOnFrameDecoded.OnTriggered( Frame.mTimestamp );
+
+		if ( !Output.PrePushPixelBuffer( Frame.mTimestamp ) )
+			return true;
+	
+		Frame.mPixels = Packet.mPixelBuffer;
+		Output.PushPixelBuffer( Frame, Block );
 		return true;
 	}
 
 	//	handle generic pixels
 	if ( Packet.mMeta.mPixelMeta.IsValid() )
 	{
-		auto& PixelBufferManager = GetPixelBufferManager();
-		if ( !PixelBufferManager.PrePushPixelBuffer( Packet.mTimecode ) )
+		TPixelBufferFrame Frame;
+		Frame.mTimestamp = Packet.mTimecode;
+		
+		auto& Output = GetPixelBufferManager();
+		Output.CorrectDecodedFrameTimestamp( Frame.mTimestamp );
+		Output.mOnFrameDecoded.OnTriggered( Frame.mTimestamp );
+		
+		if ( !Output.PrePushPixelBuffer( Frame.mTimestamp ) )
 			return true;
 
 		SoyPixelsRemote Pixels( GetArrayBridge(Packet.mData), Packet.mMeta.mPixelMeta );
 
-		TPixelBufferFrame Frame;
-		Frame.mTimestamp = Packet.mTimecode;
 		Frame.mPixels.reset( new TDumbPixelBuffer( Pixels ) );
-		PixelBufferManager.PushPixelBuffer( Frame, Block );
+		Output.PushPixelBuffer( Frame, Block );
 		return true;
 	}
 
@@ -1258,7 +1399,11 @@ bool TMediaPassThroughDecoder::ProcessAudioPacket(const TMediaPacket& Packet)
 
 bool TMediaPassThroughDecoder::ProcessTextPacket(std::shared_ptr<TMediaPacket>& Packet)
 {
-	mTextOutput->PushBuffer( Packet );
+	auto& Output = *mTextOutput;
+	Output.CorrectDecodedFrameTimestamp( Packet->mTimecode );
+	Output.mOnFrameDecoded.OnTriggered( Packet->mTimecode );
+	
+	Output.PushBuffer( Packet );
 	return true;
 }
 
@@ -1441,6 +1586,12 @@ bool TPixelBufferManager::PrePushPixelBuffer(SoyTime Timestamp)
 
 bool TPixelBufferManager::PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::function<bool()> Block)
 {
+	if ( !PixelBuffer.mTimestamp.IsValid() )
+	{
+		std::Debug << "TPixelBufferManager::PushPixelBuffer packet with invalid timestamp. should ALWAYS be corrected to at least 1" << std::endl;
+		PixelBuffer.mTimestamp.mTime = 1;
+	}
+	
 	do
 	{
 		//	wait for frames to be popped

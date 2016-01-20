@@ -328,20 +328,34 @@ TStreamReader::~TStreamReader()
 bool TStreamReader::Iteration()
 {
 	//	read next chunk
+	bool KeepAlive = true;
 	try
 	{
-		Read( *mReadBuffer );
+		KeepAlive = Read( *mReadBuffer );
 	}
 	catch (std::exception& e)
 	{
-		std::Debug << "Stream " << GetThreadName() << " failed to read: " << e.what() << std::endl;
-		std::this_thread::sleep_for( std::chrono::milliseconds(5000) );
-		return true;
+		std::Debug << "Stream " << GetThreadName() << " failed to read: " << e.what();
+
+		//	gr: error thrown... abort the thread if no data?
+		//		retry? throttle?
+		if ( mReadBuffer->IsEmpty() )
+		{
+			std::Debug << "; Aborting read" << std::endl;
+			return false;
+		}
+		else
+		{
+			auto SleepMs = 1000;
+			std::Debug << "; retrying (throttled for " << SleepMs << "ms)" << std::endl;
+			std::this_thread::sleep_for( std::chrono::milliseconds( SleepMs ) );
+			return true;
+		}
 	}
 	
-	//	nothing to do
+	//	nothing to do, NOW we can kill the thread
 	if ( mReadBuffer->IsEmpty() )
-		return true;
+		return KeepAlive;
 	if ( !IsWorking() )
 		return true;
 	
@@ -352,10 +366,25 @@ bool TStreamReader::Iteration()
 	//	in case it's been released capture a local copy
 	auto CurrentProtocol = mCurrentProtocol;
 	if ( !CurrentProtocol )
+	{
+		std::Debug << "TStreamReader(" << Soy::GetTypeName(*this) << ") didn't allocate protocol." << std::endl;
 		return true;
+	}
 	
-	//	process
-	auto DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
+	//	process protocol
+	auto DecodeResult = TProtocolState::Abort;
+	try
+	{
+		DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol) << "::Decode threw exception (" << e.what() << ") reverting to " << DecodeResult << std::endl;
+	}
+	catch(...)
+	{
+		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol)  << "::Decode threw unknown exception reverting to " << DecodeResult << std::endl;
+	}
 	
 	switch ( DecodeResult )
 	{
@@ -368,6 +397,11 @@ bool TStreamReader::Iteration()
 		case TProtocolState::Finished:
 			break;
 			
+		//	invalidate data and continue as disconnection
+		case TProtocolState::Abort:
+			CurrentProtocol.reset();
+			break;
+
 			//	release current and re-iterate
 		default:
 			std::Debug << "Unhandled TProtocolState: " << DecodeResult << " ignoring." << std::endl;
@@ -376,16 +410,21 @@ bool TStreamReader::Iteration()
 			return true;
 	}
 	
-	if ( DecodeResult == TProtocolState::Disconnect )
-	{
-		std::Debug << "Todo: protocol says, disconnect stream. Currently unhandled." << std::endl;
-	}
-	
 	//	notify (with shared ptr so data can be cheaply saved)
-	mOnDataRecieved.OnTriggered( CurrentProtocol );
+	if ( CurrentProtocol )
+		mOnDataRecieved.OnTriggered( CurrentProtocol );
 	
 	//	dealloc for next
 	mCurrentProtocol.reset();
+
+	if ( DecodeResult == TProtocolState::Disconnect || DecodeResult == TProtocolState::Abort )
+	{
+		static auto SleepMs = 5000;
+		std::Debug << "Todo: protocol says, " << DecodeResult << " stream. Currently unhandled. Sleeping for " << SleepMs << "ms" << std::endl;
+		std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
+	}
+	
+	//	don't abort thread until we've used up all the data
 	return true;
 }
 
@@ -577,25 +616,28 @@ TFileStreamReader::~TFileStreamReader()
 	mFile.close();
 }
 
-void TFileStreamReader::Read(TStreamBuffer& Buffer)
+bool TFileStreamReader::Read(TStreamBuffer& Buffer)
 {
-	BufferArray<char,100> Data(100);
+	mReadBuffer.SetSize( 1024*1024 );
+	auto& Data = mReadBuffer;
 
 	auto Peek = mFile.peek();
 	if ( Peek == std::char_traits<char>::eof() )
 	{
-		//	todo: handle finished stream
-		throw Soy::AssertException("TFileStreamReader finished");
+		return false;
 	}
 
 	mFile.read( Data.GetArray(), Data.GetDataSize() );
 	if ( mFile.fail() && !mFile.eof() )
 	{
-		throw Soy::AssertException("TFileStreamReader error");
+		std::stringstream Error;
+		Error << "TFileStreamReader error; " << Soy::Platform::GetLastErrorString();
+		throw Soy::AssertException( Error.str() );
 	}
 
 	auto BytesRead = mFile.gcount();
 	Data.SetSize( BytesRead );
 	Buffer.Push( GetArrayBridge( Data ) );
+	return true;
 }
 

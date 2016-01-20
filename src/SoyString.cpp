@@ -81,8 +81,31 @@ bool Soy::StringBeginsWith(const std::string& Haystack, const std::string& Needl
 
 bool Soy::StringEndsWith(const std::string& Haystack, const std::string& Needle, bool CaseSensitive)
 {
+	if (CaseSensitive)
+	{
+		//	gr: may need to see WHY this doesn't return npos....
+		if ( Needle.empty() )
+			return false;
+		
+		auto Pos = Haystack.rfind(Needle);
+		if ( Pos == std::string::npos )
+			return false;
+		if ( Pos == Haystack.length() - Needle.length() )
+			return true;
+		return false;
+	}
+	else
+	{
+		std::string HaystackLow = Haystack;
+		std::string NeedleLow = Needle;
+		Soy::StringToLower( HaystackLow );
+		Soy::StringToLower( NeedleLow );
+		return StringEndsWith(HaystackLow, NeedleLow, true);
+	}
+	
+	/*	gr: regex not working on android! find out exactly what...
 	std::regex_constants::syntax_option_type Flags = std::regex_constants::ECMAScript;
-	if ( CaseSensitive )
+	if ( !CaseSensitive )
 		Flags |= std::regex::icase;
 	
 	//	escape some chars...
@@ -103,7 +126,9 @@ bool Soy::StringEndsWith(const std::string& Haystack, const std::string& Needle,
 	if ( std::regex_match( HaystackStr, Match, Regex ) )
 		return true;
 
+	std::Debug << "String ends with (haystack=" << Haystack << ", Needle=" << Needle << ") failed" << std::endl;
 	return false;
+	*/
 }
 
 std::string	Soy::StringJoin(const std::vector<std::string>& Strings,const std::string& Glue)
@@ -277,6 +302,20 @@ std::string Soy::StreamToString(std::ostream& Stream)
 		TempStream << Buffer;
 	return TempStream.str();
 }
+
+bool Soy::StringTrimLeft(std::string& String,std::function<bool(char)> TrimChar)
+{
+	bool Changed = false;
+	while ( !String.empty() )
+	{
+		if ( !TrimChar(String[0]) )
+			break;
+		String.erase( String.begin() );
+		Changed = true;
+	}
+	return Changed;
+}
+
 
 bool Soy::StringTrimLeft(std::string& String,char TrimChar)
 {
@@ -459,25 +498,39 @@ void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 	Buffer[std::min<ssize_t>(Len,BufferSize-1)] = '\0';
 }
 
-
-
-std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim)
+std::string Soy::StringPopUntil(std::string& Haystack,std::function<bool(char)> IsDelim,bool KeepDelim,bool PopDelim)
 {
 	std::stringstream Pop;
 	
 	while ( !Haystack.empty() )
 	{
-		if ( Haystack[0] == Delim )
+		if ( IsDelim(Haystack[0]) )
+		{
+			if ( !KeepDelim )
+				Haystack.erase( Haystack.begin() );
+			if ( PopDelim )
+				Pop << Haystack[0];
 			break;
+		}
 		
 		Pop << Haystack[0];
-		if ( KeepDelim )
-			Pop << Delim;
 		
 		Haystack.erase( Haystack.begin() );
 	}
 	
 	return Pop.str();
+}
+
+
+
+std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim,bool PopDelim)
+{
+	//	gr: make this faster! dont use a lambda!
+	auto IsDelim = [Delim](char Char)
+	{
+		return Char == Delim;
+	};
+	return StringPopUntil( Haystack, IsDelim, KeepDelim, PopDelim );
 }
 
 
@@ -657,6 +710,13 @@ std::wstring Soy::StringToWString(const std::string& s)
 	return w;
 }
 
+std::string Soy::WStringToString(const std::wstring& w)
+{
+	std::string s;
+	s.assign( w.begin(), w.end() );
+	return s;
+}
+
 std::string Soy::FourCCToString(uint32 Fourcc)
 {
 	char CodecStrBuffer[5] = {0,0,0,0,0};
@@ -737,4 +797,3 @@ void Soy::DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,in
 		String << (int)Data[i] << ' ';
 	}
 }
-

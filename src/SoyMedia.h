@@ -379,13 +379,23 @@ private:
 class TAudioBufferBlock
 {
 public:
+	TAudioBufferBlock() :
+		mChannels	( 0 ),
+		mFrequency	( 0 )
+	{
+	}
+	
+	SoyTime				GetSampleTime(size_t SampleIndex) const;
+	ssize_t				GetTimeSampleIndex(SoyTime Time) const;		//	can be out of range of the data
+	size_t				RemoveDataUntil(SoyTime Time);				//	returns number of samples removed
+	
+public:
 	//	consider using stream meta here
 	size_t				mChannels;
-	size_t				mFrequency;
+	size_t				mFrequency;		//	samples per sec
 	
 	//	gr: maybe change this into some format where we can access mData[Time]
 	SoyTime				mStartTime;
-	SoyTime				mEndTime;
 	Array<float>		mData;
 };
 
@@ -399,6 +409,8 @@ public:
 	
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
 	void			PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,size_t SampleRate,SoyTime StartTime,SoyTime EndTime);
+	void			PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd);	//	todo: handle channels
+
 	virtual void	ReleaseFrames() override;
 	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
 	
@@ -417,7 +429,7 @@ public:
 	}
 	
 	void			PushBuffer(std::shared_ptr<TMediaPacket> Buffer);
-	bool			PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText);
+	SoyTime			PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText);	//	returns end-time of the data extracted (invalid if none popped)
 	virtual void	ReleaseFrames() override;
 	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
 	
@@ -440,9 +452,18 @@ public:
 
 	//	gr: re-instating this, we should enforce decode timecodes in the extractor.
 	SoyTime					GetSortingTimecode() const	{	return mDecodeTimecode.IsValid() ? mDecodeTimecode : mTimecode;	}
+	SoyTime					GetEndTime() const			{	return mTimecode + mDuration;	}
+	bool					HasData() const
+	{
+		if ( mPixelBuffer )
+			return true;
+		if ( !mData.IsEmpty() )
+			return true;
+		return false;
+	}
 	
 public:
-	bool					mEof;
+	bool					mEof;		//	if EOF, data is optional (see HasData())
 	SoyTime					mTimecode;	//	presentation time
 	SoyTime					mDuration;
 	SoyTime					mDecodeTimecode;
@@ -567,17 +588,30 @@ public:
 	
 	std::shared_ptr<TMediaPacketBuffer>	AllocStreamBuffer(size_t StreamIndex);
 	std::shared_ptr<TMediaPacketBuffer>	GetStreamBuffer(size_t StreamIndex);
-	
 
 
 //protected:	//	gr: only for subclasses, but the playlist media extractor needs to call this on it's children
 	virtual std::shared_ptr<TMediaPacket>	ReadNextPacket()=0;
 	bool							CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyframe);
 
-protected:
 	void							OnError(const std::string& Error);
+
+protected:
+	//	gr: maybe we need to correct timecodes in the extractor, not the decoder, as
+	//	+a) we need to sync all streams really
+	//	+b) we calc duration below
+	//	+c) dictate decode order correction here
+	//	-a) decode timecodes may be special...
+	//	gr: this is AT LEAST needed for correct stats (evident when we have 1 frame movies...)
+	void							CorrectExtractedPacketTimecode(TMediaPacket& Packet)
+	{
+		if ( Packet.mTimecode.mTime == 0 )
+			Packet.mTimecode.mTime = 1;
+	}
+	
 	void							OnClearError();
-	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)	{	mOnStreamsChanged.OnTriggered( Streams );	}
+	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams);
+	void							OnStreamsChanged();
 	
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);

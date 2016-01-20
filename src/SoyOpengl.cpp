@@ -1681,13 +1681,17 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		mUniforms.PushBack( Uniform );
 	}
 
-	std::Debug << ShaderName << " has " << mAttributes.GetSize() << " attributes; " << std::endl;
-	std::Debug << Soy::StringJoin( GetArrayBridge(mAttributes), "\n" );
-	std::Debug << std::endl;
+	static bool DebugUniforms = false;
+	if ( DebugUniforms )
+	{
+		std::Debug << ShaderName << " has " << mAttributes.GetSize() << " attributes; " << std::endl;
+		std::Debug << Soy::StringJoin( GetArrayBridge(mAttributes), "\n" );
+		std::Debug << std::endl;
 
-	std::Debug << ShaderName << " has " << mUniforms.GetSize() << " uniforms; " << std::endl;
-	std::Debug << Soy::StringJoin( GetArrayBridge(mUniforms), "\n" );
-	std::Debug << std::endl;
+		std::Debug << ShaderName << " has " << mUniforms.GetSize() << " uniforms; " << std::endl;
+		std::Debug << Soy::StringJoin( GetArrayBridge(mUniforms), "\n" );
+		std::Debug << std::endl;
+	}
 }
 
 

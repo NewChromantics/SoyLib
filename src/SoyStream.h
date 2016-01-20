@@ -57,7 +57,6 @@ private:
 };
 
 
-//	todo: handle EOF
 class TStreamReader : public SoyWorkerThread
 {
 public:
@@ -65,8 +64,9 @@ public:
 	~TStreamReader();
 	
 	virtual bool									Iteration() override;
-	virtual void									Read(TStreamBuffer& Buffer)=0;	//	read next chunk of data into buffer
+	virtual bool									Read(TStreamBuffer& Buffer)=0;	//	read next chunk of data into buffer. return false on EOF
 	virtual std::shared_ptr<Soy::TReadProtocol>		AllocProtocol()=0;				//	alloc a new protocol instance to process incoming data
+	bool											IsFinished() const				{	return HasThread();	}
 	
 public:
 	SoyEvent<std::shared_ptr<Soy::TReadProtocol>>	mOnDataRecieved;
@@ -80,18 +80,18 @@ private:
 class TStreamReader_Impl : public TStreamReader
 {
 public:
-	TStreamReader_Impl(std::shared_ptr<TStreamBuffer> ReadBuffer,std::function<void(void)> ReadFunc,std::function<std::shared_ptr<Soy::TReadProtocol>()> AllocProtocolFunc,const std::string& ThreadName) :
+	TStreamReader_Impl(std::shared_ptr<TStreamBuffer> ReadBuffer,std::function<bool()> ReadFunc,std::function<std::shared_ptr<Soy::TReadProtocol>()> AllocProtocolFunc,const std::string& ThreadName) :
 		TStreamReader		( ThreadName, ReadBuffer ),
 		mReadFunc			( ReadFunc ),
 		mAllocProtocolFunc	( AllocProtocolFunc )
 	{
 	}
 	
-	virtual void									Read(TStreamBuffer& Buffer) override	{	return mReadFunc();	}
+	virtual bool									Read(TStreamBuffer& Buffer) override	{	return mReadFunc();	}
 	virtual std::shared_ptr<Soy::TReadProtocol>		AllocProtocol() override				{	return mAllocProtocolFunc();	}
 	
 public:
-	std::function<void()>									mReadFunc;
+	std::function<bool()>									mReadFunc;
 	std::function<std::shared_ptr<Soy::TReadProtocol>()>	mAllocProtocolFunc;
 };
 
@@ -152,10 +152,11 @@ public:
 	~TFileStreamReader();
 	
 protected:
-	virtual void		Read(TStreamBuffer& Buffer) override;
+	virtual bool		Read(TStreamBuffer& Buffer) override;
 	
 private:
 	std::ifstream		mFile;
+	Array<char>			mReadBuffer;	//	alloc once
 };
 
 
