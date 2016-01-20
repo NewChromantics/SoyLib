@@ -75,6 +75,7 @@ public:
 	TThread(JavaVM& vm);
 	~TThread();
 	
+	void			Init()			{	FlushLocals();	}
 	void			FlushLocals();
 
 public:

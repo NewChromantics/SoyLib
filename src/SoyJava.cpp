@@ -84,13 +84,14 @@ Java::TThread& Java::GetThread()
 	auto& vm = *Java::vm;
 	
 	auto ThreadId = std::this_thread::get_id();
-	std::shared_ptr<Java::TThread> pThread;
 	
-	if ( Java::Threads.find( ThreadId ) == Java::Threads.end() )
+	auto& pThread = Java::Threads[ThreadId];
+	
+	if ( !pThread )
 	{
 		std::Debug << "Allocating new java thread in GetThread(" << ThreadId << ")..." << std::endl;
 		pThread.reset( new Java::TThread( vm ) );
-		Java::Threads[ThreadId] = pThread;
+		pThread->Init();
 	}
 	
 	//	register thread init & cleanup first time we use a java context
@@ -2180,11 +2181,19 @@ bool Java::TFileHandleStreamReader::Read(TStreamBuffer& Buffer)
 Java::TLocalRefStack::TLocalRefStack(size_t MaxLocals)
 {
 	auto Capacity = size_cast<jint>( MaxLocals );
-	auto Result = java().PushLocalFrame( Capacity );
+	
+	std::Debug << __func__ << " get env..." << std::endl;
+	auto& Env = java();
+	auto Result = Env.PushLocalFrame( Capacity );
 
+	std::Debug << __func__ << " result=" << Result << "... Java::IsOkay..." << std::endl;
+	
 	//	check for any exception
 	bool ForceThrow = (Result != 0);
 	Java::IsOkay( __func__, ForceThrow );
+
+	
+	std::Debug << __func__ << " finished" << std::endl;
 }
 
 Java::TLocalRefStack::~TLocalRefStack()
@@ -2204,8 +2213,10 @@ Java::TThread::TThread(JavaVM& vm) :
 	Soy::Assert( EnvId == JNI_OK, "Failed to get java env for current thread" );
 	
 	//	alloc initial stack
+	/*	gr this causes recursion, we can either add JNIEnv vars all over the place, or let the allocator set the table entry first and call Init()
 	std::Debug << __func__ << " alloc initial stack...." << std::endl;
 	FlushLocals();
+	 */
 }
 
 Java::TThread::~TThread()
@@ -2219,5 +2230,5 @@ Java::TThread::~TThread()
 void Java::TThread::FlushLocals()
 {
 	mLocalStack.reset();
-	mLocalStack.reset( new TLocalRefStack );
+	mLocalStack.reset( new TLocalRefStack() );
 }
