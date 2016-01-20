@@ -18,6 +18,9 @@ class TJniLocalObject;
 #define INVALID_FILE_HANDLE	0	//	gr: I swear this is declared somewhere in soy
 
 
+
+
+
 namespace Soy
 {
 	std::string	JStringToString(jstring Stringj);
@@ -27,23 +30,62 @@ namespace Soy
 
 namespace Java
 {
+	bool					HasVm();
+	JNIEnv&					GetContext();
+	void					FlushLocals();	//	wrapper to flush current thread's locals
+	
 	void					ArrayToBuffer(const ArrayBridge<uint8>&& Data,TJniObject& InputBuffer,const std::string& Context,int ExplicitBufferSize=-1);
 	void					BufferToArray(TJniObject& InputBuffer,ArrayBridge<uint8>&& Data,const std::string& Context,int ExplicitBufferSize=-1);
 	FixedRemoteArray<uint8>	GetBufferArray(TJniObject& Buffer,int LimitSize=-1);	//	get buffer as array. throws if this option isn't availible for this buffer
 	void	IsOkay(const std::string& Context,bool ThrowRegardless=false);		//	check for JNI exception
 	
-	//	todo: factory these
 	class TFileHandle;
 	class TApkFileHandle;		//	special access to files in Assets which need to be loaded in a special way
 	class TZipFileHandle;		//	expecting a filename like file://file.obb!/internalfilename.txt
 	class TRandomAccessFileHandle;
 
-	//	factory for a stream reader too
 	class TFileHandleStreamReader;	//	special file reader that uses JNI to read from APK
 	typedef ::TFileStreamReader_ProtocolLambda<TFileHandleStreamReader> TApkFileStreamReader_ProtocolLambda;
 	
 	std::shared_ptr<TFileHandle>	AllocFileHandle(const std::string& Filename);
+
+
+	//	according to android docs
+	//	http://developer.android.com/training/articles/perf-jni.html
+	//	JNI won't auto-free locals in a thread until it detatches (gr: not sure HOW it EVER cleans up then...)
+	//	so instead, we'll manually push&pop frames of locals.
+	//	hopefully this may show up cases where we need global refs, but more importantly we won't overflow the local stack (happens with long movies & ones with audio which use up locals much faster)
+	//	gr: look for a way to auto count locals... not found one yet
+	class TLocalRefStack;
+	class TThread;			//	java thread handler, handles env creation & destruction and local object stack
 }
+
+
+
+class Java::TLocalRefStack
+{
+public:
+	TLocalRefStack(size_t MaxLocals=100);
+	~TLocalRefStack();
+};
+
+class Java::TThread
+{
+public:
+	TThread(JavaVM& vm);
+	~TThread();
+	
+	void			Init()			{	FlushLocals();	}
+	void			FlushLocals();
+
+public:
+	JavaVM&			mVirtualMachine;
+	JNIEnv*			mThreadEnv;
+	std::shared_ptr<TLocalRefStack>	mLocalStack;	//	ptr so we can destruct & recreate it to flush all local vars
+};
+
+
+
 
 class Java::TFileHandle
 {
@@ -282,6 +324,7 @@ inline std::string	GetSignature(const std::string& SigTypea,const std::string& S
 
 
 //	merge this into TJniObject
+//	gr: use this to explicitly flush variables (eg. loops). For general clear up, use Java::TThread::FlushLocals()
 template<typename TYPE>
 class TJniLocalObject
 {

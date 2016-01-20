@@ -4,6 +4,28 @@
 #include <SoyDebug.h>
 #include <fcntl.h>
 
+#include <unistd.h>						// usleep, etc
+#include <sys/syscall.h>
+#include <map>
+
+
+namespace Java
+{
+	void			InitThread(SoyThread& Thread);
+	void			ShutdownThread(SoyThread& Thread);
+	
+	TThread&		GetThread();
+	bool			HasThread();
+	void			FlushThreadLocals();	//	wrapper to flush current thread's locals
+
+	
+	JavaVM*			vm = nullptr;
+	JNIEnv*			MainEnv = nullptr;
+	SoyListenerId	mShutdownThreadListener;
+	SoyListenerId	mInitThreadListener;
+
+	std::map<std::thread::id,std::shared_ptr<Java::TThread>>	Threads;
+}
 
 
 namespace Java
@@ -14,6 +36,110 @@ namespace Java
 	template<typename TYPE>
 	TYPE	GetField(TJniObject& Object,const std::string& FieldName);
 }
+
+
+
+bool Java::HasVm()
+{
+	return vm!=nullptr;
+}
+
+
+void Java::InitThread(SoyThread& Thread)
+{
+	//	gr: don't bother allocating a thread env each time. allocated explicitly with GetContext
+}
+
+void Java::ShutdownThread(SoyThread& Thread)
+{
+	//	cleanup this thread's java env
+	if ( vm )
+	{
+		auto Thread = std::this_thread::get_id();
+		auto Threadit = Java::Threads.find( Thread );
+		if ( Threadit != Java::Threads.end() )
+		{
+			auto pThread = Threadit->second;
+			Java::Threads.erase( Threadit );
+			
+			//	detach & shutdown
+			pThread.reset();
+		}
+	}
+}
+
+
+bool Java::HasThread()
+{
+	auto ThreadId = std::this_thread::get_id();
+
+	return ( Java::Threads.find( ThreadId ) != Java::Threads.end() );
+}
+
+
+Java::TThread& Java::GetThread()
+{
+	Soy::Assert( Java::vm!=nullptr, "VM expected" );
+	
+	auto& vm = *Java::vm;
+	
+	auto ThreadId = std::this_thread::get_id();
+	
+	auto& pThread = Java::Threads[ThreadId];
+	
+	if ( !pThread )
+	{
+		std::Debug << "Allocating new java thread in GetThread(" << ThreadId << ")..." << std::endl;
+		pThread.reset( new Java::TThread( vm ) );
+		pThread->Init();
+	}
+	
+	//	register thread init & cleanup first time we use a java context
+	if ( !mInitThreadListener.IsValid() )
+		mInitThreadListener = SoyThread::OnThreadStart.AddListener( Java::InitThread );
+	
+	if ( !mShutdownThreadListener.IsValid() )
+		mShutdownThreadListener = SoyThread::OnThreadFinish.AddListener( Java::ShutdownThread );
+	
+	return *pThread;
+}
+
+JNIEnv& Java::GetContext()
+{
+	auto& Thread = GetThread();
+	return *Thread.mThreadEnv;
+}
+
+void Java::FlushThreadLocals()
+{
+	if ( !HasThread() )
+		return;
+	
+	std::Debug << __func__ << " GetThread...." << std::endl;
+	
+	auto& Thread = GetThread();
+
+	std::Debug << __func__ << " Thread.Flushlocals..." << std::endl;
+	Thread.FlushLocals();
+
+	std::Debug << __func__ << " finished" << std::endl;
+}
+
+
+//	called by android OS on lib load
+__export JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
+{
+	Java::vm = vm;
+	
+	if ( vm->GetEnv( reinterpret_cast<void**>(&Java::MainEnv), JNI_VERSION_1_6) != JNI_OK)
+	{
+		std::Debug << "Failed to get Java Env" << std::endl;
+		return -1;
+	}
+	
+	return JNI_VERSION_1_6;
+}
+
 
 
 
@@ -2049,4 +2175,60 @@ bool Java::TFileHandleStreamReader::Read(TStreamBuffer& Buffer)
 	Buffer.Push( GetArrayBridge(Data) );
 	
 	return !Eof;
+}
+
+
+Java::TLocalRefStack::TLocalRefStack(size_t MaxLocals)
+{
+	auto Capacity = size_cast<jint>( MaxLocals );
+	
+	std::Debug << __func__ << " get env..." << std::endl;
+	auto& Env = java();
+	auto Result = Env.PushLocalFrame( Capacity );
+
+	std::Debug << __func__ << " result=" << Result << "... Java::IsOkay..." << std::endl;
+	
+	//	check for any exception
+	bool ForceThrow = (Result != 0);
+	Java::IsOkay( __func__, ForceThrow );
+
+	
+	std::Debug << __func__ << " finished" << std::endl;
+}
+
+Java::TLocalRefStack::~TLocalRefStack()
+{
+	jobject ResultIn = nullptr;
+	auto ResultOut = java().PopLocalFrame( ResultIn );
+	Java::IsOkay( __func__ );
+}
+
+
+Java::TThread::TThread(JavaVM& vm) :
+	mThreadEnv		( nullptr ),
+	mVirtualMachine	( vm )
+{
+	std::Debug << "Java::TThread::TThread() constructor for thread " << SoyThread::GetCurrentThreadName() << std::endl;
+	auto EnvId = mVirtualMachine.AttachCurrentThread( &mThreadEnv, nullptr );
+	Soy::Assert( EnvId == JNI_OK, "Failed to get java env for current thread" );
+	
+	//	alloc initial stack
+	/*	gr this causes recursion, we can either add JNIEnv vars all over the place, or let the allocator set the table entry first and call Init()
+	std::Debug << __func__ << " alloc initial stack...." << std::endl;
+	FlushLocals();
+	 */
+}
+
+Java::TThread::~TThread()
+{
+	mLocalStack.reset();
+	
+	auto EnvId = mVirtualMachine.DetachCurrentThread();
+	Soy::Assert( EnvId == JNI_OK, "Failed to detatch java thread");
+}
+
+void Java::TThread::FlushLocals()
+{
+	mLocalStack.reset();
+	mLocalStack.reset( new TLocalRefStack() );
 }
