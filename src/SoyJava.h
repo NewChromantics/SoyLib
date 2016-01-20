@@ -18,6 +18,9 @@ class TJniLocalObject;
 #define INVALID_FILE_HANDLE	0	//	gr: I swear this is declared somewhere in soy
 
 
+
+
+
 namespace Soy
 {
 	std::string	JStringToString(jstring Stringj);
@@ -29,7 +32,7 @@ namespace Java
 {
 	bool					HasVm();
 	JNIEnv&					GetContext();
-
+	void					FlushLocals();	//	wrapper to flush current thread's locals
 	
 	void					ArrayToBuffer(const ArrayBridge<uint8>&& Data,TJniObject& InputBuffer,const std::string& Context,int ExplicitBufferSize=-1);
 	void					BufferToArray(TJniObject& InputBuffer,ArrayBridge<uint8>&& Data,const std::string& Context,int ExplicitBufferSize=-1);

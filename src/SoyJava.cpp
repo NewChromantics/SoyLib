@@ -15,7 +15,8 @@ namespace Java
 	void			ShutdownThread(SoyThread& Thread);
 	
 	TThread&		GetThread();
-	void			FlushLocals();	//	wrapper to flush current thread's locals
+	bool			HasThread();
+	void			FlushThreadLocals();	//	wrapper to flush current thread's locals
 
 	
 	JavaVM*			vm = nullptr;
@@ -67,6 +68,15 @@ void Java::ShutdownThread(SoyThread& Thread)
 	}
 }
 
+
+bool Java::HasThread()
+{
+	auto ThreadId = std::this_thread::get_id();
+
+	return ( Java::Threads.find( ThreadId ) != Java::Threads.end() );
+}
+
+
 Java::TThread& Java::GetThread()
 {
 	Soy::Assert( Java::vm!=nullptr, "VM expected" );
@@ -78,6 +88,7 @@ Java::TThread& Java::GetThread()
 	
 	if ( Java::Threads.find( ThreadId ) == Java::Threads.end() )
 	{
+		std::Debug << "Allocating new java thread in GetThread(" << ThreadId << ")..." << std::endl;
 		pThread.reset( new Java::TThread( vm ) );
 		Java::Threads[ThreadId] = pThread;
 	}
@@ -98,6 +109,20 @@ JNIEnv& Java::GetContext()
 	return *Thread.mThreadEnv;
 }
 
+void Java::FlushThreadLocals()
+{
+	if ( !HasThread() )
+		return;
+	
+	std::Debug << __func__ << " GetThread...." << std::endl;
+	
+	auto& Thread = GetThread();
+
+	std::Debug << __func__ << " Thread.Flushlocals..." << std::endl;
+	Thread.FlushLocals();
+
+	std::Debug << __func__ << " finished" << std::endl;
+}
 
 
 //	called by android OS on lib load
@@ -2174,11 +2199,12 @@ Java::TThread::TThread(JavaVM& vm) :
 	mThreadEnv		( nullptr ),
 	mVirtualMachine	( vm )
 {
-	std::Debug << "Allocating java env for thread " << SoyThread::GetCurrentThreadName() << std::endl;
+	std::Debug << "Java::TThread::TThread() constructor for thread " << SoyThread::GetCurrentThreadName() << std::endl;
 	auto EnvId = mVirtualMachine.AttachCurrentThread( &mThreadEnv, nullptr );
 	Soy::Assert( EnvId == JNI_OK, "Failed to get java env for current thread" );
 	
 	//	alloc initial stack
+	std::Debug << __func__ << " alloc initial stack...." << std::endl;
 	FlushLocals();
 }
 
