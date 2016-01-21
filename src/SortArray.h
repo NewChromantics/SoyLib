@@ -272,21 +272,15 @@ public:
 	
 	virtual TYPE*		PushBlock(size_t count) override
 	{
-		//	can't push blocks in sort arrays!
-		Soy::Assert(false, "Cannot allocate in sort array");
-		return nullptr;
+		throw Soy::AssertException("Cannot allocate (PushBlock) in sort array");
 	}
 	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true) override
 	{
-		//	can't push blocks in sort arrays!
-		Soy::Assert(false, "Cannot allocate in sort array");
-		return nullptr;
+		throw Soy::AssertException("Cannot allocate (SetSize) in sort array");
 	}
 	virtual TYPE*			InsertBlock(size_t index,size_t Count) override
 	{
-		//	can't push blocks in sort arrays!
-		Soy::Assert(false, "Cannot push blocks in sort array");
-		return nullptr;
+		throw Soy::AssertException("Cannot allocate (InsertBlock) in sort array");
 	}
 
 	template<typename MATCHTYPE>
