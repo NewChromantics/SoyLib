@@ -115,14 +115,8 @@ void Java::FlushThreadLocals()
 	if ( !HasThread() )
 		return;
 	
-	std::Debug << __func__ << " GetThread...." << std::endl;
-	
 	auto& Thread = GetThread();
-
-	std::Debug << __func__ << " Thread.Flushlocals..." << std::endl;
 	Thread.FlushLocals();
-
-	std::Debug << __func__ << " finished" << std::endl;
 }
 
 
@@ -2182,18 +2176,12 @@ Java::TLocalRefStack::TLocalRefStack(size_t MaxLocals)
 {
 	auto Capacity = size_cast<jint>( MaxLocals );
 	
-	std::Debug << __func__ << " get env..." << std::endl;
 	auto& Env = java();
 	auto Result = Env.PushLocalFrame( Capacity );
 
-	std::Debug << __func__ << " result=" << Result << "... Java::IsOkay..." << std::endl;
-	
 	//	check for any exception
 	bool ForceThrow = (Result != 0);
 	Java::IsOkay( __func__, ForceThrow );
-
-	
-	std::Debug << __func__ << " finished" << std::endl;
 }
 
 Java::TLocalRefStack::~TLocalRefStack()
