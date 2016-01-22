@@ -110,3 +110,10 @@ Soy::TFileWatch::~TFileWatch()
 {
 }
 
+
+
+void Platform::EnumFiles(const std::string& Directory,std::function<void(const std::string&)> OnFileFound)
+{
+	//	
+}
+

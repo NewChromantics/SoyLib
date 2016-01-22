@@ -6,6 +6,11 @@
 #include <scope_ptr.h>
 
 
+namespace Platform
+{
+	void	EnumFiles(const std::string& Directory,std::function<void(const std::string&)> OnFileFound);
+}
+
 namespace Soy
 {
 	SoyTime		GetFileTimestamp(const std::string& Filename);
