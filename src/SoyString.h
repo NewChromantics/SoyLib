@@ -49,6 +49,7 @@ namespace Soy
 	bool		StringEndsWith(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
 	template <size_t BUFFERSIZE>
 	bool		StringEndsWith(const std::string& Haystack,const char* (& Needles)[BUFFERSIZE], bool CaseSensitive);
+	bool		StringEndsWith(const std::string& Haystack,const ArrayBridge<std::string>& Needles, bool CaseSensitive);
 	bool		StringMatches(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
 	
 	std::string	StringJoin(const std::vector<std::string>& Strings,const std::string& Glue);
@@ -218,6 +219,7 @@ inline bool Soy::StringEndsWith(const std::string& Haystack,const char* (& Needl
 			return true;
 	return false;
 }
+
 
 
 template<typename TYPE>

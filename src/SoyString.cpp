@@ -131,6 +131,15 @@ bool Soy::StringEndsWith(const std::string& Haystack, const std::string& Needle,
 	*/
 }
 
+bool Soy::StringEndsWith(const std::string& Haystack,const ArrayBridge<std::string>& Needles, bool CaseSensitive)
+{
+	for ( int i=0;	i<Needles.GetSize();	i++ )
+		if ( StringEndsWith( Haystack, Needles[i], CaseSensitive ) )
+			return true;
+	return false;
+}
+
+
 std::string	Soy::StringJoin(const std::vector<std::string>& Strings,const std::string& Glue)
 {
 	//	gr: consider a lambda here?
