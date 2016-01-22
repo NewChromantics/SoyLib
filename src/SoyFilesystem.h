@@ -6,8 +6,24 @@
 #include <scope_ptr.h>
 
 
+
+namespace SoyPathType
+{
+	enum Type
+	{
+		Unknown,
+		File,
+		Directory,
+	};
+};
+
+
 namespace Platform
 {
+#if defined(__OBJC__)
+	void	EnumNsDirectory(const std::string& Directory,std::function<void(const std::string&)> OnFileFound,bool Recursive);
+#endif
+	
 	void	EnumFiles(const std::string& Directory,std::function<void(const std::string&)> OnFileFound);
 }
 
