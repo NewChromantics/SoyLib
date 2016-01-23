@@ -551,10 +551,11 @@ public:
 class TMediaExtractorParams
 {
 public:
-	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs) :
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames) :
 		mFilename			( Filename ),
 		mOnFrameExtracted	( OnFrameExtracted ),
-		mReadAheadMs		( ReadAheadMs )
+		mReadAheadMs		( ReadAheadMs ),
+		mDiscardOldFrames	( false )
 	{
 	}
 	
@@ -563,6 +564,7 @@ public:
 	std::string					mThreadName;
 	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
 	SoyTime						mReadAheadMs;
+	bool						mDiscardOldFrames;
 };
 
 
