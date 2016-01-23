@@ -35,6 +35,8 @@ namespace Unity
 	std::shared_ptr<Cuda::TContext>		CudaContext;
 #endif
 	
+	
+	SoyEvent<bool>		mOnDeviceShutdown;	
 }
 
 
@@ -336,6 +338,11 @@ void Unity::Shutdown(UnityDevice::Type Device)
 {
 	std::Debug.GetOnFlushEvent().RemoveListener( DebugListener );
 
+	{
+		bool Dummy;
+		mOnDeviceShutdown.OnTriggered(Dummy);
+	}
+	
 	//	free all contexts
 	//	gr: may need to defer some of these!
 	OpenglContext.reset();
