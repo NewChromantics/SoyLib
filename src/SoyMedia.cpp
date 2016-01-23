@@ -1107,7 +1107,6 @@ size_t TAudioBufferBlock::RemoveDataUntil(SoyTime Time)
 		return 0;
 	
 	auto StartTime = GetSampleTime( 0 );
-	auto EndTime = GetSampleTime( mData.GetSize()-1 );
 	
 	if ( Time <= StartTime )
 		return 0;
