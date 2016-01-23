@@ -37,13 +37,13 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::MetaData,			"metadata" },
 	{ SoyMediaFormat::Muxed,			"muxed" },
 	
-	
 	{ SoyMediaFormat::Greyscale,		"Greyscale" },
 	{ SoyMediaFormat::GreyscaleAlpha,	"GreyscaleAlpha" },
 	{ SoyMediaFormat::RGB,				"RGB" },
 	{ SoyMediaFormat::RGBA,				"RGBA" },
 	{ SoyMediaFormat::BGRA,				"BGRA" },
 	{ SoyMediaFormat::BGR,				"BGR" },
+	{ SoyMediaFormat::ARGB,				"ARGB" },
 	{ SoyMediaFormat::KinectDepth,		"KinectDepth" },
 	{ SoyMediaFormat::FreenectDepth10bit,	"FreenectDepth10bit" },
 	{ SoyMediaFormat::FreenectDepth11bit,	"FreenectDepth11bit" },
