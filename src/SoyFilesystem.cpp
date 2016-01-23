@@ -77,8 +77,12 @@ void OnFileChanged(
 #endif
 
 
-Soy::TFileWatch::TFileWatch(const std::string& Filename) :
+Soy::TFileWatch::TFileWatch(const std::string& Filename)
+
+#if defined(TARGET_OSX)
+:
 	mStream	( StreamRelease )
+#endif
 {
 	//	debug callback
 	auto DebugOnChanged = [](const std::string& Filename)
