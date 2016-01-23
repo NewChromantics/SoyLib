@@ -365,13 +365,40 @@ FullRangeVideo=0;
 	return FormatDesc;
 }
 
+SoyPixelsFormat::Type Avf::SoyPixelFormat_FromFourcc(uint32 Fourcc)
+{
+	//	check for avf specific fourcc's
+	switch ( Fourcc )
+	{
+		case kCVPixelFormatType_8Indexed:	return SoyPixelsFormat::Greyscale;
+		case kCVPixelFormatType_24RGB:		return SoyPixelsFormat::RGB;
+		case kCVPixelFormatType_24BGR:		return SoyPixelsFormat::BGR;
+		case kCVPixelFormatType_32ARGB:		return SoyPixelsFormat::ARGB;
+		case kCVPixelFormatType_32BGRA:		return SoyPixelsFormat::BGRA;
+		case kCVPixelFormatType_420YpCbCr8Planar:	return SoyPixelsFormat::Yuv_8_88_Video;
+		case kCVPixelFormatType_420YpCbCr8PlanarFullRange:	return SoyPixelsFormat::Yuv_8_88_Full;
+		case kCVPixelFormatType_OneComponent8:	return SoyPixelsFormat::Greyscale;
+		case kCVPixelFormatType_TwoComponent8:	return SoyPixelsFormat::GreyscaleAlpha;
+			
+		default:
+			return SoyPixelsFormat::Invalid;
+	}
+}
 
+SoyMediaFormat::Type Avf::SoyMediaFormat_FromFourcc(uint32 Fourcc,int H264LengthSize)
+{
+	auto AvfPixelFormat = SoyPixelFormat_FromFourcc( Fourcc );
+	if ( AvfPixelFormat != SoyPixelsFormat::Invalid )
+		return SoyMediaFormat::FromPixelFormat( AvfPixelFormat );
+	
+	return SoyMediaFormat::FromFourcc( Fourcc, H264LengthSize );
+}
 
 //	gr: speed this up! (or reduce usage) all the obj-c calls are expensive.
 TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 {
 	TStreamMeta Meta;
-	auto Fourcc = CFSwapInt32HostToBig( CMFormatDescriptionGetMediaSubType(FormatDesc) );
+	auto Fourcc = CMFormatDescriptionGetMediaSubType(FormatDesc);
 	int H264LengthSize = -1;
 	
 	//if ( SoyMediaFormat::IsH264Fourcc(Fourcc) )
@@ -400,7 +427,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 		}
 	}
 	
-	Meta.mCodec = SoyMediaFormat::FromFourcc( Fourcc, H264LengthSize );
+	Meta.mCodec = Avf::SoyMediaFormat_FromFourcc( Fourcc, H264LengthSize );
 	
 	if ( SoyMediaFormat::IsH264( Meta.mCodec ) )
 	{
@@ -413,6 +440,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 	auto Dim = CMVideoFormatDescriptionGetPresentationDimensions( FormatDesc, usePixelAspectRatio, useCleanAperture );
 	Meta.mPixelMeta.DumbSetWidth( Dim.width );
 	Meta.mPixelMeta.DumbSetHeight( Dim.height );
+	Meta.mPixelMeta.DumbSetFormat( Avf::SoyPixelFormat_FromFourcc( Fourcc ) );
 	
 	
 	//std::stringstream Debug;
