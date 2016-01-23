@@ -597,17 +597,8 @@ public:
 	void							OnError(const std::string& Error);
 
 protected:
-	//	gr: maybe we need to correct timecodes in the extractor, not the decoder, as
-	//	+a) we need to sync all streams really
-	//	+b) we calc duration below
-	//	+c) dictate decode order correction here
-	//	-a) decode timecodes may be special...
-	//	gr: this is AT LEAST needed for correct stats (evident when we have 1 frame movies...)
-	void							CorrectExtractedPacketTimecode(TMediaPacket& Packet)
-	{
-		if ( Packet.mTimecode.mTime == 0 )
-			Packet.mTimecode.mTime = 1;
-	}
+	void							CorrectExtractedPacketTimecode(TMediaPacket& Packet);
+	void							OnPacketExtracted(SoyTime& Timestamp,size_t StreamIndex);
 	
 	void							OnClearError();
 	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams);
@@ -615,7 +606,8 @@ protected:
 	
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);
-
+	SoyTime							GetSeekTime() const			{	return mSeekTime;	}
+	
 private:
 	virtual bool					Iteration() override;
 	
@@ -625,7 +617,7 @@ public:
 	
 protected:
 	std::map<size_t,std::shared_ptr<TMediaPacketBuffer>>	mStreamBuffers;
-	std::function<void(const SoyTime,size_t)>	mOnPacketExtracted;
+	std::function<void(const SoyTime,size_t)>				mOnPacketExtracted;
 	
 private:
 	std::string						mFatalError;

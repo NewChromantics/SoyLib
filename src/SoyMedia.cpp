@@ -853,7 +853,23 @@ void TMediaExtractor::OnStreamsChanged()
 	OnStreamsChanged( GetArrayBridge(Streams) );
 }
 
+//	gr: maybe we need to correct timecodes in the extractor, not the decoder, as
+//	+a) we need to sync all streams really
+//	+b) we calc duration below
+//	+c) dictate decode order correction here
+//	-a) decode timecodes may be special...
+//	gr: this is AT LEAST needed for correct stats (evident when we have 1 frame movies...)
+void TMediaExtractor::CorrectExtractedPacketTimecode(TMediaPacket& Packet)
+{
+	if ( Packet.mTimecode.mTime == 0 )
+		Packet.mTimecode.mTime = 1;
+}
 
+void TMediaExtractor::OnPacketExtracted(SoyTime& Timecode,size_t StreamIndex)
+{
+	if ( mOnPacketExtracted )
+		mOnPacketExtracted( Timecode, StreamIndex );
+}
 
 
 
