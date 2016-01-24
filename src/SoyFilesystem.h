@@ -28,6 +28,7 @@ namespace Platform
 #endif
 	
 	void	EnumFiles(const std::string& Directory,std::function<void(const std::string&)> OnFileFound);
+	bool	EnumDirectory(const std::string& Directory,std::function<bool(std::string&,SoyPathType::Type)> OnPathFound);
 }
 
 namespace Soy

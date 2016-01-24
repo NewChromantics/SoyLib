@@ -125,6 +125,14 @@
     <ClInclude Include="..\src\SoyWave.h" />
     <ClInclude Include="..\src\stb\stb_image.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\src\SoyFilesystem.mm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|x64'">true</ExcludedFromBuild>
+    </None>
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{D18B3ABF-23BD-42D8-BAB1-DA4921F1033D}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
