@@ -2,9 +2,33 @@
 
 #include "SoyEvent.h"
 #include "SoyTime.h"
-#include <CoreServices/CoreServices.h>
 #include <scope_ptr.h>
 
+#if defined(TARGET_OSX)
+#include <CoreServices/CoreServices.h>
+#endif
+
+
+
+namespace SoyPathType
+{
+	enum Type
+	{
+		Unknown,
+		File,
+		Directory,
+	};
+};
+
+
+namespace Platform
+{
+#if defined(__OBJC__)
+	void	EnumNsDirectory(const std::string& Directory,std::function<void(const std::string&)> OnFileFound,bool Recursive);
+#endif
+	
+	void	EnumFiles(const std::string& Directory,std::function<void(const std::string&)> OnFileFound);
+}
 
 namespace Soy
 {

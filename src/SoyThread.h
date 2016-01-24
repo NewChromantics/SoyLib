@@ -173,75 +173,6 @@ public:
 
 
 
-
-
-
-
-//	c++11 threads are better!
-//	gr: if mscv > 2012?
-
-template <class M>
-class ScopedLock
-	/// A class that simplifies thread synchronization
-	/// with a mutex.
-	/// The constructor accepts a Mutex (and optionally
-	/// a timeout value in milliseconds) and locks it.
-	/// The destructor unlocks the mutex.
-{
-public:
-	explicit ScopedLock(M& mutex): _mutex(mutex)
-	{
-		_mutex.lock();
-	}
-	
-	~ScopedLock()
-	{
-		_mutex.unlock();
-	}
-
-private:
-	M& _mutex;
-
-	ScopedLock();
-	ScopedLock(const ScopedLock&);
-	ScopedLock& operator = (const ScopedLock&);
-};
-
-
-template <class M>
-class ScopedLockTimed
-	/// A class that simplifies thread synchronization
-	/// with a mutex.
-	/// The constructor accepts a Mutex (and optionally
-	/// a timeout value in milliseconds) and locks it.
-	/// The destructor unlocks the mutex.
-{
-public:
-	explicit ScopedLockTimed(M& mutex,unsigned int TimeoutMs) :
-		mMutex		( mutex ),
-		mIsLocked	( false )
-	{
-		mIsLocked = mMutex.tryLock( TimeoutMs );
-	}
-	
-	~ScopedLockTimed()
-	{
-		if ( mIsLocked )
-			mMutex.unlock();
-	}
-
-	bool	IsLocked() const	{	return mIsLocked;	}
-
-private:
-	M&		mMutex;
-	bool	mIsLocked;
-
-	ScopedLockTimed();
-	ScopedLockTimed(const ScopedLockTimed&);
-	ScopedLockTimed& operator = (const ScopedLockTimed&);
-};
-
-
 #include <thread>
 #include <mutex>
 
@@ -253,92 +184,9 @@ private:
 
 
 
-class ofMutex
-{
-public:
-	typedef ScopedLock<ofMutex> ScopedLock;
-
-public:
-	void lock()				{	mMutex.lock(); }
-	void unlock()			{	mMutex.unlock();	}
-	bool tryLock()			{	return mMutex.try_lock();	}
-
-private:
-    std::recursive_mutex    mMutex;
-};
-
-
-#if !defined(TARGET_ANDROID)
-class ofMutexTimed
-{
-public:
-	typedef ScopedLockTimed<ofMutexTimed> ScopedLockTimed;
-	typedef ScopedLock<ofMutexTimed> ScopedLock;
-
-public:
-	void lock()					{	mMutex.lock(); }
-	void unlock()				{	mMutex.unlock();	}
-	bool tryLock()				{	return mMutex.try_lock();	}
-	bool tryLock(int TimeoutMs)	{	return mMutex.try_lock_for( std::chrono::milliseconds(TimeoutMs) );	}
-
-private:
-    std::recursive_timed_mutex	mMutex;
-};
-#endif
 
 
 
-
-
-
-
-
-template<class OBJECT>
-class ofMutexT : public OBJECT, public ofMutex
-{
-public:
-	ofMutexT()
-	{
-	}
-	template<typename PARAM>
-	explicit ofMutexT(PARAM& Param) :
-		OBJECT	( Param )
-	{
-	}
-	template<typename PARAM>
-	explicit ofMutexT(const PARAM& Param) :
-		OBJECT	( Param )
-	{
-	}
-
-	OBJECT&			Get()				{	return *this;	}
-	const OBJECT&	Get() const			{	return *this;	}
-	ofMutex&		GetMutex()			{	return *this;	}
-	ofMutex&		GetMutex() const	{	return const_cast<ofMutex&>( static_cast<const ofMutex&>(*this) );	}
-};
-
-
-template<class OBJECT>
-class ofMutexM : public ofMutex
-{
-public:
-	ofMutexM()
-	{
-	}
-	template<typename PARAM>
-	explicit ofMutexM(const PARAM& Param) :
-		mMember	( Param )
-	{
-	}
-
-	OBJECT&			Get()				{	return mMember;	}
-	const OBJECT&	Get() const			{	return mMember;	}
-	ofMutex&		GetMutex()			{	return *this;	}
-	ofMutex&		GetMutex() const	{	return const_cast<ofMutex&>( static_cast<const ofMutex&>(*this) );	}
-
-public:
-	OBJECT			mMember;
-};
 
 
 
@@ -700,14 +548,14 @@ public:
 	
 public:
 	Array<TYPE>			mJobs;
-	ofMutex				mJobLock;
+	std::mutex			mJobLock;
 	SoyEvent<size_t>	mOnQueueAdded;
 };
 
 template<class TYPE>
 inline TYPE TLockQueue<TYPE>::Pop()
 {
-	ofMutex::ScopedLock Lock( mJobLock );
+	std::lock_guard<std::mutex> Lock( mJobLock );
 	if ( mJobs.IsEmpty() )
 		return TYPE();
 	return mJobs.PopAt(0);
@@ -719,7 +567,7 @@ inline bool TLockQueue<TYPE>::Push(const TYPE& Job)
 	//assert( Job.IsValid() );
 	size_t JobCount;
 	{
-		ofMutex::ScopedLock Lock( mJobLock );
+		std::lock_guard<std::mutex> Lock( mJobLock );
 		mJobs.PushBack( Job );
 		JobCount = mJobs.GetSize();
 	}

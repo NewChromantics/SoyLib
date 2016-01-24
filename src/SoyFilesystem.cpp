@@ -9,6 +9,14 @@
 #endif
 
 
+namespace Platform
+{
+#if defined(TARGET_OSX) || defined(TARGET_IOS)
+	void	EnumNsDirectory(const std::string& Directory,std::function<void(const std::string&)> OnFileFound,bool Recursive);
+#endif
+}
+
+
 SoyTime Soy::GetFileTimestamp(const std::string& Filename)
 {
 	/*
@@ -69,8 +77,12 @@ void OnFileChanged(
 #endif
 
 
-Soy::TFileWatch::TFileWatch(const std::string& Filename) :
+Soy::TFileWatch::TFileWatch(const std::string& Filename)
+
+#if defined(TARGET_OSX)
+:
 	mStream	( StreamRelease )
+#endif
 {
 	//	debug callback
 	auto DebugOnChanged = [](const std::string& Filename)
@@ -108,5 +120,14 @@ Soy::TFileWatch::TFileWatch(const std::string& Filename) :
 
 Soy::TFileWatch::~TFileWatch()
 {
+}
+
+void Platform::EnumFiles(const std::string& Directory,std::function<void(const std::string&)> OnFileFound)
+{
+	bool Recursive = false;
+	
+#if defined(TARGET_OSX) || defined(TARGET_IOS)
+	Platform::EnumNsDirectory( Directory, OnFileFound, Recursive );
+#endif
 }
 

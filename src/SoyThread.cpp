@@ -4,6 +4,12 @@
 #include <pthread.h>
 #endif
 
+
+namespace Java
+{
+	void	FlushThreadLocals();
+}
+
 namespace Soy
 {
 	namespace Private
@@ -518,6 +524,10 @@ void SoyWorker::Loop()
 			break;
 
 		mOnPreIteration.OnTriggered(Dummy);
+		
+#if defined(TARGET_ANDROID)
+		Java::FlushThreadLocals();
+#endif
 		
 		if ( !Iteration() )
 			break;

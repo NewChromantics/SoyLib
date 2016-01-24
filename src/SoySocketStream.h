@@ -12,7 +12,7 @@ class TSocketReadThread : public TStreamReader
 public:
 	TSocketReadThread(std::shared_ptr<SoySocket>& Socket,SoyRef ConnectionRef);
 	
-	virtual void					Read(TStreamBuffer& Buffer) override;	//	read next chunk of data into buffer
+	virtual bool					Read(TStreamBuffer& Buffer) override;	//	read next chunk of data into buffer
 	
 public:
 	Array<char>						mRecvBuffer;		//	static buffer, just alloc once

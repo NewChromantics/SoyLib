@@ -49,6 +49,7 @@ namespace Soy
 	bool		StringEndsWith(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
 	template <size_t BUFFERSIZE>
 	bool		StringEndsWith(const std::string& Haystack,const char* (& Needles)[BUFFERSIZE], bool CaseSensitive);
+	bool		StringEndsWith(const std::string& Haystack,const ArrayBridge<std::string>& Needles, bool CaseSensitive);
 	bool		StringMatches(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
 	
 	std::string	StringJoin(const std::vector<std::string>& Strings,const std::string& Glue);
@@ -63,12 +64,14 @@ namespace Soy
 
 	bool		StringTrimLeft(std::string& String, char TrimChar);
 	bool		StringTrimLeft(std::string& String, const ArrayBridge<char>&& TrimAnyChars);
+	bool		StringTrimLeft(std::string& String,std::function<bool(char)> TrimChar);
 	bool		StringTrimRight(std::string& String, const ArrayBridge<char>& TrimAnyChars);
 	inline bool	StringTrimRight(std::string& String, const ArrayBridge<char>&& TrimAnyChars) {	return StringTrimRight(String, TrimAnyChars);	}
 	bool		StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool CaseSensitive);
 	bool		StringTrimRight(std::string& Haystack,const std::string& Suffix,bool CaseSensitive);
 
-	std::string	StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim=false);
+	std::string	StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim=false,bool PopDelim=false);
+	std::string	StringPopUntil(std::string& Haystack,std::function<bool(char)> IsDelim,bool KeepDelim=false,bool PopDelim=false);
 	
 	bool		StringReplace(std::string& str,const std::string& from,const std::string& to);
 	bool		StringReplace(ArrayBridge<std::string>& str,const std::string& from,const std::string& to);
@@ -216,6 +219,7 @@ inline bool Soy::StringEndsWith(const std::string& Haystack,const char* (& Needl
 			return true;
 	return false;
 }
+
 
 
 template<typename TYPE>

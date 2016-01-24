@@ -290,6 +290,8 @@ public:
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override	{	return SetUniform( Name, Texture.mTexture );	}
 	bool			SetUniform(const char* Name,const float3x3& v);
 	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& Texture) override	{	return Soy_AssertTodo();	}
+	bool			SetUniform(const char* Name,const Soy::TRgb& v)						{	return SetUniform( Name, v.mRgb );	}
+	bool			SetUniform(const char* Name,const Soy::THsl& v)						{	return SetUniform( Name, v.mHsl );	}
 
 	template<typename TYPE>
 	bool	SetUniform(const std::string& Name,const TYPE& v)

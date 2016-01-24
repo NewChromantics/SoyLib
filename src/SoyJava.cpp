@@ -4,6 +4,28 @@
 #include <SoyDebug.h>
 #include <fcntl.h>
 
+#include <unistd.h>						// usleep, etc
+#include <sys/syscall.h>
+#include <map>
+
+
+namespace Java
+{
+	void			InitThread(SoyThread& Thread);
+	void			ShutdownThread(SoyThread& Thread);
+	
+	TThread&		GetThread();
+	bool			HasThread();
+	void			FlushThreadLocals();	//	wrapper to flush current thread's locals
+
+	
+	JavaVM*			vm = nullptr;
+	JNIEnv*			MainEnv = nullptr;
+	SoyListenerId	mShutdownThreadListener;
+	SoyListenerId	mInitThreadListener;
+
+	std::map<std::thread::id,std::shared_ptr<Java::TThread>>	Threads;
+}
 
 
 namespace Java
@@ -14,6 +36,104 @@ namespace Java
 	template<typename TYPE>
 	TYPE	GetField(TJniObject& Object,const std::string& FieldName);
 }
+
+
+
+bool Java::HasVm()
+{
+	return vm!=nullptr;
+}
+
+
+void Java::InitThread(SoyThread& Thread)
+{
+	//	gr: don't bother allocating a thread env each time. allocated explicitly with GetContext
+}
+
+void Java::ShutdownThread(SoyThread& Thread)
+{
+	//	cleanup this thread's java env
+	if ( vm )
+	{
+		auto Thread = std::this_thread::get_id();
+		auto Threadit = Java::Threads.find( Thread );
+		if ( Threadit != Java::Threads.end() )
+		{
+			auto pThread = Threadit->second;
+			Java::Threads.erase( Threadit );
+			
+			//	detach & shutdown
+			pThread.reset();
+		}
+	}
+}
+
+
+bool Java::HasThread()
+{
+	auto ThreadId = std::this_thread::get_id();
+
+	return ( Java::Threads.find( ThreadId ) != Java::Threads.end() );
+}
+
+
+Java::TThread& Java::GetThread()
+{
+	Soy::Assert( Java::vm!=nullptr, "VM expected" );
+	
+	auto& vm = *Java::vm;
+	
+	auto ThreadId = std::this_thread::get_id();
+	
+	auto& pThread = Java::Threads[ThreadId];
+	
+	if ( !pThread )
+	{
+		std::Debug << "Allocating new java thread in GetThread(" << ThreadId << ")..." << std::endl;
+		pThread.reset( new Java::TThread( vm ) );
+		pThread->Init();
+	}
+	
+	//	register thread init & cleanup first time we use a java context
+	if ( !mInitThreadListener.IsValid() )
+		mInitThreadListener = SoyThread::OnThreadStart.AddListener( Java::InitThread );
+	
+	if ( !mShutdownThreadListener.IsValid() )
+		mShutdownThreadListener = SoyThread::OnThreadFinish.AddListener( Java::ShutdownThread );
+	
+	return *pThread;
+}
+
+JNIEnv& Java::GetContext()
+{
+	auto& Thread = GetThread();
+	return *Thread.mThreadEnv;
+}
+
+void Java::FlushThreadLocals()
+{
+	if ( !HasThread() )
+		return;
+	
+	auto& Thread = GetThread();
+	Thread.FlushLocals();
+}
+
+
+//	called by android OS on lib load
+__export JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
+{
+	Java::vm = vm;
+	
+	if ( vm->GetEnv( reinterpret_cast<void**>(&Java::MainEnv), JNI_VERSION_1_6) != JNI_OK)
+	{
+		std::Debug << "Failed to get Java Env" << std::endl;
+		return -1;
+	}
+	
+	return JNI_VERSION_1_6;
+}
+
 
 
 
@@ -1314,7 +1434,7 @@ TJniObject TJniClass::GetStaticFieldObject(const std::string& FieldName,const st
 void JniMediaPlayer::SetDataSourceAssets(const std::string& Path)
 {
 	//	trying to stream right out of assets
-	std::Debug << "Loading android asset file descriptor " << Path << std::endl;
+	std::Debug << "JniMediaPlayer::SetDataSourceAssets(" << Path << ")" << std::endl;
 	
 	//	load file descriptor from assets
 	TJniString PathJString(Path);
@@ -1574,7 +1694,7 @@ void JniMediaExtractor::SetDataSourceJar(const std::string& OrigPath)
 void JniMediaExtractor::SetDataSourceAssets(const std::string& Path)
 {
 	//	trying to stream right out of assets
-	std::Debug << "Loading android asset file descriptor " << Path << std::endl;
+	std::Debug << "JniMediaExtractor::SetDataSourceAssets(" << Path << ")" << std::endl;
 	
 	//	load file descriptor from assets
 	TJniString Filename( Path );
@@ -1692,7 +1812,8 @@ void JniMediaExtractor::SetDataSourceAssets(const std::string& Path)
 
 
 Java::TFileHandle::TFileHandle() :
-	mFd			( INVALID_FILE_HANDLE )
+	mFd					( INVALID_FILE_HANDLE ),
+	mDoneInitialSeek	( false )
 {
 }
 
@@ -1707,12 +1828,99 @@ Java::TFileHandle::~TFileHandle()
 }
 
 
-Java::TApkFileHandle::TApkFileHandle(const std::string& Path) :
+ssize_t Java::TFileHandle::Seek()
+{
+	off_t Position = (off_t)-1;
+	
+	if ( mDoneInitialSeek )
+	{
+		//	check we haven't read past our end (applies to container files which will let us read past the offset
+		Position = lseek( mFd, 0, SEEK_CUR );
+	}
+	else
+	{
+		auto SeekPos = GetInitialSeekPos();
+		Position = lseek( mFd, SeekPos, SEEK_SET );
+	}
+	
+	if ( Position == (off_t)-1 )
+	{
+		std::stringstream Error;
+		Error << "Java file handle seek/tell(mDoneInitialSeek=" << mDoneInitialSeek << ") failed; " << Soy::Platform::GetLastErrorString();
+		throw Soy::AssertException( Error.str() );
+	}
+
+	mDoneInitialSeek = true;
+	
+	//	check for eof for chunks
+	auto Length = GetLength();
+	
+	//	unknown length
+	if ( Length <= 0 )
+		return -1;
+
+	auto StartPos = GetInitialSeekPos();
+	auto EndPos = StartPos + Length;
+	
+	//	eof file
+	if ( Position >= EndPos )
+	{
+		//std::Debug << "Pos=" << Position << ", EndPos=" << EndPos << ", StartPos=" << StartPos << std::endl;
+		return 0;
+	}
+	
+	return EndPos - Position;
+}
+
+
+void Java::TFileHandle::Read(ArrayBridge<uint8>&& Data,bool& Eof)
+{
+	auto Fd = mFd;
+
+	auto Remaining = Seek();
+	//std::Debug << "Reading " << Data.GetDataSize() << "byte of file handle... " << Remaining << " remaining" << std::endl;
+	if ( Remaining == 0 )
+	{
+		Eof = true;
+		Data.SetSize(0);
+		return;
+	}
+	
+	if ( Remaining > Data.GetDataSize() )
+		Data.SetSize( Remaining );
+	
+	
+	auto BytesRead = read( Fd, Data.GetArray(), Data.GetDataSize() );
+	if ( BytesRead == -1 )
+	{
+		std::stringstream Error;
+		Error << "Error reading file: " << Soy::Platform::GetLastErrorString();
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	Soy::Assert( BytesRead >= 0, "Unexpected return from read()");
+	
+	if ( BytesRead == 0 )
+	{
+		Eof = true;
+		Data.SetSize(0);
+		return;
+	}
+	
+	Data.SetSize( BytesRead );
+}
+
+	
+	
+Java::TApkFileHandle::TApkFileHandle(const std::string& OrigPath) :
 	mFdOffset	( 0 ),
 	mFdLength	( 0 )
 {
+	std::string Path = OrigPath;
+	Soy::StringTrimLeft( Path, "apk:", false );
+	
 	//	trying to stream right out of assets
-	std::Debug << "Loading android asset file descriptor " << Path << std::endl;
+	std::Debug << "TApkFileHandle(" << Path << ")" << std::endl;
 	
 	//	load file descriptor from assets
 	TJniString Filename( Path );
@@ -1782,6 +1990,101 @@ Java::TApkFileHandle::~TApkFileHandle()
 }
 
 
+
+
+Java::TZipFileHandle::TZipFileHandle(const std::string& OrigPath) :
+	mFdOffset	( 0 ),
+	mFdLength	( 0 )
+{
+	std::string Path = OrigPath;
+	Soy::StringTrimLeft( Path, "apk:", false );
+	Soy::StringTrimLeft( Path, "jar:", false );
+	
+	auto InternalFilenamePrefix = "!/";
+	auto JarFilePrefix = "file://";
+	
+	//	correct filename
+	//	gr: could put this prefix in the protocol, but just in case there are other methods, let our code attempt it
+	if ( !Soy::StringTrimLeft( Path, JarFilePrefix, false ) )
+		std::Debug << "Warning: Expected JAR filename (" << OrigPath << ") to begin with " << JarFilePrefix << std::endl;
+	
+	//	trying to stream right out of assets
+	std::Debug << __func__ << "(" << Path << ")" << std::endl;
+	
+	//	trim the suffix (path inside the jar/obb/zip)
+	BufferArray<std::string,2> JarAndAsset;
+	Soy::StringSplitByString( GetArrayBridge(JarAndAsset), Path, InternalFilenamePrefix, true );
+	if ( JarAndAsset.GetSize() != 2 )
+	{
+		std::stringstream Error;
+		Error << "Path did not split(x" << JarAndAsset.GetSize() << ") into filename" << InternalFilenamePrefix << "asset [" << Path << "]";
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	//	specific error for missing zip resource class
+	auto ZipResourceClass = "com.android.vending.expansion.zipfile.ZipResourceFile";
+	try
+	{
+		TJniClass UnityPlayerClass(ZipResourceClass);
+	}
+	catch(std::exception& e)
+	{
+		std::stringstream Error;
+		Error << "Error getting java class " << ZipResourceClass << ". Maybe need to add jar from android SDK (commonly built as zip_file.jar); " << e.what();
+		//	gr: output to debug and re-throw instead?
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	auto& JarFilename = JarAndAsset[0];
+	auto& AssetFilename = JarAndAsset[1];
+	
+	TJniObject Container(ZipResourceClass,JarFilename);
+	
+	//	gr: returns a null object when filenot found (no exception!) so exception is forced on error
+	TJniObject FileDescriptor = Container.CallObjectMethod("getAssetFileDescriptor", "android/content/res/AssetFileDescriptor", AssetFilename );
+
+	mAssetFileDescriptor.reset( new TJniObject( FileDescriptor ) );
+	auto& AssetFileDescriptor = *mAssetFileDescriptor;
+	
+	std::Debug << "getting FileDescriptor..." << std::endl;
+	mFileDescriptor.reset( new TJniObject( AssetFileDescriptor.CallObjectMethod("getFileDescriptor","java/io/FileDescriptor") ) );
+	
+	if ( mFileDescriptor )
+	{
+		auto& FileDescriptor = *mFileDescriptor;
+		
+		bool FileDescriptorIsValid = FileDescriptor.CallBoolMethod("valid");
+		std::Debug << "File descriptor is valid: "  << (FileDescriptorIsValid?"true":"false") << std::endl;
+		
+		//	need to retrieve a private field to get actual file handle
+		//	this may fail, but we still have the asset file descriptor for jni funcs that use it
+		try
+		{
+			mFd = Java::GetField<int>( FileDescriptor, "descriptor" );
+			std::Debug << "Extracted filedescriptor handle; " << mFd << std::endl;
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Warning: Android OS does not expose file descriptor handle; " << e.what() << std::endl;
+		}
+	}
+	
+	mFdOffset = AssetFileDescriptor.CallLongMethod("getStartOffset");
+	mFdLength = AssetFileDescriptor.CallLongMethod("getLength");
+}
+
+	
+Java::TZipFileHandle::~TZipFileHandle()
+{
+	if ( mAssetFileDescriptor )
+	{
+		mAssetFileDescriptor->CallVoidMethod("close");
+		mAssetFileDescriptor.reset();
+	}
+}
+
+
+
 Java::TRandomAccessFileHandle::TRandomAccessFileHandle(const std::string& Path)
 {
 	//	trying to stream right out of assets
@@ -1825,46 +2128,95 @@ Java::TRandomAccessFileHandle::~TRandomAccessFileHandle()
 	}
 }
 
-
-
-Java::TApkFileStreamReader::TApkFileStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer) :
-	TStreamReader	( std::string("java::TFileStreamReader ") + Filename, ReadBuffer )
+std::shared_ptr<Java::TFileHandle> Java::AllocFileHandle(const std::string& Filename)
 {
-	mHandle.reset( new Java::TApkFileHandle( Filename ) );
+	if ( Soy::StringContains( Filename, "!", true ) )
+	{
+		return std::make_shared<Java::TZipFileHandle>( Filename );
+	}
+	else if ( Soy::StringBeginsWith( Filename, "apk:", false ) )
+	{
+		return std::make_shared<Java::TApkFileHandle>( Filename );
+	}
+	else
+	{
+		return std::make_shared<Java::TRandomAccessFileHandle>( Filename );
+	}
 }
 
-Java::TApkFileStreamReader::~TApkFileStreamReader()
+
+
+Java::TFileHandleStreamReader::TFileHandleStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer) :
+	TStreamReader	( std::string("java::TFileStreamReader ") + Filename, ReadBuffer ),
+	mHandle			( AllocFileHandle( Filename ) )
+{
+}
+
+Java::TFileHandleStreamReader::~TFileHandleStreamReader()
 {
 	WaitToFinish();
 	mHandle.reset();
 }
 
-	
-void Java::TApkFileStreamReader::Read(TStreamBuffer& Buffer)
+bool Java::TFileHandleStreamReader::Read(TStreamBuffer& Buffer)
 {
-	if ( !mHandle )
-		return;
+	Soy::Assert( mHandle!=nullptr, "Java::TFileHandleStreamReader handle expected");
 	
-	auto Fd = mHandle->mFd;
-	BufferArray<char,1024> Data(1024);
+	BufferArray<uint8,1024> Data(1024);
+	bool Eof = false;
+	mHandle->Read( GetArrayBridge(Data), Eof );
 	
-	auto BytesRead = read( Fd, Data.GetArray(), Data.GetDataSize() );
-	if ( BytesRead == -1 )
-	{
-		std::stringstream Error;
-		Error << "Error reading file: " << Soy::Platform::GetLastErrorString();
-		throw Soy::AssertException( Error.str() );
-	}
-	Soy::Assert( BytesRead >= 0, "Unexpected return from read()");
-	
-	if ( BytesRead == 0 )
-	{
-		//OnEof();
-		return;
-	}
-	
-	Data.SetSize( BytesRead );
 	Buffer.Push( GetArrayBridge(Data) );
+	
+	return !Eof;
 }
 
 
+Java::TLocalRefStack::TLocalRefStack(size_t MaxLocals)
+{
+	auto Capacity = size_cast<jint>( MaxLocals );
+	
+	auto& Env = java();
+	auto Result = Env.PushLocalFrame( Capacity );
+
+	//	check for any exception
+	bool ForceThrow = (Result != 0);
+	Java::IsOkay( __func__, ForceThrow );
+}
+
+Java::TLocalRefStack::~TLocalRefStack()
+{
+	jobject ResultIn = nullptr;
+	auto ResultOut = java().PopLocalFrame( ResultIn );
+	Java::IsOkay( __func__ );
+}
+
+
+Java::TThread::TThread(JavaVM& vm) :
+	mThreadEnv		( nullptr ),
+	mVirtualMachine	( vm )
+{
+	std::Debug << "Java::TThread::TThread() constructor for thread " << SoyThread::GetCurrentThreadName() << std::endl;
+	auto EnvId = mVirtualMachine.AttachCurrentThread( &mThreadEnv, nullptr );
+	Soy::Assert( EnvId == JNI_OK, "Failed to get java env for current thread" );
+	
+	//	alloc initial stack
+	/*	gr this causes recursion, we can either add JNIEnv vars all over the place, or let the allocator set the table entry first and call Init()
+	std::Debug << __func__ << " alloc initial stack...." << std::endl;
+	FlushLocals();
+	 */
+}
+
+Java::TThread::~TThread()
+{
+	mLocalStack.reset();
+	
+	auto EnvId = mVirtualMachine.DetachCurrentThread();
+	Soy::Assert( EnvId == JNI_OK, "Failed to detatch java thread");
+}
+
+void Java::TThread::FlushLocals()
+{
+	mLocalStack.reset();
+	mLocalStack.reset( new TLocalRefStack() );
+}

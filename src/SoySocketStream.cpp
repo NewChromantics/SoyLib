@@ -12,13 +12,13 @@ TSocketReadThread::TSocketReadThread(std::shared_ptr<SoySocket>& Socket,SoyRef C
 
 
 
-void TSocketReadThread::Read(TStreamBuffer& Buffer)
+bool TSocketReadThread::Read(TStreamBuffer& Buffer)
 {
 	SoySocketConnection	ClientSocket = mSocket->GetConnection( mConnectionRef );
 	if ( !ClientSocket.IsValid() )
 	{
-		//	lost connection
-		throw Soy::AssertException("Connection lost");
+		std::Debug << "TSocketReadThread::Read Connection lost" << std::endl;
+		return false;
 	}
 	
 	//	gr use a larger static buffer so we can stream locally much faster than in 1024 chunks
@@ -31,10 +31,12 @@ void TSocketReadThread::Read(TStreamBuffer& Buffer)
 	if ( !ClientSocket.Recieve( GetArrayBridge(RecvBuffer) ) )
 	{
 		//	graceful close
-		throw Soy::AssertException("Gracefull close");
+		std::Debug << "TSocketReadThread::Read Gracefull close" << std::endl;
+		return false;
 	}
 	
 	Buffer.Push( GetArrayBridge( RecvBuffer ) );
+	return true;
 }
 
 

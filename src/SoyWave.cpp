@@ -119,6 +119,11 @@ void Wave::ConvertSample(const float Input,sint8& Output)
 	Output = size_cast<sint8>( (Input + 1.f) * 127.f );
 }
 
+void Wave::ConvertSample(const float Input,uint8& Output)
+{
+	Output = size_cast<uint8>( (Input + 1.f) * 127.f );
+}
+
 void Wave::ConvertSample(const float Input,sint16& Output)
 {
 	Output = Soy::Lerp<sint16>( -32768, 32767, Input );
