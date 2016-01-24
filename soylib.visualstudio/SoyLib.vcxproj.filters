@@ -286,4 +286,9 @@
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\src\SoyFilesystem.mm">
+      <Filter>src</Filter>
+    </None>
+  </ItemGroup>
 </Project>

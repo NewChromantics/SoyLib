@@ -1,5 +1,6 @@
 #include "SoyFilesystem.h"
 #include "SoyDebug.h"
+#include "heaparray.hpp"
 
 #if defined(TARGET_OSX)
 #include <sys/stat.h>
@@ -122,12 +123,162 @@ Soy::TFileWatch::~TFileWatch()
 {
 }
 
+
+#if defined(TARGET_WINDOWS)
+std::string GetFilename(WIN32_FIND_DATA& FindData)
+{
+	std::string Filename = FindData.cFileName;
+	return Filename;
+}
+#endif
+
+
+#if defined(TARGET_WINDOWS)
+SoyPathType::Type GetPathType(WIN32_FIND_DATA& FindData)
+{
+	auto Directory = bool_cast(FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+
+	if ( Directory )
+	{
+		//	skip magic dirs
+		auto Filename = GetFilename( FindData );
+		if ( Filename == "." )
+			return SoyPathType::Unknown;
+		if ( Filename == ".." )
+			return SoyPathType::Unknown;
+
+		return SoyPathType::Directory;
+	}
+
+	return SoyPathType::File;
+}
+#endif
+
+
+#if defined(TARGET_WINDOWS)
+bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DATA&)> OnItemFound)
+{
+	WIN32_FIND_DATA FindData;
+	ZeroMemory( &FindData, sizeof(FindData) );
+	auto Handle = FindFirstFile( Directory.c_str(), &FindData );
+
+	//	invalid starting point... is okay?
+	if ( Handle == INVALID_HANDLE_VALUE )
+		return true;
+
+	bool Result = true;
+
+	try
+	{
+		//	notify on first file
+		Result = OnItemFound( FindData );
+
+		while ( Result )
+		{
+			if ( !FindNextFile( Handle, &FindData ) )
+			{
+				auto ErrorValue = Soy::Platform::GetLastError();
+				if ( ErrorValue != ERROR_NO_MORE_FILES )
+				{
+					std::stringstream Error;
+					Error << "FindNextFile error: " << Soy::Platform::GetErrorString( ErrorValue );
+					throw Soy::AssertException( Error.str() );
+				}
+				break;
+			}
+			
+			Result = OnItemFound( FindData );
+		}
+	}
+	catch (std::exception& e)
+	{
+		FindClose( Handle );
+		throw;
+	}
+
+	FindClose( Handle );
+	return Result;
+}
+#endif
+
+
+
+#if defined(TARGET_WINDOWS)
+bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(std::string&,SoyPathType::Type)> OnPathFound)
+{
+	auto OnFindItem = [&](WIN32_FIND_DATA& FindData)
+	{
+		try
+		{
+			auto UrlType = GetPathType( FindData );
+			auto Filename = GetFilename( FindData );
+			
+			//	if this returns false, bail
+			if ( !OnPathFound( Filename, UrlType ) )
+				return false;
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Error extracting path meta; " << e.what() << std::endl;
+		}
+		return true;
+	};
+
+	std::stringstream SearchDirectory;
+	SearchDirectory << Directory << "/*";
+
+	return ::EnumDirectory( SearchDirectory.str(), OnFindItem );
+}
+#endif
+
+
+
 void Platform::EnumFiles(const std::string& Directory,std::function<void(const std::string&)> OnFileFound)
 {
+	if ( Directory.empty() )
+		return;
+
 	bool Recursive = false;
 	
-#if defined(TARGET_OSX) || defined(TARGET_IOS)
-	Platform::EnumNsDirectory( Directory, OnFileFound, Recursive );
-#endif
+	Array<std::string> SearchDirectories;
+	SearchDirectories.PushBack( Directory );
+	
+	//	don't get stuck!
+	static int MatchLimit = 1000;
+	int MatchCount = 0;
+	
+	while ( !SearchDirectories.IsEmpty() )
+	{
+		auto Dir = SearchDirectories.PopAt(0);
+		
+		auto AddFile = [&](std::string& Path,SoyPathType::Type PathType)
+		{
+			MatchCount++;
+
+			if ( PathType == SoyPathType::Directory )
+			{
+				if ( !Recursive )
+					return true;
+				
+				SearchDirectories.PushBack( Path );
+			}
+			else if ( PathType == SoyPathType::File )
+			{
+				OnFileFound( Path );
+			}
+			
+			if ( MatchCount > MatchLimit )
+			{
+				std::Debug << "Hit match limit (" << MatchCount << ") bailing in case we've got stuck in a loop" << std::endl;
+				return false;
+			}
+			
+			return true;
+		};
+		
+		if ( !Platform::EnumDirectory( Dir, AddFile ) )
+			break;
+	}
 }
+
 
