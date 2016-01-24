@@ -232,6 +232,14 @@ bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(std
 #endif
 
 
+#if defined(TARGET_ANDROID)
+bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(std::string&,SoyPathType::Type)> OnPathFound)
+{
+	//	todo, bail early
+	return false;
+}
+#endif
+
 
 void Platform::EnumFiles(const std::string& Directory,std::function<void(const std::string&)> OnFileFound)
 {
