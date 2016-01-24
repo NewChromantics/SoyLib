@@ -27,7 +27,8 @@ std::string UrlGetFilename(NSURL* Path)
 	auto* AbsolutePathNs = [Path absoluteString];
 	auto AbsolutePath = Soy::NSStringToString( AbsolutePathNs );
 
-	Soy::StringTrimLeft( AbsolutePath, "file://", true );
+	//	gr: this is just to make it pretty and remove the protocol really...
+	Soy::StringTrimLeft( AbsolutePath, "file://localhost", true );
 
 	return AbsolutePath;
 	/*
