@@ -242,7 +242,6 @@ public:
 
 	bool			SetFormat(SoyPixelsFormat::Type Format);
 	bool			SetChannels(uint8 Channels);
-	void			SetPng(const ArrayBridge<char>& PngData) __deprecated;
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
 	bool			SetRawSoyPixels(const ArrayBridge<char>&& RawData)	{	return SetRawSoyPixels( RawData );	}
 
