@@ -81,30 +81,6 @@ namespace Opengl
 	class TContext;
 	class TSync;
 
-	
-	// It probably isn't worth keeping these shared here, each user
-	// should just duplicate them.
-	extern const char * externalFragmentShaderSource;
-	extern const char * textureFragmentShaderSource;
-	extern const char * identityVertexShaderSource;
-	extern const char * untexturedFragmentShaderSource;
-	
-	extern const char * VertexColorVertexShaderSrc;
-	extern const char * VertexColorSkinned1VertexShaderSrc;
-	extern const char * VertexColorFragmentShaderSrc;
-	
-	extern const char * SingleTextureVertexShaderSrc;
-	extern const char * SingleTextureSkinned1VertexShaderSrc;
-	extern const char * SingleTextureFragmentShaderSrc;
-	
-	extern const char * LightMappedVertexShaderSrc;
-	extern const char * LightMappedSkinned1VertexShaderSrc;
-	extern const char * LightMappedFragmentShaderSrc;
-	
-	extern const char * ReflectionMappedVertexShaderSrc;
-	extern const char * ReflectionMappedSkinned1VertexShaderSrc;
-	extern const char * ReflectionMappedFragmentShaderSrc;
-	
 
 	#define Opengl_IsOkay()			Opengl::IsOkay(__func__)
 	//#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__)+ " flush", false )
