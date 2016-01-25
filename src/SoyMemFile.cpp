@@ -347,7 +347,7 @@ bool MemFileArray::SetSize(size_t size, bool preserve,bool AllowLess)
 
 std::shared_ptr<MemFileArray> SoyMemFileManager::AllocFile(const ArrayBridge<char>& Data)
 {
-	ofMutex::ScopedLock Lock(mFileLock);
+	std::lock_guard<std::mutex> Lock(mFileLock);
 
 	//	make up filename
 	mFilenameRef++;
