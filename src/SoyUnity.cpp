@@ -181,7 +181,7 @@ SoyPixelsFormat::Type Unity::GetPixelFormat(Texture2DPixelFormat::Type Format)
 #if defined(TARGET_WINDOWS)
 BOOL APIENTRY DllMain(HMODULE Module, DWORD Reason, LPVOID Reserved)
 {
-	std::Debug << "DllMain(" << Reason << ")" << std::endl;
+	//std::Debug << "DllMain(" << Reason << ")" << std::endl;
 	return TRUE;
 }
 #endif
