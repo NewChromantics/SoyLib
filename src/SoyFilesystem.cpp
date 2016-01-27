@@ -290,3 +290,10 @@ void Platform::EnumFiles(const std::string& Directory,std::function<void(const s
 }
 
 
+void Platform::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
+{
+#if defined(TARGET_OSX)
+	Extensions.PushBack(".ds_store");
+#endif
+}
+

@@ -429,3 +429,7 @@ __export void FlushDebug(Unity::LogCallback Callback)
 }
 
 
+void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
+{
+	Extensions.PushBack(".meta");
+}
