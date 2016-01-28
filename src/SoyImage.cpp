@@ -24,28 +24,53 @@ namespace Stb
 	void	Read(SoyPixelsImpl& Pixels,const ArrayBridge<char>& Buffer,TReadFunction ReadFunction);
 }
 
-void Stb::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,TReadFunction ReadFunction)
+
+class TLambdaTemp
+{
+public:
+	std::function<int(char*,int)>	mReadFunction;
+	std::function<void(int)>		mSkipFunction;
+	std::function<int()>			mEofFunction;
+};
+
+
+
+class StbContext
+{
+public:
+	StbContext(TStreamBuffer& Buffer,bool PopData);
+	~StbContext();
+	
+	std::string		GetError();
+	void			Flush();		//	when finished, flush data so on destruction we won't unpop it
+	
+public:
+	TStreamBuffer&	mBuffer;
+#if defined(USE_STB)
+	TLambdaTemp		mLambdaTemp;
+	stbi_io_callbacks	mCallbacks;
+	stbi__context	mContext;
+#endif
+	bool			mPopData;
+	Array<char>		mPoppedData;		//	data to restore on error, or unpop if we want to save it
+};
+
+
+
+
+StbContext::StbContext(TStreamBuffer& Buffer,bool PopData) :
+	mPopData	( PopData ),
+	mBuffer		( Buffer )
 {
 #if defined(USE_STB)
 	
-	//	store popped data in case we abort and need to put it back into the buffer
-	Array<char> PoppedData;
-
-	class TLambdaTemp
-	{
-	public:
-		std::function<int(char*,int)>	mReadFunction;
-		std::function<void(int)>		mSkipFunction;
-		std::function<int()>			mEofFunction;
-	};
-	
-	auto Read = [&PoppedData,&Buffer](char* Destination,int DestinationSize) -> int
+	auto Read = [this,&Buffer](char* Destination,int DestinationSize) -> int
 	{
 		auto PopSize = std::min( size_cast<size_t>(DestinationSize), Buffer.GetBufferedSize() );
 		size_t DestinationCounter = 0;
 		auto DestinationArray = GetRemoteArray( Destination, DestinationSize, DestinationCounter );
 		Buffer.Pop( PopSize, GetArrayBridge(DestinationArray) );
-		PoppedData.PushBackArray( DestinationArray );
+		this->mPoppedData.PushBackArray( DestinationArray );
 		return size_cast<int>(DestinationArray.GetSize());
 	};
 	auto ReadWrapper = [](void* Context,char* Destination,int DestinationSize)
@@ -54,7 +79,7 @@ void Stb::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,TReadFunction ReadFun
 		return LambdaTemp.mReadFunction( Destination, DestinationSize );
 	};
 	
-	auto Skip = [&PoppedData,&Buffer](int SkipSize)
+	auto Skip = [this,&Buffer](int SkipSize)
 	{
 		//	gr: stb doesn't handle no-enough data...
 		if ( SkipSize > Buffer.GetBufferedSize() )
@@ -64,7 +89,7 @@ void Stb::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,TReadFunction ReadFun
 			throw Soy::AssertException( Error.str() );
 		}
 		auto PopSize = std::min( size_cast<size_t>(SkipSize), Buffer.GetBufferedSize() );
-		Buffer.Pop( PopSize, GetArrayBridge(PoppedData) );
+		Buffer.Pop( PopSize, GetArrayBridge(this->mPoppedData) );
 	};
 	auto SkipWrapper = [](void* Context,int SkipSize)
 	{
@@ -73,7 +98,7 @@ void Stb::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,TReadFunction ReadFun
 	};
 	
 	
-	auto Eof = [&PoppedData,&Buffer]() -> int
+	auto Eof = [&Buffer]() -> int
 	{
 		return Buffer.GetBufferedSize() == 0;
 	};
@@ -84,54 +109,71 @@ void Stb::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,TReadFunction ReadFun
 	};
 	
 	
-	TLambdaTemp LambdaTemp;
-	LambdaTemp.mReadFunction = Read;
-	LambdaTemp.mSkipFunction = Skip;
-	LambdaTemp.mEofFunction = Eof;
-
-	stbi_io_callbacks Callbacks;
-	Callbacks.read = ReadWrapper;
-	Callbacks.skip = SkipWrapper;
-	Callbacks.eof = EofWrapper;
+	mLambdaTemp.mReadFunction = Read;
+	mLambdaTemp.mSkipFunction = Skip;
+	mLambdaTemp.mEofFunction = Eof;
 	
-	stbi__context Context;
-	stbi__start_callbacks( &Context, &Callbacks, &LambdaTemp );
+	mCallbacks.read = ReadWrapper;
+	mCallbacks.skip = SkipWrapper;
+	mCallbacks.eof = EofWrapper;
 	
-	try
-	{
-		int Width = 0;
-		int Height = 0;
-		int Channels = 0;
-		//	gr: use 0 for "defaults"
-		int RequestedChannels = 0;
-		auto* DecodedPixels = ReadFunction( &Context, &Width, &Height, &Channels, RequestedChannels );
-		if ( !DecodedPixels )
-		{
-			//	gr: as this is not thread safe, it could come out mangled :( maybe add a lock around error popping before read (maybe have to lock around the whole thing)
-			auto* StbError = stbi_failure_reason();
-			if ( !StbError )
-				StbError = "Unknown error";
-			throw Soy::AssertException( StbError );
-		}
-		
-		//	convert output into pixels
-		//	gr: have to assume size
-		auto Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
-		SoyPixelsMeta Meta( Width, Height, Format );
-		SoyPixelsRemote OutputPixels( DecodedPixels, Meta.GetDataSize(), Meta );
-		Pixels.Copy( OutputPixels );
-	}
-	catch(std::exception& e)
-	{
-		//	unpop data so we can try again
-		Buffer.UnPop( GetArrayBridge(PoppedData) );
-		throw;
-	}
-
+	stbi__start_callbacks( &mContext, &mCallbacks, &mLambdaTemp );
 #else
 	throw Soy::AssertException("No STB support, no image reading");
 #endif
 }
+
+StbContext::~StbContext()
+{
+	//	if we reach here and there's popped data, we have probably error'd and need to restore the data back to the buffer
+	//	use Flush() on success
+	mBuffer.UnPop( GetArrayBridge(mPoppedData) );
+}
+
+void StbContext::Flush()
+{
+	if ( mPopData )
+		mPoppedData.Clear();
+}
+
+
+std::string StbContext::GetError()
+{
+	//	gr: as this is not thread safe, it could come out mangled :( maybe add a lock around error popping before read (maybe have to lock around the whole thing)
+	auto* StbError = stbi_failure_reason();
+	if ( !StbError )
+		return "Unknown error";
+
+	return StbError;
+}
+
+
+void Stb::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,TReadFunction ReadFunction)
+{
+	StbContext Context( Buffer, true );
+	int Width = 0;
+	int Height = 0;
+	int Channels = 0;
+	//	gr: use 0 for "defaults"
+	int RequestedChannels = 0;
+	auto* DecodedPixels = ReadFunction( &Context.mContext, &Width, &Height, &Channels, RequestedChannels );
+	if ( !DecodedPixels )
+	{
+		throw Soy::AssertException( Context.GetError() );
+	}
+		
+	//	convert output into pixels
+	//	gr: have to assume size
+	auto Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
+	SoyPixelsMeta Meta( Width, Height, Format );
+	SoyPixelsRemote OutputPixels( DecodedPixels, Meta.GetDataSize(), Meta );
+	Pixels.Copy( OutputPixels );
+	
+	//	success, don't let context unpop data
+	Context.Flush();
+
+}
+
 
 
 void Stb::Read(SoyPixelsImpl& Pixels,const ArrayBridge<char>& ArrayBuffer,TReadFunction ReadFunction)
@@ -178,10 +220,96 @@ void Png::Read(SoyPixelsImpl& Pixels,const ArrayBridge<char>& Buffer)
 	Stb::Read( Pixels, Buffer, stbi__png_load );
 }
 
+/*static */int stbi__process_marker(stbi__jpeg *z, int m);
+
+static int stbi__process_marker_withmeta(stbi__jpeg *z, int m,std::function<void(const stbi_uc*,int,stbi_uc)> EnumMeta)
+{
+	// check for comment block or APP blocks
+	if ((m >= 0xE0 && m <= 0xEF) || m == 0xFE) {
+		
+		int length = stbi__get16be(z->s)-2;
+		if ( EnumMeta )
+		{
+			auto* Data = (unsigned char*)stbi__malloc( length );
+			if (!Data)
+			{
+				return stbi__err("outofmem", "Out of memory");
+			}
+			if (!stbi__getn(z->s, Data, length ))
+			{
+				STBI_FREE(Data);
+				return stbi__err("outofmem", "Out of memory");
+			}
+			EnumMeta( Data, length, m );
+			STBI_FREE(Data);
+		}
+		else
+		{
+			stbi__skip(z->s, length );
+		}
+		return 1;
+	}
+	
+	return stbi__process_marker( z, m );
+}
+
+static int stbi__decode_jpeg_header_with_meta(stbi__jpeg *z, int scan,std::function<void(const stbi_uc*,int,stbi_uc)> EnumMeta)
+{
+	int m;
+	z->marker = STBI__MARKER_none; // initialize cached marker to empty
+	m = stbi__get_marker(z);
+	if (!stbi__SOI(m)) return stbi__err("no SOI","Corrupt JPEG");
+	if (scan == STBI__SCAN_type) return 1;
+	m = stbi__get_marker(z);
+	while (!stbi__SOF(m)) {
+		if (!stbi__process_marker_withmeta(z,m,EnumMeta)) return 0;
+		m = stbi__get_marker(z);
+		while (m == STBI__MARKER_none) {
+			// some files have extra padding after their blocks, so ok, we'll scan
+			if (stbi__at_eof(z->s)) return stbi__err("no SOF", "Corrupt JPEG");
+			m = stbi__get_marker(z);
+		}
+	}
+	z->progressive = stbi__SOF_progressive(m);
+	if (!stbi__process_frame_header(z, scan)) return 0;
+	return 1;
+}
+
+void Jpeg::ReadMeta(ArrayBridge<Jpeg::Exif>&& Metas,TStreamBuffer& Buffer)
+{
+	auto EnumMeta = [&Metas](const stbi_uc* Data,int DataLength,stbi_uc MarkerCode)
+	{
+		//	EXIF is split by a zero byte
+		stbi_uc ExifDelim = 0;
+		auto& Meta = Metas.PushBack();
+		
+		for ( int i=0;	i<DataLength;	i++ )
+		{
+			if ( Data[i] == 0 )
+				break;
+			Meta.mKey += static_cast<char>( Data[i] );
+		}
+		
+		//	copy the rest of the data
+		auto ExifData = GetRemoteArray( Data, DataLength - Meta.mKey.length() );
+		Meta.mData.Copy( ExifData );
+	};
+	
+	StbContext Context( Buffer, false );
+	
+	auto* s = &Context.mContext;
+	stbi__jpeg j;
+	j.s = s;
+	stbi__setup_jpeg(&j);
+	auto r = stbi__decode_jpeg_header_with_meta(&j, STBI__SCAN_load, EnumMeta );
+	stbi__rewind(s);
+}
+
 void Jpeg::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer)
 {
 	Stb::Read( Pixels, Buffer, stbi__jpeg_load );
 }
+
 
 void Gif::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer)
 {

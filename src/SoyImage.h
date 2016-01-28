@@ -1,11 +1,12 @@
 #pragma once
 
 #include "SoyPixels.h"
-
+#include <tuple>
 
 class SoyPixelsMeta;
 class SoyPixelsImpl;
 class TStreamBuffer;
+
 
 
 //	stb interfaces which haven't yet had any specific Soy stuff yet
@@ -18,7 +19,16 @@ namespace Png
 
 namespace Jpeg
 {
+	class Exif
+	{
+	public:
+		std::string		mKey;
+		Array<uint8>	mData;
+	};
+	
 	void		Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer);
+	void		ReadMeta(ArrayBridge<Jpeg::Exif>&& Metas,TStreamBuffer& Buffer);
+
 	static const char*	FileExtensions[] = {".jpg",".jpeg"};
 }
 
