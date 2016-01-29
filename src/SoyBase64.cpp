@@ -102,7 +102,7 @@ void Base64::Decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded)
 	auto& ret = Decoded;
 
 	//	gr: this should inline when optimised (-O1 etc)
-	auto Decode4to3 = [&ret,&char_array_4,&char_array_3](int Length)
+	auto Decode4to3 = [&base64_chars,&ret,&char_array_4,&char_array_3](int Length)
 	{
 		for ( int j = 0; j < 4; j++)
 		{

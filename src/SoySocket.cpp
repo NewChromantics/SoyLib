@@ -176,7 +176,7 @@ bool Soy::Winsock::Init()
 	auto Error = WSAStartup(wVersionRequested, &wsaData);
 	if ( Error != 0 )
 	{
-		std::Debug << "Failed to initialise Winsock. " << Platform::GetLastErrorString() << std::endl; 
+		std::Debug << "Failed to initialise Winsock. " << ::Platform::GetLastErrorString() << std::endl; 
 		return false;
 	}
 #endif

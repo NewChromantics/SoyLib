@@ -35,6 +35,7 @@
     <ClCompile Include="..\src\memheap.cpp" />
     <ClCompile Include="..\src\SoyArray.cpp" />
     <ClCompile Include="..\src\SoyAssert.cpp" />
+    <ClCompile Include="..\src\SoyBase64.cpp" />
     <ClCompile Include="..\src\SoyCuda.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -86,6 +87,7 @@
     <ClInclude Include="..\src\SortArray.h" />
     <ClInclude Include="..\src\SoyArray.h" />
     <ClInclude Include="..\src\SoyAssert.h" />
+    <ClInclude Include="..\src\SoyBase64.h" />
     <ClInclude Include="..\src\SoyCuda.h" />
     <ClInclude Include="..\src\SoyDebug.h" />
     <ClInclude Include="..\src\SoyDirectx.h" />
