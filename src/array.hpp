@@ -347,6 +347,13 @@ public:
 		auto* Start = reinterpret_cast<uint8*>( this->GetArray() ) + ByteOffset;
 		return FixedRemoteArray<TYPE>( reinterpret_cast<TYPE*>( Start ), OutputElements );
 	}
+
+	FixedRemoteArray<T>	GetSubArray(size_t IndexOffset)
+	{
+		auto ByteOffset = IndexOffset * this->GetElementSize();
+		auto OutputElements = this->GetSize() - IndexOffset;
+		return GetSubArray<T>( ByteOffset, OutputElements );
+	}
 };
 
 
