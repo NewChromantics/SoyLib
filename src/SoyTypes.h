@@ -325,12 +325,13 @@ namespace Soy
 }
 
 
-namespace Soy
+namespace Base64
 {
+	//	gr: change these inputs so it's char for encoded, uint8 for decoded
 	//	http://www.adp-gmbh.ch/cpp/common/base64.html
-	void			base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded);
-	void			base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded);
-	inline void		base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>&& Decoded)	{	base64_decode( Encoded, Decoded );	}
+	void			Encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded);
+	void			Decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded);
+	inline void		Decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>&& Decoded)	{	Decode( Encoded, Decoded );	}
 };
 
 

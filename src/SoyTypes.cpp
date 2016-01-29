@@ -306,26 +306,39 @@ void Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename)
 }
 
 
-
-
-static const std::string base64_chars =
-"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-"abcdefghijklmnopqrstuvwxyz"
-"0123456789+/";
-
-
-static inline bool is_base64(unsigned char c)
+namespace Base64
 {
-	if ( c>='A' && c<='Z' )	return true;
-	if ( c>='a' && c<='z' )	return true;
-	if ( c>='0' && c<='9' )	return true;
-	if ( c == '+' )			return true;
-	if ( c == '/' )			return true;
-	return false;
+	const std::string Alphabet =
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz"
+		"0123456789+/";
+	const char PaddingChar = '=';
+
+	
+	inline bool IsBase64Char(unsigned char c)
+	{
+		//	gr: faster than using alphabet
+		if ( c>='A' && c<='Z' )	return true;
+		if ( c>='a' && c<='z' )	return true;
+		if ( c>='0' && c<='9' )	return true;
+		if ( c == '+' )			return true;
+		if ( c == '/' )			return true;
+		return false;
+	}
+	
+	inline bool IsPadding(unsigned char c)
+	{
+		return c==PaddingChar;
+	}
+
 }
 
-void Soy::base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded)
+
+
+void Base64::Encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded)
 {
+	auto& base64_chars = Alphabet;
+	
 	//	gr: pre-alloc. base64 turns 3 chars into 4...
 	//	just double what we take in.
 	Encoded.Reserve( Decoded.GetSize()*2 );
@@ -369,63 +382,73 @@ void Soy::base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Deco
 			ret.PushBack( base64_chars[char_array_4[j]] );
 		
 		while((i++ < 3))
-			ret.PushBack('=');
+			ret.PushBack( PaddingChar );
 		
 	}
 	
 }
 
-void Soy::base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded)
+void Base64::Decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded)
 {
+	auto& base64_chars = Alphabet;
+	
+	
 	//	gr: pre-alloc. base64 turns 3 chars into 4...
 	//		so decoding... we only need 3/4 of the data
 	//	...	just alloc same amount, it'll be smaller
 	Decoded.Reserve( Encoded.GetSize() );
 	
-	size_t in_len = Encoded.GetSize();
+	ssize_t in_len = Encoded.GetSize();
 	int i = 0;
 	int j = 0;
 	int in_ = 0;
 	unsigned char char_array_4[4], char_array_3[3];
 	auto& ret = Decoded;
-	
-	while (in_len-- )
+
+	//	gr: this should inline when optimised (-O1 etc)
+	auto Decode4to3 = [&ret,&char_array_4,&char_array_3](int Length)
 	{
-		if ( Encoded[in_] == '=' )
-			continue;
-		if ( !is_base64(Encoded[in_] ) )
-			throw Soy::AssertException("Character not base64");
-		
-		char_array_4[i++] = Encoded[in_];
-		in_++;
-		if (i ==4)
+		for ( int j = 0; j < 4; j++)
 		{
-			for (i = 0; i <4; i++)
-				char_array_4[i] = size_cast<unsigned char>(base64_chars.find(char_array_4[i]));
-			
-			char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-			char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
-			char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
-			
-			for (i = 0; (i < 3); i++)
-				ret.PushBack( char_array_3[i] );
-			i = 0;
+			auto Index = base64_chars.find(char_array_4[j]);
+			//	gr: what should this be if padding??
+			if ( Index == base64_chars.npos )
+				Index = 0;
+			char_array_4[j] = size_cast<uint8>(Index);
 		}
-	}
-	
-	if (i) {
-		for (j = i; j <4; j++)
-			char_array_4[j] = 0;
-		
-		for (j = 0; j < 4; j++)
-			char_array_4[j] = size_cast<unsigned char>(base64_chars.find(char_array_4[j]));
 		
 		char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
 		char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
 		char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
 		
-		for (j = 0; (j < i - 1); j++)
+		for ( int j = 0; (j < Length - 1); j++)
 			ret.PushBack( char_array_3[j] );
+	};
+
+	
+	while (in_len-- )
+	{
+		if ( Encoded[in_] == PaddingChar )
+			continue;
+		
+		if ( !IsBase64Char( Encoded[in_] ) )
+			throw Soy::AssertException("Character not base64");
+		
+		char_array_4[i++] = Encoded[in_];
+		in_++;
+		if (i==4)
+		{
+			Decode4to3(i);
+			i = 0;
+		}
+	}
+	
+	if (i)
+	{
+		//	clear old
+		for (j = i; j <4; j++)
+			char_array_4[j] = 0;
+		Decode4to3(i);
 	}
 }
 
