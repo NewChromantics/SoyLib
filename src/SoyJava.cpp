@@ -251,6 +251,30 @@ bool CatchJavaException(const std::string& ExceptionClass,const std::string& Con
 }
 
 
+std::string Platform::GetSdCardDirectory()
+{
+	//	get the SD card path
+	TJniClass EnvClass("android.os.Environment");
+	TJniClass FileClass("java.io.File");
+	auto ExternalStorageSig = GetSignature_ObjectReturn(FileClass);
+	
+	auto Method = EnvClass.GetStaticMethod("getExternalStorageDirectory", ExternalStorageSig );
+	ThrowJavaException("android.os.Environment -> GetStaticMethod getExternalStorageDirectory()");
+	
+	auto ExternalPathj = java().CallStaticObjectMethod( EnvClass.GetWeakClass(), Method );
+	ThrowJavaException("SetDataSourceSdCard: call getExternalStorageDirectory()");
+	
+	TJniObject ExternalPath( ExternalPathj, FileClass.GetWeakClass(), "java.io.File" );
+	auto ExtPath = ExternalPath.CallStringMethod("getAbsolutePath");
+	
+	std::Debug << "Got sdcard path as: "  << ExtPath << std::endl;
+	
+	return ExtPath;
+}
+
+
+
+
 template<typename TYPE>
 TYPE Java::GetFieldCall(TJniObject& Object,const std::string& FieldName,jfieldID Field)
 {
@@ -1514,28 +1538,12 @@ void JniMediaPlayer::SetDataSourceAssets(const std::string& Path)
 }
 
 
+
 void JniMediaPlayer::SetDataSourceSdCard(const std::string& Path)
 {
-	std::Debug << __func__ << std::endl;
-	
-	//	get the SD card path
-	TJniClass EnvClass("android.os.Environment");
-	TJniClass FileClass("java.io.File");
-	auto ExternalStorageSig = GetSignature_ObjectReturn(FileClass);
-
-	auto Method = EnvClass.GetStaticMethod("getExternalStorageDirectory", ExternalStorageSig );
-	ThrowJavaException("android.os.Environment -> GetStaticMethod getExternalStorageDirectory()");
-	
-	auto ExternalPathj = java().CallStaticObjectMethod( EnvClass.GetWeakClass(), Method );
-	ThrowJavaException("SetDataSourceSdCard: call getExternalStorageDirectory()");
-	
-	TJniObject ExternalPath( ExternalPathj, FileClass.GetWeakClass(), "java.io.File" );
-	auto ExtPath = ExternalPath.CallStringMethod("getAbsolutePath");
-
-	std::Debug << "Got sdcard path as: "  << ExtPath << std::endl;
-	
+	auto SdcardPath = Platform::GetSdCardDirectory();
 	std::stringstream FullPath;
-	FullPath << ExtPath << "/" << Path;
+	FullPath << SdcardPath << "/" << Path;
 	SetDataSourcePath( FullPath.str() );
 }
 
