@@ -37,6 +37,13 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::MetaData,			"metadata" },
 	{ SoyMediaFormat::Muxed,			"muxed" },
 	
+	{ SoyMediaFormat::Png,				"Png" },
+	{ SoyMediaFormat::Jpeg,				"Jpeg" },
+	{ SoyMediaFormat::Gif,				"Gif" },
+	{ SoyMediaFormat::Tga,				"Tga" },
+	{ SoyMediaFormat::Bmp,				"Bmp" },
+	{ SoyMediaFormat::Psd,				"Psd" },
+	
 	{ SoyMediaFormat::Greyscale,		"Greyscale" },
 	{ SoyMediaFormat::GreyscaleAlpha,	"GreyscaleAlpha" },
 	{ SoyMediaFormat::RGB,				"RGB" },
@@ -221,6 +228,13 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::PcmLinear_24:	return "audio/L24";
 			
 		case SoyMediaFormat::PcmAndroidRaw:	return MIMETYPE_AUDIO_RAW;
+
+		//	verify these
+		case SoyMediaFormat::Png:		return "image/png";
+		case SoyMediaFormat::Jpeg:		return "image/jpeg";
+		case SoyMediaFormat::Bmp:		return "image/bmp";
+		case SoyMediaFormat::Tga:		return "image/tga";
+		case SoyMediaFormat::Psd:		return "image/Psd";
 			
 		default:						return "invalid/invalid";
 	}
@@ -246,6 +260,12 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_24 ) )	return SoyMediaFormat::PcmLinear_24;
 	if ( Mime == ToMime( SoyMediaFormat::PcmAndroidRaw ) )	return SoyMediaFormat::PcmAndroidRaw;
 	
+	if ( Mime == ToMime( SoyMediaFormat::Png ) )			return SoyMediaFormat::Png;
+	if ( Mime == ToMime( SoyMediaFormat::Jpeg ) )			return SoyMediaFormat::Jpeg;
+	if ( Mime == ToMime( SoyMediaFormat::Bmp ) )			return SoyMediaFormat::Bmp;
+	if ( Mime == ToMime( SoyMediaFormat::Tga ) )			return SoyMediaFormat::Tga;
+	if ( Mime == ToMime( SoyMediaFormat::Psd ) )			return SoyMediaFormat::Psd;
+
 	std::Debug << "Unknown mime type: " << Mime << std::endl;
 	return SoyMediaFormat::Invalid;
 }

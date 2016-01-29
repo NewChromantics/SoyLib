@@ -77,6 +77,14 @@ namespace SoyMediaFormat
 		Mpeg4,
 		VC1,			//	in TS files, not sure what this is yet
 		
+		//	encoded images
+		Png,
+		Jpeg,
+		Gif,
+		Tga,
+		Bmp,
+		Psd,
+		
 		//	audio
 		Wave,
 		Aac,
