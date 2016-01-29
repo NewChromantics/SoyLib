@@ -177,11 +177,11 @@ bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DA
 		{
 			if ( !FindNextFile( Handle, &FindData ) )
 			{
-				auto ErrorValue = Soy::Platform::GetLastError();
+				auto ErrorValue = Platform::GetLastError();
 				if ( ErrorValue != ERROR_NO_MORE_FILES )
 				{
 					std::stringstream Error;
-					Error << "FindNextFile error: " << Soy::Platform::GetErrorString( ErrorValue );
+					Error << "FindNextFile error: " << Platform::GetErrorString( ErrorValue );
 					throw Soy::AssertException( Error.str() );
 				}
 				break;
@@ -329,7 +329,7 @@ void Platform::CreateDirectory(const std::string& Path)
 		if ( false )
 #endif
 		{
-			auto LastError = Soy::Platform::GetLastError();
+			auto LastError = Platform::GetLastError();
 #if defined(TARGET_WINDOWS)
 			if ( LastError != ERROR_ALREADY_EXISTS )
 #else
@@ -337,7 +337,7 @@ void Platform::CreateDirectory(const std::string& Path)
 #endif
 				{
 					std::stringstream Error;
-					Error << "Failed to create directory " << Directory << ": " << Soy::Platform::GetErrorString(LastError);
+					Error << "Failed to create directory " << Directory << ": " << Platform::GetErrorString(LastError);
 					throw Soy::AssertException( Error.str() );
 				}
 		}

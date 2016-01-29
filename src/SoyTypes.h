@@ -286,20 +286,17 @@ namespace Soy
 class SoyThread;
 
 
-namespace Soy
+namespace Platform
 {
-	namespace Platform
-	{
-		bool				Init();
+	bool				Init();
 
-		void				FlushLastError();
-		int					GetLastError(bool Flush=true);	//	gr: default on OSX was flushing for winsock...
-		std::string			GetErrorString(int Error);
+	void				FlushLastError();
+	int					GetLastError(bool Flush=true);	//	gr: default on OSX was flushing for winsock...
+	std::string			GetErrorString(int Error);
 #if defined(TARGET_WINDOWS)
-		std::string			GetErrorString(HRESULT Error);
+	std::string			GetErrorString(HRESULT Error);
 #endif
-		inline std::string	GetLastErrorString()	{	return GetErrorString( GetLastError() );	}
-	}
+	inline std::string	GetLastErrorString()	{	return GetErrorString( GetLastError() );	}
 };
 
 template<typename TYPE>

@@ -631,7 +631,7 @@ bool TFileStreamReader::Read(TStreamBuffer& Buffer)
 	if ( mFile.fail() && !mFile.eof() )
 	{
 		std::stringstream Error;
-		Error << "TFileStreamReader error; " << Soy::Platform::GetLastErrorString();
+		Error << "TFileStreamReader error; " << Platform::GetLastErrorString();
 		throw Soy::AssertException( Error.str() );
 	}
 

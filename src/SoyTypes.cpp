@@ -26,7 +26,7 @@
 
 
 
-bool Soy::Platform::Init()
+bool Platform::Init()
 {
 #if defined(TARGET_ANDROID)
 	if ( !Java::HasVm() )
@@ -148,7 +148,7 @@ const uint32_t TCrc32::Crc32Table[256] = {
 }; // kCrc32Table
 
 
-int Soy::Platform::GetLastError(bool FlushError)
+int Platform::GetLastError(bool FlushError)
 {
 #if defined(TARGET_WINDOWS)
 	auto Error = ::GetLastError();
@@ -162,7 +162,7 @@ int Soy::Platform::GetLastError(bool FlushError)
 	return Error;
 }
 
-void Soy::Platform::FlushLastError()
+void Platform::FlushLastError()
 {
 #if defined(TARGET_WINDOWS)
 	::SetLastError(0);
@@ -172,7 +172,7 @@ void Soy::Platform::FlushLastError()
 }
 
 #if defined(TARGET_WINDOWS)
-std::string Soy::Platform::GetErrorString(HRESULT Error)
+std::string Platform::GetErrorString(HRESULT Error)
 {
 	//	http://stackoverflow.com/a/7008279/355753
 	int ErrorInt = Error & 0xffff;
@@ -180,7 +180,7 @@ std::string Soy::Platform::GetErrorString(HRESULT Error)
 }
 #endif
 
-std::string Soy::Platform::GetErrorString(int Error)
+std::string Platform::GetErrorString(int Error)
 {
 #if defined(TARGET_WINDOWS)
 	if ( Error == ERROR_SUCCESS )
@@ -294,7 +294,7 @@ void Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename)
 	if ( !Stream.is_open() )
 	{
 		std::stringstream Error;
-		Error << "Failed to open " << Filename << " (" << Soy::Platform::GetLastErrorString() << ")";
+		Error << "Failed to open " << Filename << " (" << ::Platform::GetLastErrorString() << ")";
 		throw Soy::AssertException(Error.str());
 	}
 	

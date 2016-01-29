@@ -1846,7 +1846,7 @@ ssize_t Java::TFileHandle::Seek()
 	if ( Position == (off_t)-1 )
 	{
 		std::stringstream Error;
-		Error << "Java file handle seek/tell(mDoneInitialSeek=" << mDoneInitialSeek << ") failed; " << Soy::Platform::GetLastErrorString();
+		Error << "Java file handle seek/tell(mDoneInitialSeek=" << mDoneInitialSeek << ") failed; " << Platform::GetLastErrorString();
 		throw Soy::AssertException( Error.str() );
 	}
 
@@ -1894,7 +1894,7 @@ void Java::TFileHandle::Read(ArrayBridge<uint8>&& Data,bool& Eof)
 	if ( BytesRead == -1 )
 	{
 		std::stringstream Error;
-		Error << "Error reading file: " << Soy::Platform::GetLastErrorString();
+		Error << "Error reading file: " << Platform::GetLastErrorString();
 		throw Soy::AssertException( Error.str() );
 	}
 	
