@@ -114,6 +114,7 @@ namespace SoyMediaFormat
 	bool		IsAudio(Type Format);
 	bool		IsText(Type Format);
 	bool		IsH264(Type Format);
+	bool		IsImage(Type Format);	//	encoded image
 	Type		FromFourcc(uint32 Fourcc,int H264LengthSize=-1);
 	uint32		ToFourcc(Type Format);
 	bool		IsH264Fourcc(uint32 Fourcc);
@@ -727,6 +728,8 @@ public:
 	TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManager> OutputBuffer);
 	TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer);
 	TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TTextBufferManager> OutputBuffer);
+	
+	static bool						HandlesCodec(SoyMediaFormat::Type Format);
 	
 protected:
 	virtual bool					ProcessPacket(std::shared_ptr<TMediaPacket>& Packet) override;

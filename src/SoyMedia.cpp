@@ -130,6 +130,8 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 		return true;
 	if ( IsH264(Format) )
 		return true;
+	if ( IsImage(Format) )
+		return true;
 	
 	switch ( Format )
 	{
@@ -145,6 +147,22 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 	}
 }
 
+bool SoyMediaFormat::IsImage(SoyMediaFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyMediaFormat::Png:
+		case SoyMediaFormat::Jpeg:
+		case SoyMediaFormat::Gif:
+		case SoyMediaFormat::Tga:
+		case SoyMediaFormat::Bmp:
+		case SoyMediaFormat::Psd:
+			return true;
+			
+		default:
+			return false;
+	}
+}
 bool SoyMediaFormat::IsH264(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
@@ -1333,6 +1351,21 @@ TMediaPassThroughDecoder::TMediaPassThroughDecoder(const std::string& ThreadName
 {
 	Start();
 }
+
+
+bool TMediaPassThroughDecoder::HandlesCodec(SoyMediaFormat::Type Format)
+{
+	//	gr: automate this to be some codec->function map and search it
+	
+	if ( SoyMediaFormat::IsPixels( Format ) )
+		return true;
+	
+	if ( SoyMediaFormat::IsText( Format ) )
+		return true;
+	
+	return false;
+}
+
 
 bool TMediaPassThroughDecoder::ProcessPacket(std::shared_ptr<TMediaPacket>& Packet)
 {
