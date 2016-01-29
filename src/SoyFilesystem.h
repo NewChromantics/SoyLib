@@ -30,6 +30,7 @@ namespace Platform
 	void	EnumFiles(const std::string& Directory,std::function<void(const std::string&)> OnFileFound);
 	bool	EnumDirectory(const std::string& Directory,std::function<bool(std::string&,SoyPathType::Type)> OnPathFound);
 	void	GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions);
+	void	CreateDirectory(const std::string& Path);	//	will strip filenames
 }
 
 namespace Soy

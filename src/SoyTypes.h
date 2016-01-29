@@ -308,7 +308,6 @@ class ArrayBridge;
 namespace Soy
 {
 	//	gr: move file things to their own files!
-	void		CreateDirectory(const std::string& Path);	//	will strip filenames
 	void		FileToArray(ArrayBridge<char>& Data,std::string Filename);
 	inline void	FileToArray(ArrayBridge<char>&& Data,std::string Filename)		{	FileToArray( Data, Filename );	}
 	void		ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename);
