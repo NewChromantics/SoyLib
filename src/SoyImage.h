@@ -19,15 +19,15 @@ namespace Png
 
 namespace Jpeg
 {
-	class Exif
+	class TMeta
 	{
 	public:
-		std::string		mKey;
-		Array<uint8>	mData;
+		Array<uint8>	mExif;
+		std::string		mXmp;	//	xml
 	};
 	
 	void		Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer);
-	void		ReadMeta(ArrayBridge<Jpeg::Exif>&& Metas,TStreamBuffer& Buffer);
+	void		ReadMeta(Jpeg::TMeta& Meta,TStreamBuffer& Buffer);
 
 	static const char*	FileExtensions[] = {".jpg",".jpeg"};
 }

@@ -222,25 +222,95 @@ void Png::Read(SoyPixelsImpl& Pixels,const ArrayBridge<char>& Buffer)
 
 /*static */int stbi__process_marker(stbi__jpeg *z, int m);
 
-static int stbi__process_marker_withmeta(stbi__jpeg *z, int m,std::function<void(const stbi_uc*,int,stbi_uc)> EnumMeta)
+
+//	http://wwwimages.adobe.com/content/dam/Adobe/en/devnet/xmp/pdfs/XMP%20SDK%20Release%20cc-2014-12/XMPSpecificationPart3.pdf
+//	page13
+const char ExiffSignature[] = "Exif\0\0";
+const char Photoshop3Signature[] = "Photoshop 3.0\0";
+const char XmpStandardSignature[] = "http://ns.adobe.com/xap/1.0/\0";
+const char XmpExtendedSignature[] = "http://ns.adobe.com/xmp/extension/\0";
+
+void ExtractExiff(Jpeg::TMeta& Meta,ArrayBridge<uint8>&& Data)
+{
+	Meta.mExif.Copy( Data );
+}
+
+void ExtractPhotoshop3(Jpeg::TMeta& Meta,ArrayBridge<uint8>&& Data)
+{
+	std::Debug << "Found Photoshop3 data x" << Data.GetSize() << "bytes" << std::endl;
+}
+
+void ExtractXmpStandard(Jpeg::TMeta& Meta,ArrayBridge<uint8>&& Data)
+{
+	std::stringstream DataStr;
+	Soy::ArrayToString( Data, DataStr );
+	Meta.mXmp += DataStr.str();
+}
+
+void ExtractXmpExtended(Jpeg::TMeta& Meta,ArrayBridge<uint8>&& Data)
+{
+	//	remove special extended marker stuff
+	class TExtendedXmpHeader
+	{
+	public:
+		char	Guid[32];				//	A 128-bit GUID stored as a 32-byte ASCII hex string, capital A-F, no null termination. The GUID is a 128-bit MD5 digest of the full ExtendedXMP serialization.
+		uint32	FullExtendedXmpLength;	//	The full length of the ExtendedXMP serialization as a 32-bit unsigned integer
+		uint32	ThisExtendedXmpOffset;	//	The offset of this portion as a 32-bit unsigned integer.
+	};
+
+	if ( Data.GetSize() < sizeof(TExtendedXmpHeader) )
+	{
+		throw Soy::AssertException("Not enough data for ExtendedXmp header");
+	}
+	
+	TExtendedXmpHeader Header;
+	memcpy( &Header, Data.GetArray(), sizeof(Header) );
+	auto BodyData = Data.GetSubArray( sizeof(Header) );
+
+	//	todo: verify guid, total XMP length, offset etc
+	
+	std::stringstream DataStream;
+	Soy::ArrayToString( GetArrayBridge(BodyData), DataStream );
+	auto DataStr = DataStream.str();
+	
+	Meta.mXmp += DataStr;
+}
+
+
+
+template <size_t BUFFERSIZE>
+bool DataStartsWith(const ArrayBridge<uint8>& Data,const char (& Signature)[BUFFERSIZE])
+{
+	int SignatureSize = BUFFERSIZE-1;
+	if ( Data.GetSize() < SignatureSize )
+		return false;
+	
+	int Match = memcmp( Data.GetArray(), Signature, SignatureSize );
+	return Match == 0;
+}
+
+
+
+static int stbi__process_marker_withmeta(stbi__jpeg *z, int m,std::function<void(ArrayBridge<uint8>&&)> HandleAppMarker)
 {
 	// check for comment block or APP blocks
 	if ((m >= 0xE0 && m <= 0xEF) || m == 0xFE) {
 		
 		int length = stbi__get16be(z->s)-2;
-		if ( EnumMeta )
+		if ( HandleAppMarker )
 		{
 			auto* Data = (unsigned char*)stbi__malloc( length );
 			if (!Data)
-			{
 				return stbi__err("outofmem", "Out of memory");
-			}
+
 			if (!stbi__getn(z->s, Data, length ))
 			{
 				STBI_FREE(Data);
-				return stbi__err("outofmem", "Out of memory");
+				return stbi__err("failedtoreadapp", "Failed to read APP data");
 			}
-			EnumMeta( Data, length, m );
+			
+			auto DataArray = GetRemoteArray( Data, length );
+			HandleAppMarker( GetArrayBridge(DataArray) );
 			STBI_FREE(Data);
 		}
 		else
@@ -253,7 +323,7 @@ static int stbi__process_marker_withmeta(stbi__jpeg *z, int m,std::function<void
 	return stbi__process_marker( z, m );
 }
 
-static int stbi__decode_jpeg_header_with_meta(stbi__jpeg *z, int scan,std::function<void(const stbi_uc*,int,stbi_uc)> EnumMeta)
+static int stbi__decode_jpeg_header_with_meta(stbi__jpeg *z, int scan,std::function<void(ArrayBridge<uint8>&&)> HandleAppMarker)
 {
 	int m;
 	z->marker = STBI__MARKER_none; // initialize cached marker to empty
@@ -262,7 +332,7 @@ static int stbi__decode_jpeg_header_with_meta(stbi__jpeg *z, int scan,std::funct
 	if (scan == STBI__SCAN_type) return 1;
 	m = stbi__get_marker(z);
 	while (!stbi__SOF(m)) {
-		if (!stbi__process_marker_withmeta(z,m,EnumMeta)) return 0;
+		if (!stbi__process_marker_withmeta(z,m,HandleAppMarker)) return 0;
 		m = stbi__get_marker(z);
 		while (m == STBI__MARKER_none) {
 			// some files have extra padding after their blocks, so ok, we'll scan
@@ -275,33 +345,46 @@ static int stbi__decode_jpeg_header_with_meta(stbi__jpeg *z, int scan,std::funct
 	return 1;
 }
 
-void Jpeg::ReadMeta(ArrayBridge<Jpeg::Exif>&& Metas,TStreamBuffer& Buffer)
+void Jpeg::ReadMeta(Jpeg::TMeta& Meta,TStreamBuffer& Buffer)
 {
-	auto EnumMeta = [&Metas](const stbi_uc* Data,int DataLength,stbi_uc MarkerCode)
+	StbContext Context( Buffer, false );
+	
+	auto HandleAppMarker = [&](ArrayBridge<uint8>&& AppData)
 	{
-		//	EXIF is split by a zero byte
-		stbi_uc ExifDelim = 0;
-		auto& Meta = Metas.PushBack();
-		
-		for ( int i=0;	i<DataLength;	i++ )
+		if ( DataStartsWith( AppData, ExiffSignature ) )
 		{
-			if ( Data[i] == 0 )
-				break;
-			Meta.mKey += static_cast<char>( Data[i] );
+			auto SubData = AppData.GetSubArray( sizeof(ExiffSignature)-1 );
+			ExtractExiff( Meta, GetArrayBridge(SubData) );
+			return;
 		}
 		
-		//	copy the rest of the data
-		auto ExifData = GetRemoteArray( Data, DataLength - Meta.mKey.length() );
-		Meta.mData.Copy( ExifData );
+		if ( DataStartsWith( AppData, XmpStandardSignature ) )
+		{
+			auto SubData = AppData.GetSubArray( sizeof(XmpStandardSignature)-1 );
+			ExtractXmpStandard( Meta, GetArrayBridge(SubData) );
+			return;
+		}
+		
+		if ( DataStartsWith( AppData, XmpExtendedSignature ) )
+		{
+			auto SubData = AppData.GetSubArray( sizeof(XmpExtendedSignature)-1 );
+			ExtractXmpExtended( Meta, GetArrayBridge(SubData) );
+			return;
+		}
+		
+		if ( DataStartsWith( AppData, Photoshop3Signature ) )
+		{
+			auto SubData = AppData.GetSubArray( sizeof(Photoshop3Signature)-1 );
+			ExtractPhotoshop3( Meta, GetArrayBridge(SubData) );
+			return;
+		}
 	};
-	
-	StbContext Context( Buffer, false );
 	
 	auto* s = &Context.mContext;
 	stbi__jpeg j;
 	j.s = s;
 	stbi__setup_jpeg(&j);
-	auto r = stbi__decode_jpeg_header_with_meta(&j, STBI__SCAN_load, EnumMeta );
+	auto r = stbi__decode_jpeg_header_with_meta(&j, STBI__SCAN_load, HandleAppMarker );
 	stbi__rewind(s);
 }
 
