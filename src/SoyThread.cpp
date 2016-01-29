@@ -338,7 +338,7 @@ std::string SoyThread::GetCurrentThreadName()
 	}
 	else
 	{
-		OldThreadName = Soy::Platform::GetLastErrorString();
+		OldThreadName = Platform::GetLastErrorString();
 	}
 	
 	return OldThreadName;
@@ -393,7 +393,7 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 	}
 	else
 	{
-		std::string Error = (Result==ERANGE) ? "Name too long" : Soy::Platform::GetErrorString(Result);
+		std::string Error = (Result==ERANGE) ? "Name too long" : Platform::GetErrorString(Result);
 		std::Debug << "Failed to change thread name from " << OldThreadName << " to " << Name << ": " << Error << std::endl;
 	}
 

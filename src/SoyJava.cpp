@@ -251,6 +251,30 @@ bool CatchJavaException(const std::string& ExceptionClass,const std::string& Con
 }
 
 
+std::string Platform::GetSdCardDirectory()
+{
+	//	get the SD card path
+	TJniClass EnvClass("android.os.Environment");
+	TJniClass FileClass("java.io.File");
+	auto ExternalStorageSig = GetSignature_ObjectReturn(FileClass);
+	
+	auto Method = EnvClass.GetStaticMethod("getExternalStorageDirectory", ExternalStorageSig );
+	ThrowJavaException("android.os.Environment -> GetStaticMethod getExternalStorageDirectory()");
+	
+	auto ExternalPathj = java().CallStaticObjectMethod( EnvClass.GetWeakClass(), Method );
+	ThrowJavaException("SetDataSourceSdCard: call getExternalStorageDirectory()");
+	
+	TJniObject ExternalPath( ExternalPathj, FileClass.GetWeakClass(), "java.io.File" );
+	auto ExtPath = ExternalPath.CallStringMethod("getAbsolutePath");
+	
+	std::Debug << "Got sdcard path as: "  << ExtPath << std::endl;
+	
+	return ExtPath;
+}
+
+
+
+
 template<typename TYPE>
 TYPE Java::GetFieldCall(TJniObject& Object,const std::string& FieldName,jfieldID Field)
 {
@@ -1514,28 +1538,12 @@ void JniMediaPlayer::SetDataSourceAssets(const std::string& Path)
 }
 
 
+
 void JniMediaPlayer::SetDataSourceSdCard(const std::string& Path)
 {
-	std::Debug << __func__ << std::endl;
-	
-	//	get the SD card path
-	TJniClass EnvClass("android.os.Environment");
-	TJniClass FileClass("java.io.File");
-	auto ExternalStorageSig = GetSignature_ObjectReturn(FileClass);
-
-	auto Method = EnvClass.GetStaticMethod("getExternalStorageDirectory", ExternalStorageSig );
-	ThrowJavaException("android.os.Environment -> GetStaticMethod getExternalStorageDirectory()");
-	
-	auto ExternalPathj = java().CallStaticObjectMethod( EnvClass.GetWeakClass(), Method );
-	ThrowJavaException("SetDataSourceSdCard: call getExternalStorageDirectory()");
-	
-	TJniObject ExternalPath( ExternalPathj, FileClass.GetWeakClass(), "java.io.File" );
-	auto ExtPath = ExternalPath.CallStringMethod("getAbsolutePath");
-
-	std::Debug << "Got sdcard path as: "  << ExtPath << std::endl;
-	
+	auto SdcardPath = Platform::GetSdCardDirectory();
 	std::stringstream FullPath;
-	FullPath << ExtPath << "/" << Path;
+	FullPath << SdcardPath << "/" << Path;
 	SetDataSourcePath( FullPath.str() );
 }
 
@@ -1846,7 +1854,7 @@ ssize_t Java::TFileHandle::Seek()
 	if ( Position == (off_t)-1 )
 	{
 		std::stringstream Error;
-		Error << "Java file handle seek/tell(mDoneInitialSeek=" << mDoneInitialSeek << ") failed; " << Soy::Platform::GetLastErrorString();
+		Error << "Java file handle seek/tell(mDoneInitialSeek=" << mDoneInitialSeek << ") failed; " << Platform::GetLastErrorString();
 		throw Soy::AssertException( Error.str() );
 	}
 
@@ -1894,7 +1902,7 @@ void Java::TFileHandle::Read(ArrayBridge<uint8>&& Data,bool& Eof)
 	if ( BytesRead == -1 )
 	{
 		std::stringstream Error;
-		Error << "Error reading file: " << Soy::Platform::GetLastErrorString();
+		Error << "Error reading file: " << Platform::GetLastErrorString();
 		throw Soy::AssertException( Error.str() );
 	}
 	
@@ -2130,13 +2138,39 @@ Java::TRandomAccessFileHandle::~TRandomAccessFileHandle()
 
 std::shared_ptr<Java::TFileHandle> Java::AllocFileHandle(const std::string& Filename)
 {
+	//	if zip doesn't work (eg. jar missing) let it try the apk
+	std::string FirstError;
 	if ( Soy::StringContains( Filename, "!", true ) )
 	{
-		return std::make_shared<Java::TZipFileHandle>( Filename );
+		try
+		{
+			return std::make_shared<Java::TZipFileHandle>( Filename );
+		}
+		catch(std::exception& e)
+		{
+			FirstError = e.what();
+		}
 	}
-	else if ( Soy::StringBeginsWith( Filename, "apk:", false ) )
+	
+	//	hack into apk: filename
+	std::string Filename2 = Filename;
 	{
-		return std::make_shared<Java::TApkFileHandle>( Filename );
+		std::string ApkMidPoint = ".apk!/assets/";
+		auto ApkPos = Filename.find(ApkMidPoint);
+		if ( ApkPos != Filename.npos )
+		{
+			std::stringstream NewFilename;
+			NewFilename << "apk:";
+			auto AssetFilename = Filename.substr( ApkPos + ApkMidPoint.length() );
+			NewFilename << AssetFilename;
+			Filename2 = NewFilename.str();
+			std::Debug << "Extracted apk filename [" << Filename2  << "] from [" << Filename << "]" << std::endl;
+		}
+	}
+	
+	if ( Soy::StringBeginsWith( Filename2, "apk:", false ) )
+	{
+		return std::make_shared<Java::TApkFileHandle>( Filename2 );
 	}
 	else
 	{

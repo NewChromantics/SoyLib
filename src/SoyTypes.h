@@ -286,20 +286,17 @@ namespace Soy
 class SoyThread;
 
 
-namespace Soy
+namespace Platform
 {
-	namespace Platform
-	{
-		bool				Init();
+	bool				Init();
 
-		void				FlushLastError();
-		int					GetLastError(bool Flush=true);	//	gr: default on OSX was flushing for winsock...
-		std::string			GetErrorString(int Error);
+	void				FlushLastError();
+	int					GetLastError(bool Flush=true);	//	gr: default on OSX was flushing for winsock...
+	std::string			GetErrorString(int Error);
 #if defined(TARGET_WINDOWS)
-		std::string			GetErrorString(HRESULT Error);
+	std::string			GetErrorString(HRESULT Error);
 #endif
-		inline std::string	GetLastErrorString()	{	return GetErrorString( GetLastError() );	}
-	}
+	inline std::string	GetLastErrorString()	{	return GetErrorString( GetLastError() );	}
 };
 
 template<typename TYPE>
@@ -308,7 +305,6 @@ class ArrayBridge;
 namespace Soy
 {
 	//	gr: move file things to their own files!
-	void		CreateDirectory(const std::string& Path);	//	will strip filenames
 	void		FileToArray(ArrayBridge<char>& Data,std::string Filename);
 	inline void	FileToArray(ArrayBridge<char>&& Data,std::string Filename)		{	FileToArray( Data, Filename );	}
 	void		ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename);
@@ -323,16 +319,6 @@ namespace Soy
 	bool		FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::ostream& Error);
 	inline bool	FileToStringLines(std::string Filename,ArrayBridge<std::string>&& StringLines,std::ostream& Error)	{	return FileToStringLines( Filename, StringLines, Error );	}
 }
-
-
-namespace Soy
-{
-	//	http://www.adp-gmbh.ch/cpp/common/base64.html
-	void			base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded);
-	void			base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded);
-	inline void		base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>&& Decoded)	{	base64_decode( Encoded, Decoded );	}
-};
-
 
 
 

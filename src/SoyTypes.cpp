@@ -8,6 +8,7 @@
 #include <atomic>
 #include "string.hpp"
 #include <SoyThread.h>
+#include "SoyFilesystem.h"
 
 #if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
@@ -24,7 +25,8 @@
 
 
 
-bool Soy::Platform::Init()
+
+bool Platform::Init()
 {
 #if defined(TARGET_ANDROID)
 	if ( !Java::HasVm() )
@@ -146,7 +148,7 @@ const uint32_t TCrc32::Crc32Table[256] = {
 }; // kCrc32Table
 
 
-int Soy::Platform::GetLastError(bool FlushError)
+int Platform::GetLastError(bool FlushError)
 {
 #if defined(TARGET_WINDOWS)
 	auto Error = ::GetLastError();
@@ -160,7 +162,7 @@ int Soy::Platform::GetLastError(bool FlushError)
 	return Error;
 }
 
-void Soy::Platform::FlushLastError()
+void Platform::FlushLastError()
 {
 #if defined(TARGET_WINDOWS)
 	::SetLastError(0);
@@ -170,7 +172,7 @@ void Soy::Platform::FlushLastError()
 }
 
 #if defined(TARGET_WINDOWS)
-std::string Soy::Platform::GetErrorString(HRESULT Error)
+std::string Platform::GetErrorString(HRESULT Error)
 {
 	//	http://stackoverflow.com/a/7008279/355753
 	int ErrorInt = Error & 0xffff;
@@ -178,7 +180,7 @@ std::string Soy::Platform::GetErrorString(HRESULT Error)
 }
 #endif
 
-std::string Soy::Platform::GetErrorString(int Error)
+std::string Platform::GetErrorString(int Error)
 {
 #if defined(TARGET_WINDOWS)
 	if ( Error == ERROR_SUCCESS )
@@ -292,7 +294,7 @@ void Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename)
 	if ( !Stream.is_open() )
 	{
 		std::stringstream Error;
-		Error << "Failed to open " << Filename << " (" << Soy::Platform::GetLastErrorString() << ")";
+		Error << "Failed to open " << Filename << " (" << ::Platform::GetLastErrorString() << ")";
 		throw Soy::AssertException(Error.str());
 	}
 	
@@ -307,176 +309,9 @@ void Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename)
 
 
 
-
-static const std::string base64_chars =
-"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-"abcdefghijklmnopqrstuvwxyz"
-"0123456789+/";
-
-
-static inline bool is_base64(unsigned char c)
-{
-	if ( c>='A' && c<='Z' )	return true;
-	if ( c>='a' && c<='z' )	return true;
-	if ( c>='0' && c<='9' )	return true;
-	if ( c == '+' )			return true;
-	if ( c == '/' )			return true;
-	return false;
-}
-
-void Soy::base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded)
-{
-	//	gr: pre-alloc. base64 turns 3 chars into 4...
-	//	just double what we take in.
-	Encoded.Reserve( Decoded.GetSize()*2 );
-		
-	auto in_len = Decoded.GetDataSize();
-	auto* bytes_to_encode = Decoded.GetArray();
-	if ( !bytes_to_encode )
-		return;
-	
-	auto& ret = Encoded;
-	int i = 0;
-	int j = 0;
-	unsigned char char_array_3[3];
-	unsigned char char_array_4[4];
-	
-	while (in_len--) {
-		char_array_3[i++] = *(bytes_to_encode++);
-		if (i == 3) {
-			char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-			char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-			char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-			char_array_4[3] = char_array_3[2] & 0x3f;
-			
-			for(i = 0; (i <4) ; i++)
-				ret.PushBack( base64_chars[char_array_4[i]] );
-			i = 0;
-		}
-	}
-	
-	if (i)
-	{
-		for(j = i; j < 3; j++)
-			char_array_3[j] = '\0';
-		
-		char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-		char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-		char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-		char_array_4[3] = char_array_3[2] & 0x3f;
-		
-		for (j = 0; (j < i + 1); j++)
-			ret.PushBack( base64_chars[char_array_4[j]] );
-		
-		while((i++ < 3))
-			ret.PushBack('=');
-		
-	}
-	
-}
-
-void Soy::base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded)
-{
-	//	gr: pre-alloc. base64 turns 3 chars into 4...
-	//		so decoding... we only need 3/4 of the data
-	//	...	just alloc same amount, it'll be smaller
-	Decoded.Reserve( Encoded.GetSize() );
-	
-	size_t in_len = Encoded.GetSize();
-	int i = 0;
-	int j = 0;
-	int in_ = 0;
-	unsigned char char_array_4[4], char_array_3[3];
-	auto& ret = Decoded;
-	
-	while (in_len-- )
-	{
-		if ( Encoded[in_] == '=' )
-			continue;
-		if ( !is_base64(Encoded[in_] ) )
-			throw Soy::AssertException("Character not base64");
-		
-		char_array_4[i++] = Encoded[in_];
-		in_++;
-		if (i ==4)
-		{
-			for (i = 0; i <4; i++)
-				char_array_4[i] = size_cast<unsigned char>(base64_chars.find(char_array_4[i]));
-			
-			char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-			char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
-			char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
-			
-			for (i = 0; (i < 3); i++)
-				ret.PushBack( char_array_3[i] );
-			i = 0;
-		}
-	}
-	
-	if (i) {
-		for (j = i; j <4; j++)
-			char_array_4[j] = 0;
-		
-		for (j = 0; j < 4; j++)
-			char_array_4[j] = size_cast<unsigned char>(base64_chars.find(char_array_4[j]));
-		
-		char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-		char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
-		char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
-		
-		for (j = 0; (j < i - 1); j++)
-			ret.PushBack( char_array_3[j] );
-	}
-}
-
-void Soy::CreateDirectory(const std::string& Path)
-{
-	//	does path have any folder deliniators?
-	auto LastForwardSlash = Path.find_last_of('/');
-	auto LastBackSlash = Path.find_last_of('\\');
-	
-	//	gr: assumes standard npos is <0. but turns out its unsigned, so >0!
-	//static_assert( std::string::npos < 0, "Expecting string npos to be -1");
-	auto Last = LastBackSlash;
-	if ( Last == std::string::npos )
-		Last = LastForwardSlash;
-	if ( Last == std::string::npos )
-		return;
-	
-	//	real path string
-	auto Directory = Path.substr(0, Last);
-	if ( Directory.empty() )
-		return;
-	
-#if defined(TARGET_OSX)
-	mode_t Permissions = S_IRWXU|S_IRWXG|S_IRWXO;
-//	mode_t Permissions = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
-	if ( mkdir( Directory.c_str(), Permissions ) != 0 )
-#elif defined(TARGET_WINDOWS)
-	SECURITY_ATTRIBUTES* Permissions = nullptr;
-	if ( !CreateDirectory( Directory.c_str(), Permissions ) )
-#else
-	if ( false )
-#endif
-	{
-		auto LastError = Platform::GetLastError();
-#if defined(TARGET_WINDOWS)
-		if ( LastError != ERROR_ALREADY_EXISTS )
-#else
-		if ( LastError != EEXIST )
-#endif
-		{
-			std::stringstream Error;
-			Error << "Failed to create directory " << Directory << ": " << Platform::GetLastErrorString();
-			throw Soy::AssertException( Error.str() );
-		}
-	}
-}
-
-
 void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename)
 {
-	CreateDirectory(Filename);
+	::Platform::CreateDirectory(Filename);
 	
 	std::ofstream File( Filename, std::ios::out );
 	Soy::Assert( File.is_open(), std::string("Failed to open ")+Filename );

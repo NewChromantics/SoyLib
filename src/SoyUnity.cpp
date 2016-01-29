@@ -255,7 +255,7 @@ __export void UnityRenderEvent(Unity::sint eventID)
 
 void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 {
-	if (!Soy::Platform::Init())
+	if (!Platform::Init())
 		throw Soy::AssertException("Soy Failed to init platform");
 
 	if ( !DebugListener.IsValid() )

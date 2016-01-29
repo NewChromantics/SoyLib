@@ -2,8 +2,23 @@
 #include "SortArray.h"
 
 
-//	android define
+//	android sdk define
 #define MIMETYPE_AUDIO_RAW	"audio/raw"
+
+
+
+namespace Mime
+{
+	const char*	Aac_Android = "audio/mp4a-latm";
+	const char*	Aac_Other = "audio/aac";
+	const char*	Aac_x = "audio/x-aac";
+#if defined(TARGET_ANDROID)
+	const char*	Aac_Default = Aac_Android;
+#else
+	const char*	Aac_Default = Aac_Other;
+#endif
+}
+
 
 
 std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
@@ -130,6 +145,8 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 		return true;
 	if ( IsH264(Format) )
 		return true;
+	if ( IsImage(Format) )
+		return true;
 	
 	switch ( Format )
 	{
@@ -145,6 +162,22 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 	}
 }
 
+bool SoyMediaFormat::IsImage(SoyMediaFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyMediaFormat::Png:
+		case SoyMediaFormat::Jpeg:
+		case SoyMediaFormat::Gif:
+		case SoyMediaFormat::Tga:
+		case SoyMediaFormat::Bmp:
+		case SoyMediaFormat::Psd:
+			return true;
+			
+		default:
+			return false;
+	}
+}
 bool SoyMediaFormat::IsH264(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
@@ -216,11 +249,8 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Wave:		return "audio/wave";
 			
 		//	gr: change this to handle multiple mime types per format
-#if defined(TARGET_ANDROID)
-		case SoyMediaFormat::Aac:		return "audio/mp4a-latm";
-#else
-		case SoyMediaFormat::Aac:		return "audio/x-aac";
-#endif
+		case SoyMediaFormat::Aac:		return Mime::Aac_Default;
+
 		//	https://en.wikipedia.org/wiki/Pulse-code_modulation
 		case SoyMediaFormat::PcmLinear_8:	return "audio/L8";
 		case SoyMediaFormat::PcmLinear_16:	return "audio/L16";
@@ -243,6 +273,11 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 
 SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 {
+	//	special multiple-mime case
+	if ( Mime == Mime::Aac_Android )	return SoyMediaFormat::Aac;
+	if ( Mime == Mime::Aac_x )			return SoyMediaFormat::Aac;
+	if ( Mime == Mime::Aac_Other )		return SoyMediaFormat::Aac;
+	
 	if ( Mime == ToMime( SoyMediaFormat::H264_8 ) )			return SoyMediaFormat::H264_8;
 	if ( Mime == ToMime( SoyMediaFormat::H264_16 ) )		return SoyMediaFormat::H264_16;
 	if ( Mime == ToMime( SoyMediaFormat::H264_32 ) )		return SoyMediaFormat::H264_32;
@@ -1333,6 +1368,21 @@ TMediaPassThroughDecoder::TMediaPassThroughDecoder(const std::string& ThreadName
 {
 	Start();
 }
+
+
+bool TMediaPassThroughDecoder::HandlesCodec(SoyMediaFormat::Type Format)
+{
+	//	gr: automate this to be some codec->function map and search it
+	
+	if ( SoyMediaFormat::IsPixels( Format ) )
+		return true;
+	
+	if ( SoyMediaFormat::IsText( Format ) )
+		return true;
+	
+	return false;
+}
+
 
 bool TMediaPassThroughDecoder::ProcessPacket(std::shared_ptr<TMediaPacket>& Packet)
 {
