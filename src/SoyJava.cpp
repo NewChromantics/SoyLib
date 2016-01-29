@@ -2138,13 +2138,39 @@ Java::TRandomAccessFileHandle::~TRandomAccessFileHandle()
 
 std::shared_ptr<Java::TFileHandle> Java::AllocFileHandle(const std::string& Filename)
 {
+	//	if zip doesn't work (eg. jar missing) let it try the apk
+	std::string FirstError;
 	if ( Soy::StringContains( Filename, "!", true ) )
 	{
-		return std::make_shared<Java::TZipFileHandle>( Filename );
+		try
+		{
+			return std::make_shared<Java::TZipFileHandle>( Filename );
+		}
+		catch(std::exception& e)
+		{
+			FirstError = e.what();
+		}
 	}
-	else if ( Soy::StringBeginsWith( Filename, "apk:", false ) )
+	
+	//	hack into apk: filename
+	std::string Filename2 = Filename;
 	{
-		return std::make_shared<Java::TApkFileHandle>( Filename );
+		std::string ApkMidPoint = ".apk!/assets/";
+		auto ApkPos = Filename.find(ApkMidPoint);
+		if ( ApkPos != Filename.npos )
+		{
+			std::stringstream NewFilename;
+			NewFilename << "apk:";
+			auto AssetFilename = Filename.substr( ApkPos + ApkMidPoint.length() );
+			NewFilename << AssetFilename;
+			Filename2 = NewFilename.str();
+			std::Debug << "Extracted apk filename [" << Filename2  << "] from [" << Filename << "]" << std::endl;
+		}
+	}
+	
+	if ( Soy::StringBeginsWith( Filename2, "apk:", false ) )
+	{
+		return std::make_shared<Java::TApkFileHandle>( Filename2 );
 	}
 	else
 	{
