@@ -314,8 +314,14 @@ static const std::string base64_chars =
 "0123456789+/";
 
 
-static inline bool is_base64(unsigned char c) {
-	return (isalnum(c) || (c == '+') || (c == '/'));
+static inline bool is_base64(unsigned char c)
+{
+	if ( c>='A' && c<='Z' )	return true;
+	if ( c>='a' && c<='z' )	return true;
+	if ( c>='0' && c<='9' )	return true;
+	if ( c == '+' )			return true;
+	if ( c == '/' )			return true;
+	return false;
 }
 
 void Soy::base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded)
@@ -383,9 +389,17 @@ void Soy::base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Deco
 	unsigned char char_array_4[4], char_array_3[3];
 	auto& ret = Decoded;
 	
-	while (in_len-- && ( Encoded[in_] != '=') && is_base64(Encoded[in_])) {
-		char_array_4[i++] = Encoded[in_]; in_++;
-		if (i ==4) {
+	while (in_len-- )
+	{
+		if ( Encoded[in_] == '=' )
+			continue;
+		if ( !is_base64(Encoded[in_] ) )
+			throw Soy::AssertException("Character not base64");
+		
+		char_array_4[i++] = Encoded[in_];
+		in_++;
+		if (i ==4)
+		{
 			for (i = 0; i <4; i++)
 				char_array_4[i] = size_cast<unsigned char>(base64_chars.find(char_array_4[i]));
 			

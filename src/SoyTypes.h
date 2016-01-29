@@ -328,8 +328,9 @@ namespace Soy
 namespace Soy
 {
 	//	http://www.adp-gmbh.ch/cpp/common/base64.html
-	void		base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded);
-	void		base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded);
+	void			base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded);
+	void			base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded);
+	inline void		base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>&& Decoded)	{	base64_decode( Encoded, Decoded );	}
 };
 
 
