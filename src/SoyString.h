@@ -131,6 +131,15 @@ namespace Soy
 	std::string		DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes=-1);
 	void			DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,int MaxBytes=-1);
 	inline void		DataToHexString(std::ostream& String,const ArrayBridge<uint8>&& Data,int MaxBytes=-1)	{	DataToHexString( String, Data, MaxBytes );	}
+
+	template <size_t BUFFERSIZE>
+	void			PushStringArray(ArrayBridge<std::string>&& Destination,const char* (& Source)[BUFFERSIZE])
+	{
+		for ( int i=0;	i<BUFFERSIZE;	i++ )
+			Destination.PushBack( Source[i] );
+	}
+	template <size_t BUFFERSIZE>
+	void			PushStringArray(ArrayBridge<std::string>& Destination,const char* (& Source)[BUFFERSIZE])	{	PushStringArray( Destination, Source );	}
 };
 
 #if defined(__OBJC__)
