@@ -81,7 +81,7 @@ StbContext::StbContext(TStreamBuffer& Buffer,bool PopData) :
 	
 	auto Skip = [this,&Buffer](int SkipSize)
 	{
-		//	gr: stb doesn't handle no-enough data...
+		//	gr: stb doesn't handle not-enough data...
 		if ( SkipSize > Buffer.GetBufferedSize() )
 		{
 			std::stringstream Error;
@@ -377,6 +377,14 @@ void Jpeg::ReadMeta(Jpeg::TMeta& Meta,TStreamBuffer& Buffer)
 			auto SubData = AppData.GetSubArray( sizeof(Photoshop3Signature)-1 );
 			ExtractPhotoshop3( Meta, GetArrayBridge(SubData) );
 			return;
+		}
+		
+		static bool DebugUnknownMeta = true;
+		if ( DebugUnknownMeta )
+		{
+			std::stringstream Signature;
+			Soy::ArrayToString( GetArrayBridge(AppData), Signature, 30 );
+			std::Debug << "unknown jpeg meta signature; " << Signature.str() << Soy::FormatSizeBytes(AppData.GetSize()) << std::endl;
 		}
 	};
 	
