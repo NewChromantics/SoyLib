@@ -157,21 +157,41 @@ std::string	Soy::StringJoin(const std::vector<std::string>& Strings,const std::s
 
 
 
-std::string Soy::ArrayToString(const ArrayBridge<char>& Array)
+std::string Soy::ArrayToString(const ArrayBridge<char>& Array,size_t Limit)
 {
 	std::stringstream Stream;
-	ArrayToString( Array, Stream );
+	ArrayToString( Array, Stream, Limit );
 	return Stream.str();
 }
 
-void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String)
+std::string Soy::ArrayToString(const ArrayBridge<uint8>& Array,size_t Limit)
 {
+	std::stringstream Stream;
+	ArrayToString( Array, Stream, Limit );
+	return Stream.str();
+}
+
+
+void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String,size_t Limit)
+{
+	if ( Limit == 0 )
+		Limit = Array.GetSize();
+	if ( Limit < Array.GetSize() )
+		Limit = Array.GetSize();
+	
+	//	todo: be more clever re: invalid characters
 	String.write( Array.GetArray(), Array.GetSize() );
 }
 
-void Soy::ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String)
+void Soy::ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String,size_t Limit)
 {
-	String.write( reinterpret_cast<const char*>(Array.GetArray()), Array.GetSize() );
+	if ( Limit == 0 )
+		Limit = Array.GetSize();
+	if ( Limit < Array.GetSize() )
+		Limit = Array.GetSize();
+	
+	//	todo: be more clever re: invalid characters
+	String.write( reinterpret_cast<const char*>(Array.GetArray()), Limit );
 }
 
 void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
