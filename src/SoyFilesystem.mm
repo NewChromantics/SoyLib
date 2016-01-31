@@ -67,7 +67,7 @@ SoyPathType::Type GetPathType(NSURL* Path)
 
 
 
-bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(std::string&,SoyPathType::Type)> OnPathFound)
+bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
 	auto directoryURL = Avf::GetUrl( Directory );
  

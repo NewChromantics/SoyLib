@@ -10,6 +10,12 @@
 #endif
 
 
+//	posix directory reading
+#if defined(TARGET_ANDROID)
+#include <dirent.h>
+#endif
+
+
 namespace Platform
 {
 #if defined(TARGET_OSX) || defined(TARGET_IOS)
@@ -233,20 +239,73 @@ bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(std
 
 
 #if defined(TARGET_ANDROID)
-bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(std::string&,SoyPathType::Type)> OnPathFound)
+SoyPathType::Type GetPathType(struct dirent& DirEntry,const std::string& Filename)
 {
-	//	todo, bail early
-	return false;
+	switch ( DirEntry.d_type )
+	{
+		case DT_DIR:
+		{
+			//	skip magic dirs
+			if ( Filename == "." )
+				return SoyPathType::Unknown;
+			if ( Filename == ".." )
+				return SoyPathType::Unknown;
+			return SoyPathType::Directory;
+		}
+			
+		//	regular file
+		case DT_REG:
+			return SoyPathType::File;
+			
+		//	maybe follow symbolic links?
+		case DT_LNK:
+			//readlink()
+			
+		default:
+			return SoyPathType::Unknown;
+	}
+}
+#endif
+
+#if defined(TARGET_ANDROID)
+bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
+{
+	auto Handle = opendir( Directory.c_str() );
+	if ( !Handle )
+		throw Soy::AssertException( Platform::GetLastErrorString() );
+
+	
+	while ( true )
+	{
+		struct dirent* Entry = readdir( Handle );
+		if ( Entry == nullptr )
+			break;
+
+		std::string Filename( Entry->d_name );
+		auto Type = GetPathType( *Entry, Filename );
+
+		std::stringstream FullPath;
+		FullPath << Directory << Filename;
+		
+		if ( !OnPathFound( FullPath.str(), Type ) )
+			return false;
+	}
+	
+	closedir( Handle );
+	return true;
 }
 #endif
 
 
-void Platform::EnumFiles(const std::string& Directory,std::function<void(const std::string&)> OnFileFound)
+void Platform::EnumFiles(std::string Directory,std::function<void(const std::string&)> OnFileFound)
 {
 	if ( Directory.empty() )
 		return;
 
+	//	if the dir ends with ** then we search recursively
 	bool Recursive = false;
+	if ( Soy::StringTrimRight( Directory, "**", true ) )
+		Recursive = true;
 	
 	Array<std::string> SearchDirectories;
 	SearchDirectories.PushBack( Directory );
@@ -258,8 +317,9 @@ void Platform::EnumFiles(const std::string& Directory,std::function<void(const s
 	while ( !SearchDirectories.IsEmpty() )
 	{
 		auto Dir = SearchDirectories.PopAt(0);
+		std::Debug << "Searching dir " << Dir << " recursive=" << Recursive << std::endl;
 		
-		auto AddFile = [&](std::string& Path,SoyPathType::Type PathType)
+		auto AddFile = [&](const std::string& Path,SoyPathType::Type PathType)
 		{
 			MatchCount++;
 
@@ -284,8 +344,15 @@ void Platform::EnumFiles(const std::string& Directory,std::function<void(const s
 			return true;
 		};
 		
-		if ( !Platform::EnumDirectory( Dir, AddFile ) )
-			break;
+		try
+		{
+			if ( !Platform::EnumDirectory( Dir, AddFile ) )
+				break;
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Exception enumerating directory " << Dir << ": " << e.what() << std::endl;
+		}
 	}
 }
 

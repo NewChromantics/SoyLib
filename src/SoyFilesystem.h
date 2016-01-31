@@ -23,12 +23,8 @@ namespace SoyPathType
 
 namespace Platform
 {
-#if defined(__OBJC__)
-	void	EnumNsDirectory(const std::string& Directory,std::function<void(const std::string&)> OnFileFound,bool Recursive);
-#endif
-	
-	void	EnumFiles(const std::string& Directory,std::function<void(const std::string&)> OnFileFound);
-	bool	EnumDirectory(const std::string& Directory,std::function<bool(std::string&,SoyPathType::Type)> OnPathFound);
+	void	EnumFiles(std::string Directory,std::function<void(const std::string&)> OnFileFound);	//	end with ** to recurse
+	bool	EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound);
 	void	GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions);
 	void	CreateDirectory(const std::string& Path);	//	will strip filenames
 }
