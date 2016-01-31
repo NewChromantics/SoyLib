@@ -746,35 +746,45 @@ NSString* const Avf::GetFormatType(SoyMediaFormat::Type Format)
 	throw Soy::AssertException( Error.str() );
 }
 
+
+const std::map<std::string,NSString *>& GetFileExtensionTypeConversion()
+{
+	static std::map<std::string,NSString *> FileExtensionToType;
+	if ( FileExtensionToType.empty() )
+	{
+		FileExtensionToType["mov"] = AVFileTypeQuickTimeMovie;
+		FileExtensionToType["qt"] = AVFileTypeQuickTimeMovie;
+		FileExtensionToType["mp4"] = AVFileTypeMPEG4;
+		FileExtensionToType["m4v"] = AVFileTypeAppleM4V;
+		FileExtensionToType["m4a"] = AVFileTypeAppleM4A;
+	#if defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
+		FileExtensionToType["3gp"] = AVFileType3GPP;
+		FileExtensionToType["3gpp"] = AVFileType3GPP;
+		FileExtensionToType["sdv"] = AVFileType3GPP;
+		FileExtensionToType["3g2"] = AVFileType3GPP2;
+		FileExtensionToType["3gp2"] = AVFileType3GPP2;
+	#endif
+		FileExtensionToType["caf"] = AVFileTypeCoreAudioFormat;
+		FileExtensionToType["wav"] = AVFileTypeWAVE;
+		FileExtensionToType["wave"] = AVFileTypeWAVE;
+		FileExtensionToType["aif"] = AVFileTypeAIFF;
+		FileExtensionToType["aiff"] = AVFileTypeAIFF;
+		FileExtensionToType["aifc"] = AVFileTypeAIFC;
+		FileExtensionToType["cdda"] = AVFileTypeAIFC;
+		FileExtensionToType["amr"] = AVFileTypeAMR;
+		FileExtensionToType["mp3"] = AVFileTypeMPEGLayer3;
+		FileExtensionToType["au"] = AVFileTypeSunAU;
+		FileExtensionToType["ac3"] = AVFileTypeAC3;
+	#if defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
+		FileExtensionToType["eac3"] = AVFileTypeEnhancedAC3;
+	#endif
+	}
+	return FileExtensionToType;
+}
+
 NSString* const Avf::GetFileExtensionType(const std::string& Extension)
 {
-	std::map<std::string,NSString *> FileExtensionToType;
-	FileExtensionToType["mov"] = AVFileTypeQuickTimeMovie;
-	FileExtensionToType["qt"] = AVFileTypeQuickTimeMovie;
-	FileExtensionToType["mp4"] = AVFileTypeMPEG4;
-	FileExtensionToType["m4v"] = AVFileTypeAppleM4V;
-	FileExtensionToType["m4a"] = AVFileTypeAppleM4A;
-#if defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
-	FileExtensionToType["3gp"] = AVFileType3GPP;
-	FileExtensionToType["3gpp"] = AVFileType3GPP;
-	FileExtensionToType["sdv"] = AVFileType3GPP;
-	FileExtensionToType["3g2"] = AVFileType3GPP2;
-	FileExtensionToType["3gp2"] = AVFileType3GPP2;
-#endif
-	FileExtensionToType["caf"] = AVFileTypeCoreAudioFormat;
-	FileExtensionToType["wav"] = AVFileTypeWAVE;
-	FileExtensionToType["wave"] = AVFileTypeWAVE;
-	FileExtensionToType["aif"] = AVFileTypeAIFF;
-	FileExtensionToType["aiff"] = AVFileTypeAIFF;
-	FileExtensionToType["aifc"] = AVFileTypeAIFC;
-	FileExtensionToType["cdda"] = AVFileTypeAIFC;
-	FileExtensionToType["amr"] = AVFileTypeAMR;
-	FileExtensionToType["mp3"] = AVFileTypeMPEGLayer3;
-	FileExtensionToType["au"] = AVFileTypeSunAU;
-	FileExtensionToType["ac3"] = AVFileTypeAC3;
-#if defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
-	FileExtensionToType["eac3"] = AVFileTypeEnhancedAC3;
-#endif
+	auto& FileExtensionToType = GetFileExtensionTypeConversion();
 	
 	auto FileTypeIt = FileExtensionToType.find( Extension );
 	if ( FileTypeIt == FileExtensionToType.end() )
@@ -785,6 +795,15 @@ NSString* const Avf::GetFileExtensionType(const std::string& Extension)
 	}
 	
 	return FileTypeIt->second;
+}
+
+void Avf::GetFileExtensions(ArrayBridge<std::string>&& Extensions)
+{
+	auto& FileExtensionToType = GetFileExtensionTypeConversion();
+	for ( auto& it : FileExtensionToType )
+	{
+		Extensions.PushBack( it.first );
+	}
 }
 
 bool Avf::IsFormatCompressed(SoyMediaFormat::Type Format)
