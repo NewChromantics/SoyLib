@@ -210,7 +210,7 @@ bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DA
 
 
 #if defined(TARGET_WINDOWS)
-bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(std::string&,SoyPathType::Type)> OnPathFound)
+bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
 	auto OnFindItem = [&](WIN32_FIND_DATA& FindData)
 	{
