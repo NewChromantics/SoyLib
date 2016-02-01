@@ -267,7 +267,7 @@ std::string Platform::GetSdCardDirectory()
 	TJniObject ExternalPath( ExternalPathj, FileClass.GetWeakClass(), "java.io.File" );
 	auto ExtPath = ExternalPath.CallStringMethod("getAbsolutePath");
 	
-	std::Debug << "Got sdcard path as: "  << ExtPath << std::endl;
+	//std::Debug << "Got sdcard path as: "  << ExtPath << std::endl;
 	
 	return ExtPath;
 }
