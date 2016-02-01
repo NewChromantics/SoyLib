@@ -285,7 +285,7 @@ bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(con
 		auto Type = GetPathType( *Entry, Filename );
 
 		std::stringstream FullPath;
-		FullPath << Directory << Filename;
+		FullPath << Directory << "/" << Filename;
 		
 		if ( !OnPathFound( FullPath.str(), Type ) )
 			return false;
@@ -311,13 +311,14 @@ void Platform::EnumFiles(std::string Directory,std::function<void(const std::str
 	SearchDirectories.PushBack( Directory );
 	
 	//	don't get stuck!
-	static int MatchLimit = 1000;
+	//	gr: much higher for recursive directories... could do with a more solid checker though
+	static int MatchLimit = 20000;
 	int MatchCount = 0;
 	
 	while ( !SearchDirectories.IsEmpty() )
 	{
 		auto Dir = SearchDirectories.PopAt(0);
-		std::Debug << "Searching dir " << Dir << " recursive=" << Recursive << std::endl;
+		//std::Debug << "Searching dir " << Dir << " recursive=" << Recursive << std::endl;
 		
 		auto AddFile = [&](const std::string& Path,SoyPathType::Type PathType)
 		{
