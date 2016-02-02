@@ -167,6 +167,9 @@ std::string Opengl::GetEnumString(GLenum Type)
 #if defined(GL_RG8)
 			CASE_ENUM_STRING( GL_RG8 );
 #endif
+#if defined(GL_RG)
+			CASE_ENUM_STRING( GL_RG );
+#endif
 			CASE_ENUM_STRING( GL_ALPHA );
 #if defined(GL_LUMINANCE)
 			CASE_ENUM_STRING( GL_LUMINANCE );
@@ -361,7 +364,7 @@ void Opengl::FlushError(const char* Context)
 }
 
 
-bool Opengl::IsOkay(const char* Context,std::function<void(const std::string&)>& ExceptionContainer)
+bool Opengl::IsOkay(const char* Context,std::function<void(const std::string&)> ExceptionContainer)
 {
 	auto Error = glGetError();
 	if ( Error == GL_NONE )
@@ -1093,47 +1096,92 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 #endif
 }
 
+
+class TTryCase
+{
+public:
+	GLenum		mInternalFormat;
+	GLenum		mExternalFormat;
+	SoyTime		mDuration;
+	std::string	mError;
+};
+
+std::ostream& operator<<(std::ostream &out,const TTryCase& in)
+{
+	out << Opengl::GetEnumString( in.mInternalFormat ) << "->" << Opengl::GetEnumString( in.mInternalFormat ) << " took " << in.mDuration.GetTime() << "ms. ";
+	if ( !in.mError.empty() )
+		out << "Error=" << in.mError;
+	return out;
+}
+
+
+
 void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBridge<GLenum>&& ExternalTextureFormats,const std::string& Context,std::function<void(GLenum,GLenum)> Function)
 {
-	bool Finished = false;
-	std::stringstream AttemptErrors;
-	static bool DebugFails = false;
-	auto AccumulateErrors = [&](const std::string& Error)
-	{
-		AttemptErrors << Error << "; ";
-	};
+	BufferArray<TTryCase,100> Trys;
 
+	static bool Profile = false;		//	execute all cases and find best (and show errors)
+	bool Success = false;
 	
-	for ( int i=0;	!Finished && i<InternalTextureFormats.GetSize();	i++ )
+	//	minimise cost of lambda
+	static TTryCase* CurrentTry = nullptr;
+	std::function<void(const std::string&)> ExceptionContainer = [](const std::string& Error)
 	{
-		for ( int e=0;	!Finished && e<ExternalTextureFormats.GetSize();	e++ )
+		CurrentTry->mError = Error;
+	};
+	
+	for ( int i=0;	i<InternalTextureFormats.GetSize();	i++ )
+	{
+		for ( int e=0;	e<ExternalTextureFormats.GetSize();	e++ )
 		{
-			auto InternalFormat = InternalTextureFormats[i];
-			auto ExternalFormat = ExternalTextureFormats[e];
-			Function( InternalFormat, ExternalFormat );
-			
-			std::stringstream ScopeContext;
-			ScopeContext << Context << " (InternalFormat=" << Opengl::GetEnumString(InternalFormat) << ", ExternalFormat=" << Opengl::GetEnumString(ExternalFormat) << ")";
-		
-			std::function<void(const std::string&)> f = AccumulateErrors;
-			if ( !DebugFails )
-				f = [](const std::string& Error){};
-			Finished = Opengl::IsOkay( ScopeContext.str().c_str(), f );
-			
-			//	debug the cases that didn't work
-			if ( Finished && !AttemptErrors.str().empty() )
+			TTryCase& Try = Trys.PushBack();
+			Try.mInternalFormat = InternalTextureFormats[i];
+			Try.mExternalFormat = ExternalTextureFormats[e];
+
+			if ( Profile )
 			{
-				std::Debug << ScopeContext.str() << " succeeded after failing; " << AttemptErrors.str() << std::endl;
+				auto RecordDuration = [&Try](SoyTime Duration)
+				{
+					Try.mDuration = Duration;
+				};
+				Soy::TScopeTimer Timer(nullptr,0,RecordDuration,true);
+				
+				Function( Try.mInternalFormat, Try.mExternalFormat );
 			}
+			else
+			{
+				Function( Try.mInternalFormat, Try.mExternalFormat );
+			}
+			
+			CurrentTry = &Try;
+			Success |= Opengl::IsOkay("",ExceptionContainer);
+			
+			//	return immediately if we aren't profiling
+			if ( Success && !Profile )
+				return;
 		}
 	}
-	if ( !Finished )
-		throw Soy::AssertException( AttemptErrors.str() );
+
+	//	display profile info
+	//	gr: seperated with / for unity output
+	//auto LineFeed = std::endl;
+	auto LineFeed = '/';
+	std::Debug << "Opengl-TryFormats(" << Context << ") tried x" << Trys.GetSize() << LineFeed;
+	for ( int i=0;	i<Trys.GetSize();	i++ )
+		std::Debug << Trys[i] << LineFeed;
+	std::Debug << std::endl;
+
+	if ( !Success )
+		throw Soy::AssertException(Context);
 }
 
 
 void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUploadParams Params)
 {
+	std::stringstream WholeFunctionContext;
+	WholeFunctionContext << __func__ << " (" << SourcePixels.GetMeta() << "->" << this->GetMeta() << ")";
+	Soy::TScopeTimerPrint WholeTimer( WholeFunctionContext.str().c_str(), 10 );
+
 	Soy::Assert( IsValid(), "Trying to upload to invalid texture ");
 	
 	Bind();
@@ -1183,8 +1231,10 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		}
 	}
 
+	static bool Prefer_SubImage = false;
+	static bool Prefer_TexImage = false;
 	bool IsSameDimensions = (UsePixels->GetWidth()==TextureWidth) && (UsePixels->GetHeight()==TextureHeight);
-	bool SubImage = !(Params.mStretch);
+	bool SubImage = (!(Params.mStretch)) || (Prefer_SubImage&&IsSameDimensions);
 	bool UsingAppleStorage = (!SubImage || IsSameDimensions) && Opengl::TContext::IsSupported( OpenglExtensions::AppleClientStorage, nullptr );
 
 	if ( UsingAppleStorage )
@@ -1295,7 +1345,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	
 	//	try subimage
 	//	gr: if we find glTexImage2D faster add && !IsSameDimensions
-	if ( SubImage )
+	if ( SubImage && ! (Prefer_TexImage && !IsSameDimensions) )
 	{
 		int XOffset = 0;
 		int YOffset = 0;
@@ -1313,7 +1363,9 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		};
 		try
 		{
-			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D subimage", PushTexture );
+			std::stringstream Context;
+			Context << FinalPixels.GetMeta() << " glTexImage2D subimage";
+			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), Context.str(), PushTexture );
 			//	gr: crashes often on OSX... only on NPOT textures?
 			//glGenerateMipmap( mType );
 			Opengl::IsOkay( std::string(__func__) + " post mipmap" );
@@ -1358,10 +1410,11 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	
 		auto PushTexture = [&](GLenum InternalFormat,GLenum ExternalFormat)
 		{
-			ofScopeTimerWarning Timer("glTexImage2D", 10 );
 			glTexImage2D( mType, MipLevel, InternalFormat,  Width, Height, Border, ExternalFormat, FinalPixelsStorage, PixelsArrayData );
 		};
-		TryFunctionWithFormats( GetArrayBridge(TargetFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D !subimage", PushTexture );
+		std::stringstream Context;
+		Context << FinalPixels.GetMeta() << " glTexImage2D !subimage";
+		TryFunctionWithFormats( GetArrayBridge(TargetFormats), GetArrayBridge(FinalPixelsFormats), Context.str(), PushTexture );
 
 		//	gr: crashes often on OSX... only on NPOT textures?
 		//Opengl::GenerateMipmap( mType );
