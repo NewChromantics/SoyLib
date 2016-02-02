@@ -33,7 +33,8 @@ namespace Java
 	bool					HasVm();
 	JNIEnv&					GetContext();
 	void					FlushLocals();	//	wrapper to flush current thread's locals
-	
+
+	size_t					GetBufferSize(TJniObject& Buffer);
 	void					ArrayToBuffer(const ArrayBridge<uint8>&& Data,TJniObject& InputBuffer,const std::string& Context,int ExplicitBufferSize=-1);
 	void					BufferToArray(TJniObject& InputBuffer,ArrayBridge<uint8>&& Data,const std::string& Context,int ExplicitBufferSize=-1);
 	FixedRemoteArray<uint8>	GetBufferArray(TJniObject& Buffer,int LimitSize=-1);	//	get buffer as array. throws if this option isn't availible for this buffer

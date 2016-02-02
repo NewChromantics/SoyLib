@@ -434,6 +434,12 @@ std::ostream& operator<<(std::ostream &out,const TBufferMeta& in)
 	return out;
 }
 
+size_t Java::GetBufferSize(TJniObject& Buffer)
+{
+	TBufferMeta Meta(Buffer);
+	return Meta.GetSize(-1);
+}
+
 
 FixedRemoteArray<uint8> Java::GetBufferArray(TJniObject& Buffer,int LimitSize)
 {
