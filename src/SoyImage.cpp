@@ -394,6 +394,10 @@ void Jpeg::ReadMeta(Jpeg::TMeta& Meta,TStreamBuffer& Buffer)
 	stbi__setup_jpeg(&j);
 	auto r = stbi__decode_jpeg_header_with_meta(&j, STBI__SCAN_load, HandleAppMarker );
 	stbi__rewind(s);
+    
+    //  throw on error
+    if ( r == 0 )
+        throw Soy::AssertException( Context.GetError() );
 }
 
 void Jpeg::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer)
