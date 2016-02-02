@@ -1231,7 +1231,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		}
 	}
 
-	static bool Prefer_SubImage = false;
+	static bool Prefer_SubImage = true;
 	static bool Prefer_TexImage = false;
 	bool IsSameDimensions = (UsePixels->GetWidth()==TextureWidth) && (UsePixels->GetHeight()==TextureHeight);
 	bool SubImage = (!(Params.mStretch)) || (Prefer_SubImage&&IsSameDimensions);
@@ -1324,9 +1324,27 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		{
 			auto PushTexture = [&](GLenum InternalFormat,GLenum ExternalFormat)
 			{
-				glTexImage2D( mType, MipLevel, InternalFormat, size_cast<GLsizei>(PixelsBuffer.GetWidth()), size_cast<GLsizei>(PixelsBuffer.GetHeight()), 0, ExternalFormat, FinalPixelsStorage, PixelsBuffer.GetPixelsArray().GetArray() );
+				auto Width = size_cast<GLsizei>(PixelsBuffer.GetWidth());
+				auto Height = size_cast<GLsizei>(PixelsBuffer.GetHeight());
+				auto* PixelsArrayData = PixelsBuffer.GetPixelsArray().GetArray();
+				
+				//	gr: very little difference between these two
+				//	gr: allowed both here for profiling
+				static bool UseSubImage = true;
+				static bool UseTexImage = false;
+				if ( UseSubImage )
+				{
+					int XOffset = 0;
+					int YOffset = 0;
+					glTexSubImage2D( mType, MipLevel, XOffset, YOffset, Width, Height, ExternalFormat, FinalPixelsStorage, PixelsArrayData );
+				}
+				
+				if ( UseTexImage )
+				{
+					glTexImage2D( mType, MipLevel, InternalFormat, Width, Height, 0, ExternalFormat, FinalPixelsStorage, PixelsArrayData );
+				}
 			};
-			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D(GL_APPLE_client_storage) glTexImage2D", PushTexture );
+			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D(GL_APPLE_client_storage) glSub/TexImage2D", PushTexture );
 		}
 		glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
 		Opengl::IsOkay("glTexImage2D(GL_APPLE_client_storage) glPixelStorei");
@@ -1341,6 +1359,10 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		OnWrite();
 		return;
 	}
+#endif
+	
+	//	try pixel buffer object on desktop
+#if !defined(OPENGL_ES)
 #endif
 	
 	//	try subimage
