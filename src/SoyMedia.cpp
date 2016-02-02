@@ -49,9 +49,10 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Subtitle,			"subtitle" },
 	{ SoyMediaFormat::ClosedCaption,	"closedcaption" },
 	{ SoyMediaFormat::Timecode,			"timecode" },
+	{ SoyMediaFormat::QuicktimeTimecode,	"QuicktimeTimecode" },
 	{ SoyMediaFormat::MetaData,			"metadata" },
 	{ SoyMediaFormat::Muxed,			"muxed" },
-	
+
 	{ SoyMediaFormat::Png,				"Png" },
 	{ SoyMediaFormat::Jpeg,				"Jpeg" },
 	{ SoyMediaFormat::Gif,				"Gif" },
@@ -395,6 +396,11 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 			if ( H264LengthSize == 24 )
 				return SoyMediaFormat::PcmLinear_24;
 			break;
+			
+		//	found in quicktime mov's
+		case 'tmcd':
+        case 'dcmt':
+            return SoyMediaFormat::QuicktimeTimecode;
 	}
 	
 	std::Debug << "Unknown fourcc type: " << Soy::FourCCToString(Fourcc) << std::endl;
