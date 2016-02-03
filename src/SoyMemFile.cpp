@@ -54,7 +54,7 @@ SoyMemFile::SoyMemFile(const std::string& Filename,MemFileAccess::Type Access,si
 		mMap = nullptr;
 
 		std::stringstream Error;
-		auto PlatformError = Soy::Platform::GetLastErrorString();
+		auto PlatformError = Platform::GetLastErrorString();
 		Error << "MemFileArray(" << mFilename << ") error: mmap failed; " << PlatformError;
 		Close();
 		throw Soy::AssertException( Error.str() );
@@ -187,7 +187,7 @@ MemFileHandle::MemFileHandle(const std::string& Filename,int CreateFlags,int Mod
 	
 	if ( mHandle == Soy::Platform::InvalidFileHandle )
 	{
-		auto PlatformError = Soy::Platform::GetLastErrorString();
+		auto PlatformError = Platform::GetLastErrorString();
 		std::stringstream Error;
 		Error << "MemFileArray(" << Filename << ") error: shm_open failed; " << PlatformError;
 		throw Soy::AssertException( Error.str() );
@@ -204,7 +204,7 @@ MemFileHandle::~MemFileHandle()
 		auto Result = shm_unlink( mFilename.c_str() );
 		if ( Result != 0 )
 		{
-			auto PlatformError = Soy::Platform::GetLastErrorString();
+			auto PlatformError = Platform::GetLastErrorString();
 			std::stringstream Error;
 			Error << "MemFileArray(" << mFilename << ") error: shm_unlink(" << mHandle << ") failed; " << PlatformError;
 			throw Soy::AssertException( Error.str() );
@@ -214,7 +214,7 @@ MemFileHandle::~MemFileHandle()
 		Result = close(mHandle);
 		if ( Result != 0 )
 		{
-			auto PlatformError = Soy::Platform::GetLastErrorString();
+			auto PlatformError = Platform::GetLastErrorString();
 			std::stringstream Error;
 			Error << "MemFileArray(" << mFilename << ") error: close(" << mHandle << ") failed; " << PlatformError;
 			throw Soy::AssertException( Error.str() );
@@ -244,7 +244,7 @@ std::shared_ptr<MemFileHandle> OpenFile(const std::string& Filename,size_t Size,
 	//	docs say this is optional, but it's needed.
 	//http://stackoverflow.com/questions/21368355/macos-x-c-shm-open-fails-with-errno-13-permission-denied-on-subsequent-runs
 	int Mode = S_IRWXU|S_IRWXG|S_IRWXO;
-	std::string FlushError = Soy::Platform::GetLastErrorString();
+	std::string FlushError = Platform::GetLastErrorString();
 	
 	std::shared_ptr<MemFileHandle> Handle;
 	Handle.reset( new MemFileHandle( Filename, CreateFlags, Mode ) );
@@ -255,8 +255,8 @@ std::shared_ptr<MemFileHandle> OpenFile(const std::string& Filename,size_t Size,
 		auto r = ftruncate( Handle->mHandle, Size );
 		if (r != 0)
 		{
-			auto ErrorVal = Soy::Platform::GetLastError();
-			auto ErrorString = Soy::Platform::GetErrorString( ErrorVal );
+			auto ErrorVal = Platform::GetLastError();
+			auto ErrorString = Platform::GetErrorString( ErrorVal );
 			
 			std::stringstream Error;
 			if ( ErrorVal == EINVAL )
