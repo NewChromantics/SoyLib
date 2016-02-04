@@ -112,6 +112,7 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
 	case ChromaUV_8_8:	return 1;
 	case ChromaUV_88:	return 2;
+	case ChromaUV_44:	return 1;
 
 
 	default:
@@ -157,6 +158,11 @@ void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneForma
 		case Yuv_8_8_8_Video:
 			PlaneFormats.PushBack( LumaVideo );
 			PlaneFormats.PushBack( ChromaUV_8_8 );
+			break;
+			
+		case Yuv_844_Full:
+			PlaneFormats.PushBack( LumaFull );
+			PlaneFormats.PushBack( ChromaUV_44 );
 			break;
 			
 		default:
@@ -253,10 +259,12 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::Yuv_8_88_Video,		"Yuv_8_88_Video"	},
 	{ SoyPixelsFormat::Yuv_8_8_8_Full,		"Yuv_8_8_8_Full"	},
 	{ SoyPixelsFormat::Yuv_8_8_8_Video,		"Yuv_8_8_8_Video"	},
+	{ SoyPixelsFormat::Yuv_844_Full,		"Yuv_844_Full"	},
 	{ SoyPixelsFormat::LumaFull,			"LumaFull"	},
 	{ SoyPixelsFormat::LumaVideo,			"LumaVideo"	},
 	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
 	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
+	{ SoyPixelsFormat::ChromaUV_44,			"ChromaUV_44"	},
 	{ SoyPixelsFormat::Palettised_8_8,		"Palettised_8_8"	},
 };
 
@@ -1507,6 +1515,11 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaVideo ) );
 			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
+			break;
+			
+		case SoyPixelsFormat::Yuv_844_Full:
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::LumaFull ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
 			
 		case SoyPixelsFormat::Palettised_8_8:
