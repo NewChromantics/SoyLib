@@ -7,7 +7,10 @@
 namespace Avf
 {
 	class TAsset;
-	
+	SoyMediaFormat::Type			SoyMediaFormat_FromFourcc(uint32 Fourcc,int H264LengthSize);
+	SoyPixelsFormat::Type			SoyPixelFormat_FromFourcc(uint32 Fourcc);
+	void							GetFileExtensions(ArrayBridge<std::string>&& Extensions);
+
 #if defined(__OBJC__)
 	std::shared_ptr<TMediaPacket>	GetH264Packet(CMSampleBufferRef SampleBuffer,size_t StreamIndex);
 	std::shared_ptr<TMediaPacket>	GetFormatDescriptionPacket(CMSampleBufferRef SampleBuffer,size_t ParamIndex,SoyMediaFormat::Type Format,size_t StreamIndex);

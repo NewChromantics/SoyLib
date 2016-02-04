@@ -16,12 +16,13 @@ namespace Wave
 	void	ConvertSample(const sint16 Input,float& Output);
 	void	ConvertSample(const sint8 Input,float& Output);
 	void	ConvertSample(const float Input,sint8& Output);
+	void	ConvertSample(const float Input,uint8& Output);
 	void	ConvertSample(const float Input,sint16& Output);
 	void	ConvertSample(const float Input,float& Output);
 
 	
 	template<typename OLDTYPE,typename NEWTYPE>
-	inline void	ConvertSamples(const ArrayBridge<OLDTYPE>&& Input,ArrayBridge<NEWTYPE>&& Output)
+	inline void	ConvertSamples(const ArrayBridge<OLDTYPE>& Input,ArrayBridge<NEWTYPE>& Output)
 	{
 		for ( int i=0;	i<Input.GetSize();	i++ )
 		{
@@ -30,6 +31,21 @@ namespace Wave
 			ConvertSample( SampleIn, SampleOut );
 			Output.PushBack( SampleOut );
 		}
+	}
+	template<typename OLDTYPE,typename NEWTYPE>
+	inline void	ConvertSamples(const ArrayBridge<OLDTYPE>&& Input,ArrayBridge<NEWTYPE>&& Output)
+	{
+		ConvertSamples( Input, Output );
+	}
+	template<typename OLDTYPE,typename NEWTYPE>
+	inline void	ConvertSamples(const ArrayBridge<OLDTYPE>& Input,ArrayBridge<NEWTYPE>&& Output)
+	{
+		ConvertSamples( Input, Output );
+	}
+	template<typename OLDTYPE,typename NEWTYPE>
+	inline void	ConvertSamples(const ArrayBridge<OLDTYPE>&& Input,ArrayBridge<NEWTYPE>& Output)
+	{
+		ConvertSamples( Input, Output );
 	}
 
 };

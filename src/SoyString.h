@@ -49,6 +49,7 @@ namespace Soy
 	bool		StringEndsWith(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
 	template <size_t BUFFERSIZE>
 	bool		StringEndsWith(const std::string& Haystack,const char* (& Needles)[BUFFERSIZE], bool CaseSensitive);
+	bool		StringEndsWith(const std::string& Haystack,const ArrayBridge<std::string>& Needles, bool CaseSensitive);
 	bool		StringMatches(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
 	
 	std::string	StringJoin(const std::vector<std::string>& Strings,const std::string& Glue);
@@ -63,21 +64,24 @@ namespace Soy
 
 	bool		StringTrimLeft(std::string& String, char TrimChar);
 	bool		StringTrimLeft(std::string& String, const ArrayBridge<char>&& TrimAnyChars);
+	bool		StringTrimLeft(std::string& String,std::function<bool(char)> TrimChar);
 	bool		StringTrimRight(std::string& String, const ArrayBridge<char>& TrimAnyChars);
 	inline bool	StringTrimRight(std::string& String, const ArrayBridge<char>&& TrimAnyChars) {	return StringTrimRight(String, TrimAnyChars);	}
 	bool		StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool CaseSensitive);
 	bool		StringTrimRight(std::string& Haystack,const std::string& Suffix,bool CaseSensitive);
 
-	std::string	StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim=false);
+	std::string	StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim=false,bool PopDelim=false);
+	std::string	StringPopUntil(std::string& Haystack,std::function<bool(char)> IsDelim,bool KeepDelim=false,bool PopDelim=false);
 	
 	bool		StringReplace(std::string& str,const std::string& from,const std::string& to);
 	bool		StringReplace(ArrayBridge<std::string>& str,const std::string& from,const std::string& to);
 	bool		StringReplace(ArrayBridge<std::string>&& str,const std::string& from,const std::string& to);
 
-	std::string	ArrayToString(const ArrayBridge<char>& Array);
-	void		ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String);
-	void		ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String);
-	inline void	ArrayToString(const ArrayBridge<uint8>&& Array,std::stringstream& String)	{	ArrayToString( Array, String );	}
+	std::string	ArrayToString(const ArrayBridge<char>& Array,size_t Limit=0);
+	void		ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String,size_t Limit=0);
+	std::string	ArrayToString(const ArrayBridge<uint8>& Array,size_t Limit=0);
+	void		ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String,size_t Limit=0);
+	inline void	ArrayToString(const ArrayBridge<uint8>&& Array,std::stringstream& String,size_t Limit=0)	{	ArrayToString( Array, String, Limit );	}
 	
 	void		StringToArray(std::string String,ArrayBridge<char>& Array);
 	inline void	StringToArray(std::string String,ArrayBridge<char>&& Array)	{	StringToArray( String, Array );	}
@@ -127,6 +131,15 @@ namespace Soy
 	std::string		DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes=-1);
 	void			DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,int MaxBytes=-1);
 	inline void		DataToHexString(std::ostream& String,const ArrayBridge<uint8>&& Data,int MaxBytes=-1)	{	DataToHexString( String, Data, MaxBytes );	}
+
+	template <size_t BUFFERSIZE>
+	void			PushStringArray(ArrayBridge<std::string>& Destination,const char* (& Source)[BUFFERSIZE])
+	{
+		for ( int i=0;	i<BUFFERSIZE;	i++ )
+			Destination.PushBack( Source[i] );
+	}
+	template <size_t BUFFERSIZE>
+	void			PushStringArray(ArrayBridge<std::string>&& Destination,const char* (& Source)[BUFFERSIZE])	{	PushStringArray( Destination, Source );	}
 };
 
 #if defined(__OBJC__)
@@ -216,6 +229,7 @@ inline bool Soy::StringEndsWith(const std::string& Haystack,const char* (& Needl
 			return true;
 	return false;
 }
+
 
 
 template<typename TYPE>

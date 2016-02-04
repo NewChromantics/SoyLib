@@ -81,8 +81,31 @@ bool Soy::StringBeginsWith(const std::string& Haystack, const std::string& Needl
 
 bool Soy::StringEndsWith(const std::string& Haystack, const std::string& Needle, bool CaseSensitive)
 {
+	if (CaseSensitive)
+	{
+		//	gr: may need to see WHY this doesn't return npos....
+		if ( Needle.empty() )
+			return false;
+		
+		auto Pos = Haystack.rfind(Needle);
+		if ( Pos == std::string::npos )
+			return false;
+		if ( Pos == Haystack.length() - Needle.length() )
+			return true;
+		return false;
+	}
+	else
+	{
+		std::string HaystackLow = Haystack;
+		std::string NeedleLow = Needle;
+		Soy::StringToLower( HaystackLow );
+		Soy::StringToLower( NeedleLow );
+		return StringEndsWith(HaystackLow, NeedleLow, true);
+	}
+	
+	/*	gr: regex not working on android! find out exactly what...
 	std::regex_constants::syntax_option_type Flags = std::regex_constants::ECMAScript;
-	if ( CaseSensitive )
+	if ( !CaseSensitive )
 		Flags |= std::regex::icase;
 	
 	//	escape some chars...
@@ -103,8 +126,19 @@ bool Soy::StringEndsWith(const std::string& Haystack, const std::string& Needle,
 	if ( std::regex_match( HaystackStr, Match, Regex ) )
 		return true;
 
+	std::Debug << "String ends with (haystack=" << Haystack << ", Needle=" << Needle << ") failed" << std::endl;
+	return false;
+	*/
+}
+
+bool Soy::StringEndsWith(const std::string& Haystack,const ArrayBridge<std::string>& Needles, bool CaseSensitive)
+{
+	for ( int i=0;	i<Needles.GetSize();	i++ )
+		if ( StringEndsWith( Haystack, Needles[i], CaseSensitive ) )
+			return true;
 	return false;
 }
+
 
 std::string	Soy::StringJoin(const std::vector<std::string>& Strings,const std::string& Glue)
 {
@@ -123,21 +157,41 @@ std::string	Soy::StringJoin(const std::vector<std::string>& Strings,const std::s
 
 
 
-std::string Soy::ArrayToString(const ArrayBridge<char>& Array)
+std::string Soy::ArrayToString(const ArrayBridge<char>& Array,size_t Limit)
 {
 	std::stringstream Stream;
-	ArrayToString( Array, Stream );
+	ArrayToString( Array, Stream, Limit );
 	return Stream.str();
 }
 
-void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String)
+std::string Soy::ArrayToString(const ArrayBridge<uint8>& Array,size_t Limit)
 {
+	std::stringstream Stream;
+	ArrayToString( Array, Stream, Limit );
+	return Stream.str();
+}
+
+
+void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String,size_t Limit)
+{
+	if ( Limit == 0 )
+		Limit = Array.GetSize();
+	if ( Limit < Array.GetSize() )
+		Limit = Array.GetSize();
+	
+	//	todo: be more clever re: invalid characters
 	String.write( Array.GetArray(), Array.GetSize() );
 }
 
-void Soy::ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String)
+void Soy::ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String,size_t Limit)
 {
-	String.write( reinterpret_cast<const char*>(Array.GetArray()), Array.GetSize() );
+	if ( Limit == 0 )
+		Limit = Array.GetSize();
+	if ( Limit < Array.GetSize() )
+		Limit = Array.GetSize();
+	
+	//	todo: be more clever re: invalid characters
+	String.write( reinterpret_cast<const char*>(Array.GetArray()), Limit );
 }
 
 void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
@@ -277,6 +331,20 @@ std::string Soy::StreamToString(std::ostream& Stream)
 		TempStream << Buffer;
 	return TempStream.str();
 }
+
+bool Soy::StringTrimLeft(std::string& String,std::function<bool(char)> TrimChar)
+{
+	bool Changed = false;
+	while ( !String.empty() )
+	{
+		if ( !TrimChar(String[0]) )
+			break;
+		String.erase( String.begin() );
+		Changed = true;
+	}
+	return Changed;
+}
+
 
 bool Soy::StringTrimLeft(std::string& String,char TrimChar)
 {
@@ -448,8 +516,12 @@ bool Soy::StringTrimRight(std::string& Haystack,const std::string& Suffix,bool C
 
 void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 {
+	Soy::Assert( Buffer!=nullptr, "Soy::StringToBuffer Buffer expected" );
+	if ( BufferSize == 0 )
+		return;
+	
 	int Len = 0;
-	for ( Len=0;	Len<BufferSize-1;	Len++ )
+	for ( Len=0;	Source && Len<BufferSize-1;	Len++ )
 	{
 		if ( Source[Len] == '\0' )
 			break;
@@ -459,25 +531,39 @@ void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 	Buffer[std::min<ssize_t>(Len,BufferSize-1)] = '\0';
 }
 
-
-
-std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim)
+std::string Soy::StringPopUntil(std::string& Haystack,std::function<bool(char)> IsDelim,bool KeepDelim,bool PopDelim)
 {
 	std::stringstream Pop;
 	
 	while ( !Haystack.empty() )
 	{
-		if ( Haystack[0] == Delim )
+		if ( IsDelim(Haystack[0]) )
+		{
+			if ( !KeepDelim )
+				Haystack.erase( Haystack.begin() );
+			if ( PopDelim )
+				Pop << Haystack[0];
 			break;
+		}
 		
 		Pop << Haystack[0];
-		if ( KeepDelim )
-			Pop << Delim;
 		
 		Haystack.erase( Haystack.begin() );
 	}
 	
 	return Pop.str();
+}
+
+
+
+std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim,bool PopDelim)
+{
+	//	gr: make this faster! dont use a lambda!
+	auto IsDelim = [Delim](char Char)
+	{
+		return Char == Delim;
+	};
+	return StringPopUntil( Haystack, IsDelim, KeepDelim, PopDelim );
 }
 
 
@@ -744,4 +830,3 @@ void Soy::DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,in
 		String << (int)Data[i] << ' ';
 	}
 }
-

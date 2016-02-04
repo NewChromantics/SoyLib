@@ -183,9 +183,12 @@ namespace Unity
 	
 	SoyPixelsFormat::Type		GetPixelFormat(RenderTexturePixelFormat::Type Format);
 	SoyPixelsFormat::Type		GetPixelFormat(Texture2DPixelFormat::Type Format);
+	void						GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions);
 	
 	//	define these in your project
-	extern int			GetPluginEventId();
+	extern int					GetPluginEventId();
+	
+	extern SoyEvent<bool>		mOnDeviceShutdown;
 };
 
 

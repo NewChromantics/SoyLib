@@ -35,6 +35,8 @@ namespace Unity
 	std::shared_ptr<Cuda::TContext>		CudaContext;
 #endif
 	
+	
+	SoyEvent<bool>		mOnDeviceShutdown;	
 }
 
 
@@ -179,7 +181,7 @@ SoyPixelsFormat::Type Unity::GetPixelFormat(Texture2DPixelFormat::Type Format)
 #if defined(TARGET_WINDOWS)
 BOOL APIENTRY DllMain(HMODULE Module, DWORD Reason, LPVOID Reserved)
 {
-	std::Debug << "DllMain(" << Reason << ")" << std::endl;
+	//std::Debug << "DllMain(" << Reason << ")" << std::endl;
 	return TRUE;
 }
 #endif
@@ -253,7 +255,7 @@ __export void UnityRenderEvent(Unity::sint eventID)
 
 void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 {
-	if (!Soy::Platform::Init())
+	if (!Platform::Init())
 		throw Soy::AssertException("Soy Failed to init platform");
 
 	if ( !DebugListener.IsValid() )
@@ -336,6 +338,11 @@ void Unity::Shutdown(UnityDevice::Type Device)
 {
 	std::Debug.GetOnFlushEvent().RemoveListener( DebugListener );
 
+	{
+		bool Dummy;
+		mOnDeviceShutdown.OnTriggered(Dummy);
+	}
+	
 	//	free all contexts
 	//	gr: may need to defer some of these!
 	OpenglContext.reset();
@@ -422,3 +429,7 @@ __export void FlushDebug(Unity::LogCallback Callback)
 }
 
 
+void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
+{
+	Extensions.PushBack(".meta");
+}

@@ -974,11 +974,6 @@ bool SoyPixelsImpl::GetRawSoyPixels(ArrayBridge<char>& RawData) const
 }
 
 
-void SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData)
-{
-	Png::Read( *this, PngData );
-}
-
 bool SoyPixelsImpl::SetRawSoyPixels(const ArrayBridge<char>& RawData)
 {
 	int HeaderSize = sizeof(SoyPixelsMeta);

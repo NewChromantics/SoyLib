@@ -127,6 +127,12 @@
     <ClCompile Include="..\src\SoyImage.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\SoyFilesystem.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\SoyBase64.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\SoyThread.h">
@@ -279,5 +285,16 @@
     <ClInclude Include="..\src\SoyImage.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\SoyFilesystem.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyBase64.h">
+      <Filter>src</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\src\SoyFilesystem.mm">
+      <Filter>src</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -365,13 +365,40 @@ FullRangeVideo=0;
 	return FormatDesc;
 }
 
+SoyPixelsFormat::Type Avf::SoyPixelFormat_FromFourcc(uint32 Fourcc)
+{
+	//	check for avf specific fourcc's
+	switch ( Fourcc )
+	{
+		case kCVPixelFormatType_8Indexed:	return SoyPixelsFormat::Greyscale;
+		case kCVPixelFormatType_24RGB:		return SoyPixelsFormat::RGB;
+		case kCVPixelFormatType_24BGR:		return SoyPixelsFormat::BGR;
+		case kCVPixelFormatType_32ARGB:		return SoyPixelsFormat::ARGB;
+		case kCVPixelFormatType_32BGRA:		return SoyPixelsFormat::BGRA;
+		case kCVPixelFormatType_420YpCbCr8Planar:	return SoyPixelsFormat::Yuv_8_88_Video;
+		case kCVPixelFormatType_420YpCbCr8PlanarFullRange:	return SoyPixelsFormat::Yuv_8_88_Full;
+		case kCVPixelFormatType_OneComponent8:	return SoyPixelsFormat::Greyscale;
+		case kCVPixelFormatType_TwoComponent8:	return SoyPixelsFormat::GreyscaleAlpha;
+			
+		default:
+			return SoyPixelsFormat::Invalid;
+	}
+}
 
+SoyMediaFormat::Type Avf::SoyMediaFormat_FromFourcc(uint32 Fourcc,int H264LengthSize)
+{
+	auto AvfPixelFormat = SoyPixelFormat_FromFourcc( Fourcc );
+	if ( AvfPixelFormat != SoyPixelsFormat::Invalid )
+		return SoyMediaFormat::FromPixelFormat( AvfPixelFormat );
+	
+	return SoyMediaFormat::FromFourcc( Fourcc, H264LengthSize );
+}
 
 //	gr: speed this up! (or reduce usage) all the obj-c calls are expensive.
 TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 {
 	TStreamMeta Meta;
-	auto Fourcc = CFSwapInt32HostToBig( CMFormatDescriptionGetMediaSubType(FormatDesc) );
+	auto Fourcc = CMFormatDescriptionGetMediaSubType(FormatDesc);
 	int H264LengthSize = -1;
 	
 	//if ( SoyMediaFormat::IsH264Fourcc(Fourcc) )
@@ -400,7 +427,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 		}
 	}
 	
-	Meta.mCodec = SoyMediaFormat::FromFourcc( Fourcc, H264LengthSize );
+	Meta.mCodec = Avf::SoyMediaFormat_FromFourcc( Fourcc, H264LengthSize );
 	
 	if ( SoyMediaFormat::IsH264( Meta.mCodec ) )
 	{
@@ -413,6 +440,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 	auto Dim = CMVideoFormatDescriptionGetPresentationDimensions( FormatDesc, usePixelAspectRatio, useCleanAperture );
 	Meta.mPixelMeta.DumbSetWidth( Dim.width );
 	Meta.mPixelMeta.DumbSetHeight( Dim.height );
+	Meta.mPixelMeta.DumbSetFormat( Avf::SoyPixelFormat_FromFourcc( Fourcc ) );
 	
 	
 	//std::stringstream Debug;
@@ -718,35 +746,45 @@ NSString* const Avf::GetFormatType(SoyMediaFormat::Type Format)
 	throw Soy::AssertException( Error.str() );
 }
 
+
+const std::map<std::string,NSString *>& GetFileExtensionTypeConversion()
+{
+	static std::map<std::string,NSString *> FileExtensionToType;
+	if ( FileExtensionToType.empty() )
+	{
+		FileExtensionToType["mov"] = AVFileTypeQuickTimeMovie;
+		FileExtensionToType["qt"] = AVFileTypeQuickTimeMovie;
+		FileExtensionToType["mp4"] = AVFileTypeMPEG4;
+		FileExtensionToType["m4v"] = AVFileTypeAppleM4V;
+		FileExtensionToType["m4a"] = AVFileTypeAppleM4A;
+	#if defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
+		FileExtensionToType["3gp"] = AVFileType3GPP;
+		FileExtensionToType["3gpp"] = AVFileType3GPP;
+		FileExtensionToType["sdv"] = AVFileType3GPP;
+		FileExtensionToType["3g2"] = AVFileType3GPP2;
+		FileExtensionToType["3gp2"] = AVFileType3GPP2;
+	#endif
+		FileExtensionToType["caf"] = AVFileTypeCoreAudioFormat;
+		FileExtensionToType["wav"] = AVFileTypeWAVE;
+		FileExtensionToType["wave"] = AVFileTypeWAVE;
+		FileExtensionToType["aif"] = AVFileTypeAIFF;
+		FileExtensionToType["aiff"] = AVFileTypeAIFF;
+		FileExtensionToType["aifc"] = AVFileTypeAIFC;
+		FileExtensionToType["cdda"] = AVFileTypeAIFC;
+		FileExtensionToType["amr"] = AVFileTypeAMR;
+		FileExtensionToType["mp3"] = AVFileTypeMPEGLayer3;
+		FileExtensionToType["au"] = AVFileTypeSunAU;
+		FileExtensionToType["ac3"] = AVFileTypeAC3;
+	#if defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
+		FileExtensionToType["eac3"] = AVFileTypeEnhancedAC3;
+	#endif
+	}
+	return FileExtensionToType;
+}
+
 NSString* const Avf::GetFileExtensionType(const std::string& Extension)
 {
-	std::map<std::string,NSString *> FileExtensionToType;
-	FileExtensionToType["mov"] = AVFileTypeQuickTimeMovie;
-	FileExtensionToType["qt"] = AVFileTypeQuickTimeMovie;
-	FileExtensionToType["mp4"] = AVFileTypeMPEG4;
-	FileExtensionToType["m4v"] = AVFileTypeAppleM4V;
-	FileExtensionToType["m4a"] = AVFileTypeAppleM4A;
-#if defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
-	FileExtensionToType["3gp"] = AVFileType3GPP;
-	FileExtensionToType["3gpp"] = AVFileType3GPP;
-	FileExtensionToType["sdv"] = AVFileType3GPP;
-	FileExtensionToType["3g2"] = AVFileType3GPP2;
-	FileExtensionToType["3gp2"] = AVFileType3GPP2;
-#endif
-	FileExtensionToType["caf"] = AVFileTypeCoreAudioFormat;
-	FileExtensionToType["wav"] = AVFileTypeWAVE;
-	FileExtensionToType["wave"] = AVFileTypeWAVE;
-	FileExtensionToType["aif"] = AVFileTypeAIFF;
-	FileExtensionToType["aiff"] = AVFileTypeAIFF;
-	FileExtensionToType["aifc"] = AVFileTypeAIFC;
-	FileExtensionToType["cdda"] = AVFileTypeAIFC;
-	FileExtensionToType["amr"] = AVFileTypeAMR;
-	FileExtensionToType["mp3"] = AVFileTypeMPEGLayer3;
-	FileExtensionToType["au"] = AVFileTypeSunAU;
-	FileExtensionToType["ac3"] = AVFileTypeAC3;
-#if defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
-	FileExtensionToType["eac3"] = AVFileTypeEnhancedAC3;
-#endif
+	auto& FileExtensionToType = GetFileExtensionTypeConversion();
 	
 	auto FileTypeIt = FileExtensionToType.find( Extension );
 	if ( FileTypeIt == FileExtensionToType.end() )
@@ -757,6 +795,15 @@ NSString* const Avf::GetFileExtensionType(const std::string& Extension)
 	}
 	
 	return FileTypeIt->second;
+}
+
+void Avf::GetFileExtensions(ArrayBridge<std::string>&& Extensions)
+{
+	auto& FileExtensionToType = GetFileExtensionTypeConversion();
+	for ( auto& it : FileExtensionToType )
+	{
+		Extensions.PushBack( it.first );
+	}
 }
 
 bool Avf::IsFormatCompressed(SoyMediaFormat::Type Format)

@@ -2,8 +2,23 @@
 #include "SortArray.h"
 
 
-//	android define
+//	android sdk define
 #define MIMETYPE_AUDIO_RAW	"audio/raw"
+
+
+
+namespace Mime
+{
+	const char*	Aac_Android = "audio/mp4a-latm";
+	const char*	Aac_Other = "audio/aac";
+	const char*	Aac_x = "audio/x-aac";
+#if defined(TARGET_ANDROID)
+	const char*	Aac_Default = Aac_Android;
+#else
+	const char*	Aac_Default = Aac_Other;
+#endif
+}
+
 
 
 std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
@@ -34,9 +49,16 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Subtitle,			"subtitle" },
 	{ SoyMediaFormat::ClosedCaption,	"closedcaption" },
 	{ SoyMediaFormat::Timecode,			"timecode" },
+	{ SoyMediaFormat::QuicktimeTimecode,	"QuicktimeTimecode" },
 	{ SoyMediaFormat::MetaData,			"metadata" },
 	{ SoyMediaFormat::Muxed,			"muxed" },
-	
+
+	{ SoyMediaFormat::Png,				"Png" },
+	{ SoyMediaFormat::Jpeg,				"Jpeg" },
+	{ SoyMediaFormat::Gif,				"Gif" },
+	{ SoyMediaFormat::Tga,				"Tga" },
+	{ SoyMediaFormat::Bmp,				"Bmp" },
+	{ SoyMediaFormat::Psd,				"Psd" },
 	
 	{ SoyMediaFormat::Greyscale,		"Greyscale" },
 	{ SoyMediaFormat::GreyscaleAlpha,	"GreyscaleAlpha" },
@@ -44,6 +66,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::RGBA,				"RGBA" },
 	{ SoyMediaFormat::BGRA,				"BGRA" },
 	{ SoyMediaFormat::BGR,				"BGR" },
+	{ SoyMediaFormat::ARGB,				"ARGB" },
 	{ SoyMediaFormat::KinectDepth,		"KinectDepth" },
 	{ SoyMediaFormat::FreenectDepth10bit,	"FreenectDepth10bit" },
 	{ SoyMediaFormat::FreenectDepth11bit,	"FreenectDepth11bit" },
@@ -123,6 +146,8 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 		return true;
 	if ( IsH264(Format) )
 		return true;
+	if ( IsImage(Format) )
+		return true;
 	
 	switch ( Format )
 	{
@@ -138,6 +163,22 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 	}
 }
 
+bool SoyMediaFormat::IsImage(SoyMediaFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case SoyMediaFormat::Png:
+		case SoyMediaFormat::Jpeg:
+		case SoyMediaFormat::Gif:
+		case SoyMediaFormat::Tga:
+		case SoyMediaFormat::Bmp:
+		case SoyMediaFormat::Psd:
+			return true;
+			
+		default:
+			return false;
+	}
+}
 bool SoyMediaFormat::IsH264(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
@@ -209,11 +250,8 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Wave:		return "audio/wave";
 			
 		//	gr: change this to handle multiple mime types per format
-#if defined(TARGET_ANDROID)
-		case SoyMediaFormat::Aac:		return "audio/mp4a-latm";
-#else
-		case SoyMediaFormat::Aac:		return "audio/x-aac";
-#endif
+		case SoyMediaFormat::Aac:		return Mime::Aac_Default;
+
 		//	https://en.wikipedia.org/wiki/Pulse-code_modulation
 		case SoyMediaFormat::PcmLinear_8:	return "audio/L8";
 		case SoyMediaFormat::PcmLinear_16:	return "audio/L16";
@@ -221,6 +259,13 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::PcmLinear_24:	return "audio/L24";
 			
 		case SoyMediaFormat::PcmAndroidRaw:	return MIMETYPE_AUDIO_RAW;
+
+		//	verify these
+		case SoyMediaFormat::Png:		return "image/png";
+		case SoyMediaFormat::Jpeg:		return "image/jpeg";
+		case SoyMediaFormat::Bmp:		return "image/bmp";
+		case SoyMediaFormat::Tga:		return "image/tga";
+		case SoyMediaFormat::Psd:		return "image/Psd";
 			
 		default:						return "invalid/invalid";
 	}
@@ -229,6 +274,11 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 
 SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 {
+	//	special multiple-mime case
+	if ( Mime == Mime::Aac_Android )	return SoyMediaFormat::Aac;
+	if ( Mime == Mime::Aac_x )			return SoyMediaFormat::Aac;
+	if ( Mime == Mime::Aac_Other )		return SoyMediaFormat::Aac;
+	
 	if ( Mime == ToMime( SoyMediaFormat::H264_8 ) )			return SoyMediaFormat::H264_8;
 	if ( Mime == ToMime( SoyMediaFormat::H264_16 ) )		return SoyMediaFormat::H264_16;
 	if ( Mime == ToMime( SoyMediaFormat::H264_32 ) )		return SoyMediaFormat::H264_32;
@@ -246,6 +296,12 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_24 ) )	return SoyMediaFormat::PcmLinear_24;
 	if ( Mime == ToMime( SoyMediaFormat::PcmAndroidRaw ) )	return SoyMediaFormat::PcmAndroidRaw;
 	
+	if ( Mime == ToMime( SoyMediaFormat::Png ) )			return SoyMediaFormat::Png;
+	if ( Mime == ToMime( SoyMediaFormat::Jpeg ) )			return SoyMediaFormat::Jpeg;
+	if ( Mime == ToMime( SoyMediaFormat::Bmp ) )			return SoyMediaFormat::Bmp;
+	if ( Mime == ToMime( SoyMediaFormat::Tga ) )			return SoyMediaFormat::Tga;
+	if ( Mime == ToMime( SoyMediaFormat::Psd ) )			return SoyMediaFormat::Psd;
+
 	std::Debug << "Unknown mime type: " << Mime << std::endl;
 	return SoyMediaFormat::Invalid;
 }
@@ -340,6 +396,11 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 			if ( H264LengthSize == 24 )
 				return SoyMediaFormat::PcmLinear_24;
 			break;
+			
+		//	found in quicktime mov's
+		case 'tmcd':
+        case 'dcmt':
+            return SoyMediaFormat::QuicktimeTimecode;
 	}
 	
 	std::Debug << "Unknown fourcc type: " << Soy::FourCCToString(Fourcc) << std::endl;
@@ -853,7 +914,23 @@ void TMediaExtractor::OnStreamsChanged()
 	OnStreamsChanged( GetArrayBridge(Streams) );
 }
 
+//	gr: maybe we need to correct timecodes in the extractor, not the decoder, as
+//	+a) we need to sync all streams really
+//	+b) we calc duration below
+//	+c) dictate decode order correction here
+//	-a) decode timecodes may be special...
+//	gr: this is AT LEAST needed for correct stats (evident when we have 1 frame movies...)
+void TMediaExtractor::CorrectExtractedPacketTimecode(TMediaPacket& Packet)
+{
+	if ( Packet.mTimecode.mTime == 0 )
+		Packet.mTimecode.mTime = 1;
+}
 
+void TMediaExtractor::OnPacketExtracted(SoyTime& Timecode,size_t StreamIndex)
+{
+	if ( mOnPacketExtracted )
+		mOnPacketExtracted( Timecode, StreamIndex );
+}
 
 
 
@@ -1055,12 +1132,62 @@ void TMediaBufferManager::SetPlayerTime(const SoyTime &Time)
 }
 
 
+SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
+{
+	//	frequency is samples per sec
+	float SampleDuration = 1.f / (float)(mFrequency * mChannels);
+	float SampleTime = SampleIndex * SampleDuration;
+	auto SampleTimeMs = size_cast<uint64>( SampleTime * 1000.f );
+	return mStartTime + SoyTime(SampleTimeMs);
+}
+
+ssize_t TAudioBufferBlock::GetTimeSampleIndex(SoyTime Time) const
+{
+	float SampleDuration = 1.f / (float)(mFrequency * mChannels);
+	
+	if ( Time == mStartTime )
+		return 0;
+	
+	if ( Time > mStartTime )
+	{
+		SampleDuration *= 1000.f;
+		auto AheadMs = Time.GetTime() - mStartTime.GetTime();
+		auto SampleIndex = AheadMs * SampleDuration;
+		return SampleIndex;
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+
+size_t TAudioBufferBlock::RemoveDataUntil(SoyTime Time)
+{
+	if ( mData.IsEmpty() )
+		return 0;
+	
+	auto StartTime = GetSampleTime( 0 );
+	
+	if ( Time <= StartTime )
+		return 0;
+	
+	size_t RemoveCount = GetTimeSampleIndex( Time );
+	RemoveCount = std::min( RemoveCount, mData.GetSize() );
+
+	mData.RemoveBlock( 0, RemoveCount );
+	
+	return RemoveCount;
+}
 
 
 void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 {
 	{
 		std::lock_guard<std::mutex> Lock( mBlocksLock );
+		
+		Soy::Assert( AudioData.mFrequency != 0, "Audio data should not have zero frequency");
+		
 		mBlocks.PushBack( AudioData );
 	}
 	mOnFramePushed.OnTriggered( AudioData.mStartTime );
@@ -1090,6 +1217,9 @@ void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channe
 			break;
 		
 		auto& Block = mBlocks[0];
+		
+		Block.RemoveDataUntil( StartTime );
+		
 		if ( Block.mData.IsEmpty() )
 		{
 			mBlocks.RemoveBlock( 0, 1 );
@@ -1106,6 +1236,40 @@ void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channe
 	}
 }
 
+void TAudioBufferManager::PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd)
+{
+	size_t BlockIndex = 0;
+	while ( Data.GetSize() < MaxSamples )
+	{
+		std::lock_guard<std::mutex> Lock( mBlocksLock );
+		if ( BlockIndex >= mBlocks.GetSize() )
+			break;
+		
+		auto& Block = mBlocks[BlockIndex];
+		
+		//	copy some data out
+		auto CopySize = std::min( Block.mData.GetSize(), MaxSamples - Data.GetSize() );
+
+		//	if we get this... empty block? bail, don't get stuck
+		if ( CopySize == 0 )
+			break;
+
+		{
+			auto* Dst = Data.PushBlock( CopySize );
+			auto* Src = Block.mData.GetArray();
+			memcpy( Dst, Src, CopySize * Data.GetElementSize() );
+		}
+		
+		//	update times of the data we've copied
+		if ( !SampleStart.IsValid() )
+			SampleStart = Block.GetSampleTime(0);
+		SampleEnd = Block.GetSampleTime(CopySize-1);
+		
+		BlockIndex++;
+	}
+}
+
+
 void TAudioBufferManager::ReleaseFrames()
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
@@ -1121,7 +1285,7 @@ void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 		
 		//	gr: fix this in data generation, not here!
 		static bool CorrectPreviousDuration = true;
-		static bool Debug_Correction = true;
+		static bool Debug_Correction = false;
 		auto Prev = !mBlocks.IsEmpty() ? mBlocks.GetBack() : nullptr;
 		if ( CorrectPreviousDuration && Prev )
 		{
@@ -1137,7 +1301,10 @@ void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 			std::stringstream SampleStream;
 			Soy::ArrayToString( GetArrayBridge(Buffer->mData), SampleStream );
 			auto Sample = SampleStream.str();
-			std::Debug << "New text push; " << Buffer->mTimecode << "; " << Sample << std::endl;
+			
+			static bool Debug_TextPush = false;
+			if ( Debug_TextPush )
+				std::Debug << "New text push; " << Buffer->mTimecode << "; " << Sample << std::endl;
 		}
 		
 		mBlocks.PushBack( Buffer );
@@ -1145,11 +1312,10 @@ void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 	mOnFramePushed.OnTriggered( Buffer->mTimecode );
 }
 
-bool TTextBufferManager::PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText)
+SoyTime TTextBufferManager::PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText)
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
-	
-	bool Any = false;
+	SoyTime OutputTime;
 	
 	while ( !mBlocks.IsEmpty() )
 	{
@@ -1164,20 +1330,23 @@ bool TTextBufferManager::PopBuffer(std::stringstream& Output,SoyTime Time,bool S
 		//	if old, skip
 		if ( SkipOldText )
 		{
-			auto EndTime = Block.mTimecode + Block.mDuration;
+			auto EndTime = Block.GetEndTime();
 			if ( EndTime < Time )
 				continue;
 		}
 		
 		//	insert line breaks if we have previous entries
-		if ( Any )
+		if ( OutputTime.IsValid() )
 			Output << '\n';
 		
 		Soy::ArrayToString( GetArrayBridge(Block.mData), Output );
-		Any = true;
+		
+		//	return the end-time
+		OutputTime = Block.GetEndTime();
+		Soy::Assert( OutputTime.IsValid(), "Expected output time to be valid");
 	}
 	
-	return Any;
+	return OutputTime;
 }
 
 void TTextBufferManager::ReleaseFrames()
@@ -1205,6 +1374,21 @@ TMediaPassThroughDecoder::TMediaPassThroughDecoder(const std::string& ThreadName
 {
 	Start();
 }
+
+
+bool TMediaPassThroughDecoder::HandlesCodec(SoyMediaFormat::Type Format)
+{
+	//	gr: automate this to be some codec->function map and search it
+	
+	if ( SoyMediaFormat::IsPixels( Format ) )
+		return true;
+	
+	if ( SoyMediaFormat::IsText( Format ) )
+		return true;
+	
+	return false;
+}
+
 
 bool TMediaPassThroughDecoder::ProcessPacket(std::shared_ptr<TMediaPacket>& Packet)
 {

@@ -176,7 +176,7 @@ bool Soy::Winsock::Init()
 	auto Error = WSAStartup(wVersionRequested, &wsaData);
 	if ( Error != 0 )
 	{
-		std::Debug << "Failed to initialise Winsock. " << Soy::Platform::GetLastErrorString() << std::endl; 
+		std::Debug << "Failed to initialise Winsock. " << ::Platform::GetLastErrorString() << std::endl; 
 		return false;
 	}
 #endif
@@ -196,7 +196,7 @@ int Soy::Winsock::GetError()
 #if defined(TARGET_WINDOWS)
 	return WSAGetLastError();
 #elif defined(TARGET_POSIX)
-	return Soy::Platform::GetLastError();
+	return ::Platform::GetLastError();
 #endif
 }
 
@@ -217,7 +217,7 @@ int Soy::Winsock::GetError()
 
 bool Soy::Winsock::HasError(const std::string& ErrorContext,bool BlockIsError,int Error,std::ostream* ErrorStream)
 {
-	std::string ErrorString = Soy::Platform::GetErrorString( Error );
+	std::string ErrorString = ::Platform::GetErrorString( Error );
 
 	switch ( Error )
 	{
@@ -533,7 +533,7 @@ SoyRef SoySocket::Connect(std::string Address)
 		}
 		else
 		{
-			std::Debug << "connect(" << Address << ") error: " << Soy::Platform::GetErrorString( Error ) << std::endl;
+			std::Debug << "connect(" << Address << ") error: " << Platform::GetErrorString( Error ) << std::endl;
 			return SoyRef();
 		}
 	}

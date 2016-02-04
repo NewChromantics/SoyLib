@@ -18,6 +18,9 @@ class TJniLocalObject;
 #define INVALID_FILE_HANDLE	0	//	gr: I swear this is declared somewhere in soy
 
 
+
+
+
 namespace Soy
 {
 	std::string	JStringToString(jstring Stringj);
@@ -27,30 +30,88 @@ namespace Soy
 
 namespace Java
 {
+	bool					HasVm();
+	JNIEnv&					GetContext();
+	void					FlushLocals();	//	wrapper to flush current thread's locals
+
+	size_t					GetBufferSize(TJniObject& Buffer);
 	void					ArrayToBuffer(const ArrayBridge<uint8>&& Data,TJniObject& InputBuffer,const std::string& Context,int ExplicitBufferSize=-1);
 	void					BufferToArray(TJniObject& InputBuffer,ArrayBridge<uint8>&& Data,const std::string& Context,int ExplicitBufferSize=-1);
 	FixedRemoteArray<uint8>	GetBufferArray(TJniObject& Buffer,int LimitSize=-1);	//	get buffer as array. throws if this option isn't availible for this buffer
-	void	IsOkay(const std::string& Context,bool ThrowRegardless=false);		//	check for JNI exception
+	void					IsOkay(const std::string& Context,bool ThrowRegardless=false);		//	check for JNI exception
 	
-	//	todo: factory these
 	class TFileHandle;
 	class TApkFileHandle;		//	special access to files in Assets which need to be loaded in a special way
+	class TZipFileHandle;		//	expecting a filename like file://file.obb!/internalfilename.txt
 	class TRandomAccessFileHandle;
 
-	//	factory for a stream reader too
-	class TApkFileStreamReader;	//	special file reader that uses JNI to read from APK
-	typedef ::TFileStreamReader_ProtocolLambda<TApkFileStreamReader> TApkFileStreamReader_ProtocolLambda;
+	class TFileHandleStreamReader;	//	special file reader that uses JNI to read from APK
+	typedef ::TFileStreamReader_ProtocolLambda<TFileHandleStreamReader> TApkFileStreamReader_ProtocolLambda;
+	
+	std::shared_ptr<TFileHandle>	AllocFileHandle(const std::string& Filename);
+
+	//	according to android docs
+	//	http://developer.android.com/training/articles/perf-jni.html
+	//	JNI won't auto-free locals in a thread until it detatches (gr: not sure HOW it EVER cleans up then...)
+	//	so instead, we'll manually push&pop frames of locals.
+	//	hopefully this may show up cases where we need global refs, but more importantly we won't overflow the local stack (happens with long movies & ones with audio which use up locals much faster)
+	//	gr: look for a way to auto count locals... not found one yet
+	class TLocalRefStack;
+	class TThread;			//	java thread handler, handles env creation & destruction and local object stack
 }
+
+namespace Platform
+{
+	std::string		GetSdCardDirectory();		//	throws if we can't get it
+}
+
+
+class Java::TLocalRefStack
+{
+public:
+	TLocalRefStack(size_t MaxLocals=100);
+	~TLocalRefStack();
+};
+
+class Java::TThread
+{
+public:
+	TThread(JavaVM& vm);
+	~TThread();
+	
+	void			Init()			{	FlushLocals();	}
+	void			FlushLocals();
+
+public:
+	JavaVM&			mVirtualMachine;
+	JNIEnv*			mThreadEnv;
+	std::shared_ptr<TLocalRefStack>	mLocalStack;	//	ptr so we can destruct & recreate it to flush all local vars
+};
+
+
+
 
 class Java::TFileHandle
 {
+protected:
+	static const int	UNKNOWN_LENGTH = -1;
 public:
 	TFileHandle();
 	~TFileHandle();
+
+	ssize_t			Seek();		//	returns bytes remaining, negative if unknown
+	void			Read(ArrayBridge<uint8>&& Buffer,bool& Eof);
+
+protected:
+	virtual int		GetInitialSeekPos() const	{	return 0;	}
+	virtual int		GetLength() const			{	return UNKNOWN_LENGTH;	}	//	-1 if unknown
 	
+public:
 	int				mFd;
-	
 	std::shared_ptr<TJniObject>	mFileDescriptor;
+
+protected:
+	bool			mDoneInitialSeek;
 };
 
 class Java::TApkFileHandle : public Java::TFileHandle
@@ -59,6 +120,27 @@ public:
 	TApkFileHandle(const std::string& Path);
 	~TApkFileHandle();
 	
+	virtual int		GetInitialSeekPos() const override 	{	return mFdOffset;	}
+	virtual int		GetLength() const override			{	return mFdLength;	}	//	-1 if unknown
+
+protected:
+	int				mFdOffset;
+	int				mFdLength;
+	
+	std::shared_ptr<TJniObject>	mAssetFileDescriptor;
+};
+
+
+class Java::TZipFileHandle : public Java::TFileHandle
+{
+public:
+	TZipFileHandle(const std::string& Path);
+	~TZipFileHandle();
+	
+	virtual int		GetInitialSeekPos() const override 	{	return mFdOffset;	}
+	virtual int		GetLength() const override			{	return mFdLength;	}	//	-1 if unknown
+	
+protected:
 	int				mFdOffset;
 	int				mFdLength;
 	
@@ -74,19 +156,19 @@ public:
 	std::shared_ptr<TJniObject>	mRandomAccessFile;
 };
 
-
-class Java::TApkFileStreamReader : public TStreamReader
+class Java::TFileHandleStreamReader : public TStreamReader
 {
 public:
-	TApkFileStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer=nullptr);
-	~TApkFileStreamReader();
+	TFileHandleStreamReader(const std::string& Filename,std::shared_ptr<TStreamBuffer> ReadBuffer=nullptr);
+	~TFileHandleStreamReader();
 	
 protected:
-	virtual void		Read(TStreamBuffer& Buffer) override;
+	virtual bool		Read(TStreamBuffer& Buffer) override;
 	
 private:
-	std::shared_ptr<Java::TApkFileHandle>	mHandle;
+	std::shared_ptr<Java::TFileHandle>	mHandle;
 };
+
 
 
 
@@ -246,6 +328,7 @@ inline std::string	GetSignature(const std::string& SigTypea,const std::string& S
 
 
 //	merge this into TJniObject
+//	gr: use this to explicitly flush variables (eg. loops). For general clear up, use Java::TThread::FlushLocals()
 template<typename TYPE>
 class TJniLocalObject
 {

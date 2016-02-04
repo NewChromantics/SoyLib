@@ -81,36 +81,12 @@ namespace Opengl
 	class TContext;
 	class TSync;
 
-	
-	// It probably isn't worth keeping these shared here, each user
-	// should just duplicate them.
-	extern const char * externalFragmentShaderSource;
-	extern const char * textureFragmentShaderSource;
-	extern const char * identityVertexShaderSource;
-	extern const char * untexturedFragmentShaderSource;
-	
-	extern const char * VertexColorVertexShaderSrc;
-	extern const char * VertexColorSkinned1VertexShaderSrc;
-	extern const char * VertexColorFragmentShaderSrc;
-	
-	extern const char * SingleTextureVertexShaderSrc;
-	extern const char * SingleTextureSkinned1VertexShaderSrc;
-	extern const char * SingleTextureFragmentShaderSrc;
-	
-	extern const char * LightMappedVertexShaderSrc;
-	extern const char * LightMappedSkinned1VertexShaderSrc;
-	extern const char * LightMappedFragmentShaderSrc;
-	
-	extern const char * ReflectionMappedVertexShaderSrc;
-	extern const char * ReflectionMappedSkinned1VertexShaderSrc;
-	extern const char * ReflectionMappedFragmentShaderSrc;
-	
 
 	#define Opengl_IsOkay()			Opengl::IsOkay(__func__)
 	//#define Opengl_IsOkayFlush()	Opengl::IsOkay( std::string(__func__)+ " flush", false )
 	#define Opengl_IsOkayFlush()	Opengl::FlushError( __func__ )
 
-	bool			IsOkay(const char* Context,std::function<void(const std::string&)>& ExceptionContainer);	//	if container is null, we throw
+	bool			IsOkay(const char* Context,std::function<void(const std::string&)> ExceptionContainer);	//	if container is null, we throw
 	//inline bool		IsOkay(const std::string& Context,std::function<void(const std::string&)> ExceptionContainer)	{	return IsOkay( Context.c_str(), ExceptionContainer );	}
 	bool			IsOkay(const char* Context,bool ThrowException=true);
 	inline bool		IsOkay(const std::string& Context,bool ThrowException=true)	{	return IsOkay( Context.c_str(), ThrowException );	}
@@ -290,6 +266,8 @@ public:
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override	{	return SetUniform( Name, Texture.mTexture );	}
 	bool			SetUniform(const char* Name,const float3x3& v);
 	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& Texture) override	{	return Soy_AssertTodo();	}
+	bool			SetUniform(const char* Name,const Soy::TRgb& v)						{	return SetUniform( Name, v.mRgb );	}
+	bool			SetUniform(const char* Name,const Soy::THsl& v)						{	return SetUniform( Name, v.mHsl );	}
 
 	template<typename TYPE>
 	bool	SetUniform(const std::string& Name,const TYPE& v)

@@ -328,20 +328,34 @@ TStreamReader::~TStreamReader()
 bool TStreamReader::Iteration()
 {
 	//	read next chunk
+	bool KeepAlive = true;
 	try
 	{
-		Read( *mReadBuffer );
+		KeepAlive = Read( *mReadBuffer );
 	}
 	catch (std::exception& e)
 	{
-		std::Debug << "Stream " << GetThreadName() << " failed to read: " << e.what() << std::endl;
-		std::this_thread::sleep_for( std::chrono::milliseconds(5000) );
-		return true;
+		std::Debug << "Stream " << GetThreadName() << " failed to read: " << e.what();
+
+		//	gr: error thrown... abort the thread if no data?
+		//		retry? throttle?
+		if ( mReadBuffer->IsEmpty() )
+		{
+			std::Debug << "; Aborting read" << std::endl;
+			return false;
+		}
+		else
+		{
+			auto SleepMs = 1000;
+			std::Debug << "; retrying (throttled for " << SleepMs << "ms)" << std::endl;
+			std::this_thread::sleep_for( std::chrono::milliseconds( SleepMs ) );
+			return true;
+		}
 	}
 	
-	//	nothing to do
+	//	nothing to do, NOW we can kill the thread
 	if ( mReadBuffer->IsEmpty() )
-		return true;
+		return KeepAlive;
 	if ( !IsWorking() )
 		return true;
 	
@@ -352,7 +366,10 @@ bool TStreamReader::Iteration()
 	//	in case it's been released capture a local copy
 	auto CurrentProtocol = mCurrentProtocol;
 	if ( !CurrentProtocol )
+	{
+		std::Debug << "TStreamReader(" << Soy::GetTypeName(*this) << ") didn't allocate protocol." << std::endl;
 		return true;
+	}
 	
 	//	process protocol
 	auto DecodeResult = TProtocolState::Abort;
@@ -407,6 +424,7 @@ bool TStreamReader::Iteration()
 		std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
 	}
 	
+	//	don't abort thread until we've used up all the data
 	return true;
 }
 
@@ -598,7 +616,7 @@ TFileStreamReader::~TFileStreamReader()
 	mFile.close();
 }
 
-void TFileStreamReader::Read(TStreamBuffer& Buffer)
+bool TFileStreamReader::Read(TStreamBuffer& Buffer)
 {
 	mReadBuffer.SetSize( 1024*1024 );
 	auto& Data = mReadBuffer;
@@ -606,18 +624,20 @@ void TFileStreamReader::Read(TStreamBuffer& Buffer)
 	auto Peek = mFile.peek();
 	if ( Peek == std::char_traits<char>::eof() )
 	{
-		//	todo: handle finished stream
-		throw Soy::AssertException("TFileStreamReader finished");
+		return false;
 	}
 
 	mFile.read( Data.GetArray(), Data.GetDataSize() );
 	if ( mFile.fail() && !mFile.eof() )
 	{
-		throw Soy::AssertException("TFileStreamReader error");
+		std::stringstream Error;
+		Error << "TFileStreamReader error; " << Platform::GetLastErrorString();
+		throw Soy::AssertException( Error.str() );
 	}
 
 	auto BytesRead = mFile.gcount();
 	Data.SetSize( BytesRead );
 	Buffer.Push( GetArrayBridge( Data ) );
+	return true;
 }
 
