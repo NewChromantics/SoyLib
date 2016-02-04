@@ -212,12 +212,15 @@ bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DA
 #if defined(TARGET_WINDOWS)
 bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
+	//	because this can matter
+	const char* DirectoryDelim = "\\";
+
 	auto OnFindItem = [&](WIN32_FIND_DATA& FindData)
 	{
 		try
 		{
 			auto UrlType = GetPathType( FindData );
-			auto Filename = GetFilename( FindData );
+			auto Filename = Directory + DirectoryDelim + GetFilename( FindData );
 			
 			//	if this returns false, bail
 			if ( !OnPathFound( Filename, UrlType ) )
@@ -231,7 +234,7 @@ bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(con
 	};
 
 	std::stringstream SearchDirectory;
-	SearchDirectory << Directory << "/*";
+	SearchDirectory << Directory << DirectoryDelim << "*";
 
 	return ::EnumDirectory( SearchDirectory.str(), OnFindItem );
 }

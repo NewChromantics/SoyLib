@@ -30,6 +30,14 @@ namespace Avf
 	bool							IsOkay(OSStatus Error,const std::string& Context,bool Throw=true);
 	std::string						GetString(OSStatus Status);
 	CFStringRef						GetProfile(H264Profile::Type Profile);
+
+	std::string						GetPixelFormatString(OSType Format);
+	std::string						GetPixelFormatString(id Format);
+	std::string						GetPixelFormatString(NSNumber* Format);
+	OSType							GetPlatformPixelFormat(SoyPixelsFormat::Type Format);
+	SoyPixelsFormat::Type			GetPixelFormat(OSType Format);
+	SoyPixelsFormat::Type			GetPixelFormat(NSNumber* Format);
+
 #endif
 }
 

@@ -291,9 +291,15 @@
     <ClInclude Include="..\src\SoyBase64.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\SoyAvf.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\src\SoyFilesystem.mm">
+      <Filter>src</Filter>
+    </None>
+    <None Include="..\src\SoyAvf.mm">
       <Filter>src</Filter>
     </None>
   </ItemGroup>
