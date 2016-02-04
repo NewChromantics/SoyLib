@@ -966,7 +966,16 @@ TCvVideoTypeMeta PixelFormatMap[] =
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,	SoyPixelsFormat::Yuv_8_88_Full ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,	SoyPixelsFormat::Yuv_8_88_Video ),
 
-
+	/* gr: don't currently support these until we have pixel shaders for it
+	//	gr: are these the same luma range?
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Yuv_844_Full ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::Yuv_844_Full ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::Yuv_844_Video ),
+*/
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::Invalid ),
+	
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_1Monochrome,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_2Indexed,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_4Indexed,	SoyPixelsFormat::Invalid ),
@@ -986,7 +995,6 @@ TCvVideoTypeMeta PixelFormatMap[] =
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_32AlphaGray,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_16Gray,	SoyPixelsFormat::Invalid ),
 	
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Yuv_844 ),
 	
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_4444YpCbCrA8,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_4444YpCbCrA8R,	SoyPixelsFormat::Invalid ),
@@ -999,8 +1007,6 @@ TCvVideoTypeMeta PixelFormatMap[] =
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8Planar,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8PlanarFullRange,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr_4A_8BiPlanar,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::Invalid ),
 };
 
 
@@ -1053,18 +1059,12 @@ SoyPixelsFormat::Type Avf::GetPixelFormat(NSNumber* Format)
 
 std::string Avf::GetPixelFormatString(NSNumber* Format)
 {
-//	auto Format = Format.intValue;
-
 	auto FormatInt = [Format integerValue];
-	NSNumber* FormatNumber = [[NSNumber alloc] initWithInteger:FormatInt];
-	return GetPixelFormatString( FormatNumber );
-	
+	return GetPixelFormatString( static_cast<OSType>(FormatInt) );
 }
 
 std::string Avf::GetPixelFormatString(id Format)
 {
 	auto FormatInt = [Format integerValue];
-	NSNumber* FormatNumber = [[NSNumber alloc] initWithInteger:FormatInt];
-	return GetPixelFormatString( FormatNumber );
-	
+	return GetPixelFormatString( static_cast<OSType>(FormatInt) );
 }
