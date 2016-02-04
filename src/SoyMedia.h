@@ -88,6 +88,7 @@ namespace SoyMediaFormat
 		Psd,
 		
 		//	audio
+		Audio_AUDS,		//	fourcc from mediafoundation. means "audio stream"
 		Wave,
 		Aac,
 		Ac3,

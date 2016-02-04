@@ -35,6 +35,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Mpeg2,			"Mpeg2" },
 	{ SoyMediaFormat::Mpeg4,			"Mpeg4" },
 	{ SoyMediaFormat::VC1,				"VC1" },
+	{ SoyMediaFormat::Audio_AUDS,		"Audio_AUDS" },
 	{ SoyMediaFormat::Wave,				"wave" },
 	{ SoyMediaFormat::Aac,				"aac" },
 	{ SoyMediaFormat::Ac3,				"Ac3" },
@@ -211,6 +212,7 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::PcmLinear_20:
 		case SoyMediaFormat::PcmLinear_24:
 		case SoyMediaFormat::Wave:
+		case SoyMediaFormat::Audio_AUDS:
 		case SoyMediaFormat::PcmAndroidRaw:
 			return true;
 			
@@ -250,6 +252,7 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Mpeg4:		return "video/mp4";	//	find the proper version of this
 	
 		case SoyMediaFormat::Wave:		return "audio/wave";
+		case SoyMediaFormat::Audio_AUDS:	return "audio/Audio_AUDS";
 			
 		//	gr: change this to handle multiple mime types per format
 		case SoyMediaFormat::Aac:		return Mime::Aac_Default;
@@ -291,6 +294,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg2 ) )			return SoyMediaFormat::Mpeg2;
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg4 ) )			return SoyMediaFormat::Mpeg4;
 	if ( Mime == ToMime( SoyMediaFormat::Wave ) )			return SoyMediaFormat::Wave;
+	if ( Mime == ToMime( SoyMediaFormat::Audio_AUDS ) )		return SoyMediaFormat::Audio_AUDS;
 	if ( Mime == ToMime( SoyMediaFormat::Aac ) )			return SoyMediaFormat::Aac;
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_8 ) )	return SoyMediaFormat::PcmLinear_8;
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_16 ) )	return SoyMediaFormat::PcmLinear_16;
