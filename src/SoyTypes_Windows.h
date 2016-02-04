@@ -110,6 +110,25 @@ public:
 			mObject = nullptr;
 		}
 	}
+
+	AutoReleasePtr&	operator=(const AutoReleasePtr& That)
+	{
+		if ( this != &That )
+		{
+			Set( That.mObject, true );
+		}
+		return *this;
+	}
+
+	AutoReleasePtr&	operator=(AutoReleasePtr&& That)
+	{
+		if ( this != &That )
+		{
+			Set( That.mObject, true );
+			That.Release();
+		}
+		return *this;
+	}
 	
 public:
 	TYPE*	mObject;

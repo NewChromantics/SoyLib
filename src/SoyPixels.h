@@ -46,11 +46,12 @@ namespace SoyPixelsFormat
 		Yuv_8_88_Video,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
 		Yuv_8_8_8_Full,		//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
 		Yuv_8_8_8_Video,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
+		Yuv_844_Full,		//	8bit luma, then 8bit chromauv in the same plane
+
 		ChromaUV_8_8,		//	8 bit plane, 8 bit plane
 		ChromaUV_88,		//	16 bit interleaved plane
 		ChromaUV_44,		//	8 bit plane where each byte is split in half
 		
-		Yuv_844_Full,		//	8bit luma, then 8bit chromauv in the same plane
 
 		//	https://github.com/ofTheo/ofxKinect/blob/ebb9075bcb5ab2543220b4dec598fd73cec40904/libs/libfreenect/src/cameras.c
 		//	kinect (16bit?) yuv. See if its the same as a standard one 

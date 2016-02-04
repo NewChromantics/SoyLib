@@ -55,8 +55,10 @@ namespace SoyMediaFormat
 		Yuv_8_88_Video = SoyPixelsFormat::Yuv_8_88_Video,
 		Yuv_8_8_8_Full = SoyPixelsFormat::Yuv_8_8_8_Full,
 		Yuv_8_8_8_Video = SoyPixelsFormat::Yuv_8_8_8_Video,
+		Yuv_844_Full = SoyPixelsFormat::Yuv_844_Full,
 		ChromaUV_8_8 = SoyPixelsFormat::ChromaUV_8_8,
 		ChromaUV_88 = SoyPixelsFormat::ChromaUV_88,
+		ChromaUV_44 = SoyPixelsFormat::ChromaUV_44,
 		Palettised_8_8 = SoyPixelsFormat::Palettised_8_8,
 		
 		NotPixels = SoyPixelsFormat::Count,
@@ -86,6 +88,7 @@ namespace SoyMediaFormat
 		Psd,
 		
 		//	audio
+		Audio_AUDS,		//	fourcc from mediafoundation. means "audio stream"
 		Wave,
 		Aac,
 		Ac3,

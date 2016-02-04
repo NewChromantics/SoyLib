@@ -87,6 +87,12 @@
     <ClInclude Include="..\src\SortArray.h" />
     <ClInclude Include="..\src\SoyArray.h" />
     <ClInclude Include="..\src\SoyAssert.h" />
+    <ClInclude Include="..\src\SoyAvf.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="..\src\SoyBase64.h" />
     <ClInclude Include="..\src\SoyCuda.h" />
     <ClInclude Include="..\src\SoyDebug.h" />
@@ -128,6 +134,12 @@
     <ClInclude Include="..\src\stb\stb_image.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\src\SoyAvf.mm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|x64'">true</ExcludedFromBuild>
+    </None>
     <None Include="..\src\SoyFilesystem.mm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|Win32'">true</ExcludedFromBuild>
