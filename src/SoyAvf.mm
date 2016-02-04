@@ -868,7 +868,7 @@ void PixelReleaseCallback(void *releaseRefCon, const void *baseAddress)
 CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 {
 	CFAllocatorRef PixelBufferAllocator = nullptr;
-	OSType PixelFormatType = Soy::Platform::GetFormat( Image.GetFormat() );
+	OSType PixelFormatType = GetPixelFormat( Image.GetFormat() );
 	auto& PixelsArray = Image.GetPixelsArray();
 	auto* Pixels = const_cast<uint8*>( PixelsArray.GetArray() );
 	auto BytesPerRow = Image.GetMeta().GetRowDataSize();
@@ -896,3 +896,175 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 }
 
 
+
+
+
+
+#define CV_VIDEO_TYPE_META(Enum,SoyFormat)	TCvVideoTypeMeta( Enum, #Enum, SoyFormat )
+#define CV_VIDEO_INVALID_ENUM		0
+class TCvVideoTypeMeta
+{
+public:
+	TCvVideoTypeMeta(OSType Enum,const char* EnumName,SoyPixelsFormat::Type SoyFormat) :
+		mPlatformFormat		( Enum ),
+		mName				( EnumName ),
+		mSoyFormat			( SoyFormat )
+	{
+		Soy::Assert( IsValid(), "Expected valid enum - or invalid enum is bad" );
+	}
+	TCvVideoTypeMeta() :
+		mPlatformFormat		( CV_VIDEO_INVALID_ENUM ),
+		mName				( "Invalid enum" ),
+		mSoyFormat			( SoyPixelsFormat::Invalid )
+	{
+	}
+	
+	bool		IsValid() const		{	return mPlatformFormat != CV_VIDEO_INVALID_ENUM;	}
+	
+	bool		operator==(const OSType& Enum) const					{	return mPlatformFormat == Enum;	}
+	bool		operator==(const SoyPixelsFormat::Type& Format) const	{	return mSoyFormat == Format;	}
+	
+public:
+	OSType					mPlatformFormat;
+	SoyPixelsFormat::Type	mSoyFormat;
+	std::string				mName;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+TCvVideoTypeMeta PixelFormatMap[] =
+{
+	/*
+	 //	from avfDecoder ResolveFormat(id)
+	 //	gr: RGBA never seems to decode, but with no error[on osx]
+		case SoyPixelsFormat::RGBA:
+		//	BGRA is internal format on IOS so return that as default
+		case SoyPixelsFormat::BGRA:
+		default:
+*/
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_24RGB,	SoyPixelsFormat::RGB ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_24BGR,	SoyPixelsFormat::BGR ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_32BGRA,	SoyPixelsFormat::BGRA ),
+	
+	//	gr: popcast creating a pixel buffer from a unity "argb" texture, failed as RGBA is unsupported...
+	//	gr: ARGB is accepted, but channels are wrong
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_32RGBA,	SoyPixelsFormat::RGBA ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_32ARGB,	SoyPixelsFormat::ARGB ),
+
+
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,	SoyPixelsFormat::Yuv_8_88_Full ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,	SoyPixelsFormat::Yuv_8_88_Video ),
+
+	/* gr: don't currently support these until we have pixel shaders for it
+	//	gr: are these the same luma range?
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Yuv_844_Full ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::Yuv_844_Full ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::Yuv_844_Video ),
+*/
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::Invalid ),
+	
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_1Monochrome,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_2Indexed,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_4Indexed,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_8Indexed,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_1IndexedGray_WhiteIsZero,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_2IndexedGray_WhiteIsZero,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_4IndexedGray_WhiteIsZero,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_8IndexedGray_WhiteIsZero,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_16BE555,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_16LE555,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_16LE5551,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_16BE565,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_16LE565,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_32ABGR,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_64ARGB,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_48RGB,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_32AlphaGray,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_16Gray,	SoyPixelsFormat::Invalid ),
+	
+	
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_4444YpCbCrA8,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_4444YpCbCrA8R,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_444YpCbCr8,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr16,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr10,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_444YpCbCr10,	SoyPixelsFormat::Invalid ),
+	
+	
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8Planar,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8PlanarFullRange,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr_4A_8BiPlanar,	SoyPixelsFormat::Invalid ),
+};
+
+
+
+std::string Avf::GetPixelFormatString(OSType Format)
+{
+	auto Table = GetRemoteArray( PixelFormatMap );
+	
+	auto* Meta = GetArrayBridge(Table).Find( Format );
+	
+	if ( !Meta )
+	{
+		std::stringstream Output;
+		Output << "Unknown format " << Soy::FourCCToString( Format );
+		return Output.str();
+	}
+
+	return Meta->mName;
+}
+
+OSType Avf::GetPlatformPixelFormat(SoyPixelsFormat::Type Format)
+{
+	auto Table = GetRemoteArray( PixelFormatMap );
+	auto* Meta = GetArrayBridge(Table).Find( Format );
+
+	if ( !Meta )
+		return CV_VIDEO_INVALID_ENUM;
+	
+	return Meta->mPlatformFormat;
+}
+
+SoyPixelsFormat::Type Avf::GetPixelFormat(OSType Format)
+{
+	auto Table = GetRemoteArray( PixelFormatMap );
+	auto* Meta = GetArrayBridge(Table).Find( Format );
+	
+	if ( !Meta )
+		return SoyPixelsFormat::Invalid;
+	
+	return Meta->mSoyFormat;
+}
+
+
+SoyPixelsFormat::Type Avf::GetPixelFormat(NSNumber* Format)
+{
+	auto FormatInt = [Format integerValue];
+	return GetPixelFormat( static_cast<OSType>(FormatInt) );
+}
+
+
+std::string Avf::GetPixelFormatString(NSNumber* Format)
+{
+	auto FormatInt = [Format integerValue];
+	return GetPixelFormatString( static_cast<OSType>(FormatInt) );
+}
+
+std::string Avf::GetPixelFormatString(id Format)
+{
+	auto FormatInt = [Format integerValue];
+	return GetPixelFormatString( static_cast<OSType>(FormatInt) );
+}
