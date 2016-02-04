@@ -898,7 +898,7 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 
 
 
-
+//	todo: abstract MediaFoundation templated version of this
 
 #define CV_VIDEO_TYPE_META(Enum,SoyFormat)	TCvVideoTypeMeta( Enum, #Enum, SoyFormat )
 #define CV_VIDEO_INVALID_ENUM		0
@@ -1014,7 +1014,6 @@ TCvVideoTypeMeta PixelFormatMap[] =
 std::string Avf::GetPixelFormatString(OSType Format)
 {
 	auto Table = GetRemoteArray( PixelFormatMap );
-	
 	auto* Meta = GetArrayBridge(Table).Find( Format );
 	
 	if ( !Meta )
