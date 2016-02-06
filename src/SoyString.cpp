@@ -566,6 +566,28 @@ std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim,
 	return StringPopUntil( Haystack, IsDelim, KeepDelim, PopDelim );
 }
 
+std::string Soy::ByteToHex(uint8 Byte)
+{
+	std::stringstream s;
+	ByteToHex( Byte, s );
+	return s.str();
+}
+
+void Soy::ByteToHex(uint8 Byte,std::ostream& String)
+{
+	auto a = Byte >> 4;
+	auto b = Byte & 0xf;
+	
+	if ( a >= 10 )
+		String << 'a' + (a-10);
+	else
+		String << '0' + (a);
+	
+	if ( b >= 10 )
+		String << 'a' + (b-10);
+	else
+		String << '0' + (b);
+}
 
 
 uint8 Soy::HexToByte(char Hex)
