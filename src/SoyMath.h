@@ -56,6 +56,8 @@ namespace Soy
 	//	maybe not "math" ?
 	class THsl;
 	class TRgb;
+	
+	typedef vec3x<uint8> TRgb8;
 }
 
 //	expanded std functions
