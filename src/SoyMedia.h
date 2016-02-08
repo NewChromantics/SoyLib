@@ -536,7 +536,7 @@ private:
 class TMediaMuxer : public SoyWorkerThread
 {
 public:
-	TMediaMuxer(std::shared_ptr<TStreamWriter>& Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName="TMediaMuxer");
+	TMediaMuxer(std::shared_ptr<TStreamWriter> Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName="TMediaMuxer");
 	~TMediaMuxer();
 
 	void					SetStreams(const ArrayBridge<TStreamMeta>&& Streams);
