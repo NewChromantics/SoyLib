@@ -199,7 +199,8 @@ public:
 	mAudioBytesPerPacket	( 0 ),
 	mAudioBytesPerFrame		( 0 ),
 	mAudioFramesPerPacket	( 0 ),
-	mAudioSampleCount		( 0 )
+	mAudioSampleCount		( 0 ),
+	mDecodesOutOfOrder		( true )	//	gr: change default to false after testing
 	{
 	};
 	
@@ -218,6 +219,7 @@ public:
 	float				mFramesPerSecond;	//	0 when not known. in audio this is samples per second (hz)
 	SoyTime				mDuration;
 	size_t				mEncodingBitRate;
+	bool				mDecodesOutOfOrder;
 	
 	//	windows media foundation
 	size_t				mStreamIndex;		//	windows MediaFoundation can have multiple metas for a single stream (MediaType index splits this), otherwise this would be EXTERNAL from the meta
@@ -282,19 +284,21 @@ class TPixelBufferParams
 {
 public:
 	TPixelBufferParams() :
-	mPopFrameSync			( true ),
-	mAllowPushRejection		( true ),
-	mDebugFrameSkipping		( false ),
-	mPushBlockSleepMs		( 3 ),
-	mResetInternalTimestamp	( false ),
-	mBufferFrameSize		( 10 ),
-	mPopNearestFrame		( false )
+		mPopFrameSync			( true ),
+		mAllowPushRejection		( true ),
+		mDebugFrameSkipping		( false ),
+		mPushBlockSleepMs		( 3 ),
+		mResetInternalTimestamp	( false ),
+		mMaxBufferSize			( 10 ),
+		mMinBufferSize			( 5 ),			//	specific per-codec for OOO packets, not applicable to a lot of other things (audio may want it, text etc)
+		mPopNearestFrame		( false )
 	{
 	}
 	
 	size_t		mPushBlockSleepMs;
 	bool		mDebugFrameSkipping;
-	size_t		mBufferFrameSize;
+	size_t		mMinBufferSize;				//	require X frames to be buffered before letting any be popped, this is to cope with OOO decoding. This may need to go up with different codecs (KBBBBI vs KBI)
+	size_t		mMaxBufferSize;				//	restrict mem/platform buffer usage (platform buffers should probably be managed explicitly if there are limits)
 	bool		mResetInternalTimestamp;
 	SoyTime		mPreSeek;					//	gr: put this somewhere else!
 	bool		mPopFrameSync;				//	false to pop ASAP (out of sync)
@@ -332,7 +336,8 @@ class TMediaBufferManager
 {
 public:
 	TMediaBufferManager(const TPixelBufferParams& Params) :
-		mParams	( Params )
+		mParams	( Params ),
+		mHasEof	( false )
 	{
 		
 	}
@@ -341,6 +346,11 @@ public:
 	virtual void				CorrectDecodedFrameTimestamp(SoyTime& Timestamp);	//	adjust timestamp if neccessary
 	virtual void				ReleaseFrames()=0;
 	virtual bool				PrePushPixelBuffer(SoyTime Timestamp)=0;
+
+protected:
+	void						OnPushEof();
+	bool						HasAllFrames() const	{	return mHasEof;	}
+	size_t						GetMinBufferSize() const;
 
 public:
 	SoyEvent<const SoyTime>				mOnFramePushed;	//	decoded and pushed into buffer
@@ -359,6 +369,9 @@ protected:
 	SoyTime							mFirstTimestamp;
 	SoyTime							mAdjustmentTimestamp;
 	SoyTime							mLastTimestamp;		//	to cope with errors with incoming timestamps, we record the last output timestamp to re-adjust against
+
+private:
+	bool							mHasEof;
 };
 
 
@@ -378,14 +391,13 @@ public:
 	virtual bool		PrePushPixelBuffer(SoyTime Timestamp) override;
 	bool				PeekPixelBuffer(SoyTime Timestamp);	//	is there a new pixel buffer?
 	bool				IsPixelBufferFull() const;
-	
+
 	virtual void		ReleaseFrames() override;
 	
 	
 private:
 	std::mutex						mFrameLock;
 	std::vector<TPixelBufferFrame>	mFrames;
-	
 };
 
 
