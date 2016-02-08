@@ -40,6 +40,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Aac,				"aac" },
 	{ SoyMediaFormat::Ac3,				"Ac3" },
 	{ SoyMediaFormat::Mpeg2Audio,		"Mpeg2Audio" },
+	{ SoyMediaFormat::Mp3,				"Mp3" },
 	{ SoyMediaFormat::Dts,				"Dts" },
 	{ SoyMediaFormat::PcmAndroidRaw,	"PcmAndroidRaw" },
 	{ SoyMediaFormat::PcmLinear_8,		"PcmLinear_8" },
@@ -206,6 +207,7 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Aac:
 		case SoyMediaFormat::Ac3:
 		case SoyMediaFormat::Mpeg2Audio:
+		case SoyMediaFormat::Mp3:
 		case SoyMediaFormat::Dts:
 		case SoyMediaFormat::PcmLinear_8:
 		case SoyMediaFormat::PcmLinear_16:
@@ -264,6 +266,7 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::PcmLinear_24:	return "audio/L24";
 			
 		case SoyMediaFormat::PcmAndroidRaw:	return MIMETYPE_AUDIO_RAW;
+		case SoyMediaFormat::Mp3:		return "audio/mpeg";	//	audio/mpeg is what android reports when I try and open mp3
 
 		//	verify these
 		case SoyMediaFormat::Png:		return "image/png";
@@ -301,6 +304,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_20 ) )	return SoyMediaFormat::PcmLinear_20;
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_24 ) )	return SoyMediaFormat::PcmLinear_24;
 	if ( Mime == ToMime( SoyMediaFormat::PcmAndroidRaw ) )	return SoyMediaFormat::PcmAndroidRaw;
+	if ( Mime == ToMime( SoyMediaFormat::Mp3 ) )			return SoyMediaFormat::Mp3;
 	
 	if ( Mime == ToMime( SoyMediaFormat::Png ) )			return SoyMediaFormat::Png;
 	if ( Mime == ToMime( SoyMediaFormat::Jpeg ) )			return SoyMediaFormat::Jpeg;

@@ -93,6 +93,7 @@ namespace SoyMediaFormat
 		Aac,
 		Ac3,
 		Mpeg2Audio,			//	in TS files, not sure what format this is yet
+		Mp3,
 		Dts,
 		PcmAndroidRaw,		//	temp until I work out what this actually is
 		PcmLinear_8,
