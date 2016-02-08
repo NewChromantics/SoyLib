@@ -347,7 +347,7 @@ public:
 	virtual void				ReleaseFrames()=0;
 	virtual bool				PrePushPixelBuffer(SoyTime Timestamp)=0;
 
-	void						SetMinBufferSize(size_t MinBufferSize)		{	mParams.mMinBufferSize = std::min( mParams.mMinBufferSize, MinBufferSize );	}
+	void						SetMinBufferSize(size_t MinBufferSize)		{	mParams.mMinBufferSize = std::max( mParams.mMinBufferSize, MinBufferSize );	}
 	
 protected:
 	void						OnPushEof();
