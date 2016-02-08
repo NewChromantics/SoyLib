@@ -200,7 +200,7 @@ public:
 	mAudioBytesPerFrame		( 0 ),
 	mAudioFramesPerPacket	( 0 ),
 	mAudioSampleCount		( 0 ),
-	mDecodesOutOfOrder		( true )	//	gr: change default to false after testing
+	mDecodesOutOfOrder		( false )
 	{
 	};
 	
@@ -347,6 +347,8 @@ public:
 	virtual void				ReleaseFrames()=0;
 	virtual bool				PrePushPixelBuffer(SoyTime Timestamp)=0;
 
+	void						SetMinBufferSize(size_t MinBufferSize)		{	mParams.mMinBufferSize = std::min( mParams.mMinBufferSize, MinBufferSize );	}
+	
 protected:
 	void						OnPushEof();
 	bool						HasAllFrames() const	{	return mHasEof;	}
@@ -673,7 +675,11 @@ public:
 		return !Error.empty();
 	}
 	
+	size_t							GetMinBufferSize() const				{	return IsDecodingFramesInOrder() ? 0 : 5;	}
+	
 protected:
+	virtual bool					IsDecodingFramesInOrder() const			{	return true;	}
+	
 	void							OnDecodeFrameSubmitted(const SoyTime& Time);
 	virtual bool					ProcessPacket(std::shared_ptr<TMediaPacket>& Packet);			//	return false to return the frame to the buffer and not discard
 	virtual bool					ProcessPacket(const TMediaPacket& Packet)=0;		//	return false to return the frame to the buffer and not discard
