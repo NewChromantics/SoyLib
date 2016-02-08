@@ -580,11 +580,18 @@ public:
 class TMediaExtractorParams
 {
 public:
-	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames) :
-		mFilename			( Filename ),
-		mOnFrameExtracted	( OnFrameExtracted ),
-		mReadAheadMs		( ReadAheadMs ),
-		mDiscardOldFrames	( false )
+	//	copy but override the filename (common use)
+	TMediaExtractorParams(const std::string& Filename,const TMediaExtractorParams& OtherParams) :
+		TMediaExtractorParams	( OtherParams )
+	{
+		mFilename = Filename;
+	}
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames,bool ForceNonPlanarOutput) :
+		mFilename				( Filename ),
+		mOnFrameExtracted		( OnFrameExtracted ),
+		mReadAheadMs			( ReadAheadMs ),
+		mDiscardOldFrames		( false ),
+		mForceNonPlanarOutput	( false )
 	{
 	}
 	
@@ -593,7 +600,10 @@ public:
 	std::string					mThreadName;
 	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
 	SoyTime						mReadAheadMs;
+
+	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
+	bool						mForceNonPlanarOutput;		//	for some extractors which have pixelly settings
 };
 
 
