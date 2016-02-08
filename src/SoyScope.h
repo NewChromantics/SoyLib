@@ -13,15 +13,24 @@ namespace Soy
 		typedef std::function<void()> EXIT_FUNCTION;
 	public:
 		TScopeCall(ENTER_FUNCTION EnterFunc,EXIT_FUNCTION ExitFunc) :
-		mExitFunc		( ExitFunc )
+			mExitFunc		( ExitFunc )
 		{
 			if ( EnterFunc )
 				EnterFunc();
 		}
 		~TScopeCall()
 		{
+			Exit();
+		}
+
+		//	in case we want to forcibly "exit the scope"
+		void			Exit()
+		{
 			if ( mExitFunc )
+			{
 				mExitFunc();
+				mExitFunc = nullptr;
+			}
 		}
 		
 		EXIT_FUNCTION	mExitFunc;

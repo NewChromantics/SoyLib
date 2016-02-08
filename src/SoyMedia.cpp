@@ -40,6 +40,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Aac,				"aac" },
 	{ SoyMediaFormat::Ac3,				"Ac3" },
 	{ SoyMediaFormat::Mpeg2Audio,		"Mpeg2Audio" },
+	{ SoyMediaFormat::Mp3,				"Mp3" },
 	{ SoyMediaFormat::Dts,				"Dts" },
 	{ SoyMediaFormat::PcmAndroidRaw,	"PcmAndroidRaw" },
 	{ SoyMediaFormat::PcmLinear_8,		"PcmLinear_8" },
@@ -206,6 +207,7 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Aac:
 		case SoyMediaFormat::Ac3:
 		case SoyMediaFormat::Mpeg2Audio:
+		case SoyMediaFormat::Mp3:
 		case SoyMediaFormat::Dts:
 		case SoyMediaFormat::PcmLinear_8:
 		case SoyMediaFormat::PcmLinear_16:
@@ -264,6 +266,7 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::PcmLinear_24:	return "audio/L24";
 			
 		case SoyMediaFormat::PcmAndroidRaw:	return MIMETYPE_AUDIO_RAW;
+		case SoyMediaFormat::Mp3:		return "audio/mpeg";	//	audio/mpeg is what android reports when I try and open mp3
 
 		//	verify these
 		case SoyMediaFormat::Png:		return "image/png";
@@ -301,6 +304,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_20 ) )	return SoyMediaFormat::PcmLinear_20;
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_24 ) )	return SoyMediaFormat::PcmLinear_24;
 	if ( Mime == ToMime( SoyMediaFormat::PcmAndroidRaw ) )	return SoyMediaFormat::PcmAndroidRaw;
+	if ( Mime == ToMime( SoyMediaFormat::Mp3 ) )			return SoyMediaFormat::Mp3;
 	
 	if ( Mime == ToMime( SoyMediaFormat::Png ) )			return SoyMediaFormat::Png;
 	if ( Mime == ToMime( SoyMediaFormat::Jpeg ) )			return SoyMediaFormat::Jpeg;
@@ -1138,6 +1142,28 @@ void TMediaBufferManager::SetPlayerTime(const SoyTime &Time)
 }
 
 
+size_t TMediaBufferManager::GetMinBufferSize() const
+{
+	//	if we're at the end of the file we don't wait because there won't be any more
+	if ( HasAllFrames() )
+		return 0;
+	
+	//	gr: check in case == is bad too
+	if ( mParams.mMaxBufferSize < mParams.mMinBufferSize )
+	{
+		std::Debug << "Warning pixel buffer MaxSize(" << mParams.mMaxBufferSize << ") < MinSize(" << mParams.mMinBufferSize << ")" << std::endl;
+		return (mParams.mMaxBufferSize > 1) ? (mParams.mMaxBufferSize-1) : 0;
+	}
+	
+	return mParams.mMinBufferSize;
+}
+
+void TMediaBufferManager::OnPushEof()
+{
+	mHasEof = true;
+}
+
+
 SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
 {
 	//	frequency is samples per sec
@@ -1549,7 +1575,7 @@ bool TPixelBufferManager::IsPixelBufferFull() const
 	//	just in case number is corrupted due to [lack of] threadsafety
 	std::clamp<size_t>( FrameCount, 0, 100 );
 	
-	return FrameCount >= mParams.mBufferFrameSize;
+	return FrameCount >= mParams.mMaxBufferSize;
 }
 
 bool TPixelBufferManager::PeekPixelBuffer(SoyTime Timestamp)
@@ -1595,19 +1621,32 @@ std::shared_ptr<TPixelBuffer> TPixelBufferManager::PopPixelBuffer(SoyTime& Times
 		mFrameLock.lock();
 	}
 	
+	Soy::TScopeCall AutoUnlock( nullptr, [&]{	mFrameLock.unlock();	} );
+
+	//	require buffering of N frames
+	//	gr: this may need to be more intelligent to skip over frames in the past still....
+	auto MinBufferSize = GetMinBufferSize();
+	if ( MinBufferSize > 0 )
+	{
+		if ( mFrames.size() < MinBufferSize )
+		{
+			std::Debug << "Waiting for " << (MinBufferSize-mFrames.size()) << " more frames to buffer..." << std::endl;
+			return nullptr;
+		}
+	}
+
+	//	not synchronised, just grab next frame
 	if ( !mParams.mPopFrameSync )
 	{
 		if ( mFrames.empty() )
 		{
-			mFrameLock.unlock();
 			return nullptr;
 		}
-		
+
 		auto& Frame = *mFrames.begin();
 		Timestamp = Frame.mTimestamp;
 		std::shared_ptr<TPixelBuffer> LastPixelBuffer = Frame.mPixels;
 		mFrames.erase( mFrames.begin() );
-		mFrameLock.unlock();
 		return LastPixelBuffer;
 	}
 	
@@ -1648,13 +1687,12 @@ std::shared_ptr<TPixelBuffer> TPixelBufferManager::PopPixelBuffer(SoyTime& Times
 		FramesSkipped.PushBack( Frame.mTimestamp );
 		it = mFrames.erase( it );
 	}
-	
-	mFrameLock.unlock();
-	
+
 	//	gr: last frame, wasn't skipped, it was returned!
 	if ( !FramesSkipped.IsEmpty() )
 		FramesSkipped.PopBack();
-	
+
+	//	gr: make sure this doesn't cause a deadlock as the mFrameLock is now released AFTER this
 	//	must have skipped a frame, report it
 	if ( !FramesSkipped.IsEmpty() )
 		mOnFramePopSkipped.OnTriggered( GetArrayBridge(FramesSkipped) );
@@ -1692,7 +1730,7 @@ bool TPixelBufferManager::PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::fu
 	do
 	{
 		//	wait for frames to be popped
-		if ( mFrames.size() >= std::max<size_t>(mParams.mBufferFrameSize,1) )
+		if ( mFrames.size() >= std::max<size_t>(mParams.mMaxBufferSize,1) )
 		{
 			if ( mParams.mDebugFrameSkipping )
 				std::Debug << "Frame buffer full... (" << mFrames.size() << ") " << std::endl;
