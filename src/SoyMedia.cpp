@@ -1144,6 +1144,13 @@ size_t TMediaBufferManager::GetMinBufferSize() const
 	if ( HasAllFrames() )
 		return 0;
 	
+	//	gr: check in case == is bad too
+	if ( mParams.mMaxBufferSize < mParams.mMinBufferSize )
+	{
+		std::Debug << "Warning pixel buffer MaxSize(" << mParams.mMaxBufferSize << ") < MinSize(" << mParams.mMinBufferSize << ")" << std::endl;
+		return (mParams.mMaxBufferSize > 1) ? (mParams.mMaxBufferSize-1) : 0;
+	}
+	
 	return mParams.mMinBufferSize;
 }
 
