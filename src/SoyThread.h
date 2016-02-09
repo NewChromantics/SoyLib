@@ -132,17 +132,18 @@ template<typename TYPE>
 class TDefferedDeleteJob : public PopWorker::TJob
 {
 public:
-	TDefferedDeleteJob(std::shared_ptr<TYPE>& Pointer) :
-	mPointer	( Pointer )
+	TDefferedDeleteJob(std::shared_ptr<TYPE>& Pointer,bool ExpectedLast) :
+		mPointer		( Pointer ),
+		mExpectedLast	( ExpectedLast )
 	{
 	}
 	
 	virtual void		Run() override
 	{
 		//	clear pointer to release in opengl thread!
-		//	gr; quite common for this to result in a crash... so... re-queue?
+		//	we retry if something else (assuming another thread)
 		auto RefCount = mPointer.use_count();
-		int Retrys = 3;
+		int Retrys = mExpectedLast ? 5 : 0;
 		while ( RefCount > 1 )
 		{
 			static auto WaitMs = 10;
@@ -157,17 +158,20 @@ public:
 			else
 			{
 				//	gr: check just in case we get spruious output
-				std::Debug << "releasing opengl thread pointer, won't dealloc on opengl thread!";
+				std::Debug << "releasing context-specific " << Soy::GetTypeName<TYPE>() << " pointer with RefCount=" << RefCount << ", may not dealloc on context thread";
+				break;
 			}
 
 			//	try again counter
 			RefCount = mPointer.use_count();
-			std::Debug << " (now refcount=" << RefCount << ")" << std::endl;
+			std::Debug << "Deffered delete of " << Soy::GetTypeName<TYPE>() << " (now refcount=" << RefCount << ")" << std::endl;
 		}
 		mPointer.reset();
 	}
 	
+public:
 	std::shared_ptr<TYPE>	mPointer;
+	bool					mExpectedLast;		//	if we expect this to be the last instance, we pause & retry if we're not the last ref in case another thread may release us in the mean time
 };
 
 
