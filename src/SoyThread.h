@@ -158,7 +158,7 @@ public:
 			else
 			{
 				//	gr: check just in case we get spruious output
-				std::Debug << "releasing context-specific " << Soy::GetTypeName<TYPE>() << " pointer with RefCount=" << RefCount << ", may not dealloc on context thread";
+				std::Debug << "releasing context-specific " << Soy::GetTypeName<TYPE>() << " pointer with RefCount=" << RefCount << ", may not dealloc on context thread" << std::endl;
 				break;
 			}
 
