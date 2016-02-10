@@ -274,6 +274,8 @@ bool TStreamBuffer::UnPop(const std::string& String)
 
 bool TStreamBuffer::Peek(ArrayBridge<char> &&Data)
 {
+	Soy::Assert( !Data.IsEmpty(), "Shouldn't peek for 0 bytes" );
+				
 	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	if ( mData.GetSize() < Data.GetSize() )
