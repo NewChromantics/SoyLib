@@ -29,6 +29,8 @@ public:
 	bool		Pop(size_t Length);
 	bool		Pop(size_t Length,ArrayBridge<char>& Data);
 	inline bool	Pop(size_t Length,ArrayBridge<char>&& Data)		{	return Pop(Length, Data);	}
+	bool		Pop(size_t Length,ArrayBridge<uint8>& Data);
+	inline bool	Pop(size_t Length,ArrayBridge<uint8>&& Data)	{	return Pop(Length, Data);	}
 	bool		Pop(std::string RegexPattern,ArrayBridge<std::string>& Parts);	//	gr: using string pattern because you can't get the pattern from std::regex
 	
 	bool		Push(const std::string& Data);
@@ -44,7 +46,8 @@ public:
 	bool		IsEmpty() const				{	return GetBufferedSize() == 0;	}
 	size_t		GetBufferedSize() const		{	return mData.GetDataSize();	}
 	
-	bool		Peek(ArrayBridge<char>&& Data);		//	copy first X bytes without modifying. fails if this many bytes don't exist
+	bool		Peek(ArrayBridge<char>&& Data);			//	copy first X bytes without modifying. fails if this many bytes don't exist
+	bool		Peek(ArrayBridge<uint8>&& Data);		//	copy first X bytes without modifying. fails if this many bytes don't exist
 	bool		PeekBack(ArrayBridge<char>&& Data);	//	copy last X bytes without modifying. fails if this many bytes don't exist
 	
 public:
