@@ -34,6 +34,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Mpeg2TS_PSI,		"Mpeg2TS_PSI" },
 	{ SoyMediaFormat::Mpeg2,			"Mpeg2" },
 	{ SoyMediaFormat::Mpeg4,			"Mpeg4" },
+	{ SoyMediaFormat::Mpeg4_v3,			"Mpeg4_v3" },
 	{ SoyMediaFormat::VC1,				"VC1" },
 	{ SoyMediaFormat::Audio_AUDS,		"Audio_AUDS" },
 	{ SoyMediaFormat::Wave,				"wave" },
@@ -159,6 +160,7 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Mpeg2TS_PSI:
 		case SoyMediaFormat::Mpeg2:
 		case SoyMediaFormat::Mpeg4:
+		case SoyMediaFormat::Mpeg4_v3:
 		case SoyMediaFormat::VC1:
 			return true;
 			
@@ -251,7 +253,8 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 			
 		case SoyMediaFormat::Mpeg2TS:	return "video/ts";		//	find the proper version of this
 		case SoyMediaFormat::Mpeg2:		return "video/mpeg2";	//	find the proper version of this
-		case SoyMediaFormat::Mpeg4:		return "video/mp4";	//	find the proper version of this
+		case SoyMediaFormat::Mpeg4:		return "video/mp4";		//	find the proper version of this
+		case SoyMediaFormat::Mpeg4_v3:	return "video/mp43";	//	find the proper version of this
 	
 		case SoyMediaFormat::Wave:		return "audio/wave";
 		case SoyMediaFormat::Audio_AUDS:	return "audio/Audio_AUDS";
@@ -296,6 +299,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg2TS ) )		return SoyMediaFormat::Mpeg2TS;
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg2 ) )			return SoyMediaFormat::Mpeg2;
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg4 ) )			return SoyMediaFormat::Mpeg4;
+	if ( Mime == ToMime( SoyMediaFormat::Mpeg4_v3 ) )		return SoyMediaFormat::Mpeg4_v3;
 	if ( Mime == ToMime( SoyMediaFormat::Wave ) )			return SoyMediaFormat::Wave;
 	if ( Mime == ToMime( SoyMediaFormat::Audio_AUDS ) )		return SoyMediaFormat::Audio_AUDS;
 	if ( Mime == ToMime( SoyMediaFormat::Aac ) )			return SoyMediaFormat::Aac;
@@ -332,8 +336,9 @@ uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
 	{
-		case SoyMediaFormat::Aac:	return 'aac ';
-		case SoyMediaFormat::Mpeg4:	return 'mp4v';
+		case SoyMediaFormat::Aac:		return 'aac ';
+		case SoyMediaFormat::Mpeg4:		return 'mp4v';
+		case SoyMediaFormat::Mpeg4_v3:	return 'MP43';
 
 		case SoyMediaFormat::PcmLinear_8:
 		case SoyMediaFormat::PcmLinear_16:
@@ -360,13 +365,11 @@ uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
 
 	
 
-SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize)
+SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize,bool TryReversed)
 {
-	//	todo: handle reverse here automatically and use ToFourcc()
 	switch ( Fourcc )
 	{
 		case 'avc1':
-		case '1cva':
 			if ( H264LengthSize == 0 )
 				return SoyMediaFormat::H264_ES;
 			if ( H264LengthSize == 1 )
@@ -379,24 +382,22 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 
 		//	win7 MF - don't know how to get size atm so assuming 32bit (if it matters)
 		case 'H264':
-		case '462H':
 			return SoyMediaFormat::H264_32;
 			break;
 			
 
 		case 'aac ':
-		case ' caa':
 			return SoyMediaFormat::Aac;
 
 		//	windows/MediaFoundation have fourcc's in caps
 		case 'MP4V':
-		case 'V4PM':
 		case 'mp4v':
-		case 'v4pm':	
 			return SoyMediaFormat::Mpeg4;
+			
+		case 'MP43':
+			return SoyMediaFormat::Mpeg4_v3;
 
 		case 'lpcm':
-		case 'mcpl':
 			if ( H264LengthSize == 8 )
 				return SoyMediaFormat::PcmLinear_8;
 			if ( H264LengthSize == 16 )
@@ -409,9 +410,21 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 			
 		//	found in quicktime mov's
 		case 'tmcd':
-        case 'dcmt':
             return SoyMediaFormat::QuicktimeTimecode;
 	}
+	
+	//	detect reversed fourcc's and encourage converting at the source
+	if ( TryReversed )
+	{
+		auto FourccSwapped = Soy::SwapEndian( Fourcc );
+		auto Type = FromFourcc( FourccSwapped, H264LengthSize, false );
+		if ( Type != SoyMediaFormat::Invalid )
+		{
+			std::Debug << "Warning: Detected reversed fourcc.(" << Soy::FourCCToString(FourccSwapped) << ") todo: Fix endianness at source." << std::endl;
+			return Type;
+		}
+	}
+
 	
 	std::Debug << "Unknown fourcc type: " << Soy::FourCCToString(Fourcc) << std::endl;
 	return SoyMediaFormat::Invalid;
