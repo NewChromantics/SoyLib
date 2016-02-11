@@ -208,6 +208,7 @@ public:
 	
 	void				SetMime(const std::string& Mime)	{	mCodec = SoyMediaFormat::FromMime( Mime );	}
 	std::string			GetMime() const						{	return SoyMediaFormat::ToMime( mCodec );	}
+	void				SetPixelMeta(const SoyPixelsMeta& Meta);
 	
 public:
 	SoyMediaFormat::Type	mCodec;

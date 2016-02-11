@@ -430,8 +430,14 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 	return SoyMediaFormat::Invalid;
 }
 
-
-
+void TStreamMeta::SetPixelMeta(const SoyPixelsMeta& Meta)
+{
+	mPixelMeta = Meta;
+	
+	//	auto set codec if not set
+	if ( mCodec == SoyMediaFormat::Invalid )
+		mCodec = SoyMediaFormat::FromPixelFormat( Meta.GetFormat() );
+}
 
 
 
