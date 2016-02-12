@@ -786,23 +786,26 @@ std::string Soy::FourCCToString(uint32 Fourcc)
 		return false;
 	};
 
-	//	check for invalid Fourcc's
+	//	check for invalid Fourcc's (ie, integer) and render as hex instead
 	if ( !IsFourccChar(CodecStrBuffer[0]) || 
 		!IsFourccChar(CodecStrBuffer[1]) || 
 		!IsFourccChar(CodecStrBuffer[2]) ||
 		!IsFourccChar(CodecStrBuffer[3]) )
 	{
-		//	gr: maybe platform/framework specific? should be flipped beforehand?
-		static bool ReverseChars = false;
-		
 		std::stringstream Error;
-		Error << "Fourcc["
-			<< static_cast<int>(CodecStrBuffer[ReverseChars?3:0]) << ","
-			<< static_cast<int>(CodecStrBuffer[ReverseChars?2:1]) << ","
-			<< static_cast<int>(CodecStrBuffer[ReverseChars?1:2]) << ","
-			<< static_cast<int>(CodecStrBuffer[ReverseChars?0:3]) << "/" << Fourcc << "]";
+		Error << "Fourcc{0x";
+		Soy::ByteToHex( CodecStrBuffer[0], Error );
+		Soy::ByteToHex( CodecStrBuffer[1], Error );
+		Soy::ByteToHex( CodecStrBuffer[2], Error );
+		Soy::ByteToHex( CodecStrBuffer[3], Error );
+		//	draw as integer too
+		Error << "/" << Fourcc;
+		//	and as reversed
+		Error << "/" << Soy::SwapEndian(Fourcc);
+		Error << "}";
 		return Error.str();
 	}
+	
 	return std::string( CodecStrBuffer );
 }
 

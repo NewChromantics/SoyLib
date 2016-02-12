@@ -199,6 +199,25 @@ bool TStreamBuffer::Pop(size_t Length,ArrayBridge<char>& Data)
 	return true;
 }
 
+
+bool TStreamBuffer::Pop(size_t Length,ArrayBridge<uint8>& Data)
+{
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
+	
+	//	enough data ready?
+	if ( mData.GetDataSize() < Length )
+		return false;
+	
+	//	push back a sub section
+	auto DataSection = GetRemoteArray( reinterpret_cast<const uint8*>( mData.GetArray() ), Length );
+	if ( !Data.PushBackArray( DataSection ) )
+		return false;
+	
+	//	remove it now it's copied
+	mData.RemoveBlock( 0, Length );
+	return true;
+}
+
 bool TStreamBuffer::Push(const std::string& Data)
 {
 	std::lock_guard<std::recursive_mutex>	Lock( mLock );
@@ -272,18 +291,38 @@ bool TStreamBuffer::UnPop(const std::string& String)
 }
 
 
-bool TStreamBuffer::Peek(ArrayBridge<char> &&Data)
+bool TStreamBuffer::Peek(ArrayBridge<char>&& Data)
 {
+	Soy::Assert( !Data.IsEmpty(), "Shouldn't peek for 0 bytes" );
+				
 	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	if ( mData.GetSize() < Data.GetSize() )
 		return false;
 	
-	auto DataTail = GetRemoteArray( &mData[0], Data.GetSize() );
-	Data.Copy( DataTail );
+	auto DataHead = GetRemoteArray( mData.GetArray(), Data.GetSize() );
+	Data.Copy( DataHead );
 	
 	return true;
 }
+
+
+bool TStreamBuffer::Peek(ArrayBridge<uint8>&& Data)
+{
+	Soy::Assert( !Data.IsEmpty(), "Shouldn't peek for 0 bytes" );
+	
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
+	
+	if ( mData.GetSize() < Data.GetSize() )
+		return false;
+	
+	auto DataHead = GetRemoteArray( reinterpret_cast<const uint8*>(mData.GetArray()), Data.GetSize() );
+	Data.Copy( DataHead );
+	
+	return true;
+}
+
+
 
 
 bool TStreamBuffer::PeekBack(ArrayBridge<char> &&Data)

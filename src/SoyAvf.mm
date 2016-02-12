@@ -391,6 +391,14 @@ SoyMediaFormat::Type Avf::SoyMediaFormat_FromFourcc(uint32 Fourcc,int H264Length
 	if ( AvfPixelFormat != SoyPixelsFormat::Invalid )
 		return SoyMediaFormat::FromPixelFormat( AvfPixelFormat );
 	
+	//	double check for swapped endianness
+	AvfPixelFormat = SoyPixelFormat_FromFourcc( Soy::SwapEndian(Fourcc) );
+	if ( AvfPixelFormat != SoyPixelsFormat::Invalid )
+	{
+		std::Debug << "Warning, detected avf pixel format with reversed fourcc " << Soy::FourCCToString( Soy::SwapEndian(Fourcc) ) << std::endl;
+		return SoyMediaFormat::FromPixelFormat( AvfPixelFormat );
+	}
+	
 	return SoyMediaFormat::FromFourcc( Fourcc, H264LengthSize );
 }
 
@@ -399,6 +407,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 {
 	TStreamMeta Meta;
 	auto Fourcc = CMFormatDescriptionGetMediaSubType(FormatDesc);
+
 	int H264LengthSize = -1;
 	
 	//if ( SoyMediaFormat::IsH264Fourcc(Fourcc) )
