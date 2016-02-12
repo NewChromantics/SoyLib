@@ -365,34 +365,15 @@ FullRangeVideo=0;
 	return FormatDesc;
 }
 
-SoyPixelsFormat::Type Avf::SoyPixelFormat_FromFourcc(uint32 Fourcc)
-{
-	//	check for avf specific fourcc's
-	switch ( Fourcc )
-	{
-		case kCVPixelFormatType_8Indexed:	return SoyPixelsFormat::Greyscale;
-		case kCVPixelFormatType_24RGB:		return SoyPixelsFormat::RGB;
-		case kCVPixelFormatType_24BGR:		return SoyPixelsFormat::BGR;
-		case kCVPixelFormatType_32ARGB:		return SoyPixelsFormat::ARGB;
-		case kCVPixelFormatType_32BGRA:		return SoyPixelsFormat::BGRA;
-		case kCVPixelFormatType_420YpCbCr8Planar:	return SoyPixelsFormat::Yuv_8_88_Video;
-		case kCVPixelFormatType_420YpCbCr8PlanarFullRange:	return SoyPixelsFormat::Yuv_8_88_Full;
-		case kCVPixelFormatType_OneComponent8:	return SoyPixelsFormat::Greyscale;
-		case kCVPixelFormatType_TwoComponent8:	return SoyPixelsFormat::GreyscaleAlpha;
-			
-		default:
-			return SoyPixelsFormat::Invalid;
-	}
-}
 
 SoyMediaFormat::Type Avf::SoyMediaFormat_FromFourcc(uint32 Fourcc,int H264LengthSize)
 {
-	auto AvfPixelFormat = SoyPixelFormat_FromFourcc( Fourcc );
+	auto AvfPixelFormat = Avf::GetPixelFormat( Fourcc );
 	if ( AvfPixelFormat != SoyPixelsFormat::Invalid )
 		return SoyMediaFormat::FromPixelFormat( AvfPixelFormat );
 	
 	//	double check for swapped endianness
-	AvfPixelFormat = SoyPixelFormat_FromFourcc( Soy::SwapEndian(Fourcc) );
+	AvfPixelFormat = Avf::GetPixelFormat( Soy::SwapEndian(Fourcc) );
 	if ( AvfPixelFormat != SoyPixelsFormat::Invalid )
 	{
 		std::Debug << "Warning, detected avf pixel format with reversed fourcc " << Soy::FourCCToString( Soy::SwapEndian(Fourcc) ) << std::endl;
@@ -449,8 +430,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 	auto Dim = CMVideoFormatDescriptionGetPresentationDimensions( FormatDesc, usePixelAspectRatio, useCleanAperture );
 	Meta.mPixelMeta.DumbSetWidth( Dim.width );
 	Meta.mPixelMeta.DumbSetHeight( Dim.height );
-	Meta.mPixelMeta.DumbSetFormat( Avf::SoyPixelFormat_FromFourcc( Fourcc ) );
-	
+	Meta.mPixelMeta.DumbSetFormat( SoyMediaFormat::GetPixelFormat( Meta.mCodec ) );
 	
 	//std::stringstream Debug;
 	//Debug << "Extensions=" << Soy::Platform::GetExtensions( FormatDesc ) << "; ";
@@ -966,7 +946,7 @@ TCvVideoTypeMeta PixelFormatMap[] =
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_24BGR,	SoyPixelsFormat::BGR ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_32BGRA,	SoyPixelsFormat::BGRA ),
 	
-	//	gr: popcast creating a pixel buffer from a unity "argb" texture, failed as RGBA is unsupported...
+	//	gr: PopFace creating a pixel buffer from a unity "argb" texture, failed as RGBA is unsupported...
 	//	gr: ARGB is accepted, but channels are wrong
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_32RGBA,	SoyPixelsFormat::RGBA ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_32ARGB,	SoyPixelsFormat::ARGB ),
@@ -984,6 +964,8 @@ TCvVideoTypeMeta PixelFormatMap[] =
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8Planar,	SoyPixelsFormat::Yuv_844_Video ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8PlanarFullRange,	SoyPixelsFormat::Yuv_844_Full ),
 	
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_1Monochrome,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_2Indexed,	SoyPixelsFormat::Invalid ),
@@ -1013,8 +995,6 @@ TCvVideoTypeMeta PixelFormatMap[] =
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_444YpCbCr10,	SoyPixelsFormat::Invalid ),
 	
 	
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8Planar,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8PlanarFullRange,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr_4A_8BiPlanar,	SoyPixelsFormat::Invalid ),
 };
 

@@ -47,6 +47,7 @@ namespace SoyPixelsFormat
 		Yuv_8_8_8_Full,		//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
 		Yuv_8_8_8_Video,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
 		Yuv_844_Full,		//	8bit luma, then 8bit chromauv in the same plane
+		Yuv_844_Video,		//	8bit luma, then 8bit chromauv in the same plane
 
 		ChromaUV_8_8,		//	8 bit plane, 8 bit plane
 		ChromaUV_88,		//	16 bit interleaved plane
