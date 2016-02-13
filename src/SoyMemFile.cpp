@@ -77,7 +77,7 @@ SoyMemFile::SoyMemFile(const std::string& Filename,MemFileAccess::Type Access,si
 	if ( mHandle == nullptr )
 	{
 		std::stringstream Error;
-		Error << "MemFileArray(" << mFilename << ") error: " << Soy::Platform::GetLastErrorString();
+		Error << "MemFileArray(" << mFilename << ") error: " << Platform::GetLastErrorString();
 		throw Soy::AssertException( Error.str() );
 	}
 	
@@ -89,7 +89,7 @@ SoyMemFile::SoyMemFile(const std::string& Filename,MemFileAccess::Type Access,si
 							DataSize );
 	if ( !mMap )
 	{
-		auto PlatformError = Soy::Platform::GetLastErrorString();
+		auto PlatformError = Platform::GetLastErrorString();
 		std::stringstream Error;
 		Error << "MemFileArray(" << mFilename << ") error: " << PlatformError;
 		Close();
