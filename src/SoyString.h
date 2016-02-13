@@ -106,6 +106,7 @@ namespace Soy
 	uint8		HexToByte(char Hex);
 	uint8		HexToByte(char HexA,char HexB);
 	void		ByteToHex(uint8 Byte,std::ostream& String);
+	void		ByteToHex(uint8 Byte,char& Stringa,char& Stringb);
 	std::string	ByteToHex(uint8 Byte);
 
 	std::string	ResolveUrl(const std::string& BaseUrl,const std::string& Path);	//	work out the full path of Path from the base url. if it starts from / then use the server. if it starts with protocol, don't modify, otherwise place in directory
