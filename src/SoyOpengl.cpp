@@ -633,6 +633,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	//	allocate texture
 	glGenTextures( 1, &mTexture.mName );
 	Opengl::IsOkay("glGenTextures");
+	Soy::Assert( mTexture.IsValid(), "Failed to allocate texture" );
 	
 	if ( !Bind() )
 		throw Soy::AssertException("failed to bind after texture allocation");
@@ -693,14 +694,19 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	}
 	
 	//	verify params
+	//	gr: this should be using internal meta
 #if (OPENGL_CORE==3)
 	GLint TextureWidth = -1;
 	GLint TextureHeight = -1;
 	GLint TextureInternalFormat = -1;
+	
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth);
+	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv(GL_TEXTURE_WIDTH)" );
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight);
+	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv(GL_TEXTURE_HEIGHT)" );
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &TextureInternalFormat);
-	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()" );
+	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv(GL_TEXTURE_INTERNAL_FORMAT)" );
+	
 	Soy::Assert( TextureWidth==Meta.GetWidth(), "Texture width doesn't match initialisation");
 	Soy::Assert( TextureHeight==Meta.GetHeight(), "Texture height doesn't match initialisation");
 
@@ -763,6 +769,7 @@ void Opengl::TTexture::Delete()
 bool Opengl::TTexture::Bind() const
 {
 	Opengl::IsOkay("Texture bind flush",false);
+	Soy::Assert( mTexture.IsValid(), "Trying to bind invalid texture" );
 	glBindTexture( mType, mTexture.mName );
 	return Opengl_IsOkay();
 }
