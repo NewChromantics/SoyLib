@@ -12,12 +12,15 @@ TSocketServer::TSocketServer(size_t& Port,const std::string& ThreadName) :
 	mSocket->CreateTcp(Blocking);
 	
 	//	gr: change this so socket throws
-	if ( !mSocket->ListenUdp( size_cast<uint16>(Port) ) )
+	if ( !mSocket->ListenTcp( size_cast<uint16>(Port) ) )
 	{
 		std::stringstream Error;
 		Error << "Failed to open listening socket on port " << Port;
 		throw Soy::AssertException( Error.str() );
 	}
+	
+	//	may need to defer this later
+	Start();
 }
 
 void TSocketServer::Shutdown()
