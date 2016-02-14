@@ -862,3 +862,25 @@ void Soy::DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,in
 		String << (int)Data[i] << ' ';
 	}
 }
+
+
+
+//	fast simple int->string
+bool Soy::StringToUnsignedInteger(size_t& IntegerOut,const std::string& String)
+{
+	if ( String.empty() )
+		return false;
+	
+	size_t Integer = 0;
+	for ( int i=0;	i<String.size();	i++ )
+	{
+		int CharValue = String[i] - '0';
+		if ( CharValue < 0 || CharValue > 9 )
+			return false;
+		Integer *= 10;
+		Integer += CharValue;
+	}
+	IntegerOut = Integer;
+	return true;
+}
+

@@ -118,16 +118,17 @@ namespace Soy
 	std::string	GetUrlProtocol(const std::string& Url);
 	
 	std::wstring	StringToWString(const std::string& s);
-	std::string	WStringToString(const std::wstring& w);
+	std::string		WStringToString(const std::wstring& w);
 	
 	template<typename TYPE>
-	bool		StringToType(TYPE& Out,const std::string& String);
+	bool			StringToType(TYPE& Out,const std::string& String);
 	template<typename TYPE>
-	TYPE		StringToType(const std::string& String,const TYPE& Default);
+	TYPE			StringToType(const std::string& String,const TYPE& Default);
+	bool			StringToUnsignedInteger(size_t& IntegerOut,const std::string& String);
 
 	//	max size of vector (ie. buffer array/remote array) dictates expected size
 	template<typename TYPE>
-	inline bool	StringParseVecNx(const std::string& String,ArrayBridge<TYPE>&& Vector);
+	inline bool		StringParseVecNx(const std::string& String,ArrayBridge<TYPE>&& Vector);
 
 	std::string		FourCCToString(uint32 Fourcc);	//	on IOS, don't forget CFSwapInt32BigToHost()
 	
