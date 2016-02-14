@@ -26,14 +26,17 @@ public:
 		mWriteContent	( WriteContentCallback )
 	{
 	}
+
+	void			SetContent(const std::string& Content);
 	
+protected:
 	void			BakeHeaders();		//	inject headers
 	void			WriteHeaders(TStreamBuffer& Buffer) const;
 	void			WriteContent(TStreamBuffer& Buffer);
 
 public:
 	std::map<std::string,std::string>	mHeaders;
-	std::string							mUrl;			//	could be "Bad Request" or "OK" for responses
+	std::string							mUrl;				//	could be "Bad Request" or "OK" for responses
 	std::function<void(TStreamBuffer&)>	mWriteContent;		//	if this is present, we use a callback to write the content and don't know ahead of time the content length
 	Array<char>							mContent;
 	std::string							mContentMimeType;	//	change this to SoyMediaFormat

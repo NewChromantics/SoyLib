@@ -1,7 +1,20 @@
 #include "SoyHttp.h"
 #include <regex>
 #include "SoyStream.h"
+#include "SoyMedia.h"
 
+
+
+
+void Http::TCommonProtocol::SetContent(const std::string& Content)
+{
+	Soy::Assert( mContent.IsEmpty(), "Content already set" );
+	Soy::Assert( mWriteContent==nullptr, "Content has a write-content function set");
+	
+	mContentMimeType = SoyMediaFormat::ToMime( SoyMediaFormat::Text );
+	Soy::StringToArray( Content, GetArrayBridge( mContent ) );
+	mContentLength = mContent.GetDataSize();
+}
 
 
 void Http::TCommonProtocol::BakeHeaders()
@@ -88,6 +101,16 @@ void Http::TResponseProtocol::Encode(TStreamBuffer& Buffer)
 {
 	size_t ResultCode = 200;
 	std::string ResultString = "OK";
+
+	//	specific response
+	if ( mResponseCode != 0 )
+	{
+		ResultCode = mResponseCode;
+	}
+	if ( !mUrl.empty() )
+	{
+		ResultString = mUrl;
+	}
 
 	//	write request header
 	{
