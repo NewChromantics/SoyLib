@@ -27,14 +27,26 @@ void Http::TCommonProtocol::SetContent(const ArrayBridge<char>& Data,SoyMediaFor
 }
 
 
+void Http::TCommonProtocol::SetContentType(SoyMediaFormat::Type Format)
+{
+	mContentMimeType = SoyMediaFormat::ToMime( Format );
+}
+
+
 void Http::TCommonProtocol::BakeHeaders()
 {
 	//	else?
 	if ( mKeepAlive )
 		mHeaders["Connection"] = "keep-alive";
 
-	//	remove this ambiguity!
-	if ( mWriteContent )
+	
+	if ( mChunkedContent )
+	{
+		Soy::Assert( mContent.IsEmpty(), "Chunked Content, but also has content");
+		Soy::Assert( mWriteContent==nullptr, "Chunked Content, but also has write content func");
+		mHeaders["Transfer-Encoding"] = "chunked";
+	}
+	else if ( mWriteContent )	//	remove this ambiguity!
 	{
 		Soy::Assert( mContent.IsEmpty(), "WriteContent callback, but also has content");
 		//Soy::Assert( mContentLength==0, "WriteContent callback, but also has content length");
@@ -71,8 +83,34 @@ void Http::TCommonProtocol::WriteHeaders(TStreamBuffer& Buffer) const
 
 void Http::TCommonProtocol::WriteContent(TStreamBuffer& Buffer)
 {
-	//	write data
-	if ( mWriteContent )
+	if ( mChunkedContent )
+	{
+		//	keep pushing data until eof
+		auto& Content = *mChunkedContent;
+		while ( true )
+		{
+			//	done!
+			if ( Content.HasEndOfStream() && Content.GetBufferedSize() == 0 )
+				break;
+			
+			try
+			{
+				Http::TChunkedProtocol Chunk( *mChunkedContent );
+				Chunk.Encode( Buffer );
+			}
+			catch(std::exception& e)
+			{
+				std::stringstream Error;
+				Error << "Exception whilst chunking HTTP content; " << e.what();
+				std::Debug << Error.str() << std::endl;
+				static bool PushExceptionData = true;
+				if ( PushExceptionData )
+					Buffer.Push( Error.str() );
+				break;
+			}
+		}
+	}
+	else if ( mWriteContent )
 	{
 		//	this could block for infinite streaming, but should be writing to buffer so data still gets out! woooo!
 		mWriteContent( Buffer );
@@ -96,6 +134,12 @@ Http::TResponseProtocol::TResponseProtocol() :
 	TCommonProtocol		( )
 {
 }
+
+Http::TResponseProtocol::TResponseProtocol(TStreamBuffer& ChunkedDataBuffer) :
+	TCommonProtocol		( ChunkedDataBuffer )
+{
+}
+
 
 Http::TResponseProtocol::TResponseProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback,size_t ContentLength) :
 	TCommonProtocol		( WriteContentCallback, ContentLength )
@@ -298,6 +342,63 @@ void Http::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 	WriteHeaders( Buffer );
 	WriteContent( Buffer );
 
+}
+
+
+Http::TChunkedProtocol::TChunkedProtocol(TStreamBuffer& Input,size_t MinChunkSize,size_t MaxChunkSize) :
+	mInput			( Input ),
+	mMinChunkSize	( MinChunkSize ),
+	mMaxChunkSize	( MaxChunkSize )
+{
+	
+}
+
+void Http::TChunkedProtocol::Encode(TStreamBuffer& Output)
+{
+	//	add some conditional here to stop thread spinning
+	//	also need something to break out when we want to stop the thread
+	while ( true )
+	{
+		//	spin
+		std::this_thread::sleep_for( std::chrono::milliseconds(10) );
+		
+		//	wait for min data
+		if ( !mInput.HasEndOfStream() && mInput.GetBufferedSize() < mMinChunkSize )
+		{
+			std::Debug << "Http chunked data waiting for data: " << mInput.GetBufferedSize() << "<" << mMinChunkSize << std::endl;
+			continue;
+		}
+		
+		//	eat chunk
+		Array<uint8> ChunkData;
+		
+		//	gr: docs don't seem to mention a max
+		auto EatSize = std::min( mMaxChunkSize, mInput.GetBufferedSize() );
+
+		//	eof, so 0 is valid
+		if ( EatSize > 0 )
+		{
+			if ( !mInput.Pop( EatSize, GetArrayBridge(ChunkData) ) )
+			{
+				std::Debug << "Http chunked data failed to pop " << EatSize << "/" << mInput.GetBufferedSize() << std::endl;
+				continue;
+			}
+		}
+		
+		//	write to output
+		//	size in hex LINEFEED
+		//	data LINEFEED
+		BufferArray<char,2> LineFeed;
+		LineFeed.PushBack('\r');
+		LineFeed.PushBack('\n');
+		std::stringstream ChunkPrefix;
+		ChunkPrefix << std::hex << EatSize;
+		Output.Push( ChunkPrefix.str() );
+		Output.Push( GetArrayBridge(LineFeed) );
+		Output.Push( GetArrayBridge(ChunkData) );
+		Output.Push( GetArrayBridge(LineFeed) );
+	}
+	
 }
 
 

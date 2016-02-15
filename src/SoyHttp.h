@@ -10,7 +10,10 @@ namespace Http
 	class TResponseProtocol;
 	class TRequestProtocol;
 	class TCommonProtocol;
+	class TChunkedProtocol;
 }
+
+
 
 
 class Http::TCommonProtocol
@@ -21,7 +24,18 @@ public:
 		mContentLength		( 0 ),
 		mWriteContent		( nullptr ),
 		mHeadersComplete	( false ),
-		mResponseCode		( 0 )
+		mResponseCode		( 0 ),
+		mChunkedContent		( nullptr )
+	{
+	}
+	//	gr: this may be response only?
+	TCommonProtocol(TStreamBuffer& ChunkedDataBuffer) :
+		mKeepAlive			( false ),
+		mContentLength		( 0 ),
+		mWriteContent		( nullptr ),
+		mHeadersComplete	( false ),
+		mResponseCode		( 0 ),
+		mChunkedContent		( &ChunkedDataBuffer )
 	{
 	}
 	TCommonProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback,size_t ContentLength) :
@@ -29,12 +43,14 @@ public:
 		mContentLength		( ContentLength ),
 		mWriteContent		( WriteContentCallback ),
 		mHeadersComplete	( false ),
-		mResponseCode		( 0 )
+		mResponseCode		( 0 ),
+		mChunkedContent		( nullptr )
 	{
 	}
 
 	void					SetContent(const std::string& Content,SoyMediaFormat::Type Format=SoyMediaFormat::Text);
 	void					SetContent(const ArrayBridge<char>& Data,SoyMediaFormat::Type Format);
+	void					SetContentType(SoyMediaFormat::Type Format);
 	
 	//	common code atm
 	TProtocolState::Type	Decode(TStreamBuffer& Buffer);
@@ -55,13 +71,18 @@ protected:
 public:
 	std::map<std::string,std::string>	mHeaders;
 	std::string							mUrl;				//	could be "Bad Request" or "OK" for responses
-	std::function<void(TStreamBuffer&)>	mWriteContent;		//	if this is present, we use a callback to write the content and don't know ahead of time the content length
 	Array<char>							mContent;
 	std::string							mContentMimeType;	//	change this to SoyMediaFormat
-	size_t								mContentLength;		//	need this for when reading headers... maybe ditch if possible
 	bool								mKeepAlive;
 
-private:	//	decoding
+	//	encoding
+private:
+	TStreamBuffer*						mChunkedContent;
+	std::function<void(TStreamBuffer&)>	mWriteContent;		//	if this is present, we use a callback to write the content and don't know ahead of time the content length
+	
+	//	decoding
+private:
+	size_t								mContentLength;		//	need this for when reading headers... maybe ditch if possible
 	bool								mHeadersComplete;
 	Soy::TVersion						mRequestProtocolVersion;
 public:
@@ -76,6 +97,7 @@ class Http::TResponseProtocol : public Http::TCommonProtocol, public Soy::TReadP
 {
 public:
 	TResponseProtocol();
+	TResponseProtocol(TStreamBuffer& ChunkedDataBuffer);	
 	TResponseProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback,size_t ContentLength);
 	
 	virtual void					Encode(TStreamBuffer& Buffer) override;
@@ -105,5 +127,16 @@ public:
 };
 
 
-
+class Http::TChunkedProtocol : public Soy::TWriteProtocol
+{
+public:
+	TChunkedProtocol(TStreamBuffer& Input,size_t MinChunkSize=100,size_t MaxChunkSize=1024*1024*1);
+	
+	virtual void		Encode(TStreamBuffer& Output) override;
+	
+public:
+	size_t				mMinChunkSize;
+	size_t				mMaxChunkSize;
+	TStreamBuffer&		mInput;
+};
 
