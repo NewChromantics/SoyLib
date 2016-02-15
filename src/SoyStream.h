@@ -21,6 +21,11 @@ namespace Soy
 class TStreamBuffer
 {
 public:
+	TStreamBuffer() :
+		mEof	( false )
+	{
+	}
+	
 	//	gr: turn these into some kinda "binary reg exp"
 	bool		PopAnyMatch(const ArrayInterface<char>&& DelimAny,ArrayBridge<char>& Data,bool KeepDelim);
 	bool		Pop(const std::string Delim,std::string& Data,bool KeepDelim);
@@ -45,6 +50,7 @@ public:
 	
 	bool		IsEmpty() const				{	return GetBufferedSize() == 0;	}
 	size_t		GetBufferedSize() const		{	return mData.GetDataSize();	}
+	bool		HasEndOfStream() const		{	return mEof;	}	//	this keeps coming up
 	
 	bool		Peek(ArrayBridge<char>&& Data);			//	copy first X bytes without modifying. fails if this many bytes don't exist
 	bool		Peek(ArrayBridge<uint8>&& Data);		//	copy first X bytes without modifying. fails if this many bytes don't exist
@@ -52,6 +58,7 @@ public:
 	
 public:
 	SoyEvent<bool>	mOnDataPushed;
+	bool		mEof;
 	
 private:
 	//	gr: make this a ring buffer for speed!
