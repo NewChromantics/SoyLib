@@ -278,6 +278,8 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Tga:		return "image/tga";
 		case SoyMediaFormat::Psd:		return "image/Psd";
 			
+		case SoyMediaFormat::Text:		return "text/plain";		//	text/html etc
+			
 		default:						return "invalid/invalid";
 	}
 	
