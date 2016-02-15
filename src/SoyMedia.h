@@ -104,7 +104,8 @@ namespace SoyMediaFormat
 		PcmLinear_float,	//	-1..1 see SoyWave
 		
         QuicktimeTimecode,  //  explicitly listing this until I've established what the format is
-        
+		
+		Html,
 		Text,
 		Subtitle,
 		ClosedCaption,
