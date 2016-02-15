@@ -2,6 +2,8 @@
 
 #include "SoyProtocol.h"
 #include "HeapArray.hpp"
+#include "SoyMedia.h"
+
 
 namespace Http
 {
@@ -31,7 +33,8 @@ public:
 	{
 	}
 
-	void					SetContent(const std::string& Content);
+	void					SetContent(const std::string& Content,SoyMediaFormat::Type Format=SoyMediaFormat::Text);
+	void					SetContent(const ArrayBridge<char>& Data,SoyMediaFormat::Type Format);
 	
 	//	common code atm
 	TProtocolState::Type	Decode(TStreamBuffer& Buffer);

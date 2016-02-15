@@ -5,14 +5,24 @@
 
 
 
-void Http::TCommonProtocol::SetContent(const std::string& Content)
+void Http::TCommonProtocol::SetContent(const std::string& Content,SoyMediaFormat::Type Format)
 {
 	Soy::Assert( mContent.IsEmpty(), "Content already set" );
 	Soy::Assert( mWriteContent==nullptr, "Content has a write-content function set");
 	
-	if ( mContentMimeType.empty() )
-		mContentMimeType = SoyMediaFormat::ToMime( SoyMediaFormat::Text );
+	mContentMimeType = SoyMediaFormat::ToMime( Format );
 	Soy::StringToArray( Content, GetArrayBridge( mContent ) );
+	mContentLength = mContent.GetDataSize();
+}
+
+
+void Http::TCommonProtocol::SetContent(const ArrayBridge<char>& Data,SoyMediaFormat::Type Format)
+{
+	Soy::Assert( mContent.IsEmpty(), "Content already set" );
+	Soy::Assert( mWriteContent==nullptr, "Content has a write-content function set");
+	
+	mContent.Copy( Data );
+	mContentMimeType = SoyMediaFormat::ToMime( Format );
 	mContentLength = mContent.GetDataSize();
 }
 
