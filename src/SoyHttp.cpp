@@ -5,13 +5,13 @@
 
 
 
-
 void Http::TCommonProtocol::SetContent(const std::string& Content)
 {
 	Soy::Assert( mContent.IsEmpty(), "Content already set" );
 	Soy::Assert( mWriteContent==nullptr, "Content has a write-content function set");
 	
-	mContentMimeType = SoyMediaFormat::ToMime( SoyMediaFormat::Text );
+	if ( mContentMimeType.empty() )
+		mContentMimeType = SoyMediaFormat::ToMime( SoyMediaFormat::Text );
 	Soy::StringToArray( Content, GetArrayBridge( mContent ) );
 	mContentLength = mContent.GetDataSize();
 }
@@ -83,16 +83,12 @@ void Http::TCommonProtocol::WriteContent(TStreamBuffer& Buffer)
 
 
 Http::TResponseProtocol::TResponseProtocol() :
-	TCommonProtocol		( ),
-	mResponseCode		( 0 ),
-	mHeadersComplete	( false )
+	TCommonProtocol		( )
 {
 }
 
 Http::TResponseProtocol::TResponseProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback,size_t ContentLength) :
-	TCommonProtocol		( WriteContentCallback, ContentLength ),
-	mResponseCode		( 0 ),
-	mHeadersComplete	( false )
+	TCommonProtocol		( WriteContentCallback, ContentLength )
 {
 }
 
@@ -133,7 +129,7 @@ void Http::TResponseProtocol::Encode(TStreamBuffer& Buffer)
 }
 
 
-TProtocolState::Type Http::TResponseProtocol::Decode(TStreamBuffer& Buffer)
+TProtocolState::Type Http::TCommonProtocol::Decode(TStreamBuffer& Buffer)
 {
 	//	read next header
 	while ( !mHeadersComplete )
@@ -159,7 +155,7 @@ TProtocolState::Type Http::TResponseProtocol::Decode(TStreamBuffer& Buffer)
 	return TProtocolState::Finished;
 }
 
-void Http::TResponseProtocol::PushHeader(const std::string& Header)
+void Http::TCommonProtocol::PushHeader(const std::string& Header)
 {
 	auto& mResponseUrl = mUrl;
 	
@@ -172,7 +168,7 @@ void Http::TResponseProtocol::PushHeader(const std::string& Header)
 	
 	//	check for HTTP response header
 	{
-		std::regex ResponsePattern("^HTTP/1.[01] ([0-9]+) (.*)$", std::regex::icase );
+		std::regex ResponsePattern("^HTTP/[12].[01] ([0-9]+) (.*)$", std::regex::icase );
 		std::smatch Match;
 		if ( std::regex_match( Header, Match, ResponsePattern ) )
 		{
@@ -188,16 +184,19 @@ void Http::TResponseProtocol::PushHeader(const std::string& Header)
 
 	//	check for HTTP request header
 	{
-		std::regex RequestPattern("^(GET|POST) /(.*) HTTP/1.([0-9])$", std::regex::icase );
+		std::regex RequestPattern("^(GET|POST) /(.*) HTTP/([12]).([01])$", std::regex::icase );
 		std::smatch Match;
 		if ( std::regex_match( Header, Match, RequestPattern ) )
 		{
 			Soy::Assert( !HasResponseHeader(), "Already matched response header" );
 			Soy::Assert( !HasRequestHeader(), "Already matched request header" );
 			
-			mRequestMethod = Match[1].str();
+			mMethod = Match[1].str();
 			mUrl = std::string("/") + Match[2].str();
-			mRequestProtocolVersion = Match[3].str();
+			
+			std::stringstream VersionString;
+			VersionString << Match[3].str() << '.' << Match[4].str();
+			mRequestProtocolVersion = Soy::TVersion( VersionString.str() );
 			return;
 		}
 	}
@@ -232,7 +231,7 @@ void Http::TResponseProtocol::PushHeader(const std::string& Header)
 	mHeaders[Key] = Value;
 }
 
-bool Http::TResponseProtocol::ParseSpecificHeader(const std::string& Key,const std::string& Value)
+bool Http::TCommonProtocol::ParseSpecificHeader(const std::string& Key,const std::string& Value)
 {
 	if ( Soy::StringMatches(Key,"Content-length", false ) )
 	{
@@ -261,6 +260,11 @@ bool Http::TResponseProtocol::ParseSpecificHeader(const std::string& Key,const s
 
 void Http::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 {
+	//	set a default if method not specified
+	//	gr: this was set in the constructor, but now for decoding we want to initialise it blank
+	if ( mMethod.empty() )
+		mMethod = "GET";
+	
 	Soy::Assert( mMethod=="GET" || mMethod=="POST", "Invalid method for HTTP request" );
 
 	//	write request header
@@ -285,4 +289,5 @@ void Http::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 	WriteContent( Buffer );
 
 }
+
 
