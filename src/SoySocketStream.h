@@ -49,11 +49,9 @@ public:
 	
 	virtual std::shared_ptr<Soy::TReadProtocol>	AllocProtocol() override
 	{
-		return std::shared_ptr<Soy::TReadProtocol>( new Http::TResponseProtocol );
+		return std::shared_ptr<Soy::TReadProtocol>( new PROTOCOL );
 	}
 };
-
-
 
 
 typedef TSocketReadThread_Impl<Http::TResponseProtocol> THttpReadThread;
