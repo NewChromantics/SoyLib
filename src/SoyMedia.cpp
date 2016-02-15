@@ -279,6 +279,7 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Bmp:		return "image/bmp";
 		case SoyMediaFormat::Tga:		return "image/tga";
 		case SoyMediaFormat::Psd:		return "image/Psd";
+		case SoyMediaFormat::Gif:		return "image/gif";
 			
 		case SoyMediaFormat::Text:		return "text/plain";
 		case SoyMediaFormat::Html:		return "text/html";
