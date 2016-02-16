@@ -98,16 +98,8 @@ private:
 class TStreamReader_Impl : public TStreamReader
 {
 public:
-	TStreamReader_Impl(std::shared_ptr<TStreamBuffer> ReadBuffer,std::function<bool()> ReadFunc,std::function<void()> ShutdownFunc,std::function<std::shared_ptr<Soy::TReadProtocol>()> AllocProtocolFunc,const std::string& ThreadName) :
-		TStreamReader		( ThreadName, ReadBuffer ),
-		mReadFunc			( ReadFunc ),
-		mShutdownFunc		( ShutdownFunc ),
-		mAllocProtocolFunc	( AllocProtocolFunc )
-	{
-		if ( !mShutdownFunc )
-			mShutdownFunc = []{};
-		Soy::Assert( mReadFunc !=nullptr, "Read function required");
-	}
+	TStreamReader_Impl(std::shared_ptr<TStreamBuffer> ReadBuffer,std::function<bool()> ReadFunc,std::function<void()> ShutdownFunc,std::function<std::shared_ptr<Soy::TReadProtocol>()> AllocProtocolFunc,const std::string& ThreadName);
+	~TStreamReader_Impl();
 	
 	virtual bool									Read(TStreamBuffer& Buffer) override	{	return mReadFunc();	}
 	virtual std::shared_ptr<Soy::TReadProtocol>		AllocProtocol() override				{	return mAllocProtocolFunc();	}

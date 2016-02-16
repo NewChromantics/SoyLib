@@ -369,6 +369,8 @@ TStreamReader::TStreamReader(const std::string& Name,std::shared_ptr<TStreamBuff
 
 TStreamReader::~TStreamReader()
 {
+	//	gr: this may be too late. Shutdown() is pure and if the thread calls this at any point we'll go wrong.
+	//	this Wait will need to be in derived classes.
 	WaitToFinish();
 }
 
@@ -480,10 +482,6 @@ bool TStreamReader::Iteration()
 
 	if ( DecodeResult == TProtocolState::Disconnect || DecodeResult == TProtocolState::Abort )
 	{
-		static auto SleepMs = 5000;
-		std::Debug << "Todo: protocol says, " << DecodeResult << " stream. Currently unhandled. Sleeping for " << SleepMs << "ms" << std::endl;
-		std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
-
 		//	protocol has told us to clean up, so disconnect/cleanup the reader in case EOF it was triggered by protocol, not reader
 		Shutdown();
 		
@@ -492,7 +490,6 @@ bool TStreamReader::Iteration()
 		//	or a generic worker event OnWorkerFinished
 		return false;
 	}
-	
 	//	don't abort thread until we've used up all the data
 	return true;
 }
@@ -717,4 +714,25 @@ void TFileStreamReader::Shutdown() __noexcept
 	mFile.close();
 }
 
+
+
+
+TStreamReader_Impl::TStreamReader_Impl(std::shared_ptr<TStreamBuffer> ReadBuffer,std::function<bool()> ReadFunc,std::function<void()> ShutdownFunc,std::function<std::shared_ptr<Soy::TReadProtocol>()> AllocProtocolFunc,const std::string& ThreadName) :
+	TStreamReader		( ThreadName, ReadBuffer ),
+	mReadFunc			( ReadFunc ),
+	mShutdownFunc		( ShutdownFunc ),
+	mAllocProtocolFunc	( AllocProtocolFunc )
+{
+	if ( !mShutdownFunc )
+		mShutdownFunc = []{};
+	Soy::Assert( mReadFunc !=nullptr, "Read function required");
+}
+
+TStreamReader_Impl::~TStreamReader_Impl()
+{
+	//	the base class does this, but if we finish this destructor and go into the base class, the vtable for in-thread pure virtuals are cleared
+	//	so we need to wait for thread to finish BEFORE we destruct vtable.
+	//	I guess that means the parent needs to WaitToFinish first, but I think we can avoid that for now with this (prefer less client code)
+	WaitToFinish();
+}
 
