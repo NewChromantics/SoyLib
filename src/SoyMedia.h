@@ -590,11 +590,13 @@ public:
 		mFilename = Filename;
 	}
 	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames,bool ForceNonPlanarOutput) :
-		mFilename				( Filename ),
-		mOnFrameExtracted		( OnFrameExtracted ),
-		mReadAheadMs			( ReadAheadMs ),
-		mDiscardOldFrames		( false ),
-		mForceNonPlanarOutput	( false )
+		mFilename						( Filename ),
+		mOnFrameExtracted				( OnFrameExtracted ),
+		mReadAheadMs					( ReadAheadMs ),
+		mDiscardOldFrames				( false ),
+		mForceNonPlanarOutput			( false ),
+		mDebugIntraFrameRect			( false ),
+		mDebugIntraFrameTransparency	( false )
 	{
 	}
 	
@@ -607,6 +609,10 @@ public:
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
 	bool						mForceNonPlanarOutput;		//	for some extractors which have pixelly settings
+	
+	//	for gifs
+	bool						mDebugIntraFrameRect;
+	bool						mDebugIntraFrameTransparency;
 };
 
 
