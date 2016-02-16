@@ -254,6 +254,10 @@ protected:
 	bool				create(unsigned int stackSize=0);
 	void				destroy();
 */
+
+protected:
+	bool				IsThreadRunning() const		{	return mIsRunning;	}	//	currently only exposed for the worker thread
+
 private:
 	std::string			mThreadName;
 	volatile bool		mIsRunning;
@@ -283,7 +287,6 @@ public:
 	}
 	virtual ~SoyWorker()	{}
 	
-	virtual std::string	WorkerName() const	{	return "SoyWorker";	}
 	virtual void		Start();
 	virtual void		Stop();
 	bool				IsWorking() const	{	return mWorking;	}
