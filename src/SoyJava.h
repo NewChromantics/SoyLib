@@ -164,7 +164,8 @@ public:
 	
 protected:
 	virtual bool		Read(TStreamBuffer& Buffer) override;
-	
+	virtual void		Shutdown() override;
+
 private:
 	std::shared_ptr<Java::TFileHandle>	mHandle;
 };

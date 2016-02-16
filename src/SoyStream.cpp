@@ -227,8 +227,7 @@ bool TStreamBuffer::Push(const std::string& Data)
 	mData.PushBackArray( DataArray );
 	
 	//	gr: needs to be outside of lock?
-	bool Dummy;
-	mOnDataPushed.OnTriggered(Dummy);
+	OnDataPushed(false);
 	return true;
 }
 
@@ -242,8 +241,7 @@ bool TStreamBuffer::Push(const ArrayBridge<char>& Data)
 	mData.PushBackArray( Data );
 	
 	//	gr: needs to be outside of lock?
-	bool Dummy;
-	mOnDataPushed.OnTriggered(Dummy);
+	OnDataPushed(false);
 	return true;
 }
 
@@ -254,6 +252,18 @@ bool TStreamBuffer::Push(const ArrayBridge<uint8>& Data)
 	auto DataChar = GetRemoteArray( reinterpret_cast<const char*>( Data.GetArray() ), Data.GetDataSize() );
 	return Push( GetArrayBridge( DataChar ) );
 }
+
+void TStreamBuffer::PushEof()
+{
+	mEof = true;
+	OnDataPushed(true);
+}
+
+void TStreamBuffer::OnDataPushed(bool EofPushed)
+{
+	mOnDataPushed.OnTriggered( EofPushed );
+}
+
 
 bool TStreamBuffer::UnPop(const ArrayBridge<uint8>& Data)
 {
@@ -272,8 +282,7 @@ bool TStreamBuffer::UnPop(const ArrayBridge<char>& Data)
 		return false;
 	
 	//	gr: needs to be outside of lock?
-	bool Dummy;
-	mOnDataPushed.OnTriggered(Dummy);
+	OnDataPushed(false);
 	return true;
 }
 
@@ -285,8 +294,7 @@ bool TStreamBuffer::UnPop(const std::string& String)
 	Soy::StringToArray( String, DataBridge );
 	
 	//	gr: needs to be outside of lock?
-	bool Dummy;
-	mOnDataPushed.OnTriggered(Dummy);
+	OnDataPushed(false);
 	return UnPop( DataBridge );
 }
 
@@ -392,9 +400,23 @@ bool TStreamReader::Iteration()
 		}
 	}
 	
-	//	nothing to do, NOW we can kill the thread
+	if ( !KeepAlive )
+	{
+		mReadBuffer->PushEof();
+	}
+	
+	//	no more data, end of file. Assume protocol has already caught this?
+	//	do we need to handle;
+	//	<last data handled by protocol>
+	//	<no data>
+	//	<protocol expecting eof>
 	if ( mReadBuffer->IsEmpty() )
+	{
+		if ( !KeepAlive )
+			Shutdown();
 		return KeepAlive;
+	}
+	
 	if ( !IsWorking() )
 		return true;
 	
@@ -461,6 +483,14 @@ bool TStreamReader::Iteration()
 		static auto SleepMs = 5000;
 		std::Debug << "Todo: protocol says, " << DecodeResult << " stream. Currently unhandled. Sleeping for " << SleepMs << "ms" << std::endl;
 		std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
+
+		//	protocol has told us to clean up, so disconnect/cleanup the reader in case EOF it was triggered by protocol, not reader
+		Shutdown();
+		
+		//	end thread naturally... assume whatever owns the reader will detect when it finishes?
+		//	maybe we'll want an event?
+		//	or a generic worker event OnWorkerFinished
+		return false;
 	}
 	
 	//	don't abort thread until we've used up all the data
@@ -646,19 +676,20 @@ TFileStreamReader::TFileStreamReader(const std::string& Filename) :
 	mFile			( Filename, std::ios::in )
 {
 	Soy::Assert( mFile.is_open(), std::string("Failed to open ")+Filename );
-	
 }
 
 TFileStreamReader::~TFileStreamReader()
 {
+	//	let the reader finish dealing with all the data before closing the file
 	WaitToFinish();
-	mFile.close();
+	
+	Shutdown();
 }
 
 bool TFileStreamReader::Read(TStreamBuffer& Buffer)
 {
-	mReadBuffer.SetSize( 1024*1024 );
-	auto& Data = mReadBuffer;
+	mFileReadBuffer.SetSize( 1024*1024 );
+	auto& Data = mFileReadBuffer;
 
 	auto Peek = mFile.peek();
 	if ( Peek == std::char_traits<char>::eof() )
@@ -679,4 +710,11 @@ bool TFileStreamReader::Read(TStreamBuffer& Buffer)
 	Buffer.Push( GetArrayBridge( Data ) );
 	return true;
 }
+
+void TFileStreamReader::Shutdown() __noexcept 
+{
+	//	need to lock? does read & shutdown never happen simulatenously?
+	mFile.close();
+}
+
 

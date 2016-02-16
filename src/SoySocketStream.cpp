@@ -14,7 +14,15 @@ TSocketReadThread::TSocketReadThread(std::shared_ptr<SoySocket>& Socket,SoyRef C
 
 bool TSocketReadThread::Read(TStreamBuffer& Buffer)
 {
-	SoySocketConnection	ClientSocket = mSocket->GetConnection( mConnectionRef );
+	auto pSocket = mSocket;
+	if ( !pSocket )
+	{
+		std::Debug << __func__ << " eof; no socket" << std::endl;
+		return false;
+	}
+	auto& Socket = *pSocket;
+	
+	SoySocketConnection	ClientSocket = Socket.GetConnection( mConnectionRef );
 	if ( !ClientSocket.IsValid() )
 	{
 		std::Debug << "TSocketReadThread::Read Connection lost" << std::endl;
@@ -40,6 +48,13 @@ bool TSocketReadThread::Read(TStreamBuffer& Buffer)
 }
 
 
+void TSocketReadThread::Shutdown() __noexcept
+{
+	//	kill socket
+	//	gr: dealloc?
+	if ( mSocket )
+		mSocket->Close();
+}
 
 
 TSocketWriteThread::TSocketWriteThread(std::shared_ptr<SoySocket>& Socket,SoyRef ConnectionRef) :
