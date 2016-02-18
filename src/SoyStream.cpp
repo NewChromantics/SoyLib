@@ -526,20 +526,37 @@ bool TStreamWriter::Iteration()
 
 	auto AsyncWrite = [&Buffer,&EncodingFinished,&WriteError,this]
 	{
-		while ( !EncodingFinished || Buffer.GetBufferedSize()>0 )
+		auto Block = [this] ()->bool
 		{
 			static bool BreakIfThreadStopped = false;
 			if ( !IsWorking() && BreakIfThreadStopped )
-				break;
-			
+				return false;
+
+			return true;
+		};
+		
+		while ( !EncodingFinished || Buffer.GetBufferedSize()>0 )
+		{
 			try
 			{
-				Write( Buffer );
+				Write( Buffer, Block );
 			}
 			catch (std::exception& e)
 			{
 				WriteError << e.what();
 				break;
+			}
+			
+			//	sleep this thread so it doesn't hammer CPU.
+			//	if we've reached here, we can assume the Write()r has done as much as it can
+			//	todo: replace with some wake-on-event simple blocking func like
+			//		Soy::SleepUntilEvent( Event )
+			//	which has a temporary conditional and takes the Block() test func
+			//	and maybe an extra event so outer thread can wake it up
+			if ( !EncodingFinished && Block() && Buffer.GetBufferedSize() == 0 )
+			{
+				static auto SleepMs = 10;
+				std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
 			}
 		}
 		//Soy::Assert( Buffer.GetBufferedSize() == 0, "Still some data to write");
@@ -637,11 +654,11 @@ TFileStreamWriter::~TFileStreamWriter()
 	mFile.close();
 }
 
-void TFileStreamWriter::Write(TStreamBuffer& Data)
+void TFileStreamWriter::Write(TStreamBuffer& Data,const std::function<bool()>& Block)
 {
 	//	write to file
 	//	gr: don't break if thread has finished, let that be controlled externally
-	while ( Data.GetBufferedSize() > 0 )
+	while ( Data.GetBufferedSize() > 0 && Block() )
 	{
 		try
 		{
@@ -711,7 +728,9 @@ bool TFileStreamReader::Read(TStreamBuffer& Buffer)
 void TFileStreamReader::Shutdown() __noexcept 
 {
 	//	need to lock? does read & shutdown never happen simulatenously?
+	std::Debug << __func__ << " start" << std::endl;
 	mFile.close();
+	std::Debug << __func__ << " end" <<std::endl;
 }
 
 

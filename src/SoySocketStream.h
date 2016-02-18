@@ -31,7 +31,7 @@ public:
 	~TSocketWriteThread();
 	
 protected:
-	virtual void					Write(TStreamBuffer& Buffer) override;
+	virtual void					Write(TStreamBuffer& Buffer,const std::function<bool()>& Block) override;
 	
 private:
 	Array<char>						mSendBuffer;		//	static buffer, just save realloc

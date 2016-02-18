@@ -127,7 +127,7 @@ public:
 	
 protected:
 	size_t									GetQueueSize() const				{	return mQueue.GetSize();	}
-	virtual void							Write(TStreamBuffer& Buffer)=0;	//	write next chunk
+	virtual void							Write(TStreamBuffer& Buffer,const std::function<bool()>& Block)=0;	//	write next chunk, as much as possible (but keep checking block)
 	void									OnError(const std::string& Error)	{	mOnStreamError.OnTriggered( Error );	}
 
 public:
@@ -153,7 +153,7 @@ public:
 	~TFileStreamWriter();
 	
 protected:
-	virtual void		Write(TStreamBuffer& Buffer) override;
+	virtual void		Write(TStreamBuffer& Buffer,const std::function<bool()>& Block) override;
 	
 private:
 	std::ofstream		mFile;

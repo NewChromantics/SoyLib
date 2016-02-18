@@ -72,20 +72,11 @@ TSocketWriteThread::~TSocketWriteThread()
 }
 
 
-void TSocketWriteThread::Write(TStreamBuffer& Buffer)
+void TSocketWriteThread::Write(TStreamBuffer& Buffer,const std::function<bool()>& Block)
 {
 	//	keep writing until buffer is empty
-	while ( !Buffer.IsEmpty() )
+	while ( !Buffer.IsEmpty() && Block() )
 	{
-		//	abort if thread is stopped
-		//	gr: or do we want to try and finish?
-		if ( !IsWorking() )
-		{
-			//	throw seeing as we're being interrupted?
-			std::Debug << "Aborting TSocketWriteThread::Write as thread is stopped, with " << Buffer.GetBufferedSize() << " bytes remaining to send" << std::endl;
-			break;
-		}
-		
 		SoySocketConnection	ClientSocket = mSocket->GetConnection( mConnectionRef );
 		if ( !ClientSocket.IsValid() )
 		{
