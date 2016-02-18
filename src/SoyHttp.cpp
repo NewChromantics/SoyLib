@@ -45,6 +45,9 @@ void Http::TCommonProtocol::BakeHeaders()
 		Soy::Assert( mContent.IsEmpty(), "Chunked Content, but also has content");
 		Soy::Assert( mWriteContent==nullptr, "Chunked Content, but also has write content func");
 		mHeaders["Transfer-Encoding"] = "chunked";
+
+		//	http://stackoverflow.com/a/26009085/355753
+		mHeaders["Cache-Control"] = "no-cache";
 	}
 	else if ( mWriteContent )	//	remove this ambiguity!
 	{
