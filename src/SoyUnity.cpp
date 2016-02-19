@@ -3,6 +3,10 @@
 #include <sstream>
 #include "SoyOpenglContext.h"
 
+#if defined(TARGET_ANDROID)
+#include "SoyJava.h"
+#endif
+
 
 #if defined(TARGET_IOS)
 extern "C" {
@@ -12,6 +16,10 @@ void	UnityRegisterRenderingPlugin(UnityPluginSetGraphicsDeviceFunc setDevice, Un
 }
 #endif
 
+namespace Platform
+{
+	std::string		GetBundleIdentifier();
+}
 
 
 namespace Unity
@@ -433,3 +441,19 @@ void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
 {
 	Extensions.PushBack(".meta");
 }
+
+
+#if defined(TARGET_ANDROID)
+std::string Platform::GetBundleIdentifier()
+{
+	return Java::GetBundleIdentifier();
+}
+#endif
+
+const std::string& Unity::GetBundleIdentifier()
+{
+	//	cache this
+	static std::string CachedIdentifier = Soy::StringToLower( Platform::GetBundleIdentifier() );
+	return CachedIdentifier;
+}
+

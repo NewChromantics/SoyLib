@@ -274,6 +274,12 @@ std::string Platform::GetSdCardDirectory()
 
 
 
+std::string Java::GetBundleIdentifier()
+{
+	//	todo: http://stackoverflow.com/a/8935892/355753
+	return "Soy";
+}
+
 
 template<typename TYPE>
 TYPE Java::GetFieldCall(TJniObject& Object,const std::string& FieldName,jfieldID Field)
