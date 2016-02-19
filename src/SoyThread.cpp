@@ -552,6 +552,13 @@ void SoyWorkerThread::Start(bool ThrowIfAlreadyStarted)
 void SoyWorkerThread::Thread()
 {
 	SoyWorker::Start();
+	
+	//	when this exits, we should stop, to break the thread out of it's loop
+	if ( this->IsThreadRunning() )
+	{
+		std::Debug << "SoyWorkerThread " << GetThreadName() << " finished, but not stopped. Stopping to end thread." << std::endl;
+		SoyThread::Stop(false);
+	}
 }
 
 void SoyThread::CleanupHeap()

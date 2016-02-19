@@ -2198,6 +2198,15 @@ Java::TFileHandleStreamReader::~TFileHandleStreamReader()
 	mHandle.reset();
 }
 
+void Java::TFileHandleStreamReader::Shutdown() __noexcept
+{
+	//	need to lock? does read & shutdown never happen simulatenously?
+	std::Debug << __func__ << " start" << std::endl;
+	mHandle.reset();
+	std::Debug << __func__ << " end" <<std::endl;
+}
+
+
 bool Java::TFileHandleStreamReader::Read(TStreamBuffer& Buffer)
 {
 	Soy::Assert( mHandle!=nullptr, "Java::TFileHandleStreamReader handle expected");

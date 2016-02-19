@@ -14,6 +14,9 @@ public:
 	
 	virtual bool					Read(TStreamBuffer& Buffer) override;	//	read next chunk of data into buffer
 	
+protected:
+	virtual void					Shutdown() __noexcept override;
+	
 public:
 	Array<char>						mRecvBuffer;		//	static buffer, just alloc once
 	SoyRef							mConnectionRef;
@@ -28,7 +31,7 @@ public:
 	~TSocketWriteThread();
 	
 protected:
-	virtual void					Write(TStreamBuffer& Buffer) override;
+	virtual void					Write(TStreamBuffer& Buffer,const std::function<bool()>& Block) override;
 	
 private:
 	Array<char>						mSendBuffer;		//	static buffer, just save realloc
