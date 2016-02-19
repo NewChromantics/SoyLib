@@ -392,15 +392,20 @@ void Soy::StringSplitByMatches(ArrayBridge<std::string>&& Parts,const std::strin
 {
 	StringSplitByMatches( Parts, String, MatchingChars, IncludeEmpty );
 }
-	
-void Soy::SplitStringLines(ArrayBridge<std::string>& StringLines,const std::string& String)
+
+void Soy::SplitStringLines(std::function<bool(const std::string&,const char&)> Callback,const std::string& String,bool IncludeEmpty)
 {
-	StringSplitByMatches( StringLines, String, "\n\r", false );
+	StringSplitByMatches( Callback, String, "\n\r", IncludeEmpty );
 }
 	
-void Soy::SplitStringLines(ArrayBridge<std::string>&& StringLines,const std::string& String)
+void Soy::SplitStringLines(ArrayBridge<std::string>& StringLines,const std::string& String,bool IncludeEmpty)
 {
-	SplitStringLines( StringLines, String );
+	StringSplitByMatches( StringLines, String, "\n\r", IncludeEmpty );
+}
+	
+void Soy::SplitStringLines(ArrayBridge<std::string>&& StringLines,const std::string& String,bool IncludeEmpty)
+{
+	SplitStringLines( StringLines, String, IncludeEmpty );
 }
 
 bool Soy::IsUtf8String(const std::string& String)
