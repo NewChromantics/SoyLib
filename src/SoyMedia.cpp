@@ -775,11 +775,11 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::GetStreamBuffer(size_t Stre
 void TMediaExtractor::Seek(SoyTime Time)
 {
 	//	update the target seek time
-	if ( Time >= mSeekTime )
+	if ( Time < mSeekTime )
 	{
 		std::stringstream Error;
 		Error << "Can't currently handle seeking backwards " << Time << " < " << mSeekTime;
-		Soy::Assert( Time >= mSeekTime, Error.str() );
+		throw Soy::AssertException( Error.str() );
 	}
 	
 	//	update the target time and wake up thread in case we need to read frames
