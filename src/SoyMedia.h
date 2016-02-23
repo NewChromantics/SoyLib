@@ -31,6 +31,11 @@ namespace Directx
 	class TTexture;
 }
 
+namespace SoyMedia
+{
+	extern prmem::Heap	DefaultHeap;
+}
+
 //	merge this + pixel format at some point
 namespace SoyMediaFormat
 {
@@ -412,6 +417,7 @@ class TAudioBufferBlock
 {
 public:
 	TAudioBufferBlock() :
+		mData		( SoyMedia::DefaultHeap ),
 		mChannels	( 0 ),
 		mFrequency	( 0 )
 	{
@@ -435,7 +441,8 @@ class TAudioBufferManager : public TMediaBufferManager
 {
 public:
 	TAudioBufferManager(const TPixelBufferParams& Params) :
-	TMediaBufferManager	( Params )
+		mBlocks				( SoyMedia::DefaultHeap ),
+		TMediaBufferManager	( Params )
 	{
 	}
 	
@@ -456,6 +463,7 @@ class TTextBufferManager : public TMediaBufferManager
 {
 public:
 	TTextBufferManager(const TPixelBufferParams& Params) :
+		mBlocks				( SoyMedia::DefaultHeap ),
 		TMediaBufferManager	( Params )
 	{
 	}
@@ -476,6 +484,7 @@ class TMediaPacket
 {
 public:
 	TMediaPacket() :
+		mData			( SoyMedia::DefaultHeap ),
 		mIsKeyFrame		( false ),
 		mEncrypted		( false ),
 		mEof			( false )
@@ -517,6 +526,7 @@ class TMediaPacketBuffer
 {
 public:
 	TMediaPacketBuffer(size_t MaxBufferSize=10) :
+		mPackets				( SoyMedia::DefaultHeap ),
 		mMaxBufferSize			( MaxBufferSize ),
 		mAutoTimestampDuration	( 33ull )
 	{
@@ -593,8 +603,8 @@ public:
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
 		mReadAheadMs					( ReadAheadMs ),
-		mDiscardOldFrames				( false ),
-		mForceNonPlanarOutput			( false ),
+		mDiscardOldFrames				( DiscardOldFrames ),
+		mForceNonPlanarOutput			( ForceNonPlanarOutput ),
 		mDebugIntraFrameRect			( false ),
 		mDebugIntraFrameTransparency	( false )
 	{

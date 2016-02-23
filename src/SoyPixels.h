@@ -275,12 +275,16 @@ public:
 class SoyPixels : public SoyPixelsDef<Array<uint8>>
 {
 public:
+	static prmem::Heap		DefaultHeap;
+	
+public:
 	SoyPixels(const SoyPixelsImpl& that) :
+		mArray						( DefaultHeap ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{
 		Copy( that );
 	}
-	SoyPixels(prmem::Heap& Heap=prcore::Heap) :
+	SoyPixels(prmem::Heap& Heap=DefaultHeap) :
 		mArray						( Heap ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{

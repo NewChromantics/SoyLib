@@ -541,7 +541,10 @@ void SoyWorkerThread::Start(bool ThrowIfAlreadyStarted)
 {
 	//	already have a thread
 	if ( !ThrowIfAlreadyStarted && HasThread() )
+	{
+		Wake();
 		return;
+	}
 	if ( !Soy::Assert( !HasThread(), "Thread already created" ) )
 		return;
 	
