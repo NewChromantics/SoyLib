@@ -1211,7 +1211,7 @@ void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour)
 	Pixel[0] = Colour.x;
 	Pixel[1] = Colour.y;
 	Pixel[2] = Colour.z;
-	Pixel[4] = Colour.w;
+	Pixel[3] = Colour.w;
 }
 
 

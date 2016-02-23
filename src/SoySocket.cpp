@@ -126,8 +126,7 @@ std::ostream& operator<< (std::ostream &out,const SoySockAddr &Addr)
 	auto Error = getnameinfo( Addr.GetSockAddr(), Addr.GetSockAddrLength(), Host.GetArray(), size_cast<socklen_t>(Host.GetDataSize()), Port.GetArray(), size_cast<socklen_t>(Port.GetDataSize()), Flags );
 	if ( Error != 0 )
 	{
-		Soy::Winsock::HasError("getnameinfo");
-		out << "[failed to get name for sockaddr]";
+		out << "[failed to get name for sockaddr getnameinfo " << ::Platform::GetErrorString(Soy::Winsock::GetError()) << "]";
 		return out;
 	}
 	out << Host.GetArray() << ":" << Port.GetArray();
@@ -405,8 +404,10 @@ SoyRef SoySocket::WaitForClient()
 	Client.mSocket = ::accept( mSocket, pSockAddr, &SockAddrLen );
 	if ( Client.mSocket == INVALID_SOCKET )
 	{
+		//	the << on sockaddr clears the error so grab it now
+		auto Error = Soy::Winsock::GetError();
 		//	get error when socket has been closed
-		Soy::Winsock::HasError(Soy::StreamToString(std::stringstream() << "Accept(" << Client << ")"), false);
+		Soy::Winsock::HasError( Soy::StreamToString(std::stringstream() << "Accept(" << Client << ")" ), false, Error );
 		return SoyRef();
 	}
 	

@@ -348,10 +348,11 @@ public:
 		return FixedRemoteArray<TYPE>( reinterpret_cast<TYPE*>( Start ), OutputElements );
 	}
 
-	FixedRemoteArray<T>	GetSubArray(size_t IndexOffset)
+	FixedRemoteArray<T>	GetSubArray(size_t IndexOffset,ssize_t OutputElements=-1)
 	{
 		auto ByteOffset = IndexOffset * this->GetElementSize();
-		auto OutputElements = this->GetSize() - IndexOffset;
+		if ( OutputElements < 0 )
+			OutputElements = this->GetSize() - IndexOffset;
 		return GetSubArray<T>( ByteOffset, OutputElements );
 	}
 };

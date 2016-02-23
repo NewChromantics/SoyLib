@@ -34,12 +34,14 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Mpeg2TS_PSI,		"Mpeg2TS_PSI" },
 	{ SoyMediaFormat::Mpeg2,			"Mpeg2" },
 	{ SoyMediaFormat::Mpeg4,			"Mpeg4" },
+	{ SoyMediaFormat::Mpeg4_v3,			"Mpeg4_v3" },
 	{ SoyMediaFormat::VC1,				"VC1" },
 	{ SoyMediaFormat::Audio_AUDS,		"Audio_AUDS" },
 	{ SoyMediaFormat::Wave,				"wave" },
 	{ SoyMediaFormat::Aac,				"aac" },
 	{ SoyMediaFormat::Ac3,				"Ac3" },
 	{ SoyMediaFormat::Mpeg2Audio,		"Mpeg2Audio" },
+	{ SoyMediaFormat::Mp3,				"Mp3" },
 	{ SoyMediaFormat::Dts,				"Dts" },
 	{ SoyMediaFormat::PcmAndroidRaw,	"PcmAndroidRaw" },
 	{ SoyMediaFormat::PcmLinear_8,		"PcmLinear_8" },
@@ -47,6 +49,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::PcmLinear_20,		"PcmLinear_20" },
 	{ SoyMediaFormat::PcmLinear_24,		"PcmLinear_24" },
 	{ SoyMediaFormat::Text,				"text" },
+	{ SoyMediaFormat::Html,				"Html" },
 	{ SoyMediaFormat::Subtitle,			"subtitle" },
 	{ SoyMediaFormat::ClosedCaption,	"closedcaption" },
 	{ SoyMediaFormat::Timecode,			"timecode" },
@@ -158,6 +161,7 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Mpeg2TS_PSI:
 		case SoyMediaFormat::Mpeg2:
 		case SoyMediaFormat::Mpeg4:
+		case SoyMediaFormat::Mpeg4_v3:
 		case SoyMediaFormat::VC1:
 			return true;
 			
@@ -206,6 +210,7 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Aac:
 		case SoyMediaFormat::Ac3:
 		case SoyMediaFormat::Mpeg2Audio:
+		case SoyMediaFormat::Mp3:
 		case SoyMediaFormat::Dts:
 		case SoyMediaFormat::PcmLinear_8:
 		case SoyMediaFormat::PcmLinear_16:
@@ -227,6 +232,7 @@ bool SoyMediaFormat::IsText(SoyMediaFormat::Type Format)
 	switch ( Format )
 	{
 		case SoyMediaFormat::Text:
+		case SoyMediaFormat::Html:
 		case SoyMediaFormat::ClosedCaption:
 		case SoyMediaFormat::Subtitle:
 			return true;
@@ -249,7 +255,8 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 			
 		case SoyMediaFormat::Mpeg2TS:	return "video/ts";		//	find the proper version of this
 		case SoyMediaFormat::Mpeg2:		return "video/mpeg2";	//	find the proper version of this
-		case SoyMediaFormat::Mpeg4:		return "video/mp4";	//	find the proper version of this
+		case SoyMediaFormat::Mpeg4:		return "video/mp4";		//	find the proper version of this
+		case SoyMediaFormat::Mpeg4_v3:	return "video/mp43";	//	find the proper version of this
 	
 		case SoyMediaFormat::Wave:		return "audio/wave";
 		case SoyMediaFormat::Audio_AUDS:	return "audio/Audio_AUDS";
@@ -264,6 +271,7 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::PcmLinear_24:	return "audio/L24";
 			
 		case SoyMediaFormat::PcmAndroidRaw:	return MIMETYPE_AUDIO_RAW;
+		case SoyMediaFormat::Mp3:		return "audio/mpeg";	//	audio/mpeg is what android reports when I try and open mp3
 
 		//	verify these
 		case SoyMediaFormat::Png:		return "image/png";
@@ -271,6 +279,10 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Bmp:		return "image/bmp";
 		case SoyMediaFormat::Tga:		return "image/tga";
 		case SoyMediaFormat::Psd:		return "image/Psd";
+		case SoyMediaFormat::Gif:		return "image/gif";
+			
+		case SoyMediaFormat::Text:		return "text/plain";
+		case SoyMediaFormat::Html:		return "text/html";
 			
 		default:						return "invalid/invalid";
 	}
@@ -293,6 +305,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg2TS ) )		return SoyMediaFormat::Mpeg2TS;
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg2 ) )			return SoyMediaFormat::Mpeg2;
 	if ( Mime == ToMime( SoyMediaFormat::Mpeg4 ) )			return SoyMediaFormat::Mpeg4;
+	if ( Mime == ToMime( SoyMediaFormat::Mpeg4_v3 ) )		return SoyMediaFormat::Mpeg4_v3;
 	if ( Mime == ToMime( SoyMediaFormat::Wave ) )			return SoyMediaFormat::Wave;
 	if ( Mime == ToMime( SoyMediaFormat::Audio_AUDS ) )		return SoyMediaFormat::Audio_AUDS;
 	if ( Mime == ToMime( SoyMediaFormat::Aac ) )			return SoyMediaFormat::Aac;
@@ -301,6 +314,7 @@ SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_20 ) )	return SoyMediaFormat::PcmLinear_20;
 	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_24 ) )	return SoyMediaFormat::PcmLinear_24;
 	if ( Mime == ToMime( SoyMediaFormat::PcmAndroidRaw ) )	return SoyMediaFormat::PcmAndroidRaw;
+	if ( Mime == ToMime( SoyMediaFormat::Mp3 ) )			return SoyMediaFormat::Mp3;
 	
 	if ( Mime == ToMime( SoyMediaFormat::Png ) )			return SoyMediaFormat::Png;
 	if ( Mime == ToMime( SoyMediaFormat::Jpeg ) )			return SoyMediaFormat::Jpeg;
@@ -328,8 +342,9 @@ uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
 	{
-		case SoyMediaFormat::Aac:	return 'aac ';
-		case SoyMediaFormat::Mpeg4:	return 'mp4v';
+		case SoyMediaFormat::Aac:		return 'aac ';
+		case SoyMediaFormat::Mpeg4:		return 'mp4v';
+		case SoyMediaFormat::Mpeg4_v3:	return 'MP43';
 
 		case SoyMediaFormat::PcmLinear_8:
 		case SoyMediaFormat::PcmLinear_16:
@@ -356,13 +371,11 @@ uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
 
 	
 
-SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize)
+SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize,bool TryReversed)
 {
-	//	todo: handle reverse here automatically and use ToFourcc()
 	switch ( Fourcc )
 	{
 		case 'avc1':
-		case '1cva':
 			if ( H264LengthSize == 0 )
 				return SoyMediaFormat::H264_ES;
 			if ( H264LengthSize == 1 )
@@ -375,24 +388,22 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 
 		//	win7 MF - don't know how to get size atm so assuming 32bit (if it matters)
 		case 'H264':
-		case '462H':
 			return SoyMediaFormat::H264_32;
 			break;
 			
 
 		case 'aac ':
-		case ' caa':
 			return SoyMediaFormat::Aac;
 
 		//	windows/MediaFoundation have fourcc's in caps
 		case 'MP4V':
-		case 'V4PM':
 		case 'mp4v':
-		case 'v4pm':	
 			return SoyMediaFormat::Mpeg4;
+			
+		case 'MP43':
+			return SoyMediaFormat::Mpeg4_v3;
 
 		case 'lpcm':
-		case 'mcpl':
 			if ( H264LengthSize == 8 )
 				return SoyMediaFormat::PcmLinear_8;
 			if ( H264LengthSize == 16 )
@@ -405,16 +416,34 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 			
 		//	found in quicktime mov's
 		case 'tmcd':
-        case 'dcmt':
             return SoyMediaFormat::QuicktimeTimecode;
 	}
+	
+	//	detect reversed fourcc's and encourage converting at the source
+	if ( TryReversed )
+	{
+		auto FourccSwapped = Soy::SwapEndian( Fourcc );
+		auto Type = FromFourcc( FourccSwapped, H264LengthSize, false );
+		if ( Type != SoyMediaFormat::Invalid )
+		{
+			std::Debug << "Warning: Detected reversed fourcc.(" << Soy::FourCCToString(FourccSwapped) << ") todo: Fix endianness at source." << std::endl;
+			return Type;
+		}
+	}
+
 	
 	std::Debug << "Unknown fourcc type: " << Soy::FourCCToString(Fourcc) << std::endl;
 	return SoyMediaFormat::Invalid;
 }
 
-
-
+void TStreamMeta::SetPixelMeta(const SoyPixelsMeta& Meta)
+{
+	mPixelMeta = Meta;
+	
+	//	auto set codec if not set
+	if ( mCodec == SoyMediaFormat::Invalid )
+		mCodec = SoyMediaFormat::FromPixelFormat( Meta.GetFormat() );
+}
 
 
 
@@ -951,7 +980,7 @@ void TMediaEncoder::PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::functio
 
 
 
-TMediaMuxer::TMediaMuxer(std::shared_ptr<TStreamWriter>& Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName) :
+TMediaMuxer::TMediaMuxer(std::shared_ptr<TStreamWriter> Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName) :
 	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
 	mOutput			( Output ),
 	mInput			( Input )
@@ -1135,6 +1164,28 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 void TMediaBufferManager::SetPlayerTime(const SoyTime &Time)
 {
 	mPlayerTime = Time;
+}
+
+
+size_t TMediaBufferManager::GetMinBufferSize() const
+{
+	//	if we're at the end of the file we don't wait because there won't be any more
+	if ( HasAllFrames() )
+		return 0;
+	
+	//	gr: check in case == is bad too
+	if ( mParams.mMaxBufferSize < mParams.mMinBufferSize )
+	{
+		std::Debug << "Warning pixel buffer MaxSize(" << mParams.mMaxBufferSize << ") < MinSize(" << mParams.mMinBufferSize << ")" << std::endl;
+		return (mParams.mMaxBufferSize > 1) ? (mParams.mMaxBufferSize-1) : 0;
+	}
+	
+	return mParams.mMinBufferSize;
+}
+
+void TMediaBufferManager::OnPushEof()
+{
+	mHasEof = true;
 }
 
 
@@ -1549,7 +1600,7 @@ bool TPixelBufferManager::IsPixelBufferFull() const
 	//	just in case number is corrupted due to [lack of] threadsafety
 	std::clamp<size_t>( FrameCount, 0, 100 );
 	
-	return FrameCount >= mParams.mBufferFrameSize;
+	return FrameCount >= mParams.mMaxBufferSize;
 }
 
 bool TPixelBufferManager::PeekPixelBuffer(SoyTime Timestamp)
@@ -1595,19 +1646,32 @@ std::shared_ptr<TPixelBuffer> TPixelBufferManager::PopPixelBuffer(SoyTime& Times
 		mFrameLock.lock();
 	}
 	
+	Soy::TScopeCall AutoUnlock( nullptr, [&]{	mFrameLock.unlock();	} );
+
+	//	require buffering of N frames
+	//	gr: this may need to be more intelligent to skip over frames in the past still....
+	auto MinBufferSize = GetMinBufferSize();
+	if ( MinBufferSize > 0 )
+	{
+		if ( mFrames.size() < MinBufferSize )
+		{
+			std::Debug << "Waiting for " << (MinBufferSize-mFrames.size()) << " more frames to buffer..." << std::endl;
+			return nullptr;
+		}
+	}
+
+	//	not synchronised, just grab next frame
 	if ( !mParams.mPopFrameSync )
 	{
 		if ( mFrames.empty() )
 		{
-			mFrameLock.unlock();
 			return nullptr;
 		}
-		
+
 		auto& Frame = *mFrames.begin();
 		Timestamp = Frame.mTimestamp;
 		std::shared_ptr<TPixelBuffer> LastPixelBuffer = Frame.mPixels;
 		mFrames.erase( mFrames.begin() );
-		mFrameLock.unlock();
 		return LastPixelBuffer;
 	}
 	
@@ -1648,13 +1712,12 @@ std::shared_ptr<TPixelBuffer> TPixelBufferManager::PopPixelBuffer(SoyTime& Times
 		FramesSkipped.PushBack( Frame.mTimestamp );
 		it = mFrames.erase( it );
 	}
-	
-	mFrameLock.unlock();
-	
+
 	//	gr: last frame, wasn't skipped, it was returned!
 	if ( !FramesSkipped.IsEmpty() )
 		FramesSkipped.PopBack();
-	
+
+	//	gr: make sure this doesn't cause a deadlock as the mFrameLock is now released AFTER this
 	//	must have skipped a frame, report it
 	if ( !FramesSkipped.IsEmpty() )
 		mOnFramePopSkipped.OnTriggered( GetArrayBridge(FramesSkipped) );
@@ -1692,7 +1755,7 @@ bool TPixelBufferManager::PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::fu
 	do
 	{
 		//	wait for frames to be popped
-		if ( mFrames.size() >= std::max<size_t>(mParams.mBufferFrameSize,1) )
+		if ( mFrames.size() >= std::max<size_t>(mParams.mMaxBufferSize,1) )
 		{
 			if ( mParams.mDebugFrameSkipping )
 				std::Debug << "Frame buffer full... (" << mFrames.size() << ") " << std::endl;

@@ -357,6 +357,10 @@ void Platform::EnumFiles(std::string Directory,std::function<void(const std::str
 		{
 			std::Debug << "Exception enumerating directory " << Dir << ": " << e.what() << std::endl;
 		}
+		catch(...)
+		{
+			std::Debug << "Unknown exception enumerating directory " << Dir << std::endl;
+		}
 	}
 }
 

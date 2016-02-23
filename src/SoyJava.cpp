@@ -274,6 +274,12 @@ std::string Platform::GetSdCardDirectory()
 
 
 
+std::string Java::GetBundleIdentifier()
+{
+	//	todo: http://stackoverflow.com/a/8935892/355753
+	return "Soy";
+}
+
 
 template<typename TYPE>
 TYPE Java::GetFieldCall(TJniObject& Object,const std::string& FieldName,jfieldID Field)
@@ -2197,6 +2203,15 @@ Java::TFileHandleStreamReader::~TFileHandleStreamReader()
 	WaitToFinish();
 	mHandle.reset();
 }
+
+void Java::TFileHandleStreamReader::Shutdown() __noexcept
+{
+	//	need to lock? does read & shutdown never happen simulatenously?
+	std::Debug << __func__ << " start" << std::endl;
+	mHandle.reset();
+	std::Debug << __func__ << " end" <<std::endl;
+}
+
 
 bool Java::TFileHandleStreamReader::Read(TStreamBuffer& Buffer)
 {

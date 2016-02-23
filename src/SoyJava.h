@@ -39,6 +39,8 @@ namespace Java
 	void					BufferToArray(TJniObject& InputBuffer,ArrayBridge<uint8>&& Data,const std::string& Context,int ExplicitBufferSize=-1);
 	FixedRemoteArray<uint8>	GetBufferArray(TJniObject& Buffer,int LimitSize=-1);	//	get buffer as array. throws if this option isn't availible for this buffer
 	void					IsOkay(const std::string& Context,bool ThrowRegardless=false);		//	check for JNI exception
+
+	std::string				GetBundleIdentifier();
 	
 	class TFileHandle;
 	class TApkFileHandle;		//	special access to files in Assets which need to be loaded in a special way
@@ -164,7 +166,8 @@ public:
 	
 protected:
 	virtual bool		Read(TStreamBuffer& Buffer) override;
-	
+	virtual void		Shutdown() __noexcept override;
+
 private:
 	std::shared_ptr<Java::TFileHandle>	mHandle;
 };

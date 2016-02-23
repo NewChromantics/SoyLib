@@ -3,7 +3,10 @@
 #include <CoreFoundation/CoreFoundation.h>
 
 
-
+namespace Platform
+{
+	bool	EnumDirectoryUnsafe(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound);
+}
 
 bool GetUrlKeyBool(NSURL* Path,NSString* Key)
 {
@@ -66,10 +69,13 @@ SoyPathType::Type GetPathType(NSURL* Path)
 
 
 
-
-bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
+bool Platform::EnumDirectoryUnsafe(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
 	auto directoryURL = Avf::GetUrl( Directory );
+	
+	//	dir doesn't exist
+	if ( directoryURL == nullptr )
+		return true;
  
 	NSArray* Keys = [NSArray arrayWithObjects:NSURLIsDirectoryKey, NSURLIsPackageKey, NSURLLocalizedNameKey, nil];
 	
@@ -104,5 +110,27 @@ bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(con
 	}
 	
 	return true;
+}
+
+
+bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
+{
+	//	catch obj-c exceptions
+	@try
+	{
+		return EnumDirectoryUnsafe( Directory, OnPathFound );
+	}
+	@catch (NSException* e)
+	{
+		std::stringstream Error;
+		Error << "Platform::EnumDirectory NSException " << Soy::NSErrorToString( e );
+		throw Soy::AssertException( Error.str() );
+	}
+	@catch (...)
+	{
+		std::stringstream Error;
+		Error << "Platform::EnumDirectory Unknown exception";
+		throw Soy::AssertException( Error.str() );
+	}
 }
 

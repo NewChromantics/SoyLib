@@ -199,6 +199,25 @@ bool TStreamBuffer::Pop(size_t Length,ArrayBridge<char>& Data)
 	return true;
 }
 
+
+bool TStreamBuffer::Pop(size_t Length,ArrayBridge<uint8>& Data)
+{
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
+	
+	//	enough data ready?
+	if ( mData.GetDataSize() < Length )
+		return false;
+	
+	//	push back a sub section
+	auto DataSection = GetRemoteArray( reinterpret_cast<const uint8*>( mData.GetArray() ), Length );
+	if ( !Data.PushBackArray( DataSection ) )
+		return false;
+	
+	//	remove it now it's copied
+	mData.RemoveBlock( 0, Length );
+	return true;
+}
+
 bool TStreamBuffer::Push(const std::string& Data)
 {
 	std::lock_guard<std::recursive_mutex>	Lock( mLock );
@@ -208,8 +227,7 @@ bool TStreamBuffer::Push(const std::string& Data)
 	mData.PushBackArray( DataArray );
 	
 	//	gr: needs to be outside of lock?
-	bool Dummy;
-	mOnDataPushed.OnTriggered(Dummy);
+	OnDataPushed(false);
 	return true;
 }
 
@@ -223,8 +241,7 @@ bool TStreamBuffer::Push(const ArrayBridge<char>& Data)
 	mData.PushBackArray( Data );
 	
 	//	gr: needs to be outside of lock?
-	bool Dummy;
-	mOnDataPushed.OnTriggered(Dummy);
+	OnDataPushed(false);
 	return true;
 }
 
@@ -235,6 +252,18 @@ bool TStreamBuffer::Push(const ArrayBridge<uint8>& Data)
 	auto DataChar = GetRemoteArray( reinterpret_cast<const char*>( Data.GetArray() ), Data.GetDataSize() );
 	return Push( GetArrayBridge( DataChar ) );
 }
+
+void TStreamBuffer::PushEof()
+{
+	mEof = true;
+	OnDataPushed(true);
+}
+
+void TStreamBuffer::OnDataPushed(bool EofPushed)
+{
+	mOnDataPushed.OnTriggered( EofPushed );
+}
+
 
 bool TStreamBuffer::UnPop(const ArrayBridge<uint8>& Data)
 {
@@ -253,8 +282,7 @@ bool TStreamBuffer::UnPop(const ArrayBridge<char>& Data)
 		return false;
 	
 	//	gr: needs to be outside of lock?
-	bool Dummy;
-	mOnDataPushed.OnTriggered(Dummy);
+	OnDataPushed(false);
 	return true;
 }
 
@@ -266,24 +294,43 @@ bool TStreamBuffer::UnPop(const std::string& String)
 	Soy::StringToArray( String, DataBridge );
 	
 	//	gr: needs to be outside of lock?
-	bool Dummy;
-	mOnDataPushed.OnTriggered(Dummy);
+	OnDataPushed(false);
 	return UnPop( DataBridge );
 }
 
 
-bool TStreamBuffer::Peek(ArrayBridge<char> &&Data)
+bool TStreamBuffer::Peek(ArrayBridge<char>&& Data)
 {
+	Soy::Assert( !Data.IsEmpty(), "Shouldn't peek for 0 bytes" );
+				
 	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	if ( mData.GetSize() < Data.GetSize() )
 		return false;
 	
-	auto DataTail = GetRemoteArray( &mData[0], Data.GetSize() );
-	Data.Copy( DataTail );
+	auto DataHead = GetRemoteArray( mData.GetArray(), Data.GetSize() );
+	Data.Copy( DataHead );
 	
 	return true;
 }
+
+
+bool TStreamBuffer::Peek(ArrayBridge<uint8>&& Data)
+{
+	Soy::Assert( !Data.IsEmpty(), "Shouldn't peek for 0 bytes" );
+	
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
+	
+	if ( mData.GetSize() < Data.GetSize() )
+		return false;
+	
+	auto DataHead = GetRemoteArray( reinterpret_cast<const uint8*>(mData.GetArray()), Data.GetSize() );
+	Data.Copy( DataHead );
+	
+	return true;
+}
+
+
 
 
 bool TStreamBuffer::PeekBack(ArrayBridge<char> &&Data)
@@ -322,6 +369,8 @@ TStreamReader::TStreamReader(const std::string& Name,std::shared_ptr<TStreamBuff
 
 TStreamReader::~TStreamReader()
 {
+	//	gr: this may be too late. Shutdown() is pure and if the thread calls this at any point we'll go wrong.
+	//	this Wait will need to be in derived classes.
 	WaitToFinish();
 }
 
@@ -353,9 +402,23 @@ bool TStreamReader::Iteration()
 		}
 	}
 	
-	//	nothing to do, NOW we can kill the thread
+	if ( !KeepAlive )
+	{
+		mReadBuffer->PushEof();
+	}
+	
+	//	no more data, end of file. Assume protocol has already caught this?
+	//	do we need to handle;
+	//	<last data handled by protocol>
+	//	<no data>
+	//	<protocol expecting eof>
 	if ( mReadBuffer->IsEmpty() )
+	{
+		if ( !KeepAlive )
+			Shutdown();
 		return KeepAlive;
+	}
+	
 	if ( !IsWorking() )
 		return true;
 	
@@ -419,11 +482,14 @@ bool TStreamReader::Iteration()
 
 	if ( DecodeResult == TProtocolState::Disconnect || DecodeResult == TProtocolState::Abort )
 	{
-		static auto SleepMs = 5000;
-		std::Debug << "Todo: protocol says, " << DecodeResult << " stream. Currently unhandled. Sleeping for " << SleepMs << "ms" << std::endl;
-		std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
+		//	protocol has told us to clean up, so disconnect/cleanup the reader in case EOF it was triggered by protocol, not reader
+		Shutdown();
+		
+		//	end thread naturally... assume whatever owns the reader will detect when it finishes?
+		//	maybe we'll want an event?
+		//	or a generic worker event OnWorkerFinished
+		return false;
 	}
-	
 	//	don't abort thread until we've used up all the data
 	return true;
 }
@@ -460,20 +526,37 @@ bool TStreamWriter::Iteration()
 
 	auto AsyncWrite = [&Buffer,&EncodingFinished,&WriteError,this]
 	{
-		while ( !EncodingFinished || Buffer.GetBufferedSize()>0 )
+		auto Block = [this] ()->bool
 		{
 			static bool BreakIfThreadStopped = false;
 			if ( !IsWorking() && BreakIfThreadStopped )
-				break;
-			
+				return false;
+
+			return true;
+		};
+		
+		while ( !EncodingFinished || Buffer.GetBufferedSize()>0 )
+		{
 			try
 			{
-				Write( Buffer );
+				Write( Buffer, Block );
 			}
 			catch (std::exception& e)
 			{
 				WriteError << e.what();
 				break;
+			}
+			
+			//	sleep this thread so it doesn't hammer CPU.
+			//	if we've reached here, we can assume the Write()r has done as much as it can
+			//	todo: replace with some wake-on-event simple blocking func like
+			//		Soy::SleepUntilEvent( Event )
+			//	which has a temporary conditional and takes the Block() test func
+			//	and maybe an extra event so outer thread can wake it up
+			if ( !EncodingFinished && Block() && Buffer.GetBufferedSize() == 0 )
+			{
+				static auto SleepMs = 10;
+				std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
 			}
 		}
 		//Soy::Assert( Buffer.GetBufferedSize() == 0, "Still some data to write");
@@ -571,11 +654,11 @@ TFileStreamWriter::~TFileStreamWriter()
 	mFile.close();
 }
 
-void TFileStreamWriter::Write(TStreamBuffer& Data)
+void TFileStreamWriter::Write(TStreamBuffer& Data,const std::function<bool()>& Block)
 {
 	//	write to file
 	//	gr: don't break if thread has finished, let that be controlled externally
-	while ( Data.GetBufferedSize() > 0 )
+	while ( Data.GetBufferedSize() > 0 && Block() )
 	{
 		try
 		{
@@ -607,19 +690,20 @@ TFileStreamReader::TFileStreamReader(const std::string& Filename) :
 	mFile			( Filename, std::ios::in )
 {
 	Soy::Assert( mFile.is_open(), std::string("Failed to open ")+Filename );
-	
 }
 
 TFileStreamReader::~TFileStreamReader()
 {
+	//	let the reader finish dealing with all the data before closing the file
 	WaitToFinish();
-	mFile.close();
+	
+	Shutdown();
 }
 
 bool TFileStreamReader::Read(TStreamBuffer& Buffer)
 {
-	mReadBuffer.SetSize( 1024*1024 );
-	auto& Data = mReadBuffer;
+	mFileReadBuffer.SetSize( 1024*1024 );
+	auto& Data = mFileReadBuffer;
 
 	auto Peek = mFile.peek();
 	if ( Peek == std::char_traits<char>::eof() )
@@ -639,5 +723,35 @@ bool TFileStreamReader::Read(TStreamBuffer& Buffer)
 	Data.SetSize( BytesRead );
 	Buffer.Push( GetArrayBridge( Data ) );
 	return true;
+}
+
+void TFileStreamReader::Shutdown() __noexcept 
+{
+	//	need to lock? does read & shutdown never happen simulatenously?
+	std::Debug << __func__ << " start" << std::endl;
+	mFile.close();
+	std::Debug << __func__ << " end" <<std::endl;
+}
+
+
+
+
+TStreamReader_Impl::TStreamReader_Impl(std::shared_ptr<TStreamBuffer> ReadBuffer,std::function<bool()> ReadFunc,std::function<void()> ShutdownFunc,std::function<std::shared_ptr<Soy::TReadProtocol>()> AllocProtocolFunc,const std::string& ThreadName) :
+	TStreamReader		( ThreadName, ReadBuffer ),
+	mReadFunc			( ReadFunc ),
+	mShutdownFunc		( ShutdownFunc ),
+	mAllocProtocolFunc	( AllocProtocolFunc )
+{
+	if ( !mShutdownFunc )
+		mShutdownFunc = []{};
+	Soy::Assert( mReadFunc !=nullptr, "Read function required");
+}
+
+TStreamReader_Impl::~TStreamReader_Impl()
+{
+	//	the base class does this, but if we finish this destructor and go into the base class, the vtable for in-thread pure virtuals are cleared
+	//	so we need to wait for thread to finish BEFORE we destruct vtable.
+	//	I guess that means the parent needs to WaitToFinish first, but I think we can avoid that for now with this (prefer less client code)
+	WaitToFinish();
 }
 
