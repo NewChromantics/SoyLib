@@ -593,8 +593,8 @@ public:
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
 		mReadAheadMs					( ReadAheadMs ),
-		mDiscardOldFrames				( false ),
-		mForceNonPlanarOutput			( false ),
+		mDiscardOldFrames				( DiscardOldFrames ),
+		mForceNonPlanarOutput			( ForceNonPlanarOutput ),
 		mDebugIntraFrameRect			( false ),
 		mDebugIntraFrameTransparency	( false )
 	{
