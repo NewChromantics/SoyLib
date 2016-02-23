@@ -450,6 +450,14 @@ std::string Platform::GetBundleIdentifier()
 }
 #endif
 
+
+#if defined(TARGET_WINDOWS)
+std::string Platform::GetBundleIdentifier()
+{
+	return "Todo:BundleIdentifierForWindows";
+}
+#endif
+
 const std::string& Unity::GetBundleIdentifier()
 {
 	//	cache this
