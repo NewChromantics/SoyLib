@@ -19,6 +19,10 @@
 #define FREENECT_DEPTH_RAW_NO_VALUE 2047
 
 
+
+prmem::Heap SoyPixels::DefaultHeap( true, true, "SoyPixels::DefaultHeap" );
+	
+
 bool SoyPixelsFormat::GetIsFrontToBackDepth(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
