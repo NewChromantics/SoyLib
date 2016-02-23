@@ -8,9 +8,23 @@
 #include <queue>
 #include <limits>
 
-#if defined(TARGET_OSX)||defined(TARGET_ANDROID)||defined(TARGET_IOS)
+
+
+#if defined(TARGET_ANDROID)||defined(TARGET_IOS)
 #include <memory>
 #define STD_ALLOC
+#endif
+
+//	OSX now uses zoned heaps
+//		vmmap <pid>
+//	to get OS mem info
+#if defined(TARGET_OSX) && !defined(STD_ALLOC)
+#include <malloc/malloc.h>
+#define ZONE_ALLOC
+#endif
+
+#if defined(TARGET_WINDOWS) && !defined(STD_ALLOC)
+#define WINHEAP_ALLOC
 #endif
 
 #if defined(TARGET_WINDOWS)
@@ -216,7 +230,7 @@ public:
 	virtual ~HeapInfo();
 
 	inline const std::string&	GetName() const					{	return mName;	}
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	virtual HANDLE			GetHandle() const=0;			//	get win32 heap handle
 #endif
 	virtual bool			IsValid() const=0;				//	heap has been created
@@ -322,9 +336,11 @@ public:
 	Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t MaxSize=0,bool DebugTrackAllocs=false);
 	~Heap();
 
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	virtual HANDLE					GetHandle() const			{	return mHandle;	}
-	virtual bool					IsValid() const override	{	return mHandle!=NULL;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+	virtual bool					IsValid() const override	{	return mHandle!=nullptr;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+#elif defined(ZONE_ALLOC)
+	virtual bool					IsValid() const override	{	return mHandle!=nullptr;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
 #elif defined(STD_ALLOC)
 	virtual bool					IsValid() const override	{	return true;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
 #endif
@@ -336,7 +352,7 @@ public:
 	//	probe the system for the allocation size
 	uint32	GetAllocSize(void* pData) const
 	{
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 		DWORD Flags = 0;
 		SIZE_T AllocSize = HeapSize( GetHandle(), Flags, pData );
 		return AllocSize;
@@ -532,8 +548,10 @@ private:
 	template<typename TYPE>
 	inline TYPE*	RealAlloc(const size_t Elements)
 	{
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 		TYPE* pData = static_cast<TYPE*>( HeapAlloc( mHandle, 0x0, Elements*sizeof(TYPE) ) );
+#elif defined(ZONE_ALLOC)
+		TYPE* pData = reinterpret_cast<TYPE*>( malloc_zone_malloc( mHandle, Elements*sizeof(TYPE) ) );
 #elif defined(STD_ALLOC)
 		TYPE* pData = reinterpret_cast<TYPE*>( mAllocator.allocate( Elements*sizeof(TYPE) ) );
 #endif
@@ -556,10 +574,12 @@ private:
 	template<typename TYPE>
 	inline bool	RealFree(TYPE* pObject,const size_t Elements)
 	{
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 		//	no need to specify length, mem manager already knows the real size of pObject
 		if ( !HeapFree( mHandle, 0, pObject ) )
 			return false;
+#elif defined(ZONE_ALLOC)
+		malloc_zone_free( mHandle, pObject );
 #elif defined(STD_ALLOC)
 		mAllocator.deallocate( reinterpret_cast<char*>(pObject), Elements );
 #endif
@@ -575,10 +595,12 @@ private:
 private:
 	HeapDebugBase*			mHeapDebug;	//	debug information
 	Soy::HeapBridge<char>	mBridge;	//	many/all STL things need a reference, and as this costs so little, just have it as a member
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	HANDLE					mHandle;	//	win32 handle to heap
+#elif defined(ZONE_ALLOC)
+	malloc_zone_t*			mHandle;	//	osx malloc zone
 #elif defined(STD_ALLOC)
-	std::allocator<char>	mAllocator;	//	gr: this just uses new and delete. Repalce this with memory zones
+	std::allocator<char>	mAllocator;	//	gr: this just uses new and delete
 #endif
 };
 
@@ -590,7 +612,7 @@ class prmem::CRTHeap : public prmem::HeapInfo
 public:
 	CRTHeap(bool EnableDebug);
 	
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	virtual HANDLE			GetHandle() const override;
 	virtual bool			IsValid() const override	{	return GetHandle() != nullptr;	}
 #else

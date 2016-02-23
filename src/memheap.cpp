@@ -402,7 +402,7 @@ bool prmem::HeapInfo::Debug_Validate(const void* Object) const
 	if ( !IsValid() )	
 		return true;
 
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	//	if we have debug info, catch the corruption and print out all our allocs
 	const prmem::HeapDebugBase* pDebug = GetDebug();
 	if ( pDebug )
@@ -526,8 +526,11 @@ prmem::HeapInfo::~HeapInfo()
 
 prmem::Heap::Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t MaxSize,bool DebugTrackAllocs) :
 	HeapInfo		( Name ),
-#if defined(TARGET_WINDOWS)
-	mHandle			( NULL ),
+#if defined(WINHEAP_ALLOC)
+	mHandle			( nullptr ),
+#endif
+#if defined(ZONE_ALLOC)
+	mHandle			( nullptr ),
 #endif
     mHeapDebug		( nullptr ),
 	mBridge			( *this )
@@ -535,15 +538,31 @@ prmem::Heap::Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t
 	//	check for dodgy params, eg, "true" instead of a byte-limit
 	if ( MaxSize != 0 && MaxSize < 1024*1024 )
 	{
-		assert( false );
+		std::stringstream Error;
+		Error << "Heap has very small max size (" << MaxSize << ")";
+		throw Soy::AssertException( Error.str() );
 	}
     
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	DWORD Flags = 0x0;
 	Flags |= EnableLocks ? 0x0 : HEAP_NO_SERIALIZE;
 	Flags |= EnableExceptions ? HEAP_GENERATE_EXCEPTIONS : 0x0;
     
 	mHandle = HeapCreate( Flags, 0, MaxSize );
+#elif defined(ZONE_ALLOC)
+	//	https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man3/malloc_zone_malloc.3.html
+	unsigned Flags = 0;	//	docs say no flags.
+	auto InitialSize = size_cast<vm_size_t>( MaxSize );
+	mHandle = malloc_create_zone( InitialSize, Flags );
+	if ( !mHandle )
+	{
+		auto PlatformError = Platform::GetLastErrorString();
+		std::stringstream Error;
+		Error << "Failed to create memory zone " << Name << ": " << PlatformError;
+		throw Soy::AssertException( Error.str() );
+	}
+	//	gr: does this need to be persistent? no documentation
+	malloc_set_zone_name( mHandle, Name );
 #endif
 
 	EnableDebug( DebugTrackAllocs );
@@ -551,14 +570,21 @@ prmem::Heap::Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t
 
 prmem::Heap::~Heap()
 {
-#if defined(TARGET_WINDOWS)
-	if ( mHandle != NULL )
+#if defined(WINHEAP_ALLOC)
+	if ( mHandle != nullptr )
 	{
 		if ( !HeapDestroy( mHandle ) )
 		{
-			//error
+			auto Error = Platform::GetLastErrorString();
+			std::Debug << "Warning: Error destorying heap: " << Error << std::endl;
 		}
-		mHandle = NULL;
+		mHandle = nullptr;
+	}
+#elif defined(ZONE_ALLOC)
+	if ( mHandle != nullptr )
+	{
+		malloc_destroy_zone( mHandle );
+		mHandle = nullptr;
 	}
 #endif
 }
@@ -744,7 +770,7 @@ void prmem::CRTHeap::Update()
 	if( !EnableHeapUpdate )
 		return;
 
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	//	gr: to hook HeapCreate (ie from external libs)
 	//	http://src.chromium.org/svn/trunk/src/tools/memory_watcher/memory_hook.cc
 
@@ -862,7 +888,7 @@ void prmem::CRTHeap::Update()
 
 //----------------------------------------------
 //----------------------------------------------
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 HANDLE prmem::CRTHeap::GetHandle() const	
 {
 	return GetProcessHeap()/*_get_heap_handle()*/;	
@@ -1112,7 +1138,7 @@ bool SoyDebug::GetSymbolName(std::string& SymbolName,const ofStackEntry& Address
 
 bool SoyDebug::Init(std::stringstream& Error)
 {
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 #if defined(USE_EXTERNAL_DBGHELP)
 #if defined(ENABLE_STACKTRACE64)
 	//	load library
