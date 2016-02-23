@@ -774,6 +774,9 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::GetStreamBuffer(size_t Stre
 
 void TMediaExtractor::Seek(SoyTime Time)
 {
+	//	adjust the time so we extract ahead of the current player time
+	Time += mExtractAheadMs;
+	
 	//	update the target seek time
 	if ( Time < mSeekTime )
 	{
@@ -782,8 +785,9 @@ void TMediaExtractor::Seek(SoyTime Time)
 		throw Soy::AssertException( Error.str() );
 	}
 	
-	//	update the target time and wake up thread in case we need to read frames
-	mSeekTime = Time + mExtractAheadMs;
+	mSeekTime = Time;
+	
+	//	wake up thread to try and read more frames again
 	Wake();
 }
 
