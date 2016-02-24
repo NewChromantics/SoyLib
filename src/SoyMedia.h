@@ -201,7 +201,6 @@ public:
 	mDrmProtected		( false ),
 	mMaxKeyframeSpacing	( 0 ),
 	mAverageBitRate		( 0 ),
-	mYuvMatrix			( Soy::TYuvParams::Full() ),
 	mEncodingBitRate	( 0 ),
 	mAudioSampleRate	( 0 ),
 	mAudioBytesPerPacket	( 0 ),
@@ -239,7 +238,6 @@ public:
 	bool				mInterlaced;
 	float				mVideoClockWiseRotationDegrees;	//	todo: change for a 3x3 matrix
 	bool				m3DVideo;
-	Soy::TYuvParams		mYuvMatrix;
 	bool				mDrmProtected;
 	size_t				mMaxKeyframeSpacing;	//	gr: not sure of entropy yet
 	size_t				mAverageBitRate;		//	gr: not sure of entropy yet
