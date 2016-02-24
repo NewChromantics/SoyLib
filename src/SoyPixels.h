@@ -102,7 +102,8 @@ namespace SoyPixelsFormat
 	size_t			GetChannelCount(Type Format);
 	Type			GetFormatFromChannelCount(size_t ChannelCount);
 	void			GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats);
-	
+	SoyPixelsFormat::Type	GetMergedFormat(SoyPixelsFormat::Type Formata,SoyPixelsFormat::Type Formatb);
+
 	int				GetMaxValue(SoyPixelsFormat::Type Format);
 	int				GetMinValue(SoyPixelsFormat::Type Format);
 	int				GetInvalidValue(SoyPixelsFormat::Type Format);
