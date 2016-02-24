@@ -61,6 +61,13 @@ namespace Soy
 	typedef vec4x<uint8> TRgba8;
 }
 
+
+namespace SoyMath
+{
+	float3x3	GetFlipMatrix3x3();
+};
+
+
 //	expanded std functions
 namespace std
 {
