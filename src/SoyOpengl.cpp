@@ -2006,6 +2006,7 @@ Opengl::TGeometry::~TGeometry()
 }
 
 //	gr: put R8 first as note4 works with glTexImage R8->RED, but not RED->RED or RED->R8
+//	gr: GLR8 doesn't work on windows8, glcore, so put GL_RED first
 const std::initializer_list<GLenum> Opengl8BitFormats =
 {
 	GL_R8,
