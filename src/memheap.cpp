@@ -413,12 +413,21 @@ std::ostream& operator<<(std::ostream &out,SoyMem::THeapMeta& in)
 }
 
 
+//	windows until tested
+#if !defined(TARGET_WINDOWS)
+	#define USE_STD_MALLOC
+#endif
+
 //	overload global new & delete so we can track STL allocations
 //	on windows we cannot use the CRT debug funcs as the hooks are not present in release builds
 //	http://stackoverflow.com/a/8186116
 //	http://en.cppreference.com/w/cpp/memory/new/operator_new
 void* operator new(std::size_t sz) 
 {
+#if defined(USE_STD_MALLOC)
+	return std::malloc( sz );
+#endif
+
 	//	gr: this causes the placement new... is that what' we want?
 	try
 	{
@@ -437,7 +446,21 @@ void* operator new(std::size_t sz)
 
 __noexcept_prefix void operator delete(void* ptr) __noexcept
 {
-	SoyMem::GlobalHeap.Free( reinterpret_cast<uint8*>(ptr) );
+#if defined(USE_STD_MALLOC)
+	return std::free( ptr );
+#endif
+
+	//	need to work out how to determine if this ptr was allocated from std at bootup...
+	//	without the expensive? heap checks
+	try
+	{
+		if ( !SoyMem::GlobalHeap.Free( reinterpret_cast<uint8*>(ptr) ) )
+			return std::free( ptr );
+	}
+	catch(...)
+	{
+		return std::free( ptr );
+	}
 }
 
 
