@@ -38,6 +38,22 @@
 #define __LOCATION__	prcore::ofCodeLocation( __FILE__, __LINE__ )
 
 
+namespace std
+{
+	class bad_alloc_withmessage;
+}
+
+class std::bad_alloc_withmessage : public std::bad_alloc
+{
+public:
+	bad_alloc_withmessage(const char* Message) :
+		mMessage	( Message )
+	{
+	}
+	_EXCEPTION_INLINE virtual const char * __CLR_OR_THIS_CALL what() const	{	return mMessage;	}
+
+	const char*		mMessage;
+};
 
 class ofCodeLocation
 {
@@ -373,14 +389,12 @@ public:
 	Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t MaxSize=0,bool DebugTrackAllocs=false);
 	~Heap();
 
+	virtual bool					IsValid() const override	{	return Private_IsValid();	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+
 #if defined(WINHEAP_ALLOC)
 	virtual HANDLE					GetHandle() const			{	return mHandle;	}
-	virtual bool					IsValid() const override	{	return mHandle!=nullptr;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
-#elif defined(ZONE_ALLOC)
-	virtual bool					IsValid() const override	{	return mHandle!=nullptr;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
-#elif defined(STD_ALLOC)
-	virtual bool					IsValid() const override	{	return true;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
 #endif
+
 	virtual void					EnableDebug(bool Enable) override;	//	deletes/allocates the debug tracker so we can toggle it at runtime
 	virtual const HeapDebugBase*	GetDebug() const override	{	return mHeapDebug;	}
 
@@ -439,6 +453,13 @@ public:
 			if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
 				Debug_Validate();
 		}
+		return pAlloc;
+	}
+
+	//	allocate without construction. for new/delete operators
+	void*	AllocRaw(const size_t Size)
+	{
+		auto* pAlloc = RealAlloc<uint8>( Size );
 		return pAlloc;
 	}
 	
@@ -585,6 +606,9 @@ private:
 	template<typename TYPE>
 	inline TYPE*	RealAlloc(const size_t Elements)
 	{
+		if ( !Private_IsValid() )
+			throw std::bad_alloc_withmessage("Allocating on uninitialised heap");
+
 #if defined(WINHEAP_ALLOC)
 		TYPE* pData = static_cast<TYPE*>( HeapAlloc( mHandle, 0x0, Elements*sizeof(TYPE) ) );
 #elif defined(ZONE_ALLOC)
@@ -628,6 +652,17 @@ private:
 		OnFree( BytesFreed, 1 );
 		return true;
 	}
+
+	//	need non-virtual IsValid()
+	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+#if defined(WINHEAP_ALLOC)
+	bool					Private_IsValid() const 	{	return this && mHandle!=nullptr;	}	
+#elif defined(ZONE_ALLOC)
+	bool					Private_IsValid() const 	{	return this && mHandle!=nullptr;	}
+#elif defined(STD_ALLOC)
+	bool					Private_IsValid() const 	{	return this && true;	}	
+#endif
+
 
 private:
 	HeapDebugBase*			mHeapDebug;	//	debug information
@@ -719,3 +754,4 @@ inline void Soy::HeapBridge<T>::deallocate (pointer p, size_type num)
 {
 	mHeap.FreeArray<T>( p, num );
 }
+
