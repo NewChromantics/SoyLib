@@ -635,6 +635,9 @@ private:
 	template<typename TYPE>
 	inline bool	RealFree(TYPE* pObject,const size_t Elements)
 	{
+		if ( !Private_IsValid() )
+			return false;
+
 #if defined(WINHEAP_ALLOC)
 		//	no need to specify length, mem manager already knows the real size of pObject
 		if ( !HeapFree( mHandle, 0, pObject ) )
