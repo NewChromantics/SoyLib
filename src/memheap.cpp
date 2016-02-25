@@ -354,6 +354,12 @@ AtomicArrayBridge<BufferArray<prmem::HeapInfo*,10000>>& prmem::GetMemHeapRegiste
 	return gAtomicMemHeapRegister;
 }
 
+namespace SoyMem
+{
+	//	heap used for new/delete global replacements
+	prmem::Heap		GlobalHeap( true, true, "GlobalHeap", 0, false );
+}
+
 namespace prcore
 {
 	//	"default" heap for prnew and prdelete which we'd prefer to use rather than the [unmonitorable] crt default heap
@@ -404,6 +410,34 @@ std::ostream& operator<<(std::ostream &out,SoyMem::THeapMeta& in)
 	out << " count=" << in.mAllocCount << '/' << in.mAllocCountPeak;
 	out << "}";
 	return out;
+}
+
+
+//	overload global new & delete so we can track STL allocations
+//	on windows we cannot use the CRT debug funcs as the hooks are not present in release builds
+//	http://stackoverflow.com/a/8186116
+//	http://en.cppreference.com/w/cpp/memory/new/operator_new
+void* operator new(std::size_t sz) 
+{
+	//	gr: this causes the placement new... is that what' we want?
+	try
+	{
+		return SoyMem::GlobalHeap.AllocRaw( sz );
+	}
+	catch(std::bad_alloc& e)
+	{
+		//	for CRT startup, we may get globals allocated before the global heap...
+		//	try and figure this out
+		if ( SoyMem::GlobalHeap.IsValid() )
+			throw;
+
+		return std::malloc( sz );
+	}
+}
+
+__noexcept_prefix void operator delete(void* ptr) __noexcept
+{
+	SoyMem::GlobalHeap.Free( reinterpret_cast<uint8*>(ptr) );
 }
 
 
@@ -734,6 +768,7 @@ void GetProcessHeapUsage(uint32& AllocCount,uint32& AllocBytes)
 
 void GetCRTHeapUsage(uint32& AllocCount,uint32& AllocBytes)
 {
+	//	note: if NDEBUG or !defined(_DEBUG) then _CrtMemCheckpoint gives us nothing 
 #if defined(TARGET_WINDOWS)
 	_CrtMemState MemState;
 	ZeroMemory(&MemState,sizeof(MemState));
