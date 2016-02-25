@@ -108,9 +108,19 @@ public:
 	{
 		if ( mObject )
 		{
-			mObject->Release();
+			auto NewRefCount = mObject->Release();
 			mObject = nullptr;
 		}
+	}
+
+	size_t		GetReferenceCount()
+	{
+		if ( !mObject )
+			return 0;
+
+		mObject->AddRef();
+		auto RefCount = mObject->Release();
+		return size_cast<size_t>( RefCount );
 	}
 
 	AutoReleasePtr&	operator=(const AutoReleasePtr& That)
