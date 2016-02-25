@@ -414,6 +414,7 @@ std::ostream& operator<<(std::ostream &out,SoyMem::THeapMeta& in)
 
 
 //	windows until tested
+#define OVERRIDE_GLOBAL_ALLOC
 #if !defined(TARGET_WINDOWS)
 	#define USE_STD_MALLOC
 #endif
@@ -422,6 +423,7 @@ std::ostream& operator<<(std::ostream &out,SoyMem::THeapMeta& in)
 //	on windows we cannot use the CRT debug funcs as the hooks are not present in release builds
 //	http://stackoverflow.com/a/8186116
 //	http://en.cppreference.com/w/cpp/memory/new/operator_new
+#if defined(OVERRIDE_GLOBAL_ALLOC)
 void* operator new(std::size_t sz) 
 {
 #if defined(USE_STD_MALLOC)
@@ -443,7 +445,9 @@ void* operator new(std::size_t sz)
 		return std::malloc( sz );
 	}
 }
+#endif
 
+#if defined(OVERRIDE_GLOBAL_ALLOC)
 __noexcept_prefix void operator delete(void* ptr) __noexcept
 {
 #if defined(USE_STD_MALLOC)
@@ -462,7 +466,7 @@ __noexcept_prefix void operator delete(void* ptr) __noexcept
 		return std::free( ptr );
 	}
 }
-
+#endif
 
 
 bool prmem::HeapInfo::Debug_Validate(const void* Object) const
