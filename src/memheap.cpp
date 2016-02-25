@@ -797,19 +797,22 @@ void GetCRTHeapUsage(uint32& AllocCount,uint32& AllocBytes)
 	ZeroMemory(&MemState,sizeof(MemState));
 	_CrtMemCheckpoint( &MemState );
 	
+	//	gr: malloc's mostly, if we overload new then these are probably globals allocated before the heap
 	uint32 RuntimeAllocCount = static_cast<uint32>( MemState.lCounts[_NORMAL_BLOCK] );
 	uint32 RuntimeAllocBytes = static_cast<uint32>( MemState.lSizes[_NORMAL_BLOCK] );
 
 	//	gr: not including this (only a few kb) so we can hopefuly track allocations down to zero on main heap
 	//	_CRT_BLOCK is statics/globals
+	//	^^ actually seems to be other libs and debug/os stuff that we shouldnt access/modify
 	uint32 CrtAllocCount = static_cast<uint32>( MemState.lCounts[_CRT_BLOCK] );
 	uint32 CrtAllocBytes = static_cast<uint32>( MemState.lSizes[_CRT_BLOCK] );
 
 	AllocCount += RuntimeAllocCount;
 	AllocBytes += RuntimeAllocBytes;
 
-	//AllocCount += CrtAllocCount;
-	//AllocBytes += CrtAllocBytes;
+	//	gr: including these. With PopMovie, a large amount of memory (well, 2mb) is here compare to a few kb on the NORMAL_BLOCK (probably as we're overriding new)
+	AllocCount += CrtAllocCount;
+	AllocBytes += CrtAllocBytes;
 #endif
 }
 
