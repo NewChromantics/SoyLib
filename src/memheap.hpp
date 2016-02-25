@@ -106,12 +106,22 @@ namespace prcore
 	extern prmem::Heap	Heap;		
 }
 
-namespace prmem
+namespace SoyMem
 {
+	class THeapStats;
+	class THeapMeta;
+
 	//	access all the heaps. 
 	//	Though the access is threadsafe, the data inside (ie. the memcounters) isn't
-	const ArrayInterface<prmem::HeapInfo*>&	GetHeaps();
+	//	gr: we don't want them as atomic, so consider snap shots
+	void			GetHeapMetas(ArrayBridge<THeapMeta>&& Metas);
+}
+
+//	from now on, consider anything in prmem private & deprecated until we move it
+namespace prmem
+{
 	prmem::CRTHeap&							GetCRTHeap();
+	const ArrayInterface<prmem::HeapInfo*>&	GetHeaps();
 
 	//	functor for STD deallocation (eg, with shared_ptr)
 	template<typename T>
@@ -220,10 +230,44 @@ bool operator!= (const Soy::HeapBridge<T1>& a,const Soy::HeapBridge<T2>& b) thro
 	return a.mHeap != b.mHeap;
 }
 
+
+class SoyMem::THeapStats
+{
+public:
+	THeapStats() :
+		mAllocBytes		( 0 ),
+		mAllocCount		( 0 ),
+		mAllocBytesPeak	( 0 ),
+		mAllocCountPeak	( 0 )
+	{
+	}
+
+public:
+	size_t				mAllocBytes;	//	number of bytes currently allocated (note; actual mem usage may be greater due to block size & fragmentation)
+	size_t				mAllocCount;	//	number of individual allocations (ie, #blocks in heap)
+	size_t				mAllocBytesPeak;
+	size_t				mAllocCountPeak;
+};
+
+//	gr: maybe split this up into meta & stats
+class SoyMem::THeapMeta : public THeapStats
+{
+public:
+	THeapMeta(const std::string& Name=std::string()) :
+		mName		( Name )
+	{
+	}
+
+public:
+	std::string			mName;	//	name for easy debugging purposes
+};
+std::ostream& operator<<(std::ostream &out,SoyMem::THeapMeta& in);
+
+
 //-----------------------------------------------------------------------
 //	base heap interface so we can mix our allocated heaps and the default CRT heap (which is also a heap, but hidden away)
 //-----------------------------------------------------------------------
-class prmem::HeapInfo
+class prmem::HeapInfo : public SoyMem::THeapMeta
 {
 public:
 	HeapInfo(const char* Name);
@@ -272,13 +316,6 @@ protected:
 		mAllocCount -= ( BlockCount > mAllocCount ) ? mAllocCount : BlockCount;
 	}
 	void					OnFailedAlloc(std::string TypeName,size_t TypeSize,size_t Elements) const;
-
-protected:
-	std::string			mName;	//	name for easy debugging purposes
-	size_t				mAllocBytes;	//	number of bytes currently allocated (note; actual mem usage may be greater due to block size & fragmentation)
-	size_t				mAllocCount;	//	number of individual allocations (ie, #blocks in heap)
-	size_t				mAllocBytesPeak;
-	size_t				mAllocCountPeak;
 };
 
 

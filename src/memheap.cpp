@@ -397,6 +397,17 @@ prmem::CRTHeap& prmem::GetCRTHeap()
 }
 
 
+std::ostream& operator<<(std::ostream &out,SoyMem::THeapMeta& in)
+{
+	out << "Heap " << in.mName << " {";
+	out << " bytes=" << in.mAllocBytes << '/' << in.mAllocBytesPeak;
+	out << " count=" << in.mAllocCount << '/' << in.mAllocCountPeak;
+	out << "}";
+	return out;
+}
+
+
+
 bool prmem::HeapInfo::Debug_Validate(const void* Object) const
 {
 	if ( !IsValid() )	
@@ -500,14 +511,26 @@ const ArrayInterface<prmem::HeapInfo*>& prmem::GetHeaps()
 	return prmem::GetMemHeapRegisterArray();
 }
 
+void SoyMem::GetHeapMetas(ArrayBridge<THeapMeta>&& Metas)
+{
+	//	update the CRT heap info on-request
+	prmem::gCRTHeap.Update();
+
+	auto& Heaps = prmem::GetMemHeapRegisterArray();
+
+	for ( int i=0;	i<Heaps.GetSize();	i++ )
+	{
+		auto& Heap = *Heaps[i];
+		Metas.PushBack( Heap );
+	}
+}
+
+
+
 
 
 prmem::HeapInfo::HeapInfo(const char* Name) :
-	mName			( Name ),
-	mAllocBytes		( 0 ),
-	mAllocCount		( 0 ),
-	mAllocBytesPeak	( 0 ),
-	mAllocCountPeak	( 0 )
+	SoyMem::THeapMeta	( Name )
 {
 	auto& Heaps = prmem::GetMemHeapRegisterArray();
 	Heaps.PushBack( this );
