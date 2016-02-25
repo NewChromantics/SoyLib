@@ -46,6 +46,8 @@
 //	gr: delspec's need to go BEFORE function declarations on windows... find a nice workaround that isn't __deprecated(int myfunc());
 #define __noexcept		//	__declspec(nothrow)
 #define __deprecated	//	__declspec(deprecated)
+#define __noexcept_prefix	__declspec(nothrow)
+#define __deprecated_prefix	__declspec(deprecated)
 
 
 #include <math.h>
