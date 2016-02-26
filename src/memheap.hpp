@@ -50,7 +50,7 @@ public:
 		mMessage	( Message )
 	{
 	}
-	_EXCEPTION_INLINE virtual const char * __CLR_OR_THIS_CALL what() const	{	return mMessage;	}
+	virtual const char* what() const __noexcept	{	return mMessage;	}
 
 	const char*		mMessage;
 };
@@ -663,7 +663,7 @@ private:
 #elif defined(ZONE_ALLOC)
 	bool					Private_IsValid() const 	{	return this && mHandle!=nullptr;	}
 #elif defined(STD_ALLOC)
-	bool					Private_IsValid() const 	{	return this && true;	}	
+	bool					Private_IsValid() const 	{	return true;	}	//	gr: this!=null comparison on android/gcc gives "always evaluates to true" warning
 #endif
 
 
