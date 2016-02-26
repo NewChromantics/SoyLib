@@ -38,6 +38,22 @@
 #define __LOCATION__	prcore::ofCodeLocation( __FILE__, __LINE__ )
 
 
+namespace std
+{
+	class bad_alloc_withmessage;
+}
+
+class std::bad_alloc_withmessage : public std::bad_alloc
+{
+public:
+	bad_alloc_withmessage(const char* Message) :
+		mMessage	( Message )
+	{
+	}
+	virtual const char* what() const __noexcept	{	return mMessage;	}
+
+	const char*		mMessage;
+};
 
 class ofCodeLocation
 {
@@ -106,12 +122,22 @@ namespace prcore
 	extern prmem::Heap	Heap;		
 }
 
-namespace prmem
+namespace SoyMem
 {
+	class THeapStats;
+	class THeapMeta;
+
 	//	access all the heaps. 
 	//	Though the access is threadsafe, the data inside (ie. the memcounters) isn't
-	const ArrayInterface<prmem::HeapInfo*>&	GetHeaps();
+	//	gr: we don't want them as atomic, so consider snap shots
+	void			GetHeapMetas(ArrayBridge<THeapMeta>&& Metas);
+}
+
+//	from now on, consider anything in prmem private & deprecated until we move it
+namespace prmem
+{
 	prmem::CRTHeap&							GetCRTHeap();
+	const ArrayInterface<prmem::HeapInfo*>&	GetHeaps();
 
 	//	functor for STD deallocation (eg, with shared_ptr)
 	template<typename T>
@@ -220,10 +246,44 @@ bool operator!= (const Soy::HeapBridge<T1>& a,const Soy::HeapBridge<T2>& b) thro
 	return a.mHeap != b.mHeap;
 }
 
+
+class SoyMem::THeapStats
+{
+public:
+	THeapStats() :
+		mAllocBytes		( 0 ),
+		mAllocCount		( 0 ),
+		mAllocBytesPeak	( 0 ),
+		mAllocCountPeak	( 0 )
+	{
+	}
+
+public:
+	size_t				mAllocBytes;	//	number of bytes currently allocated (note; actual mem usage may be greater due to block size & fragmentation)
+	size_t				mAllocCount;	//	number of individual allocations (ie, #blocks in heap)
+	size_t				mAllocBytesPeak;
+	size_t				mAllocCountPeak;
+};
+
+//	gr: maybe split this up into meta & stats
+class SoyMem::THeapMeta : public THeapStats
+{
+public:
+	THeapMeta(const std::string& Name=std::string()) :
+		mName		( Name )
+	{
+	}
+
+public:
+	std::string			mName;	//	name for easy debugging purposes
+};
+std::ostream& operator<<(std::ostream &out,SoyMem::THeapMeta& in);
+
+
 //-----------------------------------------------------------------------
 //	base heap interface so we can mix our allocated heaps and the default CRT heap (which is also a heap, but hidden away)
 //-----------------------------------------------------------------------
-class prmem::HeapInfo
+class prmem::HeapInfo : public SoyMem::THeapMeta
 {
 public:
 	HeapInfo(const char* Name);
@@ -272,13 +332,6 @@ protected:
 		mAllocCount -= ( BlockCount > mAllocCount ) ? mAllocCount : BlockCount;
 	}
 	void					OnFailedAlloc(std::string TypeName,size_t TypeSize,size_t Elements) const;
-
-protected:
-	std::string			mName;	//	name for easy debugging purposes
-	size_t				mAllocBytes;	//	number of bytes currently allocated (note; actual mem usage may be greater due to block size & fragmentation)
-	size_t				mAllocCount;	//	number of individual allocations (ie, #blocks in heap)
-	size_t				mAllocBytesPeak;
-	size_t				mAllocCountPeak;
 };
 
 
@@ -336,14 +389,12 @@ public:
 	Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t MaxSize=0,bool DebugTrackAllocs=false);
 	~Heap();
 
+	virtual bool					IsValid() const override	{	return Private_IsValid();	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+
 #if defined(WINHEAP_ALLOC)
 	virtual HANDLE					GetHandle() const			{	return mHandle;	}
-	virtual bool					IsValid() const override	{	return mHandle!=nullptr;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
-#elif defined(ZONE_ALLOC)
-	virtual bool					IsValid() const override	{	return mHandle!=nullptr;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
-#elif defined(STD_ALLOC)
-	virtual bool					IsValid() const override	{	return true;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
 #endif
+
 	virtual void					EnableDebug(bool Enable) override;	//	deletes/allocates the debug tracker so we can toggle it at runtime
 	virtual const HeapDebugBase*	GetDebug() const override	{	return mHeapDebug;	}
 
@@ -402,6 +453,13 @@ public:
 			if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
 				Debug_Validate();
 		}
+		return pAlloc;
+	}
+
+	//	allocate without construction. for new/delete operators
+	void*	AllocRaw(const size_t Size)
+	{
+		auto* pAlloc = RealAlloc<uint8>( Size );
 		return pAlloc;
 	}
 	
@@ -548,6 +606,9 @@ private:
 	template<typename TYPE>
 	inline TYPE*	RealAlloc(const size_t Elements)
 	{
+		if ( !Private_IsValid() )
+			throw std::bad_alloc_withmessage("Allocating on uninitialised heap");
+
 #if defined(WINHEAP_ALLOC)
 		TYPE* pData = static_cast<TYPE*>( HeapAlloc( mHandle, 0x0, Elements*sizeof(TYPE) ) );
 #elif defined(ZONE_ALLOC)
@@ -574,6 +635,9 @@ private:
 	template<typename TYPE>
 	inline bool	RealFree(TYPE* pObject,const size_t Elements)
 	{
+		if ( !Private_IsValid() )
+			return false;
+
 #if defined(WINHEAP_ALLOC)
 		//	no need to specify length, mem manager already knows the real size of pObject
 		if ( !HeapFree( mHandle, 0, pObject ) )
@@ -591,6 +655,17 @@ private:
 		OnFree( BytesFreed, 1 );
 		return true;
 	}
+
+	//	need non-virtual IsValid()
+	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+#if defined(WINHEAP_ALLOC)
+	bool					Private_IsValid() const 	{	return this && mHandle!=nullptr;	}	
+#elif defined(ZONE_ALLOC)
+	bool					Private_IsValid() const 	{	return this && mHandle!=nullptr;	}
+#elif defined(STD_ALLOC)
+	bool					Private_IsValid() const 	{	return true;	}	//	gr: this!=null comparison on android/gcc gives "always evaluates to true" warning
+#endif
+
 
 private:
 	HeapDebugBase*			mHeapDebug;	//	debug information
@@ -682,3 +757,4 @@ inline void Soy::HeapBridge<T>::deallocate (pointer p, size_type num)
 {
 	mHeap.FreeArray<T>( p, num );
 }
+

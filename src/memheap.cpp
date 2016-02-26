@@ -354,6 +354,12 @@ AtomicArrayBridge<BufferArray<prmem::HeapInfo*,10000>>& prmem::GetMemHeapRegiste
 	return gAtomicMemHeapRegister;
 }
 
+namespace SoyMem
+{
+	//	heap used for new/delete global replacements
+	prmem::Heap		GlobalHeap( true, true, "GlobalHeap", 0, false );
+}
+
 namespace prcore
 {
 	//	"default" heap for prnew and prdelete which we'd prefer to use rather than the [unmonitorable] crt default heap
@@ -395,6 +401,72 @@ prmem::CRTHeap& prmem::GetCRTHeap()
 {
 	return gCRTHeap;
 }
+
+
+std::ostream& operator<<(std::ostream &out,SoyMem::THeapMeta& in)
+{
+	out << "Heap " << in.mName << " {";
+	out << " bytes=" << in.mAllocBytes << '/' << in.mAllocBytesPeak;
+	out << " count=" << in.mAllocCount << '/' << in.mAllocCountPeak;
+	out << "}";
+	return out;
+}
+
+
+//	windows until tested
+#define OVERRIDE_GLOBAL_ALLOC
+#if !defined(TARGET_WINDOWS)
+	#define USE_STD_MALLOC
+#endif
+
+//	overload global new & delete so we can track STL allocations
+//	on windows we cannot use the CRT debug funcs as the hooks are not present in release builds
+//	http://stackoverflow.com/a/8186116
+//	http://en.cppreference.com/w/cpp/memory/new/operator_new
+#if defined(OVERRIDE_GLOBAL_ALLOC)
+void* operator new(std::size_t sz) 
+{
+#if defined(USE_STD_MALLOC)
+	return std::malloc( sz );
+#endif
+
+	//	gr: this causes the placement new... is that what' we want?
+	try
+	{
+		return SoyMem::GlobalHeap.AllocRaw( sz );
+	}
+	catch(std::bad_alloc& e)
+	{
+		//	for CRT startup, we may get globals allocated before the global heap...
+		//	try and figure this out
+		if ( SoyMem::GlobalHeap.IsValid() )
+			throw;
+
+		return std::malloc( sz );
+	}
+}
+#endif
+
+#if defined(OVERRIDE_GLOBAL_ALLOC)
+__noexcept_prefix void operator delete(void* ptr) __noexcept
+{
+#if defined(USE_STD_MALLOC)
+	return std::free( ptr );
+#endif
+
+	//	need to work out how to determine if this ptr was allocated from std at bootup...
+	//	without the expensive? heap checks
+	try
+	{
+		if ( !SoyMem::GlobalHeap.Free( reinterpret_cast<uint8*>(ptr) ) )
+			return std::free( ptr );
+	}
+	catch(...)
+	{
+		return std::free( ptr );
+	}
+}
+#endif
 
 
 bool prmem::HeapInfo::Debug_Validate(const void* Object) const
@@ -500,14 +572,26 @@ const ArrayInterface<prmem::HeapInfo*>& prmem::GetHeaps()
 	return prmem::GetMemHeapRegisterArray();
 }
 
+void SoyMem::GetHeapMetas(ArrayBridge<THeapMeta>&& Metas)
+{
+	//	update the CRT heap info on-request
+	prmem::gCRTHeap.Update();
+
+	auto& Heaps = prmem::GetMemHeapRegisterArray();
+
+	for ( int i=0;	i<Heaps.GetSize();	i++ )
+	{
+		auto& Heap = *Heaps[i];
+		Metas.PushBack( Heap );
+	}
+}
+
+
+
 
 
 prmem::HeapInfo::HeapInfo(const char* Name) :
-	mName			( Name ),
-	mAllocBytes		( 0 ),
-	mAllocCount		( 0 ),
-	mAllocBytesPeak	( 0 ),
-	mAllocCountPeak	( 0 )
+	SoyMem::THeapMeta	( Name )
 {
 	auto& Heaps = prmem::GetMemHeapRegisterArray();
 	Heaps.PushBack( this );
@@ -711,24 +795,28 @@ void GetProcessHeapUsage(uint32& AllocCount,uint32& AllocBytes)
 
 void GetCRTHeapUsage(uint32& AllocCount,uint32& AllocBytes)
 {
+	//	note: if NDEBUG or !defined(_DEBUG) then _CrtMemCheckpoint gives us nothing 
 #if defined(TARGET_WINDOWS)
 	_CrtMemState MemState;
 	ZeroMemory(&MemState,sizeof(MemState));
 	_CrtMemCheckpoint( &MemState );
 	
+	//	gr: malloc's mostly, if we overload new then these are probably globals allocated before the heap
 	uint32 RuntimeAllocCount = static_cast<uint32>( MemState.lCounts[_NORMAL_BLOCK] );
 	uint32 RuntimeAllocBytes = static_cast<uint32>( MemState.lSizes[_NORMAL_BLOCK] );
 
 	//	gr: not including this (only a few kb) so we can hopefuly track allocations down to zero on main heap
 	//	_CRT_BLOCK is statics/globals
+	//	^^ actually seems to be other libs and debug/os stuff that we shouldnt access/modify
 	uint32 CrtAllocCount = static_cast<uint32>( MemState.lCounts[_CRT_BLOCK] );
 	uint32 CrtAllocBytes = static_cast<uint32>( MemState.lSizes[_CRT_BLOCK] );
 
 	AllocCount += RuntimeAllocCount;
 	AllocBytes += RuntimeAllocBytes;
 
-	//AllocCount += CrtAllocCount;
-	//AllocBytes += CrtAllocBytes;
+	//	gr: including these. With PopMovie, a large amount of memory (well, 2mb) is here compare to a few kb on the NORMAL_BLOCK (probably as we're overriding new)
+	AllocCount += CrtAllocCount;
+	AllocBytes += CrtAllocBytes;
 #endif
 }
 
