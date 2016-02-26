@@ -576,6 +576,9 @@ public:
 	template<typename TYPE>
 	bool	Free(TYPE* pObject)
 	{
+		if ( !CanFree( pObject, 1 ) )
+			return false;
+		
 		//	destruct
 		pObject->~TYPE();
 		if ( ENABLE_DEBUG_VERIFY_AFTER_DESTRUCTION )
@@ -587,6 +590,9 @@ public:
 	template<typename TYPE>
 	bool	FreeArray(TYPE* pObject,size_t Elements)
 	{
+		if ( !CanFree( pObject, Elements ) )
+			return false;
+		
 		//	no need to destruct types we don't construct
 		if ( Soy::DoConstructType<TYPE>() )
 		{
@@ -632,10 +638,26 @@ private:
 		return pData;
 	}
 
+	//	some heap funcs have a check, we want to avoid double destructor calls
+	template<typename TYPE>
+	inline bool	CanFree(TYPE* pObject,const size_t Elements)
+	{
+		if ( !Private_IsValid() )
+			return false;
+
+#if defined(ZONE_ALLOC)
+		//	gr: avoid abort. find out if this is expensive
+		if ( malloc_zone_from_ptr(pObject) != mHandle )
+			return false;
+#endif
+		return true;
+	}
+
 	template<typename TYPE>
 	inline bool	RealFree(TYPE* pObject,const size_t Elements)
 	{
-		if ( !Private_IsValid() )
+		//	gr: should have already been checked
+		if ( !CanFree( pObject, Elements ) )
 			return false;
 
 #if defined(WINHEAP_ALLOC)
