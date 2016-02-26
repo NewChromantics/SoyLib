@@ -683,9 +683,9 @@ private:
 #if defined(WINHEAP_ALLOC)
 	bool					Private_IsValid() const 	{	return this && mHandle!=nullptr;	}	
 #elif defined(ZONE_ALLOC)
-	bool					Private_IsValid() const 	{	return this && mHandle!=nullptr;	}
+	bool					Private_IsValid() const 	{	return mHandle!=nullptr;	}
 #elif defined(STD_ALLOC)
-	bool					Private_IsValid() const 	{	return true;	}	//	gr: this!=null comparison on android/gcc gives "always evaluates to true" warning
+	bool					Private_IsValid() const 	{	return true;	}
 #endif
 
 
