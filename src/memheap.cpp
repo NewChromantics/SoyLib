@@ -309,6 +309,10 @@ Improvement summary
 */
 #include "SoyTypes.h"
 
+#if defined(TARGET_WINDOWS) || defined(TARGET_OSX)
+#define USE_GLOBAL_ALLOC		//	override global new/delete so we can track STL allocations
+//#define USE_GLOBAL_STD_ALLOC	//	for debug, use STD malloc in the global alloc override
+#endif
 
 #if defined(TARGET_WINDOWS)
 //	for stack tracing
@@ -413,20 +417,16 @@ std::ostream& operator<<(std::ostream &out,SoyMem::THeapMeta& in)
 }
 
 
-//	windows until tested
-#define OVERRIDE_GLOBAL_ALLOC
-#if !defined(TARGET_WINDOWS)
-	#define USE_STD_MALLOC
-#endif
+
 
 //	overload global new & delete so we can track STL allocations
 //	on windows we cannot use the CRT debug funcs as the hooks are not present in release builds
 //	http://stackoverflow.com/a/8186116
 //	http://en.cppreference.com/w/cpp/memory/new/operator_new
-#if defined(OVERRIDE_GLOBAL_ALLOC)
+#if defined(USE_GLOBAL_ALLOC)
 void* operator new(std::size_t sz) 
 {
-#if defined(USE_STD_MALLOC)
+#if defined(USE_GLOBAL_STD_ALLOC)
 	return std::malloc( sz );
 #endif
 
@@ -447,10 +447,10 @@ void* operator new(std::size_t sz)
 }
 #endif
 
-#if defined(OVERRIDE_GLOBAL_ALLOC)
+#if defined(USE_GLOBAL_ALLOC)
 __noexcept_prefix void operator delete(void* ptr) __noexcept
 {
-#if defined(USE_STD_MALLOC)
+#if defined(USE_GLOBAL_STD_ALLOC)
 	return std::free( ptr );
 #endif
 
@@ -463,6 +463,8 @@ __noexcept_prefix void operator delete(void* ptr) __noexcept
 	}
 	catch(...)
 	{
+		//	gr: on some platforms, there's a chance this is gonna
+		//		cause a double destruct as the "is the pointer in the global heap" check isn't always before the dealloc
 		return std::free( ptr );
 	}
 }
