@@ -9,8 +9,6 @@
 #include <netdb.h>	//	gethostbyname
 #endif
 
-//	one heap for sockets. though this seems bad and would have a lot of clashes. Currently for debug really
-prmem::Heap TChannelSocket_Heap( true, true, "TChannelSocket" );
 
 #define PORT_ANY	0
 
