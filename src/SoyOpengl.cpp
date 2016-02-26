@@ -616,6 +616,8 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	mAutoRelease	( true ),
 	mType			( Type )
 {
+	Opengl_IsOkayFlush();
+
 	Soy::Assert( Meta.IsValid(), "Cannot setup texture with invalid meta" );
 	
 	bool AllowOpenglConversion = true;
@@ -1867,7 +1869,7 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 	mIndexType(GL_ASSET_INVALID),
 	mVertexDescription	( Vertex )
 {
-	Opengl::IsOkay("Opengl::CreateGeometry flush", false);
+	Opengl_IsOkayFlush();
 		
 	//	fill vertex array
 	Opengl::GenVertexArrays( 1, &mVertexArrayObject );
@@ -1928,8 +1930,13 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 
 void Opengl::TGeometry::Bind()
 {
+	Opengl_IsOkayFlush();
 	Opengl::BindVertexArray( mVertexArrayObject );
 	Opengl_IsOkay();
+
+	//	gr: this only returns true AFTER bind
+	if ( !Opengl::IsVertexArray( mVertexArrayObject ) )
+		throw Soy::AssertException("Bound VAO is reported not a VAO");
 }
 
 void Opengl::TGeometry::Unbind()
@@ -2006,10 +2013,17 @@ Opengl::TGeometry::~TGeometry()
 }
 
 //	gr: put R8 first as note4 works with glTexImage R8->RED, but not RED->RED or RED->R8
+//	gr: GLR8 doesn't work on windows8, glcore, so put GL_RED first
 const std::initializer_list<GLenum> Opengl8BitFormats =
 {
+#if defined(TARGET_WINDOWS)
+	GL_RED,
+	GL_R8,
+#else
 	GL_R8,
 	GL_RED,
+#endif
+
 #if defined(GL_LUMINANCE)
 	GL_LUMINANCE,
 #endif

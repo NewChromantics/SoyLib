@@ -102,7 +102,8 @@ namespace SoyPixelsFormat
 	size_t			GetChannelCount(Type Format);
 	Type			GetFormatFromChannelCount(size_t ChannelCount);
 	void			GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats);
-	
+	SoyPixelsFormat::Type	GetMergedFormat(SoyPixelsFormat::Type Formata,SoyPixelsFormat::Type Formatb);
+
 	int				GetMaxValue(SoyPixelsFormat::Type Format);
 	int				GetMinValue(SoyPixelsFormat::Type Format);
 	int				GetInvalidValue(SoyPixelsFormat::Type Format);
@@ -275,12 +276,16 @@ public:
 class SoyPixels : public SoyPixelsDef<Array<uint8>>
 {
 public:
+	static prmem::Heap		DefaultHeap;
+	
+public:
 	SoyPixels(const SoyPixelsImpl& that) :
+		mArray						( DefaultHeap ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{
 		Copy( that );
 	}
-	SoyPixels(prmem::Heap& Heap=prcore::Heap) :
+	SoyPixels(prmem::Heap& Heap=DefaultHeap) :
 		mArray						( Heap ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{

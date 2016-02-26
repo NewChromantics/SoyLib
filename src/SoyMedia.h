@@ -31,6 +31,11 @@ namespace Directx
 	class TTexture;
 }
 
+namespace SoyMedia
+{
+	extern prmem::Heap	DefaultHeap;
+}
+
 //	merge this + pixel format at some point
 namespace SoyMediaFormat
 {
@@ -186,6 +191,7 @@ public:
 	TStreamMeta() :
 	mCodec				( SoyMediaFormat::Invalid ),
 	mMediaTypeIndex		( 0 ),
+	mPixelWidthPadding	( 0 ),
 	mStreamIndex		( 0 ),
 	mCompressed			( false ),
 	mFramesPerSecond	( 0 ),
@@ -196,7 +202,6 @@ public:
 	mDrmProtected		( false ),
 	mMaxKeyframeSpacing	( 0 ),
 	mAverageBitRate		( 0 ),
-	mYuvMatrix			( Soy::TYuvParams::Full() ),
 	mEncodingBitRate	( 0 ),
 	mAudioSampleRate	( 0 ),
 	mAudioBytesPerPacket	( 0 ),
@@ -228,13 +233,16 @@ public:
 	//	windows media foundation
 	size_t				mStreamIndex;		//	windows MediaFoundation can have multiple metas for a single stream (MediaType index splits this), otherwise this would be EXTERNAL from the meta
 	size_t				mMediaTypeIndex;	//	applies to Windows MediaFoundation streams
-	
+	//	gr: should be able to integrate the padding into the transform matrix; and then set pixel dimensions to the padded size
+	//		m[0][0] = width/paddedwidth
+	//	we can then get the original size with paddedwidth*m[0][0]
+	size_t				mPixelWidthPadding;	//	we can't get the stride from an IMFMediaBuffer (the non-specialised type, not 2D) but we can pre-empty it when we get the stream info, so caching it here for now. 
+
 	//	video
 	SoyPixelsMeta		mPixelMeta;			//	could be invalid format (if unknown, so just w/h) or because its audio etc
 	bool				mInterlaced;
 	float				mVideoClockWiseRotationDegrees;	//	todo: change for a 3x3 matrix
 	bool				m3DVideo;
-	Soy::TYuvParams		mYuvMatrix;
 	bool				mDrmProtected;
 	size_t				mMaxKeyframeSpacing;	//	gr: not sure of entropy yet
 	size_t				mAverageBitRate;		//	gr: not sure of entropy yet
@@ -412,6 +420,7 @@ class TAudioBufferBlock
 {
 public:
 	TAudioBufferBlock() :
+		mData		( SoyMedia::DefaultHeap ),
 		mChannels	( 0 ),
 		mFrequency	( 0 )
 	{
@@ -435,7 +444,8 @@ class TAudioBufferManager : public TMediaBufferManager
 {
 public:
 	TAudioBufferManager(const TPixelBufferParams& Params) :
-	TMediaBufferManager	( Params )
+		mBlocks				( SoyMedia::DefaultHeap ),
+		TMediaBufferManager	( Params )
 	{
 	}
 	
@@ -456,6 +466,7 @@ class TTextBufferManager : public TMediaBufferManager
 {
 public:
 	TTextBufferManager(const TPixelBufferParams& Params) :
+		mBlocks				( SoyMedia::DefaultHeap ),
 		TMediaBufferManager	( Params )
 	{
 	}
@@ -476,6 +487,7 @@ class TMediaPacket
 {
 public:
 	TMediaPacket() :
+		mData			( SoyMedia::DefaultHeap ),
 		mIsKeyFrame		( false ),
 		mEncrypted		( false ),
 		mEof			( false )
@@ -517,6 +529,7 @@ class TMediaPacketBuffer
 {
 public:
 	TMediaPacketBuffer(size_t MaxBufferSize=10) :
+		mPackets				( SoyMedia::DefaultHeap ),
 		mMaxBufferSize			( MaxBufferSize ),
 		mAutoTimestampDuration	( 33ull )
 	{
@@ -593,8 +606,8 @@ public:
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
 		mReadAheadMs					( ReadAheadMs ),
-		mDiscardOldFrames				( false ),
-		mForceNonPlanarOutput			( false ),
+		mDiscardOldFrames				( DiscardOldFrames ),
+		mForceNonPlanarOutput			( ForceNonPlanarOutput ),
 		mDebugIntraFrameRect			( false ),
 		mDebugIntraFrameTransparency	( false )
 	{

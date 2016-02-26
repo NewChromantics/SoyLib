@@ -24,7 +24,12 @@ namespace Java
 	SoyListenerId	mShutdownThreadListener;
 	SoyListenerId	mInitThreadListener;
 
-	std::map<std::thread::id,std::shared_ptr<Java::TThread>>	Threads;
+	namespace Private
+	{
+		//	gr: using recursive as thread calls often have to get a vm and call themselves again
+		std::recursive_mutex										ThreadsLock;
+		std::map<std::thread::id,std::shared_ptr<Java::TThread>>	Threads;
+	}
 }
 
 
@@ -56,11 +61,13 @@ void Java::ShutdownThread(SoyThread& Thread)
 	if ( vm )
 	{
 		auto Thread = std::this_thread::get_id();
-		auto Threadit = Java::Threads.find( Thread );
-		if ( Threadit != Java::Threads.end() )
+		
+		std::lock_guard<std::recursive_mutex> Lock( Private::ThreadsLock );
+		auto Threadit = Private::Threads.find( Thread );
+		if ( Threadit != Private::Threads.end() )
 		{
 			auto pThread = Threadit->second;
-			Java::Threads.erase( Threadit );
+			Private::Threads.erase( Threadit );
 			
 			//	detach & shutdown
 			pThread.reset();
@@ -73,7 +80,8 @@ bool Java::HasThread()
 {
 	auto ThreadId = std::this_thread::get_id();
 
-	return ( Java::Threads.find( ThreadId ) != Java::Threads.end() );
+	std::lock_guard<std::recursive_mutex> Lock( Private::ThreadsLock );
+	return ( Private::Threads.find( ThreadId ) != Private::Threads.end() );
 }
 
 
@@ -84,14 +92,38 @@ Java::TThread& Java::GetThread()
 	auto& vm = *Java::vm;
 	
 	auto ThreadId = std::this_thread::get_id();
-	
-	auto& pThread = Java::Threads[ThreadId];
+
+	//	gr: keep getting a crash playing a movie over & over in this func, maybe map multithread access
+	Private::ThreadsLock.lock();
+	auto pThread = Private::Threads[ThreadId];
+	Private::ThreadsLock.unlock();
 	
 	if ( !pThread )
 	{
-		std::Debug << "Allocating new java thread in GetThread(" << ThreadId << ")..." << std::endl;
-		pThread.reset( new Java::TThread( vm ) );
-		pThread->Init();
+		try
+		{
+			std::lock_guard<std::recursive_mutex> Lock( Private::ThreadsLock );
+			std::Debug << "Allocating new java thread in GetThread(" << ThreadId << ")..." << std::endl;
+			pThread.reset( new Java::TThread( vm ) );
+			Soy::Assert( pThread!=nullptr, "Failed to allocate java thread" );
+			Private::Threads[ThreadId] = pThread;
+			
+			//	assume deadlock wont happen due to recursive mutex
+			pThread->Init();
+			std::Debug << "new java thread initialised in GetThread(" << ThreadId << ")..." << std::endl;
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Exception allocating new java thread[" << ThreadId << "]. Unassigning and rethrowing. " << e.what() << std::endl;
+			Private::Threads[ThreadId].reset();
+			throw;
+		}
+		catch(...)
+		{
+			std::Debug << "Unknown exception allocating new java thread[" << ThreadId << "]. Unassigning and rethrowing. " << std::endl;
+			Private::Threads[ThreadId].reset();
+			throw;
+		}
 	}
 	
 	//	register thread init & cleanup first time we use a java context
@@ -107,6 +139,9 @@ Java::TThread& Java::GetThread()
 JNIEnv& Java::GetContext()
 {
 	auto& Thread = GetThread();
+	
+	Soy::Assert( Thread.mThreadEnv != nullptr, "Java current thread env is null");
+	
 	return *Thread.mThreadEnv;
 }
 
@@ -2242,8 +2277,20 @@ Java::TLocalRefStack::TLocalRefStack(size_t MaxLocals)
 Java::TLocalRefStack::~TLocalRefStack()
 {
 	jobject ResultIn = nullptr;
-	auto ResultOut = java().PopLocalFrame( ResultIn );
-	Java::IsOkay( __func__ );
+	
+	try
+	{
+		auto ResultOut = java().PopLocalFrame( ResultIn );
+		Java::IsOkay( __func__ );
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Exception in " << __func__ << ": " << e.what() << std::endl;
+	}
+	catch(...)
+	{
+		std::Debug << "Unknown Exception in " << __func__ << std::endl;
+	}
 }
 
 

@@ -251,7 +251,7 @@ bool Soy::Platform::DebugBreak()
 #endif
 
 #if defined(TARGET_WINDOWS)
-	static bool DoBreak = true;
+	static bool DoBreak = false;
 	if (DoBreak)
 	{
 		::DebugBreak();

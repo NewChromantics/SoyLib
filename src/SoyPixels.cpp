@@ -19,6 +19,10 @@
 #define FREENECT_DEPTH_RAW_NO_VALUE 2047
 
 
+
+prmem::Heap SoyPixels::DefaultHeap( true, true, "SoyPixels::DefaultHeap" );
+	
+
 bool SoyPixelsFormat::GetIsFrontToBackDepth(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
@@ -136,40 +140,60 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(size_t ChannelC
 	}
 }
 
+namespace SoyPixelsFormat
+{
+	const std::map<Type,BufferArray<Type,2>>&	GetMergedFormatMap();
+}
+
+const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyPixelsFormat::GetMergedFormatMap()
+{
+	static std::map<Type,BufferArray<Type,2>> Map;
+
+	if ( Map.empty() )
+	{
+		Map[Yuv_8_88_Full].PushBackArray( { LumaFull, ChromaUV_88 } );
+		Map[Yuv_8_88_Video].PushBackArray( { LumaVideo, ChromaUV_88 } );
+		Map[Yuv_8_8_8_Full].PushBackArray( { LumaFull, ChromaUV_8_8 } );
+		Map[Yuv_8_8_8_Video].PushBackArray( { LumaVideo, ChromaUV_8_8 } );
+		Map[Yuv_844_Full].PushBackArray( { LumaFull, ChromaUV_44 } );
+	}
+
+	return Map;
+}
+
+
+
 void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats)
 {
-	switch ( Format )
+	auto& Map = GetMergedFormatMap();
+	auto it = Map.find( Format );
+
+	//	single plane type, return self
+	if ( it == Map.end() )
 	{
-		case Yuv_8_88_Full:
-			PlaneFormats.PushBack( LumaFull );
-			PlaneFormats.PushBack( ChromaUV_88 );
-			break;
-			
-		case Yuv_8_88_Video:
-			PlaneFormats.PushBack( LumaVideo );
-			PlaneFormats.PushBack( ChromaUV_88 );
-			break;
-			
-		case Yuv_8_8_8_Full:
-			PlaneFormats.PushBack( LumaFull );
-			PlaneFormats.PushBack( ChromaUV_8_8 );
-			break;
-			
-		case Yuv_8_8_8_Video:
-			PlaneFormats.PushBack( LumaVideo );
-			PlaneFormats.PushBack( ChromaUV_8_8 );
-			break;
-			
-		case Yuv_844_Full:
-			PlaneFormats.PushBack( LumaFull );
-			PlaneFormats.PushBack( ChromaUV_44 );
-			break;
-			
-		default:
-			//	gr: should this return Format?
-			PlaneFormats.PushBack(Format);
-			break;
-	};
+		PlaneFormats.PushBack(Format);
+		return;
+	}
+
+	PlaneFormats.Copy( it->second );
+}
+
+
+SoyPixelsFormat::Type SoyPixelsFormat::GetMergedFormat(SoyPixelsFormat::Type Formata,SoyPixelsFormat::Type Formatb)
+{
+	BufferArray<Type,2> Formatab( { Formata, Formatb } );
+
+	auto& Map = GetMergedFormatMap();
+	for ( auto it=Map.begin();	it!=Map.end();	it++ )
+	{
+		auto& Matchab = it->second;
+		auto& MergedFormat = it->first;
+		if ( Matchab == Formatab )
+			return MergedFormat;
+	}
+
+	//	no merged version
+	return SoyPixelsFormat::Invalid;
 }
 
 //	merge index & palette into Paletteised_8_8

@@ -435,7 +435,8 @@ bool TStreamReader::Iteration()
 	}
 	
 	//	process protocol
-	auto DecodeResult = TProtocolState::Abort;
+	//	gr: abort has been replaced with exceptions
+	auto DecodeResult = TProtocolState::Invalid;
 	try
 	{
 		DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
@@ -443,10 +444,16 @@ bool TStreamReader::Iteration()
 	catch(std::exception& e)
 	{
 		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol) << "::Decode threw exception (" << e.what() << ") reverting to " << DecodeResult << std::endl;
+		CurrentProtocol.reset();
+		DecodeResult = TProtocolState::Disconnect;
+		OnError( e.what() );
 	}
 	catch(...)
 	{
 		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol)  << "::Decode threw unknown exception reverting to " << DecodeResult << std::endl;
+		CurrentProtocol.reset();
+		DecodeResult = TProtocolState::Disconnect;
+		OnError("Unknown exception");
 	}
 	
 	switch ( DecodeResult )
@@ -460,11 +467,6 @@ bool TStreamReader::Iteration()
 		case TProtocolState::Finished:
 			break;
 			
-		//	invalidate data and continue as disconnection
-		case TProtocolState::Abort:
-			CurrentProtocol.reset();
-			break;
-
 			//	release current and re-iterate
 		default:
 			std::Debug << "Unhandled TProtocolState: " << DecodeResult << " ignoring." << std::endl;
@@ -480,7 +482,7 @@ bool TStreamReader::Iteration()
 	//	dealloc for next
 	mCurrentProtocol.reset();
 
-	if ( DecodeResult == TProtocolState::Disconnect || DecodeResult == TProtocolState::Abort )
+	if ( DecodeResult == TProtocolState::Disconnect )
 	{
 		//	protocol has told us to clean up, so disconnect/cleanup the reader in case EOF it was triggered by protocol, not reader
 		Shutdown();
