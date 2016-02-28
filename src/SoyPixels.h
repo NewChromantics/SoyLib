@@ -46,8 +46,13 @@ namespace SoyPixelsFormat
 		Yuv_8_88_Video,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
 		Yuv_8_8_8_Full,		//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
 		Yuv_8_8_8_Video,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
+		Yuv_844_Full,		//	8bit luma, then 8bit chromauv in the same plane
+		Yuv_844_Video,		//	8bit luma, then 8bit chromauv in the same plane
+
 		ChromaUV_8_8,		//	8 bit plane, 8 bit plane
 		ChromaUV_88,		//	16 bit interleaved plane
+		ChromaUV_44,		//	8 bit plane where each byte is split in half
+		
 
 		//	https://github.com/ofTheo/ofxKinect/blob/ebb9075bcb5ab2543220b4dec598fd73cec40904/libs/libfreenect/src/cameras.c
 		//	kinect (16bit?) yuv. See if its the same as a standard one 
@@ -97,7 +102,8 @@ namespace SoyPixelsFormat
 	size_t			GetChannelCount(Type Format);
 	Type			GetFormatFromChannelCount(size_t ChannelCount);
 	void			GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats);
-	
+	SoyPixelsFormat::Type	GetMergedFormat(SoyPixelsFormat::Type Formata,SoyPixelsFormat::Type Formatb);
+
 	int				GetMaxValue(SoyPixelsFormat::Type Format);
 	int				GetMinValue(SoyPixelsFormat::Type Format);
 	int				GetInvalidValue(SoyPixelsFormat::Type Format);
@@ -112,21 +118,6 @@ namespace SoyPixelsFormat
 	
 	DECLARE_SOYENUM( SoyPixelsFormat );
 };
-
-namespace Soy
-{
-	namespace Platform
-	{
-#if defined(__OBJC__)
-		OSType					GetFormat(SoyPixelsFormat::Type Format);
-		SoyPixelsFormat::Type 	GetFormat(OSType Format);
-		SoyPixelsFormat::Type 	GetFormat(NSNumber* Format);
-		std::string				PixelFormatToString(NSNumber* FormatCv);
-		std::string				PixelFormatToString(id FormatCv);
-		
-#endif
-	}
-}
 
 
 //	meta data for pixels (header when using raw data)
@@ -242,7 +233,6 @@ public:
 
 	bool			SetFormat(SoyPixelsFormat::Type Format);
 	bool			SetChannels(uint8 Channels);
-	void			SetPng(const ArrayBridge<char>& PngData) __deprecated;
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
 	bool			SetRawSoyPixels(const ArrayBridge<char>&& RawData)	{	return SetRawSoyPixels( RawData );	}
 
@@ -286,12 +276,16 @@ public:
 class SoyPixels : public SoyPixelsDef<Array<uint8>>
 {
 public:
+	static prmem::Heap		DefaultHeap;
+	
+public:
 	SoyPixels(const SoyPixelsImpl& that) :
+		mArray						( DefaultHeap ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{
 		Copy( that );
 	}
-	SoyPixels(prmem::Heap& Heap=prcore::Heap) :
+	SoyPixels(prmem::Heap& Heap=DefaultHeap) :
 		mArray						( Heap ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{

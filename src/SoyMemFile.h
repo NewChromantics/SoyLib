@@ -245,7 +245,7 @@ public:
 	}
 
 private:
-	ofMutex						mFileLock;
+	std::mutex					mFileLock;
 	Array<std::shared_ptr<MemFileArray>>	mFiles;
 	std::string					mFilenamePrefix;
 	SoyRef						mFilenameRef;

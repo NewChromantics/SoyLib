@@ -11,6 +11,13 @@
 #include <SoyDirectx.h>
 #endif
 
+
+//	todo: move this out of Unity namespace
+namespace Platform
+{
+	std::string		GetBundleIdentifier();
+}
+
 //#define ENABLE_METAL
 
 namespace Metal
@@ -183,9 +190,15 @@ namespace Unity
 	
 	SoyPixelsFormat::Type		GetPixelFormat(RenderTexturePixelFormat::Type Format);
 	SoyPixelsFormat::Type		GetPixelFormat(Texture2DPixelFormat::Type Format);
+	void						GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions);
 	
 	//	define these in your project
-	extern int			GetPluginEventId();
+	extern int					GetPluginEventId();
+	
+	extern SoyEvent<bool>		mOnDeviceShutdown;
+	
+	//	gr: this is a bit more generic than unity, so might move it later
+	const std::string&			GetBundleIdentifier();
 };
 
 

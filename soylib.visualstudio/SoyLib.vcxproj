@@ -35,6 +35,7 @@
     <ClCompile Include="..\src\memheap.cpp" />
     <ClCompile Include="..\src\SoyArray.cpp" />
     <ClCompile Include="..\src\SoyAssert.cpp" />
+    <ClCompile Include="..\src\SoyBase64.cpp" />
     <ClCompile Include="..\src\SoyCuda.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -42,6 +43,7 @@
     <ClCompile Include="..\src\SoyDebug.cpp" />
     <ClCompile Include="..\src\SoyDirectx.cpp" />
     <ClCompile Include="..\src\SoyEvent.cpp" />
+    <ClCompile Include="..\src\SoyFilesystem.cpp" />
     <ClCompile Include="..\src\SoyH264.cpp" />
     <ClCompile Include="..\src\SoyHttp.cpp" />
     <ClCompile Include="..\src\SoyHttpConnection.cpp" />
@@ -85,11 +87,19 @@
     <ClInclude Include="..\src\SortArray.h" />
     <ClInclude Include="..\src\SoyArray.h" />
     <ClInclude Include="..\src\SoyAssert.h" />
+    <ClInclude Include="..\src\SoyAvf.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|x64'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyBase64.h" />
     <ClInclude Include="..\src\SoyCuda.h" />
     <ClInclude Include="..\src\SoyDebug.h" />
     <ClInclude Include="..\src\SoyDirectx.h" />
     <ClInclude Include="..\src\SoyEnum.h" />
     <ClInclude Include="..\src\SoyEvent.h" />
+    <ClInclude Include="..\src\SoyFilesystem.h" />
     <ClInclude Include="..\src\SoyH264.h" />
     <ClInclude Include="..\src\SoyHttp.h" />
     <ClInclude Include="..\src\SoyHttpConnection.h" />
@@ -122,6 +132,20 @@
     <ClInclude Include="..\src\SoyVector.h" />
     <ClInclude Include="..\src\SoyWave.h" />
     <ClInclude Include="..\src\stb\stb_image.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\src\SoyAvf.mm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|x64'">true</ExcludedFromBuild>
+    </None>
+    <None Include="..\src\SoyFilesystem.mm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Cuda|x64'">true</ExcludedFromBuild>
+    </None>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{D18B3ABF-23BD-42D8-BAB1-DA4921F1033D}</ProjectGuid>

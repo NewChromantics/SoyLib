@@ -38,7 +38,7 @@ namespace Opengl
 	
 	//	safe-as-possible deffered delete of an opengl object (pass in your members here!)
 	template<typename TYPE>
-	void	DeferDelete(std::shared_ptr<Opengl::TContext> Context,std::shared_ptr<TYPE>& pObject);
+	void	DeferDelete(std::shared_ptr<Opengl::TContext> Context,std::shared_ptr<TYPE>& pObject,bool ExpectedLast=true);
 
 	
 	//	extension bindings
@@ -154,7 +154,7 @@ public:
 
 
 template<typename TYPE>
-inline void Opengl::DeferDelete(std::shared_ptr<Opengl::TContext> Context,std::shared_ptr<TYPE>& pObject)
+inline void Opengl::DeferDelete(std::shared_ptr<Opengl::TContext> Context,std::shared_ptr<TYPE>& pObject,bool ExpectedLast)
 {
 	if ( !pObject )
 		return;
@@ -177,7 +177,7 @@ inline void Opengl::DeferDelete(std::shared_ptr<Opengl::TContext> Context,std::s
 	//	note: because of race conditions we capture and release the local one first
 	std::shared_ptr<TYPE> LocalpObject = pObject;
 	pObject.reset();
-	std::shared_ptr<PopWorker::TJob> Job( new TDefferedDeleteJob<TYPE>( LocalpObject ) );
+	std::shared_ptr<PopWorker::TJob> Job( new TDefferedDeleteJob<TYPE>( LocalpObject, ExpectedLast ) );
 	Context->PushJob( Job );
 	LocalpObject.reset();
 }

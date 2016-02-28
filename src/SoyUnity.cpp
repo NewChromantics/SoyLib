@@ -3,6 +3,10 @@
 #include <sstream>
 #include "SoyOpenglContext.h"
 
+#if defined(TARGET_ANDROID)
+#include "SoyJava.h"
+#endif
+
 
 #if defined(TARGET_IOS)
 extern "C" {
@@ -12,6 +16,10 @@ void	UnityRegisterRenderingPlugin(UnityPluginSetGraphicsDeviceFunc setDevice, Un
 }
 #endif
 
+namespace Platform
+{
+	std::string		GetBundleIdentifier();
+}
 
 
 namespace Unity
@@ -35,6 +43,8 @@ namespace Unity
 	std::shared_ptr<Cuda::TContext>		CudaContext;
 #endif
 	
+	
+	SoyEvent<bool>		mOnDeviceShutdown;	
 }
 
 
@@ -179,7 +189,7 @@ SoyPixelsFormat::Type Unity::GetPixelFormat(Texture2DPixelFormat::Type Format)
 #if defined(TARGET_WINDOWS)
 BOOL APIENTRY DllMain(HMODULE Module, DWORD Reason, LPVOID Reserved)
 {
-	std::Debug << "DllMain(" << Reason << ")" << std::endl;
+	//std::Debug << "DllMain(" << Reason << ")" << std::endl;
 	return TRUE;
 }
 #endif
@@ -253,7 +263,7 @@ __export void UnityRenderEvent(Unity::sint eventID)
 
 void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 {
-	if (!Soy::Platform::Init())
+	if (!Platform::Init())
 		throw Soy::AssertException("Soy Failed to init platform");
 
 	if ( !DebugListener.IsValid() )
@@ -336,6 +346,11 @@ void Unity::Shutdown(UnityDevice::Type Device)
 {
 	std::Debug.GetOnFlushEvent().RemoveListener( DebugListener );
 
+	{
+		bool Dummy;
+		mOnDeviceShutdown.OnTriggered(Dummy);
+	}
+	
 	//	free all contexts
 	//	gr: may need to defer some of these!
 	OpenglContext.reset();
@@ -421,4 +436,32 @@ __export void FlushDebug(Unity::LogCallback Callback)
 	}
 }
 
+
+void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
+{
+	Extensions.PushBack(".meta");
+}
+
+
+#if defined(TARGET_ANDROID)
+std::string Platform::GetBundleIdentifier()
+{
+	return Java::GetBundleIdentifier();
+}
+#endif
+
+
+#if defined(TARGET_WINDOWS)
+std::string Platform::GetBundleIdentifier()
+{
+	return "Todo:BundleIdentifierForWindows";
+}
+#endif
+
+const std::string& Unity::GetBundleIdentifier()
+{
+	//	cache this
+	static std::string CachedIdentifier = Soy::StringToLower( Platform::GetBundleIdentifier() );
+	return CachedIdentifier;
+}
 

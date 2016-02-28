@@ -49,6 +49,7 @@ namespace Soy
 	bool		StringEndsWith(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
 	template <size_t BUFFERSIZE>
 	bool		StringEndsWith(const std::string& Haystack,const char* (& Needles)[BUFFERSIZE], bool CaseSensitive);
+	bool		StringEndsWith(const std::string& Haystack,const ArrayBridge<std::string>& Needles, bool CaseSensitive);
 	bool		StringMatches(const std::string& Haystack,const std::string& Needle, bool CaseSensitive);
 	
 	std::string	StringJoin(const std::vector<std::string>& Strings,const std::string& Glue);
@@ -76,10 +77,11 @@ namespace Soy
 	bool		StringReplace(ArrayBridge<std::string>& str,const std::string& from,const std::string& to);
 	bool		StringReplace(ArrayBridge<std::string>&& str,const std::string& from,const std::string& to);
 
-	std::string	ArrayToString(const ArrayBridge<char>& Array);
-	void		ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String);
-	void		ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String);
-	inline void	ArrayToString(const ArrayBridge<uint8>&& Array,std::stringstream& String)	{	ArrayToString( Array, String );	}
+	std::string	ArrayToString(const ArrayBridge<char>& Array,size_t Limit=0);
+	void		ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String,size_t Limit=0);
+	std::string	ArrayToString(const ArrayBridge<uint8>& Array,size_t Limit=0);
+	void		ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String,size_t Limit=0);
+	inline void	ArrayToString(const ArrayBridge<uint8>&& Array,std::stringstream& String,size_t Limit=0)	{	ArrayToString( Array, String, Limit );	}
 	
 	void		StringToArray(std::string String,ArrayBridge<char>& Array);
 	inline void	StringToArray(std::string String,ArrayBridge<char>&& Array)	{	StringToArray( String, Array );	}
@@ -96,13 +98,17 @@ namespace Soy
 	std::string	StreamToString(std::stringstream&& Stream);	//	osx
 	inline void	StringStreamClear(std::stringstream& Stream)	{	Stream.str(std::string());	}	//	not .clear, not .empty
 
-	void		SplitStringLines(ArrayBridge<std::string>& StringLines,const std::string& String);
-	void		SplitStringLines(ArrayBridge<std::string>&& StringLines,const std::string& String);
+	void		SplitStringLines(ArrayBridge<std::string>& StringLines,const std::string& String,bool IncludeEmpty=true);
+	void		SplitStringLines(ArrayBridge<std::string>&& StringLines,const std::string& String,bool IncludeEmpty=true);
+	void		SplitStringLines(std::function<bool(const std::string&,const char&)> Callback,const std::string& String,bool IncludeEmpty=true);
 
 	bool		IsUtf8String(const std::string& String);
 	bool		IsUtf8Char(char c);
 	uint8		HexToByte(char Hex);
 	uint8		HexToByte(char HexA,char HexB);
+	void		ByteToHex(uint8 Byte,std::ostream& String);
+	void		ByteToHex(uint8 Byte,char& Stringa,char& Stringb);
+	std::string	ByteToHex(uint8 Byte);
 
 	std::string	ResolveUrl(const std::string& BaseUrl,const std::string& Path);	//	work out the full path of Path from the base url. if it starts from / then use the server. if it starts with protocol, don't modify, otherwise place in directory
 	std::string	ExtractServerFromUrl(const std::string& Url);
@@ -113,22 +119,32 @@ namespace Soy
 	std::string	GetUrlProtocol(const std::string& Url);
 	
 	std::wstring	StringToWString(const std::string& s);
-	std::string	WStringToString(const std::wstring& w);
+	std::string		WStringToString(const std::wstring& w);
 	
 	template<typename TYPE>
-	bool		StringToType(TYPE& Out,const std::string& String);
+	bool			StringToType(TYPE& Out,const std::string& String);
 	template<typename TYPE>
-	TYPE		StringToType(const std::string& String,const TYPE& Default);
+	TYPE			StringToType(const std::string& String,const TYPE& Default);
+	bool			StringToUnsignedInteger(size_t& IntegerOut,const std::string& String);
 
 	//	max size of vector (ie. buffer array/remote array) dictates expected size
 	template<typename TYPE>
-	inline bool	StringParseVecNx(const std::string& String,ArrayBridge<TYPE>&& Vector);
+	inline bool		StringParseVecNx(const std::string& String,ArrayBridge<TYPE>&& Vector);
 
 	std::string		FourCCToString(uint32 Fourcc);	//	on IOS, don't forget CFSwapInt32BigToHost()
 	
 	std::string		DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes=-1);
 	void			DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,int MaxBytes=-1);
 	inline void		DataToHexString(std::ostream& String,const ArrayBridge<uint8>&& Data,int MaxBytes=-1)	{	DataToHexString( String, Data, MaxBytes );	}
+
+	template <size_t BUFFERSIZE>
+	void			PushStringArray(ArrayBridge<std::string>& Destination,const char* (& Source)[BUFFERSIZE])
+	{
+		for ( int i=0;	i<BUFFERSIZE;	i++ )
+			Destination.PushBack( Source[i] );
+	}
+	template <size_t BUFFERSIZE>
+	void			PushStringArray(ArrayBridge<std::string>&& Destination,const char* (& Source)[BUFFERSIZE])	{	PushStringArray( Destination, Source );	}
 };
 
 #if defined(__OBJC__)
@@ -218,6 +234,7 @@ inline bool Soy::StringEndsWith(const std::string& Haystack,const char* (& Needl
 			return true;
 	return false;
 }
+
 
 
 template<typename TYPE>

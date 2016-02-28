@@ -19,6 +19,10 @@
 #define FREENECT_DEPTH_RAW_NO_VALUE 2047
 
 
+
+prmem::Heap SoyPixels::DefaultHeap( true, true, "SoyPixels::DefaultHeap" );
+	
+
 bool SoyPixelsFormat::GetIsFrontToBackDepth(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
@@ -112,6 +116,7 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
 	case ChromaUV_8_8:	return 1;
 	case ChromaUV_88:	return 2;
+	case ChromaUV_44:	return 1;
 
 
 	default:
@@ -135,35 +140,60 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(size_t ChannelC
 	}
 }
 
+namespace SoyPixelsFormat
+{
+	const std::map<Type,BufferArray<Type,2>>&	GetMergedFormatMap();
+}
+
+const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyPixelsFormat::GetMergedFormatMap()
+{
+	static std::map<Type,BufferArray<Type,2>> Map;
+
+	if ( Map.empty() )
+	{
+		Map[Yuv_8_88_Full].PushBackArray( { LumaFull, ChromaUV_88 } );
+		Map[Yuv_8_88_Video].PushBackArray( { LumaVideo, ChromaUV_88 } );
+		Map[Yuv_8_8_8_Full].PushBackArray( { LumaFull, ChromaUV_8_8 } );
+		Map[Yuv_8_8_8_Video].PushBackArray( { LumaVideo, ChromaUV_8_8 } );
+		Map[Yuv_844_Full].PushBackArray( { LumaFull, ChromaUV_44 } );
+	}
+
+	return Map;
+}
+
+
+
 void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats)
 {
-	switch ( Format )
+	auto& Map = GetMergedFormatMap();
+	auto it = Map.find( Format );
+
+	//	single plane type, return self
+	if ( it == Map.end() )
 	{
-		case Yuv_8_88_Full:
-			PlaneFormats.PushBack( LumaFull );
-			PlaneFormats.PushBack( ChromaUV_88 );
-			break;
-			
-		case Yuv_8_88_Video:
-			PlaneFormats.PushBack( LumaVideo );
-			PlaneFormats.PushBack( ChromaUV_88 );
-			break;
-			
-		case Yuv_8_8_8_Full:
-			PlaneFormats.PushBack( LumaFull );
-			PlaneFormats.PushBack( ChromaUV_8_8 );
-			break;
-			
-		case Yuv_8_8_8_Video:
-			PlaneFormats.PushBack( LumaVideo );
-			PlaneFormats.PushBack( ChromaUV_8_8 );
-			break;
-			
-		default:
-			//	gr: should this return Format?
-			PlaneFormats.PushBack(Format);
-			break;
-	};
+		PlaneFormats.PushBack(Format);
+		return;
+	}
+
+	PlaneFormats.Copy( it->second );
+}
+
+
+SoyPixelsFormat::Type SoyPixelsFormat::GetMergedFormat(SoyPixelsFormat::Type Formata,SoyPixelsFormat::Type Formatb)
+{
+	BufferArray<Type,2> Formatab( { Formata, Formatb } );
+
+	auto& Map = GetMergedFormatMap();
+	for ( auto it=Map.begin();	it!=Map.end();	it++ )
+	{
+		auto& Matchab = it->second;
+		auto& MergedFormat = it->first;
+		if ( Matchab == Formatab )
+			return MergedFormat;
+	}
+
+	//	no merged version
+	return SoyPixelsFormat::Invalid;
 }
 
 //	merge index & palette into Paletteised_8_8
@@ -253,10 +283,12 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::Yuv_8_88_Video,		"Yuv_8_88_Video"	},
 	{ SoyPixelsFormat::Yuv_8_8_8_Full,		"Yuv_8_8_8_Full"	},
 	{ SoyPixelsFormat::Yuv_8_8_8_Video,		"Yuv_8_8_8_Video"	},
+	{ SoyPixelsFormat::Yuv_844_Full,		"Yuv_844_Full"	},
 	{ SoyPixelsFormat::LumaFull,			"LumaFull"	},
 	{ SoyPixelsFormat::LumaVideo,			"LumaVideo"	},
 	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
 	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
+	{ SoyPixelsFormat::ChromaUV_44,			"ChromaUV_44"	},
 	{ SoyPixelsFormat::Palettised_8_8,		"Palettised_8_8"	},
 };
 
@@ -974,11 +1006,6 @@ bool SoyPixelsImpl::GetRawSoyPixels(ArrayBridge<char>& RawData) const
 }
 
 
-void SoyPixelsImpl::SetPng(const ArrayBridge<char>& PngData)
-{
-	Png::Read( *this, PngData );
-}
-
 bool SoyPixelsImpl::SetRawSoyPixels(const ArrayBridge<char>& RawData)
 {
 	int HeaderSize = sizeof(SoyPixelsMeta);
@@ -1208,7 +1235,7 @@ void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour)
 	Pixel[0] = Colour.x;
 	Pixel[1] = Colour.y;
 	Pixel[2] = Colour.z;
-	Pixel[4] = Colour.w;
+	Pixel[3] = Colour.w;
 }
 
 
@@ -1512,6 +1539,11 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaVideo ) );
 			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
+			break;
+			
+		case SoyPixelsFormat::Yuv_844_Full:
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::LumaFull ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
 			
 		case SoyPixelsFormat::Palettised_8_8:

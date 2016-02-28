@@ -167,6 +167,9 @@ std::string Opengl::GetEnumString(GLenum Type)
 #if defined(GL_RG8)
 			CASE_ENUM_STRING( GL_RG8 );
 #endif
+#if defined(GL_RG)
+			CASE_ENUM_STRING( GL_RG );
+#endif
 			CASE_ENUM_STRING( GL_ALPHA );
 #if defined(GL_LUMINANCE)
 			CASE_ENUM_STRING( GL_LUMINANCE );
@@ -361,7 +364,7 @@ void Opengl::FlushError(const char* Context)
 }
 
 
-bool Opengl::IsOkay(const char* Context,std::function<void(const std::string&)>& ExceptionContainer)
+bool Opengl::IsOkay(const char* Context,std::function<void(const std::string&)> ExceptionContainer)
 {
 	auto Error = glGetError();
 	if ( Error == GL_NONE )
@@ -613,6 +616,8 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	mAutoRelease	( true ),
 	mType			( Type )
 {
+	Opengl_IsOkayFlush();
+
 	Soy::Assert( Meta.IsValid(), "Cannot setup texture with invalid meta" );
 	
 	bool AllowOpenglConversion = true;
@@ -630,6 +635,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	//	allocate texture
 	glGenTextures( 1, &mTexture.mName );
 	Opengl::IsOkay("glGenTextures");
+	Soy::Assert( mTexture.IsValid(), "Failed to allocate texture" );
 	
 	if ( !Bind() )
 		throw Soy::AssertException("failed to bind after texture allocation");
@@ -690,14 +696,19 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	}
 	
 	//	verify params
+	//	gr: this should be using internal meta
 #if (OPENGL_CORE==3)
 	GLint TextureWidth = -1;
 	GLint TextureHeight = -1;
 	GLint TextureInternalFormat = -1;
+	
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth);
+	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv(GL_TEXTURE_WIDTH)" );
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight);
+	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv(GL_TEXTURE_HEIGHT)" );
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &TextureInternalFormat);
-	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()" );
+	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv(GL_TEXTURE_INTERNAL_FORMAT)" );
+	
 	Soy::Assert( TextureWidth==Meta.GetWidth(), "Texture width doesn't match initialisation");
 	Soy::Assert( TextureHeight==Meta.GetHeight(), "Texture height doesn't match initialisation");
 
@@ -760,6 +771,7 @@ void Opengl::TTexture::Delete()
 bool Opengl::TTexture::Bind() const
 {
 	Opengl::IsOkay("Texture bind flush",false);
+	Soy::Assert( mTexture.IsValid(), "Trying to bind invalid texture" );
 	glBindTexture( mType, mTexture.mName );
 	return Opengl_IsOkay();
 }
@@ -1093,47 +1105,92 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 #endif
 }
 
+
+class TTryCase
+{
+public:
+	GLenum		mInternalFormat;
+	GLenum		mExternalFormat;
+	SoyTime		mDuration;
+	std::string	mError;
+};
+
+std::ostream& operator<<(std::ostream &out,const TTryCase& in)
+{
+	out << Opengl::GetEnumString( in.mInternalFormat ) << "->" << Opengl::GetEnumString( in.mInternalFormat ) << " took " << in.mDuration.GetTime() << "ms. ";
+	if ( !in.mError.empty() )
+		out << "Error=" << in.mError;
+	return out;
+}
+
+
+
 void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBridge<GLenum>&& ExternalTextureFormats,const std::string& Context,std::function<void(GLenum,GLenum)> Function)
 {
-	bool Finished = false;
-	std::stringstream AttemptErrors;
-	static bool DebugFails = false;
-	auto AccumulateErrors = [&](const std::string& Error)
-	{
-		AttemptErrors << Error << "; ";
-	};
+	BufferArray<TTryCase,100> Trys;
 
+	static bool Profile = false;		//	execute all cases and find best (and show errors)
+	bool Success = false;
 	
-	for ( int i=0;	!Finished && i<InternalTextureFormats.GetSize();	i++ )
+	//	minimise cost of lambda
+	static TTryCase* CurrentTry = nullptr;
+	std::function<void(const std::string&)> ExceptionContainer = [](const std::string& Error)
 	{
-		for ( int e=0;	!Finished && e<ExternalTextureFormats.GetSize();	e++ )
+		CurrentTry->mError = Error;
+	};
+	
+	for ( int i=0;	i<InternalTextureFormats.GetSize();	i++ )
+	{
+		for ( int e=0;	e<ExternalTextureFormats.GetSize();	e++ )
 		{
-			auto InternalFormat = InternalTextureFormats[i];
-			auto ExternalFormat = ExternalTextureFormats[e];
-			Function( InternalFormat, ExternalFormat );
-			
-			std::stringstream ScopeContext;
-			ScopeContext << Context << " (InternalFormat=" << Opengl::GetEnumString(InternalFormat) << ", ExternalFormat=" << Opengl::GetEnumString(ExternalFormat) << ")";
-		
-			std::function<void(const std::string&)> f = AccumulateErrors;
-			if ( !DebugFails )
-				f = [](const std::string& Error){};
-			Finished = Opengl::IsOkay( ScopeContext.str().c_str(), f );
-			
-			//	debug the cases that didn't work
-			if ( Finished && !AttemptErrors.str().empty() )
+			TTryCase& Try = Trys.PushBack();
+			Try.mInternalFormat = InternalTextureFormats[i];
+			Try.mExternalFormat = ExternalTextureFormats[e];
+
+			if ( Profile )
 			{
-				std::Debug << ScopeContext.str() << " succeeded after failing; " << AttemptErrors.str() << std::endl;
+				auto RecordDuration = [&Try](SoyTime Duration)
+				{
+					Try.mDuration = Duration;
+				};
+				Soy::TScopeTimer Timer(nullptr,0,RecordDuration,true);
+				
+				Function( Try.mInternalFormat, Try.mExternalFormat );
 			}
+			else
+			{
+				Function( Try.mInternalFormat, Try.mExternalFormat );
+			}
+			
+			CurrentTry = &Try;
+			Success |= Opengl::IsOkay("",ExceptionContainer);
+			
+			//	return immediately if we aren't profiling
+			if ( Success && !Profile )
+				return;
 		}
 	}
-	if ( !Finished )
-		throw Soy::AssertException( AttemptErrors.str() );
+
+	//	display profile info
+	//	gr: seperated with / for unity output
+	//auto LineFeed = std::endl;
+	auto LineFeed = '/';
+	std::Debug << "Opengl-TryFormats(" << Context << ") tried x" << Trys.GetSize() << LineFeed;
+	for ( int i=0;	i<Trys.GetSize();	i++ )
+		std::Debug << Trys[i] << LineFeed;
+	std::Debug << std::endl;
+
+	if ( !Success )
+		throw Soy::AssertException(Context);
 }
 
 
 void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUploadParams Params)
 {
+	std::stringstream WholeFunctionContext;
+	WholeFunctionContext << __func__ << " (" << SourcePixels.GetMeta() << "->" << this->GetMeta() << ")";
+	Soy::TScopeTimerPrint WholeTimer( WholeFunctionContext.str().c_str(), 10 );
+
 	Soy::Assert( IsValid(), "Trying to upload to invalid texture ");
 	
 	Bind();
@@ -1183,8 +1240,10 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		}
 	}
 
+	static bool Prefer_SubImage = true;
+	static bool Prefer_TexImage = false;
 	bool IsSameDimensions = (UsePixels->GetWidth()==TextureWidth) && (UsePixels->GetHeight()==TextureHeight);
-	bool SubImage = !(Params.mStretch);
+	bool SubImage = (!(Params.mStretch)) || (Prefer_SubImage&&IsSameDimensions);
 	bool UsingAppleStorage = (!SubImage || IsSameDimensions) && Opengl::TContext::IsSupported( OpenglExtensions::AppleClientStorage, nullptr );
 
 	if ( UsingAppleStorage )
@@ -1274,9 +1333,27 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		{
 			auto PushTexture = [&](GLenum InternalFormat,GLenum ExternalFormat)
 			{
-				glTexImage2D( mType, MipLevel, InternalFormat, size_cast<GLsizei>(PixelsBuffer.GetWidth()), size_cast<GLsizei>(PixelsBuffer.GetHeight()), 0, ExternalFormat, FinalPixelsStorage, PixelsBuffer.GetPixelsArray().GetArray() );
+				auto Width = size_cast<GLsizei>(PixelsBuffer.GetWidth());
+				auto Height = size_cast<GLsizei>(PixelsBuffer.GetHeight());
+				auto* PixelsArrayData = PixelsBuffer.GetPixelsArray().GetArray();
+				
+				//	gr: very little difference between these two
+				//	gr: allowed both here for profiling
+				static bool UseSubImage = true;
+				static bool UseTexImage = false;
+				if ( UseSubImage )
+				{
+					int XOffset = 0;
+					int YOffset = 0;
+					glTexSubImage2D( mType, MipLevel, XOffset, YOffset, Width, Height, ExternalFormat, FinalPixelsStorage, PixelsArrayData );
+				}
+				
+				if ( UseTexImage )
+				{
+					glTexImage2D( mType, MipLevel, InternalFormat, Width, Height, 0, ExternalFormat, FinalPixelsStorage, PixelsArrayData );
+				}
 			};
-			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D(GL_APPLE_client_storage) glTexImage2D", PushTexture );
+			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D(GL_APPLE_client_storage) glSub/TexImage2D", PushTexture );
 		}
 		glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
 		Opengl::IsOkay("glTexImage2D(GL_APPLE_client_storage) glPixelStorei");
@@ -1293,9 +1370,13 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	}
 #endif
 	
+	//	try pixel buffer object on desktop
+#if !defined(OPENGL_ES)
+#endif
+	
 	//	try subimage
 	//	gr: if we find glTexImage2D faster add && !IsSameDimensions
-	if ( SubImage )
+	if ( SubImage && ! (Prefer_TexImage && !IsSameDimensions) )
 	{
 		int XOffset = 0;
 		int YOffset = 0;
@@ -1313,7 +1394,9 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 		};
 		try
 		{
-			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D subimage", PushTexture );
+			std::stringstream Context;
+			Context << FinalPixels.GetMeta() << " glTexImage2D subimage";
+			TryFunctionWithFormats( GetArrayBridge(TextureInternalFormats), GetArrayBridge(FinalPixelsFormats), Context.str(), PushTexture );
 			//	gr: crashes often on OSX... only on NPOT textures?
 			//glGenerateMipmap( mType );
 			Opengl::IsOkay( std::string(__func__) + " post mipmap" );
@@ -1358,10 +1441,11 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureU
 	
 		auto PushTexture = [&](GLenum InternalFormat,GLenum ExternalFormat)
 		{
-			ofScopeTimerWarning Timer("glTexImage2D", 10 );
 			glTexImage2D( mType, MipLevel, InternalFormat,  Width, Height, Border, ExternalFormat, FinalPixelsStorage, PixelsArrayData );
 		};
-		TryFunctionWithFormats( GetArrayBridge(TargetFormats), GetArrayBridge(FinalPixelsFormats), "glTexImage2D !subimage", PushTexture );
+		std::stringstream Context;
+		Context << FinalPixels.GetMeta() << " glTexImage2D !subimage";
+		TryFunctionWithFormats( GetArrayBridge(TargetFormats), GetArrayBridge(FinalPixelsFormats), Context.str(), PushTexture );
 
 		//	gr: crashes often on OSX... only on NPOT textures?
 		//Opengl::GenerateMipmap( mType );
@@ -1785,7 +1869,7 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 	mIndexType(GL_ASSET_INVALID),
 	mVertexDescription	( Vertex )
 {
-	Opengl::IsOkay("Opengl::CreateGeometry flush", false);
+	Opengl_IsOkayFlush();
 		
 	//	fill vertex array
 	Opengl::GenVertexArrays( 1, &mVertexArrayObject );
@@ -1846,8 +1930,13 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 
 void Opengl::TGeometry::Bind()
 {
+	Opengl_IsOkayFlush();
 	Opengl::BindVertexArray( mVertexArrayObject );
 	Opengl_IsOkay();
+
+	//	gr: this only returns true AFTER bind
+	if ( !Opengl::IsVertexArray( mVertexArrayObject ) )
+		throw Soy::AssertException("Bound VAO is reported not a VAO");
 }
 
 void Opengl::TGeometry::Unbind()
@@ -1924,10 +2013,17 @@ Opengl::TGeometry::~TGeometry()
 }
 
 //	gr: put R8 first as note4 works with glTexImage R8->RED, but not RED->RED or RED->R8
+//	gr: GLR8 doesn't work on windows8, glcore, so put GL_RED first
 const std::initializer_list<GLenum> Opengl8BitFormats =
 {
+#if defined(TARGET_WINDOWS)
+	GL_RED,
+	GL_R8,
+#else
 	GL_R8,
 	GL_RED,
+#endif
+
 #if defined(GL_LUMINANCE)
 	GL_LUMINANCE,
 #endif

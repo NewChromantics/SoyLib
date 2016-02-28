@@ -31,6 +31,11 @@ namespace Directx
 	class TTexture;
 }
 
+namespace SoyMedia
+{
+	extern prmem::Heap	DefaultHeap;
+}
+
 //	merge this + pixel format at some point
 namespace SoyMediaFormat
 {
@@ -55,8 +60,10 @@ namespace SoyMediaFormat
 		Yuv_8_88_Video = SoyPixelsFormat::Yuv_8_88_Video,
 		Yuv_8_8_8_Full = SoyPixelsFormat::Yuv_8_8_8_Full,
 		Yuv_8_8_8_Video = SoyPixelsFormat::Yuv_8_8_8_Video,
+		Yuv_844_Full = SoyPixelsFormat::Yuv_844_Full,
 		ChromaUV_8_8 = SoyPixelsFormat::ChromaUV_8_8,
 		ChromaUV_88 = SoyPixelsFormat::ChromaUV_88,
+		ChromaUV_44 = SoyPixelsFormat::ChromaUV_44,
 		Palettised_8_8 = SoyPixelsFormat::Palettised_8_8,
 		
 		NotPixels = SoyPixelsFormat::Count,
@@ -75,13 +82,24 @@ namespace SoyMediaFormat
 		
 		Mpeg2,
 		Mpeg4,
+		Mpeg4_v3,		//	windows mpeg4 variant MP43 (msmpeg4v3)
 		VC1,			//	in TS files, not sure what this is yet
 		
+		//	encoded images
+		Png,
+		Jpeg,
+		Gif,
+		Tga,
+		Bmp,
+		Psd,
+		
 		//	audio
+		Audio_AUDS,		//	fourcc from mediafoundation. means "audio stream"
 		Wave,
 		Aac,
 		Ac3,
 		Mpeg2Audio,			//	in TS files, not sure what format this is yet
+		Mp3,
 		Dts,
 		PcmAndroidRaw,		//	temp until I work out what this actually is
 		PcmLinear_8,
@@ -90,6 +108,9 @@ namespace SoyMediaFormat
 		PcmLinear_24,
 		PcmLinear_float,	//	-1..1 see SoyWave
 		
+        QuicktimeTimecode,  //  explicitly listing this until I've established what the format is
+		
+		Html,
 		Text,
 		Subtitle,
 		ClosedCaption,
@@ -106,7 +127,8 @@ namespace SoyMediaFormat
 	bool		IsAudio(Type Format);
 	bool		IsText(Type Format);
 	bool		IsH264(Type Format);
-	Type		FromFourcc(uint32 Fourcc,int H264LengthSize=-1);
+	bool		IsImage(Type Format);	//	encoded image
+	Type		FromFourcc(uint32 Fourcc,int H264LengthSize=-1,bool TryReversed=true);
 	uint32		ToFourcc(Type Format);
 	bool		IsH264Fourcc(uint32 Fourcc);
 	std::string	ToMime(Type Format);
@@ -169,6 +191,7 @@ public:
 	TStreamMeta() :
 	mCodec				( SoyMediaFormat::Invalid ),
 	mMediaTypeIndex		( 0 ),
+	mPixelWidthPadding	( 0 ),
 	mStreamIndex		( 0 ),
 	mCompressed			( false ),
 	mFramesPerSecond	( 0 ),
@@ -179,18 +202,19 @@ public:
 	mDrmProtected		( false ),
 	mMaxKeyframeSpacing	( 0 ),
 	mAverageBitRate		( 0 ),
-	mYuvMatrix			( Soy::TYuvParams::Full() ),
 	mEncodingBitRate	( 0 ),
 	mAudioSampleRate	( 0 ),
 	mAudioBytesPerPacket	( 0 ),
 	mAudioBytesPerFrame		( 0 ),
 	mAudioFramesPerPacket	( 0 ),
-	mAudioSampleCount		( 0 )
+	mAudioSampleCount		( 0 ),
+	mDecodesOutOfOrder		( false )
 	{
 	};
 	
 	void				SetMime(const std::string& Mime)	{	mCodec = SoyMediaFormat::FromMime( Mime );	}
 	std::string			GetMime() const						{	return SoyMediaFormat::ToMime( mCodec );	}
+	void				SetPixelMeta(const SoyPixelsMeta& Meta);
 	
 public:
 	SoyMediaFormat::Type	mCodec;
@@ -204,17 +228,21 @@ public:
 	float				mFramesPerSecond;	//	0 when not known. in audio this is samples per second (hz)
 	SoyTime				mDuration;
 	size_t				mEncodingBitRate;
+	bool				mDecodesOutOfOrder;
 	
 	//	windows media foundation
 	size_t				mStreamIndex;		//	windows MediaFoundation can have multiple metas for a single stream (MediaType index splits this), otherwise this would be EXTERNAL from the meta
 	size_t				mMediaTypeIndex;	//	applies to Windows MediaFoundation streams
-	
+	//	gr: should be able to integrate the padding into the transform matrix; and then set pixel dimensions to the padded size
+	//		m[0][0] = width/paddedwidth
+	//	we can then get the original size with paddedwidth*m[0][0]
+	size_t				mPixelWidthPadding;	//	we can't get the stride from an IMFMediaBuffer (the non-specialised type, not 2D) but we can pre-empty it when we get the stream info, so caching it here for now. 
+
 	//	video
 	SoyPixelsMeta		mPixelMeta;			//	could be invalid format (if unknown, so just w/h) or because its audio etc
 	bool				mInterlaced;
 	float				mVideoClockWiseRotationDegrees;	//	todo: change for a 3x3 matrix
 	bool				m3DVideo;
-	Soy::TYuvParams		mYuvMatrix;
 	bool				mDrmProtected;
 	size_t				mMaxKeyframeSpacing;	//	gr: not sure of entropy yet
 	size_t				mAverageBitRate;		//	gr: not sure of entropy yet
@@ -268,19 +296,21 @@ class TPixelBufferParams
 {
 public:
 	TPixelBufferParams() :
-	mPopFrameSync			( true ),
-	mAllowPushRejection		( true ),
-	mDebugFrameSkipping		( false ),
-	mPushBlockSleepMs		( 3 ),
-	mResetInternalTimestamp	( false ),
-	mBufferFrameSize		( 10 ),
-	mPopNearestFrame		( false )
+		mPopFrameSync			( true ),
+		mAllowPushRejection		( true ),
+		mDebugFrameSkipping		( false ),
+		mPushBlockSleepMs		( 3 ),
+		mResetInternalTimestamp	( false ),
+		mMaxBufferSize			( 10 ),
+		mMinBufferSize			( 5 ),			//	specific per-codec for OOO packets, not applicable to a lot of other things (audio may want it, text etc)
+		mPopNearestFrame		( false )
 	{
 	}
 	
 	size_t		mPushBlockSleepMs;
 	bool		mDebugFrameSkipping;
-	size_t		mBufferFrameSize;
+	size_t		mMinBufferSize;				//	require X frames to be buffered before letting any be popped, this is to cope with OOO decoding. This may need to go up with different codecs (KBBBBI vs KBI)
+	size_t		mMaxBufferSize;				//	restrict mem/platform buffer usage (platform buffers should probably be managed explicitly if there are limits)
 	bool		mResetInternalTimestamp;
 	SoyTime		mPreSeek;					//	gr: put this somewhere else!
 	bool		mPopFrameSync;				//	false to pop ASAP (out of sync)
@@ -318,7 +348,8 @@ class TMediaBufferManager
 {
 public:
 	TMediaBufferManager(const TPixelBufferParams& Params) :
-		mParams	( Params )
+		mParams	( Params ),
+		mHasEof	( false )
 	{
 		
 	}
@@ -327,6 +358,13 @@ public:
 	virtual void				CorrectDecodedFrameTimestamp(SoyTime& Timestamp);	//	adjust timestamp if neccessary
 	virtual void				ReleaseFrames()=0;
 	virtual bool				PrePushPixelBuffer(SoyTime Timestamp)=0;
+
+	void						SetMinBufferSize(size_t MinBufferSize)		{	mParams.mMinBufferSize = std::max( mParams.mMinBufferSize, MinBufferSize );	}
+	
+protected:
+	void						OnPushEof();
+	bool						HasAllFrames() const	{	return mHasEof;	}
+	size_t						GetMinBufferSize() const;
 
 public:
 	SoyEvent<const SoyTime>				mOnFramePushed;	//	decoded and pushed into buffer
@@ -345,6 +383,9 @@ protected:
 	SoyTime							mFirstTimestamp;
 	SoyTime							mAdjustmentTimestamp;
 	SoyTime							mLastTimestamp;		//	to cope with errors with incoming timestamps, we record the last output timestamp to re-adjust against
+
+private:
+	bool							mHasEof;
 };
 
 
@@ -364,14 +405,13 @@ public:
 	virtual bool		PrePushPixelBuffer(SoyTime Timestamp) override;
 	bool				PeekPixelBuffer(SoyTime Timestamp);	//	is there a new pixel buffer?
 	bool				IsPixelBufferFull() const;
-	
+
 	virtual void		ReleaseFrames() override;
 	
 	
 private:
 	std::mutex						mFrameLock;
 	std::vector<TPixelBufferFrame>	mFrames;
-	
 };
 
 
@@ -380,6 +420,7 @@ class TAudioBufferBlock
 {
 public:
 	TAudioBufferBlock() :
+		mData		( SoyMedia::DefaultHeap ),
 		mChannels	( 0 ),
 		mFrequency	( 0 )
 	{
@@ -403,7 +444,8 @@ class TAudioBufferManager : public TMediaBufferManager
 {
 public:
 	TAudioBufferManager(const TPixelBufferParams& Params) :
-	TMediaBufferManager	( Params )
+		mBlocks				( SoyMedia::DefaultHeap ),
+		TMediaBufferManager	( Params )
 	{
 	}
 	
@@ -424,6 +466,7 @@ class TTextBufferManager : public TMediaBufferManager
 {
 public:
 	TTextBufferManager(const TPixelBufferParams& Params) :
+		mBlocks				( SoyMedia::DefaultHeap ),
 		TMediaBufferManager	( Params )
 	{
 	}
@@ -444,6 +487,7 @@ class TMediaPacket
 {
 public:
 	TMediaPacket() :
+		mData			( SoyMedia::DefaultHeap ),
 		mIsKeyFrame		( false ),
 		mEncrypted		( false ),
 		mEof			( false )
@@ -485,6 +529,7 @@ class TMediaPacketBuffer
 {
 public:
 	TMediaPacketBuffer(size_t MaxBufferSize=10) :
+		mPackets				( SoyMedia::DefaultHeap ),
 		mMaxBufferSize			( MaxBufferSize ),
 		mAutoTimestampDuration	( 33ull )
 	{
@@ -522,7 +567,7 @@ private:
 class TMediaMuxer : public SoyWorkerThread
 {
 public:
-	TMediaMuxer(std::shared_ptr<TStreamWriter>& Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName="TMediaMuxer");
+	TMediaMuxer(std::shared_ptr<TStreamWriter> Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName="TMediaMuxer");
 	~TMediaMuxer();
 
 	void					SetStreams(const ArrayBridge<TStreamMeta>&& Streams);
@@ -551,10 +596,20 @@ public:
 class TMediaExtractorParams
 {
 public:
-	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs) :
-		mFilename			( Filename ),
-		mOnFrameExtracted	( OnFrameExtracted ),
-		mReadAheadMs		( ReadAheadMs )
+	//	copy but override the filename (common use)
+	TMediaExtractorParams(const std::string& Filename,const TMediaExtractorParams& OtherParams) :
+		TMediaExtractorParams	( OtherParams )
+	{
+		mFilename = Filename;
+	}
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames,bool ForceNonPlanarOutput) :
+		mFilename						( Filename ),
+		mOnFrameExtracted				( OnFrameExtracted ),
+		mReadAheadMs					( ReadAheadMs ),
+		mDiscardOldFrames				( DiscardOldFrames ),
+		mForceNonPlanarOutput			( ForceNonPlanarOutput ),
+		mDebugIntraFrameRect			( false ),
+		mDebugIntraFrameTransparency	( false )
 	{
 	}
 	
@@ -563,6 +618,14 @@ public:
 	std::string					mThreadName;
 	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
 	SoyTime						mReadAheadMs;
+
+	//	some extractors have some decoder-themed params
+	bool						mDiscardOldFrames;
+	bool						mForceNonPlanarOutput;		//	for some extractors which have pixelly settings
+	
+	//	for gifs
+	bool						mDebugIntraFrameRect;
+	bool						mDebugIntraFrameTransparency;
 };
 
 
@@ -597,17 +660,8 @@ public:
 	void							OnError(const std::string& Error);
 
 protected:
-	//	gr: maybe we need to correct timecodes in the extractor, not the decoder, as
-	//	+a) we need to sync all streams really
-	//	+b) we calc duration below
-	//	+c) dictate decode order correction here
-	//	-a) decode timecodes may be special...
-	//	gr: this is AT LEAST needed for correct stats (evident when we have 1 frame movies...)
-	void							CorrectExtractedPacketTimecode(TMediaPacket& Packet)
-	{
-		if ( Packet.mTimecode.mTime == 0 )
-			Packet.mTimecode.mTime = 1;
-	}
+	void							CorrectExtractedPacketTimecode(TMediaPacket& Packet);
+	void							OnPacketExtracted(SoyTime& Timestamp,size_t StreamIndex);
 	
 	void							OnClearError();
 	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams);
@@ -615,7 +669,8 @@ protected:
 	
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);
-
+	SoyTime							GetSeekTime() const			{	return mSeekTime;	}
+	
 private:
 	virtual bool					Iteration() override;
 	
@@ -625,7 +680,7 @@ public:
 	
 protected:
 	std::map<size_t,std::shared_ptr<TMediaPacketBuffer>>	mStreamBuffers;
-	std::function<void(const SoyTime,size_t)>	mOnPacketExtracted;
+	std::function<void(const SoyTime,size_t)>				mOnPacketExtracted;
 	
 private:
 	std::string						mFatalError;
@@ -653,7 +708,11 @@ public:
 		return !Error.empty();
 	}
 	
+	size_t							GetMinBufferSize() const				{	return IsDecodingFramesInOrder() ? 0 : 5;	}
+	
 protected:
+	virtual bool					IsDecodingFramesInOrder() const			{	return true;	}
+	
 	void							OnDecodeFrameSubmitted(const SoyTime& Time);
 	virtual bool					ProcessPacket(std::shared_ptr<TMediaPacket>& Packet);			//	return false to return the frame to the buffer and not discard
 	virtual bool					ProcessPacket(const TMediaPacket& Packet)=0;		//	return false to return the frame to the buffer and not discard
@@ -725,6 +784,8 @@ public:
 	TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManager> OutputBuffer);
 	TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer);
 	TMediaPassThroughDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TTextBufferManager> OutputBuffer);
+	
+	static bool						HandlesCodec(SoyMediaFormat::Type Format);
 	
 protected:
 	virtual bool					ProcessPacket(std::shared_ptr<TMediaPacket>& Packet) override;

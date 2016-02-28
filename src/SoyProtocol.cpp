@@ -9,6 +9,5 @@ std::map<TProtocolState::Type,std::string> TProtocolState::EnumMap =
 	{	TProtocolState::Finished,	"Finished"	},
 	{	TProtocolState::Ignore,		"Ignore"	},
 	{	TProtocolState::Disconnect,	"Disconnect"	},
-	{	TProtocolState::Abort,		"Abort"	},
 };
 

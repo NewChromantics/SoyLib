@@ -8,9 +8,23 @@
 #include <queue>
 #include <limits>
 
-#if defined(TARGET_OSX)||defined(TARGET_ANDROID)||defined(TARGET_IOS)
+
+
+#if defined(TARGET_ANDROID)||defined(TARGET_IOS)
 #include <memory>
 #define STD_ALLOC
+#endif
+
+//	OSX now uses zoned heaps
+//		vmmap <pid>
+//	to get OS mem info
+#if defined(TARGET_OSX) && !defined(STD_ALLOC)
+#include <malloc/malloc.h>
+#define ZONE_ALLOC
+#endif
+
+#if defined(TARGET_WINDOWS) && !defined(STD_ALLOC)
+#define WINHEAP_ALLOC
 #endif
 
 #if defined(TARGET_WINDOWS)
@@ -24,6 +38,22 @@
 #define __LOCATION__	prcore::ofCodeLocation( __FILE__, __LINE__ )
 
 
+namespace std
+{
+	class bad_alloc_withmessage;
+}
+
+class std::bad_alloc_withmessage : public std::bad_alloc
+{
+public:
+	bad_alloc_withmessage(const char* Message) :
+		mMessage	( Message )
+	{
+	}
+	virtual const char* what() const __noexcept	{	return mMessage;	}
+
+	const char*		mMessage;
+};
 
 class ofCodeLocation
 {
@@ -92,12 +122,22 @@ namespace prcore
 	extern prmem::Heap	Heap;		
 }
 
-namespace prmem
+namespace SoyMem
 {
+	class THeapStats;
+	class THeapMeta;
+
 	//	access all the heaps. 
 	//	Though the access is threadsafe, the data inside (ie. the memcounters) isn't
-	const ArrayInterface<prmem::HeapInfo*>&	GetHeaps();
+	//	gr: we don't want them as atomic, so consider snap shots
+	void			GetHeapMetas(ArrayBridge<THeapMeta>&& Metas);
+}
+
+//	from now on, consider anything in prmem private & deprecated until we move it
+namespace prmem
+{
 	prmem::CRTHeap&							GetCRTHeap();
+	const ArrayInterface<prmem::HeapInfo*>&	GetHeaps();
 
 	//	functor for STD deallocation (eg, with shared_ptr)
 	template<typename T>
@@ -206,17 +246,51 @@ bool operator!= (const Soy::HeapBridge<T1>& a,const Soy::HeapBridge<T2>& b) thro
 	return a.mHeap != b.mHeap;
 }
 
+
+class SoyMem::THeapStats
+{
+public:
+	THeapStats() :
+		mAllocBytes		( 0 ),
+		mAllocCount		( 0 ),
+		mAllocBytesPeak	( 0 ),
+		mAllocCountPeak	( 0 )
+	{
+	}
+
+public:
+	size_t				mAllocBytes;	//	number of bytes currently allocated (note; actual mem usage may be greater due to block size & fragmentation)
+	size_t				mAllocCount;	//	number of individual allocations (ie, #blocks in heap)
+	size_t				mAllocBytesPeak;
+	size_t				mAllocCountPeak;
+};
+
+//	gr: maybe split this up into meta & stats
+class SoyMem::THeapMeta : public THeapStats
+{
+public:
+	THeapMeta(const std::string& Name=std::string()) :
+		mName		( Name )
+	{
+	}
+
+public:
+	std::string			mName;	//	name for easy debugging purposes
+};
+std::ostream& operator<<(std::ostream &out,SoyMem::THeapMeta& in);
+
+
 //-----------------------------------------------------------------------
 //	base heap interface so we can mix our allocated heaps and the default CRT heap (which is also a heap, but hidden away)
 //-----------------------------------------------------------------------
-class prmem::HeapInfo
+class prmem::HeapInfo : public SoyMem::THeapMeta
 {
 public:
 	HeapInfo(const char* Name);
 	virtual ~HeapInfo();
 
 	inline const std::string&	GetName() const					{	return mName;	}
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	virtual HANDLE			GetHandle() const=0;			//	get win32 heap handle
 #endif
 	virtual bool			IsValid() const=0;				//	heap has been created
@@ -258,13 +332,6 @@ protected:
 		mAllocCount -= ( BlockCount > mAllocCount ) ? mAllocCount : BlockCount;
 	}
 	void					OnFailedAlloc(std::string TypeName,size_t TypeSize,size_t Elements) const;
-
-protected:
-	std::string			mName;	//	name for easy debugging purposes
-	size_t				mAllocBytes;	//	number of bytes currently allocated (note; actual mem usage may be greater due to block size & fragmentation)
-	size_t				mAllocCount;	//	number of individual allocations (ie, #blocks in heap)
-	size_t				mAllocBytesPeak;
-	size_t				mAllocCountPeak;
 };
 
 
@@ -322,12 +389,12 @@ public:
 	Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t MaxSize=0,bool DebugTrackAllocs=false);
 	~Heap();
 
-#if defined(TARGET_WINDOWS)
+	virtual bool					IsValid() const override	{	return Private_IsValid();	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+
+#if defined(WINHEAP_ALLOC)
 	virtual HANDLE					GetHandle() const			{	return mHandle;	}
-	virtual bool					IsValid() const override	{	return mHandle!=NULL;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
-#elif defined(STD_ALLOC)
-	virtual bool					IsValid() const override	{	return true;	}	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
 #endif
+
 	virtual void					EnableDebug(bool Enable) override;	//	deletes/allocates the debug tracker so we can toggle it at runtime
 	virtual const HeapDebugBase*	GetDebug() const override	{	return mHeapDebug;	}
 
@@ -336,7 +403,7 @@ public:
 	//	probe the system for the allocation size
 	uint32	GetAllocSize(void* pData) const
 	{
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 		DWORD Flags = 0;
 		SIZE_T AllocSize = HeapSize( GetHandle(), Flags, pData );
 		return AllocSize;
@@ -386,6 +453,13 @@ public:
 			if ( ENABLE_DEBUG_VERIFY_AFTER_CONSTRUCTION )
 				Debug_Validate();
 		}
+		return pAlloc;
+	}
+
+	//	allocate without construction. for new/delete operators
+	void*	AllocRaw(const size_t Size)
+	{
+		auto* pAlloc = RealAlloc<uint8>( Size );
 		return pAlloc;
 	}
 	
@@ -502,6 +576,9 @@ public:
 	template<typename TYPE>
 	bool	Free(TYPE* pObject)
 	{
+		if ( !CanFree( pObject, 1 ) )
+			return false;
+		
 		//	destruct
 		pObject->~TYPE();
 		if ( ENABLE_DEBUG_VERIFY_AFTER_DESTRUCTION )
@@ -513,6 +590,9 @@ public:
 	template<typename TYPE>
 	bool	FreeArray(TYPE* pObject,size_t Elements)
 	{
+		if ( !CanFree( pObject, Elements ) )
+			return false;
+		
 		//	no need to destruct types we don't construct
 		if ( Soy::DoConstructType<TYPE>() )
 		{
@@ -532,8 +612,13 @@ private:
 	template<typename TYPE>
 	inline TYPE*	RealAlloc(const size_t Elements)
 	{
-#if defined(TARGET_WINDOWS)
+		if ( !Private_IsValid() )
+			throw std::bad_alloc_withmessage("Allocating on uninitialised heap");
+
+#if defined(WINHEAP_ALLOC)
 		TYPE* pData = static_cast<TYPE*>( HeapAlloc( mHandle, 0x0, Elements*sizeof(TYPE) ) );
+#elif defined(ZONE_ALLOC)
+		TYPE* pData = reinterpret_cast<TYPE*>( malloc_zone_malloc( mHandle, Elements*sizeof(TYPE) ) );
 #elif defined(STD_ALLOC)
 		TYPE* pData = reinterpret_cast<TYPE*>( mAllocator.allocate( Elements*sizeof(TYPE) ) );
 #endif
@@ -553,13 +638,34 @@ private:
 		return pData;
 	}
 
+	//	some heap funcs have a check, we want to avoid double destructor calls
+	template<typename TYPE>
+	inline bool	CanFree(TYPE* pObject,const size_t Elements)
+	{
+		if ( !Private_IsValid() )
+			return false;
+
+#if defined(ZONE_ALLOC)
+		//	gr: avoid abort. find out if this is expensive
+		if ( malloc_zone_from_ptr(pObject) != mHandle )
+			return false;
+#endif
+		return true;
+	}
+
 	template<typename TYPE>
 	inline bool	RealFree(TYPE* pObject,const size_t Elements)
 	{
-#if defined(TARGET_WINDOWS)
+		//	gr: should have already been checked
+		if ( !CanFree( pObject, Elements ) )
+			return false;
+
+#if defined(WINHEAP_ALLOC)
 		//	no need to specify length, mem manager already knows the real size of pObject
 		if ( !HeapFree( mHandle, 0, pObject ) )
 			return false;
+#elif defined(ZONE_ALLOC)
+		malloc_zone_free( mHandle, pObject );
 #elif defined(STD_ALLOC)
 		mAllocator.deallocate( reinterpret_cast<char*>(pObject), Elements );
 #endif
@@ -572,13 +678,26 @@ private:
 		return true;
 	}
 
+	//	need non-virtual IsValid()
+	//	same as IsValid, but without using virtual pointers so this can be called before this class has been properly constructed
+#if defined(WINHEAP_ALLOC)
+	bool					Private_IsValid() const 	{	return this && mHandle!=nullptr;	}	
+#elif defined(ZONE_ALLOC)
+	bool					Private_IsValid() const 	{	return mHandle!=nullptr;	}
+#elif defined(STD_ALLOC)
+	bool					Private_IsValid() const 	{	return true;	}
+#endif
+
+
 private:
 	HeapDebugBase*			mHeapDebug;	//	debug information
 	Soy::HeapBridge<char>	mBridge;	//	many/all STL things need a reference, and as this costs so little, just have it as a member
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	HANDLE					mHandle;	//	win32 handle to heap
+#elif defined(ZONE_ALLOC)
+	malloc_zone_t*			mHandle;	//	osx malloc zone
 #elif defined(STD_ALLOC)
-	std::allocator<char>	mAllocator;	//	gr: this just uses new and delete. Repalce this with memory zones
+	std::allocator<char>	mAllocator;	//	gr: this just uses new and delete
 #endif
 };
 
@@ -590,7 +709,7 @@ class prmem::CRTHeap : public prmem::HeapInfo
 public:
 	CRTHeap(bool EnableDebug);
 	
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	virtual HANDLE			GetHandle() const override;
 	virtual bool			IsValid() const override	{	return GetHandle() != nullptr;	}
 #else
@@ -660,3 +779,4 @@ inline void Soy::HeapBridge<T>::deallocate (pointer p, size_type num)
 {
 	mHeap.FreeArray<T>( p, num );
 }
+

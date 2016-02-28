@@ -7,7 +7,9 @@
 namespace Avf
 {
 	class TAsset;
-	
+	SoyMediaFormat::Type			SoyMediaFormat_FromFourcc(uint32 Fourcc,int H264LengthSize);
+	void							GetFileExtensions(ArrayBridge<std::string>&& Extensions);
+
 #if defined(__OBJC__)
 	std::shared_ptr<TMediaPacket>	GetH264Packet(CMSampleBufferRef SampleBuffer,size_t StreamIndex);
 	std::shared_ptr<TMediaPacket>	GetFormatDescriptionPacket(CMSampleBufferRef SampleBuffer,size_t ParamIndex,SoyMediaFormat::Type Format,size_t StreamIndex);
@@ -27,6 +29,14 @@ namespace Avf
 	bool							IsOkay(OSStatus Error,const std::string& Context,bool Throw=true);
 	std::string						GetString(OSStatus Status);
 	CFStringRef						GetProfile(H264Profile::Type Profile);
+
+	std::string						GetPixelFormatString(OSType Format);
+	std::string						GetPixelFormatString(id Format);
+	std::string						GetPixelFormatString(NSNumber* Format);
+	OSType							GetPlatformPixelFormat(SoyPixelsFormat::Type Format);
+	SoyPixelsFormat::Type			GetPixelFormat(OSType Format);
+	SoyPixelsFormat::Type			GetPixelFormat(NSNumber* Format);
+
 #endif
 }
 

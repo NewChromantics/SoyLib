@@ -9,8 +9,6 @@
 #include <netdb.h>	//	gethostbyname
 #endif
 
-//	one heap for sockets. though this seems bad and would have a lot of clashes. Currently for debug really
-prmem::Heap TChannelSocket_Heap( true, true, "TChannelSocket" );
 
 #define PORT_ANY	0
 
@@ -126,8 +124,7 @@ std::ostream& operator<< (std::ostream &out,const SoySockAddr &Addr)
 	auto Error = getnameinfo( Addr.GetSockAddr(), Addr.GetSockAddrLength(), Host.GetArray(), size_cast<socklen_t>(Host.GetDataSize()), Port.GetArray(), size_cast<socklen_t>(Port.GetDataSize()), Flags );
 	if ( Error != 0 )
 	{
-		Soy::Winsock::HasError("getnameinfo");
-		out << "[failed to get name for sockaddr]";
+		out << "[failed to get name for sockaddr getnameinfo " << ::Platform::GetErrorString(Soy::Winsock::GetError()) << "]";
 		return out;
 	}
 	out << Host.GetArray() << ":" << Port.GetArray();
@@ -176,7 +173,7 @@ bool Soy::Winsock::Init()
 	auto Error = WSAStartup(wVersionRequested, &wsaData);
 	if ( Error != 0 )
 	{
-		std::Debug << "Failed to initialise Winsock. " << Soy::Platform::GetLastErrorString() << std::endl; 
+		std::Debug << "Failed to initialise Winsock. " << ::Platform::GetLastErrorString() << std::endl; 
 		return false;
 	}
 #endif
@@ -196,7 +193,7 @@ int Soy::Winsock::GetError()
 #if defined(TARGET_WINDOWS)
 	return WSAGetLastError();
 #elif defined(TARGET_POSIX)
-	return Soy::Platform::GetLastError();
+	return ::Platform::GetLastError();
 #endif
 }
 
@@ -217,7 +214,7 @@ int Soy::Winsock::GetError()
 
 bool Soy::Winsock::HasError(const std::string& ErrorContext,bool BlockIsError,int Error,std::ostream* ErrorStream)
 {
-	std::string ErrorString = Soy::Platform::GetErrorString( Error );
+	std::string ErrorString = ::Platform::GetErrorString( Error );
 
 	switch ( Error )
 	{
@@ -405,8 +402,10 @@ SoyRef SoySocket::WaitForClient()
 	Client.mSocket = ::accept( mSocket, pSockAddr, &SockAddrLen );
 	if ( Client.mSocket == INVALID_SOCKET )
 	{
+		//	the << on sockaddr clears the error so grab it now
+		auto Error = Soy::Winsock::GetError();
 		//	get error when socket has been closed
-		Soy::Winsock::HasError(Soy::StreamToString(std::stringstream() << "Accept(" << Client << ")"), false);
+		Soy::Winsock::HasError( Soy::StreamToString(std::stringstream() << "Accept(" << Client << ")" ), false, Error );
 		return SoyRef();
 	}
 	
@@ -533,7 +532,7 @@ SoyRef SoySocket::Connect(std::string Address)
 		}
 		else
 		{
-			std::Debug << "connect(" << Address << ") error: " << Soy::Platform::GetErrorString( Error ) << std::endl;
+			std::Debug << "connect(" << Address << ") error: " << Platform::GetErrorString( Error ) << std::endl;
 			return SoyRef();
 		}
 	}
