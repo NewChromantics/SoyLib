@@ -24,7 +24,12 @@ namespace Java
 	SoyListenerId	mShutdownThreadListener;
 	SoyListenerId	mInitThreadListener;
 
-	std::map<std::thread::id,std::shared_ptr<Java::TThread>>	Threads;
+	namespace Private
+	{
+		//	gr: using recursive as thread calls often have to get a vm and call themselves again
+		std::recursive_mutex										ThreadsLock;
+		std::map<std::thread::id,std::shared_ptr<Java::TThread>>	Threads;
+	}
 }
 
 
@@ -56,11 +61,13 @@ void Java::ShutdownThread(SoyThread& Thread)
 	if ( vm )
 	{
 		auto Thread = std::this_thread::get_id();
-		auto Threadit = Java::Threads.find( Thread );
-		if ( Threadit != Java::Threads.end() )
+		
+		std::lock_guard<std::recursive_mutex> Lock( Private::ThreadsLock );
+		auto Threadit = Private::Threads.find( Thread );
+		if ( Threadit != Private::Threads.end() )
 		{
 			auto pThread = Threadit->second;
-			Java::Threads.erase( Threadit );
+			Private::Threads.erase( Threadit );
 			
 			//	detach & shutdown
 			pThread.reset();
@@ -73,7 +80,8 @@ bool Java::HasThread()
 {
 	auto ThreadId = std::this_thread::get_id();
 
-	return ( Java::Threads.find( ThreadId ) != Java::Threads.end() );
+	std::lock_guard<std::recursive_mutex> Lock( Private::ThreadsLock );
+	return ( Private::Threads.find( ThreadId ) != Private::Threads.end() );
 }
 
 
@@ -84,14 +92,38 @@ Java::TThread& Java::GetThread()
 	auto& vm = *Java::vm;
 	
 	auto ThreadId = std::this_thread::get_id();
-	
-	auto& pThread = Java::Threads[ThreadId];
+
+	//	gr: keep getting a crash playing a movie over & over in this func, maybe map multithread access
+	Private::ThreadsLock.lock();
+	auto pThread = Private::Threads[ThreadId];
+	Private::ThreadsLock.unlock();
 	
 	if ( !pThread )
 	{
-		std::Debug << "Allocating new java thread in GetThread(" << ThreadId << ")..." << std::endl;
-		pThread.reset( new Java::TThread( vm ) );
-		pThread->Init();
+		try
+		{
+			std::lock_guard<std::recursive_mutex> Lock( Private::ThreadsLock );
+			std::Debug << "Allocating new java thread in GetThread(" << ThreadId << ")..." << std::endl;
+			pThread.reset( new Java::TThread( vm ) );
+			Soy::Assert( pThread!=nullptr, "Failed to allocate java thread" );
+			Private::Threads[ThreadId] = pThread;
+			
+			//	assume deadlock wont happen due to recursive mutex
+			pThread->Init();
+			std::Debug << "new java thread initialised in GetThread(" << ThreadId << ")..." << std::endl;
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Exception allocating new java thread[" << ThreadId << "]. Unassigning and rethrowing. " << e.what() << std::endl;
+			Private::Threads[ThreadId].reset();
+			throw;
+		}
+		catch(...)
+		{
+			std::Debug << "Unknown exception allocating new java thread[" << ThreadId << "]. Unassigning and rethrowing. " << std::endl;
+			Private::Threads[ThreadId].reset();
+			throw;
+		}
 	}
 	
 	//	register thread init & cleanup first time we use a java context
@@ -107,6 +139,9 @@ Java::TThread& Java::GetThread()
 JNIEnv& Java::GetContext()
 {
 	auto& Thread = GetThread();
+	
+	Soy::Assert( Thread.mThreadEnv != nullptr, "Java current thread env is null");
+	
 	return *Thread.mThreadEnv;
 }
 
@@ -248,6 +283,36 @@ bool CatchJavaException(const std::string& ExceptionClass,const std::string& Con
 	//	todo
 	ThrowJavaException( Context, true );
 	return false;
+}
+
+
+std::string Platform::GetSdCardDirectory()
+{
+	//	get the SD card path
+	TJniClass EnvClass("android.os.Environment");
+	TJniClass FileClass("java.io.File");
+	auto ExternalStorageSig = GetSignature_ObjectReturn(FileClass);
+	
+	auto Method = EnvClass.GetStaticMethod("getExternalStorageDirectory", ExternalStorageSig );
+	ThrowJavaException("android.os.Environment -> GetStaticMethod getExternalStorageDirectory()");
+	
+	auto ExternalPathj = java().CallStaticObjectMethod( EnvClass.GetWeakClass(), Method );
+	ThrowJavaException("SetDataSourceSdCard: call getExternalStorageDirectory()");
+	
+	TJniObject ExternalPath( ExternalPathj, FileClass.GetWeakClass(), "java.io.File" );
+	auto ExtPath = ExternalPath.CallStringMethod("getAbsolutePath");
+	
+	//std::Debug << "Got sdcard path as: "  << ExtPath << std::endl;
+	
+	return ExtPath;
+}
+
+
+
+std::string Java::GetBundleIdentifier()
+{
+	//	todo: http://stackoverflow.com/a/8935892/355753
+	return "Soy";
 }
 
 
@@ -408,6 +473,12 @@ std::ostream& operator<<(std::ostream &out,const TBufferMeta& in)
 {
 	out << "TBufferMeta(limit=" << in.mLimit << ",mCapacity=" << in.mCapacity << ",mOffset=" << in.mOffset << ",mposition=" << in.mPosition << ")";
 	return out;
+}
+
+size_t Java::GetBufferSize(TJniObject& Buffer)
+{
+	TBufferMeta Meta(Buffer);
+	return Meta.GetSize(-1);
 }
 
 
@@ -1514,28 +1585,12 @@ void JniMediaPlayer::SetDataSourceAssets(const std::string& Path)
 }
 
 
+
 void JniMediaPlayer::SetDataSourceSdCard(const std::string& Path)
 {
-	std::Debug << __func__ << std::endl;
-	
-	//	get the SD card path
-	TJniClass EnvClass("android.os.Environment");
-	TJniClass FileClass("java.io.File");
-	auto ExternalStorageSig = GetSignature_ObjectReturn(FileClass);
-
-	auto Method = EnvClass.GetStaticMethod("getExternalStorageDirectory", ExternalStorageSig );
-	ThrowJavaException("android.os.Environment -> GetStaticMethod getExternalStorageDirectory()");
-	
-	auto ExternalPathj = java().CallStaticObjectMethod( EnvClass.GetWeakClass(), Method );
-	ThrowJavaException("SetDataSourceSdCard: call getExternalStorageDirectory()");
-	
-	TJniObject ExternalPath( ExternalPathj, FileClass.GetWeakClass(), "java.io.File" );
-	auto ExtPath = ExternalPath.CallStringMethod("getAbsolutePath");
-
-	std::Debug << "Got sdcard path as: "  << ExtPath << std::endl;
-	
+	auto SdcardPath = Platform::GetSdCardDirectory();
 	std::stringstream FullPath;
-	FullPath << ExtPath << "/" << Path;
+	FullPath << SdcardPath << "/" << Path;
 	SetDataSourcePath( FullPath.str() );
 }
 
@@ -1846,7 +1901,7 @@ ssize_t Java::TFileHandle::Seek()
 	if ( Position == (off_t)-1 )
 	{
 		std::stringstream Error;
-		Error << "Java file handle seek/tell(mDoneInitialSeek=" << mDoneInitialSeek << ") failed; " << Soy::Platform::GetLastErrorString();
+		Error << "Java file handle seek/tell(mDoneInitialSeek=" << mDoneInitialSeek << ") failed; " << Platform::GetLastErrorString();
 		throw Soy::AssertException( Error.str() );
 	}
 
@@ -1894,7 +1949,7 @@ void Java::TFileHandle::Read(ArrayBridge<uint8>&& Data,bool& Eof)
 	if ( BytesRead == -1 )
 	{
 		std::stringstream Error;
-		Error << "Error reading file: " << Soy::Platform::GetLastErrorString();
+		Error << "Error reading file: " << Platform::GetLastErrorString();
 		throw Soy::AssertException( Error.str() );
 	}
 	
@@ -2130,13 +2185,39 @@ Java::TRandomAccessFileHandle::~TRandomAccessFileHandle()
 
 std::shared_ptr<Java::TFileHandle> Java::AllocFileHandle(const std::string& Filename)
 {
+	//	if zip doesn't work (eg. jar missing) let it try the apk
+	std::string FirstError;
 	if ( Soy::StringContains( Filename, "!", true ) )
 	{
-		return std::make_shared<Java::TZipFileHandle>( Filename );
+		try
+		{
+			return std::make_shared<Java::TZipFileHandle>( Filename );
+		}
+		catch(std::exception& e)
+		{
+			FirstError = e.what();
+		}
 	}
-	else if ( Soy::StringBeginsWith( Filename, "apk:", false ) )
+	
+	//	hack into apk: filename
+	std::string Filename2 = Filename;
 	{
-		return std::make_shared<Java::TApkFileHandle>( Filename );
+		std::string ApkMidPoint = ".apk!/assets/";
+		auto ApkPos = Filename.find(ApkMidPoint);
+		if ( ApkPos != Filename.npos )
+		{
+			std::stringstream NewFilename;
+			NewFilename << "apk:";
+			auto AssetFilename = Filename.substr( ApkPos + ApkMidPoint.length() );
+			NewFilename << AssetFilename;
+			Filename2 = NewFilename.str();
+			std::Debug << "Extracted apk filename [" << Filename2  << "] from [" << Filename << "]" << std::endl;
+		}
+	}
+	
+	if ( Soy::StringBeginsWith( Filename2, "apk:", false ) )
+	{
+		return std::make_shared<Java::TApkFileHandle>( Filename2 );
 	}
 	else
 	{
@@ -2157,6 +2238,15 @@ Java::TFileHandleStreamReader::~TFileHandleStreamReader()
 	WaitToFinish();
 	mHandle.reset();
 }
+
+void Java::TFileHandleStreamReader::Shutdown() __noexcept
+{
+	//	need to lock? does read & shutdown never happen simulatenously?
+	std::Debug << __func__ << " start" << std::endl;
+	mHandle.reset();
+	std::Debug << __func__ << " end" <<std::endl;
+}
+
 
 bool Java::TFileHandleStreamReader::Read(TStreamBuffer& Buffer)
 {
@@ -2187,8 +2277,20 @@ Java::TLocalRefStack::TLocalRefStack(size_t MaxLocals)
 Java::TLocalRefStack::~TLocalRefStack()
 {
 	jobject ResultIn = nullptr;
-	auto ResultOut = java().PopLocalFrame( ResultIn );
-	Java::IsOkay( __func__ );
+	
+	try
+	{
+		auto ResultOut = java().PopLocalFrame( ResultIn );
+		Java::IsOkay( __func__ );
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Exception in " << __func__ << ": " << e.what() << std::endl;
+	}
+	catch(...)
+	{
+		std::Debug << "Unknown Exception in " << __func__ << std::endl;
+	}
 }
 
 

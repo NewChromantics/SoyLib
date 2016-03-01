@@ -338,7 +338,7 @@ std::string SoyThread::GetCurrentThreadName()
 	}
 	else
 	{
-		OldThreadName = Soy::Platform::GetLastErrorString();
+		OldThreadName = Platform::GetLastErrorString();
 	}
 	
 	return OldThreadName;
@@ -393,7 +393,7 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 	}
 	else
 	{
-		std::string Error = (Result==ERANGE) ? "Name too long" : Soy::Platform::GetErrorString(Result);
+		std::string Error = (Result==ERANGE) ? "Name too long" : Platform::GetErrorString(Result);
 		std::Debug << "Failed to change thread name from " << OldThreadName << " to " << Name << ": " << Error << std::endl;
 	}
 
@@ -541,7 +541,10 @@ void SoyWorkerThread::Start(bool ThrowIfAlreadyStarted)
 {
 	//	already have a thread
 	if ( !ThrowIfAlreadyStarted && HasThread() )
+	{
+		Wake();
 		return;
+	}
 	if ( !Soy::Assert( !HasThread(), "Thread already created" ) )
 		return;
 	
@@ -552,6 +555,13 @@ void SoyWorkerThread::Start(bool ThrowIfAlreadyStarted)
 void SoyWorkerThread::Thread()
 {
 	SoyWorker::Start();
+	
+	//	when this exits, we should stop, to break the thread out of it's loop
+	if ( this->IsThreadRunning() )
+	{
+		std::Debug << "SoyWorkerThread " << GetThreadName() << " finished, but not stopped. Stopping to end thread." << std::endl;
+		SoyThread::Stop(false);
+	}
 }
 
 void SoyThread::CleanupHeap()

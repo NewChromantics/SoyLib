@@ -1,7 +1,36 @@
 #include "SoyHttp.h"
 #include <regex>
 #include "SoyStream.h"
+#include "SoyMedia.h"
 
+
+
+void Http::TCommonProtocol::SetContent(const std::string& Content,SoyMediaFormat::Type Format)
+{
+	Soy::Assert( mContent.IsEmpty(), "Content already set" );
+	Soy::Assert( mWriteContent==nullptr, "Content has a write-content function set");
+	
+	mContentMimeType = SoyMediaFormat::ToMime( Format );
+	Soy::StringToArray( Content, GetArrayBridge( mContent ) );
+	mContentLength = mContent.GetDataSize();
+}
+
+
+void Http::TCommonProtocol::SetContent(const ArrayBridge<char>& Data,SoyMediaFormat::Type Format)
+{
+	Soy::Assert( mContent.IsEmpty(), "Content already set" );
+	Soy::Assert( mWriteContent==nullptr, "Content has a write-content function set");
+	
+	mContent.Copy( Data );
+	mContentMimeType = SoyMediaFormat::ToMime( Format );
+	mContentLength = mContent.GetDataSize();
+}
+
+
+void Http::TCommonProtocol::SetContentType(SoyMediaFormat::Type Format)
+{
+	mContentMimeType = SoyMediaFormat::ToMime( Format );
+}
 
 
 void Http::TCommonProtocol::BakeHeaders()
@@ -10,8 +39,17 @@ void Http::TCommonProtocol::BakeHeaders()
 	if ( mKeepAlive )
 		mHeaders["Connection"] = "keep-alive";
 
-	//	remove this ambiguity!
-	if ( mWriteContent )
+	
+	if ( mChunkedContent )
+	{
+		Soy::Assert( mContent.IsEmpty(), "Chunked Content, but also has content");
+		Soy::Assert( mWriteContent==nullptr, "Chunked Content, but also has write content func");
+		mHeaders["Transfer-Encoding"] = "chunked";
+
+		//	http://stackoverflow.com/a/26009085/355753
+		mHeaders["Cache-Control"] = "no-cache";
+	}
+	else if ( mWriteContent )	//	remove this ambiguity!
 	{
 		Soy::Assert( mContent.IsEmpty(), "WriteContent callback, but also has content");
 		//Soy::Assert( mContentLength==0, "WriteContent callback, but also has content length");
@@ -48,8 +86,34 @@ void Http::TCommonProtocol::WriteHeaders(TStreamBuffer& Buffer) const
 
 void Http::TCommonProtocol::WriteContent(TStreamBuffer& Buffer)
 {
-	//	write data
-	if ( mWriteContent )
+	if ( mChunkedContent )
+	{
+		//	keep pushing data until eof
+		auto& Content = *mChunkedContent;
+		while ( true )
+		{
+			//	done!
+			if ( Content.HasEndOfStream() && Content.GetBufferedSize() == 0 )
+				break;
+			
+			try
+			{
+				Http::TChunkedProtocol Chunk( *mChunkedContent );
+				Chunk.Encode( Buffer );
+			}
+			catch(std::exception& e)
+			{
+				std::stringstream Error;
+				Error << "Exception whilst chunking HTTP content; " << e.what();
+				std::Debug << Error.str() << std::endl;
+				static bool PushExceptionData = true;
+				if ( PushExceptionData )
+					Buffer.Push( Error.str() );
+				break;
+			}
+		}
+	}
+	else if ( mWriteContent )
 	{
 		//	this could block for infinite streaming, but should be writing to buffer so data still gets out! woooo!
 		mWriteContent( Buffer );
@@ -70,16 +134,18 @@ void Http::TCommonProtocol::WriteContent(TStreamBuffer& Buffer)
 
 
 Http::TResponseProtocol::TResponseProtocol() :
-	TCommonProtocol		( ),
-	mResponseCode		( 0 ),
-	mHeadersComplete	( false )
+	TCommonProtocol		( )
 {
 }
 
+Http::TResponseProtocol::TResponseProtocol(TStreamBuffer& ChunkedDataBuffer) :
+	TCommonProtocol		( ChunkedDataBuffer )
+{
+}
+
+
 Http::TResponseProtocol::TResponseProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback,size_t ContentLength) :
-	TCommonProtocol		( WriteContentCallback, ContentLength ),
-	mResponseCode		( 0 ),
-	mHeadersComplete	( false )
+	TCommonProtocol		( WriteContentCallback, ContentLength )
 {
 }
 
@@ -88,6 +154,16 @@ void Http::TResponseProtocol::Encode(TStreamBuffer& Buffer)
 {
 	size_t ResultCode = 200;
 	std::string ResultString = "OK";
+
+	//	specific response
+	if ( mResponseCode != 0 )
+	{
+		ResultCode = mResponseCode;
+	}
+	if ( !mUrl.empty() )
+	{
+		ResultString = mUrl;
+	}
 
 	//	write request header
 	{
@@ -110,7 +186,7 @@ void Http::TResponseProtocol::Encode(TStreamBuffer& Buffer)
 }
 
 
-TProtocolState::Type Http::TResponseProtocol::Decode(TStreamBuffer& Buffer)
+TProtocolState::Type Http::TCommonProtocol::Decode(TStreamBuffer& Buffer)
 {
 	//	read next header
 	while ( !mHeadersComplete )
@@ -136,7 +212,7 @@ TProtocolState::Type Http::TResponseProtocol::Decode(TStreamBuffer& Buffer)
 	return TProtocolState::Finished;
 }
 
-void Http::TResponseProtocol::PushHeader(const std::string& Header)
+void Http::TCommonProtocol::PushHeader(const std::string& Header)
 {
 	auto& mResponseUrl = mUrl;
 	
@@ -149,7 +225,7 @@ void Http::TResponseProtocol::PushHeader(const std::string& Header)
 	
 	//	check for HTTP response header
 	{
-		std::regex ResponsePattern("^HTTP/1.[01] ([0-9]+) (.*)$", std::regex::icase );
+		std::regex ResponsePattern("^HTTP/[12].[01] ([0-9]+) (.*)$", std::regex::icase );
 		std::smatch Match;
 		if ( std::regex_match( Header, Match, ResponsePattern ) )
 		{
@@ -165,16 +241,19 @@ void Http::TResponseProtocol::PushHeader(const std::string& Header)
 
 	//	check for HTTP request header
 	{
-		std::regex RequestPattern("^(GET|POST) /(.*) HTTP/1.([0-9])$", std::regex::icase );
+		std::regex RequestPattern("^(GET|POST) /(.*) HTTP/([12]).([01])$", std::regex::icase );
 		std::smatch Match;
 		if ( std::regex_match( Header, Match, RequestPattern ) )
 		{
 			Soy::Assert( !HasResponseHeader(), "Already matched response header" );
 			Soy::Assert( !HasRequestHeader(), "Already matched request header" );
 			
-			mRequestMethod = Match[1].str();
+			mMethod = Match[1].str();
 			mUrl = std::string("/") + Match[2].str();
-			mRequestProtocolVersion = Match[3].str();
+			
+			std::stringstream VersionString;
+			VersionString << Match[3].str() << '.' << Match[4].str();
+			mRequestProtocolVersion = Soy::TVersion( VersionString.str() );
 			return;
 		}
 	}
@@ -209,7 +288,7 @@ void Http::TResponseProtocol::PushHeader(const std::string& Header)
 	mHeaders[Key] = Value;
 }
 
-bool Http::TResponseProtocol::ParseSpecificHeader(const std::string& Key,const std::string& Value)
+bool Http::TCommonProtocol::ParseSpecificHeader(const std::string& Key,const std::string& Value)
 {
 	if ( Soy::StringMatches(Key,"Content-length", false ) )
 	{
@@ -238,6 +317,11 @@ bool Http::TResponseProtocol::ParseSpecificHeader(const std::string& Key,const s
 
 void Http::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 {
+	//	set a default if method not specified
+	//	gr: this was set in the constructor, but now for decoding we want to initialise it blank
+	if ( mMethod.empty() )
+		mMethod = "GET";
+	
 	Soy::Assert( mMethod=="GET" || mMethod=="POST", "Invalid method for HTTP request" );
 
 	//	write request header
@@ -262,4 +346,62 @@ void Http::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 	WriteContent( Buffer );
 
 }
+
+
+Http::TChunkedProtocol::TChunkedProtocol(TStreamBuffer& Input,size_t MinChunkSize,size_t MaxChunkSize) :
+	mInput			( Input ),
+	mMinChunkSize	( MinChunkSize ),
+	mMaxChunkSize	( MaxChunkSize )
+{
+	
+}
+
+void Http::TChunkedProtocol::Encode(TStreamBuffer& Output)
+{
+	//	add some conditional here to stop thread spinning
+	//	also need something to break out when we want to stop the thread
+	while ( true )
+	{
+		//	spin
+		std::this_thread::sleep_for( std::chrono::milliseconds(10) );
+		
+		//	wait for min data
+		if ( !mInput.HasEndOfStream() && mInput.GetBufferedSize() < mMinChunkSize )
+		{
+			std::Debug << "Http chunked data waiting for data: " << mInput.GetBufferedSize() << "<" << mMinChunkSize << std::endl;
+			continue;
+		}
+		
+		//	eat chunk
+		Array<uint8> ChunkData;
+		
+		//	gr: docs don't seem to mention a max
+		auto EatSize = std::min( mMaxChunkSize, mInput.GetBufferedSize() );
+
+		//	eof, so 0 is valid
+		if ( EatSize > 0 )
+		{
+			if ( !mInput.Pop( EatSize, GetArrayBridge(ChunkData) ) )
+			{
+				std::Debug << "Http chunked data failed to pop " << EatSize << "/" << mInput.GetBufferedSize() << std::endl;
+				continue;
+			}
+		}
+		
+		//	write to output
+		//	size in hex LINEFEED
+		//	data LINEFEED
+		BufferArray<char,2> LineFeed;
+		LineFeed.PushBack('\r');
+		LineFeed.PushBack('\n');
+		std::stringstream ChunkPrefix;
+		ChunkPrefix << std::hex << EatSize;
+		Output.Push( ChunkPrefix.str() );
+		Output.Push( GetArrayBridge(LineFeed) );
+		Output.Push( GetArrayBridge(ChunkData) );
+		Output.Push( GetArrayBridge(LineFeed) );
+	}
+	
+}
+
 

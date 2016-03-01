@@ -56,7 +56,17 @@ namespace Soy
 	//	maybe not "math" ?
 	class THsl;
 	class TRgb;
+	
+	typedef vec3x<uint8> TRgb8;
+	typedef vec4x<uint8> TRgba8;
 }
+
+
+namespace SoyMath
+{
+	float3x3	GetFlipMatrix3x3();
+};
+
 
 //	expanded std functions
 namespace std

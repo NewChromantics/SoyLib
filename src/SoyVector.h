@@ -361,13 +361,20 @@ public:
 	{
 	}
 	
-	TYPE	Left() const	{	return x;	}
-	TYPE	Right() const	{	return x+w;	}
-	TYPE	Top() const		{	return y;	}
-	TYPE	Bottom() const	{	return y+h;	}
+	TYPE	Left() const		{	return x;	}
+	TYPE	Right() const		{	return x+w-1;	}
+	TYPE	Top() const			{	return y;	}
+	TYPE	Bottom() const		{	return y+h-1;	}
+	TYPE	GetWidth() const	{	return w;	}
+	TYPE	GetHeight() const	{	return h;	}
 	vec4x<TYPE>	GetVec4() const	{	return vec4x<TYPE>(x,y,w,h);	}
 	void	FitToRect(const Rectx& Parent);		//	align into rect (scale down, scale up, move etc). Kinda assume this is normalised...
 	
+	bool	operator==(const Rectx& that) const	{	return (x==that.x) && (y==that.y) && (w==that.w) && (h==that.h);	}
+	bool	operator!=(const Rectx& that) const	{	return !(*this == that);	}
+	
+	
+public:
 	TYPE	x;
 	TYPE	y;
 	TYPE	w;

@@ -116,7 +116,7 @@ SoyPixelsFormat::Type Directx::GetFormat(DXGI_FORMAT Format)
 
 std::string Directx::GetEnumString(HRESULT Error)	
 {
-	return Soy::Platform::GetErrorString( Error );	
+	return Platform::GetErrorString( Error );	
 }
 
 //	gr: move this to generic Platform::IsOkay for windows

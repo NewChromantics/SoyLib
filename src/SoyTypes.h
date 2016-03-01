@@ -62,6 +62,26 @@ template<typename TYPE>
 class ArrayInterface;
 
 
+namespace Soy
+{
+	//	http://stackoverflow.com/a/4956493/355753
+	template <typename T>
+	inline T SwapEndian(T u)
+	{
+		union
+		{
+			T		u;
+			uint8	u8[sizeof(T)];
+		} source, dest;
+		
+		source.u = u;
+		
+		for (size_t k = 0; k < sizeof(T); k++)
+			dest.u8[k] = source.u8[sizeof(T) - k - 1];
+		
+		return dest.u;
+	}
+}
 
 namespace Soy
 {
@@ -286,20 +306,17 @@ namespace Soy
 class SoyThread;
 
 
-namespace Soy
+namespace Platform
 {
-	namespace Platform
-	{
-		bool				Init();
+	bool				Init();
 
-		void				FlushLastError();
-		int					GetLastError(bool Flush=true);	//	gr: default on OSX was flushing for winsock...
-		std::string			GetErrorString(int Error);
+	void				FlushLastError();
+	int					GetLastError(bool Flush=true);	//	gr: default on OSX was flushing for winsock...
+	std::string			GetErrorString(int Error);
 #if defined(TARGET_WINDOWS)
-		std::string			GetErrorString(HRESULT Error);
+	std::string			GetErrorString(HRESULT Error);
 #endif
-		inline std::string	GetLastErrorString()	{	return GetErrorString( GetLastError() );	}
-	}
+	inline std::string	GetLastErrorString()	{	return GetErrorString( GetLastError() );	}
 };
 
 template<typename TYPE>
@@ -308,7 +325,6 @@ class ArrayBridge;
 namespace Soy
 {
 	//	gr: move file things to their own files!
-	void		CreateDirectory(const std::string& Path);	//	will strip filenames
 	void		FileToArray(ArrayBridge<char>& Data,std::string Filename);
 	inline void	FileToArray(ArrayBridge<char>&& Data,std::string Filename)		{	FileToArray( Data, Filename );	}
 	void		ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename);
@@ -323,15 +339,6 @@ namespace Soy
 	bool		FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::ostream& Error);
 	inline bool	FileToStringLines(std::string Filename,ArrayBridge<std::string>&& StringLines,std::ostream& Error)	{	return FileToStringLines( Filename, StringLines, Error );	}
 }
-
-
-namespace Soy
-{
-	//	http://www.adp-gmbh.ch/cpp/common/base64.html
-	void		base64_encode(ArrayBridge<char>& Encoded,const ArrayBridge<char>& Decoded);
-	void		base64_decode(const ArrayBridge<char>& Encoded,ArrayBridge<char>& Decoded);
-};
-
 
 
 

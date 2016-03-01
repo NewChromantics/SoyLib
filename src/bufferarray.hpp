@@ -52,6 +52,13 @@ public:
 		PushBackArray( CArray );
 	}
 
+	//	construct from a c++11 initialiser list. BufferArray<T,N> x = {a,b};
+	explicit BufferArray(const std::initializer_list<T>& List)
+	: moffset(0)
+	{
+		PushBackArray( List );
+	}
+
 	~BufferArray()
 	{
 	}
@@ -238,6 +245,14 @@ public:
 			memcpy( pNewData, CArray, CARRAYSIZE * sizeof(T) );
 		}
 	}
+	
+	void PushBackArray(const std::initializer_list<T>& List)
+	{
+		//	gr: if we ever need massive lists maybe we can do non-complex copies
+		for ( auto Element : List )
+			PushBack( Element );
+	}
+
 
 	T& PopBack()
 	{
@@ -404,7 +419,7 @@ public:
 	}
 
 	template<class ARRAYTYPE>
-	inline bool	operator==(const ARRAYTYPE& Array)
+	inline bool	operator==(const ARRAYTYPE& Array) const
 	{
 		auto ThisBridge = GetArrayBridge( *this );
 		auto ThatBridge = GetArrayBridge( Array );
@@ -412,7 +427,7 @@ public:
 	}
 
 	template<class ARRAYTYPE>
-	inline bool	operator!=(const ARRAYTYPE& Array)
+	inline bool	operator!=(const ARRAYTYPE& Array) const
 	{
 		auto ThisBridge = GetArrayBridge( *this );
 		auto ThatBridge = GetArrayBridge( Array );

@@ -157,21 +157,41 @@ std::string	Soy::StringJoin(const std::vector<std::string>& Strings,const std::s
 
 
 
-std::string Soy::ArrayToString(const ArrayBridge<char>& Array)
+std::string Soy::ArrayToString(const ArrayBridge<char>& Array,size_t Limit)
 {
 	std::stringstream Stream;
-	ArrayToString( Array, Stream );
+	ArrayToString( Array, Stream, Limit );
 	return Stream.str();
 }
 
-void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String)
+std::string Soy::ArrayToString(const ArrayBridge<uint8>& Array,size_t Limit)
 {
+	std::stringstream Stream;
+	ArrayToString( Array, Stream, Limit );
+	return Stream.str();
+}
+
+
+void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String,size_t Limit)
+{
+	if ( Limit == 0 )
+		Limit = Array.GetSize();
+	if ( Limit < Array.GetSize() )
+		Limit = Array.GetSize();
+	
+	//	todo: be more clever re: invalid characters
 	String.write( Array.GetArray(), Array.GetSize() );
 }
 
-void Soy::ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String)
+void Soy::ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String,size_t Limit)
 {
-	String.write( reinterpret_cast<const char*>(Array.GetArray()), Array.GetSize() );
+	if ( Limit == 0 )
+		Limit = Array.GetSize();
+	if ( Limit < Array.GetSize() )
+		Limit = Array.GetSize();
+	
+	//	todo: be more clever re: invalid characters
+	String.write( reinterpret_cast<const char*>(Array.GetArray()), Limit );
 }
 
 void Soy::StringToArray(std::string String,ArrayBridge<char>& Array)
@@ -372,15 +392,20 @@ void Soy::StringSplitByMatches(ArrayBridge<std::string>&& Parts,const std::strin
 {
 	StringSplitByMatches( Parts, String, MatchingChars, IncludeEmpty );
 }
-	
-void Soy::SplitStringLines(ArrayBridge<std::string>& StringLines,const std::string& String)
+
+void Soy::SplitStringLines(std::function<bool(const std::string&,const char&)> Callback,const std::string& String,bool IncludeEmpty)
 {
-	StringSplitByMatches( StringLines, String, "\n\r", false );
+	StringSplitByMatches( Callback, String, "\n\r", IncludeEmpty );
 }
 	
-void Soy::SplitStringLines(ArrayBridge<std::string>&& StringLines,const std::string& String)
+void Soy::SplitStringLines(ArrayBridge<std::string>& StringLines,const std::string& String,bool IncludeEmpty)
 {
-	SplitStringLines( StringLines, String );
+	StringSplitByMatches( StringLines, String, "\n\r", IncludeEmpty );
+}
+	
+void Soy::SplitStringLines(ArrayBridge<std::string>&& StringLines,const std::string& String,bool IncludeEmpty)
+{
+	SplitStringLines( StringLines, String, IncludeEmpty );
 }
 
 bool Soy::IsUtf8String(const std::string& String)
@@ -496,8 +521,12 @@ bool Soy::StringTrimRight(std::string& Haystack,const std::string& Suffix,bool C
 
 void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 {
+	Soy::Assert( Buffer!=nullptr, "Soy::StringToBuffer Buffer expected" );
+	if ( BufferSize == 0 )
+		return;
+	
 	int Len = 0;
-	for ( Len=0;	Len<BufferSize-1;	Len++ )
+	for ( Len=0;	Source && Len<BufferSize-1;	Len++ )
 	{
 		if ( Source[Len] == '\0' )
 			break;
@@ -542,6 +571,35 @@ std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim,
 	return StringPopUntil( Haystack, IsDelim, KeepDelim, PopDelim );
 }
 
+std::string Soy::ByteToHex(uint8 Byte)
+{
+	char StringChars[3] = { 0,0,0 };
+	ByteToHex( Byte, StringChars[0], StringChars[1] );
+	return std::string( StringChars );
+}
+
+void Soy::ByteToHex(uint8 Byte,char& Stringa,char& Stringb)
+{
+	auto a = Byte >> 4;
+	auto b = Byte & 0xf;
+	
+	if ( a >= 10 )
+		Stringa = 'a' + (a-10);
+	else
+		Stringa = '0' + (a);
+		
+	if ( b >= 10 )
+		Stringb = 'a' + (b-10);
+	else
+		Stringb = '0' + (b);
+}
+
+void Soy::ByteToHex(uint8 Byte,std::ostream& String)
+{
+	char StringChars[3] = { 0,0,0 };
+	ByteToHex( Byte, StringChars[0], StringChars[1] );
+	String << StringChars;
+}
 
 
 uint8 Soy::HexToByte(char Hex)
@@ -740,23 +798,26 @@ std::string Soy::FourCCToString(uint32 Fourcc)
 		return false;
 	};
 
-	//	check for invalid Fourcc's
+	//	check for invalid Fourcc's (ie, integer) and render as hex instead
 	if ( !IsFourccChar(CodecStrBuffer[0]) || 
 		!IsFourccChar(CodecStrBuffer[1]) || 
 		!IsFourccChar(CodecStrBuffer[2]) ||
 		!IsFourccChar(CodecStrBuffer[3]) )
 	{
-		//	gr: maybe platform/framework specific? should be flipped beforehand?
-		static bool ReverseChars = false;
-		
 		std::stringstream Error;
-		Error << "Fourcc["
-			<< static_cast<int>(CodecStrBuffer[ReverseChars?3:0]) << ","
-			<< static_cast<int>(CodecStrBuffer[ReverseChars?2:1]) << ","
-			<< static_cast<int>(CodecStrBuffer[ReverseChars?1:2]) << ","
-			<< static_cast<int>(CodecStrBuffer[ReverseChars?0:3]) << "/" << Fourcc << "]";
+		Error << "Fourcc{0x";
+		Soy::ByteToHex( CodecStrBuffer[0], Error );
+		Soy::ByteToHex( CodecStrBuffer[1], Error );
+		Soy::ByteToHex( CodecStrBuffer[2], Error );
+		Soy::ByteToHex( CodecStrBuffer[3], Error );
+		//	draw as integer too
+		Error << "/" << Fourcc;
+		//	and as reversed
+		Error << "/" << Soy::SwapEndian(Fourcc);
+		Error << "}";
 		return Error.str();
 	}
+	
 	return std::string( CodecStrBuffer );
 }
 
@@ -806,3 +867,25 @@ void Soy::DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,in
 		String << (int)Data[i] << ' ';
 	}
 }
+
+
+
+//	fast simple int->string
+bool Soy::StringToUnsignedInteger(size_t& IntegerOut,const std::string& String)
+{
+	if ( String.empty() )
+		return false;
+	
+	size_t Integer = 0;
+	for ( int i=0;	i<String.size();	i++ )
+	{
+		int CharValue = String[i] - '0';
+		if ( CharValue < 0 || CharValue > 9 )
+			return false;
+		Integer *= 10;
+		Integer += CharValue;
+	}
+	IntegerOut = Integer;
+	return true;
+}
+

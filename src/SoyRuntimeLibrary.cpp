@@ -34,7 +34,7 @@ std::string Soy::GetEnvVar(const char* Key)
 		}
 		else
 		{
-			Error << "EnvVar " << Key << " error: " << Soy::Platform::GetErrorString(Result);
+			Error << "EnvVar " << Key << " error: " << ::Platform::GetErrorString(Result);
 		}
 		if ( Buffer )
 		{
@@ -79,7 +79,7 @@ std::string Soy::GetCurrentWorkingDir()
 #endif
 	{
 		//	check in case buffer isn't big enough
-		auto LastError = Soy::Platform::GetLastError();
+		auto LastError = ::Platform::GetLastError();
 		if ( LastError == ERANGE )
 		{
 			Buffer.PushBlock(100);
@@ -88,7 +88,7 @@ std::string Soy::GetCurrentWorkingDir()
 		
 		//	some other error
 		std::stringstream Error;
-		Error << "Failed to get current working directory: " << Soy::Platform::GetErrorString(LastError);
+		Error << "Failed to get current working directory: " << ::Platform::GetErrorString(LastError);
 		throw Soy::AssertException( Error.str() );
 	}
 	
@@ -149,7 +149,7 @@ Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(vo
 	if ( !mHandle )
 	{
 		std::stringstream Error;
-		Error << "Failed to load library " << Soy::Platform::GetLastErrorString();
+		Error << "Failed to load library " << ::Platform::GetLastErrorString();
 		throw Soy::AssertException(Error.str());
 	}
  
@@ -187,7 +187,7 @@ void* Soy::TRuntimeLibrary::GetSymbol(const char* Name)
 	//	gr: this is for functions, not objects. May need to split this
 	auto Address = GetProcAddress( mHandle, Name );
 	if ( !Address )
-		std::Debug << mLibraryName << "::GetProcAddress(" << Name << ") failed: " << Soy::Platform::GetLastErrorString() << std::endl;
+		std::Debug << mLibraryName << "::GetProcAddress(" << Name << ") failed: " << ::Platform::GetLastErrorString() << std::endl;
 
 	return Address;
 #endif

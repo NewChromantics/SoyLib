@@ -34,7 +34,7 @@ TEST(PngWriteRead)
 	auto PngDataBridge = GetArrayBridge( PngData );
 	CHECK( Pixels.GetPng( PngDataBridge ) );
 	//	read back
-	Pixels.SetPng( PngDataBridge );
+	Png::Read( Pixels, PngDataBridge );
 }
 
 #endif

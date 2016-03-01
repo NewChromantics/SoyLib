@@ -309,6 +309,10 @@ Improvement summary
 */
 #include "SoyTypes.h"
 
+#if defined(TARGET_WINDOWS) || defined(TARGET_OSX)
+#define USE_GLOBAL_ALLOC		//	override global new/delete so we can track STL allocations
+//#define USE_GLOBAL_STD_ALLOC	//	for debug, use STD malloc in the global alloc override
+#endif
 
 #if defined(TARGET_WINDOWS)
 //	for stack tracing
@@ -354,6 +358,12 @@ AtomicArrayBridge<BufferArray<prmem::HeapInfo*,10000>>& prmem::GetMemHeapRegiste
 	return gAtomicMemHeapRegister;
 }
 
+namespace SoyMem
+{
+	//	heap used for new/delete global replacements
+	prmem::Heap		GlobalHeap( true, true, "GlobalHeap", 0, false );
+}
+
 namespace prcore
 {
 	//	"default" heap for prnew and prdelete which we'd prefer to use rather than the [unmonitorable] crt default heap
@@ -397,12 +407,76 @@ prmem::CRTHeap& prmem::GetCRTHeap()
 }
 
 
+std::ostream& operator<<(std::ostream &out,SoyMem::THeapMeta& in)
+{
+	out << "Heap " << in.mName << " {";
+	out << " bytes=" << in.mAllocBytes << '/' << in.mAllocBytesPeak;
+	out << " count=" << in.mAllocCount << '/' << in.mAllocCountPeak;
+	out << "}";
+	return out;
+}
+
+
+
+
+//	overload global new & delete so we can track STL allocations
+//	on windows we cannot use the CRT debug funcs as the hooks are not present in release builds
+//	http://stackoverflow.com/a/8186116
+//	http://en.cppreference.com/w/cpp/memory/new/operator_new
+#if defined(USE_GLOBAL_ALLOC)
+void* operator new(std::size_t sz) 
+{
+#if defined(USE_GLOBAL_STD_ALLOC)
+	return std::malloc( sz );
+#endif
+
+	//	gr: this causes the placement new... is that what' we want?
+	try
+	{
+		return SoyMem::GlobalHeap.AllocRaw( sz );
+	}
+	catch(std::bad_alloc& e)
+	{
+		//	for CRT startup, we may get globals allocated before the global heap...
+		//	try and figure this out
+		if ( SoyMem::GlobalHeap.IsValid() )
+			throw;
+
+		return std::malloc( sz );
+	}
+}
+#endif
+
+#if defined(USE_GLOBAL_ALLOC)
+__noexcept_prefix void operator delete(void* ptr) __noexcept
+{
+#if defined(USE_GLOBAL_STD_ALLOC)
+	return std::free( ptr );
+#endif
+
+	//	need to work out how to determine if this ptr was allocated from std at bootup...
+	//	without the expensive? heap checks
+	try
+	{
+		if ( !SoyMem::GlobalHeap.Free( reinterpret_cast<uint8*>(ptr) ) )
+			return std::free( ptr );
+	}
+	catch(...)
+	{
+		//	gr: on some platforms, there's a chance this is gonna
+		//		cause a double destruct as the "is the pointer in the global heap" check isn't always before the dealloc
+		return std::free( ptr );
+	}
+}
+#endif
+
+
 bool prmem::HeapInfo::Debug_Validate(const void* Object) const
 {
 	if ( !IsValid() )	
 		return true;
 
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	//	if we have debug info, catch the corruption and print out all our allocs
 	const prmem::HeapDebugBase* pDebug = GetDebug();
 	if ( pDebug )
@@ -500,14 +574,26 @@ const ArrayInterface<prmem::HeapInfo*>& prmem::GetHeaps()
 	return prmem::GetMemHeapRegisterArray();
 }
 
+void SoyMem::GetHeapMetas(ArrayBridge<THeapMeta>&& Metas)
+{
+	//	update the CRT heap info on-request
+	prmem::gCRTHeap.Update();
+
+	auto& Heaps = prmem::GetMemHeapRegisterArray();
+
+	for ( int i=0;	i<Heaps.GetSize();	i++ )
+	{
+		auto& Heap = *Heaps[i];
+		Metas.PushBack( Heap );
+	}
+}
+
+
+
 
 
 prmem::HeapInfo::HeapInfo(const char* Name) :
-	mName			( Name ),
-	mAllocBytes		( 0 ),
-	mAllocCount		( 0 ),
-	mAllocBytesPeak	( 0 ),
-	mAllocCountPeak	( 0 )
+	SoyMem::THeapMeta	( Name )
 {
 	auto& Heaps = prmem::GetMemHeapRegisterArray();
 	Heaps.PushBack( this );
@@ -526,8 +612,11 @@ prmem::HeapInfo::~HeapInfo()
 
 prmem::Heap::Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t MaxSize,bool DebugTrackAllocs) :
 	HeapInfo		( Name ),
-#if defined(TARGET_WINDOWS)
-	mHandle			( NULL ),
+#if defined(WINHEAP_ALLOC)
+	mHandle			( nullptr ),
+#endif
+#if defined(ZONE_ALLOC)
+	mHandle			( nullptr ),
 #endif
     mHeapDebug		( nullptr ),
 	mBridge			( *this )
@@ -535,15 +624,31 @@ prmem::Heap::Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t
 	//	check for dodgy params, eg, "true" instead of a byte-limit
 	if ( MaxSize != 0 && MaxSize < 1024*1024 )
 	{
-		assert( false );
+		std::stringstream Error;
+		Error << "Heap has very small max size (" << MaxSize << ")";
+		throw Soy::AssertException( Error.str() );
 	}
     
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	DWORD Flags = 0x0;
 	Flags |= EnableLocks ? 0x0 : HEAP_NO_SERIALIZE;
 	Flags |= EnableExceptions ? HEAP_GENERATE_EXCEPTIONS : 0x0;
     
 	mHandle = HeapCreate( Flags, 0, MaxSize );
+#elif defined(ZONE_ALLOC)
+	//	https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man3/malloc_zone_malloc.3.html
+	unsigned Flags = 0;	//	docs say no flags.
+	auto InitialSize = size_cast<vm_size_t>( MaxSize );
+	mHandle = malloc_create_zone( InitialSize, Flags );
+	if ( !mHandle )
+	{
+		auto PlatformError = Platform::GetLastErrorString();
+		std::stringstream Error;
+		Error << "Failed to create memory zone " << Name << ": " << PlatformError;
+		throw Soy::AssertException( Error.str() );
+	}
+	//	gr: does this need to be persistent? no documentation
+	malloc_set_zone_name( mHandle, Name );
 #endif
 
 	EnableDebug( DebugTrackAllocs );
@@ -551,14 +656,21 @@ prmem::Heap::Heap(bool EnableLocks,bool EnableExceptions,const char* Name,size_t
 
 prmem::Heap::~Heap()
 {
-#if defined(TARGET_WINDOWS)
-	if ( mHandle != NULL )
+#if defined(WINHEAP_ALLOC)
+	if ( mHandle != nullptr )
 	{
 		if ( !HeapDestroy( mHandle ) )
 		{
-			//error
+			auto Error = Platform::GetLastErrorString();
+			std::Debug << "Warning: Error destorying heap: " << Error << std::endl;
 		}
-		mHandle = NULL;
+		mHandle = nullptr;
+	}
+#elif defined(ZONE_ALLOC)
+	if ( mHandle != nullptr )
+	{
+		malloc_destroy_zone( mHandle );
+		mHandle = nullptr;
 	}
 #endif
 }
@@ -685,24 +797,28 @@ void GetProcessHeapUsage(uint32& AllocCount,uint32& AllocBytes)
 
 void GetCRTHeapUsage(uint32& AllocCount,uint32& AllocBytes)
 {
+	//	note: if NDEBUG or !defined(_DEBUG) then _CrtMemCheckpoint gives us nothing 
 #if defined(TARGET_WINDOWS)
 	_CrtMemState MemState;
 	ZeroMemory(&MemState,sizeof(MemState));
 	_CrtMemCheckpoint( &MemState );
 	
+	//	gr: malloc's mostly, if we overload new then these are probably globals allocated before the heap
 	uint32 RuntimeAllocCount = static_cast<uint32>( MemState.lCounts[_NORMAL_BLOCK] );
 	uint32 RuntimeAllocBytes = static_cast<uint32>( MemState.lSizes[_NORMAL_BLOCK] );
 
 	//	gr: not including this (only a few kb) so we can hopefuly track allocations down to zero on main heap
 	//	_CRT_BLOCK is statics/globals
+	//	^^ actually seems to be other libs and debug/os stuff that we shouldnt access/modify
 	uint32 CrtAllocCount = static_cast<uint32>( MemState.lCounts[_CRT_BLOCK] );
 	uint32 CrtAllocBytes = static_cast<uint32>( MemState.lSizes[_CRT_BLOCK] );
 
 	AllocCount += RuntimeAllocCount;
 	AllocBytes += RuntimeAllocBytes;
 
-	//AllocCount += CrtAllocCount;
-	//AllocBytes += CrtAllocBytes;
+	//	gr: including these. With PopMovie, a large amount of memory (well, 2mb) is here compare to a few kb on the NORMAL_BLOCK (probably as we're overriding new)
+	AllocCount += CrtAllocCount;
+	AllocBytes += CrtAllocBytes;
 #endif
 }
 
@@ -744,7 +860,7 @@ void prmem::CRTHeap::Update()
 	if( !EnableHeapUpdate )
 		return;
 
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 	//	gr: to hook HeapCreate (ie from external libs)
 	//	http://src.chromium.org/svn/trunk/src/tools/memory_watcher/memory_hook.cc
 
@@ -862,7 +978,7 @@ void prmem::CRTHeap::Update()
 
 //----------------------------------------------
 //----------------------------------------------
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 HANDLE prmem::CRTHeap::GetHandle() const	
 {
 	return GetProcessHeap()/*_get_heap_handle()*/;	
@@ -1112,7 +1228,7 @@ bool SoyDebug::GetSymbolName(std::string& SymbolName,const ofStackEntry& Address
 
 bool SoyDebug::Init(std::stringstream& Error)
 {
-#if defined(TARGET_WINDOWS)
+#if defined(WINHEAP_ALLOC)
 #if defined(USE_EXTERNAL_DBGHELP)
 #if defined(ENABLE_STACKTRACE64)
 	//	load library

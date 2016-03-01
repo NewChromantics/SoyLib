@@ -22,6 +22,11 @@ class D3D12_RESOURCE_STATES;
 
 #endif
 
+#if defined(TARGET_ANDROID)
+#include "SoyJava.h"
+#endif
+
+
 #if defined(TARGET_IOS)
 extern "C" {
 typedef	void	(*UnityPluginSetGraphicsDeviceFunc)(void* device, int deviceType, int eventType);
@@ -30,6 +35,10 @@ void	UnityRegisterRenderingPlugin(UnityPluginSetGraphicsDeviceFunc setDevice, Un
 }
 #endif
 
+namespace Platform
+{
+	std::string		GetBundleIdentifier();
+}
 
 
 namespace Unity
@@ -199,7 +208,7 @@ SoyPixelsFormat::Type Unity::GetPixelFormat(Texture2DPixelFormat::Type Format)
 #if defined(TARGET_WINDOWS)
 BOOL APIENTRY DllMain(HMODULE Module, DWORD Reason, LPVOID Reserved)
 {
-	std::Debug << "DllMain(" << Reason << ")" << std::endl;
+	//std::Debug << "DllMain(" << Reason << ")" << std::endl;
 	return TRUE;
 }
 #endif
@@ -273,7 +282,7 @@ __export void UnityRenderEvent(Unity::sint eventID)
 
 void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 {
-	if (!Soy::Platform::Init())
+	if (!Platform::Init())
 		throw Soy::AssertException("Soy Failed to init platform");
 
 	if ( !DebugListener.IsValid() )
@@ -447,6 +456,7 @@ __export void FlushDebug(Unity::LogCallback Callback)
 }
 
 
+
 namespace Unity
 {
 	IUnityGraphics*		GraphicsDevice = nullptr;
@@ -511,4 +521,32 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
 		Unity::GraphicsDevice->UnregisterDeviceEventCallback(OnGraphicsDeviceEvent);
 		//Unity::GraphicsDevice = nullptr;
 	}
+}
+
+void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
+{
+	Extensions.PushBack(".meta");
+}
+
+
+#if defined(TARGET_ANDROID)
+std::string Platform::GetBundleIdentifier()
+{
+	return Java::GetBundleIdentifier();
+}
+#endif
+
+
+#if defined(TARGET_WINDOWS)
+std::string Platform::GetBundleIdentifier()
+{
+	return "Todo:BundleIdentifierForWindows";
+}
+#endif
+
+const std::string& Unity::GetBundleIdentifier()
+{
+	//	cache this
+	static std::string CachedIdentifier = Soy::StringToLower( Platform::GetBundleIdentifier() );
+	return CachedIdentifier;
 }

@@ -96,3 +96,12 @@ Soy::THsl::THsl(const TRgb& rgb)
         h /= 6;
     }
 }
+
+
+float3x3 SoyMath::GetFlipMatrix3x3()
+{
+	//	y should be 1-y so -y + 1
+	return float3x3(	1, 0, 0, 
+						0, -1, 0, 
+						0, 1, 0 );
+}

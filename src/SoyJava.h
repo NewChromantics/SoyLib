@@ -33,11 +33,14 @@ namespace Java
 	bool					HasVm();
 	JNIEnv&					GetContext();
 	void					FlushLocals();	//	wrapper to flush current thread's locals
-	
+
+	size_t					GetBufferSize(TJniObject& Buffer);
 	void					ArrayToBuffer(const ArrayBridge<uint8>&& Data,TJniObject& InputBuffer,const std::string& Context,int ExplicitBufferSize=-1);
 	void					BufferToArray(TJniObject& InputBuffer,ArrayBridge<uint8>&& Data,const std::string& Context,int ExplicitBufferSize=-1);
 	FixedRemoteArray<uint8>	GetBufferArray(TJniObject& Buffer,int LimitSize=-1);	//	get buffer as array. throws if this option isn't availible for this buffer
-	void	IsOkay(const std::string& Context,bool ThrowRegardless=false);		//	check for JNI exception
+	void					IsOkay(const std::string& Context,bool ThrowRegardless=false);		//	check for JNI exception
+
+	std::string				GetBundleIdentifier();
 	
 	class TFileHandle;
 	class TApkFileHandle;		//	special access to files in Assets which need to be loaded in a special way
@@ -49,7 +52,6 @@ namespace Java
 	
 	std::shared_ptr<TFileHandle>	AllocFileHandle(const std::string& Filename);
 
-
 	//	according to android docs
 	//	http://developer.android.com/training/articles/perf-jni.html
 	//	JNI won't auto-free locals in a thread until it detatches (gr: not sure HOW it EVER cleans up then...)
@@ -60,6 +62,10 @@ namespace Java
 	class TThread;			//	java thread handler, handles env creation & destruction and local object stack
 }
 
+namespace Platform
+{
+	std::string		GetSdCardDirectory();		//	throws if we can't get it
+}
 
 
 class Java::TLocalRefStack
@@ -160,7 +166,8 @@ public:
 	
 protected:
 	virtual bool		Read(TStreamBuffer& Buffer) override;
-	
+	virtual void		Shutdown() __noexcept override;
+
 private:
 	std::shared_ptr<Java::TFileHandle>	mHandle;
 };

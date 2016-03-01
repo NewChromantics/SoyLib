@@ -3,7 +3,10 @@
 #include <CoreFoundation/CoreFoundation.h>
 
 
-
+namespace Platform
+{
+	bool	EnumDirectoryUnsafe(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound);
+}
 
 bool GetUrlKeyBool(NSURL* Path,NSString* Key)
 {
@@ -26,6 +29,10 @@ std::string UrlGetFilename(NSURL* Path)
 {
 	auto* AbsolutePathNs = [Path absoluteString];
 	auto AbsolutePath = Soy::NSStringToString( AbsolutePathNs );
+
+	//	gr: this is just to make it pretty and remove the protocol really...
+	Soy::StringTrimLeft( AbsolutePath, "file://localhost", true );
+
 	return AbsolutePath;
 	/*
 	NSString* LocalizedName = nil;
@@ -62,10 +69,13 @@ SoyPathType::Type GetPathType(NSURL* Path)
 
 
 
-
-bool EnumDirectory(const std::string& Directory,std::function<bool(std::string&,SoyPathType::Type)> OnPathFound)
+bool Platform::EnumDirectoryUnsafe(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
 	auto directoryURL = Avf::GetUrl( Directory );
+	
+	//	dir doesn't exist
+	if ( directoryURL == nullptr )
+		return true;
  
 	NSArray* Keys = [NSArray arrayWithObjects:NSURLIsDirectoryKey, NSURLIsPackageKey, NSURLLocalizedNameKey, nil];
 	
@@ -103,47 +113,24 @@ bool EnumDirectory(const std::string& Directory,std::function<bool(std::string&,
 }
 
 
-void Platform::EnumNsDirectory(const std::string& Directory,std::function<void(const std::string&)> OnFileFound,bool Recursive)
+bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
-	Array<std::string> SearchDirectories;
-	SearchDirectories.PushBack( Directory );
-	
-	//	don't get stuck!
-	static int MatchLimit = 1000;
-	int MatchCount = 0;
-	
-	while ( !SearchDirectories.IsEmpty() )
+	//	catch obj-c exceptions
+	@try
 	{
-		auto Dir = SearchDirectories.PopAt(0);
-		
-		auto AddFile = [&](std::string& Path,SoyPathType::Type PathType)
-		{
-			MatchCount++;
-
-			if ( PathType == SoyPathType::Directory )
-			{
-				if ( !Recursive )
-					return true;
-				
-				SearchDirectories.PushBack( Path );
-			}
-			else if ( PathType == SoyPathType::File )
-			{
-				Soy::StringTrimLeft( Path, "file://", true );
-				OnFileFound( Path );
-			}
-			
-			if ( MatchCount > MatchLimit )
-			{
-				std::Debug << "Hit match limit (" << MatchCount << ") bailing in case we've got stuck in a loop" << std::endl;
-				return false;
-			}
-			
-			return true;
-		};
-		
-		if ( !EnumDirectory( Dir, AddFile ) )
-			break;
+		return EnumDirectoryUnsafe( Directory, OnPathFound );
+	}
+	@catch (NSException* e)
+	{
+		std::stringstream Error;
+		Error << "Platform::EnumDirectory NSException " << Soy::NSErrorToString( e );
+		throw Soy::AssertException( Error.str() );
+	}
+	@catch (...)
+	{
+		std::stringstream Error;
+		Error << "Platform::EnumDirectory Unknown exception";
+		throw Soy::AssertException( Error.str() );
 	}
 }
 
