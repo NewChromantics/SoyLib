@@ -3,6 +3,31 @@
 #include <sstream>
 #include "SoyOpenglContext.h"
 
+//	new interfaces in 5.2+
+#include "Unity/IUnityInterface.h"
+#include "Unity/IUnityGraphics.h"
+#if defined(TARGET_WINDOWS)
+class IDirect3D9;
+class IDirect3DDevice9;
+#include "Unity/IUnityGraphicsD3D9.h"
+
+#include "Unity/IUnityGraphicsD3D11.h"
+
+class ID3D12Device;
+class ID3D12CommandQueue;
+class ID3D12Fence;
+class ID3D12Resource;
+class D3D12_RESOURCE_STATES;
+#include "Unity/IUnityGraphicsD3D12.h"
+
+#endif
+
+//	unity 5.4
+/*
+#if defined(TARGET_IOS) && defined(TARGET_OSX)
+#include "Unity/IUnityGraphicsMetal.h"
+#endif
+*/
 #if defined(TARGET_ANDROID)
 #include "SoyJava.h"
 #endif
@@ -437,6 +462,75 @@ __export void FlushDebug(Unity::LogCallback Callback)
 }
 
 
+
+namespace Unity
+{
+	IUnityGraphics*		GraphicsDevice = nullptr;
+	IUnityInterfaces*	Interfaces = nullptr;
+}
+
+
+template<typename INTERFACETYPE>
+void* GetDeviceContext()
+{
+	if ( !Unity::Interfaces )
+		return nullptr;
+
+	auto* Interface = Unity::Interfaces->Get<INTERFACETYPE>();
+	return Interface->GetDevice();
+}
+
+void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType)
+{
+	auto Device = Unity::GraphicsDevice;
+	if ( !Device )
+	{
+		std::Debug << __func__ << " missing graphics device" << std::endl;
+		return;
+	}
+
+	void* DeviceContext = nullptr;
+	auto DeviceType = static_cast<UnityDevice::Type>( Unity::GraphicsDevice->GetRenderer() );
+
+	switch ( DeviceType )
+	{
+#if defined(TARGET_WINDOWS)
+		case kUnityGfxRendererD3D9:		DeviceContext = GetDeviceContext<IUnityGraphicsD3D9>();	break;
+		case kUnityGfxRendererD3D11:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D11>();	break;
+		case kUnityGfxRendererD3D12:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D12>();	break;
+#endif
+			
+		default:
+			break;
+	}
+
+	UnitySetGraphicsDevice( DeviceContext, DeviceType, eventType );
+}
+
+
+// Unity plugin load event
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnityInterfaces* unityInterfaces)
+{
+	Unity::Interfaces = unityInterfaces;
+	Unity::GraphicsDevice = Unity::Interfaces->Get<IUnityGraphics>();
+
+    Unity::GraphicsDevice->RegisterDeviceEventCallback( OnGraphicsDeviceEvent );
+
+    // Run OnGraphicsDeviceEvent(initialize) manually on plugin load
+    // to not miss the event in case the graphics device is already initialized
+    OnGraphicsDeviceEvent( kUnityGfxDeviceEventInitialize );
+}
+
+// Unity plugin unload event
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
+{
+	if ( Unity::GraphicsDevice )
+	{
+		Unity::GraphicsDevice->UnregisterDeviceEventCallback(OnGraphicsDeviceEvent);
+		//Unity::GraphicsDevice = nullptr;
+	}
+}
+
 void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
 {
 	Extensions.PushBack(".meta");
@@ -464,4 +558,3 @@ const std::string& Unity::GetBundleIdentifier()
 	static std::string CachedIdentifier = Soy::StringToLower( Platform::GetBundleIdentifier() );
 	return CachedIdentifier;
 }
-
