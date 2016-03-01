@@ -22,6 +22,12 @@ class D3D12_RESOURCE_STATES;
 
 #endif
 
+//	unity 5.4
+/*
+#if defined(TARGET_IOS) && defined(TARGET_OSX)
+#include "Unity/IUnityGraphicsMetal.h"
+#endif
+*/
 #if defined(TARGET_ANDROID)
 #include "SoyJava.h"
 #endif
@@ -488,10 +494,12 @@ void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType
 
 	switch ( DeviceType )
 	{
+#if defined(TARGET_WINDOWS)
 		case kUnityGfxRendererD3D9:		DeviceContext = GetDeviceContext<IUnityGraphicsD3D9>();	break;
 		case kUnityGfxRendererD3D11:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D11>();	break;
 		case kUnityGfxRendererD3D12:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D12>();	break;
-	
+#endif
+			
 		default:
 			break;
 	}
