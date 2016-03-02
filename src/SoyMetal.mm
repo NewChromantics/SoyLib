@@ -1,6 +1,7 @@
 #include "SoyMetal.h"
 #include <SoyDebug.h>
 #include <SoyString.h>
+#include <SoyOpengl.h>
 
 #if defined(TARGET_IOS)
 #define ENABLE_METAL
@@ -197,6 +198,8 @@ Metal::TTexture::TTexture(void* TexturePtr) :
 {
 	mTexture = (__bridge MTLTextureRef)TexturePtr;
 	Soy::Assert( mTexture != nil, "Expected texture?");
+
+	std::Debug << "Made external metal texture: " << GetMeta() << std::endl;
 }
 	
 SoyPixelsMeta Metal::TTexture::GetMeta() const
@@ -211,9 +214,57 @@ SoyPixelsMeta Metal::TTexture::GetMeta() const
 }
 
 
-Metal::TDevice::TDevice(void* DevicePtr)
+void Metal::TTexture::Write(SoyPixelsImpl& Pixels,Opengl::TTextureUploadParams& Params,TContext& Context)
 {
+	auto pJob = Context.AllocJob();
+	Soy::Assert( pJob!=nullptr, "Failed to allocate metal job");
+	auto& Job = *pJob;
+
 	
+	//	gr: copy buffer, note; use newBufferWithBytesNoCopy for no-copy, but need to explicitly alloc with mmap or vm_alloc (malloc will not work!)
+	auto& PixelsArray = Pixels.GetPixelsArray();
+	auto pBuffer = Context.AllocBuffer( GetArrayBridge(PixelsArray) );
+	
+	/*
+	auto Format = GetPixelFormat( Pixels.GetFormat() );
+	NSUInteger Width = Pixels.GetWidth();
+	NSUInteger Height = Pixels.GetHeight();
+	BOOL MipMaps = false;
+	auto* Descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:Format width:Width height:Height mipmapped:MipMaps];
+*/
+	
+	NSUInteger Offset = 0;
+	NSUInteger BytesPerRow = Pixels.GetMeta().GetRowDataSize();
+	NSUInteger BytesPerImage = Pixels.GetMeta().GetDataSize();
+	MTLSize SourceSize = MTLSizeMake( Pixels.GetWidth(), Pixels.GetHeight(), 0 );
+	id<MTLTexture> TargetTexture = mTexture;
+	NSUInteger DestinationSlice = 0;
+	NSUInteger DestinationLevel = 0;
+	MTLOrigin DestinationOrigin = MTLOriginMake(0,0,0);
+	auto Buffer = pBuffer->GetBuffer();
+
+	//	generate command
+	id<MTLBlitCommandEncoder> Command = [Job.GetCommandBuffer() blitCommandEncoder];
+ 
+
+	[Command copyFromBuffer:Buffer sourceOffset:Offset sourceBytesPerRow:BytesPerRow sourceBytesPerImage:BytesPerImage sourceSize:SourceSize toTexture:TargetTexture destinationSlice:DestinationSlice destinationLevel:DestinationLevel destinationOrigin:DestinationOrigin];
+	
+	if ( Params.mGenerateMipMaps )
+		[Command generateMipmapsForTexture:TargetTexture];
+	[Command endEncoding];
+	
+	Soy::TSemaphore Semaphore;
+	Job.Execute( Semaphore );
+	Semaphore.Wait();
+}
+
+
+
+Metal::TDevice::TDevice(void* DevicePtr) :
+	mDevice	( nullptr )
+{
+	mDevice = (MTLDeviceRef)DevicePtr;
+	Soy::Assert( mDevice != nullptr, "Null device");
 }
 
 
@@ -222,6 +273,10 @@ Metal::TContext::TContext(void* DevicePtr)
 	mDevice = GetAnonymousDevice( DevicePtr );
 	Soy::Assert( mDevice != nullptr, "Couldnt get anonymous metal device");
 	
+	//	allocate a new command queue for this thread
+	auto Device = mDevice->GetDevice();
+	mQueue = [Device newCommandQueue];
+	Soy::Assert( mQueue != nullptr, "Failed to allocate queue");
 }
 
 
@@ -249,3 +304,91 @@ void Metal::TContext::Unlock()
 	Soy::Assert( mLockedThread == ThisThread, "context not unlocked from wrong thread" );
 	mLockedThread = std::thread::id();
 }
+
+
+
+std::shared_ptr<Metal::TBuffer> Metal::TContext::AllocBuffer(const uint8* Data,size_t DataSize)
+{
+	Soy::Assert( mDevice != nullptr, "AllocBuffer: Context missing device");
+
+	return std::make_shared<TBuffer>( Data, DataSize, *mDevice );
+}
+
+std::shared_ptr<Metal::TJob> Metal::TContext::AllocJob()
+{
+	return std::make_shared<TJob>( *this );
+}
+
+
+
+Metal::TBuffer::TBuffer(const uint8* Data,size_t DataSize,TDevice& Device) :
+	mBuffer		( nullptr )
+{
+	MTLResourceOptions Options = MTLResourceCPUCacheModeDefaultCache;
+	auto DeviceMtl = Device.GetDevice();
+	Soy::Assert( DeviceMtl!=nullptr, "Expected metal device");
+	
+	mBuffer = [DeviceMtl newBufferWithBytes:Data length:DataSize options:Options];
+	if ( !mBuffer )
+	{
+		std::stringstream Error;
+		Error << "Failed to create metal buffer of " << DataSize << " bytes";
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	//	gr: is this immediate??
+}
+
+
+Metal::TJob::TJob(TContext& Context) :
+	mCommandBuffer	( nullptr )
+{
+	mCommandBuffer = [Context.GetQueue() commandBuffer];
+}
+
+
+Metal::TJob::~TJob()
+{
+}
+
+
+void Metal::TJob::Execute(Soy::TSemaphore* Semaphore)
+{
+	__block Soy::TSemaphore* BlockSemaphore = Semaphore;
+	
+	auto OnCompleted = ^(id<MTLCommandBuffer> Buffer)
+	{
+		//	look for an error
+		NSError* ErrorNs = [Buffer error];
+		/*MTLCommandBufferError*/auto Error = ErrorNs ? [ErrorNs code] : MTLCommandBufferErrorNone;
+		
+		if ( Error != MTLCommandBufferErrorNone )
+		{
+			auto ErrorString = Soy::NSErrorToString( ErrorNs );
+			if ( BlockSemaphore )
+			{
+				BlockSemaphore->OnFailed( ErrorString.c_str() );
+			}
+			else
+			{
+				std::Debug << "Metal::TJob error (No semaphore) " << ErrorString << std::endl;
+			}
+		}
+		else if ( BlockSemaphore )
+		{
+			BlockSemaphore->OnCompleted();
+		}
+		else
+		{
+			std::Debug << "Metal::TJob finished (no semaphore)" << std::endl;
+		}
+	};
+	
+	if ( Semaphore )
+	{
+		[mCommandBuffer addCompletedHandler:OnCompleted];
+	}
+
+	[mCommandBuffer commit];
+}
+

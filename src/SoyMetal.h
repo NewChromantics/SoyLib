@@ -8,45 +8,37 @@
 #include "SoyUniform.h"
 
 
+namespace Opengl
+{
+	class TTextureUploadParams;
+}
 
 namespace Metal
 {
 	class TDeviceMeta;
 	class TDevice;
-	class TContext;
+	class TContext;				//	Metal queue
 	class TContextThread;		//	job queue
 	class TTexture;
+	class TJob;					//	metal command buffer
+	class TBuffer;				//	MTLBuffer
 
 	void		EnumDevices(ArrayBridge<std::shared_ptr<TDevice>>&& Devices);
 };
 
-
-//	forward declarations matching unity's helpers
 #if defined(__OBJC__)
-@class CAMetalLayer;
-@protocol CAMetalDrawable;
-@protocol MTLDrawable;
-@protocol MTLDevice;
-@protocol MTLTexture;
-@protocol MTLCommandBuffer;
-@protocol MTLCommandQueue;
-@protocol MTLCommandEncoder;
-
-typedef id<CAMetalDrawable>		CAMetalDrawableRef;
-typedef id<MTLDevice>			MTLDeviceRef;
-typedef id<MTLTexture>			MTLTextureRef;
-typedef id<MTLCommandBuffer>	MTLCommandBufferRef;
-typedef id<MTLCommandQueue>		MTLCommandQueueRef;
-typedef id<MTLCommandEncoder>	MTLCommandEncoderRef;
+#define FWD_DECLARE_OBJC_PROTOCOL_REF(TYPE)	@protocol TYPE;	typedef id<TYPE> TYPE ## Ref;
 #else
-typedef struct objc_object		CAMetalLayer;
-typedef struct objc_object*		CAMetalDrawableRef;
-typedef struct objc_object*		MTLDeviceRef;
-typedef struct objc_object*		MTLTextureRef;
-typedef struct objc_object*		MTLCommandBufferRef;
-typedef struct objc_object*		MTLCommandQueueRef;
-typedef struct objc_object*		MTLCommandEncoderRef;
+#define FWD_DECLARE_OBJC_PROTOCOL_REF(TYPE)	typedef struct objc_object*	TYPE ## Ref;
 #endif
+
+FWD_DECLARE_OBJC_PROTOCOL_REF( MTLDevice );
+FWD_DECLARE_OBJC_PROTOCOL_REF( MTLTexture );
+FWD_DECLARE_OBJC_PROTOCOL_REF( MTLBuffer );
+FWD_DECLARE_OBJC_PROTOCOL_REF( MTLCommandBuffer );
+FWD_DECLARE_OBJC_PROTOCOL_REF( MTLCommandQueue );
+FWD_DECLARE_OBJC_PROTOCOL_REF( MTLCommandEncoder );
+
 
 
 class Metal::TDeviceMeta
@@ -65,7 +57,7 @@ std::ostream& operator<<(std::ostream &out,const Metal::TDeviceMeta& in);
 class Metal::TDevice : public TDeviceMeta
 {
 public:
-	TDevice(void* DevicePtr);
+	TDevice(void* DevicePtr);	//	horrible void* lack of casting
 
 	std::shared_ptr<TContext>		CreateContext();
 	std::shared_ptr<TContextThread>	CreateContextThread(const std::string& Name);
@@ -73,9 +65,10 @@ public:
 	TDeviceMeta			GetMeta() const	{	return *this;	}
 	
 	bool				operator==(void* DevicePtr) const		{	return mDevice == DevicePtr;	}
+	MTLDeviceRef	GetDevice()		{	return mDevice;	}
 	
 protected:
-	MTLDeviceRef		mDevice;
+	MTLDeviceRef	mDevice;
 };
 
 
@@ -92,11 +85,40 @@ public:
 	
 	bool			HasMultithreadAccess() const		{	return false;	}
 	
+	std::shared_ptr<TJob>		AllocJob();
+
+	std::shared_ptr<TBuffer>	AllocBuffer(const uint8* Data,size_t DataSize);
+	template<typename TYPE>
+	std::shared_ptr<TBuffer>	AllocBuffer(const ArrayBridge<TYPE>&& Data)
+	{
+		return AllocBuffer( reinterpret_cast<const uint8*>(Data.GetArray()), Data.GetDataSize() );
+	}
+	MTLCommandQueueRef			GetQueue()		{	return mQueue;	}
+	
 protected:
 	std::shared_ptr<TDevice>	mDevice;
+	MTLCommandQueueRef			mQueue;			//	command queue
 	
 private:
 	std::thread::id		mLockedThread;	//	needed in the context as it gets locked in other places than the job queue
+};
+
+class Metal::TJob
+{
+public:
+	TJob(TContext& Context);
+	~TJob();
+	
+	void						Execute()								{	Execute( nullptr );	}
+	void						Execute(Soy::TSemaphore& Semaphore)		{	Execute( &Semaphore );	}
+	
+	MTLCommandBufferRef			GetCommandBuffer()						{	return mCommandBuffer;	}
+	
+private:
+	void						Execute(Soy::TSemaphore* Semaphore);
+	
+private:
+	MTLCommandBufferRef			mCommandBuffer;
 };
 
 /*
@@ -133,8 +155,24 @@ public:
 	
 	SoyPixelsMeta	GetMeta() const;
 	
+	
+	void			Write(SoyPixelsImpl& Pixels,Opengl::TTextureUploadParams& Params,TContext& Context);
+	
+	
 private:
 	MTLTextureRef	mTexture;
 };
 
+
+class Metal::TBuffer
+{
+public:
+	TBuffer(const uint8* Data,size_t DataSize,TDevice& Device);
+	
+public:
+	MTLBufferRef		GetBuffer()	{	return mBuffer;	}
+	
+private:
+	MTLBufferRef		mBuffer;
+};
 
