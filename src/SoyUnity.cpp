@@ -77,6 +77,8 @@ namespace Unity
 	void				AllocOpenglContext();
 #if defined(ENABLE_METAL)
 	void				AllocMetalContext();
+#endif
+#if defined(TARGET_IOS)
 	void				IosDetectGraphicsDevice();
 #endif
 }
@@ -140,7 +142,7 @@ extern "C" UnityRenderBuffer	UnityBackbufferDepth()		{ return GetMainDisplaySurf
 */
 #endif
 
-#if defined(ENABLE_METAL)
+#if defined(TARGET_IOS)
 void Unity::IosDetectGraphicsDevice()
 {
 	//	already decided
@@ -176,7 +178,7 @@ void Unity::IosDetectGraphicsDevice()
 
 bool Unity::HasOpenglContext()
 {
-#if defined(ENABLE_METAL)
+#if defined(TARGET_IOS)
 	IosDetectGraphicsDevice();
 #endif
 	return OpenglContext != nullptr;
@@ -195,7 +197,7 @@ Opengl::TContext& Unity::GetOpenglContext()
 
 std::shared_ptr<Opengl::TContext>& Unity::GetOpenglContextPtr()
 {
-#if defined(ENABLE_METAL)
+#if defined(TARGET_IOS)
 	IosDetectGraphicsDevice();
 #endif
 	
@@ -231,7 +233,9 @@ std::shared_ptr<Directx::TContext>& Unity::GetDirectxContextPtr()
 #if defined(ENABLE_METAL)
 std::shared_ptr<Metal::TContext>& Unity::GetMetalContextPtr()
 {
+#if defined(TARGET_IOS)
 	IosDetectGraphicsDevice();
+#endif
 	return MetalContext;
 }
 #endif
@@ -245,6 +249,16 @@ Metal::TContext& Unity::GetMetalContext()
 		throw Soy::AssertException("Getting metal context on non-metal run");
 	
 	return *Ptr;
+}
+#endif
+
+#if defined(ENABLE_METAL)
+bool Unity::HasMetalContext()
+{
+#if defined(TARGET_IOS)
+	IosDetectGraphicsDevice();
+#endif
+	return MetalContext != nullptr;
 }
 #endif
 

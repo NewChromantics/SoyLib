@@ -186,6 +186,7 @@ namespace Unity
 #if defined(ENABLE_METAL)
 	Metal::TContext&				GetMetalContext();
 	std::shared_ptr<Metal::TContext>&	GetMetalContextPtr();
+	bool							HasMetalContext();
 #endif
 #if defined(ENABLE_CUDA)
 	std::shared_ptr<Cuda::TContext>	GetCudaContext();
