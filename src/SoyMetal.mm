@@ -351,39 +351,57 @@ Metal::TJob::~TJob()
 {
 }
 
+std::string GetBufferError(id<MTLCommandBuffer> Buffer)
+{
+	return std::string();
+
+	if ( !Buffer )
+		return "Buffer is null";
+	
+	//	look for an error
+	NSError* ErrorNs = [Buffer error];
+	/*MTLCommandBufferError*/auto Error = ErrorNs ? [ErrorNs code] : MTLCommandBufferErrorNone;
+	
+	if ( Error != MTLCommandBufferErrorNone )
+	{
+		std::stringstream ErrorStr;
+		ErrorStr << "Error #" << (int)Error;
+		return ErrorStr.str();
+	}
+	
+	return std::string();
+}
+
 
 void Metal::TJob::Execute(Soy::TSemaphore* Semaphore)
 {
-	__block Soy::TSemaphore* BlockSemaphore = Semaphore;
-	
-	auto OnCompleted = ^(id<MTLCommandBuffer> Buffer)
+	auto RealOnCompleted = [=](id<MTLCommandBuffer> Buffer)
 	{
-		//	look for an error
-		NSError* ErrorNs = [Buffer error];
-		/*MTLCommandBufferError*/auto Error = ErrorNs ? [ErrorNs code] : MTLCommandBufferErrorNone;
-		
-		if ( Error != MTLCommandBufferErrorNone )
+		//	gr: for some reason, in c# block or lambda, calling OnFailed eventually leads to a crash in debug print (with no stack)
+		auto Error = GetBufferError(Buffer);
+
+		if ( Semaphore )
 		{
-			auto ErrorString = Soy::NSErrorToString( ErrorNs );
-			if ( BlockSemaphore )
-			{
-				BlockSemaphore->OnFailed( ErrorString.c_str() );
-			}
+			if ( Error.empty() )
+				Semaphore->OnCompleted();
 			else
-			{
-				std::Debug << "Metal::TJob error (No semaphore) " << ErrorString << std::endl;
-			}
-		}
-		else if ( BlockSemaphore )
-		{
-			BlockSemaphore->OnCompleted();
+				Semaphore->OnFailed( Error.c_str() );
 		}
 		else
 		{
-			std::Debug << "Metal::TJob finished (no semaphore)" << std::endl;
+			if ( Error.empty() )
+				std::Debug << "Metal job success" << std::endl;
+			else
+				std::Debug << "Metal job error " << Error << std::endl;
 		}
+		
 	};
 	
+	auto OnCompleted = ^(id<MTLCommandBuffer> Buffer)
+	{
+		RealOnCompleted( Buffer );
+	};
+
 	if ( Semaphore )
 	{
 		[mCommandBuffer addCompletedHandler:OnCompleted];
