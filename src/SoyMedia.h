@@ -31,6 +31,12 @@ namespace Directx
 	class TTexture;
 }
 
+namespace Metal
+{
+	class TContext;
+	class TTexture;
+}
+
 namespace SoyMedia
 {
 	extern prmem::Heap	DefaultHeap;
@@ -273,11 +279,11 @@ public:
 	//	for future devices (metal, dx), expand these
 	//	if 1 texture assume RGB/BGR greyscale etc
 	//	if multiple, assuming YUV
-	//virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures)=0;
 	//virtual void		Lock(ArrayBridge<Cuda::TTexture>&& Textures)=0;
 	//virtual void		Lock(ArrayBridge<Opencl::TTexture>&& Textures)=0;
 	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context)=0;
 	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context)=0;
+	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context)=0;
 	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures)=0;
 	virtual void		Unlock()=0;
 };
@@ -328,6 +334,7 @@ public:
 	
 	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context) override	{}
 	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context) override	{}
+	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context) override	{}
 	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures) override
 	{
 		Textures.PushBack( &mPixels );
