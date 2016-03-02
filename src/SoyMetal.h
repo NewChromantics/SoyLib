@@ -90,6 +90,8 @@ public:
 	virtual bool	IsLocked(std::thread::id Thread) override;
 	void			Iteration()			{	Flush(*this);	}
 	
+	bool			HasMultithreadAccess() const		{	return false;	}
+	
 protected:
 	std::shared_ptr<TDevice>	mDevice;
 	
@@ -120,6 +122,14 @@ class Metal::TTexture
 public:
 	//	referece from external (unity)
 	TTexture(void* TexturePtr);
+	TTexture() :
+		mTexture	( nullptr )
+	{
+	}
+	
+	bool			IsValid() const		{	return mTexture != nullptr;	}
+	bool			operator==(const TTexture& that) const		{	return mTexture == that.mTexture;	}
+	bool			operator!=(const TTexture& that) const		{	return mTexture != that.mTexture;	}
 	
 	SoyPixelsMeta	GetMeta() const;
 	
