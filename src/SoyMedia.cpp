@@ -773,13 +773,14 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::GetStreamBuffer(size_t Stre
 	return mStreamBuffers[StreamIndex];
 }
 
-void TMediaExtractor::Seek(SoyTime Time)
+void TMediaExtractor::Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames)
 {
 	//	adjust the time so we extract ahead of the current player time
 	Time += mExtractAheadMs;
 	
 	//	update the target seek time
-	if ( Time < mSeekTime )
+	bool AllowReverse = CanSeekBackwards();
+	if ( !AllowReverse && Time < mSeekTime )
 	{
 		std::stringstream Error;
 		Error << "Can't currently handle seeking backwards " << Time << " < " << mSeekTime;
@@ -787,7 +788,24 @@ void TMediaExtractor::Seek(SoyTime Time)
 	}
 	
 	mSeekTime = Time;
-	
+	SoyTime FlushFramesAfter = Time;
+
+	//	let extractors throw, but catch it as a warning for now. Maybe later allow this to throw back an error to user/unity
+	try
+	{
+		if ( OnSeek() )
+		{
+			FlushFrames( FlushFramesAfter );
+		}
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Exception during Seek(" << Time << ") " << e.what() << std::endl;
+		//	wake up the thread regardless even if we're reporting an error back
+		//Wake();
+		//throw;
+	}
+
 	//	wake up thread to try and read more frames again
 	Wake();
 }
@@ -1340,6 +1358,24 @@ void TAudioBufferManager::ReleaseFrames()
 }
 
 
+void TAudioBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+
+	//	find last index to keep
+	for ( int i=mBlocks.GetSize()-1;	i>=0;	i-- )
+	{
+		auto& Block = mBlocks[i];
+		if ( Block.GetStartTime() > FlushTime )
+		{
+			mBlocks.RemoveBlock( i, 1 );
+			continue;
+		}
+
+		break;
+	}
+}
+
 
 void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 {
@@ -1416,6 +1452,25 @@ void TTextBufferManager::ReleaseFrames()
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
 	mBlocks.Clear();
+}
+
+
+void TTextBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+
+	//	find last index to keep
+	for ( int i=mBlocks.GetSize()-1;	i>=0;	i-- )
+	{
+		auto& Block = mBlocks[i];
+		if ( Block->GetStartTime() > FlushTime )
+		{
+			mBlocks.RemoveBlock( i, 1 );
+			continue;
+		}
+
+		break;
+	}
 }
 
 
@@ -1809,5 +1864,24 @@ void TPixelBufferManager::ReleaseFrames()
 	mFrameLock.unlock();
 }
 
+
+void TPixelBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
+{
+	//	free up frames
+	mFrameLock.lock();
+
+	for ( auto it=mFrames.begin();	it!=mFrames.end();	)
+	{
+		auto& Frame = *it;
+		if ( Frame.mTimestamp < FlushTime )
+		{
+			it++;
+			continue;
+		}
+		Frame.mPixels.reset();
+		it = mFrames.erase(it);
+	}
+	mFrameLock.unlock();
+}
 
 
