@@ -357,12 +357,13 @@ public:
 	virtual void				SetPlayerTime(const SoyTime& Time);			//	maybe turn this into a func to PULL the time rather than maintain it in here...
 	virtual void				CorrectDecodedFrameTimestamp(SoyTime& Timestamp);	//	adjust timestamp if neccessary
 	virtual void				ReleaseFrames()=0;
-	virtual void				ReleaseFramesAfter(SoyTime FlushTime)=0;
-	virtual bool				PrePushPixelBuffer(SoyTime Timestamp)=0;
+	void						FlushFrames(SoyTime FlushTime);
+	virtual bool				PrePushBuffer(SoyTime Timestamp);
 
 	void						SetMinBufferSize(size_t MinBufferSize)		{	mParams.mMinBufferSize = std::max( mParams.mMinBufferSize, MinBufferSize );	}
 	
 protected:
+	virtual void				ReleaseFramesAfter(SoyTime FlushTime)=0;
 	void						OnPushEof();
 	bool						HasAllFrames() const	{	return mHasEof;	}
 	size_t						GetMinBufferSize() const;
@@ -380,6 +381,7 @@ public:
 protected:
 	TPixelBufferParams				mParams;
 	SoyTime							mPlayerTime;
+	SoyTime							mFlushFenceTime;		//	if valid, don't allow frames over this, post-seek. Resets when we get a packet under
 
 	SoyTime							mFirstTimestamp;
 	SoyTime							mAdjustmentTimestamp;
@@ -403,7 +405,7 @@ public:
 	SoyTime				GetNextPixelBufferTime(bool Safe=true);
 	std::shared_ptr<TPixelBuffer>	PopPixelBuffer(SoyTime& Timestamp);
 	bool				PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::function<bool()> Block);
-	virtual bool		PrePushPixelBuffer(SoyTime Timestamp) override;
+	virtual bool		PrePushBuffer(SoyTime Timestamp) override;
 	bool				PeekPixelBuffer(SoyTime Timestamp);	//	is there a new pixel buffer?
 	bool				IsPixelBufferFull() const;
 
@@ -458,7 +460,6 @@ public:
 
 	virtual void	ReleaseFrames() override;
 	virtual void	ReleaseFramesAfter(SoyTime FlushTime) override;
-	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
 	
 private:
 	std::mutex					mBlocksLock;
@@ -479,7 +480,6 @@ public:
 	SoyTime			PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText);	//	returns end-time of the data extracted (invalid if none popped)
 	virtual void	ReleaseFrames() override;
 	virtual void	ReleaseFramesAfter(SoyTime FlushTime) override;
-	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
 	
 private:
 	std::mutex			mBlocksLock;
@@ -565,6 +565,7 @@ private:
 
 	SoyTime									mLastPacketTimestamp;	//	for when we have to calculate timecodes ourselves
 	SoyTime									mAutoTimestampDuration;
+	SoyTime									mFlushFence;			//	disallow packets above this timecode until they go under again. post-seek, the extract
 };
 
 

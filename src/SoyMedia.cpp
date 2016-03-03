@@ -1212,6 +1212,29 @@ void TMediaBufferManager::OnPushEof()
 	mHasEof = true;
 }
 
+void TMediaBufferManager::FlushFrames(SoyTime FlushTime)
+{
+	ReleaseFramesAfter( FlushTime );
+	mFlushFenceTime = FlushTime;
+}
+
+bool TMediaBufferManager::PrePushBuffer(SoyTime Timestamp)
+{
+	if ( !mFlushFenceTime.IsValid() )
+		return true;
+
+	if ( Timestamp >= mFlushFenceTime )
+	{
+		std::Debug << "TMediaBufferManager::PrePush dropped (fenced " << Timestamp << " >= " << mFlushFenceTime << ")" << std::endl;
+		return false;
+	}
+
+	//	new lower timestamp, release fence
+	std::Debug << "TMediaBufferManager::FlushFence(" << mFlushFenceTime << ") dropped" << std::endl;
+	mFlushFenceTime = SoyTime();
+	return true;
+}
+
 
 SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
 {
@@ -1569,7 +1592,7 @@ bool TMediaPassThroughDecoder::ProcessPixelPacket(const TMediaPacket& Packet)
 		Output.CorrectDecodedFrameTimestamp( Frame.mTimestamp );
 		Output.mOnFrameDecoded.OnTriggered( Frame.mTimestamp );
 
-		if ( !Output.PrePushPixelBuffer( Frame.mTimestamp ) )
+		if ( !Output.PrePushBuffer( Frame.mTimestamp ) )
 			return true;
 	
 		Frame.mPixels = Packet.mPixelBuffer;
@@ -1587,7 +1610,7 @@ bool TMediaPassThroughDecoder::ProcessPixelPacket(const TMediaPacket& Packet)
 		Output.CorrectDecodedFrameTimestamp( Frame.mTimestamp );
 		Output.mOnFrameDecoded.OnTriggered( Frame.mTimestamp );
 		
-		if ( !Output.PrePushPixelBuffer( Frame.mTimestamp ) )
+		if ( !Output.PrePushBuffer( Frame.mTimestamp ) )
 			return true;
 
 		SoyPixelsRemote Pixels( GetArrayBridge(Packet.mData), Packet.mMeta.mPixelMeta );
@@ -1791,8 +1814,11 @@ bool ComparePixelBuffers(const TPixelBufferFrame& a,const TPixelBufferFrame& b)
 	return a.mTimestamp < b.mTimestamp;
 }
 
-bool TPixelBufferManager::PrePushPixelBuffer(SoyTime Timestamp)
+bool TPixelBufferManager::PrePushBuffer(SoyTime Timestamp)
 {
+	if ( !TMediaBufferManager::PrePushBuffer( Timestamp ) )
+		return false;
+
 	//	always let frame through
 	if ( !mParams.mAllowPushRejection )
 		return true;
@@ -1873,7 +1899,7 @@ void TPixelBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 	for ( auto it=mFrames.begin();	it!=mFrames.end();	)
 	{
 		auto& Frame = *it;
-		if ( Frame.mTimestamp < FlushTime )
+		if ( Frame.mTimestamp < FlushTime )	//	gr: should we ditch super-old frames too?
 		{
 			it++;
 			continue;
