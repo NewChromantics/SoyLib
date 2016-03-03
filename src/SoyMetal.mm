@@ -3,6 +3,112 @@
 #include <SoyString.h>
 #include <SoyOpengl.h>
 
+template<typename ID_TYPE,typename PROTOCOL_BASE_TYPE=NSObject>
+class ObjcWrapper
+{
+public:
+	ObjcWrapper(void* Object);
+	ObjcWrapper(ID_TYPE Id_Object);
+	~ObjcWrapper();
+
+	//	yet this converts without hassle??
+	void*		AsPtr() const	{	return mObject;	}
+	operator	ID_TYPE()		{	return mObject;	}
+	
+	ID_TYPE		mObject;
+};
+
+
+class MTLDevice_impl : public ObjcWrapper<id<MTLDevice>>
+{
+public:
+	using ObjcWrapper::ObjcWrapper;	//	inherit constructors
+};
+
+class MTLTexture_impl : public ObjcWrapper<id<MTLTexture>>
+{
+public:
+	using ObjcWrapper::ObjcWrapper;	//	inherit constructors
+};
+
+class MTLBuffer_impl : public ObjcWrapper<id<MTLBuffer>>
+{
+public:
+	using ObjcWrapper::ObjcWrapper;	//	inherit constructors
+};
+
+class MTLCommandBuffer_impl: public ObjcWrapper<id<MTLCommandBuffer>>
+{
+public:
+	using ObjcWrapper::ObjcWrapper;	//	inherit constructors
+};
+
+class MTLCommandQueue_impl : public ObjcWrapper<id<MTLCommandQueue>>
+{
+public:
+	using ObjcWrapper::ObjcWrapper;	//	inherit constructors
+};
+
+class MTLCommandEncoder_impl : public ObjcWrapper<id<MTLCommandEncoder>>
+{
+public:
+	using ObjcWrapper::ObjcWrapper;	//	inherit constructors
+};
+
+
+template<typename TYPE_impl>
+Objc<TYPE_impl> make_objc(void* TexturePtr)
+{
+	return Objc<TYPE_impl>( std::make_shared<TYPE_impl>( TexturePtr ) );
+}
+
+
+
+template<typename ID_TYPE,typename PROTOCOL_BASE_TYPE>
+ObjcWrapper<ID_TYPE,PROTOCOL_BASE_TYPE>::ObjcWrapper(void* Object)
+{
+	//	gr: we throw to stop the shared_ptr of the wrapper being set like a failed alloc
+	if ( !Object )
+		throw Soy::AssertException("null objc pointer");
+		
+	//	bridge
+	PROTOCOL_BASE_TYPE* ns = (PROTOCOL_BASE_TYPE*)Object;
+		
+	//	id is anything(void*) but won't take a void*
+	id x = ns;
+	
+	//	can cast anything to a specific thing
+	mObject = x;
+	[mObject retain];
+	std::Debug << Soy::GetTypeName(*this) << " retain count: " << [mObject retainCount] << std::endl;
+	
+	auto* TestPtr = Object;
+	Soy::Assert( TestPtr == Object, "Pointer conversion failed");
+	//mObject = (__bridge*)Object;
+}
+
+
+template<typename ID_TYPE,typename PROTOCOL_BASE_TYPE>
+ObjcWrapper<ID_TYPE,PROTOCOL_BASE_TYPE>::ObjcWrapper(ID_TYPE Id_Object) :
+	mObject	( Id_Object )
+{
+	if ( !mObject )
+		throw Soy::AssertException("null objc object");
+}
+	
+
+template<typename ID_TYPE,typename PROTOCOL_BASE_TYPE>
+ObjcWrapper<ID_TYPE,PROTOCOL_BASE_TYPE>::~ObjcWrapper()
+{
+	if ( mObject )
+	{
+		std::Debug << Soy::GetTypeName(*this) << " releasing retain count now: " << ([mObject retainCount])-1 << std::endl;
+		[mObject release];
+		mObject = nil;
+	}
+}
+
+
 #if defined(TARGET_IOS)
 #define ENABLE_METAL
 #elif defined(TARGET_OSX) && defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
@@ -221,8 +327,8 @@ Metal::TTexture::TTexture(void* TexturePtr) :
 	mTexture		( nullptr ),
 	mAutoRelease	( false )
 {
-	mTexture = (__bridge MTLTextureRef)TexturePtr;
-	Soy::Assert( mTexture != nil, "Expected texture?");
+	mTexture = make_objc<MTLTexture_impl>( TexturePtr );
+	Soy::Assert( mTexture, "Expected texture?");
 
 	std::Debug << "Made external metal texture: " << GetMeta() << std::endl;
 }
@@ -239,7 +345,7 @@ Metal::TTexture::TTexture(const SoyPixelsMeta& Meta,TContext& Context) :
 	bool MipMapped = false;
 	auto* Descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:PixelFormat width:Width height:Height mipmapped:MipMapped];
 	Metal::IsOkay(Descriptor,Meta);
-	mTexture = [Device newTextureWithDescriptor:Descriptor];
+	mTexture = make_objc<MTLTexture_impl>( [Device newTextureWithDescriptor:Descriptor] );
 	
 	if ( !mTexture )
 	{
@@ -252,7 +358,7 @@ Metal::TTexture::TTexture(const SoyPixelsMeta& Meta,TContext& Context) :
 void Metal::TTexture::Delete()
 {
 	//	gr:this doesn't apply as objects are just refcounted?
-	mTexture = nullptr;
+	mTexture.reset();
 }
 
 SoyPixelsMeta Metal::TTexture::GetMeta() const
@@ -260,10 +366,18 @@ SoyPixelsMeta Metal::TTexture::GetMeta() const
 	if ( !mTexture )
 		return SoyPixelsMeta();
 
-	auto Format = Metal::GetPixelFormat( [mTexture pixelFormat] );
-	auto Width = [mTexture width];
-	auto Height = [mTexture height];
-	return SoyPixelsMeta( Width, Height, Format );
+	@try
+	{
+		auto& Texture = mTexture->mObject;
+		auto Format = Metal::GetPixelFormat( [Texture pixelFormat] );
+		auto Width = [Texture width];
+		auto Height = [Texture height];
+		return SoyPixelsMeta( Width, Height, Format );
+	}
+	@catch (NSException *exception)
+	{
+		throw Soy::AssertException( exception );
+	}
 }
 
 
@@ -295,11 +409,11 @@ void Metal::TTexture::Write(const SoyPixelsImpl& Pixels,const Opengl::TTextureUp
 		NSUInteger BytesPerImage = Pixels.GetMeta().GetDataSize();
 		auto Depth = 1;
 		MTLSize SourceSize = MTLSizeMake( Pixels.GetWidth(), Pixels.GetHeight(), Depth );
-		id<MTLTexture> TargetTexture = mTexture;
+		id<MTLTexture> TargetTexture = mTexture->mObject;
 		NSUInteger DestinationSlice = 0;
 		NSUInteger DestinationLevel = 0;
 		MTLOrigin DestinationOrigin = MTLOriginMake(0,0,0);
-		auto Buffer = pBuffer->GetBuffer();
+		auto Buffer = pBuffer->GetCommandBuffer();
 
 		//	generate command
 		id<MTLBlitCommandEncoder> Command = [Job.GetCommandBuffer() blitCommandEncoder];
@@ -331,7 +445,7 @@ void Metal::TTexture::Write(const TTexture& That,const Opengl::TTextureUploadPar
 	auto& Job = *pJob;
 
 	auto ThatMeta = That.GetMeta();
-	id<MTLTexture> SourceTexture = That.mTexture;
+	id<MTLTexture> SourceTexture = That.mTexture->mObject;
 	NSUInteger SourceSlice = 0;
 	NSUInteger SourceLevel = 0;
 	MTLOrigin SourceOrigin = MTLOriginMake( 0, 0, 0 );
@@ -339,7 +453,7 @@ void Metal::TTexture::Write(const TTexture& That,const Opengl::TTextureUploadPar
 	MTLSize SourceSize = MTLSizeMake( ThatMeta.GetWidth(), ThatMeta.GetHeight(), SourceDepth );
 
 	auto ThisMeta = GetMeta();
-	id<MTLTexture> TargetTexture = mTexture;
+	id<MTLTexture> TargetTexture = mTexture->mObject;
 	NSUInteger TargetSlice = 0;
 	NSUInteger TargetLevel = 0;
 	MTLOrigin TargetOrigin = MTLOriginMake( 0, 0, 0 );
@@ -367,8 +481,17 @@ void Metal::TTexture::Write(const TTexture& That,const Opengl::TTextureUploadPar
 Metal::TDevice::TDevice(void* DevicePtr) :
 	mDevice	( nullptr )
 {
-	mDevice = (MTLDeviceRef)DevicePtr;
-	Soy::Assert( mDevice != nullptr, "Null device");
+	mDevice = make_objc<MTLDevice_impl>(DevicePtr);
+}
+
+id<MTLDevice> Metal::TDevice::GetDevice()
+{
+	return mDevice->mObject;
+}
+
+bool Metal::TDevice::operator==(void* DevicePtr) const
+{
+	return mDevice->AsPtr() == DevicePtr;
 }
 
 
@@ -379,8 +502,7 @@ Metal::TContext::TContext(void* DevicePtr)
 	
 	//	allocate a new command queue for this thread
 	auto Device = GetDevice();
-	mQueue = [Device newCommandQueue];
-	Soy::Assert( mQueue != nullptr, "Failed to allocate queue");
+	mQueue = make_objc<MTLCommandQueue_impl>( [Device newCommandQueue] );
 }
 
 
@@ -423,7 +545,7 @@ std::shared_ptr<Metal::TJob> Metal::TContext::AllocJob()
 	return std::make_shared<TJob>( *this );
 }
 
-MTLDeviceRef Metal::TContext::GetDevice()
+id<MTLDevice> Metal::TContext::GetDevice()
 {
 	Soy::Assert( mDevice != nullptr, "Device expected");
 	auto Device = mDevice->GetDevice();
@@ -431,6 +553,10 @@ MTLDeviceRef Metal::TContext::GetDevice()
 	return Device;
 }
 
+id<MTLCommandQueue> Metal::TContext::GetQueue()
+{
+	return mQueue->mObject;
+}
 
 Metal::TBuffer::TBuffer(const uint8* Data,size_t DataSize,TDevice& Device) :
 	mBuffer		( nullptr )
@@ -439,7 +565,7 @@ Metal::TBuffer::TBuffer(const uint8* Data,size_t DataSize,TDevice& Device) :
 	auto DeviceMtl = Device.GetDevice();
 	Soy::Assert( DeviceMtl!=nullptr, "Expected metal device");
 	
-	mBuffer = [DeviceMtl newBufferWithBytes:Data length:DataSize options:Options];
+	mBuffer = make_objc<MTLBuffer_impl>( [DeviceMtl newBufferWithBytes:Data length:DataSize options:Options] );
 	if ( !mBuffer )
 	{
 		std::stringstream Error;
@@ -450,11 +576,16 @@ Metal::TBuffer::TBuffer(const uint8* Data,size_t DataSize,TDevice& Device) :
 	//	gr: is this immediate??
 }
 
+id<MTLBuffer> Metal::TBuffer::GetCommandBuffer()
+{
+	return mBuffer->mObject;
+}
+
 
 Metal::TJob::TJob(TContext& Context) :
 	mCommandBuffer	( nullptr )
 {
-	mCommandBuffer = [Context.GetQueue() commandBuffer];
+	mCommandBuffer = make_objc<MTLCommandBuffer_impl>( [Context.GetQueue() commandBuffer] );
 }
 
 
@@ -513,11 +644,18 @@ void Metal::TJob::Execute(Soy::TSemaphore* Semaphore)
 		RealOnCompleted( Buffer );
 	};
 
+	auto& CommandBuffer = mCommandBuffer->mObject;
+	
 	if ( Semaphore )
 	{
-		[mCommandBuffer addCompletedHandler:OnCompleted];
+		[CommandBuffer addCompletedHandler:OnCompleted];
 	}
 
-	[mCommandBuffer commit];
+	[CommandBuffer commit];
 }
 
+
+id<MTLCommandBuffer> Metal::TJob::GetCommandBuffer()
+{
+	return mCommandBuffer->mObject;
+}

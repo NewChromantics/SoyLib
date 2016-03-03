@@ -126,6 +126,7 @@ UnityRenderingAPI
 UnityRenderingAPI;
 class EAGLContext;
 
+typedef void* MTLDeviceRef;	//	id<MTLDevice>
 extern "C" int					UnitySelectedRenderingAPI();
 extern "C" MTLDeviceRef			UnityGetMetalDevice();
 extern "C" EAGLContext*			UnityGetDataContextEAGL();
