@@ -94,6 +94,7 @@ public:
 		return AllocBuffer( reinterpret_cast<const uint8*>(Data.GetArray()), Data.GetDataSize() );
 	}
 	MTLCommandQueueRef			GetQueue()		{	return mQueue;	}
+	MTLDeviceRef				GetDevice();	//	throws if null
 	
 protected:
 	std::shared_ptr<TDevice>	mDevice;
@@ -142,24 +143,57 @@ public:
 class Metal::TTexture
 {
 public:
-	//	referece from external (unity)
-	TTexture(void* TexturePtr);
 	TTexture() :
-		mTexture	( nullptr )
+		mTexture	( nullptr ),
+		mAutoRelease	( true )
 	{
 	}
+	TTexture(TTexture&& Move)			{	*this = std::move(Move);	}
+	TTexture(const TTexture& Reference)	{	*this = Reference;	}
+	TTexture(void* TexturePtr);			//	referece from external (unity)
+	explicit TTexture(const SoyPixelsMeta& Meta,TContext& Context);	//	alloc
+	~TTexture()
+	{
+		if ( mAutoRelease )
+			Delete();
+	}
 	
+	TTexture& operator=(const TTexture& Weak)
+	{
+		if ( this != &Weak )
+		{
+			mAutoRelease = false;
+			mTexture = Weak.mTexture;
+		}
+		return *this;
+	}
+	
+	TTexture& operator=(TTexture&& Move)
+	{
+		if ( this != &Move )
+		{
+			mAutoRelease = Move.mAutoRelease;
+			mTexture = Move.mTexture;
+			
+			//	stolen the resource
+			Move.mAutoRelease = false;
+		}
+		return *this;
+	}
+	
+	void			Delete();
+	void			Write(const SoyPixelsImpl& Pixels,const Opengl::TTextureUploadParams& Params,TContext& Context);
+	void			Write(const TTexture& That,const Opengl::TTextureUploadParams& Params,TContext& Context);
+
+	SoyPixelsMeta	GetMeta() const;
 	bool			IsValid() const		{	return mTexture != nullptr;	}
+	bool			operator==(const SoyPixelsMeta& Meta) const	{	return Meta == GetMeta();	}
+	bool			operator!=(const SoyPixelsMeta& Meta) const	{	return Meta != GetMeta();	}
 	bool			operator==(const TTexture& that) const		{	return mTexture == that.mTexture;	}
 	bool			operator!=(const TTexture& that) const		{	return mTexture != that.mTexture;	}
 	
-	SoyPixelsMeta	GetMeta() const;
-	
-	
-	void			Write(SoyPixelsImpl& Pixels,Opengl::TTextureUploadParams& Params,TContext& Context);
-	
-	
 private:
+	bool			mAutoRelease;
 	MTLTextureRef	mTexture;
 };
 

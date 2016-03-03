@@ -40,7 +40,11 @@ namespace Metal
 	SoyPixelsFormat::Type			GetPixelFormat(MTLPixelFormat Format);
 	MTLPixelFormat					GetPixelFormat(SoyPixelsFormat::Type Format);
 	
-	std::shared_ptr<TDevice>		GetAnonymousDevice(void* DevicePtr);
+	std::shared_ptr<TDevice>		GetAnonymousDevice(void* DevicePtr);\
+	
+
+	//	when using invalid descriptors, metal aborts() rather than throws an exception so catch bad descriptors early
+	void							IsOkay(MTLTextureDescriptor* Descriptor,const SoyPixelsMeta& OriginalMeta);
 }
 
 
@@ -142,8 +146,28 @@ SoyPixelsFormat::Type Metal::GetPixelFormat(MTLPixelFormat Format)
 	return Meta->mSoyFormat;
 }
 
-
-
+void Metal::IsOkay(MTLTextureDescriptor* Descriptor,const SoyPixelsMeta& OriginalMeta)
+{
+	if ( !Descriptor )
+	{
+		std::stringstream Error;
+		Error << "Null MTLTextureDescriptor from " << OriginalMeta;
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	auto MakeError = [&](const char* Error)
+	{
+		std::stringstream ErrorStr;
+		ErrorStr << Error << " from " << OriginalMeta;
+		return ErrorStr.str();
+	};
+	
+	//	bad dimensions/pixel format abort()'\s in metal driver/layer
+	Soy::Assert( [Descriptor pixelFormat] != MTLPixelFormatInvalid, MakeError("Descriptor has invalid pixelformat") );
+	Soy::Assert( [Descriptor width] > 0, MakeError("Descriptor has width=0") );
+	Soy::Assert( [Descriptor height] > 0, MakeError("Descriptor has height=0") );
+	Soy::Assert( [Descriptor depth] > 0, MakeError("Descriptor has depth=0") );
+}
 
 
 
@@ -194,14 +218,43 @@ std::shared_ptr<Metal::TDevice> Metal::GetAnonymousDevice(void* DevicePtr)
 
 
 Metal::TTexture::TTexture(void* TexturePtr) :
-	mTexture	( nullptr )
+	mTexture		( nullptr ),
+	mAutoRelease	( false )
 {
 	mTexture = (__bridge MTLTextureRef)TexturePtr;
 	Soy::Assert( mTexture != nil, "Expected texture?");
 
 	std::Debug << "Made external metal texture: " << GetMeta() << std::endl;
 }
+
+
+Metal::TTexture::TTexture(const SoyPixelsMeta& Meta,TContext& Context) :
+	mTexture		( nullptr ),
+	mAutoRelease	( false )
+{
+	auto Device = Context.GetDevice();
+	auto PixelFormat = GetPixelFormat( Meta.GetFormat() );
+	NSUInteger Width = Meta.GetWidth();
+	NSUInteger Height = Meta.GetHeight();
+	bool MipMapped = false;
+	auto* Descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:PixelFormat width:Width height:Height mipmapped:MipMapped];
+	Metal::IsOkay(Descriptor,Meta);
+	mTexture = [Device newTextureWithDescriptor:Descriptor];
 	
+	if ( !mTexture )
+	{
+		std::stringstream Error;
+		Error << "Failed to create MTLTexture from " << Meta;
+		throw Soy::AssertException( Error.str() );
+	}	
+}
+
+void Metal::TTexture::Delete()
+{
+	//	gr:this doesn't apply as objects are just refcounted?
+	mTexture = nullptr;
+}
+
 SoyPixelsMeta Metal::TTexture::GetMeta() const
 {
 	if ( !mTexture )
@@ -214,7 +267,7 @@ SoyPixelsMeta Metal::TTexture::GetMeta() const
 }
 
 
-void Metal::TTexture::Write(SoyPixelsImpl& Pixels,Opengl::TTextureUploadParams& Params,TContext& Context)
+void Metal::TTexture::Write(const SoyPixelsImpl& Pixels,const Opengl::TTextureUploadParams& Params,TContext& Context)
 {
 	auto pJob = Context.AllocJob();
 	Soy::Assert( pJob!=nullptr, "Failed to allocate metal job");
@@ -232,23 +285,74 @@ void Metal::TTexture::Write(SoyPixelsImpl& Pixels,Opengl::TTextureUploadParams& 
 	BOOL MipMaps = false;
 	auto* Descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:Format width:Width height:Height mipmapped:MipMaps];
 */
+	//	simple copy
+	//	if there is misalignment here, it will blindly put RGB into BGRA etc
+	//	gr; need to check dimensions?
+	if ( Pixels.GetMeta() == this->GetMeta() )
+	{
+		NSUInteger Offset = 0;
+		NSUInteger BytesPerRow = Pixels.GetMeta().GetRowDataSize();
+		NSUInteger BytesPerImage = Pixels.GetMeta().GetDataSize();
+		auto Depth = 1;
+		MTLSize SourceSize = MTLSizeMake( Pixels.GetWidth(), Pixels.GetHeight(), Depth );
+		id<MTLTexture> TargetTexture = mTexture;
+		NSUInteger DestinationSlice = 0;
+		NSUInteger DestinationLevel = 0;
+		MTLOrigin DestinationOrigin = MTLOriginMake(0,0,0);
+		auto Buffer = pBuffer->GetBuffer();
+
+		//	generate command
+		id<MTLBlitCommandEncoder> Command = [Job.GetCommandBuffer() blitCommandEncoder];
+		[Command copyFromBuffer:Buffer sourceOffset:Offset sourceBytesPerRow:BytesPerRow sourceBytesPerImage:BytesPerImage sourceSize:SourceSize toTexture:TargetTexture destinationSlice:DestinationSlice destinationLevel:DestinationLevel destinationOrigin:DestinationOrigin];
+		
+		if ( Params.mGenerateMipMaps )
+			[Command generateMipmapsForTexture:TargetTexture];
+		[Command endEncoding];
+	}
+	else
+	{
+		//	create other image
+		std::stringstream Error;
+		Error << "Cannot push pixels(" << Pixels.GetMeta() << ") into other-format texture(" << this->GetMeta() << ")";
+		throw Soy::AssertException( Error.str() );
+	}
 	
-	NSUInteger Offset = 0;
-	NSUInteger BytesPerRow = Pixels.GetMeta().GetRowDataSize();
-	NSUInteger BytesPerImage = Pixels.GetMeta().GetDataSize();
-	MTLSize SourceSize = MTLSizeMake( Pixels.GetWidth(), Pixels.GetHeight(), 0 );
+	
+	Soy::TSemaphore Semaphore;
+	Job.Execute( Semaphore );
+	Semaphore.Wait();
+}
+
+
+void Metal::TTexture::Write(const TTexture& That,const Opengl::TTextureUploadParams& Params,TContext& Context)
+{
+	auto pJob = Context.AllocJob();
+	Soy::Assert( pJob!=nullptr, "Failed to allocate metal job");
+	auto& Job = *pJob;
+
+	auto ThatMeta = That.GetMeta();
+	id<MTLTexture> SourceTexture = That.mTexture;
+	NSUInteger SourceSlice = 0;
+	NSUInteger SourceLevel = 0;
+	MTLOrigin SourceOrigin = MTLOriginMake( 0, 0, 0 );
+	auto SourceDepth = 1;
+	MTLSize SourceSize = MTLSizeMake( ThatMeta.GetWidth(), ThatMeta.GetHeight(), SourceDepth );
+
+	auto ThisMeta = GetMeta();
 	id<MTLTexture> TargetTexture = mTexture;
-	NSUInteger DestinationSlice = 0;
-	NSUInteger DestinationLevel = 0;
-	MTLOrigin DestinationOrigin = MTLOriginMake(0,0,0);
-	auto Buffer = pBuffer->GetBuffer();
+	NSUInteger TargetSlice = 0;
+	NSUInteger TargetLevel = 0;
+	MTLOrigin TargetOrigin = MTLOriginMake( 0, 0, 0 );
+	auto TargetDepth = 1;
+	MTLSize TargetSize = MTLSizeMake( ThisMeta.GetWidth(), ThisMeta.GetHeight(), TargetDepth );
 
-	//	generate command
+	//	catch various metal abort's
+	Soy::Assert( [SourceTexture pixelFormat] == [TargetTexture pixelFormat], "Source PixelFormat must equal target PixelFormat" );
+
+	//	rect copy
 	id<MTLBlitCommandEncoder> Command = [Job.GetCommandBuffer() blitCommandEncoder];
- 
+	[Command copyFromTexture:SourceTexture sourceSlice:SourceSlice sourceLevel:SourceLevel sourceOrigin:SourceOrigin sourceSize:SourceSize toTexture:TargetTexture destinationSlice:TargetSlice destinationLevel:TargetLevel destinationOrigin:TargetOrigin];
 
-	[Command copyFromBuffer:Buffer sourceOffset:Offset sourceBytesPerRow:BytesPerRow sourceBytesPerImage:BytesPerImage sourceSize:SourceSize toTexture:TargetTexture destinationSlice:DestinationSlice destinationLevel:DestinationLevel destinationOrigin:DestinationOrigin];
-	
 	if ( Params.mGenerateMipMaps )
 		[Command generateMipmapsForTexture:TargetTexture];
 	[Command endEncoding];
@@ -274,7 +378,7 @@ Metal::TContext::TContext(void* DevicePtr)
 	Soy::Assert( mDevice != nullptr, "Couldnt get anonymous metal device");
 	
 	//	allocate a new command queue for this thread
-	auto Device = mDevice->GetDevice();
+	auto Device = GetDevice();
 	mQueue = [Device newCommandQueue];
 	Soy::Assert( mQueue != nullptr, "Failed to allocate queue");
 }
@@ -319,6 +423,13 @@ std::shared_ptr<Metal::TJob> Metal::TContext::AllocJob()
 	return std::make_shared<TJob>( *this );
 }
 
+MTLDeviceRef Metal::TContext::GetDevice()
+{
+	Soy::Assert( mDevice != nullptr, "Device expected");
+	auto Device = mDevice->GetDevice();
+	Soy::Assert( Device != nullptr, "Device->Device expected");
+	return Device;
+}
 
 
 Metal::TBuffer::TBuffer(const uint8* Data,size_t DataSize,TDevice& Device) :
