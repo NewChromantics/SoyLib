@@ -7,11 +7,19 @@
 //	windows complains that I don't need to specify throw exception type?
 #pragma warning(disable:4290)	//	C++ exception specification ignored except to indicate a function is not __declspec(nothrow)
 
+#if defined(__OBJC__)
+@class NSException;
+#endif
 
 namespace Soy
 {
 	//	forward declarations
 	class AssertException;
+	
+	
+#if defined(__OBJC__)
+	std::string		NSErrorToString(NSException* e);
+#endif
 };
 
 
@@ -22,6 +30,13 @@ public:
 		mError	( Message )
 	{
 	}
+#if defined(__OBJC__)
+	AssertException(NSException* e) :
+		mError	( Soy::NSErrorToString(e) )
+	{
+	}
+#endif
+	
 	virtual const char* what() const __noexcept	{	return mError.c_str();	}
 
 public:
