@@ -48,6 +48,11 @@ cl_float8 Soy::VectorToCl8(const ArrayBridge<float>& v)
 	return cl_float8{ .s={ v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7] } };
 }
 
+cl_float16 Soy::VectorToCl16(const ArrayBridge<float>& v)
+{
+	return cl_float16{ .s={ v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15] } };
+}
+
 cl_int4 Soy::VectorToCl(const vec4x<int>& v)
 {
 	return cl_int4{ .s={ v.x, v.y, v.z, v.w } };
