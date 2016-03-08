@@ -680,6 +680,7 @@ protected:
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);
 	SoyTime							GetSeekTime() const			{	return mSeekTime;	}
+	SoyTime							GetExtractTime() const		{	return mSeekTime + mExtractAheadMs;	}
 	
 	virtual bool					OnSeek()					{	return false;	}	//	reposition extractors whereever possible. return true to invoke a data flush (ie. if you moved the extractor)
 	virtual bool					CanSeekBackwards()			{	return false;	}	//	by default, don't allow this, until it's implemented for that extractor
@@ -697,8 +698,8 @@ protected:
 	
 private:
 	std::string						mFatalError;
-	SoyTime							mSeekTime;
-	std::map<size_t,SoyTime>		mStreamFirstFrameTime;			//	time correction per-frame
+	SoyTime							mSeekTime;				//	current player time, which we actually want to seek to
+	std::map<size_t,SoyTime>		mStreamFirstFrameTime;	//	time correction per-frame
 };
 
 

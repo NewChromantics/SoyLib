@@ -775,9 +775,6 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::GetStreamBuffer(size_t Stre
 
 void TMediaExtractor::Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames)
 {
-	//	adjust the time so we extract ahead of the current player time
-	Time += mExtractAheadMs;
-	
 	//	update the target seek time
 	bool AllowReverse = CanSeekBackwards();
 	if ( !AllowReverse && Time < mSeekTime )
@@ -833,7 +830,7 @@ bool TMediaExtractor::Iteration()
 		{
 			return IsWorking();
 		};
-		ReadPacketsUntil( mSeekTime, Loop );
+		ReadPacketsUntil( GetExtractTime(), Loop );
 	}
 	catch (std::exception& e)
 	{
@@ -1302,7 +1299,11 @@ void TMediaBufferManager::OnPushEof()
 void TMediaBufferManager::FlushFrames(SoyTime FlushTime)
 {
 	ReleaseFramesAfter( FlushTime );
+	
+	//	gr: if the flush fence is zero, it doesn't get used, so correct it
 	mFlushFenceTime = FlushTime;
+	if ( !mFlushFenceTime.IsValid() )
+		mFlushFenceTime.mTime = 1;
 }
 
 bool TMediaBufferManager::PrePushBuffer(SoyTime Timestamp)
@@ -1310,7 +1311,8 @@ bool TMediaBufferManager::PrePushBuffer(SoyTime Timestamp)
 	if ( !mFlushFenceTime.IsValid() )
 		return true;
 
-	if ( Timestamp >= mFlushFenceTime )
+	//	if we do =, then when the fence is 1, it rejects 1.
+	if ( Timestamp > mFlushFenceTime )
 	{
 		std::Debug << "TMediaBufferManager::PrePush dropped (fenced " << Timestamp << " >= " << mFlushFenceTime << ")" << std::endl;
 		return false;
@@ -1979,11 +1981,14 @@ void TPixelBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 	for ( auto it=mFrames.begin();	it!=mFrames.end();	)
 	{
 		auto& Frame = *it;
+
+		/*
 		if ( Frame.mTimestamp < FlushTime )	//	gr: should we ditch super-old frames too?
 		{
 			it++;
 			continue;
 		}
+		*/
 		Frame.mPixels.reset();
 		it = mFrames.erase(it);
 	}
