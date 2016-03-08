@@ -357,11 +357,13 @@ public:
 	virtual void				SetPlayerTime(const SoyTime& Time);			//	maybe turn this into a func to PULL the time rather than maintain it in here...
 	virtual void				CorrectDecodedFrameTimestamp(SoyTime& Timestamp);	//	adjust timestamp if neccessary
 	virtual void				ReleaseFrames()=0;
-	virtual bool				PrePushPixelBuffer(SoyTime Timestamp)=0;
+	void						FlushFrames(SoyTime FlushTime);
+	virtual bool				PrePushBuffer(SoyTime Timestamp);
 
 	void						SetMinBufferSize(size_t MinBufferSize)		{	mParams.mMinBufferSize = std::max( mParams.mMinBufferSize, MinBufferSize );	}
 	
 protected:
+	virtual void				ReleaseFramesAfter(SoyTime FlushTime)=0;
 	void						OnPushEof();
 	bool						HasAllFrames() const	{	return mHasEof;	}
 	size_t						GetMinBufferSize() const;
@@ -379,6 +381,7 @@ public:
 protected:
 	TPixelBufferParams				mParams;
 	SoyTime							mPlayerTime;
+	SoyTime							mFlushFenceTime;		//	if valid, don't allow frames over this, post-seek. Resets when we get a packet under
 
 	SoyTime							mFirstTimestamp;
 	SoyTime							mAdjustmentTimestamp;
@@ -402,11 +405,12 @@ public:
 	SoyTime				GetNextPixelBufferTime(bool Safe=true);
 	std::shared_ptr<TPixelBuffer>	PopPixelBuffer(SoyTime& Timestamp);
 	bool				PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::function<bool()> Block);
-	virtual bool		PrePushPixelBuffer(SoyTime Timestamp) override;
+	virtual bool		PrePushBuffer(SoyTime Timestamp) override;
 	bool				PeekPixelBuffer(SoyTime Timestamp);	//	is there a new pixel buffer?
 	bool				IsPixelBufferFull() const;
 
 	virtual void		ReleaseFrames() override;
+	virtual void		ReleaseFramesAfter(SoyTime FlushTime) override;
 	
 	
 private:
@@ -426,6 +430,7 @@ public:
 	{
 	}
 	
+	SoyTime				GetStartTime() const			{	return mStartTime;	}
 	SoyTime				GetSampleTime(size_t SampleIndex) const;
 	ssize_t				GetTimeSampleIndex(SoyTime Time) const;		//	can be out of range of the data
 	size_t				RemoveDataUntil(SoyTime Time);				//	returns number of samples removed
@@ -454,7 +459,7 @@ public:
 	void			PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd);	//	todo: handle channels
 
 	virtual void	ReleaseFrames() override;
-	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
+	virtual void	ReleaseFramesAfter(SoyTime FlushTime) override;
 	
 private:
 	std::mutex					mBlocksLock;
@@ -474,7 +479,7 @@ public:
 	void			PushBuffer(std::shared_ptr<TMediaPacket> Buffer);
 	SoyTime			PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText);	//	returns end-time of the data extracted (invalid if none popped)
 	virtual void	ReleaseFrames() override;
-	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
+	virtual void	ReleaseFramesAfter(SoyTime FlushTime) override;
 	
 private:
 	std::mutex			mBlocksLock;
@@ -496,6 +501,7 @@ public:
 
 	//	gr: re-instating this, we should enforce decode timecodes in the extractor.
 	SoyTime					GetSortingTimecode() const	{	return mDecodeTimecode.IsValid() ? mDecodeTimecode : mTimecode;	}
+	SoyTime					GetStartTime() const		{	return mTimecode;	}
 	SoyTime					GetEndTime() const			{	return mTimecode + mDuration;	}
 	bool					HasData() const
 	{
@@ -559,6 +565,7 @@ private:
 
 	SoyTime									mLastPacketTimestamp;	//	for when we have to calculate timecodes ourselves
 	SoyTime									mAutoTimestampDuration;
+	SoyTime									mFlushFence;			//	disallow packets above this timecode until they go under again. post-seek, the extract
 };
 
 
@@ -637,7 +644,7 @@ public:
 	TMediaExtractor(const TMediaExtractorParams& Params);
 	~TMediaExtractor();
 	
-	void							Seek(SoyTime Time);				//	keep calling this, controls the packet read-ahead
+	void							Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames);				//	keep calling this, controls the packet read-ahead
 	
 	virtual void					GetStreams(ArrayBridge<TStreamMeta>&& Streams)=0;
 	TStreamMeta						GetStream(size_t Index);
@@ -671,6 +678,9 @@ protected:
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);
 	SoyTime							GetSeekTime() const			{	return mSeekTime;	}
 	
+	virtual bool					OnSeek()					{	return false;	}	//	reposition extractors whereever possible. return true to invoke a data flush (ie. if you moved the extractor)
+	virtual bool					CanSeekBackwards()			{	return false;	}	//	by default, don't allow this, until it's implemented for that extractor
+
 private:
 	virtual bool					Iteration() override;
 	

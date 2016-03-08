@@ -773,13 +773,14 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::GetStreamBuffer(size_t Stre
 	return mStreamBuffers[StreamIndex];
 }
 
-void TMediaExtractor::Seek(SoyTime Time)
+void TMediaExtractor::Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames)
 {
 	//	adjust the time so we extract ahead of the current player time
 	Time += mExtractAheadMs;
 	
 	//	update the target seek time
-	if ( Time < mSeekTime )
+	bool AllowReverse = CanSeekBackwards();
+	if ( !AllowReverse && Time < mSeekTime )
 	{
 		std::stringstream Error;
 		Error << "Can't currently handle seeking backwards " << Time << " < " << mSeekTime;
@@ -787,7 +788,24 @@ void TMediaExtractor::Seek(SoyTime Time)
 	}
 	
 	mSeekTime = Time;
-	
+	SoyTime FlushFramesAfter = Time;
+
+	//	let extractors throw, but catch it as a warning for now. Maybe later allow this to throw back an error to user/unity
+	try
+	{
+		if ( OnSeek() )
+		{
+			FlushFrames( FlushFramesAfter );
+		}
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Exception during Seek(" << Time << ") " << e.what() << std::endl;
+		//	wake up the thread regardless even if we're reporting an error back
+		//Wake();
+		//throw;
+	}
+
 	//	wake up thread to try and read more frames again
 	Wake();
 }
@@ -1194,6 +1212,29 @@ void TMediaBufferManager::OnPushEof()
 	mHasEof = true;
 }
 
+void TMediaBufferManager::FlushFrames(SoyTime FlushTime)
+{
+	ReleaseFramesAfter( FlushTime );
+	mFlushFenceTime = FlushTime;
+}
+
+bool TMediaBufferManager::PrePushBuffer(SoyTime Timestamp)
+{
+	if ( !mFlushFenceTime.IsValid() )
+		return true;
+
+	if ( Timestamp >= mFlushFenceTime )
+	{
+		std::Debug << "TMediaBufferManager::PrePush dropped (fenced " << Timestamp << " >= " << mFlushFenceTime << ")" << std::endl;
+		return false;
+	}
+
+	//	new lower timestamp, release fence
+	std::Debug << "TMediaBufferManager::FlushFence(" << mFlushFenceTime << ") dropped" << std::endl;
+	mFlushFenceTime = SoyTime();
+	return true;
+}
+
 
 SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
 {
@@ -1340,6 +1381,24 @@ void TAudioBufferManager::ReleaseFrames()
 }
 
 
+void TAudioBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+
+	//	find last index to keep
+	for ( int i=mBlocks.GetSize()-1;	i>=0;	i-- )
+	{
+		auto& Block = mBlocks[i];
+		if ( Block.GetStartTime() > FlushTime )
+		{
+			mBlocks.RemoveBlock( i, 1 );
+			continue;
+		}
+
+		break;
+	}
+}
+
 
 void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 {
@@ -1416,6 +1475,25 @@ void TTextBufferManager::ReleaseFrames()
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
 	mBlocks.Clear();
+}
+
+
+void TTextBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+
+	//	find last index to keep
+	for ( int i=mBlocks.GetSize()-1;	i>=0;	i-- )
+	{
+		auto& Block = mBlocks[i];
+		if ( Block->GetStartTime() > FlushTime )
+		{
+			mBlocks.RemoveBlock( i, 1 );
+			continue;
+		}
+
+		break;
+	}
 }
 
 
@@ -1514,7 +1592,7 @@ bool TMediaPassThroughDecoder::ProcessPixelPacket(const TMediaPacket& Packet)
 		Output.CorrectDecodedFrameTimestamp( Frame.mTimestamp );
 		Output.mOnFrameDecoded.OnTriggered( Frame.mTimestamp );
 
-		if ( !Output.PrePushPixelBuffer( Frame.mTimestamp ) )
+		if ( !Output.PrePushBuffer( Frame.mTimestamp ) )
 			return true;
 	
 		Frame.mPixels = Packet.mPixelBuffer;
@@ -1532,7 +1610,7 @@ bool TMediaPassThroughDecoder::ProcessPixelPacket(const TMediaPacket& Packet)
 		Output.CorrectDecodedFrameTimestamp( Frame.mTimestamp );
 		Output.mOnFrameDecoded.OnTriggered( Frame.mTimestamp );
 		
-		if ( !Output.PrePushPixelBuffer( Frame.mTimestamp ) )
+		if ( !Output.PrePushBuffer( Frame.mTimestamp ) )
 			return true;
 
 		SoyPixelsRemote Pixels( GetArrayBridge(Packet.mData), Packet.mMeta.mPixelMeta );
@@ -1736,8 +1814,11 @@ bool ComparePixelBuffers(const TPixelBufferFrame& a,const TPixelBufferFrame& b)
 	return a.mTimestamp < b.mTimestamp;
 }
 
-bool TPixelBufferManager::PrePushPixelBuffer(SoyTime Timestamp)
+bool TPixelBufferManager::PrePushBuffer(SoyTime Timestamp)
 {
+	if ( !TMediaBufferManager::PrePushBuffer( Timestamp ) )
+		return false;
+
 	//	always let frame through
 	if ( !mParams.mAllowPushRejection )
 		return true;
@@ -1809,5 +1890,24 @@ void TPixelBufferManager::ReleaseFrames()
 	mFrameLock.unlock();
 }
 
+
+void TPixelBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
+{
+	//	free up frames
+	mFrameLock.lock();
+
+	for ( auto it=mFrames.begin();	it!=mFrames.end();	)
+	{
+		auto& Frame = *it;
+		if ( Frame.mTimestamp < FlushTime )	//	gr: should we ditch super-old frames too?
+		{
+			it++;
+			continue;
+		}
+		Frame.mPixels.reset();
+		it = mFrames.erase(it);
+	}
+	mFrameLock.unlock();
+}
 
 
