@@ -309,9 +309,19 @@ Improvement summary
 */
 #include "SoyTypes.h"
 
-#if defined(TARGET_WINDOWS) || defined(TARGET_OSX)
-#define USE_GLOBAL_ALLOC		//	override global new/delete so we can track STL allocations
+
+//#define USE_GLOBAL_ALLOC		//	override global new/delete so we can track STL allocations
 //#define USE_GLOBAL_STD_ALLOC	//	for debug, use STD malloc in the global alloc override
+
+#if defined(TARGET_OSX)
+#define USE_GLOBAL_ALLOC
+//#define USE_GLOBAL_STD_ALLOC
+#endif
+
+//	gr: on windows, currently alembic lib crashes (contents are abababab) when it allocs mutex[0] (using STD alloc is okay)
+#if defined(TARGET_WINDOWS)
+#define USE_GLOBAL_ALLOC
+#define USE_GLOBAL_STD_ALLOC
 #endif
 
 #if defined(TARGET_WINDOWS)
