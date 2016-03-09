@@ -1,9 +1,8 @@
 #include "SoyJson.h"
-
-
 #include "heaparray.hpp"
 #include "SoyDebug.h"
-void SoyJson::UnitTest()
+
+void Json::UnitTest()
 {
 	TJsonWriter Json;
 	
@@ -31,6 +30,32 @@ void SoyJson::UnitTest()
 }
 
 
+std::string Json::EscapeString(const char* RawString)
+{
+	std::stringstream Stream;
+
+	do
+	{
+		switch ( *RawString )
+		{
+			case '"':	Stream << "\\\"";	break;
+			case '\t':	Stream << "\\t";	break;
+			case '\r':	Stream << "\\r";	break;
+			case '\n':	Stream << "\\n";	break;
+			case '\f':	Stream << "\\f";	break;
+			case '\b':	Stream << "\\b";	break;
+			case '\\':	Stream << "\\\\";	break;
+			case '/':	Stream << "\\/";	break;
+
+			default:
+				Stream << *RawString;
+				break;
+		}
+	}
+	while ( *(++RawString) );
+
+	return Stream.str();
+}
 
 std::ostream& operator<< (std::ostream &out,const TJsonWriter &in)
 {
@@ -75,7 +100,7 @@ bool TJsonWriter::Push(const char* Name,const std::string& Value)
 	return Push( Name, Value.c_str() );
 }
 
-bool TJsonWriter::Push(const char* Name,const char* Value)
+bool TJsonWriter::Push(const char* Name,const char* Value,bool EscapeString)
 {
 	Open();
 	
@@ -83,32 +108,20 @@ bool TJsonWriter::Push(const char* Name,const char* Value)
 		mStream << ",";
 	
 	//	gr: encode control characters etc
-	//	string in quotes!
-	mStream << '"' << Name << '"' << ":" << '"';
- 
-	//	write value as we encode
-	do
+	if ( EscapeString )
 	{
-		switch ( *Value )
-		{
-			case '"':	mStream << "\\\"";	break;
-			case '\t':	mStream << "\\t";	break;
-			case '\r':	mStream << "\\r";	break;
-			case '\n':	mStream << "\\n";	break;
-			case '\f':	mStream << "\\f";	break;
-			case '\b':	mStream << "\\b";	break;
-			case '\\':	mStream << "\\\\";	break;
-			case '/':	mStream << "\\/";	break;
 
-			default:
-				mStream << *Value;
-				break;
-		}
+		//	string in quotes!
+		mStream << '"' << Name << '"' << ":" << '"';
+ 
+		//	write value as we encode
+		std::string ValueEscaped = Json::EscapeString( Value );
+		mStream << ValueEscaped;
+
+	
+		mStream << '"';
 	}
-	while ( *(++Value) );
-	
-	mStream << '"';
-	
+
 	mElementCount++;
 	
 	return true;
