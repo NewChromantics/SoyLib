@@ -35,7 +35,7 @@ std::string Json::EscapeString(const char* RawString)
 	std::stringstream Stream;
 
 	Stream << '"';
-	do
+	while ( *RawString )
 	{
 		switch ( *RawString )
 		{
@@ -52,12 +52,21 @@ std::string Json::EscapeString(const char* RawString)
 				Stream << *RawString;
 				break;
 		}
+		RawString++;
 	}
-	while ( *(++RawString) );
+
 	Stream << '"';
 
 	return Stream.str();
 }
+
+std::string Json::EscapeString(const std::string& RawString)	
+{	
+	if ( RawString.empty() )
+		return "\"\"";
+	return EscapeString( RawString.c_str() );	
+}
+
 
 std::ostream& operator<< (std::ostream &out,const TJsonWriter &in)
 {

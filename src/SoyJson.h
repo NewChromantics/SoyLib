@@ -15,7 +15,7 @@ namespace Json
 
 	//	gr: escaping also adds quotes; Cat turns into "Cat"
 	std::string			EscapeString(const char* RawString);
-	inline std::string	EscapeString(const std::string& RawString)	{	return RawString.empty() ? std::string() : EscapeString( RawString.c_str() );	}
+	std::string			EscapeString(const std::string& RawString);
 }
 
 //	gr: turn this into a read & write protocol...if we abstracted it to objects
@@ -48,6 +48,8 @@ public:
 	void	Open();
 	void	Close();
 	
+	template<typename TYPE>
+	bool	Push(const char* Name,const TYPE& Value);
 	bool	Push(const char* Name,const std::string& Value);
 	bool	Push(const char* Name,const std::string&& Value)		{	return Push( Name, Value );	}
 	bool	Push(const char* Name,const std::stringstream&& Value)	{	return Push( Name, Value.str() );	}
@@ -59,8 +61,12 @@ public:
 	bool	PushNull(const char* Name)					{	return Push( Name, "null" );	}
 	bool	Push(const char* Name,const TJsonWriter& Value);
 	
+
+	//	need to overload with ArrayBridgeDef if we have a generic template<>
+	//template<typename TYPE>
+	//bool	Push(const char* Name,const ArrayBridge<TYPE>&& Array);
 	template<typename TYPE>
-	bool	Push(const char* Name,const ArrayBridge<TYPE>&& Array);
+	bool	Push(const char* Name,const ArrayBridgeDef<TYPE>&& Array);
 
 	bool	PushJson(const char* Name,const ArrayBridge<std::string>&& Array);
 	bool	PushJson(const char* Name,const std::string& Value)			{	return Push( Name, Value.c_str(), false );	}
@@ -94,9 +100,16 @@ inline std::string EscapeType(const std::string& Value)
 	return Json::EscapeString(Value);
 }
 
+template<typename TYPE>
+inline bool TJsonWriter::Push(const char* Name,const TYPE& Value)
+{
+	std::stringstream Stream;
+	Stream << Value;
+	return Push( Name, Stream );
+}
 
 template<typename TYPE>
-inline bool TJsonWriter::Push(const char* Name,const ArrayBridge<TYPE>&& Array)
+inline bool TJsonWriter::Push(const char* Name,const ArrayBridgeDef<TYPE>&& Array)
 {
 	std::stringstream Value;
 	Value << "[";
