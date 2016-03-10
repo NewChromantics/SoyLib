@@ -351,6 +351,18 @@ inline std::ostream& operator<<(std::ostream &out,const Soy::Rectx<TYPE> &in)
 }
 }
 
+
+namespace Soy
+{
+template<typename TYPE>
+inline std::ostream& operator<<(std::ostream &out,const Soy::Boundsx<TYPE> &in)
+{
+	out << in.min << Soy::VecNXDelins[1] << in.max;
+	return out;
+}
+}
+
+
 inline std::ostream& operator<<(std::ostream &out,const Soy::Matrix4x1 &in)
 {
 	out << in.x() << Soy::VecNXDelins[0] << in.y() << Soy::VecNXDelins[0] << in.z() << Soy::VecNXDelins[0] << in.w();
