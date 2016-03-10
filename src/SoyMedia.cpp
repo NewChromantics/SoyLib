@@ -775,9 +775,6 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::GetStreamBuffer(size_t Stre
 
 void TMediaExtractor::Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames)
 {
-	//	adjust the time so we extract ahead of the current player time
-	Time += mExtractAheadMs;
-	
 	//	update the target seek time
 	bool AllowReverse = CanSeekBackwards();
 	if ( !AllowReverse && Time < mSeekTime )
@@ -833,7 +830,7 @@ bool TMediaExtractor::Iteration()
 		{
 			return IsWorking();
 		};
-		ReadPacketsUntil( mSeekTime, Loop );
+		ReadPacketsUntil( GetExtractTime(), Loop );
 	}
 	catch (std::exception& e)
 	{
@@ -972,25 +969,103 @@ void TMediaExtractor::OnStreamsChanged()
 	OnStreamsChanged( GetArrayBridge(Streams) );
 }
 
-//	gr: maybe we need to correct timecodes in the extractor, not the decoder, as
-//	+a) we need to sync all streams really
-//	+b) we calc duration below
-//	+c) dictate decode order correction here
-//	-a) decode timecodes may be special...
-//	gr: this is AT LEAST needed for correct stats (evident when we have 1 frame movies...)
-void TMediaExtractor::CorrectExtractedPacketTimecode(TMediaPacket& Packet)
+
+
+void TMediaExtractor::OnPacketExtracted(std::shared_ptr<TMediaPacket>& Packet)
 {
-	if ( Packet.mTimecode.mTime == 0 )
-		Packet.mTimecode.mTime = 1;
+	Soy::Assert( Packet != nullptr, "Packet expected");
+
+	OnPacketExtracted( Packet->mTimecode, Packet->mMeta.mStreamIndex );
+	Wake();
 }
 
 void TMediaExtractor::OnPacketExtracted(SoyTime& Timecode,size_t StreamIndex)
 {
+	//	if this is the first timecode for the stream, set it
+	if ( mStreamFirstFrameTime.find( StreamIndex ) == mStreamFirstFrameTime.end() )
+	{
+		mStreamFirstFrameTime[StreamIndex] = Timecode;
+	}
+
+	//	correct timecode
+	SoyTime FirstTimecode = mStreamFirstFrameTime[StreamIndex];
+	if ( Timecode < FirstTimecode )
+	{
+		//	bad first timecode!
+		std::Debug << "Bad first timecode (" << FirstTimecode << " vs " << Timecode << ") for stream " << StreamIndex << std::endl;
+		Timecode.mTime = 0;
+	}
+	else
+	{
+		Timecode.mTime -= FirstTimecode.mTime;
+	}
+
+	//	output timecode never zero
+	if ( Timecode.mTime == 0 )
+		Timecode.mTime = 1;
+
+	//	callback
 	if ( mOnPacketExtracted )
 		mOnPacketExtracted( Timecode, StreamIndex );
+
+	Wake();
 }
 
+SoyTime TMediaExtractor::GetExtractorRealTimecode(SoyTime PacketTimecode,ssize_t StreamIndex)
+{
+	SoyTime FirstTimecode;
 
+	if ( mStreamFirstFrameTime.find( StreamIndex ) != mStreamFirstFrameTime.end() )
+	{
+		FirstTimecode = mStreamFirstFrameTime[StreamIndex];
+	}
+	else if ( !mStreamFirstFrameTime.empty() )
+	{
+		auto it = mStreamFirstFrameTime.begin();
+		FirstTimecode = it->second;
+	}
+
+	//	correct never-zero timecode
+	if ( PacketTimecode.mTime == 1 )
+		PacketTimecode.mTime = 0;
+
+	PacketTimecode += FirstTimecode;
+	return PacketTimecode;
+}
+
+/*
+SoyTime TMediaExtractor::GetRealTime(ssize_t StreamIndex,const SoyTime& FrameTime)
+{
+	SoyTime FirstTime = GetStreamFirstTime( StreamIndex );
+
+	//	frametime of 1 is actually 0
+	if ( FrameTime.mTime == 1 )
+		return FirstTime;
+
+	FirstTime += FrameTime;
+	return FirstTime;
+}
+
+SoyTime TMediaExtractor::GetPacketTime(ssize_t StreamIndex,const SoyTime& RealTime)
+{
+	SoyTime FirstTime = GetStreamFirstTime( StreamIndex );
+
+	if ( RealTime < FirstTime )
+	{
+		//	first time is wrong if RealTime is an actual timestamp
+		return SoyTime();
+	}
+
+	SoyTime FrameTime = RealTime;
+	FrameTime -= FirstTime;
+
+	//	valid frame time is never zero
+	if ( FrameTime.mTime == 0 )
+		FrameTime.mTime = 1; 
+
+	return FrameTime;
+}
+*/
 
 
 
@@ -1133,6 +1208,14 @@ void TMediaMuxer::SetStreams(const ArrayBridge<TStreamMeta>&& Streams)
 }
 
 
+void TMediaBufferManager::CorrectRequestedFrameTimestamp(SoyTime& Timestamp)
+{
+	//	first request from the client is most likely to be 0, but all our frames start at one
+	if ( Timestamp.mTime == 0 )
+	{
+		Timestamp.mTime = 1;
+	}
+}
 
 void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 {
@@ -1160,6 +1243,7 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 		}
 	}
 	
+	/*
 	//	correct timestamp
 	if ( mParams.mResetInternalTimestamp )
 	{
@@ -1180,7 +1264,7 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 		if ( mFirstTimestamp.mTime > 1 )
 			Timestamp.mTime -= mFirstTimestamp.mTime;
 	}
-	
+	*/
 	mLastTimestamp = Timestamp;
 }
 
@@ -1215,7 +1299,11 @@ void TMediaBufferManager::OnPushEof()
 void TMediaBufferManager::FlushFrames(SoyTime FlushTime)
 {
 	ReleaseFramesAfter( FlushTime );
+	
+	//	gr: if the flush fence is zero, it doesn't get used, so correct it
 	mFlushFenceTime = FlushTime;
+	if ( !mFlushFenceTime.IsValid() )
+		mFlushFenceTime.mTime = 1;
 }
 
 bool TMediaBufferManager::PrePushBuffer(SoyTime Timestamp)
@@ -1223,7 +1311,8 @@ bool TMediaBufferManager::PrePushBuffer(SoyTime Timestamp)
 	if ( !mFlushFenceTime.IsValid() )
 		return true;
 
-	if ( Timestamp >= mFlushFenceTime )
+	//	if we do =, then when the fence is 1, it rejects 1.
+	if ( Timestamp > mFlushFenceTime )
 	{
 		std::Debug << "TMediaBufferManager::PrePush dropped (fenced " << Timestamp << " >= " << mFlushFenceTime << ")" << std::endl;
 		return false;
@@ -1710,6 +1799,8 @@ bool TPixelBufferManager::PeekPixelBuffer(SoyTime Timestamp)
 std::shared_ptr<TPixelBuffer> TPixelBufferManager::PopPixelBuffer(SoyTime& Timestamp)
 {
 	SoyTime RequestedTimestamp = Timestamp;
+	CorrectRequestedFrameTimestamp(RequestedTimestamp);
+
 	static bool AvoidLockContention = true;
 	
 	if ( AvoidLockContention )
@@ -1765,26 +1856,17 @@ std::shared_ptr<TPixelBuffer> TPixelBufferManager::PopPixelBuffer(SoyTime& Times
 	{
 		auto& Frame = *it;
 		
-		if ( mParams.mPopNearestFrame )
+		if ( mParams.mPopNearestFrame && LastPixelBuffer )
 		{
 			//	if this frame is further away than the currently found one, abort
-			if ( LastPixelBuffer )
-			{
-				auto OldDiff = Timestamp.GetDiff( RequestedTimestamp );
-				auto NewDiff = Frame.mTimestamp.GetDiff( RequestedTimestamp );
-				if ( labs(NewDiff) > labs(OldDiff) )
-					break;
-			}
-			else
-			{
-				//	don't pop if the only frame in the buffer is in the future.
-				//	this means we'll look ahead... IF there is one ahead that's better.
-				if ( Frame.mTimestamp > RequestedTimestamp )
-					break;
-			}
+			auto OldDiff = Timestamp.GetDiff( RequestedTimestamp );
+			auto NewDiff = Frame.mTimestamp.GetDiff( RequestedTimestamp );
+			if ( labs(NewDiff) > labs(OldDiff) )
+				break;
 		}
 		else
 		{
+			//	first frame in the buffer is ahead. don't pop it otherwise we'll just eat through the buffer				
 			//	future frame, stop looking
 			if ( Frame.mTimestamp > RequestedTimestamp )
 				break;
@@ -1899,11 +1981,14 @@ void TPixelBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 	for ( auto it=mFrames.begin();	it!=mFrames.end();	)
 	{
 		auto& Frame = *it;
+
+		/*
 		if ( Frame.mTimestamp < FlushTime )	//	gr: should we ditch super-old frames too?
 		{
 			it++;
 			continue;
 		}
+		*/
 		Frame.mPixels.reset();
 		it = mFrames.erase(it);
 	}

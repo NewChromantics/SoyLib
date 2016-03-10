@@ -356,6 +356,7 @@ public:
 	
 	virtual void				SetPlayerTime(const SoyTime& Time);			//	maybe turn this into a func to PULL the time rather than maintain it in here...
 	virtual void				CorrectDecodedFrameTimestamp(SoyTime& Timestamp);	//	adjust timestamp if neccessary
+	virtual void				CorrectRequestedFrameTimestamp(SoyTime& Timestamp);
 	virtual void				ReleaseFrames()=0;
 	void						FlushFrames(SoyTime FlushTime);
 	virtual bool				PrePushBuffer(SoyTime Timestamp);
@@ -659,7 +660,7 @@ public:
 	std::shared_ptr<TMediaPacketBuffer>	AllocStreamBuffer(size_t StreamIndex);
 	std::shared_ptr<TMediaPacketBuffer>	GetStreamBuffer(size_t StreamIndex);
 
-
+public:
 //protected:	//	gr: only for subclasses, but the playlist media extractor needs to call this on it's children
 	virtual std::shared_ptr<TMediaPacket>	ReadNextPacket()=0;
 	bool							CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyframe);
@@ -667,9 +668,11 @@ public:
 	void							OnError(const std::string& Error);
 
 protected:
-	void							CorrectExtractedPacketTimecode(TMediaPacket& Packet);
-	void							OnPacketExtracted(SoyTime& Timestamp,size_t StreamIndex);
-	
+	//	call this when there's a packet ready for ReadNextPacket
+	void							OnPacketExtracted(SoyTime& Timecode,size_t StreamIndex);
+	void							OnPacketExtracted(std::shared_ptr<TMediaPacket>& Packet);
+	SoyTime							GetExtractorRealTimecode(SoyTime,ssize_t StreamIndex=-1);
+
 	void							OnClearError();
 	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams);
 	void							OnStreamsChanged();
@@ -677,13 +680,14 @@ protected:
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);
 	SoyTime							GetSeekTime() const			{	return mSeekTime;	}
+	SoyTime							GetExtractTime() const		{	return mSeekTime + mExtractAheadMs;	}
 	
 	virtual bool					OnSeek()					{	return false;	}	//	reposition extractors whereever possible. return true to invoke a data flush (ie. if you moved the extractor)
 	virtual bool					CanSeekBackwards()			{	return false;	}	//	by default, don't allow this, until it's implemented for that extractor
 
 private:
 	virtual bool					Iteration() override;
-	
+
 public:
 	SoyEvent<const ArrayBridge<TStreamMeta>>		mOnStreamsChanged;
 	SoyTime											mExtractAheadMs;
@@ -694,7 +698,8 @@ protected:
 	
 private:
 	std::string						mFatalError;
-	SoyTime							mSeekTime;
+	SoyTime							mSeekTime;				//	current player time, which we actually want to seek to
+	std::map<size_t,SoyTime>		mStreamFirstFrameTime;	//	time correction per-frame
 };
 
 
