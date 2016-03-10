@@ -7,11 +7,19 @@
 namespace Json
 {
 	void				UnitTest();
+
+	template<typename TYPE>	std::string	ValueToString(const TYPE& Value);
+	template<> std::string				ValueToString(const bool& Value);
+	template<> std::string				ValueToString(const int& Value);
+	template<> std::string				ValueToString(const float& Value);
+
+	//	gr: escaping also adds quotes; Cat turns into "Cat"
 	std::string			EscapeString(const char* RawString);
 	inline std::string	EscapeString(const std::string& RawString)	{	return RawString.empty() ? std::string() : EscapeString( RawString.c_str() );	}
 }
 
 //	gr: turn this into a read & write protocol...if we abstracted it to objects
+//	really want to abstract this entirely into a parse-on-demand system though for parallel parsing and random seeking
 class TJsonWriter
 {
 public:
@@ -75,17 +83,29 @@ std::ostream& operator<< (std::ostream &out,const TJsonWriter &in);
 
 
 template<typename TYPE>
+inline TYPE EscapeType(const TYPE& Value)
+{
+	return Value;
+}
+
+template<>
+inline std::string EscapeType(const std::string& Value)
+{
+	return Json::EscapeString(Value);
+}
+
+
+template<typename TYPE>
 inline bool TJsonWriter::Push(const char* Name,const ArrayBridge<TYPE>&& Array)
 {
 	std::stringstream Value;
 	Value << "[";
 	for ( int i=0;	i<Array.GetSize();	i++ )
 	{
-		//	gr: this needs to escape strings
 		auto& Element = Array[i];
 		if ( i > 0 )
 			Value << ",";
-		Value << Element;
+		Value << EscapeType(Element);
 	}
 	Value << "]";
 	return PushStringRaw( Name, Value.str() );
@@ -101,9 +121,39 @@ inline bool TJsonWriter::PushJson(const char* Name,const ArrayBridge<std::string
 		auto& Element = Array[i];
 		if ( i > 0 )
 			Value << ",";
-		Value << Json::EscapeString(Element.c_str());
+		//	not escaped!
+		Value << Element;
+		//Value << Json::EscapeString(Element.c_str());
 	}
 	Value << "]";
 	return PushStringRaw( Name, Value.str() );
 }
 
+	
+template<typename TYPE>
+inline std::string Json::ValueToString(const TYPE& Value)
+{
+	std::stringstream ValueStr;
+	ValueStr << Value;
+	return EscapeString( ValueStr );
+}
+	
+template<> 
+inline std::string Json::ValueToString(const bool& Value)
+{
+	return Value ? "true" : "false";
+}
+
+template<> 
+inline std::string Json::ValueToString(const int& Value)
+{
+	return ValueToString<float>( Value );
+}
+
+template<>
+inline std::string Json::ValueToString(const float& Value)
+{
+	std::stringstream ValueStr;
+	ValueStr << Value;
+	return ValueStr.str();
+}

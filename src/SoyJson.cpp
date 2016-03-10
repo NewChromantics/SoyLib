@@ -34,6 +34,7 @@ std::string Json::EscapeString(const char* RawString)
 {
 	std::stringstream Stream;
 
+	Stream << '"';
 	do
 	{
 		switch ( *RawString )
@@ -53,6 +54,7 @@ std::string Json::EscapeString(const char* RawString)
 		}
 	}
 	while ( *(++RawString) );
+	Stream << '"';
 
 	return Stream.str();
 }
@@ -107,21 +109,19 @@ bool TJsonWriter::Push(const char* Name,const char* Value,bool EscapeString)
 	if ( mElementCount > 0 )
 		mStream << ",";
 	
-	//	gr: encode control characters etc
+	//	string in quotes!
+	mStream << Json::EscapeString(Name) << ':';
+ 
 	if ( EscapeString )
 	{
-
-		//	string in quotes!
-		mStream << '"' << Name << '"' << ":" << '"';
- 
-		//	write value as we encode
 		std::string ValueEscaped = Json::EscapeString( Value );
 		mStream << ValueEscaped;
-
-	
-		mStream << '"';
 	}
-
+	else
+	{
+		mStream << Value;
+	}
+	
 	mElementCount++;
 	
 	return true;
