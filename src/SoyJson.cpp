@@ -33,7 +33,18 @@ void Json::IsValidJson(const std::string& Json)
 {
 	Soy::Assert( !Json.empty(), "Invalid json, empty" );
 	Soy::Assert( *Json.begin()=='{', "Invalid json does not begin with {" );
-	Soy::Assert( *Json.rbegin()=='}', "Invalid json does not end with }" );
+	
+	//	count opening & closing braces
+	int BraceCounter = 0;
+	for ( int i=0;	i<Json.length();	i++ )
+	{
+		if ( Json[i] == '{' )
+			BraceCounter++;
+		if ( Json[i] == '}' )
+			BraceCounter--;
+	}
+	
+	Soy::Assert( BraceCounter==0, "Json braces don't balance" );
 }
 
 std::string Json::EscapeString(const char* RawString)
