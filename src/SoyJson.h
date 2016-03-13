@@ -16,6 +16,8 @@ namespace Json
 	//	gr: escaping also adds quotes; Cat turns into "Cat"
 	std::string			EscapeString(const char* RawString);
 	std::string			EscapeString(const std::string& RawString);
+	
+	void				IsValidJson(const std::string& Json);
 }
 
 //	gr: turn this into a read & write protocol...if we abstracted it to objects
@@ -27,16 +29,27 @@ public:
 		mOpen				( false ),
 		mElementCount		( 0 ),
 		mAllocatedStream	( new std::stringstream ),
-		mStream				( *mAllocatedStream )
+		mStream				( *mAllocatedStream ),
+		mPrettyFormatting	( true )
 	{
 	}
 	explicit TJsonWriter(std::stringstream& Stream) :
-		mOpen			( false ),
-		mElementCount	( 0 ),
-		mStream			( Stream )
+		mOpen				( false ),
+		mElementCount		( 0 ),
+		mStream				( Stream ),
+		mPrettyFormatting	( true )
 	{
 		Open();
 	}
+	TJsonWriter(const TJsonWriter& That) :
+		mOpen				( That.mOpen ),
+		mElementCount		( That.mElementCount ),
+		mPrettyFormatting	( That.mPrettyFormatting ),
+		mAllocatedStream	( That.mAllocatedStream ),
+		mStream				( That.mStream )	//	danger! alloc a stream and copy its contents
+	{
+	}
+	
 	~TJsonWriter()
 	{
 		if ( mOpen )
@@ -69,7 +82,7 @@ public:
 	bool	Push(const char* Name,const ArrayBridgeDef<TYPE>&& Array);
 
 	bool	PushJson(const char* Name,const ArrayBridge<std::string>&& Array);
-	bool	PushJson(const char* Name,const std::string& Value)			{	return Push( Name, Value.c_str(), false );	}
+	bool	PushJson(const char* Name,const std::string& Value)			{	Json::IsValidJson(Value);	return Push( Name, Value.c_str(), false );	}
 
 private:
 	bool	PushStringRaw(const char* Name,const std::string& Value);
@@ -80,6 +93,7 @@ private:
 	std::shared_ptr<std::stringstream>	mAllocatedStream;
 	bool	mOpen;	//	needs closing!
 	int		mElementCount;
+	bool	mPrettyFormatting;
 
 public:
 	std::stringstream&					mStream;	//	must be declared AFTER mAllocatedStream!
@@ -134,9 +148,13 @@ inline bool TJsonWriter::PushJson(const char* Name,const ArrayBridge<std::string
 		auto& Element = Array[i];
 		if ( i > 0 )
 			Value << ",";
+		
+		Json::IsValidJson(Element);
 		//	not escaped!
 		Value << Element;
-		//Value << Json::EscapeString(Element.c_str());
+		
+		if ( mPrettyFormatting )
+			Value << '\n';
 	}
 	Value << "]";
 	return PushStringRaw( Name, Value.str() );

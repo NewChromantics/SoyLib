@@ -29,6 +29,12 @@ void Json::UnitTest()
 	std::Debug << Json << std::endl;
 }
 
+void Json::IsValidJson(const std::string& Json)
+{
+	Soy::Assert( !Json.empty(), "Invalid json, empty" );
+	Soy::Assert( *Json.begin()=='{', "Invalid json does not begin with {" );
+	Soy::Assert( *Json.rbegin()=='}', "Invalid json does not end with }" );
+}
 
 std::string Json::EscapeString(const char* RawString)
 {
@@ -81,7 +87,11 @@ void TJsonWriter::Open()
 {
 	if ( mOpen )
 		return;
-	mStream << "{";
+	
+	mStream << '{';
+	if ( mPrettyFormatting )
+		mStream << "\n\t";
+	
 	mOpen = true;
 }
 
@@ -89,19 +99,30 @@ void TJsonWriter::Close()
 {
 	if ( !mOpen )
 		return;
-	mStream << "}";
+	
+	if ( mPrettyFormatting )
+		mStream << '\n';
+	mStream << '}';
+	
 	mOpen = false;
 }
 
 template<typename TYPE>
-bool PushElement(const char* Name,const TYPE& Value,int& mElementCount,std::ostream& mStream,TJsonWriter& Json)
+bool PushElement(const char* Name,const TYPE& Value,int& mElementCount,std::ostream& mStream,TJsonWriter& Json,bool mPrettyFormatting)
 {
 	Json.Open();
 	
 	if ( mElementCount > 0 )
-		mStream << ",";
+	{
+		mStream << ',';
+		if ( mPrettyFormatting )
+			mStream << '\n';
+	}
+
+	if ( mPrettyFormatting )
+		mStream << '\t';
 	
-	mStream << '"' << Name << '"' << ":" << Value;
+	mStream << '"' << Name << '"' << ':' << Value;
 	mElementCount++;
 	return true;
 }
@@ -116,7 +137,11 @@ bool TJsonWriter::Push(const char* Name,const char* Value,bool EscapeString)
 	Open();
 	
 	if ( mElementCount > 0 )
-		mStream << ",";
+	{
+		mStream << ',';
+		if ( mPrettyFormatting )
+			mStream << '\n';
+	}
 	
 	//	string in quotes!
 	mStream << Json::EscapeString(Name) << ':';
@@ -138,22 +163,22 @@ bool TJsonWriter::Push(const char* Name,const char* Value,bool EscapeString)
 
 bool TJsonWriter::PushStringRaw(const char* Name,const std::string& Value)
 {
-	return PushElement( Name, Value, mElementCount, mStream, *this );
+	return PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
 }
 
 bool TJsonWriter::Push(const char* Name,const int& Value)
 {
-	return PushElement( Name, Value, mElementCount, mStream, *this );
+	return PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
 }
 
 bool TJsonWriter::Push(const char* Name,const float& Value)
 {
-	return PushElement( Name, Value, mElementCount, mStream, *this );
+	return PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
 }
 
 bool TJsonWriter::Push(const char* Name,const TJsonWriter& Value)
 {
-	return PushElement( Name, Value, mElementCount, mStream, *this );
+	return PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
 }
 
 
