@@ -403,7 +403,7 @@ public:
 	}
 	Boundsx(const TYPE& _min,const TYPE& _max) :
 		min	(_min),
-		max	(_max),
+		max	(_max)
 	{
 	}
 	template<typename OTHERTYPE>

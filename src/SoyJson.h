@@ -148,7 +148,7 @@ inline std::string Json::ValueToString(const TYPE& Value)
 {
 	std::stringstream ValueStr;
 	ValueStr << Value;
-	return EscapeString( ValueStr );
+	return EscapeString( ValueStr.str() );
 }
 	
 template<> 
