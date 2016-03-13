@@ -71,7 +71,7 @@ SoyPathType::Type GetPathType(NSURL* Path)
 
 bool Platform::EnumDirectoryUnsafe(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
-	auto directoryURL = Avf::GetUrl( Directory );
+	auto directoryURL = Platform::GetUrl( Directory );
 	
 	//	dir doesn't exist
 	if ( directoryURL == nullptr )
@@ -133,4 +133,30 @@ bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(con
 		throw Soy::AssertException( Error.str() );
 	}
 }
+
+NSURL* Platform::GetUrl(const std::string& Filename)
+{
+	NSString* UrlString = Soy::StringToNSString( Filename );
+	NSError *err;
+	
+	//	try as file which we can test for immediate fail
+	NSURL* Url = [[NSURL alloc]initFileURLWithPath:UrlString];
+	if ([Url checkResourceIsReachableAndReturnError:&err] == NO)
+	{
+		//	FILE is not reachable.
+		
+		//	try as url
+		Url = [[NSURL alloc]initWithString:UrlString];
+		
+		/*	gr: throw this error IF we KNOW it's a file we're trying to reach and not an url.
+		 check for ANY scheme?
+		 std::stringstream Error;
+		 Error << "Failed to reach file from url: " << mParams.mFilename << "; " << Soy::NSErrorToString(err);
+		 throw Soy::AssertException( Error.str() );
+		 */
+	}
+	
+	return Url;
+}
+
 
