@@ -12,8 +12,6 @@ namespace Http
 	class TCommonProtocol;
 	class TChunkedProtocol;
 	
-	static const char*		Url_Root = "/";
-	
 	//	decide how to lay these out and whether to be strict
 	const size_t	Response_Invalid = 0;
 	const size_t	Response_OK = 200;

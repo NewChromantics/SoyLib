@@ -272,6 +272,8 @@ void Http::TCommonProtocol::PushHeader(const std::string& Header)
 			Soy::StringToType( ResponseCode, Match[1].str() );
 			mResponseCode = size_cast<size_t>(ResponseCode);
 			mResponseUrl = Match[2].str();
+
+			Soy::StringTrimLeft( mResponseUrl, '/' );
 			return;
 		}
 	}
@@ -286,7 +288,7 @@ void Http::TCommonProtocol::PushHeader(const std::string& Header)
 			Soy::Assert( !HasRequestHeader(), "Already matched request header" );
 			
 			mMethod = Match[1].str();
-			mUrl = std::string(Url_Root) + Match[2].str();
+			mUrl = Match[2].str();
 			
 			std::stringstream VersionString;
 			VersionString << Match[3].str() << '.' << Match[4].str();
