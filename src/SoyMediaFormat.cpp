@@ -47,6 +47,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::PcmLinear_20,		"PcmLinear_20" },
 	{ SoyMediaFormat::PcmLinear_24,		"PcmLinear_24" },
 	{ SoyMediaFormat::Text,				"text" },
+	{ SoyMediaFormat::Json,				"Json" },
 	{ SoyMediaFormat::Html,				"Html" },
 	{ SoyMediaFormat::Subtitle,			"subtitle" },
 	{ SoyMediaFormat::ClosedCaption,	"closedcaption" },
@@ -194,6 +195,7 @@ bool SoyMediaFormat::IsText(SoyMediaFormat::Type Format)
 	{
 		case SoyMediaFormat::Text:
 		case SoyMediaFormat::Html:
+		case SoyMediaFormat::Json:
 		case SoyMediaFormat::ClosedCaption:
 		case SoyMediaFormat::Subtitle:
 			return true;
@@ -243,6 +245,7 @@ std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::Gif:		return "image/gif";
 			
 		case SoyMediaFormat::Text:		return "text/plain";
+		case SoyMediaFormat::Json:		return "application/javascript";
 		case SoyMediaFormat::Html:		return "text/html";
 			
 		default:						return "invalid/invalid";

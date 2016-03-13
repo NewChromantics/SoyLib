@@ -80,6 +80,7 @@ namespace SoyMediaFormat
 		
 		Html,
 		Text,
+		Json,				//	has seperate mime type
 		Subtitle,
 		ClosedCaption,
 		Timecode,
