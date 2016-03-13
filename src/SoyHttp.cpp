@@ -5,6 +5,23 @@
 
 
 
+std::string Http::GetDefaultResponseString(size_t ResponseCode)
+{
+	//	todo: find the HTTP spec defaults
+	switch ( ResponseCode )
+	{
+		case Response_OK:			return "OK";
+		case Response_FileNotFound:	return "File Not Found";
+		default:
+			break;
+	}
+	
+	std::stringstream ss;
+	ss << ResponseCode;
+	return ss.str();
+}
+
+
 void Http::TCommonProtocol::SetContent(const std::string& Content,SoyMediaFormat::Type Format)
 {
 	Soy::Assert( mContent.IsEmpty(), "Content already set" );
@@ -23,6 +40,22 @@ void Http::TCommonProtocol::SetContent(const ArrayBridge<char>& Data,SoyMediaFor
 	
 	mContent.Copy( Data );
 	mContentMimeType = SoyMediaFormat::ToMime( Format );
+	mContentLength = mContent.GetDataSize();
+}
+
+
+void Http::TCommonProtocol::SetContent(const ArrayBridge<char>& Data,const std::string& MimeFormat)
+{
+	if ( MimeFormat.empty() )
+	{
+		SetContent( Data, SoyMediaFormat::Text );
+		return;
+	}
+	Soy::Assert( mContent.IsEmpty(), "Content already set" );
+	Soy::Assert( mWriteContent==nullptr, "Content has a write-content function set");
+	
+	mContent.Copy( Data );
+	mContentMimeType = MimeFormat;
 	mContentLength = mContent.GetDataSize();
 }
 
@@ -133,9 +166,10 @@ void Http::TCommonProtocol::WriteContent(TStreamBuffer& Buffer)
 }
 
 
-Http::TResponseProtocol::TResponseProtocol() :
+Http::TResponseProtocol::TResponseProtocol(size_t ResponseCode) :
 	TCommonProtocol		( )
 {
+	mResponseCode = ResponseCode;
 }
 
 Http::TResponseProtocol::TResponseProtocol(TStreamBuffer& ChunkedDataBuffer) :
@@ -152,8 +186,8 @@ Http::TResponseProtocol::TResponseProtocol(std::function<void(TStreamBuffer&)> W
 
 void Http::TResponseProtocol::Encode(TStreamBuffer& Buffer)
 {
-	size_t ResultCode = 200;
-	std::string ResultString = "OK";
+	size_t ResultCode = Response_OK;
+	std::string ResultString;
 
 	//	specific response
 	if ( mResponseCode != 0 )
@@ -164,6 +198,9 @@ void Http::TResponseProtocol::Encode(TStreamBuffer& Buffer)
 	{
 		ResultString = mUrl;
 	}
+	
+	if ( ResultString.empty() )
+		ResultString = GetDefaultResponseString( ResultCode );
 
 	//	write request header
 	{
@@ -249,7 +286,7 @@ void Http::TCommonProtocol::PushHeader(const std::string& Header)
 			Soy::Assert( !HasRequestHeader(), "Already matched request header" );
 			
 			mMethod = Match[1].str();
-			mUrl = std::string("/") + Match[2].str();
+			mUrl = std::string(Url_Root) + Match[2].str();
 			
 			std::stringstream VersionString;
 			VersionString << Match[3].str() << '.' << Match[4].str();

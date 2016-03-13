@@ -3,7 +3,6 @@
 
 
 
-
 TSocketClient::TSocketClient(std::shared_ptr<TSocketReadThread> ReadThread,std::shared_ptr<TSocketWriteThread> WriteThread) :
 	mWriteThread		( WriteThread ),
 	mReadThread			( ReadThread )
@@ -13,7 +12,17 @@ TSocketClient::TSocketClient(std::shared_ptr<TSocketReadThread> ReadThread,std::
 
 TSocketClient::~TSocketClient()
 {
+	if ( mWriteThread )
+	{
+		mWriteThread->WaitToFinish();
+		mWriteThread.reset();
+	}
 	
+	if ( mReadThread )
+	{
+		mReadThread->WaitToFinish();
+		mReadThread.reset();
+	}
 }
 
 void TSocketClient::Send(std::shared_ptr<Soy::TWriteProtocol> Data)
@@ -25,7 +34,8 @@ void TSocketClient::Send(std::shared_ptr<Soy::TWriteProtocol> Data)
 
 
 TSocketServer::TSocketServer(size_t& Port,const std::string& ThreadName) :
-	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Sleep )
+	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Sleep ),
+	mPort				( Port )
 {
 	mSocket.reset( new SoySocket() );
 	
@@ -58,6 +68,22 @@ TSocketServer::TSocketServer(size_t& Port,const std::string& ThreadName) :
 	Start();
 }
 
+TSocketServer::~TSocketServer()
+{
+	Shutdown();
+	
+	//	wait for futures
+	while ( true )
+	{
+		std::lock_guard<std::mutex> Lock( mAsyncsLock );
+		if ( !mAsyncs.IsEmpty() )
+			break;
+		
+		auto Future = mAsyncs.PopAt(0);
+		Future->Wait();
+	}
+}
+
 void TSocketServer::Shutdown()
 {
 	mSocket->Close();
@@ -67,11 +93,17 @@ void TSocketServer::Shutdown()
 
 bool TSocketServer::Iteration()
 {
+	if ( !mSocket )
+		return false;
+	
 	//	just keep doing this and use the callbacks
 	auto ClientRef = mSocket->WaitForClient();
 	if ( !ClientRef.IsValid() )
 	{
 		//	check socket hasn't been closed...
+		if ( !mSocket->IsConnected() )
+			return false;
+		
 		return true;
 	}
 	
@@ -116,25 +148,35 @@ void TSocketServer::CreateClient(SoyRef Connection)
 	WriteThread->Start();
 }
 
+
 void TSocketServer::DestroyClient(SoyRef Connection)
 {
-	//	pop client
-	std::shared_ptr<TSocketClient> Client;
+	std::shared_ptr<Soy::TSemaphore> Semaphore( new Soy::TSemaphore );
+
+	auto AsyncDelete = [Semaphore,this,Connection]()
 	{
-		std::lock_guard<std::mutex> Lock( mClientsLock );
-		auto it = mClients.find( Connection );
-		if ( it == mClients.end() )
-			return;
-		Client = it->second;
-		mClients.erase( it );
-	}
+		//	pop client
+		std::shared_ptr<TSocketClient> Client;
+		{
+			std::lock_guard<std::mutex> Lock( mClientsLock );
+			auto it = mClients.find( Connection );
+			if ( it != mClients.end() )
+			{
+				Client = it->second;
+				mClients.erase( it );
+			}
+		}
+		Client.reset();
+		Semaphore->OnCompleted();
+	};
 	
-	//	expecting this to be the last? does that matter?
-	Client.reset();
+	std::lock_guard<std::mutex> Lock(mAsyncsLock);
+	mAsyncs.PushBack( Semaphore );
+	std::thread( AsyncDelete ).detach();
 }
 
 
-THttpServer::THttpServer(size_t ListenPort,std::function<void(const Http::TRequestProtocol&,SoyRef)> OnRequest) :
+THttpServer::THttpServer(size_t ListenPort,std::function<void(const Http::TRequestProtocol&,SoyRef,THttpServer&)> OnRequest) :
 	TSocketServer	( ListenPort ),
 	mOnRequest		( OnRequest )
 {
@@ -180,7 +222,7 @@ std::shared_ptr<TSocketWriteThread> THttpServer::CreateWriteThread(std::shared_p
 void THttpServer::OnRecievedData(Soy::TReadProtocol& ReadData,SoyRef Connection)
 {
 	auto& HttpData = dynamic_cast<Http::TRequestProtocol&>( ReadData );
-	mOnRequest( HttpData, Connection );
+	mOnRequest( HttpData, Connection, *this );
 }
 
 

@@ -11,6 +11,15 @@ namespace Http
 	class TRequestProtocol;
 	class TCommonProtocol;
 	class TChunkedProtocol;
+	
+	static const char*		Url_Root = "/";
+	
+	//	decide how to lay these out and whether to be strict
+	const size_t	Response_Invalid = 0;
+	const size_t	Response_OK = 200;
+	const size_t	Response_FileNotFound = 404;
+	
+	std::string		GetDefaultResponseString(size_t ResponseCode);
 }
 
 
@@ -24,7 +33,7 @@ public:
 		mContentLength		( 0 ),
 		mWriteContent		( nullptr ),
 		mHeadersComplete	( false ),
-		mResponseCode		( 0 ),
+		mResponseCode		( Response_Invalid ),
 		mChunkedContent		( nullptr )
 	{
 	}
@@ -34,7 +43,7 @@ public:
 		mContentLength		( 0 ),
 		mWriteContent		( nullptr ),
 		mHeadersComplete	( false ),
-		mResponseCode		( 0 ),
+		mResponseCode		( Response_Invalid ),
 		mChunkedContent		( &ChunkedDataBuffer )
 	{
 	}
@@ -43,13 +52,14 @@ public:
 		mContentLength		( ContentLength ),
 		mWriteContent		( WriteContentCallback ),
 		mHeadersComplete	( false ),
-		mResponseCode		( 0 ),
+		mResponseCode		( Response_Invalid ),
 		mChunkedContent		( nullptr )
 	{
 	}
 
 	void					SetContent(const std::string& Content,SoyMediaFormat::Type Format=SoyMediaFormat::Text);
 	void					SetContent(const ArrayBridge<char>& Data,SoyMediaFormat::Type Format);
+	void					SetContent(const ArrayBridge<char>& Data,const std::string& MimeFormat);
 	void					SetContentType(SoyMediaFormat::Type Format);
 	
 	//	common code atm
@@ -96,13 +106,13 @@ public:
 class Http::TResponseProtocol : public Http::TCommonProtocol, public Soy::TReadProtocol, public Soy::TWriteProtocol
 {
 public:
-	TResponseProtocol();
+	TResponseProtocol(size_t ResponseCode=Http::Response_OK);
 	TResponseProtocol(TStreamBuffer& ChunkedDataBuffer);	
 	TResponseProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback,size_t ContentLength);
 	
+protected:
 	virtual void					Encode(TStreamBuffer& Buffer) override;
 	virtual TProtocolState::Type	Decode(TStreamBuffer& Buffer) override	{	return TCommonProtocol::Decode( Buffer );	}
-	
 	
 public:
 };
@@ -119,6 +129,7 @@ public:
 	{
 	}
 	
+protected:
 	virtual void					Encode(TStreamBuffer& Buffer) override;
 	virtual TProtocolState::Type	Decode(TStreamBuffer& Buffer) override	{	return TCommonProtocol::Decode( Buffer );	}
 	
