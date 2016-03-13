@@ -290,6 +290,8 @@ void Http::TCommonProtocol::PushHeader(const std::string& Header)
 			mMethod = Match[1].str();
 			mUrl = Match[2].str();
 			
+			Soy::SplitUrlPathVariables( mUrl, mVariables );
+			
 			std::stringstream VersionString;
 			VersionString << Match[3].str() << '.' << Match[4].str();
 			mRequestProtocolVersion = Soy::TVersion( VersionString.str() );

@@ -117,6 +117,8 @@ namespace Soy
 	std::string	GetUrlPath(const std::string& Url);
 	std::string	GetUrlHostname(const std::string& Url);
 	std::string	GetUrlProtocol(const std::string& Url);
+	void		SplitUrlPathVariables(std::string& Path,std::map<std::string,std::string>& Variables);
+	void		UriDecode(std::string& String);
 	
 	std::wstring	StringToWString(const std::string& s);
 	std::string		WStringToString(const std::wstring& w);

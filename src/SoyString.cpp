@@ -889,3 +889,33 @@ bool Soy::StringToUnsignedInteger(size_t& IntegerOut,const std::string& String)
 	return true;
 }
 
+
+void Soy::SplitUrlPathVariables(std::string& Path,std::map<std::string,std::string>& Variables)
+{
+	//	find ?
+	auto VariablesStartPos = Path.find('?');
+	if ( VariablesStartPos == std::string::npos )
+		return;
+	
+	//	pop path & vars
+	auto VariablesString = (VariablesStartPos==Path.length()-1) ? std::string() : Path.substr(VariablesStartPos+1);
+	Path.resize( VariablesStartPos );
+
+	//	split vars
+	auto ParseVariable = [&](const std::string& Variable)
+	{
+		BufferArray<std::string,2> KeyAndValue;
+		StringSplitByMatches( GetArrayBridge(KeyAndValue), Variable, "=", true );
+		KeyAndValue.SetSize(2);
+		UriDecode( KeyAndValue[0] );
+		UriDecode( KeyAndValue[1] );
+		Variables[KeyAndValue[0]] = KeyAndValue[1];
+		return true;
+	};
+	StringSplitByString( ParseVariable, VariablesString, "&", false );
+}
+
+void Soy::UriDecode(std::string& String)
+{
+	//	convert %XX to chars
+}

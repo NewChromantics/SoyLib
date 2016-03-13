@@ -63,6 +63,10 @@ public:
 	//	common code atm
 	TProtocolState::Type	Decode(TStreamBuffer& Buffer);
 
+	//	we have an extra HasVariable() as variables can be empty
+	bool					HasVariable(const std::string& Name) const	{	return mVariables.find(Name) != mVariables.end();	}
+	std::string				GetVariable(const std::string& Name) const	{	auto it = mVariables.find(Name);	return (it == mVariables.end()) ? std::string() : it->second;	}
+	
 protected:
 	//	encoding
 	void			BakeHeaders();		//	inject headers
@@ -78,6 +82,7 @@ protected:
 
 public:
 	std::map<std::string,std::string>	mHeaders;
+	std::map<std::string,std::string>	mVariables;			//	GET url vars in requests
 	std::string							mUrl;				//	could be "Bad Request" or "OK" for responses
 	Array<char>							mContent;
 	std::string							mContentMimeType;	//	change this to SoyMediaFormat
