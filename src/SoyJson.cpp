@@ -1,9 +1,8 @@
 #include "SoyJson.h"
-
-
 #include "heaparray.hpp"
 #include "SoyDebug.h"
-void SoyJson::UnitTest()
+
+void Json::UnitTest()
 {
 	TJsonWriter Json;
 	
@@ -30,6 +29,43 @@ void SoyJson::UnitTest()
 	std::Debug << Json << std::endl;
 }
 
+
+std::string Json::EscapeString(const char* RawString)
+{
+	std::stringstream Stream;
+
+	Stream << '"';
+	while ( *RawString )
+	{
+		switch ( *RawString )
+		{
+			case '"':	Stream << "\\\"";	break;
+			case '\t':	Stream << "\\t";	break;
+			case '\r':	Stream << "\\r";	break;
+			case '\n':	Stream << "\\n";	break;
+			case '\f':	Stream << "\\f";	break;
+			case '\b':	Stream << "\\b";	break;
+			case '\\':	Stream << "\\\\";	break;
+			case '/':	Stream << "\\/";	break;
+
+			default:
+				Stream << *RawString;
+				break;
+		}
+		RawString++;
+	}
+
+	Stream << '"';
+
+	return Stream.str();
+}
+
+std::string Json::EscapeString(const std::string& RawString)	
+{	
+	if ( RawString.empty() )
+		return "\"\"";
+	return EscapeString( RawString.c_str() );	
+}
 
 
 std::ostream& operator<< (std::ostream &out,const TJsonWriter &in)
@@ -75,39 +111,25 @@ bool TJsonWriter::Push(const char* Name,const std::string& Value)
 	return Push( Name, Value.c_str() );
 }
 
-bool TJsonWriter::Push(const char* Name,const char* Value)
+bool TJsonWriter::Push(const char* Name,const char* Value,bool EscapeString)
 {
 	Open();
 	
 	if ( mElementCount > 0 )
 		mStream << ",";
 	
-	//	gr: encode control characters etc
 	//	string in quotes!
-	mStream << '"' << Name << '"' << ":" << '"';
+	mStream << Json::EscapeString(Name) << ':';
  
-	//	write value as we encode
-	do
+	if ( EscapeString )
 	{
-		switch ( *Value )
-		{
-			case '"':	mStream << "\\\"";	break;
-			case '\t':	mStream << "\\t";	break;
-			case '\r':	mStream << "\\r";	break;
-			case '\n':	mStream << "\\n";	break;
-			case '\f':	mStream << "\\f";	break;
-			case '\b':	mStream << "\\b";	break;
-			case '\\':	mStream << "\\\\";	break;
-			case '/':	mStream << "\\/";	break;
-
-			default:
-				mStream << *Value;
-				break;
-		}
+		std::string ValueEscaped = Json::EscapeString( Value );
+		mStream << ValueEscaped;
 	}
-	while ( *(++Value) );
-	
-	mStream << '"';
+	else
+	{
+		mStream << Value;
+	}
 	
 	mElementCount++;
 	
