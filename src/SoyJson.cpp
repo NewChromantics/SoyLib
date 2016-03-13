@@ -90,7 +90,7 @@ void TJsonWriter::Open()
 	
 	mStream << '{';
 	if ( mPrettyFormatting )
-		mStream << "\n\t";
+		mStream << "\n";
 	
 	mOpen = true;
 }
@@ -122,7 +122,7 @@ bool PushElement(const char* Name,const TYPE& Value,int& mElementCount,std::ostr
 	if ( mPrettyFormatting )
 		mStream << '\t';
 	
-	mStream << '"' << Name << '"' << ':' << Value;
+	mStream << Json::EscapeString(Name) << ':' << Value;
 	mElementCount++;
 	return true;
 }
@@ -134,30 +134,15 @@ bool TJsonWriter::Push(const char* Name,const std::string& Value)
 
 bool TJsonWriter::Push(const char* Name,const char* Value,bool EscapeString)
 {
-	Open();
-	
-	if ( mElementCount > 0 )
-	{
-		mStream << ',';
-		if ( mPrettyFormatting )
-			mStream << '\n';
-	}
-	
-	//	string in quotes!
-	mStream << Json::EscapeString(Name) << ':';
- 
 	if ( EscapeString )
 	{
 		std::string ValueEscaped = Json::EscapeString( Value );
-		mStream << ValueEscaped;
+		PushElement( Name, ValueEscaped, mElementCount, mStream, *this, mPrettyFormatting );
 	}
 	else
 	{
-		mStream << Value;
+		PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
 	}
-	
-	mElementCount++;
-	
 	return true;
 }
 
