@@ -3,6 +3,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 
 
+
 namespace Platform
 {
 	bool	EnumDirectoryUnsafe(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound);
@@ -159,4 +160,15 @@ NSURL* Platform::GetUrl(const std::string& Filename)
 	return Url;
 }
 
+bool Platform::ShowFileExplorer(const std::string& Path)
+{
+	auto PathUrl = GetUrl( Path );
+	if ( !PathUrl )
+		return false;
+	
+	NSArray* FileURLs = [NSArray arrayWithObjects:PathUrl,nil];
+	[[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:FileURLs];
+
+	return true;
+}
 
