@@ -65,6 +65,7 @@ namespace Soy
 	bool		StringTrimLeft(std::string& String, char TrimChar);
 	bool		StringTrimLeft(std::string& String, const ArrayBridge<char>&& TrimAnyChars);
 	bool		StringTrimLeft(std::string& String,std::function<bool(char)> TrimChar);
+	bool		StringTrimRight(std::string& String, char TrimChar);
 	bool		StringTrimRight(std::string& String, const ArrayBridge<char>& TrimAnyChars);
 	inline bool	StringTrimRight(std::string& String, const ArrayBridge<char>&& TrimAnyChars) {	return StringTrimRight(String, TrimAnyChars);	}
 	bool		StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool CaseSensitive);

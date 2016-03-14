@@ -519,6 +519,21 @@ bool Soy::StringTrimRight(std::string& Haystack,const std::string& Suffix,bool C
 }
 
 
+bool Soy::StringTrimRight(std::string& String,char TrimChar)
+{
+	bool Changed = false;
+	while ( !String.empty() )
+	{
+		auto Last = String.length()-1;
+		if ( String[Last] != TrimChar )
+			break;
+		String.erase( Last );
+		Changed = true;
+	}
+	return Changed;
+}
+
+
 void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 {
 	Soy::Assert( Buffer!=nullptr, "Soy::StringToBuffer Buffer expected" );
