@@ -2,6 +2,7 @@
 #include "SoyAvf.h"
 #include <CoreFoundation/CoreFoundation.h>
 
+#include <AppKit/NSWorkspace.h>
 
 
 namespace Platform
