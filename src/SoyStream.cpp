@@ -654,6 +654,9 @@ TFileStreamWriter::~TFileStreamWriter()
 	}
 	
 	mFile.close();
+	
+	bool Success = true;
+	mOnShutdown.OnTriggered(Success);
 }
 
 void TFileStreamWriter::Write(TStreamBuffer& Data,const std::function<bool()>& Block)
