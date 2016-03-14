@@ -58,35 +58,45 @@ public:
 		}
 	}
 
-	void	Open();
-	void	Close();
+	void		Open();
+	void		Close();
+	std::string	GetString() const;		//	bake json
 	
 	template<typename TYPE>
-	bool	Push(const char* Name,const TYPE& Value);
-	bool	Push(const char* Name,const std::string& Value);
-	bool	Push(const char* Name,const std::string&& Value)		{	return Push( Name, Value );	}
-	bool	Push(const char* Name,const std::stringstream&& Value)	{	return Push( Name, Value.str() );	}
-	bool	Push(const char* Name,const std::stringstream& Value)	{	return Push( Name, Value.str() );	}
-	bool	Push(const char* Name,const char* Value)				{	return Push( Name, Value, true );	}
-	bool	Push(const char* Name,const int& Value);
-	bool	Push(const char* Name,const float& Value);
-	bool	Push(const char* Name,const bool& Value)	{	return Push( Name, Value ? "true" : "false" );	}
-	bool	PushNull(const char* Name)					{	return Push( Name, "null" );	}
-	bool	Push(const char* Name,const TJsonWriter& Value);
+	void	Push(const char* Name,const TYPE& Value);
+	void	Push(const char* Name,const std::string& Value);
+	void	Push(const char* Name,const std::string&& Value)		{	return Push( Name, Value );	}
+	void	Push(const char* Name,const std::stringstream&& Value)	{	return Push( Name, Value.str() );	}
+	void	Push(const char* Name,const std::stringstream& Value)	{	return Push( Name, Value.str() );	}
+	void	Push(const char* Name,const char* Value)				{	return Push( Name, Value, true );	}
+	void	Push(const char* Name,const int& Value);
+	void	Push(const char* Name,const float& Value);
+	void	Push(const char* Name,const bool& Value)	{	return Push( Name, Value ? "true" : "false" );	}
+	void	PushNull(const char* Name)					{	return Push( Name, "null" );	}
+	void	Push(const char* Name,const TJsonWriter& Value);
 	
 
 	//	need to overload with ArrayBridgeDef if we have a generic template<>
 	//template<typename TYPE>
 	//bool	Push(const char* Name,const ArrayBridge<TYPE>&& Array);
 	template<typename TYPE>
-	bool	Push(const char* Name,const ArrayBridgeDef<TYPE>&& Array);
+	void	Push(const char* Name,const ArrayBridgeDef<TYPE>&& Array);
 
-	bool	PushJson(const char* Name,const ArrayBridge<std::string>&& Array);
-	bool	PushJson(const char* Name,const std::string& Value)			{	Json::IsValidJson(Value);	return Push( Name, Value.c_str(), false );	}
+	void	PushJson(const char* Name,const ArrayBridge<std::string>&& Array);
+	void	PushJson(const char* Name,const std::string& Value)			{	Json::IsValidJson(Value);	return Push( Name, Value.c_str(), false );	}
 
+	template<typename TYPE>
+	void	Push(const std::string& Name,const TYPE& Value)
+	{
+		Push( Name.c_str(), Value );
+	}
+	
+	//	attempt to merge this json into this object at the same level
+	void	MergeJson(const std::string& Json);
+	
 private:
-	bool	PushStringRaw(const char* Name,const std::string& Value);
-	bool	Push(const char* Name,const char* Value,bool EscapeString);
+	void	PushStringRaw(const char* Name,const std::string& Value);
+	void	Push(const char* Name,const char* Value,bool EscapeString);
 
 
 private:
@@ -115,15 +125,15 @@ inline std::string EscapeType(const std::string& Value)
 }
 
 template<typename TYPE>
-inline bool TJsonWriter::Push(const char* Name,const TYPE& Value)
+inline void TJsonWriter::Push(const char* Name,const TYPE& Value)
 {
 	std::stringstream Stream;
 	Stream << Value;
-	return Push( Name, Stream );
+	Push( Name, Stream );
 }
 
 template<typename TYPE>
-inline bool TJsonWriter::Push(const char* Name,const ArrayBridgeDef<TYPE>&& Array)
+inline void TJsonWriter::Push(const char* Name,const ArrayBridgeDef<TYPE>&& Array)
 {
 	std::stringstream Value;
 	Value << "[";
@@ -135,11 +145,11 @@ inline bool TJsonWriter::Push(const char* Name,const ArrayBridgeDef<TYPE>&& Arra
 		Value << EscapeType(Element);
 	}
 	Value << "]";
-	return PushStringRaw( Name, Value.str() );
+	PushStringRaw( Name, Value.str() );
 }
 
 
-inline bool TJsonWriter::PushJson(const char* Name,const ArrayBridge<std::string>&& Array)
+inline void TJsonWriter::PushJson(const char* Name,const ArrayBridge<std::string>&& Array)
 {
 	std::stringstream Value;
 	Value << "[";
@@ -157,7 +167,7 @@ inline bool TJsonWriter::PushJson(const char* Name,const ArrayBridge<std::string
 			Value << '\n';
 	}
 	Value << "]";
-	return PushStringRaw( Name, Value.str() );
+	PushStringRaw( Name, Value.str() );
 }
 
 	

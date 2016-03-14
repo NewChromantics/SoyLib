@@ -119,7 +119,7 @@ void TJsonWriter::Close()
 }
 
 template<typename TYPE>
-bool PushElement(const char* Name,const TYPE& Value,int& mElementCount,std::ostream& mStream,TJsonWriter& Json,bool mPrettyFormatting)
+void PushElement(const char* Name,const TYPE& Value,int& mElementCount,std::ostream& mStream,TJsonWriter& Json,bool mPrettyFormatting)
 {
 	Json.Open();
 	
@@ -135,15 +135,14 @@ bool PushElement(const char* Name,const TYPE& Value,int& mElementCount,std::ostr
 	
 	mStream << Json::EscapeString(Name) << ':' << Value;
 	mElementCount++;
-	return true;
 }
 	
-bool TJsonWriter::Push(const char* Name,const std::string& Value)
+void TJsonWriter::Push(const char* Name,const std::string& Value)
 {
-	return Push( Name, Value.c_str() );
+	Push( Name, Value.c_str() );
 }
 
-bool TJsonWriter::Push(const char* Name,const char* Value,bool EscapeString)
+void TJsonWriter::Push(const char* Name,const char* Value,bool EscapeString)
 {
 	if ( EscapeString )
 	{
@@ -154,27 +153,59 @@ bool TJsonWriter::Push(const char* Name,const char* Value,bool EscapeString)
 	{
 		PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
 	}
-	return true;
 }
 
-bool TJsonWriter::PushStringRaw(const char* Name,const std::string& Value)
+void TJsonWriter::PushStringRaw(const char* Name,const std::string& Value)
 {
-	return PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
+	PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
 }
 
-bool TJsonWriter::Push(const char* Name,const int& Value)
+void TJsonWriter::Push(const char* Name,const int& Value)
 {
-	return PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
+	PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
 }
 
-bool TJsonWriter::Push(const char* Name,const float& Value)
+void TJsonWriter::Push(const char* Name,const float& Value)
 {
-	return PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
+	PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
 }
 
-bool TJsonWriter::Push(const char* Name,const TJsonWriter& Value)
+void TJsonWriter::Push(const char* Name,const TJsonWriter& Value)
 {
-	return PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
+	PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
 }
 
+//	attempt to merge this json into this object at the same level
+void TJsonWriter::MergeJson(const std::string& Json)
+{
+	//	extract the structure
+	auto MergeJson = Json;
+	
+	char TrimLeft[] = {'{','\t','\n'};
+	char TrimRight[] = {'}','\t','\n'};
+	
+	Soy::StringTrimLeft( MergeJson, GetArrayBridge(GetRemoteArray(TrimLeft)) );
+	Soy::StringTrimRight( MergeJson, GetArrayBridge(GetRemoteArray(TrimRight)) );
+	
+	Open();
+	
+	if ( mElementCount > 0 )
+	{
+		mStream << ',';
+		if ( mPrettyFormatting )
+			mStream << '\n';
+	}
+	
+	if ( mPrettyFormatting )
+		mStream << '\t';
+	
+	mStream << MergeJson;
+	mElementCount++;
+}
 
+std::string TJsonWriter::GetString() const
+{
+	std::stringstream str;
+	str << *this;
+	return str.str();
+}
