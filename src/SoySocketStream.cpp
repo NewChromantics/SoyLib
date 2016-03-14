@@ -53,7 +53,10 @@ void TSocketReadThread::Shutdown() __noexcept
 	//	kill socket
 	//	gr: dealloc?
 	if ( mSocket )
-		mSocket->Close();
+	{
+		mSocket->Disconnect( mConnectionRef, "TSocketReadThread::Shutdown" );
+		mSocket.reset();
+	}
 }
 
 

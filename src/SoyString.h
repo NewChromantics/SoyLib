@@ -65,6 +65,7 @@ namespace Soy
 	bool		StringTrimLeft(std::string& String, char TrimChar);
 	bool		StringTrimLeft(std::string& String, const ArrayBridge<char>&& TrimAnyChars);
 	bool		StringTrimLeft(std::string& String,std::function<bool(char)> TrimChar);
+	bool		StringTrimRight(std::string& String, char TrimChar);
 	bool		StringTrimRight(std::string& String, const ArrayBridge<char>& TrimAnyChars);
 	inline bool	StringTrimRight(std::string& String, const ArrayBridge<char>&& TrimAnyChars) {	return StringTrimRight(String, TrimAnyChars);	}
 	bool		StringTrimLeft(std::string& Haystack,const std::string& Prefix,bool CaseSensitive);
@@ -117,6 +118,8 @@ namespace Soy
 	std::string	GetUrlPath(const std::string& Url);
 	std::string	GetUrlHostname(const std::string& Url);
 	std::string	GetUrlProtocol(const std::string& Url);
+	void		SplitUrlPathVariables(std::string& Path,std::map<std::string,std::string>& Variables);
+	void		UriDecode(std::string& String);
 	
 	std::wstring	StringToWString(const std::string& s);
 	std::string		WStringToString(const std::wstring& w);
@@ -350,6 +353,18 @@ inline std::ostream& operator<<(std::ostream &out,const Soy::Rectx<TYPE> &in)
 	return out;
 }
 }
+
+
+namespace Soy
+{
+template<typename TYPE>
+inline std::ostream& operator<<(std::ostream &out,const Soy::Boundsx<TYPE> &in)
+{
+	out << in.min << Soy::VecNXDelins[1] << in.max;
+	return out;
+}
+}
+
 
 inline std::ostream& operator<<(std::ostream &out,const Soy::Matrix4x1 &in)
 {

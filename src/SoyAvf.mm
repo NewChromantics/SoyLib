@@ -641,6 +641,7 @@ void Avf::TAsset::LoadTracks()
 
 NSURL* Avf::GetUrl(const std::string& Filename)
 {
+	return Platform::GetUrl( Filename );
 	NSString* UrlString = Soy::StringToNSString( Filename );
 	NSError *err;
 	

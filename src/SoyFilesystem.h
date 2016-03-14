@@ -8,6 +8,9 @@
 #include <CoreServices/CoreServices.h>
 #endif
 
+#if defined(TARGET_OSX) && defined(__OBJC__)
+@protocol NSURL;
+#endif
 
 
 namespace SoyPathType
@@ -21,12 +24,19 @@ namespace SoyPathType
 };
 
 
+
+
 namespace Platform
 {
 	void	EnumFiles(std::string Directory,std::function<void(const std::string&)> OnFileFound);	//	end with ** to recurse
 	bool	EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound);
 	void	GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions);
 	void	CreateDirectory(const std::string& Path);	//	will strip filenames
+	
+	//	implement platform specific "path interface" type?
+#if defined(TARGET_OSX) && defined(__OBJC__)
+	NSURL*	GetUrl(const std::string& Filename);
+#endif
 }
 
 namespace Soy
