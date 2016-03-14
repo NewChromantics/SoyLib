@@ -37,6 +37,8 @@ namespace Platform
 #if defined(TARGET_OSX) && defined(__OBJC__)
 	NSURL*	GetUrl(const std::string& Filename);
 #endif
+	
+	bool	ShowFileExplorer(const std::string& Path);
 }
 
 namespace Soy
