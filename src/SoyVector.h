@@ -24,6 +24,10 @@ namespace Soy
 	
 	template<typename TYPE>
 	class Rectx;
+
+	//	minmax or bounds...
+	template<typename TYPE>
+	class Boundsx;
 };
 
 struct CGAffineTransform;
@@ -189,7 +193,7 @@ class vec4x4
 {
 public:
 	vec4x4() :
-		rows	{	vec4x<TYPE>(1,0,0,0), vec4x<TYPE>(0,1,0,0), vec4x<TYPE>(0,0,1,0), vec4x<TYPE>(0,0,0,1)	}
+		vec4x4	( 1,0,0,0,	0,1,0,0,	0,0,1,0,	0,0,0,1 )
 	{
 	}
 	vec4x4(TYPE a,TYPE b,TYPE c,TYPE d,
@@ -201,6 +205,12 @@ public:
 		rows	{	vec4x<TYPE>(a,b,c,d), vec4x<TYPE>(e,f,g,h), vec4x<TYPE>(i,j,k,l), vec4x<TYPE>(m,n,o,p)	}
 #endif
 	{
+#if defined(OLD_VISUAL_STUDIO)
+		rows[0] = vec4x<TYPE>(a,b,c,d);
+		rows[1] = vec4x<TYPE>(e,f,g,h);
+		rows[2] = vec4x<TYPE>(i,j,k,l);
+		rows[3] = vec4x<TYPE>(m,n,o,p);
+#endif
 	}
 
 	const TYPE&	operator()(size_t c,size_t r) const
@@ -332,6 +342,7 @@ public:
 	TYPE	m[3*3];
 };
 
+//	gr: this should be renamed to RectT, not X (X should be dimensions)
 template<typename TYPE>
 class Soy::Rectx
 {
@@ -382,21 +393,37 @@ public:
 };
 
 
-template<typename TYPE>
-inline void Soy::Rectx<TYPE>::FitToRect(const Rectx& Parent)
-{
-	//	https://github.com/SoylentGraham/PopUnityCommon/blob/master/PopMath.cs
-	auto& RectNorm = *this;
-	auto& Body = Parent;
-	
-	RectNorm.x *= Body.w;
-	RectNorm.w *= Body.w;
-	RectNorm.y *= Body.h;
-	RectNorm.h *= Body.h;
 
-	RectNorm.x += Body.x;
-	RectNorm.y += Body.y;
-}
+template<typename TYPE>
+class Soy::Boundsx
+{
+public:
+	Boundsx()
+	{
+	}
+	Boundsx(const TYPE& _min,const TYPE& _max) :
+		min	(_min),
+		max	(_max)
+	{
+	}
+	template<typename OTHERTYPE>
+	Boundsx(const Boundsx<OTHERTYPE>& r) :
+		min	(r.min),
+		max	(r.max)
+	{
+	}
+	
+	const TYPE	Min() const		{	return min;	}
+	const TYPE	Max() const		{	return min;	}
+	const TYPE	Size() const	{	return max-min;	}
+	
+public:
+	TYPE	min;
+	TYPE	max;
+};
+
+
+
 
 
 
@@ -409,7 +436,8 @@ typedef vec3x3<float> float3x3;
 
 namespace Soy
 {
-	typedef Soy::Rectx<float> Rectf;
+	typedef Rectx<float> Rectf;
+	typedef Boundsx<vec3f> Bounds3f;
 };
 
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec2f );
@@ -417,6 +445,7 @@ DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec3f );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec4f );
 DECLARE_NONCOMPLEX_TYPE( float4x4 );
 DECLARE_NONCOMPLEX_TYPE( Soy::Rectf );
+DECLARE_NONCOMPLEX_TYPE( Soy::Bounds3f );
 
 
 
@@ -456,3 +485,19 @@ inline Soy::Rectf NSRectToRect(NSRect Rect)
 }
 #endif
 
+
+template<typename TYPE>
+inline void Soy::Rectx<TYPE>::FitToRect(const Rectx& Parent)
+{
+	//	https://github.com/SoylentGraham/PopUnityCommon/blob/master/PopMath.cs
+	auto& RectNorm = *this;
+	auto& Body = Parent;
+	
+	RectNorm.x *= Body.w;
+	RectNorm.w *= Body.w;
+	RectNorm.y *= Body.h;
+	RectNorm.h *= Body.h;
+
+	RectNorm.x += Body.x;
+	RectNorm.y += Body.y;
+}

@@ -1,5 +1,6 @@
 #include "SoyAvf.h"
 #include <SoyH264.h>
+#include <SoyFileSystem.h>
 
 #include <CoreMedia/CMBase.h>
 #include <VideoToolbox/VTBase.h>
@@ -641,27 +642,7 @@ void Avf::TAsset::LoadTracks()
 
 NSURL* Avf::GetUrl(const std::string& Filename)
 {
-	NSString* UrlString = Soy::StringToNSString( Filename );
-	NSError *err;
-	
-	//	try as file which we can test for immediate fail
-	NSURL* Url = [[NSURL alloc]initFileURLWithPath:UrlString];
-	if ([Url checkResourceIsReachableAndReturnError:&err] == NO)
-	{
-		//	FILE is not reachable.
-		
-		//	try as url
-		Url = [[NSURL alloc]initWithString:UrlString];
-		
-		/*	gr: throw this error IF we KNOW it's a file we're trying to reach and not an url.
-		 check for ANY scheme?
-		 std::stringstream Error;
-		 Error << "Failed to reach file from url: " << mParams.mFilename << "; " << Soy::NSErrorToString(err);
-		 throw Soy::AssertException( Error.str() );
-		 */
-	}
-	
-	return Url;
+	return Platform::GetUrl( Filename );
 }
 
 

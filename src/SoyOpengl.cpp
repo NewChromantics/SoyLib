@@ -4,6 +4,14 @@
 #include "SoyShader.h"
 #include <regex>
 
+
+std::ostream& operator<<(std::ostream& out,const std::pair<SoyPixelsMeta,GLenum>& MetaAndType)
+{
+	out << MetaAndType.first << '/' << Opengl::GetEnumString( MetaAndType.second );
+	return out;
+}
+
+
 class TPixelFormatMapping
 {
 public:

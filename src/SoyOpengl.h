@@ -106,6 +106,8 @@ namespace Opengl
 	void	SetViewport(Soy::Rectf Viewport);
 };
 
+std::ostream& operator<<(std::ostream& out,const std::pair<SoyPixelsMeta,GLenum>& MetaAndType);
+
 
 class Opengl::TTextureAndContext
 {
@@ -458,6 +460,7 @@ public:
 
 	void				OnWrite();
 	
+	bool				operator==(const std::pair<SoyPixelsMeta,GLenum>& MetaAndType) const	{	return mMeta == MetaAndType.first && mType == MetaAndType.second;	}
 	bool				operator==(const TTexture& that) const	{	return mTexture == that.mTexture;	}
 	bool				operator!=(const TTexture& that) const	{	return mTexture != that.mTexture;	}
 

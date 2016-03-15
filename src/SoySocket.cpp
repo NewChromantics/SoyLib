@@ -241,19 +241,30 @@ bool Soy::Winsock::HasError(const std::string& ErrorContext,bool BlockIsError,in
 
 void SoySocket::Close()
 {
-	mConnectionLock.lock();
-	if ( mSocket != INVALID_SOCKET )
 	{
-#if defined(TARGET_WINDOWS)
-		closesocket( mSocket );
-#elif defined(TARGET_POSIX)
-		close( mSocket );
-#endif
-		Soy::Winsock::HasError("CloseSocket");
-		mSocket = INVALID_SOCKET;
-		mSocketAddr = SoySockAddr();
+		std::lock_guard<std::recursive_mutex> Lock( mConnectionLock );
+		if ( mSocket != INVALID_SOCKET )
+		{
+	#if defined(TARGET_WINDOWS)
+			closesocket( mSocket );
+	#elif defined(TARGET_POSIX)
+			close( mSocket );
+	#endif
+			Soy::Winsock::HasError("CloseSocket");
+			mSocket = INVALID_SOCKET;
+			mSocketAddr = SoySockAddr();
+		}
 	}
-	mConnectionLock.unlock();
+	
+	//	disconnect all our clients/connections
+	while ( true )
+	{
+		std::lock_guard<std::recursive_mutex> Lock( mConnectionLock );
+		if ( mConnections.empty() )
+			break;
+		auto it = mConnections.begin();
+		Disconnect( it->first, "Socket Close" );
+	}
 }
 
 bool SoySocket::IsUdp() const
