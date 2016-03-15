@@ -109,8 +109,8 @@ public:
 	TTexture(ID3D11Texture2D* Texture);
 
 	bool				IsValid() const		{	return mTexture;	}
-	void				Write(TTexture& Texture,TContext& Context);
-	void				Write(const SoyPixelsImpl& Pixels,TContext& Context);
+	void				Write(const TTexture& Source,TContext& Context);
+	void				Write(const SoyPixelsImpl& Source,TContext& Context);
 	void				Read(SoyPixelsImpl& Pixels,TContext& Context) const;
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}

@@ -401,22 +401,26 @@ Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 	}
 }
 
-void Directx::TTexture::Write(TTexture& Destination,TContext& ContextDx)
+void Directx::TTexture::Write(const TTexture& Source,TContext& ContextDx)
 {
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
-	Soy::Assert( Destination.IsValid(), "Writing from invalid texture" );
+	Soy::Assert( Source.IsValid(), "Writing from invalid texture" );
 
 	//	try simple no-errors-reported-by-dx copy resource fast path
-	if ( CanCopyMeta( mMeta, Destination.mMeta ) )
+	if ( CanCopyMeta( mMeta, Source.mMeta ) )
 	{
 		auto& Context = ContextDx.LockGetContext();
-		Context.CopyResource( mTexture, Destination.mTexture );
+
+		const ID3D11Texture2D* Resource = Source.mTexture;
+		auto* ResourceMutable = const_cast<ID3D11Texture2D*>( Resource );
+
+		Context.CopyResource( mTexture, ResourceMutable );
 		ContextDx.Unlock();
 		return;
 	}
 
 	std::stringstream Error;
-	Error << "No path to copy " << (*this) << " to " << Destination;
+	Error << "No path to copy " << (*this) << " to " << Source;
 	throw Soy::AssertException( Error.str() );
 }
 
