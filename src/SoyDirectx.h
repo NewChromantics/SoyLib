@@ -35,8 +35,9 @@ namespace Directx
 	class TTextureSamplingParams;
 	class TCompiler;			//	wrapper to hold the compile func and a reference to the runtime library. Defined in source for cleaner code
 
-	std::string		GetEnumString(HRESULT Error);
-	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
+
+	inline std::string		GetEnumString(HRESULT Error)												{	return Platform::GetErrorString( Error );	}
+	inline bool				IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true)	{	return Platform::IsOkay( Error, Context, ThrowException );	}
 	SoyPixelsFormat::Type	GetFormat(DXGI_FORMAT Format);
 	DXGI_FORMAT				GetFormat(SoyPixelsFormat::Type Format);
 

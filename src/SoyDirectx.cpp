@@ -114,28 +114,6 @@ SoyPixelsFormat::Type Directx::GetFormat(DXGI_FORMAT Format)
 	}
 }
 
-std::string Directx::GetEnumString(HRESULT Error)	
-{
-	return Platform::GetErrorString( Error );	
-}
-
-//	gr: move this to generic Platform::IsOkay for windows
-bool Directx::IsOkay(HRESULT Error,const std::string& Context,bool ThrowException)
-{
-	if ( Error == S_OK )
-		return true;
-
-	std::stringstream ErrorStr;
-	ErrorStr << "Directx error in " << Context << ": " << GetEnumString(Error) << std::endl;
-	
-	if ( !ThrowException )
-	{
-		std::Debug << ErrorStr.str() << std::endl;
-		return false;
-	}
-	
-	return Soy::Assert( Error == S_OK, ErrorStr.str() );
-}
 
 
 std::ostream& Directx::operator<<(std::ostream &out,const Directx::TTexture& in)

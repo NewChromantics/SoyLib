@@ -317,6 +317,11 @@ namespace Platform
 	std::string			GetErrorString(HRESULT Error);
 #endif
 	inline std::string	GetLastErrorString()	{	return GetErrorString( GetLastError() );	}
+
+	//	gr: would like to make this a bit more generic, hence here rather than in window specific header
+#if defined(TARGET_WINDOWS)
+	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
+#endif
 };
 
 template<typename TYPE>
