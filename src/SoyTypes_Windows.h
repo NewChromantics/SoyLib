@@ -84,9 +84,10 @@ public:
 	}
 	~AutoReleasePtr()		{	Release();	}
 	
-	TYPE*		operator ->()	{	return mObject;	}
-	operator	TYPE*()			{	return mObject;	}
-	operator	bool() const	{	return mObject!=nullptr; }
+	TYPE*		operator ->()		{	return mObject;	}
+	operator	TYPE*()				{	return mObject;	}
+	operator	const TYPE*() const	{	return mObject;	}
+	operator	bool() const		{	return mObject!=nullptr; }
 	
 	void		Set(TYPE* Object,bool AddRef)
 	{
