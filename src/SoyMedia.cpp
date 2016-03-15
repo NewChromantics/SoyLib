@@ -1640,7 +1640,7 @@ void TMediaPassThroughEncoder::Write(const Opengl::TTexture& Image,SoyTime Timec
 }
 
 
-void TMediaPassThroughEncoder::Write(const std::shared_ptr<SoyPixelsImpl> pImage,SoyTime Timecode)
+void TMediaPassThroughEncoder::Write(std::shared_ptr<SoyPixelsImpl> pImage,SoyTime Timecode)
 {
 	Soy::Assert( pImage!=nullptr, "Image expected");
 	auto& Image = *pImage;
