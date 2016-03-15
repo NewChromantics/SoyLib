@@ -193,9 +193,9 @@ class SoyPixelsImpl
 public:
 	virtual ~SoyPixelsImpl()	{}
 
-	bool			Init(const SoyPixelsMeta& Meta);
-	bool			Init(size_t Width,size_t Height,SoyPixelsFormat::Type Format);
-	bool			Init(size_t Width,size_t Height,size_t Channels);
+	void			Init(const SoyPixelsMeta& Meta);
+	void			Init(size_t Width,size_t Height,SoyPixelsFormat::Type Format);
+	void			Init(size_t Width,size_t Height,size_t Channels);
 	void			Clear(bool Dealloc=false);
 
 	virtual bool	Copy(const SoyPixelsImpl& that,bool AllowReallocation=true);

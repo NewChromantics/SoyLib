@@ -937,19 +937,19 @@ bool TPixels::Set(const msa::OpenCLImage& PixelsConst,cl_command_queue Queue)
 
 
 
-bool SoyPixelsImpl::Init(size_t Width, size_t Height, size_t Channels)
+void SoyPixelsImpl::Init(size_t Width, size_t Height, size_t Channels)
 {
 	auto Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
-	return Init( Width, Height, Format );
+	Init( Width, Height, Format );
 }
 
-bool SoyPixelsImpl::Init(size_t Width, size_t Height,SoyPixelsFormat::Type Format)
+void SoyPixelsImpl::Init(size_t Width, size_t Height,SoyPixelsFormat::Type Format)
 {
-	return Init( SoyPixelsMeta( Width, Height, Format ) );
+	Init( SoyPixelsMeta( Width, Height, Format ) );
 }
 
 
-bool SoyPixelsImpl::Init(const SoyPixelsMeta& Meta)
+void SoyPixelsImpl::Init(const SoyPixelsMeta& Meta)
 {
 	auto Width = Meta.GetWidth();
 	auto Height = Meta.GetHeight();
@@ -962,7 +962,6 @@ bool SoyPixelsImpl::Init(const SoyPixelsMeta& Meta)
 	auto Alloc = GetMeta().GetDataSize();
 	auto& Pixels = GetPixelsArray();
 	Pixels.SetSize( Alloc, false );
-	return true;
 }
 
 
