@@ -520,6 +520,25 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 }
 
 
+void Directx::TTexture::Read(SoyPixelsImpl& Pixels,TContext& ContextDx) const
+{
+	Soy::Assert( IsValid(), "Reading from invalid texture" );
+	auto& Context = ContextDx.LockGetContext();
+
+	bool Blocking = true;
+
+	//	update our dynamic texture
+	try
+	{
+		Soy_AssertTodo();
+	}
+	catch (std::exception& e)
+	{
+		//	unlock and re-throw
+		ContextDx.Unlock();
+		throw;
+	}
+}
 
 Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 	mTexture		( Texture )

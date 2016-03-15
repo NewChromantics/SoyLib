@@ -111,6 +111,7 @@ public:
 	bool				IsValid() const		{	return mTexture;	}
 	void				Write(TTexture& Texture,TContext& Context);
 	void				Write(const SoyPixelsImpl& Pixels,TContext& Context);
+	void				Read(SoyPixelsImpl& Pixels,TContext& Context) const;
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 
