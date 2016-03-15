@@ -136,6 +136,9 @@
     <ClCompile Include="..\src\SoyJson.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\SoyMediaFormat.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\SoyThread.h">
@@ -298,6 +301,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\SoyJson.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyMediaFormat.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
