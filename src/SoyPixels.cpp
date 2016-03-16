@@ -210,8 +210,11 @@ void SoyPixelsFormat::MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPi
 	//	manually construct this image
 	auto& PiMeta = PalettisedImage.GetMeta();
 	auto& PiArray = PalettisedImage.GetPixelsArray();
-	PiMeta.DumbSetFormat( SoyPixelsFormat::Palettised_RGB_8 );
-	PiMeta.DumbSetFormat( SoyPixelsFormat::Palettised_RGBA_8 );
+
+	if ( Palette.GetFormat() == SoyPixelsFormat::RGB )
+		PiMeta.DumbSetFormat( SoyPixelsFormat::Palettised_RGB_8 );
+	if ( Palette.GetFormat() == SoyPixelsFormat::RGBA )
+		PiMeta.DumbSetFormat( SoyPixelsFormat::Palettised_RGBA_8 );
 	PiMeta.DumbSetWidth( IndexedImage.GetWidth() );
 	PiMeta.DumbSetHeight( IndexedImage.GetHeight() );
 
