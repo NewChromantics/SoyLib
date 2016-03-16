@@ -153,6 +153,7 @@ public:
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 
+	bool				operator==(const std::pair<SoyPixelsMeta,TTextureMode::Type>& MetaAndMode) const	{	return mMeta == MetaAndMode.first && GetMode() == MetaAndMode.second;	}
 	bool				operator==(const TTexture& that) const	{	return mTexture.mObject == that.mTexture.mObject;	}
 	bool				operator!=(const TTexture& that) const	{	return !(*this == that);	}
 
