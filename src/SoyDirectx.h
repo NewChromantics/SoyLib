@@ -48,8 +48,10 @@ namespace Directx
 		enum Type
 		{
 			Invalid,		//	only for soyenum!
-			ReadOnly,
-			Writable,		//	dynamic/mappable
+			GpuOnly,		//	not mappable
+			ReadOnly,		//	mappable
+			Writable,		//	mappable
+			ReadWrite,
 			RenderTarget,
 		};
 
@@ -156,7 +158,7 @@ public:
 	bool				operator!=(const TTexture& that) const	{	return !(*this == that);	}
 
 private:
-	TLockedTextureData	LockTextureData(TContext& Context);
+	TLockedTextureData	LockTextureData(TContext& Context,bool RequireRead,bool RequireWrite);
 
 public:
 	TTextureSamplingParams			mSamplingParams;

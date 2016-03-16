@@ -36,6 +36,8 @@ std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap
 	{	Directx::TTextureMode::Invalid,			"Invalid"	},
 	{	Directx::TTextureMode::ReadOnly,		"ReadOnly"	},
 	{	Directx::TTextureMode::Writable,		"Writable"	},
+	{	Directx::TTextureMode::ReadWrite,		"ReadWrite"	},
+	{	Directx::TTextureMode::GpuOnly,			"GpuOnly"	},
 	{	Directx::TTextureMode::RenderTarget,	"RenderTarget"	},
 };
 
@@ -336,7 +338,21 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 		Desc.Usage = D3D11_USAGE_DEFAULT;
 		Desc.Format = GetFormat( Meta.GetFormat() );
 		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		Desc.CPUAccessFlags = 0x0;
+		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+	}
+	else if ( Mode == TTextureMode::ReadWrite )
+	{
+		Desc.Usage = D3D11_USAGE_DEFAULT;
+		Desc.Format = GetFormat( Meta.GetFormat() );
+		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE|D3D11_CPU_ACCESS_READ;
+	}
+	else if ( Mode == TTextureMode::GpuOnly )
+	{
+		Desc.Usage = D3D11_USAGE_DEFAULT;
+		Desc.Format = GetFormat( Meta.GetFormat() );
+		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		Desc.CPUAccessFlags = 0;
 	}
 	else
 	{
@@ -425,7 +441,7 @@ void Directx::TTexture::Write(const TTexture& Source,TContext& ContextDx)
 }
 
 
-Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& ContextDx)
+Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& ContextDx,bool RequireRead,bool RequireWrite)
 {
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
 	auto& Context = ContextDx.LockGetContext();
@@ -445,7 +461,9 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 		bool IsDefferedContext = ( ContextType == D3D11_DEVICE_CONTEXT_DEFERRED );
 		
 		bool CanWrite = SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_WRITE;
-		Soy::Assert(CanWrite, "Texture does not have CPU mapping access");
+		bool CanRead = SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_READ;
+		Soy::Assert( !RequireRead || CanRead, "Texture does not have CPU read mapping access");
+		Soy::Assert( !RequireWrite || CanWrite, "Texture does not have CPU write mapping access");
 
 		//	https://msdn.microsoft.com/en-us/library/windows/desktop/ff476457(v=vs.85).aspx
 		//	particular case which doesn't map to a resource and needs to be written to in a different way 
@@ -524,7 +542,7 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 
 void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& ContextDx)
 {
-	auto Lock = LockTextureData( ContextDx );
+	auto Lock = LockTextureData( ContextDx, false, true );
 
 	//	copy row by row to handle misalignment
 	SoyPixelsRemote DestPixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
@@ -547,7 +565,7 @@ void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& Contex
 
 void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx)
 {
-	auto Lock = LockTextureData( ContextDx );
+	auto Lock = LockTextureData( ContextDx, true, false );
 
 	DestPixels.Init( Lock.mMeta );
 
