@@ -4,7 +4,10 @@
 //gr: this is for the pass through encoder, maybe to avoid this dependancy I can move the pass throughs to their own files...
 #include "SoyOpenGl.h"
 #include "SoyOpenGlContext.h"
+
+#if defined(TARGET_WINDOWS)
 #include "SoyDirectx.h"
+#endif
 
 
 prmem::Heap SoyMedia::DefaultHeap(true, true, "SoyMedia::DefaultHeap" );
@@ -1642,6 +1645,7 @@ void TMediaPassThroughEncoder::Write(const Opengl::TTexture& Image,SoyTime Timec
 
 void TMediaPassThroughEncoder::Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context)
 {
+#if defined(TARGET_WINDOWS)
 	//	todo: proper opengl -> CvPixelBuffer
 	
 	//	gr: Avf won't accept RGBA, but it will take RGB so we can force reading that format here
@@ -1664,6 +1668,9 @@ void TMediaPassThroughEncoder::Write(const Directx::TTexture& Image,SoyTime Time
 	Soy::TSemaphore Semaphore;
 	Context.PushJob( ReadPixels, Semaphore );
 	Semaphore.Wait();
+#else
+	throw Soy::AssertException( std::string(__func__) + " not supported");
+#endif
 }
 
 
