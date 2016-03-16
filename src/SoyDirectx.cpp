@@ -425,7 +425,7 @@ void Directx::TTexture::Write(const TTexture& Source,TContext& ContextDx)
 }
 
 
-void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
+Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& ContextDx)
 {
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
 	auto& Context = ContextDx.LockGetContext();
@@ -460,6 +460,7 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 			Directx::IsOkay(hr, ErrorString.str());
 
 			Context.Unmap(nullptr, SubResource);
+			throw Soy::AssertException("Cannot map non read/write(D3D11_USAGE_DEFAULT) texture");
 		}
 		else
 		{
@@ -498,22 +499,19 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 				Directx::IsOkay(hr, ErrorString.str());
 			}
 
+			//	gr: handle row misalignment (texture is padded)
 			size_t ResourceDataSize = resource.RowPitch * SrcDesc.Height;//	width in bytes
-			auto& PixelsArray = Pixels.GetPixelsArray();
-			if ( PixelsArray.GetDataSize() != ResourceDataSize )
+
+			auto Unlock = [&]
 			{
-				std::stringstream Error;
-				Error << "Warning: resource/texture data size mismatch; " << PixelsArray.GetDataSize() << " (frame) vs " << ResourceDataSize << " (resource)";
-				std::Debug << Error.str() << std::endl;
+				Context.Unmap( mTexture, SubResource);
+				ContextDx.Unlock();
+			};
 
-				ResourceDataSize = std::min(ResourceDataSize, PixelsArray.GetDataSize());
-			}
+			SoyPixelsMeta ResourceMeta( SrcDesc.Width, SrcDesc.Height, GetFormat(SrcDesc.Format) );
 
-			//	update contents 
-			memcpy(resource.pData, PixelsArray.GetArray(), ResourceDataSize);
-			Context.Unmap( mTexture, SubResource);
+			return TLockedTextureData( resource.pData, ResourceDataSize, ResourceMeta, resource.RowPitch, Unlock );
 		}
-		ContextDx.Unlock();
 	}
 	catch (std::exception& e)
 	{
@@ -524,23 +522,50 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 }
 
 
-void Directx::TTexture::Read(SoyPixelsImpl& Pixels,TContext& ContextDx) const
+void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& ContextDx)
 {
-	Soy::Assert( IsValid(), "Reading from invalid texture" );
-	auto& Context = ContextDx.LockGetContext();
+	auto Lock = LockTextureData( ContextDx );
 
-	bool Blocking = true;
+	//	copy row by row to handle misalignment
+	SoyPixelsRemote DestPixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
 
-	//	update our dynamic texture
-	try
+	auto SourceChannelCount = SourcePixels.GetChannels();
+	auto DestChannelCount = DestPixels.GetChannels();
+	Soy::Assert( SourceChannelCount==DestChannelCount, "Directx::TTexture::Write expecting channel counts to match");
+
+	auto CopyHeight = std::min( DestPixels.GetHeight(), SourcePixels.GetHeight() );
+	auto CopyWidth = std::min( DestPixels.GetWidth(), SourcePixels.GetWidth() );
+
+	for ( int y=0;	y<CopyHeight;	y++ )
 	{
-		Soy_AssertTodo();
+		auto* SourceRow = &SourcePixels.GetPixelPtr( 0, y, 0 );
+		auto* DestRow = &DestPixels.GetPixelPtr( 0, y, 0 );
+		memcpy( DestRow, SourceRow, CopyWidth * SourceChannelCount );
 	}
-	catch (std::exception& e)
+}
+
+
+void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx)
+{
+	auto Lock = LockTextureData( ContextDx );
+
+	DestPixels.Init( Lock.mMeta );
+
+	//	copy row by row to handle misalignment
+	SoyPixelsRemote SourcePixels( reinterpret_cast<uint8*>(Lock.mData), Lock.mRowPitch, Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
+
+	auto SourceChannelCount = SourcePixels.GetChannels();
+	auto DestChannelCount = DestPixels.GetChannels();
+	Soy::Assert( SourceChannelCount==DestChannelCount, "Directx::TTexture::Read expecting channel counts to match");
+
+	auto CopyHeight = std::min( DestPixels.GetHeight(), SourcePixels.GetHeight() );
+	auto CopyWidth = std::min( DestPixels.GetWidth(), SourcePixels.GetWidth() );
+
+	for ( int y=0;	y<CopyHeight;	y++ )
 	{
-		//	unlock and re-throw
-		ContextDx.Unlock();
-		throw;
+		auto* SourceRow = &SourcePixels.GetPixelPtr( 0, y, 0 );
+		auto* DestRow = &DestPixels.GetPixelPtr( 0, y, 0 );
+		memcpy( DestRow, SourceRow, CopyWidth * SourceChannelCount );
 	}
 }
 
@@ -1101,6 +1126,17 @@ ID3D11DeviceContext& Directx::TShader::GetContext()
 {
 	Soy::Assert( mBoundContext!=nullptr, "Shader is not bound");
 	return *mBoundContext->mLockedContext;
+}
+
+
+size_t Directx::TLockedTextureData::GetPaddedWidth()
+{
+	auto ChannelCount = mMeta.GetChannels();
+	Soy::Assert( ChannelCount > 0, "Locked data channel count zero, cannot work out padded width");
+	auto Overflow = mRowPitch % ChannelCount;
+	Soy::Assert( Overflow == 0, "Locked data pitch doesn't align to channel count");
+	auto PaddedWidth = mRowPitch / ChannelCount;
+	return PaddedWidth;
 }
 
 

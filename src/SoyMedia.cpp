@@ -1655,7 +1655,8 @@ void TMediaPassThroughEncoder::Write(const Directx::TTexture& Image,SoyTime Time
 	auto ReadPixels = [this,Image,Timecode,&Context]
 	{
 		std::shared_ptr<SoyPixels> Pixels( new SoyPixels );
-		Image.Read( *Pixels, Context );
+		auto& ImageMutable = const_cast<Directx::TTexture&>(Image);
+		ImageMutable.Read( *Pixels, Context );
 		Write( Pixels, Timecode );
 	};
 
