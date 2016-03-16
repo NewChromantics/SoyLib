@@ -135,6 +135,7 @@ protected:
 	void									OnError(const std::string& Error)	{	mOnStreamError.OnTriggered( Error );	}
 
 public:
+	SoyEvent<bool>							mOnShutdown;			//	param is true if success (eg. file finished)
 	SoyEvent<const std::string>				mOnStreamError;			//	fatal write or encode error
 	SoyEvent<std::shared_ptr<Soy::TWriteProtocol>>	mOnDataRecieved;
 	

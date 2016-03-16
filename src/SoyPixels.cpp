@@ -200,7 +200,7 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetMergedFormat(SoyPixelsFormat::Type For
 void SoyPixelsFormat::MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPixelsImpl& IndexedImage,const SoyPixelsImpl& Palette,uint8 TransparentIndex)
 {
 	Soy::Assert( IndexedImage.GetFormat() == SoyPixelsFormat::Greyscale, "Expected IndexedImage to be Greyscale" );
-	Soy::Assert( Palette.GetFormat() == SoyPixelsFormat::RGB, "Expected Palette to be RGB" );
+	Soy::Assert( Palette.GetFormat() == SoyPixelsFormat::RGB || Palette.GetFormat() == SoyPixelsFormat::RGBA, "Expected Palette to be RGB or RGBA" );
 	Soy::Assert( Palette.GetHeight() == 1, "Expected palette to have height of 1" );
 	Soy::Assert( Palette.GetWidth() <= ((1<<16)-1), "Expected palette to have max width of 65535" );
 
@@ -210,7 +210,11 @@ void SoyPixelsFormat::MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPi
 	//	manually construct this image
 	auto& PiMeta = PalettisedImage.GetMeta();
 	auto& PiArray = PalettisedImage.GetPixelsArray();
-	PiMeta.DumbSetFormat( SoyPixelsFormat::Palettised_8_8 );
+
+	if ( Palette.GetFormat() == SoyPixelsFormat::RGB )
+		PiMeta.DumbSetFormat( SoyPixelsFormat::Palettised_RGB_8 );
+	if ( Palette.GetFormat() == SoyPixelsFormat::RGBA )
+		PiMeta.DumbSetFormat( SoyPixelsFormat::Palettised_RGBA_8 );
 	PiMeta.DumbSetWidth( IndexedImage.GetWidth() );
 	PiMeta.DumbSetHeight( IndexedImage.GetHeight() );
 
@@ -243,7 +247,8 @@ size_t SoyPixelsFormat::GetHeaderSize(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
 	{
-		case SoyPixelsFormat::Palettised_8_8:
+		case SoyPixelsFormat::Palettised_RGB_8:
+		case SoyPixelsFormat::Palettised_RGBA_8:
 			return 3;
 			
 		default:
@@ -253,7 +258,8 @@ size_t SoyPixelsFormat::GetHeaderSize(SoyPixelsFormat::Type Format)
 
 void SoyPixelsFormat::GetHeaderPalettised(ArrayBridge<uint8>&& Data,size_t& PaletteSize,size_t& TransparentIndex)
 {
-	auto HeaderSize = GetHeaderSize( SoyPixelsFormat::Palettised_8_8 );
+	//	gr: note no distinction between the paletised formats here
+	auto HeaderSize = GetHeaderSize( SoyPixelsFormat::Palettised_RGB_8 );
 	Soy::Assert( HeaderSize == 3, "Header size mismatch");
 	Soy::Assert( Data.GetSize() >= HeaderSize, "SoyPixelsFormat::GetHeaderPalettised Data underrun" );
 	
@@ -289,7 +295,8 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
 	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
 	{ SoyPixelsFormat::ChromaUV_44,			"ChromaUV_44"	},
-	{ SoyPixelsFormat::Palettised_8_8,		"Palettised_8_8"	},
+	{ SoyPixelsFormat::Palettised_RGB_8,	"Palettised_RGB_8"	},
+	{ SoyPixelsFormat::Palettised_RGBA_8,	"Palettised_RGBA_8"	},
 };
 
 
@@ -937,19 +944,19 @@ bool TPixels::Set(const msa::OpenCLImage& PixelsConst,cl_command_queue Queue)
 
 
 
-bool SoyPixelsImpl::Init(size_t Width, size_t Height, size_t Channels)
+void SoyPixelsImpl::Init(size_t Width, size_t Height, size_t Channels)
 {
 	auto Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
-	return Init( Width, Height, Format );
+	Init( Width, Height, Format );
 }
 
-bool SoyPixelsImpl::Init(size_t Width, size_t Height,SoyPixelsFormat::Type Format)
+void SoyPixelsImpl::Init(size_t Width, size_t Height,SoyPixelsFormat::Type Format)
 {
-	return Init( SoyPixelsMeta( Width, Height, Format ) );
+	Init( SoyPixelsMeta( Width, Height, Format ) );
 }
 
 
-bool SoyPixelsImpl::Init(const SoyPixelsMeta& Meta)
+void SoyPixelsImpl::Init(const SoyPixelsMeta& Meta)
 {
 	auto Width = Meta.GetWidth();
 	auto Height = Meta.GetHeight();
@@ -962,7 +969,6 @@ bool SoyPixelsImpl::Init(const SoyPixelsMeta& Meta)
 	auto Alloc = GetMeta().GetDataSize();
 	auto& Pixels = GetPixelsArray();
 	Pixels.SetSize( Alloc, false );
-	return true;
 }
 
 
@@ -1546,7 +1552,7 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
 			
-		case SoyPixelsFormat::Palettised_8_8:
+		case SoyPixelsFormat::Palettised_RGB_8:
 		{
 			Soy::Assert( Data!=nullptr, "Cannot split format of Palettised_8_8 without data");
 			size_t PaletteSize = 0;
@@ -1555,6 +1561,19 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			//	original meta is the index w/h.
 			//	header of palette is the length of the palette
 			Planes.PushBack( SoyPixelsMeta( PaletteSize, 1, SoyPixelsFormat::RGB ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Greyscale ) );
+			break;
+		}
+
+		case SoyPixelsFormat::Palettised_RGBA_8:
+		{
+			Soy::Assert( Data!=nullptr, "Cannot split format of Palettised_8_8 without data");
+			size_t PaletteSize = 0;
+			size_t TransparentIndex = 0;
+			SoyPixelsFormat::GetHeaderPalettised( GetArrayBridge(*Data), PaletteSize, TransparentIndex );
+			//	original meta is the index w/h.
+			//	header of palette is the length of the palette
+			Planes.PushBack( SoyPixelsMeta( PaletteSize, 1, SoyPixelsFormat::RGBA ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Greyscale ) );
 			break;
 		}

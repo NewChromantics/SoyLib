@@ -2,6 +2,7 @@
 
 #include "SoyPixels.h"
 #include "SoyThread.h"
+#include "SoyMediaFormat.h"
 
 class TStreamWriter;
 class TStreamBuffer;
@@ -35,109 +36,6 @@ namespace SoyMedia
 {
 	extern prmem::Heap	DefaultHeap;
 }
-
-//	merge this + pixel format at some point
-namespace SoyMediaFormat
-{
-	enum Type
-	{
-		Invalid = SoyPixelsFormat::Invalid,
-		
-		Greyscale = SoyPixelsFormat::Greyscale,
-		GreyscaleAlpha = SoyPixelsFormat::GreyscaleAlpha,
-		RGB = SoyPixelsFormat::RGB,
-		RGBA = SoyPixelsFormat::RGBA,
-		BGRA = SoyPixelsFormat::BGRA,
-		BGR = SoyPixelsFormat::BGR,
-		ARGB = SoyPixelsFormat::ARGB,
-		KinectDepth = SoyPixelsFormat::KinectDepth,
-		FreenectDepth10bit = SoyPixelsFormat::FreenectDepth10bit,
-		FreenectDepth11bit = SoyPixelsFormat::FreenectDepth11bit,
-		FreenectDepthmm = SoyPixelsFormat::FreenectDepthmm,
-		LumaFull = SoyPixelsFormat::LumaFull,
-		LumaVideo = SoyPixelsFormat::LumaVideo,
-		Yuv_8_88_Full = SoyPixelsFormat::Yuv_8_88_Full,
-		Yuv_8_88_Video = SoyPixelsFormat::Yuv_8_88_Video,
-		Yuv_8_8_8_Full = SoyPixelsFormat::Yuv_8_8_8_Full,
-		Yuv_8_8_8_Video = SoyPixelsFormat::Yuv_8_8_8_Video,
-		Yuv_844_Full = SoyPixelsFormat::Yuv_844_Full,
-		ChromaUV_8_8 = SoyPixelsFormat::ChromaUV_8_8,
-		ChromaUV_88 = SoyPixelsFormat::ChromaUV_88,
-		ChromaUV_44 = SoyPixelsFormat::ChromaUV_44,
-		Palettised_8_8 = SoyPixelsFormat::Palettised_8_8,
-		
-		NotPixels = SoyPixelsFormat::Count,
-		
-		//	file:///Users/grahamr/Downloads/513_direct_access_to_media_encoding_and_decoding.pdf
-		//	gr: too specific? extended/sub modes?... prefer this really...
-		H264_8,			//	AVCC format (length8+payload)
-		H264_16,		//	AVCC format (length16+payload)
-		H264_32,		//	AVCC format (length32+payload)
-		H264_ES,		//	ES format (0001+payload)	elementry/transport/annexb/Nal stream (H264 ES in MF)
-		H264_SPS_ES,	//	SPS data, nalu
-		H264_PPS_ES,	//	PPS data, nalu
-		
-		Mpeg2TS,		//	general TS data
-		Mpeg2TS_PSI,	//	PSI table from TS
-		
-		Mpeg2,
-		Mpeg4,
-		Mpeg4_v3,		//	windows mpeg4 variant MP43 (msmpeg4v3)
-		VC1,			//	in TS files, not sure what this is yet
-		
-		//	encoded images
-		Png,
-		Jpeg,
-		Gif,
-		Tga,
-		Bmp,
-		Psd,
-		
-		//	audio
-		Audio_AUDS,		//	fourcc from mediafoundation. means "audio stream"
-		Wave,
-		Aac,
-		Ac3,
-		Mpeg2Audio,			//	in TS files, not sure what format this is yet
-		Mp3,
-		Dts,
-		PcmAndroidRaw,		//	temp until I work out what this actually is
-		PcmLinear_8,
-		PcmLinear_16,		//	signed, see SoyWave
-		PcmLinear_20,
-		PcmLinear_24,
-		PcmLinear_float,	//	-1..1 see SoyWave
-		
-        QuicktimeTimecode,  //  explicitly listing this until I've established what the format is
-		
-		Html,
-		Text,
-		Subtitle,
-		ClosedCaption,
-		Timecode,
-		MetaData,
-		Muxed,
-	};
-	
-	SoyPixelsFormat::Type	GetPixelFormat(Type MediaFormat);
-	Type					FromPixelFormat(SoyPixelsFormat::Type PixelFormat);
-	
-	bool		IsVideo(Type Format);	//	or pixels
-	inline bool	IsPixels(Type Format)	{	return GetPixelFormat( Format ) != SoyPixelsFormat::Invalid;	}
-	bool		IsAudio(Type Format);
-	bool		IsText(Type Format);
-	bool		IsH264(Type Format);
-	bool		IsImage(Type Format);	//	encoded image
-	Type		FromFourcc(uint32 Fourcc,int H264LengthSize=-1,bool TryReversed=true);
-	uint32		ToFourcc(Type Format);
-	bool		IsH264Fourcc(uint32 Fourcc);
-	std::string	ToMime(Type Format);
-	Type		FromMime(const std::string& Mime);
-	
-	DECLARE_SOYENUM(SoyMediaFormat);
-}
-
-
 
 
 class Soy::TYuvParams
@@ -780,7 +678,8 @@ public:
 	}
 	
 	virtual void					Write(const Opengl::TTexture& Image,SoyTime Timecode,Opengl::TContext& Context)=0;
-	virtual void					Write(const std::shared_ptr<SoyPixelsImpl> Image,SoyTime Timecode)=0;
+	virtual void					Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context)=0;
+	virtual void					Write(std::shared_ptr<SoyPixelsImpl> Image,SoyTime Timecode)=0;
 	
 protected:
 	void							PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block);
@@ -811,4 +710,23 @@ protected:
 	bool							ProcessAudioPacket(const TMediaPacket& Packet);
 	bool							ProcessPixelPacket(const TMediaPacket& Packet);
 };
+
+
+class TMediaPassThroughEncoder : public TMediaEncoder
+{
+public:
+	TMediaPassThroughEncoder(std::shared_ptr<TMediaPacketBuffer>& OutputBuffer,size_t StreamIndex);
+	
+	virtual void		Write(const Opengl::TTexture& Image,SoyTime Timecode,Opengl::TContext& Context) override;
+	virtual void		Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context) override;
+	virtual void		Write(std::shared_ptr<SoyPixelsImpl> Image,SoyTime Timecode) override;
+	
+	void				OnError(const std::string& Error);
+	
+public:
+	SoyPixelsMeta				mOutputMeta;
+	TMediaPacketBuffer			mFrames;
+	size_t						mStreamIndex;	//	may want to be in base
+};
+
 

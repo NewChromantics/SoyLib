@@ -4,6 +4,14 @@
 #include "SoyShader.h"
 #include <regex>
 
+
+std::ostream& operator<<(std::ostream& out,const std::pair<SoyPixelsMeta,GLenum>& MetaAndType)
+{
+	out << MetaAndType.first << '/' << Opengl::GetEnumString( MetaAndType.second );
+	return out;
+}
+
+
 class TPixelFormatMapping
 {
 public:
@@ -968,8 +976,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 	if ( !Pixels.IsValid() )
 	{
 		Soy::Assert( ForceFormat != SoyPixelsFormat::Invalid, "Format should be valid here");
-		if ( !Pixels.Init( GetWidth(), GetHeight(), ForceFormat ) )
-			throw Soy::AssertException("Failed to allocate pixels for texture read");
+		Pixels.Init( GetWidth(), GetHeight(), ForceFormat );
 	}
 
 	{

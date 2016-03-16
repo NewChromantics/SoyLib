@@ -15,6 +15,9 @@
 #include <dirent.h>
 #endif
 
+#if defined(TARGET_WINDOWS)
+#include <Shlobj.h>
+#endif
 
 namespace Platform
 {
@@ -418,3 +421,17 @@ void Platform::CreateDirectory(const std::string& Path)
 		}
 }
 
+
+#if defined(TARGET_WINDOWS)
+bool Platform::ShowFileExplorer(const std::string& Path)
+{
+	auto PathList = ILCreateFromPath( Path.c_str() );
+	if ( !PathList )
+		return false;
+
+	auto Result = SHOpenFolderAndSelectItems( PathList, 0, 0, 0 );
+	bool ReturnResult = Platform::IsOkay( Result, "SHOpenFolderAndSelectItems", false );
+	ILFree( PathList );
+	return ReturnResult;
+}
+#endif
