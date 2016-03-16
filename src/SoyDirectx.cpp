@@ -35,8 +35,7 @@ std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap
 {
 	{	Directx::TTextureMode::Invalid,			"Invalid"	},
 	{	Directx::TTextureMode::ReadOnly,		"ReadOnly"	},
-	{	Directx::TTextureMode::Writable,		"Writable"	},
-	{	Directx::TTextureMode::ReadWrite,		"ReadWrite"	},
+	{	Directx::TTextureMode::WriteOnly,		"WriteOnly"	},
 	{	Directx::TTextureMode::GpuOnly,			"GpuOnly"	},
 	{	Directx::TTextureMode::RenderTarget,	"RenderTarget"	},
 };
@@ -326,7 +325,7 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 		Desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 		Desc.CPUAccessFlags = 0;
 	}
-	else if ( Mode == TTextureMode::Writable )
+	else if ( Mode == TTextureMode::WriteOnly )
 	{
 		Desc.Usage = D3D11_USAGE_DYNAMIC;
 		Desc.Format = GetFormat( Meta.GetFormat() );
@@ -335,17 +334,10 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 	}
 	else if ( Mode == TTextureMode::ReadOnly )
 	{
-		Desc.Usage = D3D11_USAGE_DEFAULT;
+		Desc.Usage = D3D11_USAGE_STAGING;
 		Desc.Format = GetFormat( Meta.GetFormat() );
-		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		Desc.BindFlags = 0;
 		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-	}
-	else if ( Mode == TTextureMode::ReadWrite )
-	{
-		Desc.Usage = D3D11_USAGE_DEFAULT;
-		Desc.Format = GetFormat( Meta.GetFormat() );
-		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE|D3D11_CPU_ACCESS_READ;
 	}
 	else if ( Mode == TTextureMode::GpuOnly )
 	{
@@ -402,6 +394,9 @@ Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 	mTexture.mObject->GetDesc( &SrcDesc );
 	bool IsRenderTarget = (SrcDesc.BindFlags & D3D11_BIND_RENDER_TARGET) != 0;
 	bool IsWritable = (SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_WRITE) != 0;
+	bool IsReadable = (SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_READ) != 0;
+
+	//	gr: note, we're not covering IsWritable && IsReadable
 
 	if ( IsRenderTarget )
 	{
@@ -409,11 +404,15 @@ Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 	}
 	else if ( IsWritable )
 	{
-		return TTextureMode::Writable;
+		return TTextureMode::WriteOnly;
+	}
+	else if ( IsReadable )
+	{
+		return TTextureMode::ReadOnly;
 	}
 	else
 	{
-		return TTextureMode::ReadOnly;
+		return TTextureMode::GpuOnly;
 	}
 }
 
@@ -441,7 +440,7 @@ void Directx::TTexture::Write(const TTexture& Source,TContext& ContextDx)
 }
 
 
-Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& ContextDx,bool RequireRead,bool RequireWrite)
+Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& ContextDx,bool WriteAccess)
 {
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
 	auto& Context = ContextDx.LockGetContext();
@@ -462,8 +461,8 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 		
 		bool CanWrite = SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_WRITE;
 		bool CanRead = SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_READ;
-		Soy::Assert( !RequireRead || CanRead, "Texture does not have CPU read mapping access");
-		Soy::Assert( !RequireWrite || CanWrite, "Texture does not have CPU write mapping access");
+		Soy::Assert( WriteAccess || CanRead, "Texture does not have CPU read mapping access");
+		Soy::Assert( !WriteAccess || CanWrite, "Texture does not have CPU write mapping access");
 
 		//	https://msdn.microsoft.com/en-us/library/windows/desktop/ff476457(v=vs.85).aspx
 		//	particular case which doesn't map to a resource and needs to be written to in a different way 
@@ -492,14 +491,25 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 			if ( IsDefferedContext )
 			{
 				MapFlags = 0x0;
-				MapMode = D3D11_MAP_WRITE_DISCARD;
+
+				if ( WriteAccess )
+					MapMode = D3D11_MAP_WRITE_DISCARD;
+				else
+					MapMode = D3D11_MAP_READ;
 			}
 			else
 			{
 				MapFlags = !Blocking ? D3D11_MAP_FLAG_DO_NOT_WAIT : 0x0;
-				//	gr: for immediate context, we ALSO want write_discard
-				//MapMode = D3D11_MAP_WRITE;
-				MapMode = D3D11_MAP_WRITE_DISCARD;
+				if ( WriteAccess )
+				{
+					//	gr: for immediate context, we ALSO want write_discard
+					//MapMode = D3D11_MAP_WRITE;
+					MapMode = D3D11_MAP_WRITE_DISCARD;
+				}
+				else
+				{
+					MapMode = D3D11_MAP_READ;
+				}
 			}
 
 			HRESULT hr = Context.Map(mTexture, SubResource, MapMode, MapFlags, &resource);
@@ -517,8 +527,11 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 				Directx::IsOkay(hr, ErrorString.str());
 			}
 
-			//	gr: handle row misalignment (texture is padded)
-			size_t ResourceDataSize = resource.RowPitch * SrcDesc.Height;//	width in bytes
+			//	depth pitch is one slice, so contains the resource's full data. 
+			//	double check in case its zero though...
+			size_t ResourceDataSize = resource.DepthPitch;
+			if ( ResourceDataSize == 0 )
+				ResourceDataSize = resource.RowPitch * SrcDesc.Height;
 
 			auto Unlock = [&]
 			{
@@ -542,7 +555,7 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 
 void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& ContextDx)
 {
-	auto Lock = LockTextureData( ContextDx, false, true );
+	auto Lock = LockTextureData( ContextDx, true );
 
 	//	copy row by row to handle misalignment
 	SoyPixelsRemote DestPixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
@@ -565,12 +578,12 @@ void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& Contex
 
 void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx)
 {
-	auto Lock = LockTextureData( ContextDx, true, false );
+	auto Lock = LockTextureData( ContextDx, false );
 
 	DestPixels.Init( Lock.mMeta );
 
 	//	copy row by row to handle misalignment
-	SoyPixelsRemote SourcePixels( reinterpret_cast<uint8*>(Lock.mData), Lock.mRowPitch, Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
+	SoyPixelsRemote SourcePixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
 
 	auto SourceChannelCount = SourcePixels.GetChannels();
 	auto DestChannelCount = DestPixels.GetChannels();

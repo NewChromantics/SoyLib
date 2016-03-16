@@ -50,8 +50,7 @@ namespace Directx
 			Invalid,		//	only for soyenum!
 			GpuOnly,		//	not mappable
 			ReadOnly,		//	mappable
-			Writable,		//	mappable
-			ReadWrite,
+			WriteOnly,		//	mappable
 			RenderTarget,
 		};
 
@@ -158,7 +157,7 @@ public:
 	bool				operator!=(const TTexture& that) const	{	return !(*this == that);	}
 
 private:
-	TLockedTextureData	LockTextureData(TContext& Context,bool RequireRead,bool RequireWrite);
+	TLockedTextureData	LockTextureData(TContext& Context,bool WriteAccess);
 
 public:
 	TTextureSamplingParams			mSamplingParams;
