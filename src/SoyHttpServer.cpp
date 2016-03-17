@@ -76,7 +76,7 @@ TSocketServer::~TSocketServer()
 	while ( true )
 	{
 		std::lock_guard<std::mutex> Lock( mAsyncsLock );
-		if ( !mAsyncs.IsEmpty() )
+		if ( mAsyncs.IsEmpty() )
 			break;
 		
 		auto Future = mAsyncs.PopAt(0);
