@@ -1,6 +1,14 @@
 #include "SoyMedia.h"
 #include "SortArray.h"
 
+//gr: this is for the pass through encoder, maybe to avoid this dependancy I can move the pass throughs to their own files...
+#include "SoyOpenGl.h"
+#include "SoyOpenGlContext.h"
+
+#if defined(TARGET_WINDOWS)
+#include "SoyDirectx.h"
+#endif
+
 
 prmem::Heap SoyMedia::DefaultHeap(true, true, "SoyMedia::DefaultHeap" );
 
@@ -1602,4 +1610,96 @@ void TPixelBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 	mFrameLock.unlock();
 }
 
+
+
+
+TMediaPassThroughEncoder::TMediaPassThroughEncoder(std::shared_ptr<TMediaPacketBuffer>& OutputBuffer,size_t StreamIndex) :
+	TMediaEncoder	( OutputBuffer ),
+	mOutputMeta		( 256, 256, SoyPixelsFormat::RGBA ),
+	mStreamIndex	( StreamIndex )
+{
+}
+
+
+void TMediaPassThroughEncoder::Write(const Opengl::TTexture& Image,SoyTime Timecode,Opengl::TContext& Context)
+{
+	//	todo: proper opengl -> CvPixelBuffer
+	
+	//	gr: Avf won't accept RGBA, but it will take RGB so we can force reading that format here
+	if ( Image.GetFormat() != SoyPixelsFormat::RGBA )
+	{
+		throw Soy::AssertException("opengl mode unsupported");
+	}
+	
+	//	gr: cannot currently block for an opengl task, this is called from the main thread on mono, even though the render thread
+	//		is different, it seems to block and our opengl callback isn't called... so, like the higher level code, no block
+	auto ReadPixels = [this,Image,Timecode]
+	{
+		std::shared_ptr<SoyPixels> Pixels( new SoyPixels );
+		Image.Read( *Pixels, SoyPixelsFormat::RGB );
+		Write( Pixels, Timecode );
+	};
+	Context.PushJob( ReadPixels );
+}
+
+
+void TMediaPassThroughEncoder::Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context)
+{
+#if defined(TARGET_WINDOWS)
+	//	todo: proper opengl -> CvPixelBuffer
+	
+	//	gr: Avf won't accept RGBA, but it will take RGB so we can force reading that format here
+	if ( Image.GetMeta().GetFormat() != SoyPixelsFormat::RGBA )
+	{
+		throw Soy::AssertException("directx mode unsupported");
+	}
+	
+	//	gr: cannot currently block for an opengl task, this is called from the main thread on mono, even though the render thread
+	//		is different, it seems to block and our opengl callback isn't called... so, like the higher level code, no block
+	auto ReadPixels = [this,Image,Timecode,&Context]
+	{
+		std::shared_ptr<SoyPixels> Pixels( new SoyPixels );
+		auto& ImageMutable = const_cast<Directx::TTexture&>(Image);
+		ImageMutable.Read( *Pixels, Context );
+		Write( Pixels, Timecode );
+	};
+
+	//	gr: this needs to block because of context scope... should opengl one block?
+	Soy::TSemaphore Semaphore;
+	Context.PushJob( ReadPixels, Semaphore );
+	Semaphore.Wait();
+#else
+	throw Soy::AssertException( std::string(__func__) + " not supported");
+#endif
+}
+
+
+void TMediaPassThroughEncoder::Write(std::shared_ptr<SoyPixelsImpl> pImage,SoyTime Timecode)
+{
+	Soy::Assert( pImage!=nullptr, "Image expected");
+	auto& Image = *pImage;
+	
+	std::shared_ptr<TMediaPacket> pPacket( new TMediaPacket() );
+	auto& Packet = *pPacket;
+	
+	auto& PixelsArray = Image.GetPixelsArray();
+	Packet.mData.Copy( PixelsArray );
+	Packet.mTimecode = Timecode;
+	Packet.mMeta.mCodec = SoyMediaFormat::FromPixelFormat( Image.GetFormat() );
+	Packet.mMeta.mPixelMeta = Image.GetMeta();
+	Packet.mMeta.mStreamIndex = mStreamIndex;
+	
+	auto Block = []()
+	{
+		return false;
+	};
+
+	PushFrame( pPacket, Block );
+}
+
+
+void TMediaPassThroughEncoder::OnError(const std::string& Error)
+{
+	mFatalError << Error;
+}
 

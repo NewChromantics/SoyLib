@@ -85,7 +85,8 @@ namespace SoyPixelsFormat
 
 		//	2 planes, RGB (palette+length8) Greyscale (indexes)
 		//	warning, palette's first byte is the size of the palette! need to work out how to auto skip over this when extracting the plane...
-		Palettised_8_8,
+		Palettised_RGB_8,
+		Palettised_RGBA_8,
 		
 		
 		//	shorthand names
@@ -193,9 +194,9 @@ class SoyPixelsImpl
 public:
 	virtual ~SoyPixelsImpl()	{}
 
-	bool			Init(const SoyPixelsMeta& Meta);
-	bool			Init(size_t Width,size_t Height,SoyPixelsFormat::Type Format);
-	bool			Init(size_t Width,size_t Height,size_t Channels);
+	void			Init(const SoyPixelsMeta& Meta);
+	void			Init(size_t Width,size_t Height,SoyPixelsFormat::Type Format);
+	void			Init(size_t Width,size_t Height,size_t Channels);
 	void			Clear(bool Dealloc=false);
 
 	virtual bool	Copy(const SoyPixelsImpl& that,bool AllowReallocation=true);

@@ -7,17 +7,14 @@
 #include "RemoteArray.h"
 
 
-namespace Soy
+namespace Platform
 {
-	namespace Platform
-	{
 #if defined(TARGET_WINDOWS)
-		const static HANDLE		InvalidFileHandle = nullptr;
+	const static HANDLE		InvalidFileHandle = nullptr;
 #endif
 #if defined(TARGET_OSX)
-		const static int		InvalidFileHandle = -1;
+	const static int		InvalidFileHandle = -1;
 #endif
-	}
 }
 
 namespace MemFileAccess
@@ -36,6 +33,9 @@ class MemFileHandle
 public:
 #if defined(TARGET_OSX)
 	MemFileHandle(const std::string& Filename,int CreateFlags,int Mode);
+#endif
+#if defined(TARGET_WINDOWS)
+	MemFileHandle(const std::string& Filename,MemFileAccess::Type Access,size_t DataSize);
 #endif
 	~MemFileHandle();
 	

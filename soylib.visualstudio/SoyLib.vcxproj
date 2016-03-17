@@ -47,11 +47,13 @@
     <ClCompile Include="..\src\SoyH264.cpp" />
     <ClCompile Include="..\src\SoyHttp.cpp" />
     <ClCompile Include="..\src\SoyHttpConnection.cpp" />
+    <ClCompile Include="..\src\SoyHttpServer.cpp" />
     <ClCompile Include="..\src\SoyImage.cpp" />
     <ClCompile Include="..\src\SoyJson.cpp" />
     <ClCompile Include="..\src\SoyMath.cpp" />
     <ClCompile Include="..\src\SoyMedia.cpp" />
     <ClCompile Include="..\src\SoyMediaFormat.cpp" />
+    <ClCompile Include="..\src\SoyMemFile.cpp" />
     <ClCompile Include="..\src\SoyOpengl.cpp" />
     <ClCompile Include="..\src\SoyOpenglContext.cpp" />
     <ClCompile Include="..\src\SoyPixels.cpp" />
@@ -105,11 +107,13 @@
     <ClInclude Include="..\src\SoyH264.h" />
     <ClInclude Include="..\src\SoyHttp.h" />
     <ClInclude Include="..\src\SoyHttpConnection.h" />
+    <ClInclude Include="..\src\SoyHttpServer.h" />
     <ClInclude Include="..\src\SoyImage.h" />
     <ClInclude Include="..\src\SoyJson.h" />
     <ClInclude Include="..\src\soymath.h" />
     <ClInclude Include="..\src\SoyMedia.h" />
     <ClInclude Include="..\src\SoyMediaFormat.h" />
+    <ClInclude Include="..\src\SoyMemFile.h" />
     <ClInclude Include="..\src\SoyOpengl.h" />
     <ClInclude Include="..\src\SoyOpenglContext.h" />
     <ClInclude Include="..\src\SoyPixels.h" />

@@ -139,6 +139,12 @@
     <ClCompile Include="..\src\SoyMediaFormat.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\SoyHttpServer.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\SoyMemFile.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\SoyThread.h">
@@ -304,6 +310,12 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\SoyMediaFormat.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyHttpServer.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyMemFile.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

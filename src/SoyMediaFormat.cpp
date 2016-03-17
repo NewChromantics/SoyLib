@@ -84,7 +84,8 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::ChromaUV_8_8,		"ChromaUV_8_8" },
 	{ SoyMediaFormat::ChromaUV_88,		"ChromaUV_88" },
 	{ SoyMediaFormat::ChromaUV_44,		"ChromaUV_44" },
-	{ SoyMediaFormat::Palettised_8_8,	"Palettised_8_8" },
+	{ SoyMediaFormat::Palettised_RGB_8,	"Palettised_RGB_8" },
+	{ SoyMediaFormat::Palettised_RGBA_8,	"Palettised_RGBA_8" },
 };
 
 

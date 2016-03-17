@@ -32,7 +32,8 @@ namespace SoyMediaFormat
 		ChromaUV_8_8 = SoyPixelsFormat::ChromaUV_8_8,
 		ChromaUV_88 = SoyPixelsFormat::ChromaUV_88,
 		ChromaUV_44 = SoyPixelsFormat::ChromaUV_44,
-		Palettised_8_8 = SoyPixelsFormat::Palettised_8_8,
+		Palettised_RGB_8 = SoyPixelsFormat::Palettised_RGB_8,
+		Palettised_RGBA_8 = SoyPixelsFormat::Palettised_RGBA_8,
 		
 		NotPixels = SoyPixelsFormat::Count,
 		
