@@ -8,6 +8,8 @@
 #include "SoyOpengl.h"	//	re-using opengl's vertex description atm
 
 
+template<typename TYPE>
+class TPool;
 class SoyPixelsImpl;
 
 //	something is including d3d10.h (from dx sdk) and some errors have different export types from winerror.h (winsdk)
@@ -149,7 +151,8 @@ public:
 	bool				IsValid() const		{	return mTexture;	}
 	void				Write(const TTexture& Source,TContext& Context);
 	void				Write(const SoyPixelsImpl& Source,TContext& Context);
-	void				Read(SoyPixelsImpl& Pixels,TContext& Context);
+	void				Read(SoyPixelsImpl& Pixels, TContext& Context)								{	Read(Pixels, Context, nullptr );	}
+	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>& TexturePool)	{	Read(Pixels, Context, &TexturePool );	}	
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 
@@ -159,6 +162,9 @@ public:
 
 private:
 	TLockedTextureData	LockTextureData(TContext& Context,bool WriteAccess);
+
+	//	with directx, we can't always read from a texture, but if you give a pool, we can copy to a temp one and read from that
+	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>* TexturePool);
 
 public:
 	TTextureSamplingParams			mSamplingParams;
