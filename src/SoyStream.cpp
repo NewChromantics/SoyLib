@@ -637,7 +637,7 @@ void TStreamWriter::WaitForQueueToFinish()
 
 TFileStreamWriter::TFileStreamWriter(const std::string& Filename) :
 	TStreamWriter	( std::string("TFileStreamWriter " ) + Filename ),
-	mFile			( Filename, std::ios::out )
+	mFile			( Filename, std::ios::out|std::ios::binary )
 {
 	Soy::Assert( mFile.is_open(), std::string("Failed to open ")+Filename );
 
