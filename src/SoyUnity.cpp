@@ -24,6 +24,7 @@ namespace Platform
 
 namespace Unity
 {
+	static int		gRenderEventTimerMs = 8;
 	SoyListenerId	DebugListener;
 	
 	void			PushDebugString(const std::string& Message);
@@ -196,7 +197,7 @@ BOOL APIENTRY DllMain(HMODULE Module, DWORD Reason, LPVOID Reserved)
 
 void Unity::RenderEvent(Unity::sint eventID)
 {
-	ofScopeTimerWarning Timer(__func__,4);
+	ofScopeTimerWarning Timer(__func__,gRenderEventTimerMs);
 
 	//	iterate current context
 	if (Unity::OpenglContext)
