@@ -11,6 +11,8 @@
 #include "mathfu/vector_4.h"
 #include "mathfu/matrix_4x4.h"
 
+//	gr: if we want to reduce dependancies, put a GetArrayBridge(vecN<T>) func in another file
+#include "RemoteArray.h"
 
 //	for soy: optimised/full implementations are called "matrix's"
 //	the simple POD types are called floatX's
@@ -168,6 +170,9 @@ public:
 	SWIZZLE3(z,z,z);
 	SWIZZLE3(x,y,z);
 	
+	FixedRemoteArray<TYPE>		GetArray() 	{	return FixedRemoteArray<TYPE>(&x, 4);	}
+
+
 	const TYPE&	operator[](size_t i) const
 	{
 		const TYPE* Elements[] = { &x,&y,&z,&w };

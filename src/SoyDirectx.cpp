@@ -1,6 +1,7 @@
 #include "SoyDirectx.h"
 #include "SoyPixels.h"
 #include "SoyRuntimeLibrary.h"
+#include "SoyPool.h"
 
 
 //	we never use this, but for old DX11 support, we need the type name
@@ -576,8 +577,28 @@ void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& Contex
 }
 
 
-void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx)
+void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool<TTexture>* pTexturePool)
 {
+	//	not readable, so copy to a temp texture first and then read
+	//	gr: use try/catch on the lock to cover more cases?
+	if ( GetMode() != TTextureMode::ReadOnly && pTexturePool )
+	{
+		auto& TexturePool = *pTexturePool;
+		auto Meta = std::make_pair(this->GetMeta(), TTextureMode::ReadOnly);
+
+		auto Alloc = [this,&ContextDx]()
+		{
+			return std::make_shared<TTexture>(this->GetMeta(), ContextDx, TTextureMode::ReadOnly);
+		};
+
+		auto& TempTexture = TexturePool.Alloc(Meta, Alloc);
+		TempTexture.Write(*this, ContextDx);
+		//	no pool!
+		TempTexture.Read(DestPixels, ContextDx);
+		TexturePool.Release(TempTexture);
+		return;
+	}
+
 	auto Lock = LockTextureData( ContextDx, false );
 
 	DestPixels.Init( Lock.mMeta );

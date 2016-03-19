@@ -14,6 +14,7 @@ public:
 	template<typename MATCHTYPE>
 	TYPE&							Alloc(const MATCHTYPE& Meta,std::function<std::shared_ptr<TYPE>()> RealAlloc);
 	void							Release(TYPE* Object);
+	void							Release(TYPE& Object)		{	Release(&Object);	}
 	void							ReleaseAll();
 	
 public:
