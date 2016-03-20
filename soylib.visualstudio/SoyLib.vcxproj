@@ -118,6 +118,7 @@
     <ClInclude Include="..\src\SoyOpenglContext.h" />
     <ClInclude Include="..\src\SoyPixels.h" />
     <ClInclude Include="..\src\SoyPng.h" />
+    <ClInclude Include="..\src\SoyPool.h" />
     <ClInclude Include="..\src\SoyProtocol.h" />
     <ClInclude Include="..\src\SoyRef.h" />
     <ClInclude Include="..\src\SoyRingArray.h" />
