@@ -494,12 +494,14 @@ private:
 	bool					IsStreamsReady(std::shared_ptr<TMediaPacket> Packet);	//	if this returns false, not ready to ProcessPacket yet
 	
 public:
-	SoyListenerId							mOnPacketListener;
 	std::shared_ptr<TStreamWriter>			mOutput;
 	std::shared_ptr<TMediaPacketBuffer>		mInput;
 	Array<TStreamMeta>						mStreams;		//	streams, once setup, fixed
 	
 	Array<std::shared_ptr<TMediaPacket>>	mDefferedPackets;	//	when auto-calculating streams we buffer up some packets
+
+private:
+	SoyListenerId							mOnPacketListener;
 };
 
 
@@ -685,6 +687,9 @@ public:
 	virtual void					Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context)=0;
 	virtual void					Write(std::shared_ptr<SoyPixelsImpl> Image,SoyTime Timecode)=0;
 	virtual void					GetMeta(TJsonWriter& Json);
+
+	size_t							GetPendingOutputCount() const	{	return mOutput ? mOutput->GetPacketCount() : 0;	}
+	virtual size_t					GetPendingEncodeCount() const	{	return 0;	}
 
 protected:
 	void							PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block);
