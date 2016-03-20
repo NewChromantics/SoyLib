@@ -120,7 +120,13 @@ SoyPixelsFormat::Type Directx::GetFormat(DXGI_FORMAT Format)
 
 std::ostream& Directx::operator<<(std::ostream &out,const Directx::TTexture& in)
 {
-	out << in.mMeta << "(" << in.GetMode() << ")";
+	out << in.mMeta << "/" << in.GetMode();
+	return out;
+}
+
+std::ostream& operator<<(std::ostream &out,const Directx::TTextureMeta& in)
+{
+	out << in.mMeta << "/" << in.mMode;
 	return out;
 }
 
@@ -584,7 +590,7 @@ void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool
 	if ( GetMode() != TTextureMode::ReadOnly && pTexturePool )
 	{
 		auto& TexturePool = *pTexturePool;
-		auto Meta = std::make_pair(this->GetMeta(), TTextureMode::ReadOnly);
+		auto Meta = TTextureMeta(this->GetMeta(), TTextureMode::ReadOnly);
 
 		auto Alloc = [this,&ContextDx]()
 		{

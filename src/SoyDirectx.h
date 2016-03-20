@@ -30,6 +30,7 @@ namespace Directx
 {
 	class TContext;
 	class TTexture;
+	class TTextureMeta;
 	class TLockedTextureData;
 	class TRenderTarget;
 	class TGeometry;
@@ -141,6 +142,24 @@ private:
 	std::function<void()>			mUnlock;
 };
 
+
+class Directx::TTextureMeta
+{
+public:
+	TTextureMeta(const SoyPixelsMeta& Meta, TTextureMode::Type Mode) :
+		mMeta	( Meta ),
+		mMode	( Mode )
+	{
+	}
+
+public:
+	SoyPixelsMeta		mMeta;
+	TTextureMode::Type	mMode;
+};
+std::ostream& operator<<(std::ostream &out,const Directx::TTextureMeta& in);
+
+
+
 class Directx::TTexture
 {
 public:
@@ -151,21 +170,22 @@ public:
 	bool				IsValid() const		{	return mTexture;	}
 	void				Write(const TTexture& Source,TContext& Context);
 	void				Write(const SoyPixelsImpl& Source,TContext& Context);
+
+	//	with directx, we can't always read from a texture, but if you give a pool, we can copy to a temp one and read from that
 	void				Read(SoyPixelsImpl& Pixels, TContext& Context)								{	Read(Pixels, Context, nullptr );	}
 	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>& TexturePool)	{	Read(Pixels, Context, &TexturePool );	}	
+	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>* TexturePool);
+
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 
-	bool				operator==(const std::pair<SoyPixelsMeta,TTextureMode::Type>& MetaAndMode) const	{	return mMeta == MetaAndMode.first && GetMode() == MetaAndMode.second;	}
+	bool				operator==(const TTextureMeta& Meta) const	{	return mMeta == Meta.mMeta && GetMode() == Meta.mMode;	}
 	bool				operator==(const TTexture& that) const	{	return mTexture.mObject == that.mTexture.mObject;	}
 	bool				operator!=(const TTexture& that) const	{	return !(*this == that);	}
 
 private:
 	TLockedTextureData	LockTextureData(TContext& Context,bool WriteAccess);
-
-	//	with directx, we can't always read from a texture, but if you give a pool, we can copy to a temp one and read from that
-	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>* TexturePool);
-
+	
 public:
 	TTextureSamplingParams			mSamplingParams;
 	SoyPixelsMeta					mMeta;			//	cache

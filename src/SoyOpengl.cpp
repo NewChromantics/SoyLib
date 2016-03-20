@@ -5,11 +5,12 @@
 #include <regex>
 
 
-std::ostream& operator<<(std::ostream& out,const std::pair<SoyPixelsMeta,GLenum>& MetaAndType)
+std::ostream& operator<<(std::ostream& out,const Opengl::TTextureMeta& MetaAndType)
 {
-	out << MetaAndType.first << '/' << Opengl::GetEnumString( MetaAndType.second );
+	out << MetaAndType.mMeta << '/' << Opengl::GetEnumString( MetaAndType.mType );
 	return out;
 }
+
 
 
 class TPixelFormatMapping
