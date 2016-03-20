@@ -232,7 +232,7 @@ MemFileHandle::~MemFileHandle()
 			throw Soy::AssertException( Error.str() );
 		}		
 
-		mHandle = Soy::Platform::InvalidFileHandle;
+		mHandle = Platform::InvalidFileHandle;
 	}
 
 #endif
