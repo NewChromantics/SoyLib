@@ -683,7 +683,10 @@ public:
 	
 protected:
 	void							PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block);
-	
+
+public:
+	SoyEvent<SoyTime>					mOnFramePushSkipped;
+
 protected:
 	std::shared_ptr<TMediaPacketBuffer>	mOutput;
 	std::stringstream					mFatalError;
