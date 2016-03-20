@@ -128,11 +128,14 @@ public:
 	virtual bool							Iteration() override;
 	void									Push(std::shared_ptr<Soy::TWriteProtocol> Data);
 	void									WaitForQueueToFinish();
-	
+	size_t									GetBytesWritten() const		{	return mBytesWritten;	}
+	size_t									GetPendingWrites() const	{	return GetQueueSize();	}
+
 protected:
 	size_t									GetQueueSize() const				{	return mQueue.GetSize();	}
 	virtual void							Write(TStreamBuffer& Buffer,const std::function<bool()>& Block)=0;	//	write next chunk, as much as possible (but keep checking block)
 	void									OnError(const std::string& Error)	{	mOnStreamError.OnTriggered( Error );	}
+	void									OnWriteBytes(size_t Bytes)			{	mBytesWritten += Bytes;	}
 
 public:
 	SoyEvent<bool>							mOnShutdown;			//	param is true if success (eg. file finished)
@@ -143,6 +146,7 @@ protected:
 	std::shared_ptr<Soy::TWriteProtocol>	mCurrentProtocol;
 
 private:
+	size_t											mBytesWritten;
 	std::mutex										mQueueLock;
 	Array<std::shared_ptr<Soy::TWriteProtocol>>		mQueue;
 };

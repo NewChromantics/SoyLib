@@ -1,5 +1,6 @@
 #include "SoyMedia.h"
 #include "SortArray.h"
+#include "SoyJson.h"
 
 //gr: this is for the pass through encoder, maybe to avoid this dependancy I can move the pass throughs to their own files...
 #include "SoyOpenGl.h"
@@ -691,6 +692,11 @@ void TMediaEncoder::PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::functio
 	mOutput->PushPacket( Packet, Block );
 }
 
+void TMediaEncoder::GetMeta(TJsonWriter& Json)
+{
+	if ( mOutput )
+		Json.Push("EncoderPendingOutputFrames", mOutput->GetPacketCount() );
+}
 
 
 TMediaMuxer::TMediaMuxer(std::shared_ptr<TStreamWriter> Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName) :
@@ -820,6 +826,15 @@ void TMediaMuxer::SetStreams(const ArrayBridge<TStreamMeta>&& Streams)
 	mStreams.Copy( Streams );
 	SetupStreams( GetArrayBridge(mStreams) );
 	
+}
+
+void TMediaMuxer::GetMeta(TJsonWriter& Json)
+{
+	auto InputQueueSize = mInput ? mInput->GetPacketCount() : -1;
+	auto DefferedQueueSize = mDefferedPackets.GetSize();
+
+	Json.Push("MuxerInputQueueCount", InputQueueSize);
+	Json.Push("MuxerDefferedQueueCount", DefferedQueueSize);
 }
 
 

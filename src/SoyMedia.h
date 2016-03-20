@@ -7,6 +7,7 @@
 class TStreamWriter;
 class TStreamBuffer;
 class TMediaPacket;
+class TJsonWriter;
 
 namespace Soy
 {
@@ -447,8 +448,9 @@ public:
 	std::shared_ptr<TMediaPacket>	PopPacket();
 	void							UnPopPacket(std::shared_ptr<TMediaPacket> Packet);		//	gr: force a packet back into the buffer at the start; todo; enforce a decoder timestamp and just use push(but with a forced re-insertion)
 	void							PushPacket(std::shared_ptr<TMediaPacket> Packet,std::function<bool()> Block);
-	bool							HasPackets() const	{	return !mPackets.IsEmpty();	}
-	
+	bool							HasPackets() const		{	return !mPackets.IsEmpty();	}
+	size_t							GetPacketCount() const	{	return mPackets.GetSize();	}
+
 protected:
 	void							CorrectIncomingPacketTimecode(TMediaPacket& Packet);
 
@@ -478,6 +480,8 @@ public:
 
 	void					SetStreams(const ArrayBridge<TStreamMeta>&& Streams);
 	virtual void			Finish()=0;
+
+	void					GetMeta(TJsonWriter& Json);
 
 protected:
 	virtual void			SetupStreams(const ArrayBridge<TStreamMeta>&& Streams)=0;
@@ -680,7 +684,8 @@ public:
 	virtual void					Write(const Opengl::TTexture& Image,SoyTime Timecode,Opengl::TContext& Context)=0;
 	virtual void					Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context)=0;
 	virtual void					Write(std::shared_ptr<SoyPixelsImpl> Image,SoyTime Timecode)=0;
-	
+	virtual void					GetMeta(TJsonWriter& Json);
+
 protected:
 	void							PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block);
 

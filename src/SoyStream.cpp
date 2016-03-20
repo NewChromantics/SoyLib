@@ -502,7 +502,8 @@ bool TStreamReader::Iteration()
 
 
 TStreamWriter::TStreamWriter(const std::string& Name) :
-	SoyWorkerThread	( Name, SoyWorkerWaitMode::Sleep )
+	SoyWorkerThread	( Name, SoyWorkerWaitMode::Sleep ),
+	mBytesWritten	( 0 )
 {
 	
 }
@@ -679,6 +680,8 @@ void TFileStreamWriter::Write(TStreamBuffer& Data,const std::function<bool()>& B
 			
 			//Soy::Assert( File.fail(), "Error writing to file" );
 			Soy::Assert( !mFile.bad(), "Error writing to file" );
+
+			OnWriteBytes( Buffer.GetDataSize() );
 		}
 		catch (std::exception& e)
 		{
