@@ -9,15 +9,24 @@ template<typename TYPE>
 class TPool
 {
 public:
+	TPool(size_t ItemLimit=10) :
+		mLimit		( ItemLimit )
+	{
+	}
+
 	template<typename MATCHTYPE>
 	std::shared_ptr<TYPE>			AllocPtr(const MATCHTYPE& Meta,std::function<std::shared_ptr<TYPE>()> RealAlloc);
 	template<typename MATCHTYPE>
 	TYPE&							Alloc(const MATCHTYPE& Meta,std::function<std::shared_ptr<TYPE>()> RealAlloc);
 	void							Release(TYPE* Object);
-	void							Release(TYPE& Object)		{	Release(&Object);	}
-	void							ReleaseAll();
+	void							Release(std::shared_ptr<TYPE>& Object)	{	Release( Object.get() );	}
+	void							Release(TYPE& Object)					{	Release( &Object );	}
 	
+	size_t							GetAllocCount() const		{	return mPool.GetSize() + mUsed.GetSize();	}
+	bool							IsFull() const				{	return GetAllocCount() >= mLimit;	}
+
 public:
+	size_t							mLimit;
 	Array<std::shared_ptr<TYPE>>	mPool;
 	Array<std::shared_ptr<TYPE>>	mUsed;
 };
@@ -42,6 +51,14 @@ inline std::shared_ptr<TYPE> TPool<TYPE>::AllocPtr(const MATCHTYPE& Meta,std::fu
 		return pFree;
 	}
 	
+	//	check if full
+	if ( IsFull() )
+	{
+		std::stringstream Error;
+		Error << "Pool<" << Soy::GetTypeName<TYPE>() << "> full; " << GetAllocCount() << "/" << mLimit;
+		throw Soy::AssertException(Error.str());
+	}
+
 	//	no appropriate match, alloc
 	auto pNew = RealAlloc();
 	if ( !pNew )
@@ -74,6 +91,9 @@ inline TYPE& TPool<TYPE>::Alloc(const MATCHTYPE& Meta,std::function<std::shared_
 template<typename TYPE>
 void TPool<TYPE>::Release(TYPE* Object)
 {
+	if ( !Object )
+		return;
+
 	for ( int i=0;	i<mUsed.GetSize();	i++ )
 	{
 		if ( mUsed[i].get() != Object )
@@ -83,17 +103,20 @@ void TPool<TYPE>::Release(TYPE* Object)
 		mUsed.RemoveBlock( i, 1 );
 		return;
 	}
+
+	//	check in case it's already released?
+	bool IsInPool = false;
+	for ( int i=0;	i<mPool.GetSize();	i++ )
+	{
+		if ( mPool[i].get() != Object )
+			continue;
+
+		IsInPool = true;
+	}
+	
 	//	for safety
 	std::stringstream Error;
-	Error << "Tried to release object back to pool<" << Soy::GetTypeName<TYPE>() << " that wasn't used";
+	Error << "Tried to release object back to pool<" << Soy::GetTypeName<TYPE>() << " that wasn't used (in pool=" << IsInPool << ")";
 	throw Soy::AssertException( Error.str() );
 }
-
-template<typename TYPE>
-void TPool<TYPE>::ReleaseAll()
-{
-	mPool.PushBackArray( mUsed );
-	mUsed.Clear();
-}
-
 
