@@ -321,6 +321,9 @@
     <ClInclude Include="..\src\SoyPool.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\SoyExportManager.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\src\SoyFilesystem.mm">
