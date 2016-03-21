@@ -9,7 +9,7 @@ template<typename TYPE>
 class TPool
 {
 public:
-	TPool(size_t ItemLimit=10) :
+	TPool(size_t ItemLimit=100) :
 		mLimit		( ItemLimit )
 	{
 	}
@@ -96,7 +96,7 @@ void TPool<TYPE>::Release(TYPE* Object)
 
 	for ( int i=0;	i<mUsed.GetSize();	i++ )
 	{
-		if ( mUsed[i].get() != Object )
+		if ( *mUsed[i] != *Object )
 			continue;
 		
 		mPool.PushBack( mUsed[i] );
@@ -108,7 +108,7 @@ void TPool<TYPE>::Release(TYPE* Object)
 	bool IsInPool = false;
 	for ( int i=0;	i<mPool.GetSize();	i++ )
 	{
-		if ( mPool[i].get() != Object )
+		if ( *mPool[i] != *Object )
 			continue;
 
 		IsInPool = true;
