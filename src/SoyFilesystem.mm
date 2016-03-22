@@ -2,7 +2,9 @@
 #include "SoyAvf.h"
 #include <CoreFoundation/CoreFoundation.h>
 
+#if defined(TARGET_OSX)
 #include <AppKit/NSWorkspace.h>
+#endif
 
 
 namespace Platform
@@ -163,6 +165,7 @@ NSURL* Platform::GetUrl(const std::string& Filename)
 
 bool Platform::ShowFileExplorer(const std::string& Path)
 {
+#if defined(TARGET_OSX)
 	auto PathUrl = GetUrl( Path );
 	if ( !PathUrl )
 		return false;
@@ -171,5 +174,9 @@ bool Platform::ShowFileExplorer(const std::string& Path)
 	[[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:FileURLs];
 
 	return true;
+#else
+	//	maybe this should popup the "share file" thing in ios
+	return false;
+#endif
 }
 

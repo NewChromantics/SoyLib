@@ -8,7 +8,7 @@
 #include <CoreServices/CoreServices.h>
 #endif
 
-#if defined(TARGET_OSX) && defined(__OBJC__)
+#if (defined(TARGET_OSX)||defined(TARGET_IOS)) && defined(__OBJC__)
 @protocol NSURL;
 #endif
 
@@ -34,7 +34,7 @@ namespace Platform
 	void	CreateDirectory(const std::string& Path);	//	will strip filenames
 	
 	//	implement platform specific "path interface" type?
-#if defined(TARGET_OSX) && defined(__OBJC__)
+#if (defined(TARGET_OSX)||defined(TARGET_IOS)) && defined(__OBJC__)
 	NSURL*	GetUrl(const std::string& Filename);
 #endif
 	
