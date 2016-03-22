@@ -514,14 +514,15 @@ public:
 	{
 		mFilename = Filename;
 	}
-	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames,bool ForceNonPlanarOutput) :
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames,bool ForceNonPlanarOutput,bool ExtractAudioStreams) :
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
 		mReadAheadMs					( ReadAheadMs ),
 		mDiscardOldFrames				( DiscardOldFrames ),
 		mForceNonPlanarOutput			( ForceNonPlanarOutput ),
 		mDebugIntraFrameRect			( false ),
-		mDebugIntraFrameTransparency	( false )
+		mDebugIntraFrameTransparency	( false ),
+		mExtractAudioStreams			( ExtractAudioStreams )
 	{
 	}
 	
@@ -531,6 +532,8 @@ public:
 	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
 	SoyTime						mReadAheadMs;
 
+	bool						mExtractAudioStreams;
+	
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
 	bool						mForceNonPlanarOutput;		//	for some extractors which have pixelly settings
