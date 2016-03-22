@@ -32,6 +32,8 @@ public:
 public:
 	prmem::Heap							mHeap;
 	std::mutex							mElementsLock;
+	
+	//	gr: change this to a ring buffer to stop reallocating and remove need for the lock
 	Array<TYPE>							mElements;
 };
 
