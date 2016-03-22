@@ -27,8 +27,9 @@ STRIP_INSTALLED_PRODUCT = NO
 DEPLOYMENT_POSTPROCESSING = NO
 COPY_PHASE_STRIP = NO
 
-//	disabled bitcode for now (incompatibilities with unity ios stuff)
-ENABLE_BITCODE = NO
+
+//	this is on by default now on unity 5.3 and shouldn't be any harm enabling it for 5.2
+ENABLE_BITCODE = YES
 
 
 //	no ARC please. See OSX config
