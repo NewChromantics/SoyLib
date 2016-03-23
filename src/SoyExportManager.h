@@ -20,9 +20,10 @@ template<typename TYPE,typename EXTERNALTYPE>
 class TExportManager
 {
 public:
-	TExportManager() :
-		mHeap		( true, true, "TExportManager" ),
-		mElements	( mHeap )
+	TExportManager(size_t ElementLimit) :
+		mHeap			( true, true, "TExportManager" ),
+		mElements		( mHeap ),
+		mElementLimit	( ElementLimit )
 	{
 	}
 
@@ -30,6 +31,7 @@ public:
 	void								Unlock(const EXTERNALTYPE* Element);
 
 public:
+	size_t								mElementLimit;
 	prmem::Heap							mHeap;
 	std::mutex							mElementsLock;
 	
@@ -56,6 +58,13 @@ inline const char* Soy::ExternalCast<char>(const std::string& Item)
 template<typename TYPE,typename EXTERNALTYPE>
 const EXTERNALTYPE* TExportManager<TYPE,EXTERNALTYPE>::Lock(const TYPE& Item)
 {
+	if ( mElements.GetSize() >= mElementLimit )
+	{
+		std::stringstream Error;
+		Error << Soy::GetTypeName(*this) << " hit element limit " << mElements.GetSize() << "/" << mElementLimit;
+		throw Soy::AssertException( Error.str() );
+	}
+	
 	std::lock_guard<std::mutex> Lock( mElementsLock );
 
 	auto& NewItem = mElements.PushBack( Item );
