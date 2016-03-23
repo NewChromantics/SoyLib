@@ -202,6 +202,7 @@ namespace Unity
 	//	debug string management for c# interfaces
 	const char*					PopDebugString();
 	void						ReleaseDebugString(const char* String);
+	void						EnableDebugStrings(bool Enable);		//	enable logging at a low level
 };
 
 

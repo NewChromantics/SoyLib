@@ -33,12 +33,14 @@ namespace Unity
 	void			PushDebugString(const std::string& Message);
 	
 	//	actual storage of debug strings
+	static size_t	DefaultDebugStringExportLimit = 1000;
 	std::shared_ptr<TExportManager<std::string,char>>	gDebugStringManager;
 	TExportManager<std::string,char>&	GetDebugStringManager();
 	
 	//	c/# interface of strings we've exported and pending to be read by c/#
 	std::mutex							gDebugExportedStringsLock;
 	Array<const char*>					gDebugExportedStrings;
+	bool								gDebugExportedStringsEnabled = true;
 	
 	
 	std::shared_ptr<Opengl::TContext>	OpenglContext;
@@ -368,12 +370,15 @@ void Unity::Shutdown(UnityDevice::Type Device)
 #endif
 }
 
-
+void Unity::EnableDebugStrings(bool Enable)
+{
+	gDebugExportedStringsEnabled = Enable;
+}
 
 TExportManager<std::string,char>& Unity::GetDebugStringManager()
 {
 	if ( !gDebugStringManager )
-		gDebugStringManager.reset( new TExportManager<std::string,char> );
+		gDebugStringManager.reset( new TExportManager<std::string,char>(DefaultDebugStringExportLimit) );
 	
 	return *gDebugStringManager;
 }
@@ -383,6 +388,9 @@ TExportManager<std::string,char>& Unity::GetDebugStringManager()
 void Unity::PushDebugString(const std::string& Message)
 {
 	if ( Message.empty() )
+		return;
+	
+	if ( !gDebugExportedStringsEnabled )
 		return;
 
 	//	we now immediately export the string and keep a list of strings for c/# interface to work through
