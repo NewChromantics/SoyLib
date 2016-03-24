@@ -160,7 +160,12 @@ void TJsonWriter::PushStringRaw(const char* Name,const std::string& Value)
 	PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
 }
 
-void TJsonWriter::Push(const char* Name,const int& Value)
+void TJsonWriter::Push(const char* Name,const size_t& Value)
+{
+	PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
+}
+
+void TJsonWriter::Push(const char* Name,const ssize_t& Value)
 {
 	PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
 }
