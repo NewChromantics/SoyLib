@@ -72,14 +72,26 @@ public:
 	void	Push(const char* Name,const size_t& Value);
 	void	Push(const char* Name,const ssize_t& Value);
 	void	Push(const char* Name,const float& Value);
+	
+	//	this is ssize_t on android?
+#if !defined(TARGET_ANDROID)
 	void	Push(const char* Name,const int& Value)			{	Push( Name, static_cast<ssize_t>( Value ) );	}
+#endif
+	
 	void	Push(const char* Name,const int8_t& Value)		{	Push( Name, static_cast<ssize_t>( Value ) );	}
 	void	Push(const char* Name,const int16_t& Value)		{	Push( Name, static_cast<ssize_t>( Value ) );	}
+	
+#if defined(TARGET_ANDROID)
 	//void	Push(const char* Name,const int32_t& Value)		{	Push( Name, static_cast<ssize_t>( Value ) );	}
+#endif
 	void	Push(const char* Name,const int64_t& Value)		{	Push( Name, static_cast<ssize_t>( Value ) );	}
 	void	Push(const char* Name,const uint8_t& Value)		{	Push( Name, static_cast<size_t>( Value ) );	}
 	void	Push(const char* Name,const uint16_t& Value)	{	Push( Name, static_cast<size_t>( Value ) );	}
+
+	//	this is size_t on android?
+#if !defined(TARGET_ANDROID)
 	void	Push(const char* Name,const uint32_t& Value)	{	Push( Name, static_cast<size_t>( Value ) );	}
+#endif
 	void	Push(const char* Name,const uint64_t& Value)	{	Push( Name, static_cast<size_t>( Value ) );	}
 	void	Push(const char* Name,const bool& Value)	{	return Push( Name, Value ? "true" : "false" );	}
 	void	PushNull(const char* Name)					{	return Push( Name, "null" );	}
