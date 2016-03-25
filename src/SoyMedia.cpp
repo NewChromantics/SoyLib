@@ -838,6 +838,14 @@ void TMediaMuxer::GetMeta(TJsonWriter& Json)
 }
 
 
+
+void TMediaBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
+{
+	Json.Push( Prefix + "RealFirstTimestamp", mFirstTimestamp.mTime );
+	Json.Push( Prefix + "HadEndOfFilePacket", mHasEof );
+}
+
+
 void TMediaBufferManager::CorrectRequestedFrameTimestamp(SoyTime& Timestamp)
 {
 	//	first request from the client is most likely to be 0, but all our frames start at one
@@ -1105,7 +1113,7 @@ void TAudioBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
 
 	//	find last index to keep
-	for ( int i=mBlocks.GetSize()-1;	i>=0;	i-- )
+	for ( ssize_t i=mBlocks.GetSize()-1;	i>=0;	i-- )
 	{
 		auto& Block = mBlocks[i];
 		if ( Block.GetStartTime() > FlushTime )
@@ -1117,6 +1125,23 @@ void TAudioBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 		break;
 	}
 }
+
+void TAudioBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
+{
+	Json.Push( Prefix + "Type", "Audio" );
+	TMediaBufferManager::GetMeta( Prefix, Json );
+	
+	//	slightlyrisky without lock
+	SoyTime NextTimecode;
+	if ( !mBlocks.IsEmpty() )
+	{
+		auto& FirstBlock = mBlocks[0];
+		NextTimecode = FirstBlock.GetStartTime();
+	}
+	
+	Json.Push( Prefix + "NextFrameTime", NextTimecode.mTime );
+}
+
 
 
 void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
@@ -1202,7 +1227,7 @@ void TTextBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
 
 	//	find last index to keep
-	for ( int i=mBlocks.GetSize()-1;	i>=0;	i-- )
+	for ( ssize_t i=mBlocks.GetSize()-1;	i>=0;	i-- )
 	{
 		auto& Block = mBlocks[i];
 		if ( Block->GetStartTime() > FlushTime )
@@ -1213,6 +1238,20 @@ void TTextBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 
 		break;
 	}
+}
+
+void TTextBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
+{
+	TMediaBufferManager::GetMeta( Prefix, Json );
+	
+	//	slightlyrisky without lock
+	SoyTime NextTimecode;
+	auto FirstBlock = !mBlocks.IsEmpty() ? mBlocks[0] : nullptr;
+	if ( FirstBlock )
+		NextTimecode = FirstBlock->mTimecode;
+		
+	Json.Push( Prefix + "Type", "Text" );
+	Json.Push( Prefix + "NextFrameTime", NextTimecode.mTime );
 }
 
 
@@ -1375,6 +1414,17 @@ TDumbPixelBuffer::TDumbPixelBuffer(SoyPixelsMeta Meta)
 TDumbPixelBuffer::TDumbPixelBuffer(const SoyPixelsImpl& Pixels)
 {
 	mPixels.Copy( Pixels );
+}
+
+
+void TPixelBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
+{
+	Json.Push( Prefix + "Type", "Pixel" );
+	TMediaBufferManager::GetMeta( Prefix, Json );
+	
+	SoyTime NextTimecode = GetNextPixelBufferTime( false );
+	
+	Json.Push( Prefix + "NextFrameTime", NextTimecode.mTime );
 }
 
 

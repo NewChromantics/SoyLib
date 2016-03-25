@@ -253,6 +253,7 @@ public:
 		
 	}
 	
+	virtual void				GetMeta(const std::string& Prefix,TJsonWriter& Json);
 	virtual void				SetPlayerTime(const SoyTime& Time);			//	maybe turn this into a func to PULL the time rather than maintain it in here...
 	virtual void				CorrectDecodedFrameTimestamp(SoyTime& Timestamp);	//	adjust timestamp if neccessary
 	virtual void				CorrectRequestedFrameTimestamp(SoyTime& Timestamp);
@@ -301,6 +302,8 @@ public:
 	{
 	}
 	
+	virtual void		GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
+
 	//	gr: most of these will move to base
 	SoyTime				GetNextPixelBufferTime(bool Safe=true);
 	std::shared_ptr<TPixelBuffer>	PopPixelBuffer(SoyTime& Timestamp);
@@ -354,6 +357,8 @@ public:
 	{
 	}
 	
+	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
+
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
 	void			PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,size_t SampleRate,SoyTime StartTime,SoyTime EndTime);
 	void			PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd);	//	todo: handle channels
@@ -376,6 +381,8 @@ public:
 	{
 	}
 	
+	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
+
 	void			PushBuffer(std::shared_ptr<TMediaPacket> Buffer);
 	SoyTime			PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText);	//	returns end-time of the data extracted (invalid if none popped)
 	virtual void	ReleaseFrames() override;
