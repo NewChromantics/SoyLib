@@ -94,7 +94,7 @@ public:
 #if !defined(TARGET_WINDOWS)	//	size_t on windows
 	void	Push(const char* Name,const uint64_t& Value)	{	Push( Name, static_cast<size_t>( Value ) );	}
 #endif
-	void	Push(const char* Name,const bool& Value)	{	return Push( Name, Value ? "true" : "false" );	}
+	void	Push(const char* Name,const bool& Value)	{	return Push( Name, Value ? "true" : "false", false );	}
 	void	PushNull(const char* Name)					{	return Push( Name, "null" );	}
 	void	Push(const char* Name,const TJsonWriter& Value);
 	
