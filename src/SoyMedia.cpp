@@ -396,7 +396,7 @@ void TMediaExtractor::Seek(SoyTime Time,const std::function<void(SoyTime)>& Flus
 	if ( !AllowReverse && Time < mSeekTime )
 	{
 		std::stringstream Error;
-		Error << "Can't currently handle seeking backwards " << Time << " < " << mSeekTime;
+		Error << "This decoder cannot seek backwards " << Time << " < " << mSeekTime;
 		throw Soy::AssertException( Error.str() );
 	}
 	

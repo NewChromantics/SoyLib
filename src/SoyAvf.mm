@@ -208,6 +208,9 @@ std::string Avf::GetString(OSStatus Status)
 	TESTENUMERROR(Status,kCVReturnPoolAllocationFailed);
 	TESTENUMERROR(Status,kCVReturnInvalidPoolAttributes);
 	
+	//	decompression gives us this
+	TESTENUMERROR(Status,MACH_RCV_TIMED_OUT);
+	
 	switch ( static_cast<sint32>(Status) )
 	{
 		case -8961:	return "kVTPixelTransferNotSupportedErr -8961";
