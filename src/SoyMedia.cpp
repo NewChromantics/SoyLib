@@ -1131,15 +1131,17 @@ void TAudioBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
 	Json.Push( Prefix + "Type", "Audio" );
 	TMediaBufferManager::GetMeta( Prefix, Json );
 	
-	//	slightlyrisky without lock
-	SoyTime NextTimecode;
-	if ( !mBlocks.IsEmpty() )
+	BufferArray<uint64,10> NextTimecodes;
 	{
-		auto& FirstBlock = mBlocks[0];
-		NextTimecode = FirstBlock.GetStartTime();
+		std::lock_guard<std::mutex> Lock( mBlocksLock );
+		for ( int i=0;	i<mBlocks.GetSize() && !NextTimecodes.IsFull();	i++ )
+		{
+			auto& Block = mBlocks[i];
+			NextTimecodes.PushBack( Block.GetStartTime().mTime );
+		}
 	}
 	
-	Json.Push( Prefix + "NextFrameTime", NextTimecode.mTime );
+	Json.Push( (Prefix + "NextFrameTime").c_str(), GetArrayBridge(NextTimecodes) );
 }
 
 
@@ -1242,16 +1244,22 @@ void TTextBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 
 void TTextBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
 {
+	Json.Push( Prefix + "Type", "Text" );
 	TMediaBufferManager::GetMeta( Prefix, Json );
 	
-	//	slightlyrisky without lock
-	SoyTime NextTimecode;
-	auto FirstBlock = !mBlocks.IsEmpty() ? mBlocks[0] : nullptr;
-	if ( FirstBlock )
-		NextTimecode = FirstBlock->mTimecode;
-		
-	Json.Push( Prefix + "Type", "Text" );
-	Json.Push( Prefix + "NextFrameTime", NextTimecode.mTime );
+	BufferArray<uint64,10> NextTimecodes;
+	{
+		std::lock_guard<std::mutex> Lock( mBlocksLock );
+		for ( int i=0;	i<mBlocks.GetSize() && !NextTimecodes.IsFull();	i++ )
+		{
+			auto& Block = mBlocks[i];
+			if ( !Block )
+				continue;
+			NextTimecodes.PushBack( Block->GetStartTime().mTime );
+		}
+	}
+	
+	Json.Push( (Prefix + "NextFrameTime").c_str(), GetArrayBridge(NextTimecodes) );
 }
 
 
@@ -1422,9 +1430,18 @@ void TPixelBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
 	Json.Push( Prefix + "Type", "Pixel" );
 	TMediaBufferManager::GetMeta( Prefix, Json );
 	
-	SoyTime NextTimecode = GetNextPixelBufferTime( false );
 	
-	Json.Push( Prefix + "NextFrameTime", NextTimecode.mTime );
+	BufferArray<uint64,10> NextTimecodes;
+	{
+		std::lock_guard<std::mutex> Lock( mFrameLock );
+		for ( int i=0;	i<mFrames.size() && !NextTimecodes.IsFull();	i++ )
+		{
+			auto& Frame = mFrames[i];
+			NextTimecodes.PushBack( Frame.mTimestamp.mTime );
+		}
+	}
+	
+	Json.Push( (Prefix + "NextFrameTime").c_str(), GetArrayBridge(NextTimecodes) );
 }
 
 
