@@ -412,9 +412,15 @@ public:
 			}
 			if ( AllSame )
 			{
+				//	gr: xcode7.3 gives us a nice warning here, but shouldn't get hit... see if we can do the complex-type check at compile time
 				memset( mdata, pValue[0], GetDataSize() );
 				return;
 			}
+		}
+		else
+		{
+			for ( size_t i=0;	i<GetSize();	i++ )
+				mdata[i] = Value;
 		}
 	}
 
