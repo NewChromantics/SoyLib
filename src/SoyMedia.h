@@ -458,7 +458,11 @@ public:
 	bool							HasPackets() const		{	return !mPackets.IsEmpty();	}
 	size_t							GetPacketCount() const	{	return mPackets.GetSize();	}
 
+	void							FlushFrames(SoyTime FlushTime);
+	virtual bool					PrePushBuffer(SoyTime Timestamp);
+
 protected:
+	virtual void					ReleaseFramesAfter(SoyTime FlushTime);
 	void							CorrectIncomingPacketTimecode(TMediaPacket& Packet);
 
 public:
@@ -473,7 +477,7 @@ private:
 
 	SoyTime									mLastPacketTimestamp;	//	for when we have to calculate timecodes ourselves
 	SoyTime									mAutoTimestampDuration;
-	SoyTime									mFlushFence;			//	disallow packets above this timecode until they go under again. post-seek, the extract
+	SoyTime									mFlushFenceTime;		//	if valid, don't allow frames over this, post-seek. Resets when we get a packet under
 };
 
 
@@ -560,6 +564,7 @@ public:
 	~TMediaExtractor();
 	
 	void							Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames);				//	keep calling this, controls the packet read-ahead
+	virtual void					FlushFrames(SoyTime FlushTime);
 	
 	virtual void					GetStreams(ArrayBridge<TStreamMeta>&& Streams)=0;
 	TStreamMeta						GetStream(size_t Index);

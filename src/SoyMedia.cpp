@@ -268,6 +268,12 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 {
 	Soy::Assert( Packet != nullptr, "Packet expected");
 	
+	//	pre-push check for flush fence
+	if ( !PrePushBuffer( Packet->GetSortingTimecode() ) )
+	{
+		return;
+	}
+	
 	//	gr: maybe needs to be atomic?
 	while ( mPackets.GetSize() >= mMaxBufferSize )
 	{
@@ -343,6 +349,53 @@ void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 
 	//	gr: store last DECODE timestamp so this basically forces packets to be ordered by decode timestamps
 	mLastPacketTimestamp = Packet.mDecodeTimecode;
+}
+
+
+
+void TMediaPacketBuffer::FlushFrames(SoyTime FlushTime)
+{
+	ReleaseFramesAfter( FlushTime );
+	
+	//	gr: if the flush fence is zero, it doesn't get used, so correct it
+	mFlushFenceTime = FlushTime;
+	if ( !mFlushFenceTime.IsValid() )
+		mFlushFenceTime.mTime = 1;
+}
+
+
+
+void TMediaPacketBuffer::ReleaseFramesAfter(SoyTime FlushTime)
+{
+	std::lock_guard<std::mutex> Lock( mPacketsLock  );
+	
+	for ( ssize_t i=mPackets.GetSize()-1;	i>=0;	i-- )
+	{
+		auto& Packet = *mPackets[i];
+		if ( Packet.GetStartTime() <= FlushTime )
+			continue;
+		
+		mPackets.RemoveBlock( i, 1 );
+	}
+}
+
+
+bool TMediaPacketBuffer::PrePushBuffer(SoyTime Timestamp)
+{
+	if ( !mFlushFenceTime.IsValid() )
+		return true;
+	
+	//	if we do =, then when the fence is 1, it rejects 1.
+	if ( Timestamp > mFlushFenceTime )
+	{
+		std::Debug << "TMediaBufferManager::PrePush dropped (fenced " << Timestamp << " >= " << mFlushFenceTime << ")" << std::endl;
+		return false;
+	}
+	
+	//	new lower timestamp, release fence
+	std::Debug << "TMediaBufferManager::FlushFence(" << mFlushFenceTime << ") dropped" << std::endl;
+	mFlushFenceTime = SoyTime();
+	return true;
 }
 
 
@@ -682,6 +735,19 @@ SoyTime TMediaExtractor::GetPacketTime(ssize_t StreamIndex,const SoyTime& RealTi
 	return FrameTime;
 }
 */
+
+void TMediaExtractor::FlushFrames(SoyTime FlushTime)
+{
+	for ( auto it=mStreamBuffers.begin();	it!=mStreamBuffers.end();	it++ )
+	{
+		auto Buffer = it->second;
+		if ( !Buffer )
+			continue;
+		
+		Buffer->FlushFrames( FlushTime );
+	}
+}
+
 
 
 
