@@ -458,7 +458,11 @@ public:
 	bool							HasPackets() const		{	return !mPackets.IsEmpty();	}
 	size_t							GetPacketCount() const	{	return mPackets.GetSize();	}
 
+	void							FlushFrames(SoyTime FlushTime);
+	virtual bool					PrePushBuffer(SoyTime Timestamp);
+
 protected:
+	virtual void					ReleaseFramesAfter(SoyTime FlushTime);
 	void							CorrectIncomingPacketTimecode(TMediaPacket& Packet);
 
 public:
@@ -473,7 +477,7 @@ private:
 
 	SoyTime									mLastPacketTimestamp;	//	for when we have to calculate timecodes ourselves
 	SoyTime									mAutoTimestampDuration;
-	SoyTime									mFlushFence;			//	disallow packets above this timecode until they go under again. post-seek, the extract
+	SoyTime									mFlushFenceTime;		//	if valid, don't allow frames over this, post-seek. Resets when we get a packet under
 };
 
 
@@ -529,17 +533,21 @@ public:
 		mForceNonPlanarOutput			( ForceNonPlanarOutput ),
 		mDebugIntraFrameRect			( false ),
 		mDebugIntraFrameTransparency	( false ),
-		mExtractAudioStreams			( ExtractAudioStreams )
+		mExtractAudioStreams			( ExtractAudioStreams ),
+		mOnlyExtractKeyframes			( false )
 	{
 	}
 	
 public:
+	SoyTime						mInitialTime;
+	
 	std::string					mFilename;
 	std::string					mThreadName;
 	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
 	SoyTime						mReadAheadMs;
 
 	bool						mExtractAudioStreams;
+	bool						mOnlyExtractKeyframes;
 	
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
@@ -560,6 +568,7 @@ public:
 	~TMediaExtractor();
 	
 	void							Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames);				//	keep calling this, controls the packet read-ahead
+	virtual void					FlushFrames(SoyTime FlushTime);
 	
 	virtual void					GetStreams(ArrayBridge<TStreamMeta>&& Streams)=0;
 	TStreamMeta						GetStream(size_t Index);
@@ -585,6 +594,7 @@ protected:
 	//	call this when there's a packet ready for ReadNextPacket
 	void							OnPacketExtracted(SoyTime& Timecode,size_t StreamIndex);
 	void							OnPacketExtracted(std::shared_ptr<TMediaPacket>& Packet);
+	void							OnSkippedExtractedPacket(const SoyTime& Timecode);
 	SoyTime							GetExtractorRealTimecode(SoyTime,ssize_t StreamIndex=-1);
 
 	void							OnClearError();
@@ -605,6 +615,7 @@ private:
 public:
 	SoyEvent<const ArrayBridge<TStreamMeta>>		mOnStreamsChanged;
 	SoyTime											mExtractAheadMs;
+	bool							mOnlyExtractKeyframes;
 	
 protected:
 	std::map<size_t,std::shared_ptr<TMediaPacketBuffer>>	mStreamBuffers;

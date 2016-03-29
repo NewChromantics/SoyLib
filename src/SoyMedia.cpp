@@ -268,6 +268,12 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 {
 	Soy::Assert( Packet != nullptr, "Packet expected");
 	
+	//	pre-push check for flush fence
+	if ( !PrePushBuffer( Packet->GetSortingTimecode() ) )
+	{
+		return;
+	}
+	
 	//	gr: maybe needs to be atomic?
 	while ( mPackets.GetSize() >= mMaxBufferSize )
 	{
@@ -347,11 +353,61 @@ void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 
 
 
-TMediaExtractor::TMediaExtractor(const TMediaExtractorParams& Params) :
-	SoyWorkerThread		( Params.mThreadName, SoyWorkerWaitMode::Wake ),
-	mExtractAheadMs		( Params.mReadAheadMs ),
-	mOnPacketExtracted	( Params.mOnFrameExtracted )
+void TMediaPacketBuffer::FlushFrames(SoyTime FlushTime)
 {
+	ReleaseFramesAfter( FlushTime );
+	
+	//	gr: if the flush fence is zero, it doesn't get used, so correct it
+	mFlushFenceTime = FlushTime;
+	if ( !mFlushFenceTime.IsValid() )
+		mFlushFenceTime.mTime = 1;
+}
+
+
+
+void TMediaPacketBuffer::ReleaseFramesAfter(SoyTime FlushTime)
+{
+	std::lock_guard<std::mutex> Lock( mPacketsLock  );
+	
+	for ( ssize_t i=mPackets.GetSize()-1;	i>=0;	i-- )
+	{
+		auto& Packet = *mPackets[i];
+		if ( Packet.GetStartTime() <= FlushTime )
+			continue;
+		
+		mPackets.RemoveBlock( i, 1 );
+	}
+}
+
+
+bool TMediaPacketBuffer::PrePushBuffer(SoyTime Timestamp)
+{
+	if ( !mFlushFenceTime.IsValid() )
+		return true;
+	
+	//	if we do =, then when the fence is 1, it rejects 1.
+	if ( Timestamp > mFlushFenceTime )
+	{
+		std::Debug << "TMediaBufferManager::PrePush dropped (fenced " << Timestamp << " >= " << mFlushFenceTime << ")" << std::endl;
+		return false;
+	}
+	
+	//	new lower timestamp, release fence
+	std::Debug << "TMediaBufferManager::FlushFence(" << mFlushFenceTime << ") dropped" << std::endl;
+	mFlushFenceTime = SoyTime();
+	return true;
+}
+
+
+
+TMediaExtractor::TMediaExtractor(const TMediaExtractorParams& Params) :
+	SoyWorkerThread			( Params.mThreadName, SoyWorkerWaitMode::Wake ),
+	mExtractAheadMs			( Params.mReadAheadMs ),
+	mOnPacketExtracted		( Params.mOnFrameExtracted ),
+	mOnlyExtractKeyframes	( Params.mOnlyExtractKeyframes )
+{
+	//	gr: need some kind of heirachy for the initial time, to disallow TVideoDecoder from going past 0 if the extractor doesn't support it
+	mSeekTime = Params.mInitialTime;
 }
 
 TMediaExtractor::~TMediaExtractor()
@@ -569,8 +625,28 @@ TStreamMeta TMediaExtractor::GetVideoStream(size_t Index)
 
 bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyframe)
 {
-	//	todo; pass a func from the decoder which accesses the buffers/current time
+	//	todo: do this as a func controlled by the video decoder
+
+	//	skip non-keyframes
+	if ( !IsKeyframe && mOnlyExtractKeyframes )
+		return false;
+	
+	if ( Time >= mSeekTime )
+		return true;
+	
+	//	in the past, if it's not a keyframe, lets skip it
+	if ( !IsKeyframe )
+	{
+		OnSkippedExtractedPacket( Time );
+		return false;
+	}
+	
 	return true;
+}
+
+void TMediaExtractor::OnSkippedExtractedPacket(const SoyTime& Timecode)
+{
+	std::Debug << "Extractor skipped frame " << Timecode << " (vs " << mSeekTime << ") in the past (non-keyframe)" << std::endl;
 }
 
 void TMediaExtractor::OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)
@@ -682,6 +758,19 @@ SoyTime TMediaExtractor::GetPacketTime(ssize_t StreamIndex,const SoyTime& RealTi
 	return FrameTime;
 }
 */
+
+void TMediaExtractor::FlushFrames(SoyTime FlushTime)
+{
+	for ( auto it=mStreamBuffers.begin();	it!=mStreamBuffers.end();	it++ )
+	{
+		auto Buffer = it->second;
+		if ( !Buffer )
+			continue;
+		
+		Buffer->FlushFrames( FlushTime );
+	}
+}
+
 
 
 
@@ -867,6 +956,13 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 	
 	if ( !mFirstTimestamp.IsValid() )
 	{
+		//	gr: if using pre-seek, lets ignore setting it for now
+		if ( mParams.mPreSeek.IsValid() )
+		{
+			std::Debug << "Using preseek, so skipping mFirstTimestamp " << std::endl;
+			mFirstTimestamp = SoyTime( 1ull );
+		}
+		/*
 		//	disregard pre seek
 		if ( mParams.mPreSeek > Timestamp )
 		{
@@ -879,6 +975,7 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 			mFirstTimestamp = SoyTime( Timestamp.GetTime() - PreSeekTime.GetTime() );
 			std::Debug << "First timestamp after pre-seek correction (" << PreSeekTime << ") is " << mFirstTimestamp << std::endl;
 		}
+		 */
 	}
 	
 	/*
