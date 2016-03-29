@@ -405,6 +405,8 @@ TMediaExtractor::TMediaExtractor(const TMediaExtractorParams& Params) :
 	mExtractAheadMs		( Params.mReadAheadMs ),
 	mOnPacketExtracted	( Params.mOnFrameExtracted )
 {
+	//	gr: need some kind of heirachy for the initial time, to disallow TVideoDecoder from going past 0 if the extractor doesn't support it
+	mSeekTime = Params.mInitialTime;
 }
 
 TMediaExtractor::~TMediaExtractor()
@@ -622,8 +624,24 @@ TStreamMeta TMediaExtractor::GetVideoStream(size_t Index)
 
 bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyframe)
 {
-	//	todo; pass a func from the decoder which accesses the buffers/current time
+	//	todo: do this as a func controlled by the video decoder
+
+	if ( Time >= mSeekTime )
+		return true;
+	
+	//	in the past, if it's not a keyframe, lets skip it
+	if ( !IsKeyframe )
+	{
+		OnSkippedExtractedPacket( Time );
+		return false;
+	}
+	
 	return true;
+}
+
+void TMediaExtractor::OnSkippedExtractedPacket(const SoyTime& Timecode)
+{
+	std::Debug << "Extractor skipped frame " << Timecode << " (vs " << mSeekTime << ") in the past (non-keyframe)" << std::endl;
 }
 
 void TMediaExtractor::OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)
@@ -933,6 +951,13 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 	
 	if ( !mFirstTimestamp.IsValid() )
 	{
+		//	gr: if using pre-seek, lets ignore setting it for now
+		if ( mParams.mPreSeek.IsValid() )
+		{
+			std::Debug << "Using preseek, so skipping mFirstTimestamp " << std::endl;
+			mFirstTimestamp = SoyTime( 1ull );
+		}
+		/*
 		//	disregard pre seek
 		if ( mParams.mPreSeek > Timestamp )
 		{
@@ -945,6 +970,7 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 			mFirstTimestamp = SoyTime( Timestamp.GetTime() - PreSeekTime.GetTime() );
 			std::Debug << "First timestamp after pre-seek correction (" << PreSeekTime << ") is " << mFirstTimestamp << std::endl;
 		}
+		 */
 	}
 	
 	/*

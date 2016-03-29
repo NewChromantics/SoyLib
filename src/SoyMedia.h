@@ -538,6 +538,8 @@ public:
 	}
 	
 public:
+	SoyTime						mInitialTime;
+	
 	std::string					mFilename;
 	std::string					mThreadName;
 	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
@@ -590,6 +592,7 @@ protected:
 	//	call this when there's a packet ready for ReadNextPacket
 	void							OnPacketExtracted(SoyTime& Timecode,size_t StreamIndex);
 	void							OnPacketExtracted(std::shared_ptr<TMediaPacket>& Packet);
+	void							OnSkippedExtractedPacket(const SoyTime& Timecode);
 	SoyTime							GetExtractorRealTimecode(SoyTime,ssize_t StreamIndex=-1);
 
 	void							OnClearError();
