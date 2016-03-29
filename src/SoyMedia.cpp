@@ -401,9 +401,10 @@ bool TMediaPacketBuffer::PrePushBuffer(SoyTime Timestamp)
 
 
 TMediaExtractor::TMediaExtractor(const TMediaExtractorParams& Params) :
-	SoyWorkerThread		( Params.mThreadName, SoyWorkerWaitMode::Wake ),
-	mExtractAheadMs		( Params.mReadAheadMs ),
-	mOnPacketExtracted	( Params.mOnFrameExtracted )
+	SoyWorkerThread			( Params.mThreadName, SoyWorkerWaitMode::Wake ),
+	mExtractAheadMs			( Params.mReadAheadMs ),
+	mOnPacketExtracted		( Params.mOnFrameExtracted ),
+	mOnlyExtractKeyframes	( Params.mOnlyExtractKeyframes )
 {
 	//	gr: need some kind of heirachy for the initial time, to disallow TVideoDecoder from going past 0 if the extractor doesn't support it
 	mSeekTime = Params.mInitialTime;
@@ -626,6 +627,10 @@ bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyfr
 {
 	//	todo: do this as a func controlled by the video decoder
 
+	//	skip non-keyframes
+	if ( !IsKeyframe && mOnlyExtractKeyframes )
+		return false;
+	
 	if ( Time >= mSeekTime )
 		return true;
 	

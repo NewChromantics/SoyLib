@@ -533,7 +533,8 @@ public:
 		mForceNonPlanarOutput			( ForceNonPlanarOutput ),
 		mDebugIntraFrameRect			( false ),
 		mDebugIntraFrameTransparency	( false ),
-		mExtractAudioStreams			( ExtractAudioStreams )
+		mExtractAudioStreams			( ExtractAudioStreams ),
+		mOnlyExtractKeyframes			( false )
 	{
 	}
 	
@@ -546,6 +547,7 @@ public:
 	SoyTime						mReadAheadMs;
 
 	bool						mExtractAudioStreams;
+	bool						mOnlyExtractKeyframes;
 	
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
@@ -613,6 +615,7 @@ private:
 public:
 	SoyEvent<const ArrayBridge<TStreamMeta>>		mOnStreamsChanged;
 	SoyTime											mExtractAheadMs;
+	bool							mOnlyExtractKeyframes;
 	
 protected:
 	std::map<size_t,std::shared_ptr<TMediaPacketBuffer>>	mStreamBuffers;
