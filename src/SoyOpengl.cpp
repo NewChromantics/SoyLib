@@ -2062,6 +2062,7 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 #endif
 
 		//	gr: untested
+		//	gr: use this with 8_8_8_REV to convert to BGRA!
 		TPixelFormatMapping( SoyPixelsFormat::ARGB,			{GL_RGBA, GL_RGBA8} ),
 		
 		TPixelFormatMapping( SoyPixelsFormat::LumaFull,		Opengl8BitFormats ),
