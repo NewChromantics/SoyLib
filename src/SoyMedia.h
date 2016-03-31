@@ -533,18 +533,19 @@ public:
 		mDebugIntraFrameTransparency	( false ),
 		mExtractAudioStreams			( ExtractAudioStreams ),
 		mOnlyExtractKeyframes			( false ),
-		mResetInternalTimestamp			( false )
+		mResetInternalTimestamp			( false ),
+		mAudioSampleRate				( 0 )
 	{
 	}
 	
 public:
-	SoyTime						mInitialTime;
-	
 	std::string					mFilename;
 	std::string					mThreadName;
 	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
 	SoyTime						mReadAheadMs;
 
+	SoyTime						mInitialTime;
+	size_t						mAudioSampleRate;
 	bool						mExtractAudioStreams;
 	bool						mOnlyExtractKeyframes;
 	bool						mResetInternalTimestamp;
