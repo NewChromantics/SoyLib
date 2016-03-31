@@ -404,7 +404,8 @@ TMediaExtractor::TMediaExtractor(const TMediaExtractorParams& Params) :
 	SoyWorkerThread			( Params.mThreadName, SoyWorkerWaitMode::Wake ),
 	mExtractAheadMs			( Params.mReadAheadMs ),
 	mOnPacketExtracted		( Params.mOnFrameExtracted ),
-	mOnlyExtractKeyframes	( Params.mOnlyExtractKeyframes )
+	mOnlyExtractKeyframes	( Params.mOnlyExtractKeyframes ),
+	mResetInternalTimestamp	( Params.mResetInternalTimestamp )
 {
 	//	gr: need some kind of heirachy for the initial time, to disallow TVideoDecoder from going past 0 if the extractor doesn't support it
 	mSeekTime = Params.mInitialTime;
@@ -676,7 +677,10 @@ void TMediaExtractor::OnPacketExtracted(SoyTime& Timecode,size_t StreamIndex)
 	//	if this is the first timecode for the stream, set it
 	if ( mStreamFirstFrameTime.find( StreamIndex ) == mStreamFirstFrameTime.end() )
 	{
-		mStreamFirstFrameTime[StreamIndex] = Timecode;
+		if ( mResetInternalTimestamp )
+			mStreamFirstFrameTime[StreamIndex] = Timecode;
+		else
+			mStreamFirstFrameTime[StreamIndex] = SoyTime();
 	}
 
 	//	correct timecode

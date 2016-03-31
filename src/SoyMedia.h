@@ -199,7 +199,6 @@ public:
 		mAllowPushRejection		( true ),
 		mDebugFrameSkipping		( false ),
 		mPushBlockSleepMs		( 3 ),
-		mResetInternalTimestamp	( false ),
 		mMaxBufferSize			( 10 ),
 		mMinBufferSize			( 5 ),			//	specific per-codec for OOO packets, not applicable to a lot of other things (audio may want it, text etc)
 		mPopNearestFrame		( false )
@@ -210,7 +209,6 @@ public:
 	bool		mDebugFrameSkipping;
 	size_t		mMinBufferSize;				//	require X frames to be buffered before letting any be popped, this is to cope with OOO decoding. This may need to go up with different codecs (KBBBBI vs KBI)
 	size_t		mMaxBufferSize;				//	restrict mem/platform buffer usage (platform buffers should probably be managed explicitly if there are limits)
-	bool		mResetInternalTimestamp;
 	SoyTime		mPreSeek;					//	gr: put this somewhere else!
 	bool		mPopFrameSync;				//	false to pop ASAP (out of sync)
 	bool		mPopNearestFrame;			//	instead of skipping to the latest frame (<= now), we find the nearest frame (98 will pop frame 99) and allow looking ahead
@@ -534,7 +532,8 @@ public:
 		mDebugIntraFrameRect			( false ),
 		mDebugIntraFrameTransparency	( false ),
 		mExtractAudioStreams			( ExtractAudioStreams ),
-		mOnlyExtractKeyframes			( false )
+		mOnlyExtractKeyframes			( false ),
+		mResetInternalTimestamp			( false )
 	{
 	}
 	
@@ -548,6 +547,7 @@ public:
 
 	bool						mExtractAudioStreams;
 	bool						mOnlyExtractKeyframes;
+	bool						mResetInternalTimestamp;
 	
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
@@ -615,7 +615,9 @@ private:
 public:
 	SoyEvent<const ArrayBridge<TStreamMeta>>		mOnStreamsChanged;
 	SoyTime											mExtractAheadMs;
+
 	bool							mOnlyExtractKeyframes;
+	bool							mResetInternalTimestamp;
 	
 protected:
 	std::map<size_t,std::shared_ptr<TMediaPacketBuffer>>	mStreamBuffers;
