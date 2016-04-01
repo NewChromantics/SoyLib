@@ -115,6 +115,9 @@ public:
 	std::string			GetMime() const						{	return SoyMediaFormat::ToMime( mCodec );	}
 	void				SetPixelMeta(const SoyPixelsMeta& Meta);
 	
+	float3x3			GetTransform() const;	//	get the rotational transform, and apply padding
+	
+	
 public:
 	SoyMediaFormat::Type	mCodec;
 	
@@ -170,14 +173,12 @@ public:
 	//	different paths return arrays now - shader/fbo blit is pretty generic now so move it out of pixel buffer
 	//	generic array, handle that internally (each implementation tends to have it's own lock info anyway)
 	//	for future devices (metal, dx), expand these
-	//	if 1 texture assume RGB/BGR greyscale etc
-	//	if multiple, assuming YUV
 	//virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures)=0;
 	//virtual void		Lock(ArrayBridge<Cuda::TTexture>&& Textures)=0;
 	//virtual void		Lock(ArrayBridge<Opencl::TTexture>&& Textures)=0;
-	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context)=0;
-	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context)=0;
-	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures)=0;
+	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform)=0;
+	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform)=0;
+	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform)=0;
 	virtual void		Unlock()=0;
 };
 
@@ -223,9 +224,9 @@ public:
 	TDumbPixelBuffer(SoyPixelsMeta Meta);
 	TDumbPixelBuffer(const SoyPixelsImpl& Pixels);
 	
-	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context) override	{}
-	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context) override	{}
-	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures) override
+	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override	{}
+	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform) override	{}
+	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform) override
 	{
 		Textures.PushBack( &mPixels );
 	}
