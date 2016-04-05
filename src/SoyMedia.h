@@ -524,7 +524,7 @@ public:
 	{
 		mFilename = Filename;
 	}
-	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames,bool ForceNonPlanarOutput,bool ExtractAudioStreams) :
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames,bool ForceNonPlanarOutput,bool ExtractAudioStreams,bool ApplyHeightPadding) :
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
 		mReadAheadMs					( ReadAheadMs ),
@@ -535,7 +535,8 @@ public:
 		mExtractAudioStreams			( ExtractAudioStreams ),
 		mOnlyExtractKeyframes			( false ),
 		mResetInternalTimestamp			( false ),
-		mAudioSampleRate				( 0 )
+		mAudioSampleRate				( 0 ),
+		mApplyHeightPadding				( ApplyHeightPadding )
 	{
 	}
 	
@@ -550,7 +551,8 @@ public:
 	bool						mExtractAudioStreams;
 	bool						mOnlyExtractKeyframes;
 	bool						mResetInternalTimestamp;
-	
+	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
+
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
 	bool						mForceNonPlanarOutput;		//	for some extractors which have pixelly settings
