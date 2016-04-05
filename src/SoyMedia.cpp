@@ -1498,7 +1498,7 @@ bool TMediaPassThroughDecoder::ProcessPixelPacket(const TMediaPacket& Packet)
 
 		SoyPixelsRemote Pixels( GetArrayBridge(Packet.mData), Packet.mMeta.mPixelMeta );
 
-		Frame.mPixels.reset( new TDumbPixelBuffer( Pixels ) );
+		Frame.mPixels.reset( new TDumbPixelBuffer( Pixels, Packet.mMeta.GetTransform() ) );
 		Output.PushPixelBuffer( Frame, Block );
 		return true;
 	}
@@ -1536,7 +1536,8 @@ TDumbPixelBuffer::TDumbPixelBuffer(SoyPixelsMeta Meta)
 	mPixels.Init( Meta );
 }
 
-TDumbPixelBuffer::TDumbPixelBuffer(const SoyPixelsImpl& Pixels)
+TDumbPixelBuffer::TDumbPixelBuffer(const SoyPixelsImpl& Pixels,const float3x3& Transform) :
+	mTransform	( Transform )
 {
 	mPixels.Copy( Pixels );
 }

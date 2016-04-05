@@ -223,12 +223,13 @@ class TDumbPixelBuffer : public TPixelBuffer
 {
 public:
 	TDumbPixelBuffer(SoyPixelsMeta Meta);
-	TDumbPixelBuffer(const SoyPixelsImpl& Pixels);
+	TDumbPixelBuffer(const SoyPixelsImpl& Pixels,const float3x3& Transform);
 	
 	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override	{}
 	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform) override	{}
 	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform) override
 	{
+		Transform = mTransform;
 		Textures.PushBack( &mPixels );
 	}
 
@@ -238,6 +239,7 @@ public:
 
 public:
 	SoyPixels		mPixels;
+	float3x3		mTransform;
 };
 
 
