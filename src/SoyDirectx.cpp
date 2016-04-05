@@ -55,7 +55,8 @@ DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
 
 		case SoyPixelsFormat::Nv12:				return DXGI_FORMAT_NV12;
 		case SoyPixelsFormat::Greyscale:		return DXGI_FORMAT_R8_UNORM;
-		case SoyPixelsFormat::LumaVideo:		return DXGI_FORMAT_R8_UNORM;
+		case SoyPixelsFormat::Luma_Ntsc:		return DXGI_FORMAT_R8_UNORM;
+		case SoyPixelsFormat::Luma_Smptec:		return DXGI_FORMAT_R8_UNORM;
 		case SoyPixelsFormat::GreyscaleAlpha:	return DXGI_FORMAT_R8G8_UNORM;
 		case SoyPixelsFormat::ChromaUV_88:		return DXGI_FORMAT_R8G8_UNORM;
 
