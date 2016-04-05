@@ -460,6 +460,13 @@ namespace Soy
 	inline Matrix2x1 VectorToMatrix(const vec2f& v)	{	return Matrix2x1( v.x, v.y );	}
 	inline Matrix3x1 VectorToMatrix(const vec3f& v)	{	return Matrix3x1( v.x, v.y, v.z );	}
 	inline Matrix4x1 VectorToMatrix(const vec4f& v)	{	return Matrix4x1( v.x, v.y, v.z, v.w );	}
+	inline Matrix3x3 VectorToMatrix(const float3x3& v)
+	{
+		return Matrix3x3( v(0,0), v(1,0), v(2,0),
+						 v(0,1), v(1,1), v(2,1),
+						 v(0,2), v(1,2), v(2,2)
+						 );
+	}
 	inline Matrix4x4 VectorToMatrix(const float4x4& v)
 	{
 		return Matrix4x4( v(0,0), v(1,0), v(2,0), v(3,0),
@@ -471,9 +478,18 @@ namespace Soy
 	inline vec2f MatrixToVector(const Matrix2x1& v)	{	return vec2f( v.x(), v.y() );	}
 	inline vec3f MatrixToVector(const Matrix3x1& v)	{	return vec3f( v.x(), v.y(), v.z() );	}
 	inline vec4f MatrixToVector(const Matrix4x1& v)	{	return vec4f( v.x(), v.y(), v.z(), v.w() );	}
+	inline float3x3 MatrixToVector(const Matrix3x3& v)
+	{
+		return float3x3( v[0], v[1], v[2],
+						v[3], v[4], v[5],
+						v[6], v[7], v[8] );
+	}
 	inline float4x4 MatrixToVector(const Matrix4x4& v)
 	{
-		return float4x4( v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15] );
+		return float4x4( v[0], v[1], v[2], v[3],
+						v[4], v[5], v[6], v[7],
+						v[8], v[9], v[10], v[11],
+						v[12], v[13], v[14], v[15] );
 	}
 	
 	inline vec4f	RectToVector(const Rectf& v)	{	return vec4f( v.x, v.y, v.w, v.h );	}

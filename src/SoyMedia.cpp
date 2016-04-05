@@ -62,7 +62,23 @@ void TStreamMeta::SetPixelMeta(const SoyPixelsMeta& Meta)
 		mCodec = SoyMediaFormat::FromPixelFormat( Meta.GetFormat() );
 }
 
-
+float3x3 TStreamMeta::GetTransform() const
+{
+	if ( mPixelWidthPadding == 0 )
+		return mTransform;
+	
+	if ( !mPixelMeta.IsValidDimensions() == 0 )
+	{
+		std::Debug << "Trying to scale pixel transform (pad=" << mPixelWidthPadding << ") but invalid dimensions " << mPixelMeta << std::endl;
+		return mTransform;
+	}
+	
+	auto Transform = mTransform;
+	
+	float Scalex = 1.f - ( mPixelWidthPadding / static_cast<float>(mPixelMeta.GetWidth()) );
+	Transform(0,0) *= Scalex;
+	return Transform;
+}
 
 TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TPixelBufferManager> OutputBuffer) :
 	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Wake ),
