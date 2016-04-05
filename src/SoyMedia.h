@@ -539,7 +539,9 @@ public:
 		mOnlyExtractKeyframes			( false ),
 		mResetInternalTimestamp			( false ),
 		mAudioSampleRate				( 0 ),
-		mApplyHeightPadding				( ApplyHeightPadding )
+		mApplyHeightPadding				( ApplyHeightPadding ),
+		mWindowIncludeBorders			( true ),
+		mLiveUseClockTime				( false )
 	{
 	}
 	
@@ -555,6 +557,7 @@ public:
 	bool						mOnlyExtractKeyframes;
 	bool						mResetInternalTimestamp;
 	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
+	bool						mWindowIncludeBorders;
 
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
@@ -563,6 +566,10 @@ public:
 	//	for gifs
 	bool						mDebugIntraFrameRect;
 	bool						mDebugIntraFrameTransparency;
+
+	//	for streams (webcams etc) use Real time (clock) rather than SeekTime
+	//	real time works, but when app is paused, threads continue but player time doesnt and it falls behind
+	bool						mLiveUseClockTime;		
 };
 
 
@@ -623,8 +630,7 @@ public:
 	SoyEvent<const ArrayBridge<TStreamMeta>>		mOnStreamsChanged;
 	SoyTime											mExtractAheadMs;
 
-	bool							mOnlyExtractKeyframes;
-	bool							mResetInternalTimestamp;
+	TMediaExtractorParams			mParams;
 	
 protected:
 	std::map<size_t,std::shared_ptr<TMediaPacketBuffer>>	mStreamBuffers;
