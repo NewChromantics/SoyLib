@@ -107,7 +107,8 @@ public:
 	mAudioBytesPerFrame		( 0 ),
 	mAudioFramesPerPacket	( 0 ),
 	mAudioSampleCount		( 0 ),
-	mDecodesOutOfOrder		( false )
+	mDecodesOutOfOrder		( false ),
+	mAudioBitsPerChannel	( 0 )
 	{
 	};
 	
