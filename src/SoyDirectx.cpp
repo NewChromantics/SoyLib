@@ -53,12 +53,39 @@ DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
 		case SoyPixelsFormat::RGBA:				return DXGI_FORMAT_R8G8B8A8_UNORM;
 		case SoyPixelsFormat::BGRA:				return DXGI_FORMAT_B8G8R8A8_UNORM;
 
-		case SoyPixelsFormat::Nv12:				return DXGI_FORMAT_NV12;
+		case SoyPixelsFormat::Yuv_8_88_Full:	return DXGI_FORMAT_NV12;	
+		case SoyPixelsFormat::Yuv_8_88_Ntsc:	return DXGI_FORMAT_NV12;	
+		case SoyPixelsFormat::Yuv_8_88_Smptec:	return DXGI_FORMAT_NV12;	
+		
 		case SoyPixelsFormat::Greyscale:		return DXGI_FORMAT_R8_UNORM;
 		case SoyPixelsFormat::Luma_Ntsc:		return DXGI_FORMAT_R8_UNORM;
 		case SoyPixelsFormat::Luma_Smptec:		return DXGI_FORMAT_R8_UNORM;
 		case SoyPixelsFormat::GreyscaleAlpha:	return DXGI_FORMAT_R8G8_UNORM;
 		case SoyPixelsFormat::ChromaUV_88:		return DXGI_FORMAT_R8G8_UNORM;
+		case SoyPixelsFormat::ChromaUV_44:		return DXGI_FORMAT_R8_UNORM;
+
+		//	other dx formats:
+		//	https://msdn.microsoft.com/en-us/library/windows/desktop/bb173059(v=vs.85).aspx
+		//	DXGI_FORMAT_YUV_444 : DXGI_FORMAT_AYUV	win8+ only
+		//	DXGI_FORMAT_Y410 YUV_444 10 bit per channel
+		//	DXGI_FORMAT_Y416 YUV_444 16 bit per channel
+		//	DXGI_FORMAT_P010  (bi?)planar 4_2_0 10 bit per channel
+	
+		//	DXGI_FORMAT_P016	yuv_4_2_0	16 bit per channel (bi?) planar
+		//	Width and height must be even. Direct3D 11 staging resources and initData parameters for this format use (rowPitch * (height + (height / 2))) bytes. The first (SysMemPitch * height) bytes are the Y plane, the remaining (SysMemPitch * (height / 2)) bytes are the UV plane.
+
+		//	Width and height must be even. Direct3D 11 staging resources and initData parameters for this format use (rowPitch * (height + (height / 2))) bytes.
+		//case SoyPixelsFormat::Yuv_844_Full:		return DXGI_FORMAT_420_OPAQUE;
+
+		//	gr: may need to deal with this as a different format as the layout is different to opengl?
+		//	gr: gotta be careful with this; win8+
+		//	Width must be even.
+		//	RGBA = Y0 u Y1 v
+			/*
+		case SoyPixelsFormat::Yuv_844_Full:		return DXGI_FORMAT_YUY2;
+		case SoyPixelsFormat::Yuv_844_Ntsc:		return DXGI_FORMAT_YUY2;
+		case SoyPixelsFormat::Yuv_844_Smptec:	return DXGI_FORMAT_YUY2;
+		*/
 
 		default:
 		{
