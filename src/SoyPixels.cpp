@@ -214,6 +214,11 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case ChromaUV_88:	return 2;
 	case ChromaUV_44:	return 1;
 
+	//	yuv 844 is interlaced luma & chroma, so kinda have 2 channels (helps with a lot of things when it aligns even though we have technically 3 channels)
+	case Yuv_844_Full:
+	case Yuv_844_Ntsc:
+	case Yuv_844_Smptec:
+		return 2;
 
 	default:
 		break;
@@ -1664,17 +1669,17 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			break;
 			
 		case SoyPixelsFormat::Yuv_844_Full:
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::Luma_Full ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
 			
 		case SoyPixelsFormat::Yuv_844_Ntsc:
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::Luma_Ntsc ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Ntsc ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
 			
 		case SoyPixelsFormat::Yuv_844_Smptec:
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
 			
