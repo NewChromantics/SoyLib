@@ -55,13 +55,16 @@ namespace SoyPixelsFormat
 		Yuv_8_8_8_Full,		//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
 		Yuv_8_8_8_Ntsc,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
 		Yuv_8_8_8_Smptec,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
-		Yuv_844_Full,		//	8bit luma, then 8bit chromauv in the same plane
-		Yuv_844_Ntsc,		//	8bit luma, then 8bit chromauv in the same plane
-		Yuv_844_Smptec,		//	8bit luma, then 8bit chromauv in the same plane
+
+		//	gr: YUY2: LumaX,ChromaU,LumaX+1,ChromaV (4:2:2 ratio, 8 bit)
+		//		we still treat it like a 2 component format so dimensions match original
+		//		(maybe should be renamed YYuv_88 for this reason)
+		YYuv_8888_Full,
+		YYuv_8888_Ntsc,
+		YYuv_8888_Smptec,
 
 		ChromaUV_8_8,		//	8 bit plane, 8 bit plane
 		ChromaUV_88,		//	16 bit interleaved plane
-		ChromaUV_44,		//	8 bit plane where each byte is split in half
 		
 
 		//	https://github.com/ofTheo/ofxKinect/blob/ebb9075bcb5ab2543220b4dec598fd73cec40904/libs/libfreenect/src/cameras.c

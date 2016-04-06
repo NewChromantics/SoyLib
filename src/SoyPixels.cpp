@@ -42,10 +42,10 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetYuvFull(SoyPixelsFormat::Type Format)
 		case Yuv_8_8_8_Smptec:
 			return Yuv_8_8_8_Full;
 
-		case Yuv_844_Full:
-		case Yuv_844_Ntsc:
-		case Yuv_844_Smptec:
-			return Yuv_844_Full;
+		case YYuv_8888_Full:
+		case YYuv_8888_Ntsc:
+		case YYuv_8888_Smptec:
+			return YYuv_8888_Full;
 
 		default:
 			break;
@@ -74,10 +74,10 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetYuvNtsc(SoyPixelsFormat::Type Format)
 		case Yuv_8_8_8_Smptec:
 			return Yuv_8_8_8_Ntsc;
 
-		case Yuv_844_Full:
-		case Yuv_844_Ntsc:
-		case Yuv_844_Smptec:
-			return Yuv_844_Ntsc;
+		case YYuv_8888_Full:
+		case YYuv_8888_Ntsc:
+		case YYuv_8888_Smptec:
+			return YYuv_8888_Ntsc;
 
 		default:
 			break;
@@ -105,10 +105,10 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetYuvSmptec(SoyPixelsFormat::Type Format
 		case Yuv_8_8_8_Smptec:
 			return Yuv_8_8_8_Smptec;
 
-		case Yuv_844_Full:
-		case Yuv_844_Ntsc:
-		case Yuv_844_Smptec:
-			return Yuv_844_Smptec;
+		case YYuv_8888_Full:
+		case YYuv_8888_Ntsc:
+		case YYuv_8888_Smptec:
+			return YYuv_8888_Smptec;
 
 		default:
 			break;
@@ -212,12 +212,11 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
 	case ChromaUV_8_8:	return 1;
 	case ChromaUV_88:	return 2;
-	case ChromaUV_44:	return 1;
 
 	//	yuv 844 is interlaced luma & chroma, so kinda have 2 channels (helps with a lot of things when it aligns even though we have technically 3 channels)
-	case Yuv_844_Full:
-	case Yuv_844_Ntsc:
-	case Yuv_844_Smptec:
+	case YYuv_8888_Full:
+	case YYuv_8888_Ntsc:
+	case YYuv_8888_Smptec:
 		return 2;
 
 	default:
@@ -259,10 +258,6 @@ const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyP
 		Map[Yuv_8_8_8_Full].PushBackArray( { Luma_Full, ChromaUV_8_8 } );
 		Map[Yuv_8_8_8_Ntsc].PushBackArray( { Luma_Ntsc, ChromaUV_8_8 } );
 		Map[Yuv_8_8_8_Smptec].PushBackArray( { Luma_Smptec, ChromaUV_8_8 } );
-
-		Map[Yuv_844_Full].PushBackArray( { Luma_Full, ChromaUV_44 } );
-		Map[Yuv_844_Ntsc].PushBackArray( { Luma_Ntsc, ChromaUV_44 } );
-		Map[Yuv_844_Smptec].PushBackArray( { Luma_Smptec, ChromaUV_44 } );
 	}
 
 	return Map;
@@ -398,13 +393,14 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::Yuv_8_8_8_Full,		"Yuv_8_8_8_Full"	},
 	{ SoyPixelsFormat::Yuv_8_8_8_Ntsc,		"Yuv_8_8_8_Ntsc"	},
 	{ SoyPixelsFormat::Yuv_8_8_8_Smptec,	"Yuv_8_8_8_Smptec"	},
-	{ SoyPixelsFormat::Yuv_844_Full,		"Yuv_844_Full"	},
+	{ SoyPixelsFormat::YYuv_8888_Full,		"YYuv_8888_Full"	},
+	{ SoyPixelsFormat::YYuv_8888_Ntsc,		"YYuv_8888_Ntsc"	},
+	{ SoyPixelsFormat::YYuv_8888_Smptec,	"YYuv_8888_Smptec"	},
 	{ SoyPixelsFormat::Luma_Full,			"LumaFull"	},
 	{ SoyPixelsFormat::Luma_Ntsc,			"Luma_Ntsc"	},
 	{ SoyPixelsFormat::Luma_Smptec,			"Luma_Smptec"	},
 	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
 	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
-	{ SoyPixelsFormat::ChromaUV_44,			"ChromaUV_44"	},
 	{ SoyPixelsFormat::Palettised_RGB_8,	"Palettised_RGB_8"	},
 	{ SoyPixelsFormat::Palettised_RGBA_8,	"Palettised_RGBA_8"	},
 };
@@ -1668,6 +1664,10 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
 			break;
 			
+
+			//	gr: this doesn't split as it's on the same plane!
+			/*
+
 		case SoyPixelsFormat::Yuv_844_Full:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
@@ -1682,6 +1682,7 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
+			*/
 			
 		case SoyPixelsFormat::Palettised_RGB_8:
 		{

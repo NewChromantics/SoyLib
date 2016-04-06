@@ -31,12 +31,11 @@ namespace SoyMediaFormat
 		Yuv_8_8_8_Full = SoyPixelsFormat::Yuv_8_8_8_Full,
 		Yuv_8_8_8_Ntsc = SoyPixelsFormat::Yuv_8_8_8_Ntsc,
 		Yuv_8_8_8_Smptec = SoyPixelsFormat::Yuv_8_8_8_Smptec,
-		Yuv_844_Full = SoyPixelsFormat::Yuv_844_Full,
-		Yuv_844_Ntsc = SoyPixelsFormat::Yuv_844_Ntsc,
-		Yuv_844_Smptec = SoyPixelsFormat::Yuv_844_Smptec,
+		YYuv_8888_Full = SoyPixelsFormat::YYuv_8888_Full,
+		YYuv_8888_Ntsc = SoyPixelsFormat::YYuv_8888_Ntsc,
+		YYuv_8888_Smptec = SoyPixelsFormat::YYuv_8888_Smptec,
 		ChromaUV_8_8 = SoyPixelsFormat::ChromaUV_8_8,
 		ChromaUV_88 = SoyPixelsFormat::ChromaUV_88,
-		ChromaUV_44 = SoyPixelsFormat::ChromaUV_44,
 		Palettised_RGB_8 = SoyPixelsFormat::Palettised_RGB_8,
 		Palettised_RGBA_8 = SoyPixelsFormat::Palettised_RGBA_8,
 		
@@ -66,6 +65,7 @@ namespace SoyMediaFormat
 		Tga,
 		Bmp,
 		Psd,
+		//MovingJpeg,		//	mjpeg
 		
 		//	audio
 		Audio_AUDS,		//	fourcc from mediafoundation. means "audio stream"

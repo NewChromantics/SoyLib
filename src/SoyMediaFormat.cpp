@@ -83,10 +83,11 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Yuv_8_8_8_Full,	"Yuv_8_8_8_Full" },
 	{ SoyMediaFormat::Yuv_8_8_8_Ntsc,	"Yuv_8_8_8_Ntsc" },
 	{ SoyMediaFormat::Yuv_8_8_8_Smptec,	"Yuv_8_8_8_Smptec" },
-	{ SoyMediaFormat::Yuv_844_Full,		"Yuv_844_Full" },
+	{ SoyMediaFormat::YYuv_8888_Full,	"YYuv_8888_Full" },
+	{ SoyMediaFormat::YYuv_8888_Ntsc,	"YYuv_8888_Ntsc" },
+	{ SoyMediaFormat::YYuv_8888_Smptec,	"YYuv_8888_Smptec" },
 	{ SoyMediaFormat::ChromaUV_8_8,		"ChromaUV_8_8" },
 	{ SoyMediaFormat::ChromaUV_88,		"ChromaUV_88" },
-	{ SoyMediaFormat::ChromaUV_44,		"ChromaUV_44" },
 	{ SoyMediaFormat::Palettised_RGB_8,	"Palettised_RGB_8" },
 	{ SoyMediaFormat::Palettised_RGBA_8,	"Palettised_RGBA_8" },
 };
@@ -385,6 +386,9 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 		//	found in quicktime mov's
 		case 'tmcd':
             return SoyMediaFormat::QuicktimeTimecode;
+
+		//case 'MJPG':
+		//	return SoyMediaFormat::MovingJpeg;
 	}
 	
 	//	detect reversed fourcc's and encourage converting at the source
