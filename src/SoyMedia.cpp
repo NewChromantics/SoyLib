@@ -1,6 +1,7 @@
 #include "SoyMedia.h"
 #include "SortArray.h"
 #include "SoyJson.h"
+#include "SoyWave.h"
 
 //gr: this is for the pass through encoder, maybe to avoid this dependancy I can move the pass throughs to their own files...
 #include "SoyOpenGl.h"
@@ -1397,6 +1398,17 @@ bool TMediaPassThroughDecoder::HandlesCodec(SoyMediaFormat::Type Format)
 	if ( SoyMediaFormat::IsText( Format ) )
 		return true;
 	
+	switch ( Format )
+	{
+		case SoyMediaFormat::PcmAndroidRaw:
+		case SoyMediaFormat::PcmLinear_8:
+		case SoyMediaFormat::PcmLinear_16:
+		case SoyMediaFormat::PcmLinear_20:
+		case SoyMediaFormat::PcmLinear_24:
+		case SoyMediaFormat::PcmLinear_float:
+			return true;
+	}
+	
 	return false;
 }
 
@@ -1493,10 +1505,72 @@ bool TMediaPassThroughDecoder::ProcessPixelPacket(const TMediaPacket& Packet)
 	return false;
 }
 
+//	gr: copied from AndroidMovieDecoder.cpp
+//	note: this currently casts away const-ness (because of GetRemoteArray)
+template<typename NEWTYPE,typename OLDTYPE>
+inline FixedRemoteArray<NEWTYPE> CastArray(const ArrayBridge<OLDTYPE>&& Array)
+{
+	auto OldDataSize = Array.GetDataSize();
+	auto OldElementSize = Array.GetElementSize();
+	auto NewElementSize = sizeof(NEWTYPE);
+	
+	auto NewElementCount = OldDataSize / NewElementSize;
+	auto* NewData = reinterpret_cast<const NEWTYPE*>( Array.GetArray() );
+	return GetRemoteArray( NewData, NewElementCount );
+}
+
+
+
 bool TMediaPassThroughDecoder::ProcessAudioPacket(const TMediaPacket& Packet)
 {
-	//	todo
-	return false;
+	auto& Meta = Packet.mMeta;
+	auto Timestamp = Packet.mTimecode;
+
+	auto& Output = GetAudioBufferManager();
+	Output.CorrectDecodedFrameTimestamp( Timestamp );
+	Output.mOnFrameDecoded.OnTriggered( Timestamp );
+
+	TAudioBufferBlock AudioBlock;
+	AudioBlock.mChannels = Meta.mChannelCount;
+	AudioBlock.mFrequency = Meta.mAudioSampleRate;
+	AudioBlock.mStartTime = Timestamp;
+
+	auto& BufferArray = Packet.mData;
+
+	auto Format = Meta.mCodec;
+	
+	//	convert to float audio
+	if ( Format == SoyMediaFormat::PcmLinear_16  )
+	{
+		auto Data16 = CastArray<sint16>( GetArrayBridge(BufferArray) );
+		Wave::ConvertSamples( GetArrayBridge(Data16), GetArrayBridge(AudioBlock.mData) );
+		Output.mOnFrameDecoded.OnTriggered( Timestamp );
+		Output.PushAudioBuffer( AudioBlock );
+		return true;
+	}
+	else if ( Format == SoyMediaFormat::PcmLinear_8 )
+	{
+		auto Data8 = CastArray<sint8>( GetArrayBridge(BufferArray) );
+		Wave::ConvertSamples( GetArrayBridge(Data8), GetArrayBridge(AudioBlock.mData) );
+		Output.mOnFrameDecoded.OnTriggered( Timestamp );
+		Output.PushAudioBuffer( AudioBlock );
+		return true;
+	}
+	else if ( Format == SoyMediaFormat::PcmLinear_float )
+	{
+		auto Dataf = CastArray<float>( GetArrayBridge(BufferArray) );
+		Wave::ConvertSamples( GetArrayBridge(Dataf), GetArrayBridge(AudioBlock.mData) );
+		Output.mOnFrameDecoded.OnTriggered( Timestamp );
+		Output.PushAudioBuffer( AudioBlock );
+		return true;
+	}
+	else
+	{
+		Output.mOnFrameDecodeFailed.OnTriggered( Timestamp );
+		std::stringstream Error;
+		Error << __func__ << " cannot handle " << Meta.mCodec;
+		throw Soy::AssertException( Error.str() );
+	}
 }
 
 bool TMediaPassThroughDecoder::ProcessTextPacket(std::shared_ptr<TMediaPacket>& Packet)
