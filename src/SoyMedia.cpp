@@ -581,6 +581,11 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 	}
 }
 
+void TMediaExtractor::GetMeta(TJsonWriter& Json)
+{
+	Json.Push("CanSeekBackwards", CanSeekBackwards() );
+}
+
 
 TStreamMeta TMediaExtractor::GetStream(size_t Index)
 {
