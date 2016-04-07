@@ -63,9 +63,14 @@ DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus)
 		case SoyPixelsFormat::GreyscaleAlpha:	return DXGI_FORMAT_R8G8_UNORM;
 		case SoyPixelsFormat::ChromaUV_88:		return DXGI_FORMAT_R8G8_UNORM;
 	
-		case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
-		case SoyPixelsFormat::YYuv_8888_Ntsc:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
-		case SoyPixelsFormat::YYuv_8888_Smptec:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
+		//	_R8G8_B8G8 is a special format for YUY2... but I think it may not be supported on everything
+		//	gr: using RG for now and ignoring chroma until we have variables etc... we'll just fix monochrome when someone complains
+		case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_UNORM;
+		case SoyPixelsFormat::YYuv_8888_Ntsc:		return DXGI_FORMAT_R8G8_UNORM;
+		case SoyPixelsFormat::YYuv_8888_Smptec:		return DXGI_FORMAT_R8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Ntsc:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Smptec:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
 		//	DXGI_FORMAT_YUY2 is failing to bind to a resource...
 		//case SoyPixelsFormat::YYuv_8888_Full:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
 		//case SoyPixelsFormat::YYuv_8888_Ntsc:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
