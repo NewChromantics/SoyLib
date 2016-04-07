@@ -587,6 +587,8 @@ public:
 	void							Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames);				//	keep calling this, controls the packet read-ahead
 	virtual void					FlushFrames(SoyTime FlushTime);
 	
+	virtual void					GetMeta(TJsonWriter& Json);
+
 	virtual void					GetStreams(ArrayBridge<TStreamMeta>&& Streams)=0;
 	TStreamMeta						GetStream(size_t Index);
 	TStreamMeta						GetVideoStream(size_t Index);
