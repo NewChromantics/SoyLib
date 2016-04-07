@@ -46,6 +46,8 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::PcmLinear_16,		"PcmLinear_16" },
 	{ SoyMediaFormat::PcmLinear_20,		"PcmLinear_20" },
 	{ SoyMediaFormat::PcmLinear_24,		"PcmLinear_24" },
+	{ SoyMediaFormat::PcmLinear_float,	"PcmLinear_float" },
+	{ SoyMediaFormat::Audio_AUDS,		"Audio_AUDS" },
 	{ SoyMediaFormat::Text,				"text" },
 	{ SoyMediaFormat::Json,				"Json" },
 	{ SoyMediaFormat::Html,				"Html" },
@@ -183,6 +185,7 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::PcmLinear_16:
 		case SoyMediaFormat::PcmLinear_20:
 		case SoyMediaFormat::PcmLinear_24:
+		case SoyMediaFormat::PcmLinear_float:
 		case SoyMediaFormat::Wave:
 		case SoyMediaFormat::Audio_AUDS:
 		case SoyMediaFormat::PcmAndroidRaw:
