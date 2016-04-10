@@ -87,6 +87,7 @@
     <ClInclude Include="..\src\GL\wglew.h" />
     <ClInclude Include="..\src\heaparray.hpp" />
     <ClInclude Include="..\src\memheap.hpp" />
+    <ClInclude Include="..\src\RemoteArray.h" />
     <ClInclude Include="..\src\scope_ptr.h" />
     <ClInclude Include="..\src\SortArray.h" />
     <ClInclude Include="..\src\SoyArray.h" />
