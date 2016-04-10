@@ -108,7 +108,8 @@ public:
 	mAudioFramesPerPacket	( 0 ),
 	mAudioSampleCount		( 0 ),
 	mDecodesOutOfOrder		( false ),
-	mAudioBitsPerChannel	( 0 )
+	mAudioBitsPerChannel	( 0 ),
+	mAudioSamplesIndependent	( true )
 	{
 	};
 	
@@ -161,7 +162,8 @@ public:
 	size_t				mAudioBytesPerFrame;
 	size_t				mAudioFramesPerPacket;
 	size_t				mAudioBitsPerChannel;	//	change this to be like H264 different formats; AAC_8, AAC_16, AAC_float etc
-	
+	bool				mAudioSamplesIndependent;
+
 	//	this is more meta for the data... not the stream... should it be here? should it be split?
 	size_t				mAudioSampleCount;
 };
@@ -587,6 +589,8 @@ public:
 	void							Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames);				//	keep calling this, controls the packet read-ahead
 	virtual void					FlushFrames(SoyTime FlushTime);
 	
+	virtual void					GetMeta(TJsonWriter& Json);
+
 	virtual void					GetStreams(ArrayBridge<TStreamMeta>&& Streams)=0;
 	TStreamMeta						GetStream(size_t Index);
 	TStreamMeta						GetVideoStream(size_t Index);
