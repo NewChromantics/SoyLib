@@ -42,9 +42,9 @@ public:
 	}
 	
 	template<class ARRAYTYPE>
-	bool Copy(const ARRAYTYPE& v)
+	void Copy(const ARRAYTYPE& v)
 	{
-		return GetArrayBridge(*this).Copy(v);
+		GetArrayBridge(*this).Copy(v);
 	}
 	
 	T& operator [] (size_t Index)
