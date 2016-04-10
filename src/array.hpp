@@ -98,11 +98,17 @@ public:
 	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true)=0;
 
 	template<class ARRAY>
-	bool				Copy(const ARRAY& a)
+	void				Copy(const ARRAY& a)
 	{
-		Clear(false);
-		return PushBackArray( a ) != nullptr;
+		//	gr: old method, but didn't work for fixed arrays which fail on push...
+		//Clear(false);
+		//return PushBackArray( a ) != nullptr;
+		SetSize( a.GetSize() );
+
+		Copy<typename ARRAY::TYPE>( a.GetArray(), 0, a.GetSize() );
 	}
+
+
 
 	template<class ARRAYTYPE>
 	T*					PushBackArray(const ARRAYTYPE& v)
@@ -112,18 +118,7 @@ public:
 		if ( !pNewData )
 			return nullptr;
 
-		if ( Soy::DoComplexCopy<T,typename ARRAYTYPE::TYPE>() )
-		{
-			for ( size_t i=0; i<v.GetSize(); ++i )
-				(*this)[i+NewDataIndex] = v[i];	//	use [] operator for bounds check
-		}
-		else if ( v.GetSize() > 0 )
-		{
-			//	re-fetch address for bounds check. technically unncessary
-			pNewData = &((*this)[NewDataIndex]);
-			//	note: lack of bounds check for all elements here
-			memcpy( pNewData, v.GetArray(), v.GetSize() * sizeof(T) );
-		}
+		Copy<typename ARRAYTYPE::TYPE>( v.GetArray(), NewDataIndex, v.GetSize() );
 
 		return pNewData;
 	}
@@ -254,6 +249,33 @@ public:
 		RemoveBlock( Index, 1 );
 		return Item;
 	}
+
+private:
+	//	last-stage copy, vars should all be setup by now
+	template<typename SOURCE_T>
+	void	Copy(const SOURCE_T* Source,size_t NewDataIndex,size_t Length)
+	{
+		if ( NewDataIndex >= GetSize() )
+			throw Soy::AssertException(std::string(__func__) + " index out of range");
+		if ( NewDataIndex+Length > GetSize() )	
+			throw Soy::AssertException(std::string(__func__) + " index+length out of range");
+				
+		if ( Soy::DoComplexCopy<T,SOURCE_T>() )
+		{
+			auto* pNewData = &((*this)[NewDataIndex]);
+			for ( size_t i=0;	i<Length;	i++ )
+				pNewData[i] = Source[i];
+				//(*this)[i+NewDataIndex] = Source[i];	//	use [] operator for bounds check
+		}
+		else if ( Length > 0 )
+		{
+			//	re-fetch address for bounds check. technically unncessary
+			auto* pNewData = &((*this)[NewDataIndex]);
+			//	note: lack of bounds check for all elements here
+			memcpy( pNewData, Source, Length * sizeof(T) );
+		}
+	}
+
 	
 };
 

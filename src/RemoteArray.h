@@ -71,9 +71,9 @@ public:
 		return size == GetSize();
 	}
 	
-	T*			PushBlock(size_t count)					{	return nullptr;	}
-	T*			InsertBlock(size_t Index,size_t Count)	{	return nullptr;	}
-	bool		RemoveBlock(size_t Index,size_t Count)	{	return false;	}
+	T*			PushBlock(size_t count)					{	throw Soy::AssertException("Cannot pushback on fixed remote array");	}
+	T*			InsertBlock(size_t Index,size_t Count)	{	throw Soy::AssertException("Cannot insert on fixed remote array");	}
+	bool		RemoveBlock(size_t Index,size_t Count)	{	throw Soy::AssertException("Cannot delete on fixed remote array");	}
 	void		Clear(bool Dealloc)						{	}
 	
 	void		Reserve(size_t Size,bool Clear)
@@ -147,9 +147,9 @@ public:
 	}
 
 	template<class ARRAYTYPE>
-	bool Copy(const ARRAYTYPE& v)
+	void Copy(const ARRAYTYPE& v)
 	{
-		return GetArrayBridge(*this).Copy(v);
+		GetArrayBridge(*this).Copy(v);
 	}
 
 	T& operator [] (size_t index)

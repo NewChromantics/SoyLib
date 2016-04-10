@@ -99,9 +99,9 @@ public:
 	}
 
 	template<typename ARRAYTYPE>
-	bool Copy(const ARRAYTYPE& v)
+	void Copy(const ARRAYTYPE& v)
 	{
-		return GetArrayBridge(*this).Copy(v);
+		GetArrayBridge(*this).Copy(v);
 	}
 
 	T& GetAt(size_t index)
