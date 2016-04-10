@@ -399,6 +399,8 @@ public:
 	
 	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
 
+	void			GetBuffer(std::stringstream& Output,SoyTime& StartTime,SoyTime& EndTime);
+
 	void			PushBuffer(std::shared_ptr<TMediaPacket> Buffer);
 	SoyTime			PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText);	//	returns end-time of the data extracted (invalid if none popped)
 	virtual void	ReleaseFrames() override;
@@ -426,6 +428,7 @@ public:
 	SoyTime					GetSortingTimecode() const	{	return mDecodeTimecode.IsValid() ? mDecodeTimecode : mTimecode;	}
 	SoyTime					GetStartTime() const		{	return mTimecode;	}
 	SoyTime					GetEndTime() const			{	return mTimecode + mDuration;	}
+	bool					ContainsTime(const SoyTime& Time) const	{	return Time >= GetStartTime() && Time <= GetEndTime();	}
 	bool					HasData() const
 	{
 		if ( mPixelBuffer )

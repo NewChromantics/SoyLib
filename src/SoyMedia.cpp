@@ -1503,6 +1503,38 @@ SoyTime TTextBufferManager::PopBuffer(std::stringstream& Output,SoyTime Time,boo
 	return OutputTime;
 }
 
+
+void TTextBufferManager::GetBuffer(std::stringstream& Output,SoyTime& StartTime,SoyTime& EndTime)
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+	SoyTime TargetTime = StartTime;
+	
+	//	invalidate output
+	StartTime = SoyTime();
+
+	{
+		auto& Block = *pBlock;
+
+		if ( !Block.ContainsTime(TargetTime) )
+			continue;
+
+		//	insert line breaks if we have previous entries
+		if ( StartTime.IsValid() )
+			Output << '\n';
+
+		Soy::ArrayToString( GetArrayBridge(Block.mData), Output );
+		if ( !StartTime.IsValid() )
+			StartTime = pBlock->GetStartTime();
+		if ( !EndTime.IsValid() )
+			EndTime = pBlock->GetEndTime();
+
+		StartTime = std::min( StartTime, pBlock->GetStartTime() );
+		EndTime = std::max( EndTime, pBlock->GetEndTime() );
+
+		Soy::Assert( StartTime.IsValid(), "Expected output time to be valid");
+	}
+}
+
 void TTextBufferManager::ReleaseFrames()
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
