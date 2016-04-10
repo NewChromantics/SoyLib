@@ -1067,6 +1067,10 @@ bool TMediaBufferManager::PrePushBuffer(SoyTime Timestamp)
 	return true;
 }
 
+SoyTime TAudioBufferBlock::GetEndTime() const
+{
+	return GetSampleTime(mData.GetSize() - 1);
+}
 
 SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
 {
@@ -1079,16 +1083,18 @@ SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
 
 ssize_t TAudioBufferBlock::GetTimeSampleIndex(SoyTime Time) const
 {
-	float SampleDuration = 1.f / (float)(mFrequency * mChannels);
-	
+	//	how many ms is one sample?
+	float SamplesPerSec = mFrequency * mChannels;
+	float SamplesPerMs = SamplesPerSec / 1000.f;
+	//float SampleDuration = 1.f / (float)(mFrequency * mChannels);
+
 	if ( Time == mStartTime )
 		return 0;
 	
 	if ( Time > mStartTime )
 	{
-		SampleDuration *= 1000.f;
 		auto AheadMs = Time.GetTime() - mStartTime.GetTime();
-		auto SampleIndex = AheadMs * SampleDuration;
+		auto SampleIndex = AheadMs * SamplesPerMs;
 		return SampleIndex;
 	}
 	else
@@ -1112,8 +1118,70 @@ size_t TAudioBufferBlock::RemoveDataUntil(SoyTime Time)
 	RemoveCount = std::min( RemoveCount, mData.GetSize() );
 
 	mData.RemoveBlock( 0, RemoveCount );
+
+	//	set new start time
+	mStartTime = Time;
 	
 	return RemoveCount;
+}
+
+
+void TAudioBufferBlock::Append(const TAudioBufferBlock& NewData)
+{
+	if ( !IsValid() )
+	{
+		*this = NewData;
+		return;
+	}
+	Soy::Assert(mChannels == NewData.mChannels, "TAudioBufferBlock::Append channel size mismatch");
+	Soy::Assert(mFrequency == NewData.mFrequency, "TAudioBufferBlock::Append frequency mismatch");
+
+	//	gr: deal with gaps in time
+
+	mData.PushBackArray(NewData.mData);
+}
+
+void TAudioBufferBlock::Clip(SoyTime Start, SoyTime End)
+{
+	auto EndIndex = GetTimeSampleIndex(End);
+	if ( EndIndex >= 0 && EndIndex < mData.GetSize() )
+		mData.SetSize(EndIndex + 1);
+
+	RemoveDataUntil(Start);
+}
+
+void TAudioBufferBlock::SetChannels(size_t Channels)
+{
+	if ( mChannels == Channels )
+		return;
+
+	//	re-sample channels
+	if ( Channels < mChannels )
+	{
+		auto RemoveChannelCount = mChannels - Channels;
+		for ( int i = mData.GetSize() - mChannels; i >= 0;	i-=mChannels )
+		{
+			//	remove X samples
+			mData.RemoveBlock(i + 1, RemoveChannelCount);
+		}
+		mChannels = Channels;
+		return;
+	}
+	
+	if ( Channels > mChannels )
+	{
+		auto InsertChannelCount = Channels - mChannels;
+		for ( int i = mData.GetSize() - mChannels; i >= 0;	i-=mChannels )
+		{
+			//	insert X samples
+			auto Sample = mData[i];
+			mData.InsertBlock(i + 1, InsertChannelCount);
+			for ( int c = 0; c < InsertChannelCount; c++ )
+				mData[i + 1 + c] = Sample;
+		}
+		mChannels = Channels;
+		return;
+	}
 }
 
 
@@ -1124,6 +1192,10 @@ void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 		
 		Soy::Assert( AudioData.mFrequency != 0, "Audio data should not have zero frequency");
 		
+		auto Start = AudioData.GetStartTime();
+		auto End = AudioData.GetEndTime();
+		auto EndIndex = AudioData.GetTimeSampleIndex(End);
+
 		mBlocks.PushBack( AudioData );
 	}
 	mOnFramePushed.OnTriggered( AudioData.mStartTime );
@@ -1131,45 +1203,78 @@ void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 
 void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,size_t SampleRate,SoyTime StartTime,SoyTime EndTime)
 {
-	std::lock_guard<std::mutex> Lock( mBlocksLock );
+	//	pop out ALL the data for this time block
+	TAudioBufferBlock OutputBlock;
 
-	//	gr: this code needs to re-sample
-	if ( !mBlocks.IsEmpty() )
 	{
-		auto& Block0 = mBlocks[0];
-		if ( Block0.mFrequency != SampleRate )
+		std::lock_guard<std::mutex> Lock(mBlocksLock);
+
+		//	gr: this code needs to re-sample
+		if ( !mBlocks.IsEmpty() )
 		{
-			std::Debug << "Warning: data sample rate (" << Block0.mFrequency << ") doesn't match desired rate (" << SampleRate << ")" << std::endl;
+			auto& Block0 = mBlocks[0];
+			if ( Block0.mFrequency != SampleRate )
+			{
+				std::Debug << "Warning: data sample rate (" << Block0.mFrequency << ") doesn't match desired rate (" << SampleRate << ")" << std::endl;
+			}
+		}
+		
+		//	copy relevent data from blocks 
+		for ( int b = 0; b < mBlocks.GetSize(); b++ )
+		{
+			auto& Block = mBlocks[b];
+			auto BlockStart = Block.GetStartTime();
+			auto BlockEnd = Block.GetEndTime();
+
+			if ( BlockStart > EndTime )
+				break;
+
+			if ( BlockEnd < StartTime )
+				continue;
+
+			OutputBlock.Append(Block);
+		}
+	}
+
+	//	cull unwanted blocks
+	//ReleaseFramesBefore( EndTime );
+
+	//	clip output block
+	OutputBlock.Clip(StartTime, EndTime);
+
+	//	reformat
+	if ( OutputBlock.IsValid() )
+	{
+		OutputBlock.SetChannels(Channels);
+	}
+
+	if ( OutputBlock.mData.GetSize() > Data.GetSize() )
+	{
+		//	clip
+		OutputBlock.mData.SetSize(Data.GetSize());
+	}
+	else if ( OutputBlock.mData.GetSize() < Data.GetSize() )
+	{
+		//	pad
+		while ( OutputBlock.mData.GetSize() < Data.GetSize() )
+		{
+			OutputBlock.mData.PushBack(0);
 		}
 	}
 	
-	//	work out where audio starts and pop chunks out of each block
-	int DataIndex = 0;
-	
-	while ( DataIndex < Data.GetSize() )
+	static bool DebugAudioOutput = false;
+	if ( DebugAudioOutput )
 	{
-		//	eat from head block until its empty
-		if ( mBlocks.IsEmpty() )
-			break;
-		
-		auto& Block = mBlocks[0];
-		
-		Block.RemoveDataUntil( StartTime );
-		
-		if ( Block.mData.IsEmpty() )
-		{
-			mBlocks.RemoveBlock( 0, 1 );
-			continue;
-		}
-		Data[DataIndex] = Block.mData.PopAt(0);
-		DataIndex++;
+		auto OutputStart = OutputBlock.GetStartTime();
+		auto OutputEnd = OutputBlock.GetEndTime();
+
+		std::stringstream Output100;
+		for ( int i = 0; i <std::min<size_t>(10,OutputBlock.mData.GetSize()); i++ )
+			Output100 << OutputBlock.mData[i] << " ";
+		std::Debug << "Outputting " << OutputBlock.mData.GetDataSize() << " bytes between " << OutputStart << " and " << OutputEnd << " ... " << Output100.str() << std::endl;
 	}
-	
-	//	clear data we haven't written
-	for ( int i=DataIndex;	i<Data.GetSize();	i++ )
-	{
-		Data[i] = 0.f;
-	}
+
+	Data.Copy(OutputBlock.mData);
 }
 
 void TAudioBufferManager::PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd)
@@ -1230,6 +1335,24 @@ void TAudioBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 		break;
 	}
 }
+
+
+void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime)
+{
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+
+	//	find last index to keep
+	for ( ssize_t i=mBlocks.GetSize()-1;	i>=0;	i-- )
+	{
+		auto& Block = mBlocks[i];
+		if ( Block.GetEndTime() < FlushTime )
+		{
+			mBlocks.RemoveBlock( i, 1 );
+			continue;
+		}
+	}
+}
+
 
 void TAudioBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
 {

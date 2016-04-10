@@ -340,11 +340,19 @@ public:
 	{
 	}
 	
+	bool				IsValid() const		{	return !mData.IsEmpty();	}
 	SoyTime				GetStartTime() const			{	return mStartTime;	}
+	SoyTime				GetEndTime() const;
 	SoyTime				GetSampleTime(size_t SampleIndex) const;
 	ssize_t				GetTimeSampleIndex(SoyTime Time) const;		//	can be out of range of the data
 	size_t				RemoveDataUntil(SoyTime Time);				//	returns number of samples removed
 	
+	void				Append(const TAudioBufferBlock& NewData);
+	void				Clip(SoyTime Start, SoyTime End);
+
+	//	reformatting
+	void				SetChannels(size_t Channels);
+
 public:
 	//	consider using stream meta here
 	size_t				mChannels;
@@ -372,7 +380,8 @@ public:
 
 	virtual void	ReleaseFrames() override;
 	virtual void	ReleaseFramesAfter(SoyTime FlushTime) override;
-	
+	void			ReleaseFramesBefore(SoyTime FlushTime);
+
 private:
 	std::mutex					mBlocksLock;
 	Array<TAudioBufferBlock>	mBlocks;
