@@ -1265,16 +1265,6 @@ void TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock)
 	{
 		std::lock_guard<std::mutex> Lock(mBlocksLock);
 
-		//	gr: this code needs to re-sample
-		if ( !mBlocks.IsEmpty() )
-		{
-			auto& Block0 = mBlocks[0];
-			if ( Block0.mFrequency != SampleRate )
-			{
-				std::Debug << "Warning: data sample rate (" << Block0.mFrequency << ") doesn't match desired rate (" << SampleRate << ")" << std::endl;
-			}
-		}
-		
 		//	copy relevent data from blocks 
 		for ( int b = 0; b < mBlocks.GetSize(); b++ )
 		{
@@ -1304,6 +1294,10 @@ void TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock)
 	if ( OutputBlock.IsValid() )
 	{
 		OutputBlock.SetChannels(Channels);
+
+		//	gr: this code needs to re-sample
+		if ( OutputBlock.mFrequency != SampleRate )
+			std::Debug << "Warning: data sample rate (" << OutputBlock.mFrequency << ") doesn't match desired rate (" << SampleRate << ")" << std::endl;
 	}
 
 	//	should now be in same format
@@ -1339,6 +1333,7 @@ void TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock)
 
 	Data.Copy( OutputBlock.mData );
 }
+
 
 void TAudioBufferManager::PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd)
 {
