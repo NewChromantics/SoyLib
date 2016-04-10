@@ -1512,7 +1512,9 @@ void TTextBufferManager::GetBuffer(std::stringstream& Output,SoyTime& StartTime,
 	//	invalidate output
 	StartTime = SoyTime();
 
+	for ( int b = 0;	b < mBlocks.GetSize();	b++ )
 	{
+		auto& pBlock = mBlocks[b];
 		auto& Block = *pBlock;
 
 		if ( !Block.ContainsTime(TargetTime) )
