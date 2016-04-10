@@ -1083,6 +1083,9 @@ SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
 
 ssize_t TAudioBufferBlock::GetTimeSampleIndex(SoyTime Time) const
 {
+	if ( mChannels == 0 )
+		return -1;
+
 	//	how many ms is one sample?
 	float SamplesPerSec = mFrequency * mChannels;
 	float SamplesPerMs = SamplesPerSec / 1000.f;
@@ -1094,7 +1097,11 @@ ssize_t TAudioBufferBlock::GetTimeSampleIndex(SoyTime Time) const
 	if ( Time > mStartTime )
 	{
 		auto AheadMs = Time.GetTime() - mStartTime.GetTime();
-		auto SampleIndex = AheadMs * SamplesPerMs;
+		auto SampleIndexf = AheadMs * SamplesPerMs;
+		auto SampleIndex = static_cast<size_t>( SampleIndexf );
+		//	always return first channel of sample!
+		SampleIndex -= SampleIndex % mChannels;
+
 		return SampleIndex;
 	}
 	else
@@ -1136,9 +1143,46 @@ void TAudioBufferBlock::Append(const TAudioBufferBlock& NewData)
 	Soy::Assert(mChannels == NewData.mChannels, "TAudioBufferBlock::Append channel size mismatch");
 	Soy::Assert(mFrequency == NewData.mFrequency, "TAudioBufferBlock::Append frequency mismatch");
 
-	//	gr: deal with gaps in time
+	//	deal with gaps in time with padding
+	auto CurrentEnd = GetEndTime();
+	auto NewDataEnd = NewData.GetEndTime();
+
+	static int ToleranceForPaddingMs = 3;
+
+	BufferArray<float, 4> PadData;
+	auto LastSampleIndex = mData.GetSize() - 1 - mChannels;
+	for ( int c = 0; c < mChannels; c++ )
+	{
+		static bool PadWithZero = true;
+		if ( PadWithZero )
+			PadData.PushBack( 0 );
+		else
+			PadData.PushBack(mData[LastSampleIndex + c]);
+	}
+
+	auto RequiredPadding = NewData.GetStartTime().GetTime() - CurrentEnd.GetTime();
+	if ( RequiredPadding > ToleranceForPaddingMs )
+	{
+		std::Debug << "Padding at append... (" << CurrentEnd << " < " << NewData.GetStartTime() << ")" << std::endl;
+		
+		while ( CurrentEnd < NewData.GetStartTime() )
+		{
+			//std::Debug << "Padding at append... (" << CurrentEnd << " < " << NewData.GetStartTime() << ")" << std::endl;
+			mData.PushBackArray(PadData);
+			CurrentEnd = GetEndTime();
+		}
+	}
 
 	mData.PushBackArray(NewData.mData);
+
+	auto FinalNewEndTime = GetEndTime();
+	if ( NewDataEnd != FinalNewEndTime )
+	{
+		static bool DebugAppend = true;
+		if ( DebugAppend )
+			std::Debug << "Appended buffer, end is now " << FinalNewEndTime << " (appended end was " << NewDataEnd << ")" << std::endl;
+	}
+
 }
 
 void TAudioBufferBlock::Clip(SoyTime Start, SoyTime End)
@@ -1201,8 +1245,20 @@ void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 	mOnFramePushed.OnTriggered( AudioData.mStartTime );
 }
 
-void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,size_t SampleRate,SoyTime StartTime,SoyTime EndTime)
+void TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock)
 {
+	Soy::Assert(FinalOutputBlock.IsValid(), "Need target block for PopAudioBuffer");
+
+	auto StartTime = FinalOutputBlock.GetStartTime();
+	auto EndTime = FinalOutputBlock.GetEndTime();
+	auto SampleRate = FinalOutputBlock.mFrequency;
+	auto Channels = FinalOutputBlock.mChannels;
+	std::Debug << "Pop audio at " << StartTime << " for " << EndTime.GetDiff(StartTime) << std::endl;
+
+	//	give some tolerance to end time so we can smoothly go over old data
+	auto ClipEndTimePlus = SoyTime( 40ull );
+	auto ClipEndTime = EndTime + ClipEndTimePlus;
+
 	//	pop out ALL the data for this time block
 	TAudioBufferBlock OutputBlock;
 
@@ -1226,7 +1282,7 @@ void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channe
 			auto BlockStart = Block.GetStartTime();
 			auto BlockEnd = Block.GetEndTime();
 
-			if ( BlockStart > EndTime )
+			if ( BlockStart > ClipEndTime )
 				break;
 
 			if ( BlockEnd < StartTime )
@@ -1237,10 +1293,12 @@ void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channe
 	}
 
 	//	cull unwanted blocks
-	//ReleaseFramesBefore( EndTime );
+	static bool Cull = true;
+	if ( Cull )
+		ReleaseFramesBefore( StartTime );
 
 	//	clip output block
-	OutputBlock.Clip(StartTime, EndTime);
+	OutputBlock.Clip(StartTime, ClipEndTime);
 
 	//	reformat
 	if ( OutputBlock.IsValid() )
@@ -1248,14 +1306,19 @@ void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channe
 		OutputBlock.SetChannels(Channels);
 	}
 
+	//	should now be in same format
+	auto& Data = FinalOutputBlock.mData;
+
 	if ( OutputBlock.mData.GetSize() > Data.GetSize() )
 	{
-		//	clip
+		//	clip buffer
 		OutputBlock.mData.SetSize(Data.GetSize());
 	}
 	else if ( OutputBlock.mData.GetSize() < Data.GetSize() )
 	{
 		//	pad
+		auto PadAmount = Data.GetSize() - OutputBlock.mData.GetSize();
+		std::Debug << "Padding audio by " << PadAmount << " samples..." << std::endl;
 		while ( OutputBlock.mData.GetSize() < Data.GetSize() )
 		{
 			OutputBlock.mData.PushBack(0);
@@ -1274,7 +1337,7 @@ void TAudioBufferManager::PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channe
 		std::Debug << "Outputting " << OutputBlock.mData.GetDataSize() << " bytes between " << OutputStart << " and " << OutputEnd << " ... " << Output100.str() << std::endl;
 	}
 
-	Data.Copy(OutputBlock.mData);
+	Data.Copy( OutputBlock.mData );
 }
 
 void TAudioBufferManager::PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd)
