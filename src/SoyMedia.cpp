@@ -1264,7 +1264,8 @@ bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 
 	//	precise data usage by culling old frames and clipping the output data
 	//	or dumb use-whole-block-and delete all used data
-	static bool AppendFirstBlockOnly = false;
+	static bool ForceAppendFirstBlockOnly = false;
+	bool AppendFirstBlockOnly = (!HighPrecisionExtraction) || ForceAppendFirstBlockOnly;
 
 	//	pop out ALL the data for this time block
 	TAudioBufferBlock OutputBlock;
@@ -1382,6 +1383,8 @@ bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 	}
 
 	Data.Copy( OutputBlock.mData );
+
+	return true;
 }
 
 
