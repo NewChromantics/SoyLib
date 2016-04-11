@@ -1248,7 +1248,7 @@ void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 	mOnFramePushed.OnTriggered( AudioData.mStartTime );
 }
 
-bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock)
+bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool HighPrecisionExtraction)
 {
 	Soy::Assert(FinalOutputBlock.IsValid(), "Need target block for PopAudioBuffer");
 
@@ -1264,7 +1264,6 @@ bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock)
 
 	//	precise data usage by culling old frames and clipping the output data
 	//	or dumb use-whole-block-and delete all used data
-	static bool HighPrecisionMode = false;
 	static bool AppendFirstBlockOnly = false;
 
 	//	pop out ALL the data for this time block
@@ -1300,7 +1299,7 @@ bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock)
 	}
 
 	
-	if ( HighPrecisionMode )
+	if ( HighPrecisionExtraction )
 	{
 		//	cull unwanted blocks/data
 		static bool Cull = true;
