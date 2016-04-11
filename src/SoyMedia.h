@@ -375,8 +375,9 @@ public:
 	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
 
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
-	bool			PopAudioBuffer(TAudioBufferBlock& OutputBlock,bool HighPrecisionExtraction);
-	void			PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd);	//	todo: handle channels
+	bool			GetAudioBuffer(TAudioBufferBlock& OutputBlock,bool HighPrecisionExtraction);	//	returns false if NO data, pads with zeros if not all there
+
+	virtual void	SetPlayerTime(const SoyTime& Time) override;	//	clear out old data
 
 	virtual void	ReleaseFrames() override;
 	virtual void	ReleaseFramesAfter(SoyTime FlushTime) override;
