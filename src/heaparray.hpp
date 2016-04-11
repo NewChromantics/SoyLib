@@ -383,24 +383,31 @@ public:
 		if ( count == 0 )
 			return;
 
-		//	assert if we're trying to remove item[s] from outside the array to avoid memory corruptiopn
-		assert( index >= 0 && index < GetSize() && (index+count-1) < GetSize() );
+		if ( index < 0 )
+			throw Soy::AssertException("RemoveBlock out of bounds <0");
+		
+		if ( index + count > GetSize() )
+			throw Soy::AssertException("RemoveBlock out of bounds >GetSize");
 
 		T* dest = mdata + index;
 		T* src = mdata + index + count;
-		int left = static_cast<int>((mdata+moffset) - src);
 
+		int ShiftCount = GetSize() - ( index + count );
+		
 		if ( Soy::DoComplexCopy<T,T>() )
 		{				
-			for ( size_t i=0; i<left; ++i )
-				*dest++ = *src++;
-			assert( (moffset-count) == static_cast<int>(dest - mdata) );
-			moffset = static_cast<int>(dest - mdata);
+			for ( size_t i = 0; i < ShiftCount; ++i )
+			{
+				*dest = *src;
+				dest++;
+				src++;
+			}
+			moffset -= count;
 		}
 		else
 		{
-			if ( left > 0 )
-				memmove( dest, src, left * sizeof(T) );
+			if ( ShiftCount > 0 )
+				memmove( dest, src, ShiftCount * sizeof(T) );
 			moffset -= count;
 		}			
 	}
