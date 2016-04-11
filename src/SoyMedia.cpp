@@ -1258,13 +1258,10 @@ bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 	auto Channels = FinalOutputBlock.mChannels;
 	std::Debug << "Pop audio at " << StartTime << " for " << EndTime.GetDiff(StartTime) << "ms" << std::endl;
 
-	//	give some tolerance to end time so we can smoothly go over old data
-	auto ClipEndTimePlus = SoyTime( 0ull );
-	auto ClipEndTime = EndTime + ClipEndTimePlus;
-
 	//	precise data usage by culling old frames and clipping the output data
 	//	or dumb use-whole-block-and delete all used data
 	static bool ForceAppendFirstBlockOnly = false;
+	
 	bool AppendFirstBlockOnly = (!HighPrecisionExtraction) || ForceAppendFirstBlockOnly;
 
 	//	pop out ALL the data for this time block
@@ -1275,7 +1272,7 @@ bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 	{
 		std::lock_guard<std::mutex> Lock(mBlocksLock);
 
-		//	copy relevent data from blocks 
+		//	build data from blocks that cover our timespan
 		for ( int b = 0; b < mBlocks.GetSize(); b++ )
 		{
 			auto& Block = mBlocks[b];
@@ -1283,7 +1280,7 @@ bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 			auto BlockEnd = Block.GetEndTime();
 
 			//	in the future
-			if ( BlockStart > ClipEndTime )
+			if ( BlockStart >= EndTime )
 				break;
 
 			//	in the past
@@ -1298,28 +1295,20 @@ bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 				break;
 		}
 	}
-
 	
 	if ( HighPrecisionExtraction )
 	{
-		//	cull unwanted blocks/data
+		//	cull specific data
 		static bool Cull = true;
+		static bool ClipOldData = true;
 		if ( Cull )
 		{
-			ReleaseFramesBefore(EndTime);
-		}
-
-		//	clip output block
-		static bool Clip = true;
-		if ( Clip )
-		{
-			OutputBlock.Clip(StartTime, ClipEndTime);
-			std::Debug << "[" << StartTime << "] Clipped output to " << OutputBlock.GetStartTime() << "..." << OutputBlock.GetEndTime() << std::endl;
+			ReleaseFramesBefore(EndTime,ClipOldData);
 		}
 	}
 	else
 	{
-		//gr: fixes noise & pops by never re-using data
+		//	delete all used data
 		static bool DeleteAfterAppend = true;
 		if ( DeleteAfterAppend )
 		{
@@ -1332,8 +1321,10 @@ bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 				mBlocks.RemoveBlock(BlockIndex, 1);
 			}
 		}
-	}
 
+	}
+	
+	
 	//	no data for time, so return without modifying
 	if ( !OutputBlock.IsValid() )
 	{
@@ -1350,6 +1341,21 @@ bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 			std::Debug << "Warning: data sample rate (" << OutputBlock.mFrequency << ") doesn't match desired rate (" << SampleRate << ")" << std::endl;
 	}
 
+	//	clip output block
+	{
+		//	give some tolerance to end time so we can smoothly go over old data
+		static uint64 ClipEndTimePlus = 40;
+		auto ClipEndTime = EndTime + SoyTime( ClipEndTimePlus );
+		
+		static bool ForceClip = false;
+		bool Clip = HighPrecisionExtraction || ForceClip;
+		if ( Clip )
+		{
+			OutputBlock.Clip(StartTime, ClipEndTime);
+			std::Debug << "[" << StartTime << "] Clipped output to " << OutputBlock.GetStartTime() << "..." << OutputBlock.GetEndTime() << std::endl;
+		}
+	}
+	
 
 	//	should now be in same format
 	auto& Data = FinalOutputBlock.mData;
@@ -1448,7 +1454,7 @@ void TAudioBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 }
 
 
-void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime)
+void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData)
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
 
@@ -1467,8 +1473,7 @@ void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime)
 			continue;
 		}
 
-		static bool Clip = true;
-		if ( Clip )
+		if ( ClipOldData )
 		{
 			if ( BlockStartTime < FlushTime )
 			{
@@ -1691,6 +1696,9 @@ bool TMediaPassThroughDecoder::HandlesCodec(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::PcmLinear_24:
 		case SoyMediaFormat::PcmLinear_float:
 			return true;
+			
+		default:
+			break;
 	}
 	
 	return false;

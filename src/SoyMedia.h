@@ -380,7 +380,7 @@ public:
 
 	virtual void	ReleaseFrames() override;
 	virtual void	ReleaseFramesAfter(SoyTime FlushTime) override;
-	void			ReleaseFramesBefore(SoyTime FlushTime);
+	void			ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData);
 
 private:
 	std::mutex					mBlocksLock;
