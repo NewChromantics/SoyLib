@@ -382,9 +382,6 @@ public:
 		//	do nothing if nothing to remove
 		if ( count == 0 )
 			return;
-
-		if ( index < 0 )
-			throw Soy::AssertException("RemoveBlock out of bounds <0");
 		
 		if ( index + count > GetSize() )
 			throw Soy::AssertException("RemoveBlock out of bounds >GetSize");
@@ -392,7 +389,7 @@ public:
 		T* dest = mdata + index;
 		T* src = mdata + index + count;
 
-		int ShiftCount = GetSize() - ( index + count );
+		auto ShiftCount = size_cast<ssize_t>( GetSize() ) - ( index + count );
 		
 		if ( Soy::DoComplexCopy<T,T>() )
 		{				
