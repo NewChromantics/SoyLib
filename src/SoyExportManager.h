@@ -60,10 +60,22 @@ const EXTERNALTYPE* TExportManager<TYPE,EXTERNALTYPE>::Lock(const TYPE& Item)
 		return std::make_shared<std::string>();
 	};
 	
+	if ( &Item == nullptr )
+	{
+		throw Soy::AssertException("Shouldn't be sending nulls... check strings");
+	}
+
 	auto& NewItem = mPool.Alloc( Alloc );
 	NewItem = Item;
 	
-	return Soy::ExternalCast<EXTERNALTYPE>(NewItem);
+	//	gr: this should probably not allowed to be able to return null
+	auto* External = Soy::ExternalCast<EXTERNALTYPE>(NewItem);
+	if ( External == nullptr )
+	{
+		//	gr: not doing std::Debug for recursion in Unity stuff (fix that!)
+		int x;
+	}
+	return External;
 }
 
 template<typename TYPE,typename EXTERNALTYPE>
