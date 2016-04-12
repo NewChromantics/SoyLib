@@ -29,6 +29,7 @@ public:
 
 	const EXTERNALTYPE*					Lock(const TYPE& Item);
 	void								Unlock(const EXTERNALTYPE* Element);
+	void								UnlockAll();
 
 public:
 	size_t								mElementLimit;
@@ -75,11 +76,19 @@ template<typename TYPE,typename EXTERNALTYPE>
 void TExportManager<TYPE,EXTERNALTYPE>::Unlock(const EXTERNALTYPE* Element)
 {
 	std::lock_guard<std::mutex> Lock( mElementsLock );
-
+	
 	auto Index = mElements.FindIndex( Element );
 	if ( Index == -1 )
 		return;
-
+	
 	mElements.RemoveBlock( Index, 1 );
+}
+
+template<typename TYPE,typename EXTERNALTYPE>
+void TExportManager<TYPE,EXTERNALTYPE>::UnlockAll()
+{
+	std::lock_guard<std::mutex> Lock( mElementsLock );
+	
+	mElements.Clear();
 }
 

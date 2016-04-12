@@ -425,6 +425,17 @@ void Unity::ReleaseDebugString(const char* ExportedString)
 	Manager.Unlock( ExportedString );
 }
 
+void Unity::ReleaseDebugStringAll()
+{
+	{
+		std::lock_guard<std::mutex> Lock( gDebugExportedStringsLock );
+		gDebugExportedStrings.Clear();
+	}
+	
+	auto& Manager = GetDebugStringManager();
+	Manager.UnlockAll();
+}
+
 
 
 void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
