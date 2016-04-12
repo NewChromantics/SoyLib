@@ -1144,6 +1144,8 @@ size_t TAudioBufferBlock::RemoveDataUntil(SoyTime Time)
 
 void TAudioBufferBlock::Append(const TAudioBufferBlock& NewData)
 {
+	static bool Verbose = false;
+
 	if ( !IsValid() )
 	{
 		*this = NewData;
@@ -1178,7 +1180,8 @@ void TAudioBufferBlock::Append(const TAudioBufferBlock& NewData)
 	//	check for overlap
 	if ( RequiredPadding < 0 )
 	{
-		std::Debug << "Warning: overlap at append... (" << CurrentEnd << " < " << NewData.GetStartTime() << ")" << std::endl;
+		if ( Verbose )
+			std::Debug << "Warning: overlap at append... (" << CurrentEnd << " < " << NewData.GetStartTime() << ")" << std::endl;
 		NewDataMutable = NewData;
 		NewDataMutable.Clip( CurrentEnd, NewDataMutable.GetEndTime() );
 		pUseNewData = &NewDataMutable;
@@ -1186,7 +1189,9 @@ void TAudioBufferBlock::Append(const TAudioBufferBlock& NewData)
 	}
 	else if ( RequiredPadding > ToleranceForPaddingMs )
 	{
-		std::Debug << "Padding at append... (" << CurrentEnd << " < " << NewData.GetStartTime() << ")" << std::endl;
+		//	gr: rare
+		//if ( Verbose )
+			std::Debug << "Padding at append... (" << CurrentEnd << " < " << NewData.GetStartTime() << ")" << std::endl;
 		
 		while ( CurrentEnd < NewData.GetStartTime() )
 		{
@@ -1199,11 +1204,11 @@ void TAudioBufferBlock::Append(const TAudioBufferBlock& NewData)
 	auto& UseNewData = *pUseNewData;
 	mData.PushBackArray(UseNewData.mData);
 
+	//	print warning if new end time didn't align....
 	auto FinalNewEndTime = GetEndTime();
 	if ( NewDataEnd != FinalNewEndTime )
 	{
-		static bool DebugAppend = true;
-		if ( DebugAppend )
+		if ( Verbose )
 			std::Debug << "Appended buffer, end is now " << FinalNewEndTime << " (appended end was " << NewDataEnd << ")" << std::endl;
 	}
 
@@ -1271,13 +1276,17 @@ void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 
 bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool HighPrecisionExtraction)
 {
+	static bool Verbose = false;
+
 	Soy::Assert(FinalOutputBlock.IsValid(), "Need target block for PopAudioBuffer");
 
 	auto StartTime = FinalOutputBlock.GetStartTime();
 	auto EndTime = FinalOutputBlock.GetEndTime();
 	auto SampleRate = FinalOutputBlock.mFrequency;
 	auto Channels = FinalOutputBlock.mChannels;
-	std::Debug << "Pop audio at " << StartTime << " for " << EndTime.GetDiff(StartTime) << "ms" << std::endl;
+
+	if ( Verbose )
+		std::Debug << "[" << StartTime << "] Pop audio at " << StartTime << " for " << EndTime.GetDiff(StartTime) << "ms" << std::endl;
 
 	
 	//	give some tolerance to end time so we can smoothly go over old data
@@ -1311,7 +1320,8 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 			if ( BlockEnd < StartTime )
 				continue;
 
-			std::Debug << "[" << StartTime << "] appending block " << b << " " << BlockStart << "..." << BlockEnd << std::endl;
+			if ( Verbose )
+				std::Debug << "[" << StartTime << "] appending block " << b << " " << BlockStart << "..." << BlockEnd << std::endl;
 			OutputBlock.Append(Block);
 			CopiedBlockIndexes.PushBack( b );
 		}
@@ -1340,7 +1350,8 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 		if ( Clip )
 		{
 			OutputBlock.Clip(StartTime, ClipEndTime);
-			std::Debug << "[" << StartTime << "] Clipped output to " << OutputBlock.GetStartTime() << "..." << OutputBlock.GetEndTime() << std::endl;
+			if ( Verbose )
+				std::Debug << "[" << StartTime << "] Clipped output to " << OutputBlock.GetStartTime() << "..." << OutputBlock.GetEndTime() << std::endl;
 		}
 	}
 	
@@ -1358,6 +1369,7 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 		//	pad
 		auto PadAmount = Data.GetSize() - OutputBlock.mData.GetSize();
 		
+		//	gr: should be rare now so always output
 		std::Debug << "[" << StartTime << "] Padding audio by " << PadAmount << " samples... All-data-tail=" << BlocksTailTime << std::endl;
 		while ( OutputBlock.mData.GetSize() < Data.GetSize() )
 		{
