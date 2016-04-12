@@ -1266,9 +1266,14 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 	
 	//	pop out ALL the data for this time block
 	TAudioBufferBlock OutputBlock;
+	Array<size_t> CopiedBlockIndexes;
+	SoyTime BlocksTailTime;
 
 	{
 		std::lock_guard<std::mutex> Lock(mBlocksLock);
+		
+		if ( !mBlocks.IsEmpty() )
+			BlocksTailTime = mBlocks.GetBack().GetEndTime();
 
 		//	build data from blocks that cover our timespan
 		for ( int b = 0; b < mBlocks.GetSize(); b++ )
@@ -1287,6 +1292,7 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 
 			std::Debug << "[" << StartTime << "] appending block " << b << " " << BlockStart << "..." << BlockEnd << std::endl;
 			OutputBlock.Append(Block);
+			CopiedBlockIndexes.PushBack( b );
 		}
 	}
 	
@@ -1330,14 +1336,15 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 	{
 		//	pad
 		auto PadAmount = Data.GetSize() - OutputBlock.mData.GetSize();
-		std::Debug << "Padding audio by " << PadAmount << " samples..." << std::endl;
+		
+		std::Debug << "[" << StartTime << "] Padding audio by " << PadAmount << " samples... All-data-tail=" << BlocksTailTime << std::endl;
 		while ( OutputBlock.mData.GetSize() < Data.GetSize() )
 		{
 			OutputBlock.mData.PushBack(0);
 		}
 	}
 	
-	static bool DebugAudioOutput = true;
+	static bool DebugAudioOutput = false;
 	if ( DebugAudioOutput )
 	{
 		auto OutputStart = OutputBlock.GetStartTime();
