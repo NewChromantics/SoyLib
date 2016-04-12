@@ -368,14 +368,16 @@ class TAudioBufferManager : public TMediaBufferManager
 public:
 	TAudioBufferManager(const TPixelBufferParams& Params) :
 		mBlocks				( SoyMedia::DefaultHeap ),
-		TMediaBufferManager	( Params )
+		TMediaBufferManager	( Params ),
+		mChannelCache		( 0 ),
+		mFrequencyCache		( 0 )
 	{
 	}
 	
 	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
 
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
-	bool			GetAudioBuffer(TAudioBufferBlock& OutputBlock,bool HighPrecisionExtraction);	//	returns false if NO data, pads with zeros if not all there
+	bool			GetAudioBuffer(TAudioBufferBlock& OutputBlock,bool HighPrecisionExtraction,bool VerboseDebug);	//	returns false if NO data, pads with zeros if not all there
 
 	virtual void	SetPlayerTime(const SoyTime& Time) override;	//	clear out old data
 
@@ -383,7 +385,15 @@ public:
 	virtual void	ReleaseFramesAfter(SoyTime FlushTime) override;
 	void			ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData);
 
+	//	meta of first block. returns zero if none exist
+	size_t			GetChannels() const			{	return mChannelCache;	}
+	size_t			GetFrequency() const		{	return mFrequencyCache;	}
+
 private:
+	//	gr: cached these to avoid locks & for when we've flushed all the data
+	size_t						mFrequencyCache;
+	size_t						mChannelCache;
+
 	std::mutex					mBlocksLock;
 	Array<TAudioBufferBlock>	mBlocks;
 };

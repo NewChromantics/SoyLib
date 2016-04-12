@@ -1264,7 +1264,13 @@ void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 		std::lock_guard<std::mutex> Lock( mBlocksLock );
 		
 		Soy::Assert( AudioData.mFrequency != 0, "Audio data should not have zero frequency");
+		Soy::Assert( AudioData.mChannels != 0, "Audio data should not have zero channels");
 		
+		if ( mChannelCache == 0 )
+			mChannelCache = AudioData.mChannels;
+		if ( mFrequencyCache == 0 )
+			mFrequencyCache = AudioData.mFrequency;
+
 		auto Start = AudioData.GetStartTime();
 		auto End = AudioData.GetEndTime();
 		auto EndIndex = AudioData.GetTimeSampleIndex(End);
@@ -1274,10 +1280,8 @@ void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 	mOnFramePushed.OnTriggered( AudioData.mStartTime );
 }
 
-bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool HighPrecisionExtraction)
+bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool HighPrecisionExtraction,bool VerboseDebug)
 {
-	static bool Verbose = false;
-
 	Soy::Assert(FinalOutputBlock.IsValid(), "Need target block for PopAudioBuffer");
 
 	auto StartTime = FinalOutputBlock.GetStartTime();
@@ -1285,7 +1289,7 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 	auto SampleRate = FinalOutputBlock.mFrequency;
 	auto Channels = FinalOutputBlock.mChannels;
 
-	if ( Verbose )
+	if ( VerboseDebug )
 		std::Debug << "[" << StartTime << "] Pop audio at " << StartTime << " for " << EndTime.GetDiff(StartTime) << "ms" << std::endl;
 
 	
@@ -1320,7 +1324,7 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 			if ( BlockEnd < StartTime )
 				continue;
 
-			if ( Verbose )
+			if ( VerboseDebug )
 				std::Debug << "[" << StartTime << "] appending block " << b << " " << BlockStart << "..." << BlockEnd << std::endl;
 			OutputBlock.Append(Block);
 			CopiedBlockIndexes.PushBack( b );
@@ -1350,7 +1354,7 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 		if ( Clip )
 		{
 			OutputBlock.Clip(StartTime, ClipEndTime);
-			if ( Verbose )
+			if ( VerboseDebug )
 				std::Debug << "[" << StartTime << "] Clipped output to " << OutputBlock.GetStartTime() << "..." << OutputBlock.GetEndTime() << std::endl;
 		}
 	}
