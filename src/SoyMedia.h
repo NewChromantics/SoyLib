@@ -375,12 +375,13 @@ public:
 	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
 
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
-	void			PopAudioBuffer(TAudioBufferBlock& OutputBlock);
-	void			PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd);	//	todo: handle channels
+	bool			GetAudioBuffer(TAudioBufferBlock& OutputBlock,bool HighPrecisionExtraction);	//	returns false if NO data, pads with zeros if not all there
+
+	virtual void	SetPlayerTime(const SoyTime& Time) override;	//	clear out old data
 
 	virtual void	ReleaseFrames() override;
 	virtual void	ReleaseFramesAfter(SoyTime FlushTime) override;
-	void			ReleaseFramesBefore(SoyTime FlushTime);
+	void			ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData);
 
 private:
 	std::mutex					mBlocksLock;
@@ -398,6 +399,8 @@ public:
 	}
 	
 	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
+
+	void			GetBuffer(std::stringstream& Output,SoyTime& StartTime,SoyTime& EndTime);
 
 	void			PushBuffer(std::shared_ptr<TMediaPacket> Buffer);
 	SoyTime			PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText);	//	returns end-time of the data extracted (invalid if none popped)
@@ -426,6 +429,7 @@ public:
 	SoyTime					GetSortingTimecode() const	{	return mDecodeTimecode.IsValid() ? mDecodeTimecode : mTimecode;	}
 	SoyTime					GetStartTime() const		{	return mTimecode;	}
 	SoyTime					GetEndTime() const			{	return mTimecode + mDuration;	}
+	bool					ContainsTime(const SoyTime& Time) const	{	return Time >= GetStartTime() && Time <= GetEndTime();	}
 	bool					HasData() const
 	{
 		if ( mPixelBuffer )

@@ -405,6 +405,7 @@ void Unity::PushDebugString(const std::string& Message)
 	}
 	catch(std::exception& e)
 	{
+		int x;
 		//	recursion?
 		//std::Debug << __func__ << " caught exception: " << e.what() << std::endl;
 	}
@@ -423,6 +424,17 @@ void Unity::ReleaseDebugString(const char* ExportedString)
 {
 	auto& Manager = GetDebugStringManager();
 	Manager.Unlock( ExportedString );
+}
+
+void Unity::ReleaseDebugStringAll()
+{
+	{
+		std::lock_guard<std::mutex> Lock( gDebugExportedStringsLock );
+		gDebugExportedStrings.Clear();
+	}
+	
+	auto& Manager = GetDebugStringManager();
+	Manager.UnlockAll();
 }
 
 
