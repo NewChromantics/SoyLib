@@ -1171,12 +1171,20 @@ void TAudioBufferBlock::Append(const TAudioBufferBlock& NewData)
 	
 	auto RequiredPadding = NewData.GetStartTime().GetDiff( CurrentEnd );
 
+
+	TAudioBufferBlock NewDataMutable;
+	auto* pUseNewData = &NewData;
+
 	//	check for overlap
 	if ( RequiredPadding < 0 )
 	{
 		std::Debug << "Warning: overlap at append... (" << CurrentEnd << " < " << NewData.GetStartTime() << ")" << std::endl;
+		NewDataMutable = NewData;
+		NewDataMutable.Clip( CurrentEnd, NewDataMutable.GetEndTime() );
+		pUseNewData = &NewDataMutable;
+		NewDataEnd = NewDataMutable.GetEndTime();
 	}
-	if ( RequiredPadding > ToleranceForPaddingMs )
+	else if ( RequiredPadding > ToleranceForPaddingMs )
 	{
 		std::Debug << "Padding at append... (" << CurrentEnd << " < " << NewData.GetStartTime() << ")" << std::endl;
 		
@@ -1188,7 +1196,8 @@ void TAudioBufferBlock::Append(const TAudioBufferBlock& NewData)
 		}
 	}
 
-	mData.PushBackArray(NewData.mData);
+	auto& UseNewData = *pUseNewData;
+	mData.PushBackArray(UseNewData.mData);
 
 	auto FinalNewEndTime = GetEndTime();
 	if ( NewDataEnd != FinalNewEndTime )
