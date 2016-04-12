@@ -48,6 +48,8 @@ template<typename TYPE>
 template<typename MATCHTYPE>
 inline std::shared_ptr<TYPE> TPool<TYPE>::AllocPtr(const MATCHTYPE& Meta,const std::function<std::shared_ptr<TYPE>()>& RealAlloc)
 {
+	std::lock_guard<std::mutex> Lock( mPoolUsedLock );
+
 	//	find free one
 	for ( int i=0;	i<mPool.GetSize();	i++ )
 	{
@@ -96,6 +98,7 @@ template<typename TYPE>
 inline std::shared_ptr<TYPE> TPool<TYPE>::AllocPtr(const std::function<std::shared_ptr<TYPE>()>& RealAlloc)
 {
 	//	gr: re-use above code!
+	std::lock_guard<std::mutex> Lock( mPoolUsedLock );
 
 	//	find free one
 	for ( int i=0;	i<mPool.GetSize();	i++ )
@@ -152,6 +155,8 @@ inline TYPE& TPool<TYPE>::Alloc(const MATCHTYPE& Meta,const std::function<std::s
 template<typename TYPE>
 void TPool<TYPE>::Release(const std::function<bool(const TYPE&)>& Compare)
 {
+	std::lock_guard<std::mutex> Lock( mPoolUsedLock );
+
 	for ( int i=0;	i<mUsed.GetSize();	i++ )
 	{
 		auto* pUsed = mUsed[i].get();
@@ -202,6 +207,8 @@ void TPool<TYPE>::Release(TYPE* Object)
 template<typename TYPE>
 void TPool<TYPE>::ReleaseAll()
 {
+	std::lock_guard<std::mutex> Lock( mPoolUsedLock );
+
 	mPool.PushBackArray( mUsed );
 	mUsed.Clear();
 }
