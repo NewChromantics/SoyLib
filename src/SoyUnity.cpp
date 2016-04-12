@@ -405,6 +405,7 @@ void Unity::PushDebugString(const std::string& Message)
 	}
 	catch(std::exception& e)
 	{
+		int x;
 		//	recursion?
 		//std::Debug << __func__ << " caught exception: " << e.what() << std::endl;
 	}
