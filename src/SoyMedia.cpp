@@ -1069,7 +1069,13 @@ bool TMediaBufferManager::PrePushBuffer(SoyTime Timestamp)
 
 SoyTime TAudioBufferBlock::GetEndTime() const
 {
-	return GetSampleTime(mData.GetSize() - 1);
+	static bool ReturnLastTimecode = false;
+	
+	auto LastSampleIndex = mData.GetSize();
+	if ( ReturnLastTimecode )
+		LastSampleIndex -= mChannels;
+	
+	return GetSampleTime( LastSampleIndex );
 }
 
 SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
@@ -1150,7 +1156,7 @@ void TAudioBufferBlock::Append(const TAudioBufferBlock& NewData)
 	auto CurrentEnd = GetEndTime();
 	auto NewDataEnd = NewData.GetEndTime();
 
-	static int ToleranceForPaddingMs = 3;
+	static int ToleranceForPaddingMs = 2;
 
 	BufferArray<float, 4> PadData;
 	auto LastSampleIndex = mData.GetSize() - 1 - mChannels;
@@ -1162,8 +1168,14 @@ void TAudioBufferBlock::Append(const TAudioBufferBlock& NewData)
 		else
 			PadData.PushBack(mData[LastSampleIndex + c]);
 	}
+	
+	auto RequiredPadding = NewData.GetStartTime().GetDiff( CurrentEnd );
 
-	auto RequiredPadding = NewData.GetStartTime().GetTime() - CurrentEnd.GetTime();
+	//	check for overlap
+	if ( RequiredPadding < 0 )
+	{
+		std::Debug << "Warning: overlap at append... (" << CurrentEnd << " < " << NewData.GetStartTime() << ")" << std::endl;
+	}
 	if ( RequiredPadding > ToleranceForPaddingMs )
 	{
 		std::Debug << "Padding at append... (" << CurrentEnd << " < " << NewData.GetStartTime() << ")" << std::endl;
