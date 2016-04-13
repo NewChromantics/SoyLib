@@ -1244,6 +1244,10 @@ void TAudioBufferBlock::SetChannels(size_t Channels)
 	if ( Channels > mChannels )
 	{
 		auto InsertChannelCount = Channels - mChannels;
+		
+		//	reserve data
+		mData.Reserve( InsertChannelCount* mData.GetSize() );
+		
 		for ( int i = mData.GetSize() - mChannels; i >= 0;	i-=mChannels )
 		{
 			//	insert X samples
