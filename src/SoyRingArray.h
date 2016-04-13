@@ -29,10 +29,16 @@ public:
 	bool		PopFront(size_t Elements,ArrayBridge<TYPE>& Array);
 	bool		PopFront(size_t Elements,ArrayBridge<TYPE>&& Array)	{	return PopFront( Elements, Array );	}
 	bool		PopFront(TYPE& Element);
-
+	bool		PopFront()				{	TYPE Dummy;	return PopFront( Dummy );	}
+	bool		IsEmpty() const			{	return GetSize() == 0;	}
+	const TYPE&	GetBack() const			{	return mBuffer[mHead];	}
+	const TYPE&	GetFront(size_t Offset=0) const		{	return mBuffer[(mTail + Offset)%mBuffer.GetSize()];	}
+	size_t		GetSize() const;
+	void		Clear();
+	
 private:
 	bool		ResizeBuffer(size_t NewSize);
-	void		GetStats(size_t& SpaceAfterHead,size_t& SpaceBeforeTail,size_t& UsedAfterTail,size_t& UsedAfterStart);
+	void		GetStats(size_t& SpaceAfterHead,size_t& SpaceBeforeTail,size_t& UsedAfterTail,size_t& UsedAfterStart) const;
 	
 private:
 	std::recursive_mutex	mLock;	//	maybe lock head and tail seperately?
@@ -55,9 +61,9 @@ inline bool RingArray<TYPE>::ResizeBuffer(size_t NewSize)
 }
 
 template<typename TYPE>
-inline void RingArray<TYPE>::GetStats(size_t& SpaceAfterHead,size_t& SpaceBeforeTail,size_t& UsedAfterTail,size_t& UsedAfterStart)
+inline void RingArray<TYPE>::GetStats(size_t& SpaceAfterHead,size_t& SpaceBeforeTail,size_t& UsedAfterTail,size_t& UsedAfterStart) const
 {
-	std::lock_guard<std::recursive_mutex> Lock( mLock );
+//	std::lock_guard<std::recursive_mutex> Lock( mLock );
 
 	SpaceAfterHead = (mTail > mHead) ? (mTail - mHead) : (mBuffer.GetSize() - mHead);
 	SpaceBeforeTail = (mTail > mHead) ? (mTail - mHead ) : (mTail - 0);
@@ -85,6 +91,13 @@ inline bool RingArray<TYPE>::PopFront(TYPE& Element)
 	int Counter = 0;
 	auto AsArray = GetRemoteArray( &Element, 1, Counter );
 	return PopFront( 1, GetArrayBridge( AsArray ) );
+}
+
+template<typename TYPE>
+inline void RingArray<TYPE>::Clear()
+{
+	std::lock_guard<std::recursive_mutex> Lock( mLock );
+	mTail = mHead;
 }
 
 template<typename TYPE>
@@ -169,5 +182,15 @@ inline bool RingArray<TYPE>::PopFront(size_t Elements,ArrayBridge<TYPE>& Array)
 	}
 
 	return true;
+}
+
+
+template<typename TYPE>
+inline size_t RingArray<TYPE>::GetSize() const
+{
+	size_t SpaceAfterHead,SpaceBeforeTail,UsedAfterTail,UsedAfterStart;
+	GetStats( SpaceAfterHead, SpaceBeforeTail, UsedAfterTail, UsedAfterStart );
+	
+	return ( UsedAfterTail + UsedAfterStart );
 }
 
