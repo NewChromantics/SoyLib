@@ -60,11 +60,6 @@ const EXTERNALTYPE* TExportManager<TYPE,EXTERNALTYPE>::Lock(const TYPE& Item)
 		return std::make_shared<std::string>();
 	};
 	
-	if ( &Item == nullptr )
-	{
-		throw Soy::AssertException("Shouldn't be sending nulls... check strings");
-	}
-
 	auto& NewItem = mPool.Alloc( Alloc );
 	NewItem = Item;
 	
@@ -73,7 +68,9 @@ const EXTERNALTYPE* TExportManager<TYPE,EXTERNALTYPE>::Lock(const TYPE& Item)
 	if ( External == nullptr )
 	{
 		//	gr: not doing std::Debug for recursion in Unity stuff (fix that!)
-		int x;
+		//	something to breakpoint
+		static int x = 0;
+		x++;
 	}
 	return External;
 }
