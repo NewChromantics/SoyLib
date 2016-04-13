@@ -3,6 +3,7 @@
 #include "SoyPixels.h"
 #include "SoyThread.h"
 #include "SoyMediaFormat.h"
+#include "SoyRingArray.h"
 
 class TStreamWriter;
 class TStreamBuffer;
@@ -367,7 +368,7 @@ class TAudioBufferManager : public TMediaBufferManager
 {
 public:
 	TAudioBufferManager(const TPixelBufferParams& Params) :
-		mBlocks				( SoyMedia::DefaultHeap ),
+		mBlocks				( 100 ),
 		TMediaBufferManager	( Params ),
 		mChannelCache		( 0 ),
 		mFrequencyCache		( 0 )
@@ -395,7 +396,7 @@ private:
 	size_t						mChannelCache;
 
 	std::mutex					mBlocksLock;
-	Array<TAudioBufferBlock>	mBlocks;
+	RingArray<Array<TAudioBufferBlock>>	mBlocks;
 };
 
 

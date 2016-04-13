@@ -1310,9 +1310,10 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 			BlocksTailTime = mBlocks.GetBack().GetEndTime();
 
 		//	build data from blocks that cover our timespan
-		for ( int b = 0; b < mBlocks.GetSize(); b++ )
+		auto Size = mBlocks.GetSize();
+		for ( int b = 0; b < Size; b++ )
 		{
-			auto& Block = mBlocks[b];
+			auto& Block = mBlocks.GetFront(b);
 			auto BlockStart = Block.GetStartTime();
 			auto BlockEnd = Block.GetEndTime();
 
@@ -1428,7 +1429,7 @@ void TAudioBufferManager::SetPlayerTime(const SoyTime& Time)
 void TAudioBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
-
+/*
 	//	find last index to keep
 	for ( ssize_t i=mBlocks.GetSize()-1;	i>=0;	i-- )
 	{
@@ -1441,17 +1442,47 @@ void TAudioBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 
 		break;
 	}
+ */
 }
 
 
 void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData)
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
+	
+	//	find last index to keep
+	auto Size = mBlocks.GetSize();
+	for ( auto i=0;	i<Size;	i++ )
+	{
+		auto& Block = mBlocks.GetFront(i);
+		auto BlockEndTime = Block.GetEndTime();
+		auto BlockStartTime = Block.GetStartTime();
 
+		//	wholly in the past
+		if ( BlockEndTime <= FlushTime )
+		{
+			std::Debug << "Culled block " << i << " " << BlockStartTime << "..." << BlockEndTime << std::endl;
+			mBlocks.PopFront();
+			continue;
+		}
+/*
+		if ( ClipOldData )
+		{
+			if ( BlockStartTime < FlushTime )
+			{
+				Block.Clip(FlushTime, BlockEndTime);
+				std::Debug << "Cull-clipped block " << i << " to " << Block.GetStartTime() << "..." << Block.GetEndTime() << " (should be " << FlushTime << "..." << BlockEndTime << ")" << std::endl;
+			}
+		}
+	*/
+		//	ring buffer can only pop front
+		break;
+	}
+	/*
 	//	find last index to keep
 	for ( ssize_t i=mBlocks.GetSize()-1;	i>=0;	i-- )
 	{
-		auto& Block = mBlocks[i];
+		auto& Block = mBlocks.GetFront(i);
 		auto BlockEndTime = Block.GetEndTime();
 		auto BlockStartTime = Block.GetStartTime();
 
@@ -1473,6 +1504,7 @@ void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData
 		}
 
 	}
+	 */
 }
 
 
@@ -1483,12 +1515,14 @@ void TAudioBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
 	
 	BufferArray<uint64,10> NextTimecodes;
 	{
+		/*
 		std::lock_guard<std::mutex> Lock( mBlocksLock );
 		for ( int i=0;	i<mBlocks.GetSize() && !NextTimecodes.IsFull();	i++ )
 		{
 			auto& Block = mBlocks[i];
 			NextTimecodes.PushBack( Block.GetStartTime().mTime );
 		}
+		 */
 	}
 	
 	Json.Push( (Prefix + "NextFrameTime").c_str(), GetArrayBridge(NextTimecodes) );
