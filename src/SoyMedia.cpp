@@ -1409,10 +1409,19 @@ void TAudioBufferManager::SetPlayerTime(const SoyTime& Time)
 {
 	TMediaBufferManager::SetPlayerTime(Time);
 	
-	static bool CullData = false;
+	//	gr: as the audio reader & player aren't in sync, we should probably leave some space
+	static uint64 KeepBufferMs = 100;
+	static bool CullData = true;
+	static bool ClipCulledData = false;
 	if ( CullData )
 	{
-		ReleaseFramesBefore( Time, true );
+		SoyTime CullTime = Time;
+		if ( CullTime > SoyTime(KeepBufferMs) )
+			CullTime = SoyTime( KeepBufferMs );
+		else
+			CullTime = SoyTime();
+		
+		ReleaseFramesBefore( CullTime, ClipCulledData );
 	}
 }
 
