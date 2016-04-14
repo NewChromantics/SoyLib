@@ -1284,7 +1284,7 @@ void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 	mOnFramePushed.OnTriggered( AudioData.mStartTime );
 }
 
-bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool HighPrecisionExtraction,bool VerboseDebug)
+bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool HighPrecisionExtraction,bool VerboseDebug,bool PadTail)
 {
 	Soy::Assert(FinalOutputBlock.IsValid(), "Need target block for PopAudioBuffer");
 
@@ -1379,7 +1379,7 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 		//	clip buffer
 		OutputBlock.mData.SetSize(Data.GetSize());
 	}
-	else if ( OutputBlock.mData.GetSize() < Data.GetSize() )
+	else if ( OutputBlock.mData.GetSize() < Data.GetSize() && PadTail )
 	{
 		//	pad
 		auto PadAmount = Data.GetSize() - OutputBlock.mData.GetSize();

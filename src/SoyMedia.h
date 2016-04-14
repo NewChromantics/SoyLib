@@ -340,7 +340,8 @@ public:
 	{
 	}
 	
-	bool				IsValid() const		{	return !mData.IsEmpty();	}
+	bool				HasData() const					{	return !mData.IsEmpty();	}
+	bool				IsValid() const					{	return mChannels != 0 && mFrequency!=0;	}
 	SoyTime				GetStartTime() const			{	return mStartTime;	}
 	SoyTime				GetEndTime() const;
 	SoyTime				GetSampleTime(size_t SampleIndex) const;
@@ -378,7 +379,7 @@ public:
 	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
 
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
-	bool			GetAudioBuffer(TAudioBufferBlock& OutputBlock,bool HighPrecisionExtraction,bool VerboseDebug);	//	returns false if NO data, pads with zeros if not all there
+	bool			GetAudioBuffer(TAudioBufferBlock& OutputBlock,bool HighPrecisionExtraction,bool VerboseDebug,bool PadTail);	//	returns false if NO data, pads with zeros if not all there
 
 	virtual void	SetPlayerTime(const SoyTime& Time) override;	//	clear out old data
 
