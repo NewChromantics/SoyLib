@@ -255,6 +255,11 @@ private:
 	template<typename SOURCE_T>
 	void	Copy(const SOURCE_T* Source,size_t NewDataIndex,size_t Length)
 	{
+		//	nothing to do
+		if ( Length == 0 )
+			return;
+		if ( !Source )
+			throw Soy::AssertException("Tried to copy Null data into array");
 		if ( NewDataIndex >= GetSize() )
 			throw Soy::AssertException(std::string(__func__) + " index out of range");
 		if ( NewDataIndex+Length > GetSize() )	
