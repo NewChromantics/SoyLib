@@ -249,6 +249,46 @@ public:
 		RemoveBlock( Index, 1 );
 		return Item;
 	}
+	
+	//	set all elements to a value
+	template<typename TYPE>
+	void	SetAll(const TYPE& Value)
+	{
+		auto Size = GetSize();
+		auto mdata = GetArray();
+		
+		for ( size_t i=0;	i<Size;	i++ )
+			mdata[i] = Value;
+	}
+	
+	void	SetAll(const T& Value)
+	{
+		auto Size = GetSize();
+		auto mdata = GetArray();
+		
+		//	attempt non-complex memset if element can be broken into a byte
+		if ( !Soy::IsComplexType<T>() )
+		{
+			bool AllSame = true;
+			const uint8* pValue = reinterpret_cast<const uint8*>( &Value );
+			for ( size_t i=1;	i<sizeof(Value);	i++ )
+			{
+				if ( pValue[i] == pValue[i-1] )
+					continue;
+				AllSame = false;
+			}
+			if ( AllSame )
+			{
+				memset( mdata, pValue[0], GetDataSize() );
+				return;
+			}
+		}
+
+		//	gr: can I re-use func above?
+		for ( size_t i=0;	i<Size;	i++ )
+			mdata[i] = Value;
+	}
+
 
 private:
 	//	last-stage copy, vars should all be setup by now
