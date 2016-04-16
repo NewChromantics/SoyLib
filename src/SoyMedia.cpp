@@ -1163,7 +1163,15 @@ void TAudioBufferBlock::Append(const TAudioBufferBlock& NewData)
 			PadData.PushBack(mData[LastSampleIndex + c]);
 	}
 
-	auto RequiredPadding = NewData.GetStartTime().GetTime() - CurrentEnd.GetTime();
+	//	data overlap...
+	if ( NewData.GetStartTime() > CurrentEnd )
+	{
+		std::Debug << "Warning; appending audio buffer overlap.. clipping..." << std::endl;
+		this->Clip( GetStartTime(), NewData.GetStartTime() );
+		CurrentEnd = GetEndTime();
+	}
+
+	auto RequiredPadding = NewData.GetStartTime().GetDiff( CurrentEnd );
 	if ( RequiredPadding > ToleranceForPaddingMs )
 	{
 		std::Debug << "Padding at append... (" << CurrentEnd << " < " << NewData.GetStartTime() << ")" << std::endl;
@@ -1243,7 +1251,7 @@ void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 		auto End = AudioData.GetEndTime();
 		auto EndIndex = AudioData.GetTimeSampleIndex(End);
 
-		mBlocks.PushBack( AudioData );
+		mGiantBlock.Append( AudioData );
 	}
 	mOnFramePushed.OnTriggered( AudioData.mStartTime );
 }
@@ -1258,73 +1266,37 @@ bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 	auto Channels = FinalOutputBlock.mChannels;
 	std::Debug << "Pop audio at " << StartTime << " for " << EndTime.GetDiff(StartTime) << "ms" << std::endl;
 
-	//	precise data usage by culling old frames and clipping the output data
-	//	or dumb use-whole-block-and delete all used data
-	static bool ForceAppendFirstBlockOnly = false;
 	
-	bool AppendFirstBlockOnly = (!HighPrecisionExtraction) || ForceAppendFirstBlockOnly;
-
-	//	pop out ALL the data for this time block
 	TAudioBufferBlock OutputBlock;
 
-	BufferArray<size_t,100> UsedBlockIndexes;
-
+	//	copy the data we want
 	{
 		std::lock_guard<std::mutex> Lock(mBlocksLock);
 
-		//	build data from blocks that cover our timespan
-		for ( int b = 0; b < mBlocks.GetSize(); b++ )
+		auto StartIndex = mGiantBlock.GetTimeSampleIndex(StartTime);
+		auto EndIndex = mGiantBlock.GetTimeSampleIndex(EndTime);
+
+		if ( StartIndex < 0 )
+			StartIndex = 0;
+		if ( EndIndex < 0 )
+			return false;
+		if ( EndIndex >= mGiantBlock.mData.GetSize() )
+			EndIndex = mGiantBlock.mData.GetSize() - 1;
+
+		OutputBlock.mChannels = mGiantBlock.mChannels;
+		OutputBlock.mFrequency = mGiantBlock.mFrequency;
+		OutputBlock.mStartTime = StartTime;
+		auto CopyBlock = GetArrayBridge(mGiantBlock.mData).GetSubArray(StartIndex, EndIndex - StartIndex);
+		OutputBlock.mData.PushBackArray(CopyBlock);
+
+		static bool CullData = true;
+		if ( CullData )
 		{
-			auto& Block = mBlocks[b];
-			auto BlockStart = Block.GetStartTime();
-			auto BlockEnd = Block.GetEndTime();
-
-			//	in the future
-			if ( BlockStart >= EndTime )
-				break;
-
-			//	in the past
-			if ( BlockEnd < StartTime )
-				continue;
-
-			std::Debug << "[" << StartTime << "] appending block " << b << " " << BlockStart << "..." << BlockEnd << std::endl;
-			UsedBlockIndexes.PushBack(b);
-			OutputBlock.Append(Block);
-
-			if ( AppendFirstBlockOnly )
-				break;
+			auto GiantBlockEnd = mGiantBlock.GetEndTime() + SoyTime(1000ull);
+			mGiantBlock.Clip(EndTime, GiantBlockEnd);
 		}
 	}
-	
-	if ( HighPrecisionExtraction )
-	{
-		//	cull specific data
-		static bool Cull = true;
-		static bool ClipOldData = true;
-		if ( Cull )
-		{
-			ReleaseFramesBefore(EndTime,ClipOldData);
-		}
-	}
-	else
-	{
-		//	delete all used data
-		static bool DeleteAfterAppend = true;
-		if ( DeleteAfterAppend )
-		{
-			//	gr: these NEED to be largest->smallest
-			for ( int i = UsedBlockIndexes.GetSize() - 1; i >= 0; i-- )
-			{
-				auto BlockIndex = UsedBlockIndexes[i];
-				auto& BlockCulled = mBlocks[BlockIndex];
-				std::Debug << "[" << StartTime << "] Culled used-block " << BlockIndex << " " << BlockCulled.GetStartTime() << "..." << BlockCulled.GetEndTime() << std::endl;
-				mBlocks.RemoveBlock(BlockIndex, 1);
-			}
-		}
 
-	}
-	
-	
 	//	no data for time, so return without modifying
 	if ( !OutputBlock.IsValid() )
 	{
@@ -1396,6 +1368,8 @@ bool TAudioBufferManager::PopAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 
 void TAudioBufferManager::PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd)
 {
+	return;
+	/*
 	size_t BlockIndex = 0;
 	while ( Data.GetSize() < MaxSamples )
 	{
@@ -1425,18 +1399,20 @@ void TAudioBufferManager::PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSa
 		
 		BlockIndex++;
 	}
+	*/
 }
 
 
 void TAudioBufferManager::ReleaseFrames()
 {
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
-	mBlocks.Clear();
+	//mBlocks.Clear();
 }
 
 
 void TAudioBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 {
+	/*
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
 
 	//	find last index to keep
@@ -1451,11 +1427,13 @@ void TAudioBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 
 		break;
 	}
+	*/
 }
 
 
 void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData)
 {
+	/*
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
 
 	//	find last index to keep
@@ -1483,6 +1461,7 @@ void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData
 		}
 
 	}
+	*/
 }
 
 
@@ -1493,12 +1472,14 @@ void TAudioBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
 	
 	BufferArray<uint64,10> NextTimecodes;
 	{
+		/*
 		std::lock_guard<std::mutex> Lock( mBlocksLock );
 		for ( int i=0;	i<mBlocks.GetSize() && !NextTimecodes.IsFull();	i++ )
 		{
 			auto& Block = mBlocks[i];
 			NextTimecodes.PushBack( Block.GetStartTime().mTime );
 		}
+		*/
 	}
 	
 	Json.Push( (Prefix + "NextFrameTime").c_str(), GetArrayBridge(NextTimecodes) );

@@ -367,7 +367,6 @@ class TAudioBufferManager : public TMediaBufferManager
 {
 public:
 	TAudioBufferManager(const TPixelBufferParams& Params) :
-		mBlocks				( SoyMedia::DefaultHeap ),
 		TMediaBufferManager	( Params )
 	{
 	}
@@ -383,8 +382,8 @@ public:
 	void			ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData);
 
 private:
-	std::mutex					mBlocksLock;
-	Array<TAudioBufferBlock>	mBlocks;
+	std::mutex			mBlocksLock;
+	TAudioBufferBlock	mGiantBlock;
 };
 
 
