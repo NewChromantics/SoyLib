@@ -1319,7 +1319,7 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 			BlocksTailTime = mBlocks.GetBack().GetEndTime();
 
 		//	build data from blocks that cover our timespan
-		for ( int b = mBlockFlushStart; b < mBlocks.GetSize(); b++ )
+		for ( int b=0;	b<mBlocks.GetSize();	b++ )
 		{
 			auto& Block = mBlocks[b];
 			auto BlockStart = Block.GetStartTime();
@@ -1427,35 +1427,12 @@ void TAudioBufferManager::SetPlayerTime(const SoyTime& Time)
 	else
 		CullTime = SoyTime();
 	
-	
-	static bool SetFlushMarker = true;
-	
-	if ( SetFlushMarker )
+	//	gr: as the audio reader & player aren't in sync, we should probably leave some space
+	static bool CullData = false;
+	static bool ClipCulledData = false;
+	if ( CullData )
 	{
-		//	instead of releasing, move the early marker
-		for ( size_t i=mBlockFlushStart+1;	i<mBlocks.GetSize();	i++ )
-		{
-			auto& Block = mBlocks[i];
-			auto BlockEndTime = Block.GetEndTime();
-			
-			//	not in the past
-			if ( BlockEndTime >= CullTime )
-				break;
-
-			mBlockFlushStart = i;
-			continue;
-		}
-	}
-	else
-	{
-		//	gr: as the audio reader & player aren't in sync, we should probably leave some space
-		static bool CullData = true;
-		static bool ClipCulledData = false;
-		if ( CullData )
-		{
-			
-			ReleaseFramesBefore( CullTime, ClipCulledData );
-		}
+		ReleaseFramesBefore( CullTime, ClipCulledData );
 	}
 }
 
@@ -1470,7 +1447,6 @@ void TAudioBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 		if ( Block.GetStartTime() > FlushTime )
 		{
 			mBlocks.RemoveBlock( i, 1 );
-			mBlockFlushStart = 0;
 			continue;
 		}
 
@@ -1497,7 +1473,6 @@ void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData
 		{
 			std::Debug << "Culled block " << i << " " << BlockStartTime << "..." << BlockEndTime << std::endl;
 			mBlocks.RemoveBlock(i, 1);
-			mBlockFlushStart = 0;
 			continue;
 		}
 

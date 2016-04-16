@@ -364,6 +364,7 @@ public:
 	Array<float>		mData;
 };
 
+
 class TAudioBufferManager : public TMediaBufferManager
 {
 public:
@@ -371,8 +372,7 @@ public:
 		mBlocks				( SoyMedia::DefaultHeap ),
 		TMediaBufferManager	( Params ),
 		mChannelCache		( 0 ),
-		mFrequencyCache		( 0 ),
-		mBlockFlushStart	( 0 )
+		mFrequencyCache		( 0 )
 	{
 	}
 	
@@ -398,7 +398,6 @@ private:
 
 	std::mutex					mBlocksLock;
 	Array<TAudioBufferBlock>	mBlocks;
-	std::atomic<size_t>			mBlockFlushStart;
 };
 
 
