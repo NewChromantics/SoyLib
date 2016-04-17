@@ -1069,14 +1069,18 @@ bool TMediaBufferManager::PrePushBuffer(SoyTime Timestamp)
 
 SoyTime TAudioBufferBlock::GetEndTime() const
 {
-	static bool ReturnLastTimecode = false;
-	
 	auto LastSampleIndex = mData.GetSize();
-	if ( ReturnLastTimecode )
-		LastSampleIndex -= mChannels;
-	
 	return GetSampleTime( LastSampleIndex );
 }
+
+
+SoyTime TAudioBufferBlock::GetLastDataTime() const
+{
+	auto LastSampleIndex = mData.GetSize();
+	LastSampleIndex -= mChannels;
+	return GetSampleTime( LastSampleIndex );
+}
+
 
 SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
 {
@@ -1086,7 +1090,17 @@ SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
 	//	frequency is samples per sec
 	float SampleDuration = 1.f / (float)(mFrequency * mChannels);
 	float SampleTime = SampleIndex * SampleDuration;
-	auto SampleTimeMs = size_cast<uint64>( SampleTime * 1000.f );
+	float SampleTimeMsf = SampleTime * 1000.f;
+	
+	//	determine if this doesn't align to a MS, and move FORWARD so we don't repeat data
+	float fractpart, intpart;
+	fractpart = modff( SampleTimeMsf, &intpart );
+	if ( fractpart > 0 )
+	{
+		intpart++;
+	}
+	
+	auto SampleTimeMs = size_cast<uint64>( intpart );
 	return mStartTime + SoyTime(SampleTimeMs);
 }
 

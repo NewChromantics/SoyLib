@@ -344,6 +344,7 @@ public:
 	bool				IsValid() const					{	return mChannels != 0 && mFrequency!=0;	}
 	SoyTime				GetStartTime() const			{	return mStartTime;	}
 	SoyTime				GetEndTime() const;
+	SoyTime				GetLastDataTime() const;
 	SoyTime				GetSampleTime(size_t SampleIndex) const;
 	ssize_t				GetTimeSampleIndex(SoyTime Time) const;		//	can be out of range of the data
 	size_t				RemoveDataUntil(SoyTime Time);				//	returns number of samples removed
