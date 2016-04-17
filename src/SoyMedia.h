@@ -380,7 +380,7 @@ public:
 	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
 
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
-	bool			GetAudioBuffer(TAudioBufferBlock& OutputBlock,bool HighPrecisionExtraction,bool VerboseDebug,bool PadTail);	//	returns false if NO data, pads with zeros if not all there
+	bool			GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool VerboseDebug,bool PadOutputTail,bool ClipOutputFront,bool ClipOutputBack,bool CullBuffer);	//	returns false if NO data, pads with zeros if not all there
 
 	virtual void	SetPlayerTime(const SoyTime& Time) override;	//	clear out old data
 
