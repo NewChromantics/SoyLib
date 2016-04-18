@@ -381,7 +381,8 @@ public:
 
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
 	bool			GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool VerboseDebug,bool PadOutputTail,bool ClipOutputFront,bool ClipOutputBack,bool CullBuffer);	//	returns false if NO data, pads with zeros if not all there
-
+	void			PopNextAudioData(ArrayBridge<float>&& Data,bool PadData);
+	
 	virtual void	SetPlayerTime(const SoyTime& Time) override;	//	clear out old data
 
 	virtual void	ReleaseFrames() override;

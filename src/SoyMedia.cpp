@@ -1298,6 +1298,52 @@ void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
 	mOnFramePushed.OnTriggered( AudioData.mStartTime );
 }
 
+
+void TAudioBufferManager::PopNextAudioData(ArrayBridge<float>&& Data,bool PadData)
+{
+	//	just read data straight from the blocks
+	std::lock_guard<std::mutex> Lock( mBlocksLock );
+	
+	size_t OrigDataSize = Data.GetSize();
+	Data.Clear();
+	
+	while ( Data.GetSize() < OrigDataSize )
+	{
+		//	pop from first block
+		if ( mBlocks.IsEmpty() )
+			break;
+		
+		size_t Required = OrigDataSize - Data.GetSize();
+		auto& Block = mBlocks[0];
+		
+		//	this corrupts block's start time
+		auto PopAmount = std::min( Required, Block.mData.GetSize() );
+		if ( PopAmount > 0 )
+		{
+			auto PopBlockData = GetArrayBridge(Block.mData).GetSubArray( 0, PopAmount );
+			Data.PushBackArray( PopBlockData );
+			Block.mData.RemoveBlock( 0, PopAmount );
+		}
+		
+		//	cull data
+		if ( Block.mData.IsEmpty() )
+		{
+			mBlocks.RemoveBlock( 0, 1 );
+		}
+	}
+	
+	//	didn't get enough data
+	if ( Data.GetSize() < OrigDataSize )
+	{
+		if ( PadData )
+		{
+			while ( Data.GetSize() < OrigDataSize )
+				Data.PushBack(0);
+		}
+	}
+}
+
+
 bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool VerboseDebug,bool PadOutputTail,bool ClipOutputFront,bool ClipOutputBack,bool CullBuffer)
 {
 	Soy::Assert(FinalOutputBlock.IsValid(), "Need target block for PopAudioBuffer");
@@ -1438,19 +1484,11 @@ void TAudioBufferManager::SetPlayerTime(const SoyTime& Time)
 {
 	TMediaBufferManager::SetPlayerTime(Time);
 	
-	static uint64 KeepBufferMs = 100;
-	SoyTime CullTime = Time;
-	if ( CullTime > SoyTime(KeepBufferMs) )
-		CullTime = Time - SoyTime( KeepBufferMs );
-	else
-		CullTime = SoyTime();
-	
-	//	gr: as the audio reader & player aren't in sync, we should probably leave some space
-	static bool CullData = false;
-	static bool ClipCulledData = false;
+	static bool CullData = true;
+	static bool ClipCulledData = true;
 	if ( CullData )
 	{
-		ReleaseFramesBefore( CullTime, ClipCulledData );
+		ReleaseFramesBefore( Time, ClipCulledData );
 	}
 }
 
