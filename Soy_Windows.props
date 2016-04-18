@@ -21,6 +21,7 @@
       <StringPooling>false</StringPooling>
       <Optimization>Disabled</Optimization>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <OmitFramePointers>false</OmitFramePointers>
     </ClCompile>
     <Link>
       <LinkStatus>true</LinkStatus>
