@@ -1400,7 +1400,8 @@ bool TAudioBufferManager::GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,boo
 	//	no data for time, so return without modifying
 	if ( !OutputBlock.IsValid() )
 	{
-		std::Debug << "No audio data for " << StartTime << "..." << EndTime << std::endl;
+		if ( VerboseDebug )
+			std::Debug << "No audio data for " << StartTime << "..." << EndTime << std::endl;
 		return false;
 	}
 
@@ -1515,6 +1516,7 @@ void TAudioBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 
 void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData)
 {
+	static bool VerboseDebug = false;
 	std::lock_guard<std::mutex> Lock( mBlocksLock );
 
 	//	find last index to keep
@@ -1527,7 +1529,8 @@ void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData
 		//	wholly in the past
 		if ( BlockEndTime <= FlushTime )
 		{
-			std::Debug << "Culled block " << i << " " << BlockStartTime << "..." << BlockEndTime << std::endl;
+			if ( VerboseDebug )
+				std::Debug << "Culled block " << i << " " << BlockStartTime << "..." << BlockEndTime << std::endl;
 			mBlocks.RemoveBlock(i, 1);
 			continue;
 		}
@@ -1537,7 +1540,8 @@ void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData
 			if ( BlockStartTime < FlushTime )
 			{
 				Block.Clip(FlushTime, BlockEndTime);
-				//std::Debug << "Cull-clipped block " << i << " to " << Block.GetStartTime() << "..." << Block.GetEndTime() << " (should be " << FlushTime << "..." << BlockEndTime << ")" << std::endl;
+				if ( VerboseDebug )
+					std::Debug << "Cull-clipped block " << i << " to " << Block.GetStartTime() << "..." << Block.GetEndTime() << " (should be " << FlushTime << "..." << BlockEndTime << ")" << std::endl;
 			}
 		}
 
