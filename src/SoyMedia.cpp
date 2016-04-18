@@ -1537,7 +1537,7 @@ void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData
 			if ( BlockStartTime < FlushTime )
 			{
 				Block.Clip(FlushTime, BlockEndTime);
-				std::Debug << "Cull-clipped block " << i << " to " << Block.GetStartTime() << "..." << Block.GetEndTime() << " (should be " << FlushTime << "..." << BlockEndTime << ")" << std::endl;
+				//std::Debug << "Cull-clipped block " << i << " to " << Block.GetStartTime() << "..." << Block.GetEndTime() << " (should be " << FlushTime << "..." << BlockEndTime << ")" << std::endl;
 			}
 		}
 
