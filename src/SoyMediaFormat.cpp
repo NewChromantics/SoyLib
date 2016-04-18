@@ -46,6 +46,8 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::PcmLinear_16,		"PcmLinear_16" },
 	{ SoyMediaFormat::PcmLinear_20,		"PcmLinear_20" },
 	{ SoyMediaFormat::PcmLinear_24,		"PcmLinear_24" },
+	{ SoyMediaFormat::PcmLinear_float,	"PcmLinear_float" },
+	{ SoyMediaFormat::Audio_AUDS,		"Audio_AUDS" },
 	{ SoyMediaFormat::Text,				"text" },
 	{ SoyMediaFormat::Json,				"Json" },
 	{ SoyMediaFormat::Html,				"Html" },
@@ -74,16 +76,20 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::FreenectDepth10bit,	"FreenectDepth10bit" },
 	{ SoyMediaFormat::FreenectDepth11bit,	"FreenectDepth11bit" },
 	{ SoyMediaFormat::FreenectDepthmm,		"FreenectDepthmm" },
-	{ SoyMediaFormat::LumaFull,			"LumaFull" },
-	{ SoyMediaFormat::LumaVideo,		"LumaVideo" },
+	{ SoyMediaFormat::Luma_Full,			"Luma_Full" },
+	{ SoyMediaFormat::Luma_Ntsc,		"Luma_Ntsc" },
+	{ SoyMediaFormat::Luma_Smptec,		"Luma_Smptec" },
 	{ SoyMediaFormat::Yuv_8_88_Full,	"Yuv_8_88_Full" },
-	{ SoyMediaFormat::Yuv_8_88_Video,	"Yuv_8_88_Video" },
+	{ SoyMediaFormat::Yuv_8_88_Ntsc,	"Yuv_8_88_Ntsc" },
+	{ SoyMediaFormat::Yuv_8_88_Smptec,	"Yuv_8_88_Video" },
 	{ SoyMediaFormat::Yuv_8_8_8_Full,	"Yuv_8_8_8_Full" },
-	{ SoyMediaFormat::Yuv_8_8_8_Video,	"Yuv_8_8_8_Video" },
-	{ SoyMediaFormat::Yuv_844_Full,		"Yuv_844_Full" },
+	{ SoyMediaFormat::Yuv_8_8_8_Ntsc,	"Yuv_8_8_8_Ntsc" },
+	{ SoyMediaFormat::Yuv_8_8_8_Smptec,	"Yuv_8_8_8_Smptec" },
+	{ SoyMediaFormat::YYuv_8888_Full,	"YYuv_8888_Full" },
+	{ SoyMediaFormat::YYuv_8888_Ntsc,	"YYuv_8888_Ntsc" },
+	{ SoyMediaFormat::YYuv_8888_Smptec,	"YYuv_8888_Smptec" },
 	{ SoyMediaFormat::ChromaUV_8_8,		"ChromaUV_8_8" },
 	{ SoyMediaFormat::ChromaUV_88,		"ChromaUV_88" },
-	{ SoyMediaFormat::ChromaUV_44,		"ChromaUV_44" },
 	{ SoyMediaFormat::Palettised_RGB_8,	"Palettised_RGB_8" },
 	{ SoyMediaFormat::Palettised_RGBA_8,	"Palettised_RGBA_8" },
 };
@@ -179,6 +185,7 @@ bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 		case SoyMediaFormat::PcmLinear_16:
 		case SoyMediaFormat::PcmLinear_20:
 		case SoyMediaFormat::PcmLinear_24:
+		case SoyMediaFormat::PcmLinear_float:
 		case SoyMediaFormat::Wave:
 		case SoyMediaFormat::Audio_AUDS:
 		case SoyMediaFormat::PcmAndroidRaw:
@@ -382,6 +389,9 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize
 		//	found in quicktime mov's
 		case 'tmcd':
             return SoyMediaFormat::QuicktimeTimecode;
+
+		//case 'MJPG':
+		//	return SoyMediaFormat::MovingJpeg;
 	}
 	
 	//	detect reversed fourcc's and encourage converting at the source

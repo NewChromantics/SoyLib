@@ -41,17 +41,30 @@ namespace SoyPixelsFormat
 		//	video LUMA range 16-235 (chroma is still 0-255)	http://stackoverflow.com/a/10129300/355753
 		//	Y=luma	uv=ChromaUv
 		
+		//	gr: I want to remove video/full/ntsc etc and have that explicit in a media format
+		//	http://www.chromapure.com/colorscience-decoding.asp
+		//	the range counts towards luma & chroma
+		//	video = NTSC
+		//	full = Rec. 709
+		//	SMPTE-C = SMPTE 170M 
+
 		//	gr: naming convention; planes seperated by underscore
 		Yuv_8_88_Full,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
-		Yuv_8_88_Video,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
+		Yuv_8_88_Ntsc,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
+		Yuv_8_88_Smptec,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
 		Yuv_8_8_8_Full,		//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
-		Yuv_8_8_8_Video,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
-		Yuv_844_Full,		//	8bit luma, then 8bit chromauv in the same plane
-		Yuv_844_Video,		//	8bit luma, then 8bit chromauv in the same plane
+		Yuv_8_8_8_Ntsc,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
+		Yuv_8_8_8_Smptec,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
+
+		//	gr: YUY2: LumaX,ChromaU,LumaX+1,ChromaV (4:2:2 ratio, 8 bit)
+		//		we still treat it like a 2 component format so dimensions match original
+		//		(maybe should be renamed YYuv_88 for this reason)
+		YYuv_8888_Full,
+		YYuv_8888_Ntsc,
+		YYuv_8888_Smptec,
 
 		ChromaUV_8_8,		//	8 bit plane, 8 bit plane
 		ChromaUV_88,		//	16 bit interleaved plane
-		ChromaUV_44,		//	8 bit plane where each byte is split in half
 		
 
 		//	https://github.com/ofTheo/ofxKinect/blob/ebb9075bcb5ab2543220b4dec598fd73cec40904/libs/libfreenect/src/cameras.c
@@ -81,7 +94,8 @@ namespace SoyPixelsFormat
 			proc_buf[3*i+4]=g2;
 			proc_buf[3*i+5]=b2;		 */
 
-		LumaVideo,			//	Video-range luma plane
+		Luma_Ntsc,			//	ntsc-range luma plane
+		Luma_Smptec,		//	Smptec-range luma plane
 
 		//	2 planes, RGB (palette+length8) Greyscale (indexes)
 		//	warning, palette's first byte is the size of the palette! need to work out how to auto skip over this when extracting the plane...
@@ -91,7 +105,7 @@ namespace SoyPixelsFormat
 		
 		//	shorthand names
 		//	http://www.fourcc.org/yuv.php
-		LumaFull		= Greyscale,	//	Luma plane of a YUV
+		Luma_Full		= Greyscale,	//	Luma plane of a YUV
 		Nv12			= Yuv_8_88_Full,
 		I420			= Yuv_8_8_8_Full,
 		
@@ -116,6 +130,10 @@ namespace SoyPixelsFormat
 	//	merge index & palette into Paletteised_8_8
 	void			MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPixelsImpl& IndexedImage,const SoyPixelsImpl& Palette,uint8 TransparentIndex);
 
+	//	get alternatives of formats
+	Type			GetYuvFull(Type Format);
+	Type			GetYuvNtsc(Type Format);
+	Type			GetYuvSmptec(Type Format);
 	
 	DECLARE_SOYENUM( SoyPixelsFormat );
 };

@@ -44,7 +44,7 @@ namespace Directx
 	inline std::string		GetEnumString(HRESULT Error)												{	return Platform::GetErrorString( Error );	}
 	inline bool				IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true)	{	return Platform::IsOkay( Error, Context, ThrowException );	}
 	SoyPixelsFormat::Type	GetFormat(DXGI_FORMAT Format);
-	DXGI_FORMAT				GetFormat(SoyPixelsFormat::Type Format);
+	DXGI_FORMAT				GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus);
 
 	namespace TTextureMode
 	{
@@ -178,6 +178,7 @@ public:
 
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
+	DXGI_FORMAT			GetDirectxFormat() const	{	return mFormat;	}
 
 	bool				operator==(const TTextureMeta& Meta) const	{	return mMeta == Meta.mMeta && GetMode() == Meta.mMode;	}
 	bool				operator==(const TTexture& that) const	{	return mTexture.mObject == that.mTexture.mObject;	}
@@ -190,6 +191,7 @@ public:
 	TTextureSamplingParams			mSamplingParams;
 	SoyPixelsMeta					mMeta;			//	cache
 	AutoReleasePtr<ID3D11Texture2D>	mTexture;
+	DXGI_FORMAT						mFormat;		//	dx format
 };
 namespace Directx
 {

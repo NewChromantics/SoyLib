@@ -22,16 +22,20 @@ namespace SoyMediaFormat
 		FreenectDepth10bit = SoyPixelsFormat::FreenectDepth10bit,
 		FreenectDepth11bit = SoyPixelsFormat::FreenectDepth11bit,
 		FreenectDepthmm = SoyPixelsFormat::FreenectDepthmm,
-		LumaFull = SoyPixelsFormat::LumaFull,
-		LumaVideo = SoyPixelsFormat::LumaVideo,
+		Luma_Full = SoyPixelsFormat::Luma_Full,
+		Luma_Ntsc = SoyPixelsFormat::Luma_Ntsc,
+		Luma_Smptec = SoyPixelsFormat::Luma_Smptec,
 		Yuv_8_88_Full = SoyPixelsFormat::Yuv_8_88_Full,
-		Yuv_8_88_Video = SoyPixelsFormat::Yuv_8_88_Video,
+		Yuv_8_88_Ntsc = SoyPixelsFormat::Yuv_8_88_Ntsc,
+		Yuv_8_88_Smptec = SoyPixelsFormat::Yuv_8_88_Smptec,
 		Yuv_8_8_8_Full = SoyPixelsFormat::Yuv_8_8_8_Full,
-		Yuv_8_8_8_Video = SoyPixelsFormat::Yuv_8_8_8_Video,
-		Yuv_844_Full = SoyPixelsFormat::Yuv_844_Full,
+		Yuv_8_8_8_Ntsc = SoyPixelsFormat::Yuv_8_8_8_Ntsc,
+		Yuv_8_8_8_Smptec = SoyPixelsFormat::Yuv_8_8_8_Smptec,
+		YYuv_8888_Full = SoyPixelsFormat::YYuv_8888_Full,
+		YYuv_8888_Ntsc = SoyPixelsFormat::YYuv_8888_Ntsc,
+		YYuv_8888_Smptec = SoyPixelsFormat::YYuv_8888_Smptec,
 		ChromaUV_8_8 = SoyPixelsFormat::ChromaUV_8_8,
 		ChromaUV_88 = SoyPixelsFormat::ChromaUV_88,
-		ChromaUV_44 = SoyPixelsFormat::ChromaUV_44,
 		Palettised_RGB_8 = SoyPixelsFormat::Palettised_RGB_8,
 		Palettised_RGBA_8 = SoyPixelsFormat::Palettised_RGBA_8,
 		
@@ -61,6 +65,7 @@ namespace SoyMediaFormat
 		Tga,
 		Bmp,
 		Psd,
+		//MovingJpeg,		//	mjpeg
 		
 		//	audio
 		Audio_AUDS,		//	fourcc from mediafoundation. means "audio stream"

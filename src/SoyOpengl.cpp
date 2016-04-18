@@ -1669,8 +1669,11 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 	
 	Array<std::string> VertShader;
 	Array<std::string> FragShader;
-	Soy::SplitStringLines( GetArrayBridge(VertShader), vertexSrc );
-	Soy::SplitStringLines( GetArrayBridge(FragShader), fragmentSrc );
+	
+	//	gr: strip empty lines as the c include can often have linefeeds at the start
+	static bool IncludeEmpty = false;
+	Soy::SplitStringLines( GetArrayBridge(VertShader), vertexSrc, IncludeEmpty );
+	Soy::SplitStringLines( GetArrayBridge(FragShader), fragmentSrc, IncludeEmpty );
 	
 	SoyShader::Opengl::UpgradeVertShader( GetArrayBridge(VertShader), Context.mShaderVersion );
 	SoyShader::Opengl::UpgradeFragShader( GetArrayBridge(FragShader), Context.mShaderVersion );
@@ -2065,8 +2068,9 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		//	gr: use this with 8_8_8_REV to convert to BGRA!
 		TPixelFormatMapping( SoyPixelsFormat::ARGB,			{GL_RGBA, GL_RGBA8} ),
 		
-		TPixelFormatMapping( SoyPixelsFormat::LumaFull,		Opengl8BitFormats ),
-		TPixelFormatMapping( SoyPixelsFormat::LumaVideo,	Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::Luma_Full,	Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::Luma_Ntsc,	Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::Luma_Smptec,	Opengl8BitFormats ),
 		TPixelFormatMapping( SoyPixelsFormat::Greyscale,	Opengl8BitFormats ),
 		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_8_8,	Opengl8BitFormats ),
 

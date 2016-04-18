@@ -147,3 +147,9 @@ public:
 	TYPE*	mObject;
 };
 
+//	todo properly! stub for now (and use TVersion)
+namespace Platform
+{
+	inline size_t	GetWindowsVersion()	{	return 8;	}
+}
+

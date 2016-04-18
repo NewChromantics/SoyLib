@@ -76,11 +76,10 @@ public:
 	}
 
 	template<class ARRAYTYPE>
-	bool Copy(const ARRAYTYPE& v)
+	void Copy(const ARRAYTYPE& v)
 	{
-		if ( !SetSize( v.GetSize(),false ) )
-			return false;
-
+		SetSize(v.GetSize(), false);
+		
 		if ( Soy::DoComplexCopy<T,typename ARRAYTYPE::TYPE>() )
 		{
 			for ( size_t i=0; i<GetSize(); ++i )
@@ -90,7 +89,6 @@ public:
 		{
 			memcpy( mdata, v.GetArray(), GetSize() * sizeof(T) );
 		}
-		return true;
 	}
 
 	T& operator[](size_t index)

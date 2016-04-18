@@ -90,7 +90,7 @@ public:
 	TStreamMeta() :
 	mCodec				( SoyMediaFormat::Invalid ),
 	mMediaTypeIndex		( 0 ),
-	mPixelWidthPadding	( 0 ),
+	mPixelRowSize		( 0 ),
 	mStreamIndex		( 0 ),
 	mCompressed			( false ),
 	mFramesPerSecond	( 0 ),
@@ -108,7 +108,8 @@ public:
 	mAudioFramesPerPacket	( 0 ),
 	mAudioSampleCount		( 0 ),
 	mDecodesOutOfOrder		( false ),
-	mAudioBitsPerChannel	( 0 )
+	mAudioBitsPerChannel	( 0 ),
+	mAudioSamplesIndependent	( true )
 	{
 	};
 	
@@ -116,8 +117,10 @@ public:
 	std::string			GetMime() const						{	return SoyMediaFormat::ToMime( mCodec );	}
 	void				SetPixelMeta(const SoyPixelsMeta& Meta);
 	
-	float3x3			GetTransform() const;	//	get the rotational transform, and apply padding
-	
+	float3x3			GetTransform() const
+	{
+		return mTransform;
+	}
 	
 public:
 	SoyMediaFormat::Type	mCodec;
@@ -136,10 +139,11 @@ public:
 	//	windows media foundation
 	size_t				mStreamIndex;		//	windows MediaFoundation can have multiple metas for a single stream (MediaType index splits this), otherwise this would be EXTERNAL from the meta
 	size_t				mMediaTypeIndex;	//	applies to Windows MediaFoundation streams
-	//	gr: should be able to integrate the padding into the transform matrix; and then set pixel dimensions to the padded size
-	//		m[0][0] = width/paddedwidth
-	//	we can then get the original size with paddedwidth*m[0][0]
-	size_t				mPixelWidthPadding;	//	we can't get the stride from an IMFMediaBuffer (the non-specialised type, not 2D) but we can pre-empty it when we get the stream info, so caching it here for now. 
+
+	//	we can't get the stride from an IMFMediaBuffer (the non-specialised type, not 2D) but we can pre-empty it when we get the stream info, so caching it here for now. 
+	//	detectable for webcams. note; at meta time we don't always know the format, but we know the pitch/row stride, so can't store padding value and have to work it out later
+	//	0=unknown
+	size_t				mPixelRowSize;	
 
 	//	video
 	SoyPixelsMeta		mPixelMeta;			//	could be invalid format (if unknown, so just w/h) or because its audio etc
@@ -158,7 +162,8 @@ public:
 	size_t				mAudioBytesPerFrame;
 	size_t				mAudioFramesPerPacket;
 	size_t				mAudioBitsPerChannel;	//	change this to be like H264 different formats; AAC_8, AAC_16, AAC_float etc
-	
+	bool				mAudioSamplesIndependent;
+
 	//	this is more meta for the data... not the stream... should it be here? should it be split?
 	size_t				mAudioSampleCount;
 };
@@ -335,11 +340,21 @@ public:
 	{
 	}
 	
+	bool				HasData() const					{	return !mData.IsEmpty();	}
+	bool				IsValid() const					{	return mChannels != 0 && mFrequency!=0;	}
 	SoyTime				GetStartTime() const			{	return mStartTime;	}
+	SoyTime				GetEndTime() const;
+	SoyTime				GetLastDataTime() const;
 	SoyTime				GetSampleTime(size_t SampleIndex) const;
 	ssize_t				GetTimeSampleIndex(SoyTime Time) const;		//	can be out of range of the data
 	size_t				RemoveDataUntil(SoyTime Time);				//	returns number of samples removed
 	
+	void				Append(const TAudioBufferBlock& NewData);
+	void				Clip(SoyTime Start, SoyTime End);
+
+	//	reformatting
+	void				SetChannels(size_t Channels);
+
 public:
 	//	consider using stream meta here
 	size_t				mChannels;
@@ -350,25 +365,39 @@ public:
 	Array<float>		mData;
 };
 
+
 class TAudioBufferManager : public TMediaBufferManager
 {
 public:
 	TAudioBufferManager(const TPixelBufferParams& Params) :
 		mBlocks				( SoyMedia::DefaultHeap ),
-		TMediaBufferManager	( Params )
+		TMediaBufferManager	( Params ),
+		mChannelCache		( 0 ),
+		mFrequencyCache		( 0 )
 	{
 	}
 	
 	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
 
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
-	void			PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,size_t SampleRate,SoyTime StartTime,SoyTime EndTime);
-	void			PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd);	//	todo: handle channels
+	bool			GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool VerboseDebug,bool PadOutputTail,bool ClipOutputFront,bool ClipOutputBack,bool CullBuffer);	//	returns false if NO data, pads with zeros if not all there
+	void			PopNextAudioData(ArrayBridge<float>&& Data,bool PadData);
+	
+	virtual void	SetPlayerTime(const SoyTime& Time) override;	//	clear out old data
 
 	virtual void	ReleaseFrames() override;
 	virtual void	ReleaseFramesAfter(SoyTime FlushTime) override;
-	
+	void			ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData);
+
+	//	meta of first block. returns zero if none exist
+	size_t			GetChannels() const			{	return mChannelCache;	}
+	size_t			GetFrequency() const		{	return mFrequencyCache;	}
+
 private:
+	//	gr: cached these to avoid locks & for when we've flushed all the data
+	size_t						mFrequencyCache;
+	size_t						mChannelCache;
+
 	std::mutex					mBlocksLock;
 	Array<TAudioBufferBlock>	mBlocks;
 };
@@ -384,6 +413,8 @@ public:
 	}
 	
 	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
+
+	void			GetBuffer(std::stringstream& Output,SoyTime& StartTime,SoyTime& EndTime);
 
 	void			PushBuffer(std::shared_ptr<TMediaPacket> Buffer);
 	SoyTime			PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText);	//	returns end-time of the data extracted (invalid if none popped)
@@ -412,6 +443,7 @@ public:
 	SoyTime					GetSortingTimecode() const	{	return mDecodeTimecode.IsValid() ? mDecodeTimecode : mTimecode;	}
 	SoyTime					GetStartTime() const		{	return mTimecode;	}
 	SoyTime					GetEndTime() const			{	return mTimecode + mDuration;	}
+	bool					ContainsTime(const SoyTime& Time) const	{	return Time >= GetStartTime() && Time <= GetEndTime();	}
 	bool					HasData() const
 	{
 		if ( mPixelBuffer )
@@ -584,6 +616,8 @@ public:
 	void							Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames);				//	keep calling this, controls the packet read-ahead
 	virtual void					FlushFrames(SoyTime FlushTime);
 	
+	virtual void					GetMeta(TJsonWriter& Json);
+
 	virtual void					GetStreams(ArrayBridge<TStreamMeta>&& Streams)=0;
 	TStreamMeta						GetStream(size_t Index);
 	TStreamMeta						GetVideoStream(size_t Index);

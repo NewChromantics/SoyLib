@@ -42,7 +42,7 @@ std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap
 };
 
 
-DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
+DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus)
 {
 	switch ( Format )
 	{
@@ -53,11 +53,41 @@ DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
 		case SoyPixelsFormat::RGBA:				return DXGI_FORMAT_R8G8B8A8_UNORM;
 		case SoyPixelsFormat::BGRA:				return DXGI_FORMAT_B8G8R8A8_UNORM;
 
-		case SoyPixelsFormat::Nv12:				return DXGI_FORMAT_NV12;
+		case SoyPixelsFormat::Yuv_8_88_Full:	return DXGI_FORMAT_NV12;	
+		case SoyPixelsFormat::Yuv_8_88_Ntsc:	return DXGI_FORMAT_NV12;	
+		case SoyPixelsFormat::Yuv_8_88_Smptec:	return DXGI_FORMAT_NV12;	
+		
 		case SoyPixelsFormat::Greyscale:		return DXGI_FORMAT_R8_UNORM;
-		case SoyPixelsFormat::LumaVideo:		return DXGI_FORMAT_R8_UNORM;
+		case SoyPixelsFormat::Luma_Ntsc:		return DXGI_FORMAT_R8_UNORM;
+		case SoyPixelsFormat::Luma_Smptec:		return DXGI_FORMAT_R8_UNORM;
 		case SoyPixelsFormat::GreyscaleAlpha:	return DXGI_FORMAT_R8G8_UNORM;
 		case SoyPixelsFormat::ChromaUV_88:		return DXGI_FORMAT_R8G8_UNORM;
+	
+		//	_R8G8_B8G8 is a special format for YUY2... but I think it may not be supported on everything
+		//	gr: using RG for now and ignoring chroma until we have variables etc... we'll just fix monochrome when someone complains
+		case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_UNORM;
+		case SoyPixelsFormat::YYuv_8888_Ntsc:		return DXGI_FORMAT_R8G8_UNORM;
+		case SoyPixelsFormat::YYuv_8888_Smptec:		return DXGI_FORMAT_R8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Ntsc:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Smptec:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
+		//	DXGI_FORMAT_YUY2 is failing to bind to a resource...
+		//case SoyPixelsFormat::YYuv_8888_Full:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Ntsc:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Smptec:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
+	
+		//	other dx formats:
+		//	https://msdn.microsoft.com/en-us/library/windows/desktop/bb173059(v=vs.85).aspx
+		//	DXGI_FORMAT_YUV_444 : DXGI_FORMAT_AYUV	win8+ only
+		//	DXGI_FORMAT_Y410 YUV_444 10 bit per channel
+		//	DXGI_FORMAT_Y416 YUV_444 16 bit per channel
+		//	DXGI_FORMAT_P010  (bi?)planar 4_2_0 10 bit per channel
+	
+		//	DXGI_FORMAT_P016	yuv_4_2_0	16 bit per channel (bi?) planar
+		//	Width and height must be even. Direct3D 11 staging resources and initData parameters for this format use (rowPitch * (height + (height / 2))) bytes. The first (SysMemPitch * height) bytes are the Y plane, the remaining (SysMemPitch * (height / 2)) bytes are the UV plane.
+
+		//	Width and height must be even. Direct3D 11 staging resources and initData parameters for this format use (rowPitch * (height + (height / 2))) bytes.
+		//case SoyPixelsFormat::Yuv_844_Full:		return DXGI_FORMAT_420_OPAQUE;
 
 		default:
 		{
@@ -113,6 +143,9 @@ SoyPixelsFormat::Type Directx::GetFormat(DXGI_FORMAT Format)
 		case DXGI_FORMAT_R8_SINT:				return SoyPixelsFormat::Greyscale;
 		case DXGI_FORMAT_A8_UNORM:				return SoyPixelsFormat::Greyscale;
 		case DXGI_FORMAT_NV12:					return SoyPixelsFormat::Nv12;
+
+		case DXGI_FORMAT_YUY2:					return SoyPixelsFormat::YYuv_8888_Full;
+		case DXGI_FORMAT_R8G8_B8G8_UNORM:		return SoyPixelsFormat::YYuv_8888_Full;
 	}
 }
 
@@ -312,9 +345,10 @@ Directx::TCompiler& Directx::TContext::GetCompiler()
 Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode)
 {
 	static bool AutoMipMap = false;
+	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
 
 	Soy::Assert( Meta.IsValid(), "Cannot create texture with invalid meta");
-
+	
 	//	create description
 	D3D11_TEXTURE2D_DESC Desc;
 	memset(&Desc, 0, sizeof(Desc));
@@ -327,7 +361,7 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 
 	if ( Mode == TTextureMode::RenderTarget )
 	{
-		Desc.Format = GetFormat( Meta.GetFormat() );//DXGI_FORMAT_R32G32B32A32_FLOAT;
+		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8 );//DXGI_FORMAT_R32G32B32A32_FLOAT;
 		Desc.Usage = D3D11_USAGE_DEFAULT;
 		Desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 		Desc.CPUAccessFlags = 0;
@@ -335,21 +369,21 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 	else if ( Mode == TTextureMode::WriteOnly )
 	{
 		Desc.Usage = D3D11_USAGE_DYNAMIC;
-		Desc.Format = GetFormat( Meta.GetFormat() );
+		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8  );
 		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	}
 	else if ( Mode == TTextureMode::ReadOnly )
 	{
 		Desc.Usage = D3D11_USAGE_STAGING;
-		Desc.Format = GetFormat( Meta.GetFormat() );
+		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8  );
 		Desc.BindFlags = 0;
 		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 	}
 	else if ( Mode == TTextureMode::GpuOnly )
 	{
 		Desc.Usage = D3D11_USAGE_DEFAULT;
-		Desc.Format = GetFormat( Meta.GetFormat() );
+		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8  );
 		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		Desc.CPUAccessFlags = 0;
 	}
@@ -372,6 +406,7 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 		Soy::Assert( mTexture, "CreateTexture succeeded, but no texture");
 		mTexture->AddRef();
 		mMeta = Meta;
+		mFormat = Desc.Format;
 	}
 	catch( std::exception& e)
 	{
@@ -381,7 +416,8 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 	ContextDx.Unlock();
 }
 
-Directx::TTexture::TTexture(ID3D11Texture2D* Texture)
+Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
+	mFormat	( DXGI_FORMAT_UNKNOWN )
 {
 	//	validate and throw here
 	Soy::Assert( Texture != nullptr, "null directx texture" );
@@ -392,6 +428,9 @@ Directx::TTexture::TTexture(ID3D11Texture2D* Texture)
 	D3D11_TEXTURE2D_DESC SrcDesc;
 	mTexture->GetDesc( &SrcDesc );
 	mMeta = SoyPixelsMeta( SrcDesc.Width, SrcDesc.Height, GetFormat(SrcDesc.Format) );
+	mFormat = SrcDesc.Format;
+
+	//	todo: copy sample params from Description
 }
 
 Directx::TTextureMode::Type Directx::TTexture::GetMode() const
@@ -633,13 +672,15 @@ Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 	Soy::Assert(mTexture.IsValid(), "Render target needs a valid texture target" );
 	auto& Meta = mTexture.GetMeta();
 	
+	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
+
 	// Create the render target view.
 	auto& Device = ContextDx.LockGetDevice();
 	try
 	{
 		auto* TextureDx = mTexture.mTexture.mObject;
 		D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
-		renderTargetViewDesc.Format = GetFormat( Meta.GetFormat() );
+		renderTargetViewDesc.Format = GetFormat( Meta.GetFormat(), IsWindows8 );
 		renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 		renderTargetViewDesc.Texture2D.MipSlice = 0;
 		{
@@ -650,7 +691,7 @@ Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 		}
 
 		D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
-		shaderResourceViewDesc.Format = GetFormat( Meta.GetFormat() );
+		shaderResourceViewDesc.Format = GetFormat( Meta.GetFormat(), IsWindows8 );
 		shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 		shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
 		shaderResourceViewDesc.Texture2D.MipLevels = 1;

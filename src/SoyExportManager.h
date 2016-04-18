@@ -6,7 +6,7 @@
 	
 */
 #include "SoyAssert.h"
-
+#include "SoyPool.h"
 
 
 namespace Soy
@@ -21,22 +21,19 @@ class TExportManager
 {
 public:
 	TExportManager(size_t ElementLimit) :
-		mHeap			( true, true, "TExportManager" ),
-		mElements		( mHeap ),
-		mElementLimit	( ElementLimit )
+		mPool		( ElementLimit )
 	{
 	}
 
 	const EXTERNALTYPE*					Lock(const TYPE& Item);
 	void								Unlock(const EXTERNALTYPE* Element);
+	void								UnlockAll();
 
 public:
-	size_t								mElementLimit;
-	prmem::Heap							mHeap;
-	std::mutex							mElementsLock;
-	
-	//	gr: change this to a ring buffer to stop reallocating and remove need for the lock
-	Array<TYPE>							mElements;
+	//	gr: to avoid using std::shared for strings (which realloc and then give us moving addresses)
+	//		we pool stuff which manages it for us.
+	//		that internally uses std::shared, but could change later, but not our concern
+	TPool<TYPE>							mPool;
 };
 
 template<typename EXTERNALTYPE,typename TYPE>
@@ -58,28 +55,41 @@ inline const char* Soy::ExternalCast<char>(const std::string& Item)
 template<typename TYPE,typename EXTERNALTYPE>
 const EXTERNALTYPE* TExportManager<TYPE,EXTERNALTYPE>::Lock(const TYPE& Item)
 {
-	if ( mElements.GetSize() >= mElementLimit )
+	auto Alloc = []()
 	{
-		std::stringstream Error;
-		Error << Soy::GetTypeName(*this) << " hit element limit " << mElements.GetSize() << "/" << mElementLimit;
-		throw Soy::AssertException( Error.str() );
-	}
+		return std::make_shared<std::string>();
+	};
 	
-	std::lock_guard<std::mutex> Lock( mElementsLock );
-
-	auto& NewItem = mElements.PushBack( Item );
-	return Soy::ExternalCast<EXTERNALTYPE>(NewItem);
+	auto& NewItem = mPool.Alloc( Alloc );
+	NewItem = Item;
+	
+	//	gr: this should probably not allowed to be able to return null
+	auto* External = Soy::ExternalCast<EXTERNALTYPE>(NewItem);
+	if ( External == nullptr )
+	{
+		//	gr: not doing std::Debug for recursion in Unity stuff (fix that!)
+		//	something to breakpoint
+		static int x = 0;
+		x++;
+	}
+	return External;
 }
 
 template<typename TYPE,typename EXTERNALTYPE>
 void TExportManager<TYPE,EXTERNALTYPE>::Unlock(const EXTERNALTYPE* Element)
 {
-	std::lock_guard<std::mutex> Lock( mElementsLock );
+	auto Compare = [=](const TYPE& Value)
+	{
+		auto* CompareExternal = Soy::ExternalCast<EXTERNALTYPE>(Value);
+		return CompareExternal == Element;
+	};
+	
+	mPool.Release( Compare );
+}
 
-	auto Index = mElements.FindIndex( Element );
-	if ( Index == -1 )
-		return;
-
-	mElements.RemoveBlock( Index, 1 );
+template<typename TYPE,typename EXTERNALTYPE>
+void TExportManager<TYPE,EXTERNALTYPE>::UnlockAll()
+{
+	mPool.ReleaseAll();
 }
 
