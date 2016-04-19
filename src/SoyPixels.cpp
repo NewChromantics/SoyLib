@@ -23,6 +23,101 @@
 prmem::Heap SoyPixels::DefaultHeap( true, true, "SoyPixels::DefaultHeap" );
 	
 
+SoyPixelsFormat::Type SoyPixelsFormat::GetYuvFull(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case Luma_Full:
+		case Luma_Ntsc:
+		case Luma_Smptec:
+			return Luma_Full;
+	
+		case Yuv_8_88_Full:
+		case Yuv_8_88_Ntsc:
+		case Yuv_8_88_Smptec:
+			return Yuv_8_88_Full;
+
+		case Yuv_8_8_8_Full:
+		case Yuv_8_8_8_Ntsc:
+		case Yuv_8_8_8_Smptec:
+			return Yuv_8_8_8_Full;
+
+		case YYuv_8888_Full:
+		case YYuv_8888_Ntsc:
+		case YYuv_8888_Smptec:
+			return YYuv_8888_Full;
+
+		default:
+			break;
+	}
+
+	throw Soy::AssertException( std::string(__func__) + " no equivilent");
+}
+
+
+SoyPixelsFormat::Type SoyPixelsFormat::GetYuvNtsc(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case Luma_Full:
+		case Luma_Ntsc:
+		case Luma_Smptec:
+			return Luma_Ntsc;
+	
+		case Yuv_8_88_Full:
+		case Yuv_8_88_Ntsc:
+		case Yuv_8_88_Smptec:
+			return Yuv_8_88_Ntsc;
+
+		case Yuv_8_8_8_Full:
+		case Yuv_8_8_8_Ntsc:
+		case Yuv_8_8_8_Smptec:
+			return Yuv_8_8_8_Ntsc;
+
+		case YYuv_8888_Full:
+		case YYuv_8888_Ntsc:
+		case YYuv_8888_Smptec:
+			return YYuv_8888_Ntsc;
+
+		default:
+			break;
+	}
+
+	throw Soy::AssertException( std::string(__func__) + " no equivilent");
+}
+
+SoyPixelsFormat::Type SoyPixelsFormat::GetYuvSmptec(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case Luma_Full:
+		case Luma_Ntsc:
+		case Luma_Smptec:
+			return Luma_Smptec;
+	
+		case Yuv_8_88_Full:
+		case Yuv_8_88_Ntsc:
+		case Yuv_8_88_Smptec:
+			return Yuv_8_88_Smptec;
+
+		case Yuv_8_8_8_Full:
+		case Yuv_8_8_8_Ntsc:
+		case Yuv_8_8_8_Smptec:
+			return Yuv_8_8_8_Smptec;
+
+		case YYuv_8888_Full:
+		case YYuv_8888_Ntsc:
+		case YYuv_8888_Smptec:
+			return YYuv_8888_Smptec;
+
+		default:
+			break;
+	}
+
+	throw Soy::AssertException( std::string(__func__) + " no equivilent");
+}
+
+
 bool SoyPixelsFormat::GetIsFrontToBackDepth(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
@@ -103,7 +198,8 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	{
 	case Invalid:		return 0;
 	case Greyscale:		return 1;
-	case LumaVideo:		return 1;
+	case Luma_Ntsc:		return 1;
+	case Luma_Smptec:	return 1;
 	case GreyscaleAlpha:	return 2;
 	case RGB:			return 3;
 	case BGR:			return 3;
@@ -116,8 +212,12 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
 	case ChromaUV_8_8:	return 1;
 	case ChromaUV_88:	return 2;
-	case ChromaUV_44:	return 1;
 
+	//	yuv 844 is interlaced luma & chroma, so kinda have 2 channels (helps with a lot of things when it aligns even though we have technically 3 channels)
+	case YYuv_8888_Full:
+	case YYuv_8888_Ntsc:
+	case YYuv_8888_Smptec:
+		return 2;
 
 	default:
 		break;
@@ -151,11 +251,13 @@ const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyP
 
 	if ( Map.empty() )
 	{
-		Map[Yuv_8_88_Full].PushBackArray( { LumaFull, ChromaUV_88 } );
-		Map[Yuv_8_88_Video].PushBackArray( { LumaVideo, ChromaUV_88 } );
-		Map[Yuv_8_8_8_Full].PushBackArray( { LumaFull, ChromaUV_8_8 } );
-		Map[Yuv_8_8_8_Video].PushBackArray( { LumaVideo, ChromaUV_8_8 } );
-		Map[Yuv_844_Full].PushBackArray( { LumaFull, ChromaUV_44 } );
+		Map[Yuv_8_88_Full].PushBackArray( { Luma_Full, ChromaUV_88 } );
+		Map[Yuv_8_88_Ntsc].PushBackArray( { Luma_Ntsc, ChromaUV_88 } );
+		Map[Yuv_8_88_Smptec].PushBackArray( { Luma_Smptec, ChromaUV_88 } );
+
+		Map[Yuv_8_8_8_Full].PushBackArray( { Luma_Full, ChromaUV_8_8 } );
+		Map[Yuv_8_8_8_Ntsc].PushBackArray( { Luma_Ntsc, ChromaUV_8_8 } );
+		Map[Yuv_8_8_8_Smptec].PushBackArray( { Luma_Smptec, ChromaUV_8_8 } );
 	}
 
 	return Map;
@@ -200,7 +302,7 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetMergedFormat(SoyPixelsFormat::Type For
 void SoyPixelsFormat::MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPixelsImpl& IndexedImage,const SoyPixelsImpl& Palette,uint8 TransparentIndex)
 {
 	Soy::Assert( IndexedImage.GetFormat() == SoyPixelsFormat::Greyscale, "Expected IndexedImage to be Greyscale" );
-	Soy::Assert( Palette.GetFormat() == SoyPixelsFormat::RGB, "Expected Palette to be RGB" );
+	Soy::Assert( Palette.GetFormat() == SoyPixelsFormat::RGB || Palette.GetFormat() == SoyPixelsFormat::RGBA, "Expected Palette to be RGB or RGBA" );
 	Soy::Assert( Palette.GetHeight() == 1, "Expected palette to have height of 1" );
 	Soy::Assert( Palette.GetWidth() <= ((1<<16)-1), "Expected palette to have max width of 65535" );
 
@@ -210,7 +312,11 @@ void SoyPixelsFormat::MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPi
 	//	manually construct this image
 	auto& PiMeta = PalettisedImage.GetMeta();
 	auto& PiArray = PalettisedImage.GetPixelsArray();
-	PiMeta.DumbSetFormat( SoyPixelsFormat::Palettised_8_8 );
+
+	if ( Palette.GetFormat() == SoyPixelsFormat::RGB )
+		PiMeta.DumbSetFormat( SoyPixelsFormat::Palettised_RGB_8 );
+	if ( Palette.GetFormat() == SoyPixelsFormat::RGBA )
+		PiMeta.DumbSetFormat( SoyPixelsFormat::Palettised_RGBA_8 );
 	PiMeta.DumbSetWidth( IndexedImage.GetWidth() );
 	PiMeta.DumbSetHeight( IndexedImage.GetHeight() );
 
@@ -243,7 +349,8 @@ size_t SoyPixelsFormat::GetHeaderSize(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
 	{
-		case SoyPixelsFormat::Palettised_8_8:
+		case SoyPixelsFormat::Palettised_RGB_8:
+		case SoyPixelsFormat::Palettised_RGBA_8:
 			return 3;
 			
 		default:
@@ -253,7 +360,8 @@ size_t SoyPixelsFormat::GetHeaderSize(SoyPixelsFormat::Type Format)
 
 void SoyPixelsFormat::GetHeaderPalettised(ArrayBridge<uint8>&& Data,size_t& PaletteSize,size_t& TransparentIndex)
 {
-	auto HeaderSize = GetHeaderSize( SoyPixelsFormat::Palettised_8_8 );
+	//	gr: note no distinction between the paletised formats here
+	auto HeaderSize = GetHeaderSize( SoyPixelsFormat::Palettised_RGB_8 );
 	Soy::Assert( HeaderSize == 3, "Header size mismatch");
 	Soy::Assert( Data.GetSize() >= HeaderSize, "SoyPixelsFormat::GetHeaderPalettised Data underrun" );
 	
@@ -280,16 +388,21 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},
 	{ SoyPixelsFormat::FreenectDepthmm,		"FreenectDepthmm"	},
 	{ SoyPixelsFormat::Yuv_8_88_Full,		"Yuv_8_88_Full"	},
-	{ SoyPixelsFormat::Yuv_8_88_Video,		"Yuv_8_88_Video"	},
+	{ SoyPixelsFormat::Yuv_8_88_Ntsc,		"Yuv_8_88_Ntsc"	},
+	{ SoyPixelsFormat::Yuv_8_88_Smptec,		"Yuv_8_88_Smptec"	},
 	{ SoyPixelsFormat::Yuv_8_8_8_Full,		"Yuv_8_8_8_Full"	},
-	{ SoyPixelsFormat::Yuv_8_8_8_Video,		"Yuv_8_8_8_Video"	},
-	{ SoyPixelsFormat::Yuv_844_Full,		"Yuv_844_Full"	},
-	{ SoyPixelsFormat::LumaFull,			"LumaFull"	},
-	{ SoyPixelsFormat::LumaVideo,			"LumaVideo"	},
+	{ SoyPixelsFormat::Yuv_8_8_8_Ntsc,		"Yuv_8_8_8_Ntsc"	},
+	{ SoyPixelsFormat::Yuv_8_8_8_Smptec,	"Yuv_8_8_8_Smptec"	},
+	{ SoyPixelsFormat::YYuv_8888_Full,		"YYuv_8888_Full"	},
+	{ SoyPixelsFormat::YYuv_8888_Ntsc,		"YYuv_8888_Ntsc"	},
+	{ SoyPixelsFormat::YYuv_8888_Smptec,	"YYuv_8888_Smptec"	},
+	{ SoyPixelsFormat::Luma_Full,			"LumaFull"	},
+	{ SoyPixelsFormat::Luma_Ntsc,			"Luma_Ntsc"	},
+	{ SoyPixelsFormat::Luma_Smptec,			"Luma_Smptec"	},
 	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
 	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
-	{ SoyPixelsFormat::ChromaUV_44,			"ChromaUV_44"	},
-	{ SoyPixelsFormat::Palettised_8_8,		"Palettised_8_8"	},
+	{ SoyPixelsFormat::Palettised_RGB_8,	"Palettised_RGB_8"	},
+	{ SoyPixelsFormat::Palettised_RGBA_8,	"Palettised_RGBA_8"	},
 };
 
 
@@ -937,19 +1050,19 @@ bool TPixels::Set(const msa::OpenCLImage& PixelsConst,cl_command_queue Queue)
 
 
 
-bool SoyPixelsImpl::Init(size_t Width, size_t Height, size_t Channels)
+void SoyPixelsImpl::Init(size_t Width, size_t Height, size_t Channels)
 {
 	auto Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
-	return Init( Width, Height, Format );
+	Init( Width, Height, Format );
 }
 
-bool SoyPixelsImpl::Init(size_t Width, size_t Height,SoyPixelsFormat::Type Format)
+void SoyPixelsImpl::Init(size_t Width, size_t Height,SoyPixelsFormat::Type Format)
 {
-	return Init( SoyPixelsMeta( Width, Height, Format ) );
+	Init( SoyPixelsMeta( Width, Height, Format ) );
 }
 
 
-bool SoyPixelsImpl::Init(const SoyPixelsMeta& Meta)
+void SoyPixelsImpl::Init(const SoyPixelsMeta& Meta)
 {
 	auto Width = Meta.GetWidth();
 	auto Height = Meta.GetHeight();
@@ -962,7 +1075,6 @@ bool SoyPixelsImpl::Init(const SoyPixelsMeta& Meta)
 	auto Alloc = GetMeta().GetDataSize();
 	auto& Pixels = GetPixelsArray();
 	Pixels.SetSize( Alloc, false );
-	return true;
 }
 
 
@@ -1520,33 +1632,59 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 	switch ( GetFormat() )
 	{
 		case SoyPixelsFormat::Yuv_8_88_Full:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaFull ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_88 ) );
 			break;
 			
-		case SoyPixelsFormat::Yuv_8_88_Video:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaVideo ) );
+		case SoyPixelsFormat::Yuv_8_88_Ntsc:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Ntsc ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_88 ) );
+			break;
+			
+		case SoyPixelsFormat::Yuv_8_88_Smptec:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_88 ) );
 			break;
 			
 		case SoyPixelsFormat::Yuv_8_8_8_Full:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaFull ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
 			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
 			break;
 			
-		case SoyPixelsFormat::Yuv_8_8_8_Video:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::LumaVideo ) );
+		case SoyPixelsFormat::Yuv_8_8_8_Ntsc:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Ntsc ) );
 			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
 			break;
 			
+		case SoyPixelsFormat::Yuv_8_8_8_Smptec:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
+			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
+			break;
+			
+
+			//	gr: this doesn't split as it's on the same plane!
+			/*
+
 		case SoyPixelsFormat::Yuv_844_Full:
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::LumaFull ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
 			
-		case SoyPixelsFormat::Palettised_8_8:
+		case SoyPixelsFormat::Yuv_844_Ntsc:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Ntsc ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
+			break;
+			
+		case SoyPixelsFormat::Yuv_844_Smptec:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
+			break;
+			*/
+			
+		case SoyPixelsFormat::Palettised_RGB_8:
 		{
 			Soy::Assert( Data!=nullptr, "Cannot split format of Palettised_8_8 without data");
 			size_t PaletteSize = 0;
@@ -1555,6 +1693,19 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			//	original meta is the index w/h.
 			//	header of palette is the length of the palette
 			Planes.PushBack( SoyPixelsMeta( PaletteSize, 1, SoyPixelsFormat::RGB ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Greyscale ) );
+			break;
+		}
+
+		case SoyPixelsFormat::Palettised_RGBA_8:
+		{
+			Soy::Assert( Data!=nullptr, "Cannot split format of Palettised_8_8 without data");
+			size_t PaletteSize = 0;
+			size_t TransparentIndex = 0;
+			SoyPixelsFormat::GetHeaderPalettised( GetArrayBridge(*Data), PaletteSize, TransparentIndex );
+			//	original meta is the index w/h.
+			//	header of palette is the length of the palette
+			Planes.PushBack( SoyPixelsMeta( PaletteSize, 1, SoyPixelsFormat::RGBA ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Greyscale ) );
 			break;
 		}

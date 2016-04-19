@@ -3,10 +3,13 @@
 #include "SoyThread.h"
 #include "SoyPixels.h"
 #include "SoyUniform.h"
+#include <functional>
 
 #include "SoyOpengl.h"	//	re-using opengl's vertex description atm
 
 
+template<typename TYPE>
+class TPool;
 class SoyPixelsImpl;
 
 //	something is including d3d10.h (from dx sdk) and some errors have different export types from winerror.h (winsdk)
@@ -27,6 +30,8 @@ namespace Directx
 {
 	class TContext;
 	class TTexture;
+	class TTextureMeta;
+	class TLockedTextureData;
 	class TRenderTarget;
 	class TGeometry;
 	class TShader;
@@ -35,18 +40,20 @@ namespace Directx
 	class TTextureSamplingParams;
 	class TCompiler;			//	wrapper to hold the compile func and a reference to the runtime library. Defined in source for cleaner code
 
-	std::string		GetEnumString(HRESULT Error);
-	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
+
+	inline std::string		GetEnumString(HRESULT Error)												{	return Platform::GetErrorString( Error );	}
+	inline bool				IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true)	{	return Platform::IsOkay( Error, Context, ThrowException );	}
 	SoyPixelsFormat::Type	GetFormat(DXGI_FORMAT Format);
-	DXGI_FORMAT				GetFormat(SoyPixelsFormat::Type Format);
+	DXGI_FORMAT				GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus);
 
 	namespace TTextureMode
 	{
 		enum Type
 		{
 			Invalid,		//	only for soyenum!
-			ReadOnly,
-			Writable,		//	dynamic/mappable
+			GpuOnly,		//	not mappable
+			ReadOnly,		//	mappable
+			WriteOnly,		//	mappable
 			RenderTarget,
 		};
 
@@ -100,6 +107,59 @@ public:
 	bool	mLinearFilter;	//	else nearest
 };
 
+
+class Directx::TLockedTextureData
+{
+	//	gr: inheriting from noncopyable means we cannot use this scoped class in lambdas, not sure why it works if we specify the =delete here
+	TLockedTextureData& operator=(const TLockedTextureData&) = delete;
+	//TShaderState(const TShaderState&) = delete;
+public:
+	TLockedTextureData(void* Data,size_t Size,const SoyPixelsMeta& Meta,size_t RowPitch,const std::function<void()>& Unlock) :
+		mMeta		( Meta ),
+		mRowPitch	( RowPitch ),
+		mUnlock		( Unlock ),
+		mData		( Data ),
+		mSize		( Size )
+	{
+	}
+	~TLockedTextureData()
+	{
+		if ( mUnlock )
+			mUnlock();
+	}
+
+	RemoteArray<uint8>			GetArray();
+	size_t						GetPaddedWidth();
+
+public:
+	SoyPixelsMeta				mMeta;
+	size_t						mRowPitch;
+
+	void*						mData;
+	size_t						mSize;
+
+private:
+	std::function<void()>			mUnlock;
+};
+
+
+class Directx::TTextureMeta
+{
+public:
+	TTextureMeta(const SoyPixelsMeta& Meta, TTextureMode::Type Mode) :
+		mMeta	( Meta ),
+		mMode	( Mode )
+	{
+	}
+
+public:
+	SoyPixelsMeta		mMeta;
+	TTextureMode::Type	mMode;
+};
+std::ostream& operator<<(std::ostream &out,const Directx::TTextureMeta& in);
+
+
+
 class Directx::TTexture
 {
 public:
@@ -108,18 +168,30 @@ public:
 	TTexture(ID3D11Texture2D* Texture);
 
 	bool				IsValid() const		{	return mTexture;	}
-	void				Write(TTexture& Texture,TContext& Context);
-	void				Write(const SoyPixelsImpl& Pixels,TContext& Context);
+	void				Write(const TTexture& Source,TContext& Context);
+	void				Write(const SoyPixelsImpl& Source,TContext& Context);
+
+	//	with directx, we can't always read from a texture, but if you give a pool, we can copy to a temp one and read from that
+	void				Read(SoyPixelsImpl& Pixels, TContext& Context)								{	Read(Pixels, Context, nullptr );	}
+	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>& TexturePool)	{	Read(Pixels, Context, &TexturePool );	}	
+	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>* TexturePool);
+
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
+	DXGI_FORMAT			GetDirectxFormat() const	{	return mFormat;	}
 
+	bool				operator==(const TTextureMeta& Meta) const	{	return mMeta == Meta.mMeta && GetMode() == Meta.mMode;	}
 	bool				operator==(const TTexture& that) const	{	return mTexture.mObject == that.mTexture.mObject;	}
 	bool				operator!=(const TTexture& that) const	{	return !(*this == that);	}
 
+private:
+	TLockedTextureData	LockTextureData(TContext& Context,bool WriteAccess);
+	
 public:
 	TTextureSamplingParams			mSamplingParams;
 	SoyPixelsMeta					mMeta;			//	cache
 	AutoReleasePtr<ID3D11Texture2D>	mTexture;
+	DXGI_FORMAT						mFormat;		//	dx format
 };
 namespace Directx
 {

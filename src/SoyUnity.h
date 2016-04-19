@@ -83,8 +83,7 @@ namespace Unity
 	typedef sint32			sint;
 	typedef void*			NativeTexturePtr;
 	
-	typedef void (*LogCallback)(const char*);
-
+	
 	namespace RenderTexturePixelFormat
 	{
 		enum Type
@@ -203,10 +202,15 @@ namespace Unity
 	
 	//	gr: this is a bit more generic than unity, so might move it later
 	const std::string&			GetBundleIdentifier();
+	
+	//	debug string management for c# interfaces
+	const char*					PopDebugString();
+	void						ReleaseDebugString(const char* String);
+	void						ReleaseDebugStringAll();
+	void						EnableDebugStrings(bool Enable);		//	enable logging at a low level
 };
 
 
 __export void	UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::sint eventType);
-__export void	FlushDebug(Unity::LogCallback Callback);
 
 

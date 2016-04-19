@@ -64,25 +64,10 @@ SoyMemFile::SoyMemFile(const std::string& Filename,MemFileAccess::Type Access,si
 	
 #elif defined(TARGET_WINDOWS)
 	
-	//	If lpName matches the name of an existing event, semaphore, mutex, waitable timer, or job object, the function fails, and the GetLastError function returns ERROR_INVALID_HANDLE. This occurs because these objects share the same namespace.
-	DWORD MaxSizeHi = 0;
-	DWORD MaxSizeLo = size_cast<DWORD>(DataSize);
-	mHandle = CreateFileMappingA(	INVALID_HANDLE_VALUE,    // use paging file
-									NULL,                    // default security
-									ReadOnly ? PAGE_READONLY : PAGE_READWRITE,          // read/write access
-									MaxSizeHi,                       // maximum object size (high-order DWORD)
-									MaxSizeLo,                // maximum object size (low-order DWORD)
-									mFilename.c_str()	// name of mapping object
-									);
-	if ( mHandle == nullptr )
-	{
-		std::stringstream Error;
-		Error << "MemFileArray(" << mFilename << ") error: " << Platform::GetLastErrorString();
-		throw Soy::AssertException( Error.str() );
-	}
+	mHandle.reset( new MemFileHandle( Filename, Access, DataSize ) );
 	
 	//	map to file
-	mMap = MapViewOfFile(	mHandle,   // handle to map object
+	mMap = MapViewOfFile(	mHandle->mHandle,   // handle to map object
 							FILE_MAP_ALL_ACCESS, // read/write permission
 							0,
 							0,
@@ -96,7 +81,6 @@ SoyMemFile::SoyMemFile(const std::string& Filename,MemFileAccess::Type Access,si
 		throw Soy::AssertException( Error.str() );
 	}
 	mMapSize = DataSize;
-	mOffset = mMapSize;
 #else
 	Soy::Assert(false,"SoyMemFile not supported on this platform");
 #endif
@@ -180,12 +164,12 @@ bool MemFileArray::IsValid() const
 
 #if defined(TARGET_OSX)
 MemFileHandle::MemFileHandle(const std::string& Filename,int CreateFlags,int Mode) :
-	mHandle		( Soy::Platform::InvalidFileHandle ),
+	mHandle		( Platform::InvalidFileHandle ),
 	mFilename	( Filename )
 {
 	mHandle = shm_open( Filename.c_str(), CreateFlags, Mode );
 	
-	if ( mHandle == Soy::Platform::InvalidFileHandle )
+	if ( mHandle == Platform::InvalidFileHandle )
 	{
 		auto PlatformError = Platform::GetLastErrorString();
 		std::stringstream Error;
@@ -195,11 +179,39 @@ MemFileHandle::MemFileHandle(const std::string& Filename,int CreateFlags,int Mod
 }
 #endif
 
+
+#if defined(TARGET_WINDOWS)
+MemFileHandle::MemFileHandle(const std::string& Filename,MemFileAccess::Type Access,size_t DataSize) :
+	mHandle	( Platform::InvalidFileHandle )
+{
+		//	If lpName matches the name of an existing event, semaphore, mutex, waitable timer, or job object, the function fails, and the GetLastError function returns ERROR_INVALID_HANDLE. This occurs because these objects share the same namespace.
+	DWORD MaxSizeHi = 0;
+	DWORD MaxSizeLo = size_cast<DWORD>(DataSize);
+	DWORD AccessPolicy = Access==MemFileAccess::ReadOnly ? PAGE_READONLY : PAGE_READWRITE;
+	mHandle = CreateFileMappingA(	INVALID_HANDLE_VALUE,    // use paging file
+									NULL,                    // default security
+									AccessPolicy,          // read/write access
+									MaxSizeHi,                       // maximum object size (high-order DWORD)
+									MaxSizeLo,                // maximum object size (low-order DWORD)
+									Filename.c_str()	// name of mapping object
+									);
+
+	if ( mHandle == Platform::InvalidFileHandle )
+	{
+		auto PlatformError = Platform::GetLastErrorString();
+
+		std::stringstream Error;
+		Error << "Failed to create file mapping to " << Filename << "; " << PlatformError;
+		throw Soy::AssertException( Error.str() );
+	}
+}
+#endif
+
 MemFileHandle::~MemFileHandle()
 {
 #if defined(TARGET_OSX)
 	//	ignore if opened in read-only?
-	if ( mHandle != Soy::Platform::InvalidFileHandle )
+	if ( mHandle != Platform::InvalidFileHandle )
 	{
 		auto Result = shm_unlink( mFilename.c_str() );
 		if ( Result != 0 )
@@ -220,16 +232,16 @@ MemFileHandle::~MemFileHandle()
 			throw Soy::AssertException( Error.str() );
 		}		
 
-		mHandle = Soy::Platform::InvalidFileHandle;
+		mHandle = Platform::InvalidFileHandle;
 	}
 
 #endif
 	
 #if defined(TARGET_WINDOWS)
-	if ( mHandle != Soy::Platform::InvalidFileHandle )
+	if ( mHandle != Platform::InvalidFileHandle )
 	{
 		CloseHandle(mHandle);
-		mHandle = Soy::Platform::InvalidFileHandle;
+		mHandle = Platform::InvalidFileHandle;
 	}
 #endif
 

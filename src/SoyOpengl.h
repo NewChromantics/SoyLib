@@ -71,6 +71,7 @@ namespace Opengl
 	class TShaderState;
 	class TTexture;
 	class TTextureUploadParams;
+	class TTextureMeta;
 	class TFbo;
 	class TPbo;
 	class TGeoQuad;
@@ -354,6 +355,23 @@ public:
 	bool	mGenerateMipMaps;		//	should we generate mip maps afterwards
 };
 
+
+class Opengl::TTextureMeta
+{
+public:
+	TTextureMeta(const SoyPixelsMeta& Meta, GLenum Type) :
+		mMeta	( Meta ),
+		mType	( Type )
+	{
+	}
+	
+public:
+	SoyPixelsMeta		mMeta;
+	GLenum				mType;
+};
+std::ostream& operator<<(std::ostream& out,const Opengl::TTextureMeta& Meta);
+
+
 class Opengl::TTexture
 {
 public:
@@ -458,6 +476,7 @@ public:
 
 	void				OnWrite();
 	
+	bool				operator==(const TTextureMeta& Meta) const	{	return mMeta == Meta.mMeta && mType == Meta.mType;	}
 	bool				operator==(const TTexture& that) const	{	return mTexture == that.mTexture;	}
 	bool				operator!=(const TTexture& that) const	{	return mTexture != that.mTexture;	}
 

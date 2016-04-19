@@ -140,7 +140,7 @@ void Srt::DecodeTimeRange(const std::string& TimeString,SoyTime& Start,SoyTime& 
 	//	gr: android either won't support brackets, or regex_match fails
 	DecodeTimeRange_NoRegex( TimeString, Start, End );
 	return;
-
+/*
 	//	http://stackoverflow.com/a/8060116/355753
 	std::regex_constants::syntax_option_type Flags = std::regex_constants::basic;
 	//static const char* PatternStr = "^([0-9]+):([0-9]+):([0-9]+),([0-9]+) --> ([0-9]+):([0-9]+):([0-9]+),([0-9]+)$";
@@ -169,6 +169,7 @@ void Srt::DecodeTimeRange(const std::string& TimeString,SoyTime& Start,SoyTime& 
 	
 	Start = DecodeTime( Match[1].str(), Match[2].str(), Match[3].str(), Match[4].str() );
 	End = DecodeTime( Match[5].str(), Match[6].str(), Match[7].str(), Match[8].str() );
+*/
 }
 
 void Srt::EncodeTimeRange(std::stringstream& Out,const SoyTime& Start,const SoyTime& End)

@@ -23,7 +23,7 @@ public:
 	//	gr: null if zero. should this be in just GetArray() ?
 	explicit FixedRemoteArray(T* Buffer,const size_t BufferSize) :
 		mData		( (BufferSize>0) ? Buffer : nullptr ),
-		mSize		( BufferSize )
+		mSize		( Buffer ? BufferSize : 0 )
 	{
 	}
 	
@@ -42,9 +42,9 @@ public:
 	}
 	
 	template<class ARRAYTYPE>
-	bool Copy(const ARRAYTYPE& v)
+	void Copy(const ARRAYTYPE& v)
 	{
-		return GetArrayBridge(*this).Copy(v);
+		GetArrayBridge(*this).Copy(v);
 	}
 	
 	T& operator [] (size_t Index)
@@ -71,9 +71,9 @@ public:
 		return size == GetSize();
 	}
 	
-	T*			PushBlock(size_t count)					{	return nullptr;	}
-	T*			InsertBlock(size_t Index,size_t Count)	{	return nullptr;	}
-	bool		RemoveBlock(size_t Index,size_t Count)	{	return false;	}
+	T*			PushBlock(size_t count)					{	throw Soy::AssertException("Cannot pushback on fixed remote array");	}
+	T*			InsertBlock(size_t Index,size_t Count)	{	throw Soy::AssertException("Cannot insert on fixed remote array");	}
+	bool		RemoveBlock(size_t Index,size_t Count)	{	throw Soy::AssertException("Cannot delete on fixed remote array");	}
 	void		Clear(bool Dealloc)						{	}
 	
 	void		Reserve(size_t Size,bool Clear)
@@ -147,9 +147,9 @@ public:
 	}
 
 	template<class ARRAYTYPE>
-	bool Copy(const ARRAYTYPE& v)
+	void Copy(const ARRAYTYPE& v)
 	{
-		return GetArrayBridge(*this).Copy(v);
+		GetArrayBridge(*this).Copy(v);
 	}
 
 	T& operator [] (size_t index)
@@ -391,33 +391,6 @@ public:
 		return MaxSize() * sizeof(T);
 	}
 
-	//	set all elements to a value
-	template<typename TYPE>
-	void	SetAll(const TYPE& Value)
-	{
-		for ( size_t i=0;	i<GetSize();	i++ )
-			mdata[i] = Value;
-	}
-	void	SetAll(const T& Value)
-	{
-		//	attempt non-complex memset if element can be broken into a byte
-		if ( !Soy::IsComplexType<T>() )
-		{
-			bool AllSame = true;
-			const uint8* pValue = reinterpret_cast<const uint8*>( &Value );
-			for ( size_t i=1;	i<sizeof(Value);	i++ )
-			{
-				if ( pValue[i] == pValue[i-1] )
-					continue;
-				AllSame = false;
-			}
-			if ( AllSame )
-			{
-				memset( mdata, pValue[0], GetDataSize() );
-				return;
-			}
-		}
-	}
 
 	template<class ARRAYTYPE>
 	inline bool	operator==(const ARRAYTYPE& Array) const

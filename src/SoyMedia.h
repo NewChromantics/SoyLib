@@ -2,10 +2,12 @@
 
 #include "SoyPixels.h"
 #include "SoyThread.h"
+#include "SoyMediaFormat.h"
 
 class TStreamWriter;
 class TStreamBuffer;
 class TMediaPacket;
+class TJsonWriter;
 
 namespace Soy
 {
@@ -41,109 +43,6 @@ namespace SoyMedia
 {
 	extern prmem::Heap	DefaultHeap;
 }
-
-//	merge this + pixel format at some point
-namespace SoyMediaFormat
-{
-	enum Type
-	{
-		Invalid = SoyPixelsFormat::Invalid,
-		
-		Greyscale = SoyPixelsFormat::Greyscale,
-		GreyscaleAlpha = SoyPixelsFormat::GreyscaleAlpha,
-		RGB = SoyPixelsFormat::RGB,
-		RGBA = SoyPixelsFormat::RGBA,
-		BGRA = SoyPixelsFormat::BGRA,
-		BGR = SoyPixelsFormat::BGR,
-		ARGB = SoyPixelsFormat::ARGB,
-		KinectDepth = SoyPixelsFormat::KinectDepth,
-		FreenectDepth10bit = SoyPixelsFormat::FreenectDepth10bit,
-		FreenectDepth11bit = SoyPixelsFormat::FreenectDepth11bit,
-		FreenectDepthmm = SoyPixelsFormat::FreenectDepthmm,
-		LumaFull = SoyPixelsFormat::LumaFull,
-		LumaVideo = SoyPixelsFormat::LumaVideo,
-		Yuv_8_88_Full = SoyPixelsFormat::Yuv_8_88_Full,
-		Yuv_8_88_Video = SoyPixelsFormat::Yuv_8_88_Video,
-		Yuv_8_8_8_Full = SoyPixelsFormat::Yuv_8_8_8_Full,
-		Yuv_8_8_8_Video = SoyPixelsFormat::Yuv_8_8_8_Video,
-		Yuv_844_Full = SoyPixelsFormat::Yuv_844_Full,
-		ChromaUV_8_8 = SoyPixelsFormat::ChromaUV_8_8,
-		ChromaUV_88 = SoyPixelsFormat::ChromaUV_88,
-		ChromaUV_44 = SoyPixelsFormat::ChromaUV_44,
-		Palettised_8_8 = SoyPixelsFormat::Palettised_8_8,
-		
-		NotPixels = SoyPixelsFormat::Count,
-		
-		//	file:///Users/grahamr/Downloads/513_direct_access_to_media_encoding_and_decoding.pdf
-		//	gr: too specific? extended/sub modes?... prefer this really...
-		H264_8,			//	AVCC format (length8+payload)
-		H264_16,		//	AVCC format (length16+payload)
-		H264_32,		//	AVCC format (length32+payload)
-		H264_ES,		//	ES format (0001+payload)	elementry/transport/annexb/Nal stream (H264 ES in MF)
-		H264_SPS_ES,	//	SPS data, nalu
-		H264_PPS_ES,	//	PPS data, nalu
-		
-		Mpeg2TS,		//	general TS data
-		Mpeg2TS_PSI,	//	PSI table from TS
-		
-		Mpeg2,
-		Mpeg4,
-		Mpeg4_v3,		//	windows mpeg4 variant MP43 (msmpeg4v3)
-		VC1,			//	in TS files, not sure what this is yet
-		
-		//	encoded images
-		Png,
-		Jpeg,
-		Gif,
-		Tga,
-		Bmp,
-		Psd,
-		
-		//	audio
-		Audio_AUDS,		//	fourcc from mediafoundation. means "audio stream"
-		Wave,
-		Aac,
-		Ac3,
-		Mpeg2Audio,			//	in TS files, not sure what format this is yet
-		Mp3,
-		Dts,
-		PcmAndroidRaw,		//	temp until I work out what this actually is
-		PcmLinear_8,
-		PcmLinear_16,		//	signed, see SoyWave
-		PcmLinear_20,
-		PcmLinear_24,
-		PcmLinear_float,	//	-1..1 see SoyWave
-		
-        QuicktimeTimecode,  //  explicitly listing this until I've established what the format is
-		
-		Html,
-		Text,
-		Subtitle,
-		ClosedCaption,
-		Timecode,
-		MetaData,
-		Muxed,
-	};
-	
-	SoyPixelsFormat::Type	GetPixelFormat(Type MediaFormat);
-	Type					FromPixelFormat(SoyPixelsFormat::Type PixelFormat);
-	
-	bool		IsVideo(Type Format);	//	or pixels
-	inline bool	IsPixels(Type Format)	{	return GetPixelFormat( Format ) != SoyPixelsFormat::Invalid;	}
-	bool		IsAudio(Type Format);
-	bool		IsText(Type Format);
-	bool		IsH264(Type Format);
-	bool		IsImage(Type Format);	//	encoded image
-	Type		FromFourcc(uint32 Fourcc,int H264LengthSize=-1,bool TryReversed=true);
-	uint32		ToFourcc(Type Format);
-	bool		IsH264Fourcc(uint32 Fourcc);
-	std::string	ToMime(Type Format);
-	Type		FromMime(const std::string& Mime);
-	
-	DECLARE_SOYENUM(SoyMediaFormat);
-}
-
-
 
 
 class Soy::TYuvParams
@@ -197,7 +96,7 @@ public:
 	TStreamMeta() :
 	mCodec				( SoyMediaFormat::Invalid ),
 	mMediaTypeIndex		( 0 ),
-	mPixelWidthPadding	( 0 ),
+	mPixelRowSize		( 0 ),
 	mStreamIndex		( 0 ),
 	mCompressed			( false ),
 	mFramesPerSecond	( 0 ),
@@ -214,13 +113,20 @@ public:
 	mAudioBytesPerFrame		( 0 ),
 	mAudioFramesPerPacket	( 0 ),
 	mAudioSampleCount		( 0 ),
-	mDecodesOutOfOrder		( false )
+	mDecodesOutOfOrder		( false ),
+	mAudioBitsPerChannel	( 0 ),
+	mAudioSamplesIndependent	( true )
 	{
 	};
 	
 	void				SetMime(const std::string& Mime)	{	mCodec = SoyMediaFormat::FromMime( Mime );	}
 	std::string			GetMime() const						{	return SoyMediaFormat::ToMime( mCodec );	}
 	void				SetPixelMeta(const SoyPixelsMeta& Meta);
+	
+	float3x3			GetTransform() const
+	{
+		return mTransform;
+	}
 	
 public:
 	SoyMediaFormat::Type	mCodec;
@@ -239,10 +145,11 @@ public:
 	//	windows media foundation
 	size_t				mStreamIndex;		//	windows MediaFoundation can have multiple metas for a single stream (MediaType index splits this), otherwise this would be EXTERNAL from the meta
 	size_t				mMediaTypeIndex;	//	applies to Windows MediaFoundation streams
-	//	gr: should be able to integrate the padding into the transform matrix; and then set pixel dimensions to the padded size
-	//		m[0][0] = width/paddedwidth
-	//	we can then get the original size with paddedwidth*m[0][0]
-	size_t				mPixelWidthPadding;	//	we can't get the stride from an IMFMediaBuffer (the non-specialised type, not 2D) but we can pre-empty it when we get the stream info, so caching it here for now. 
+
+	//	we can't get the stride from an IMFMediaBuffer (the non-specialised type, not 2D) but we can pre-empty it when we get the stream info, so caching it here for now. 
+	//	detectable for webcams. note; at meta time we don't always know the format, but we know the pitch/row stride, so can't store padding value and have to work it out later
+	//	0=unknown
+	size_t				mPixelRowSize;	
 
 	//	video
 	SoyPixelsMeta		mPixelMeta;			//	could be invalid format (if unknown, so just w/h) or because its audio etc
@@ -261,7 +168,8 @@ public:
 	size_t				mAudioBytesPerFrame;
 	size_t				mAudioFramesPerPacket;
 	size_t				mAudioBitsPerChannel;	//	change this to be like H264 different formats; AAC_8, AAC_16, AAC_float etc
-	
+	bool				mAudioSamplesIndependent;
+
 	//	this is more meta for the data... not the stream... should it be here? should it be split?
 	size_t				mAudioSampleCount;
 };
@@ -277,14 +185,13 @@ public:
 	//	different paths return arrays now - shader/fbo blit is pretty generic now so move it out of pixel buffer
 	//	generic array, handle that internally (each implementation tends to have it's own lock info anyway)
 	//	for future devices (metal, dx), expand these
-	//	if 1 texture assume RGB/BGR greyscale etc
-	//	if multiple, assuming YUV
+	//virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures)=0;
 	//virtual void		Lock(ArrayBridge<Cuda::TTexture>&& Textures)=0;
 	//virtual void		Lock(ArrayBridge<Opencl::TTexture>&& Textures)=0;
-	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context)=0;
-	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context)=0;
-	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context)=0;
-	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures)=0;
+	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform)=0;
+	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform)=0;
+	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform)=0;
+	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform)=0;
 	virtual void		Unlock()=0;
 };
 
@@ -306,7 +213,6 @@ public:
 		mAllowPushRejection		( true ),
 		mDebugFrameSkipping		( false ),
 		mPushBlockSleepMs		( 3 ),
-		mResetInternalTimestamp	( false ),
 		mMaxBufferSize			( 10 ),
 		mMinBufferSize			( 5 ),			//	specific per-codec for OOO packets, not applicable to a lot of other things (audio may want it, text etc)
 		mPopNearestFrame		( false )
@@ -317,7 +223,6 @@ public:
 	bool		mDebugFrameSkipping;
 	size_t		mMinBufferSize;				//	require X frames to be buffered before letting any be popped, this is to cope with OOO decoding. This may need to go up with different codecs (KBBBBI vs KBI)
 	size_t		mMaxBufferSize;				//	restrict mem/platform buffer usage (platform buffers should probably be managed explicitly if there are limits)
-	bool		mResetInternalTimestamp;
 	SoyTime		mPreSeek;					//	gr: put this somewhere else!
 	bool		mPopFrameSync;				//	false to pop ASAP (out of sync)
 	bool		mPopNearestFrame;			//	instead of skipping to the latest frame (<= now), we find the nearest frame (98 will pop frame 99) and allow looking ahead
@@ -330,13 +235,14 @@ class TDumbPixelBuffer : public TPixelBuffer
 {
 public:
 	TDumbPixelBuffer(SoyPixelsMeta Meta);
-	TDumbPixelBuffer(const SoyPixelsImpl& Pixels);
+	TDumbPixelBuffer(const SoyPixelsImpl& Pixels,const float3x3& Transform);
 	
-	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context) override	{}
-	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context) override	{}
-	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context) override	{}
-	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures) override
+	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override	{}
+	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform) override	{}
+	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform) override	{}
+	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform) override
 	{
+		Transform = mTransform;
 		Textures.PushBack( &mPixels );
 	}
 
@@ -346,6 +252,7 @@ public:
 
 public:
 	SoyPixels		mPixels;
+	float3x3		mTransform;
 };
 
 
@@ -361,14 +268,18 @@ public:
 		
 	}
 	
+	virtual void				GetMeta(const std::string& Prefix,TJsonWriter& Json);
 	virtual void				SetPlayerTime(const SoyTime& Time);			//	maybe turn this into a func to PULL the time rather than maintain it in here...
 	virtual void				CorrectDecodedFrameTimestamp(SoyTime& Timestamp);	//	adjust timestamp if neccessary
+	virtual void				CorrectRequestedFrameTimestamp(SoyTime& Timestamp);
 	virtual void				ReleaseFrames()=0;
-	virtual bool				PrePushPixelBuffer(SoyTime Timestamp)=0;
+	void						FlushFrames(SoyTime FlushTime);
+	virtual bool				PrePushBuffer(SoyTime Timestamp);
 
 	void						SetMinBufferSize(size_t MinBufferSize)		{	mParams.mMinBufferSize = std::max( mParams.mMinBufferSize, MinBufferSize );	}
 	
 protected:
+	virtual void				ReleaseFramesAfter(SoyTime FlushTime)=0;
 	void						OnPushEof();
 	bool						HasAllFrames() const	{	return mHasEof;	}
 	size_t						GetMinBufferSize() const;
@@ -386,6 +297,7 @@ public:
 protected:
 	TPixelBufferParams				mParams;
 	SoyTime							mPlayerTime;
+	SoyTime							mFlushFenceTime;		//	if valid, don't allow frames over this, post-seek. Resets when we get a packet under
 
 	SoyTime							mFirstTimestamp;
 	SoyTime							mAdjustmentTimestamp;
@@ -405,15 +317,18 @@ public:
 	{
 	}
 	
+	virtual void		GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
+
 	//	gr: most of these will move to base
 	SoyTime				GetNextPixelBufferTime(bool Safe=true);
 	std::shared_ptr<TPixelBuffer>	PopPixelBuffer(SoyTime& Timestamp);
 	bool				PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::function<bool()> Block);
-	virtual bool		PrePushPixelBuffer(SoyTime Timestamp) override;
+	virtual bool		PrePushBuffer(SoyTime Timestamp) override;
 	bool				PeekPixelBuffer(SoyTime Timestamp);	//	is there a new pixel buffer?
 	bool				IsPixelBufferFull() const;
 
 	virtual void		ReleaseFrames() override;
+	virtual void		ReleaseFramesAfter(SoyTime FlushTime) override;
 	
 	
 private:
@@ -433,10 +348,21 @@ public:
 	{
 	}
 	
+	bool				HasData() const					{	return !mData.IsEmpty();	}
+	bool				IsValid() const					{	return mChannels != 0 && mFrequency!=0;	}
+	SoyTime				GetStartTime() const			{	return mStartTime;	}
+	SoyTime				GetEndTime() const;
+	SoyTime				GetLastDataTime() const;
 	SoyTime				GetSampleTime(size_t SampleIndex) const;
 	ssize_t				GetTimeSampleIndex(SoyTime Time) const;		//	can be out of range of the data
 	size_t				RemoveDataUntil(SoyTime Time);				//	returns number of samples removed
 	
+	void				Append(const TAudioBufferBlock& NewData);
+	void				Clip(SoyTime Start, SoyTime End);
+
+	//	reformatting
+	void				SetChannels(size_t Channels);
+
 public:
 	//	consider using stream meta here
 	size_t				mChannels;
@@ -447,23 +373,39 @@ public:
 	Array<float>		mData;
 };
 
+
 class TAudioBufferManager : public TMediaBufferManager
 {
 public:
 	TAudioBufferManager(const TPixelBufferParams& Params) :
 		mBlocks				( SoyMedia::DefaultHeap ),
-		TMediaBufferManager	( Params )
+		TMediaBufferManager	( Params ),
+		mChannelCache		( 0 ),
+		mFrequencyCache		( 0 )
 	{
 	}
 	
+	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
+
 	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
-	void			PopAudioBuffer(ArrayBridge<float>&& Data,size_t Channels,size_t SampleRate,SoyTime StartTime,SoyTime EndTime);
-	void			PeekAudioBuffer(ArrayBridge<float>&& Data,size_t MaxSamples,SoyTime& SampleStart,SoyTime& SampleEnd);	//	todo: handle channels
+	bool			GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool VerboseDebug,bool PadOutputTail,bool ClipOutputFront,bool ClipOutputBack,bool CullBuffer);	//	returns false if NO data, pads with zeros if not all there
+	void			PopNextAudioData(ArrayBridge<float>&& Data,bool PadData);
+	
+	virtual void	SetPlayerTime(const SoyTime& Time) override;	//	clear out old data
 
 	virtual void	ReleaseFrames() override;
-	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
-	
+	virtual void	ReleaseFramesAfter(SoyTime FlushTime) override;
+	void			ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData);
+
+	//	meta of first block. returns zero if none exist
+	size_t			GetChannels() const			{	return mChannelCache;	}
+	size_t			GetFrequency() const		{	return mFrequencyCache;	}
+
 private:
+	//	gr: cached these to avoid locks & for when we've flushed all the data
+	size_t						mFrequencyCache;
+	size_t						mChannelCache;
+
 	std::mutex					mBlocksLock;
 	Array<TAudioBufferBlock>	mBlocks;
 };
@@ -478,10 +420,14 @@ public:
 	{
 	}
 	
+	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
+
+	void			GetBuffer(std::stringstream& Output,SoyTime& StartTime,SoyTime& EndTime);
+
 	void			PushBuffer(std::shared_ptr<TMediaPacket> Buffer);
 	SoyTime			PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText);	//	returns end-time of the data extracted (invalid if none popped)
 	virtual void	ReleaseFrames() override;
-	virtual bool	PrePushPixelBuffer(SoyTime Timestamp) override	{	return true;	}	//	no skipping atm
+	virtual void	ReleaseFramesAfter(SoyTime FlushTime) override;
 	
 private:
 	std::mutex			mBlocksLock;
@@ -503,7 +449,9 @@ public:
 
 	//	gr: re-instating this, we should enforce decode timecodes in the extractor.
 	SoyTime					GetSortingTimecode() const	{	return mDecodeTimecode.IsValid() ? mDecodeTimecode : mTimecode;	}
+	SoyTime					GetStartTime() const		{	return mTimecode;	}
 	SoyTime					GetEndTime() const			{	return mTimecode + mDuration;	}
+	bool					ContainsTime(const SoyTime& Time) const	{	return Time >= GetStartTime() && Time <= GetEndTime();	}
 	bool					HasData() const
 	{
 		if ( mPixelBuffer )
@@ -549,9 +497,14 @@ public:
 	std::shared_ptr<TMediaPacket>	PopPacket();
 	void							UnPopPacket(std::shared_ptr<TMediaPacket> Packet);		//	gr: force a packet back into the buffer at the start; todo; enforce a decoder timestamp and just use push(but with a forced re-insertion)
 	void							PushPacket(std::shared_ptr<TMediaPacket> Packet,std::function<bool()> Block);
-	bool							HasPackets() const	{	return !mPackets.IsEmpty();	}
-	
+	bool							HasPackets() const		{	return !mPackets.IsEmpty();	}
+	size_t							GetPacketCount() const	{	return mPackets.GetSize();	}
+
+	void							FlushFrames(SoyTime FlushTime);
+	virtual bool					PrePushBuffer(SoyTime Timestamp);
+
 protected:
+	virtual void					ReleaseFramesAfter(SoyTime FlushTime);
 	void							CorrectIncomingPacketTimecode(TMediaPacket& Packet);
 
 public:
@@ -566,6 +519,7 @@ private:
 
 	SoyTime									mLastPacketTimestamp;	//	for when we have to calculate timecodes ourselves
 	SoyTime									mAutoTimestampDuration;
+	SoyTime									mFlushFenceTime;		//	if valid, don't allow frames over this, post-seek. Resets when we get a packet under
 };
 
 
@@ -580,6 +534,8 @@ public:
 	void					SetStreams(const ArrayBridge<TStreamMeta>&& Streams);
 	virtual void			Finish()=0;
 
+	void					GetMeta(TJsonWriter& Json);
+
 protected:
 	virtual void			SetupStreams(const ArrayBridge<TStreamMeta>&& Streams)=0;
 	virtual void			ProcessPacket(std::shared_ptr<TMediaPacket> Packet,TStreamWriter& Output)=0;
@@ -591,12 +547,14 @@ private:
 	bool					IsStreamsReady(std::shared_ptr<TMediaPacket> Packet);	//	if this returns false, not ready to ProcessPacket yet
 	
 public:
-	SoyListenerId							mOnPacketListener;
 	std::shared_ptr<TStreamWriter>			mOutput;
 	std::shared_ptr<TMediaPacketBuffer>		mInput;
 	Array<TStreamMeta>						mStreams;		//	streams, once setup, fixed
 	
 	Array<std::shared_ptr<TMediaPacket>>	mDefferedPackets;	//	when auto-calculating streams we buffer up some packets
+
+private:
+	SoyListenerId							mOnPacketListener;
 };
 
 
@@ -609,14 +567,21 @@ public:
 	{
 		mFilename = Filename;
 	}
-	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames,bool ForceNonPlanarOutput) :
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames,bool ForceNonPlanarOutput,bool ExtractAudioStreams,bool ApplyHeightPadding) :
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
 		mReadAheadMs					( ReadAheadMs ),
 		mDiscardOldFrames				( DiscardOldFrames ),
 		mForceNonPlanarOutput			( ForceNonPlanarOutput ),
 		mDebugIntraFrameRect			( false ),
-		mDebugIntraFrameTransparency	( false )
+		mDebugIntraFrameTransparency	( false ),
+		mExtractAudioStreams			( ExtractAudioStreams ),
+		mOnlyExtractKeyframes			( false ),
+		mResetInternalTimestamp			( false ),
+		mAudioSampleRate				( 0 ),
+		mApplyHeightPadding				( ApplyHeightPadding ),
+		mWindowIncludeBorders			( true ),
+		mLiveUseClockTime				( false )
 	{
 	}
 	
@@ -626,6 +591,14 @@ public:
 	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
 	SoyTime						mReadAheadMs;
 
+	SoyTime						mInitialTime;
+	size_t						mAudioSampleRate;
+	bool						mExtractAudioStreams;
+	bool						mOnlyExtractKeyframes;
+	bool						mResetInternalTimestamp;
+	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
+	bool						mWindowIncludeBorders;
+
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
 	bool						mForceNonPlanarOutput;		//	for some extractors which have pixelly settings
@@ -633,6 +606,10 @@ public:
 	//	for gifs
 	bool						mDebugIntraFrameRect;
 	bool						mDebugIntraFrameTransparency;
+
+	//	for streams (webcams etc) use Real time (clock) rather than SeekTime
+	//	real time works, but when app is paused, threads continue but player time doesnt and it falls behind
+	bool						mLiveUseClockTime;		
 };
 
 
@@ -644,8 +621,11 @@ public:
 	TMediaExtractor(const TMediaExtractorParams& Params);
 	~TMediaExtractor();
 	
-	void							Seek(SoyTime Time);				//	keep calling this, controls the packet read-ahead
+	void							Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames);				//	keep calling this, controls the packet read-ahead
+	virtual void					FlushFrames(SoyTime FlushTime);
 	
+	virtual void					GetMeta(TJsonWriter& Json);
+
 	virtual void					GetStreams(ArrayBridge<TStreamMeta>&& Streams)=0;
 	TStreamMeta						GetStream(size_t Index);
 	TStreamMeta						GetVideoStream(size_t Index);
@@ -659,7 +639,7 @@ public:
 	std::shared_ptr<TMediaPacketBuffer>	AllocStreamBuffer(size_t StreamIndex);
 	std::shared_ptr<TMediaPacketBuffer>	GetStreamBuffer(size_t StreamIndex);
 
-
+public:
 //protected:	//	gr: only for subclasses, but the playlist media extractor needs to call this on it's children
 	virtual std::shared_ptr<TMediaPacket>	ReadNextPacket()=0;
 	bool							CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyframe);
@@ -667,9 +647,12 @@ public:
 	void							OnError(const std::string& Error);
 
 protected:
-	void							CorrectExtractedPacketTimecode(TMediaPacket& Packet);
-	void							OnPacketExtracted(SoyTime& Timestamp,size_t StreamIndex);
-	
+	//	call this when there's a packet ready for ReadNextPacket
+	void							OnPacketExtracted(SoyTime& Timecode,size_t StreamIndex);
+	void							OnPacketExtracted(std::shared_ptr<TMediaPacket>& Packet);
+	void							OnSkippedExtractedPacket(const SoyTime& Timecode);
+	SoyTime							GetExtractorRealTimecode(SoyTime,ssize_t StreamIndex=-1);
+
 	void							OnClearError();
 	void							OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams);
 	void							OnStreamsChanged();
@@ -677,13 +660,19 @@ protected:
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);
 	SoyTime							GetSeekTime() const			{	return mSeekTime;	}
+	SoyTime							GetExtractTime() const		{	return mSeekTime + mExtractAheadMs;	}
 	
+	virtual bool					OnSeek()					{	return false;	}	//	reposition extractors whereever possible. return true to invoke a data flush (ie. if you moved the extractor)
+	virtual bool					CanSeekBackwards()			{	return false;	}	//	by default, don't allow this, until it's implemented for that extractor
+
 private:
 	virtual bool					Iteration() override;
-	
+
 public:
 	SoyEvent<const ArrayBridge<TStreamMeta>>		mOnStreamsChanged;
 	SoyTime											mExtractAheadMs;
+
+	TMediaExtractorParams			mParams;
 	
 protected:
 	std::map<size_t,std::shared_ptr<TMediaPacketBuffer>>	mStreamBuffers;
@@ -691,7 +680,8 @@ protected:
 	
 private:
 	std::string						mFatalError;
-	SoyTime							mSeekTime;
+	SoyTime							mSeekTime;				//	current player time, which we actually want to seek to
+	std::map<size_t,SoyTime>		mStreamFirstFrameTime;	//	time correction per-frame
 };
 
 
@@ -772,11 +762,19 @@ public:
 	}
 	
 	virtual void					Write(const Opengl::TTexture& Image,SoyTime Timecode,Opengl::TContext& Context)=0;
-	virtual void					Write(const std::shared_ptr<SoyPixelsImpl> Image,SoyTime Timecode)=0;
-	
+	virtual void					Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context)=0;
+	virtual void					Write(std::shared_ptr<SoyPixelsImpl> Image,SoyTime Timecode)=0;
+	virtual void					GetMeta(TJsonWriter& Json);
+
+	size_t							GetPendingOutputCount() const	{	return mOutput ? mOutput->GetPacketCount() : 0;	}
+	virtual size_t					GetPendingEncodeCount() const	{	return 0;	}
+
 protected:
 	void							PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block);
-	
+
+public:
+	SoyEvent<SoyTime>					mOnFramePushSkipped;
+
 protected:
 	std::shared_ptr<TMediaPacketBuffer>	mOutput;
 	std::stringstream					mFatalError;
@@ -803,4 +801,23 @@ protected:
 	bool							ProcessAudioPacket(const TMediaPacket& Packet);
 	bool							ProcessPixelPacket(const TMediaPacket& Packet);
 };
+
+
+class TMediaPassThroughEncoder : public TMediaEncoder
+{
+public:
+	TMediaPassThroughEncoder(std::shared_ptr<TMediaPacketBuffer>& OutputBuffer,size_t StreamIndex);
+	
+	virtual void		Write(const Opengl::TTexture& Image,SoyTime Timecode,Opengl::TContext& Context) override;
+	virtual void		Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context) override;
+	virtual void		Write(std::shared_ptr<SoyPixelsImpl> Image,SoyTime Timecode) override;
+	
+	void				OnError(const std::string& Error);
+	
+public:
+	SoyPixelsMeta				mOutputMeta;
+	TMediaPacketBuffer			mFrames;
+	size_t						mStreamIndex;	//	may want to be in base
+};
+
 

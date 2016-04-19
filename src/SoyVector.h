@@ -11,6 +11,8 @@
 #include "mathfu/vector_4.h"
 #include "mathfu/matrix_4x4.h"
 
+//	gr: if we want to reduce dependancies, put a GetArrayBridge(vecN<T>) func in another file
+#include "RemoteArray.h"
 
 //	for soy: optimised/full implementations are called "matrix's"
 //	the simple POD types are called floatX's
@@ -24,6 +26,10 @@ namespace Soy
 	
 	template<typename TYPE>
 	class Rectx;
+
+	//	minmax or bounds...
+	template<typename TYPE>
+	class Boundsx;
 };
 
 struct CGAffineTransform;
@@ -164,6 +170,9 @@ public:
 	SWIZZLE3(z,z,z);
 	SWIZZLE3(x,y,z);
 	
+	FixedRemoteArray<TYPE>		GetArray() 	{	return FixedRemoteArray<TYPE>(&x, 4);	}
+
+
 	const TYPE&	operator[](size_t i) const
 	{
 		const TYPE* Elements[] = { &x,&y,&z,&w };
@@ -189,7 +198,7 @@ class vec4x4
 {
 public:
 	vec4x4() :
-		rows	{	vec4x<TYPE>(1,0,0,0), vec4x<TYPE>(0,1,0,0), vec4x<TYPE>(0,0,1,0), vec4x<TYPE>(0,0,0,1)	}
+		vec4x4	( 1,0,0,0,	0,1,0,0,	0,0,1,0,	0,0,0,1 )
 	{
 	}
 	vec4x4(TYPE a,TYPE b,TYPE c,TYPE d,
@@ -201,6 +210,12 @@ public:
 		rows	{	vec4x<TYPE>(a,b,c,d), vec4x<TYPE>(e,f,g,h), vec4x<TYPE>(i,j,k,l), vec4x<TYPE>(m,n,o,p)	}
 #endif
 	{
+#if defined(OLD_VISUAL_STUDIO)
+		rows[0] = vec4x<TYPE>(a,b,c,d);
+		rows[1] = vec4x<TYPE>(e,f,g,h);
+		rows[2] = vec4x<TYPE>(i,j,k,l);
+		rows[3] = vec4x<TYPE>(m,n,o,p);
+#endif
 	}
 
 	const TYPE&	operator()(size_t c,size_t r) const
@@ -332,6 +347,7 @@ public:
 	TYPE	m[3*3];
 };
 
+//	gr: this should be renamed to RectT, not X (X should be dimensions)
 template<typename TYPE>
 class Soy::Rectx
 {
@@ -382,21 +398,37 @@ public:
 };
 
 
-template<typename TYPE>
-inline void Soy::Rectx<TYPE>::FitToRect(const Rectx& Parent)
-{
-	//	https://github.com/SoylentGraham/PopUnityCommon/blob/master/PopMath.cs
-	auto& RectNorm = *this;
-	auto& Body = Parent;
-	
-	RectNorm.x *= Body.w;
-	RectNorm.w *= Body.w;
-	RectNorm.y *= Body.h;
-	RectNorm.h *= Body.h;
 
-	RectNorm.x += Body.x;
-	RectNorm.y += Body.y;
-}
+template<typename TYPE>
+class Soy::Boundsx
+{
+public:
+	Boundsx()
+	{
+	}
+	Boundsx(const TYPE& _min,const TYPE& _max) :
+		min	(_min),
+		max	(_max)
+	{
+	}
+	template<typename OTHERTYPE>
+	Boundsx(const Boundsx<OTHERTYPE>& r) :
+		min	(r.min),
+		max	(r.max)
+	{
+	}
+	
+	const TYPE	Min() const		{	return min;	}
+	const TYPE	Max() const		{	return min;	}
+	const TYPE	Size() const	{	return max-min;	}
+	
+public:
+	TYPE	min;
+	TYPE	max;
+};
+
+
+
 
 
 
@@ -409,7 +441,8 @@ typedef vec3x3<float> float3x3;
 
 namespace Soy
 {
-	typedef Soy::Rectx<float> Rectf;
+	typedef Rectx<float> Rectf;
+	typedef Boundsx<vec3f> Bounds3f;
 };
 
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec2f );
@@ -417,6 +450,7 @@ DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec3f );
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( vec4f );
 DECLARE_NONCOMPLEX_TYPE( float4x4 );
 DECLARE_NONCOMPLEX_TYPE( Soy::Rectf );
+DECLARE_NONCOMPLEX_TYPE( Soy::Bounds3f );
 
 
 
@@ -426,6 +460,13 @@ namespace Soy
 	inline Matrix2x1 VectorToMatrix(const vec2f& v)	{	return Matrix2x1( v.x, v.y );	}
 	inline Matrix3x1 VectorToMatrix(const vec3f& v)	{	return Matrix3x1( v.x, v.y, v.z );	}
 	inline Matrix4x1 VectorToMatrix(const vec4f& v)	{	return Matrix4x1( v.x, v.y, v.z, v.w );	}
+	inline Matrix3x3 VectorToMatrix(const float3x3& v)
+	{
+		return Matrix3x3( v(0,0), v(1,0), v(2,0),
+						 v(0,1), v(1,1), v(2,1),
+						 v(0,2), v(1,2), v(2,2)
+						 );
+	}
 	inline Matrix4x4 VectorToMatrix(const float4x4& v)
 	{
 		return Matrix4x4( v(0,0), v(1,0), v(2,0), v(3,0),
@@ -437,9 +478,18 @@ namespace Soy
 	inline vec2f MatrixToVector(const Matrix2x1& v)	{	return vec2f( v.x(), v.y() );	}
 	inline vec3f MatrixToVector(const Matrix3x1& v)	{	return vec3f( v.x(), v.y(), v.z() );	}
 	inline vec4f MatrixToVector(const Matrix4x1& v)	{	return vec4f( v.x(), v.y(), v.z(), v.w() );	}
+	inline float3x3 MatrixToVector(const Matrix3x3& v)
+	{
+		return float3x3( v[0], v[1], v[2],
+						v[3], v[4], v[5],
+						v[6], v[7], v[8] );
+	}
 	inline float4x4 MatrixToVector(const Matrix4x4& v)
 	{
-		return float4x4( v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15] );
+		return float4x4( v[0], v[1], v[2], v[3],
+						v[4], v[5], v[6], v[7],
+						v[8], v[9], v[10], v[11],
+						v[12], v[13], v[14], v[15] );
 	}
 	
 	inline vec4f	RectToVector(const Rectf& v)	{	return vec4f( v.x, v.y, v.w, v.h );	}
@@ -456,3 +506,19 @@ inline Soy::Rectf NSRectToRect(NSRect Rect)
 }
 #endif
 
+
+template<typename TYPE>
+inline void Soy::Rectx<TYPE>::FitToRect(const Rectx& Parent)
+{
+	//	https://github.com/SoylentGraham/PopUnityCommon/blob/master/PopMath.cs
+	auto& RectNorm = *this;
+	auto& Body = Parent;
+	
+	RectNorm.x *= Body.w;
+	RectNorm.w *= Body.w;
+	RectNorm.y *= Body.h;
+	RectNorm.h *= Body.h;
+
+	RectNorm.x += Body.x;
+	RectNorm.y += Body.y;
+}

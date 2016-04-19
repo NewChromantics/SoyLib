@@ -1,5 +1,6 @@
 #include "SoyAvf.h"
 #include <SoyH264.h>
+#include <SoyFileSystem.h>
 
 #include <CoreMedia/CMBase.h>
 #include <VideoToolbox/VTBase.h>
@@ -206,6 +207,9 @@ std::string Avf::GetString(OSStatus Status)
 	TESTENUMERROR(Status,kCVReturnWouldExceedAllocationThreshold);
 	TESTENUMERROR(Status,kCVReturnPoolAllocationFailed);
 	TESTENUMERROR(Status,kCVReturnInvalidPoolAttributes);
+	
+	//	decompression gives us this
+	TESTENUMERROR(Status,MACH_RCV_TIMED_OUT);
 	
 	switch ( static_cast<sint32>(Status) )
 	{
@@ -641,27 +645,7 @@ void Avf::TAsset::LoadTracks()
 
 NSURL* Avf::GetUrl(const std::string& Filename)
 {
-	NSString* UrlString = Soy::StringToNSString( Filename );
-	NSError *err;
-	
-	//	try as file which we can test for immediate fail
-	NSURL* Url = [[NSURL alloc]initFileURLWithPath:UrlString];
-	if ([Url checkResourceIsReachableAndReturnError:&err] == NO)
-	{
-		//	FILE is not reachable.
-		
-		//	try as url
-		Url = [[NSURL alloc]initWithString:UrlString];
-		
-		/*	gr: throw this error IF we KNOW it's a file we're trying to reach and not an url.
-		 check for ANY scheme?
-		 std::stringstream Error;
-		 Error << "Failed to reach file from url: " << mParams.mFilename << "; " << Soy::NSErrorToString(err);
-		 throw Soy::AssertException( Error.str() );
-		 */
-	}
-	
-	return Url;
+	return Platform::GetUrl( Filename );
 }
 
 
@@ -953,7 +937,7 @@ TCvVideoTypeMeta PixelFormatMap[] =
 
 
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,	SoyPixelsFormat::Yuv_8_88_Full ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,	SoyPixelsFormat::Yuv_8_88_Video ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,	SoyPixelsFormat::Yuv_8_88_Ntsc ),
 
 	/* gr: don't currently support these until we have pixel shaders for it
 	//	gr: are these the same luma range?
@@ -964,8 +948,8 @@ TCvVideoTypeMeta PixelFormatMap[] =
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8Planar,	SoyPixelsFormat::Yuv_844_Video ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8PlanarFullRange,	SoyPixelsFormat::Yuv_844_Full ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8Planar,	SoyPixelsFormat::YYuv_8888_Ntsc ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8PlanarFullRange,	SoyPixelsFormat::YYuv_8888_Full ),
 	
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_1Monochrome,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_2Indexed,	SoyPixelsFormat::Invalid ),

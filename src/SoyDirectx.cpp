@@ -1,6 +1,7 @@
 #include "SoyDirectx.h"
 #include "SoyPixels.h"
 #include "SoyRuntimeLibrary.h"
+#include "SoyPool.h"
 
 
 //	we never use this, but for old DX11 support, we need the type name
@@ -35,12 +36,13 @@ std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap
 {
 	{	Directx::TTextureMode::Invalid,			"Invalid"	},
 	{	Directx::TTextureMode::ReadOnly,		"ReadOnly"	},
-	{	Directx::TTextureMode::Writable,		"Writable"	},
+	{	Directx::TTextureMode::WriteOnly,		"WriteOnly"	},
+	{	Directx::TTextureMode::GpuOnly,			"GpuOnly"	},
 	{	Directx::TTextureMode::RenderTarget,	"RenderTarget"	},
 };
 
 
-DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
+DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus)
 {
 	switch ( Format )
 	{
@@ -51,11 +53,41 @@ DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
 		case SoyPixelsFormat::RGBA:				return DXGI_FORMAT_R8G8B8A8_UNORM;
 		case SoyPixelsFormat::BGRA:				return DXGI_FORMAT_B8G8R8A8_UNORM;
 
-		case SoyPixelsFormat::Nv12:				return DXGI_FORMAT_NV12;
+		case SoyPixelsFormat::Yuv_8_88_Full:	return DXGI_FORMAT_NV12;	
+		case SoyPixelsFormat::Yuv_8_88_Ntsc:	return DXGI_FORMAT_NV12;	
+		case SoyPixelsFormat::Yuv_8_88_Smptec:	return DXGI_FORMAT_NV12;	
+		
 		case SoyPixelsFormat::Greyscale:		return DXGI_FORMAT_R8_UNORM;
-		case SoyPixelsFormat::LumaVideo:		return DXGI_FORMAT_R8_UNORM;
+		case SoyPixelsFormat::Luma_Ntsc:		return DXGI_FORMAT_R8_UNORM;
+		case SoyPixelsFormat::Luma_Smptec:		return DXGI_FORMAT_R8_UNORM;
 		case SoyPixelsFormat::GreyscaleAlpha:	return DXGI_FORMAT_R8G8_UNORM;
 		case SoyPixelsFormat::ChromaUV_88:		return DXGI_FORMAT_R8G8_UNORM;
+	
+		//	_R8G8_B8G8 is a special format for YUY2... but I think it may not be supported on everything
+		//	gr: using RG for now and ignoring chroma until we have variables etc... we'll just fix monochrome when someone complains
+		case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_UNORM;
+		case SoyPixelsFormat::YYuv_8888_Ntsc:		return DXGI_FORMAT_R8G8_UNORM;
+		case SoyPixelsFormat::YYuv_8888_Smptec:		return DXGI_FORMAT_R8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Ntsc:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Smptec:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
+		//	DXGI_FORMAT_YUY2 is failing to bind to a resource...
+		//case SoyPixelsFormat::YYuv_8888_Full:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Ntsc:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
+		//case SoyPixelsFormat::YYuv_8888_Smptec:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
+	
+		//	other dx formats:
+		//	https://msdn.microsoft.com/en-us/library/windows/desktop/bb173059(v=vs.85).aspx
+		//	DXGI_FORMAT_YUV_444 : DXGI_FORMAT_AYUV	win8+ only
+		//	DXGI_FORMAT_Y410 YUV_444 10 bit per channel
+		//	DXGI_FORMAT_Y416 YUV_444 16 bit per channel
+		//	DXGI_FORMAT_P010  (bi?)planar 4_2_0 10 bit per channel
+	
+		//	DXGI_FORMAT_P016	yuv_4_2_0	16 bit per channel (bi?) planar
+		//	Width and height must be even. Direct3D 11 staging resources and initData parameters for this format use (rowPitch * (height + (height / 2))) bytes. The first (SysMemPitch * height) bytes are the Y plane, the remaining (SysMemPitch * (height / 2)) bytes are the UV plane.
+
+		//	Width and height must be even. Direct3D 11 staging resources and initData parameters for this format use (rowPitch * (height + (height / 2))) bytes.
+		//case SoyPixelsFormat::Yuv_844_Full:		return DXGI_FORMAT_420_OPAQUE;
 
 		default:
 		{
@@ -111,36 +143,23 @@ SoyPixelsFormat::Type Directx::GetFormat(DXGI_FORMAT Format)
 		case DXGI_FORMAT_R8_SINT:				return SoyPixelsFormat::Greyscale;
 		case DXGI_FORMAT_A8_UNORM:				return SoyPixelsFormat::Greyscale;
 		case DXGI_FORMAT_NV12:					return SoyPixelsFormat::Nv12;
+
+		case DXGI_FORMAT_YUY2:					return SoyPixelsFormat::YYuv_8888_Full;
+		case DXGI_FORMAT_R8G8_B8G8_UNORM:		return SoyPixelsFormat::YYuv_8888_Full;
 	}
 }
 
-std::string Directx::GetEnumString(HRESULT Error)	
-{
-	return Platform::GetErrorString( Error );	
-}
-
-//	gr: move this to generic Platform::IsOkay for windows
-bool Directx::IsOkay(HRESULT Error,const std::string& Context,bool ThrowException)
-{
-	if ( Error == S_OK )
-		return true;
-
-	std::stringstream ErrorStr;
-	ErrorStr << "Directx error in " << Context << ": " << GetEnumString(Error) << std::endl;
-	
-	if ( !ThrowException )
-	{
-		std::Debug << ErrorStr.str() << std::endl;
-		return false;
-	}
-	
-	return Soy::Assert( Error == S_OK, ErrorStr.str() );
-}
 
 
 std::ostream& Directx::operator<<(std::ostream &out,const Directx::TTexture& in)
 {
-	out << in.mMeta << "(" << in.GetMode() << ")";
+	out << in.mMeta << "/" << in.GetMode();
+	return out;
+}
+
+std::ostream& operator<<(std::ostream &out,const Directx::TTextureMeta& in)
+{
+	out << in.mMeta << "/" << in.mMode;
 	return out;
 }
 
@@ -326,9 +345,10 @@ Directx::TCompiler& Directx::TContext::GetCompiler()
 Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode)
 {
 	static bool AutoMipMap = false;
+	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
 
 	Soy::Assert( Meta.IsValid(), "Cannot create texture with invalid meta");
-
+	
 	//	create description
 	D3D11_TEXTURE2D_DESC Desc;
 	memset(&Desc, 0, sizeof(Desc));
@@ -341,24 +361,31 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 
 	if ( Mode == TTextureMode::RenderTarget )
 	{
-		Desc.Format = GetFormat( Meta.GetFormat() );//DXGI_FORMAT_R32G32B32A32_FLOAT;
+		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8 );//DXGI_FORMAT_R32G32B32A32_FLOAT;
 		Desc.Usage = D3D11_USAGE_DEFAULT;
 		Desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 		Desc.CPUAccessFlags = 0;
 	}
-	else if ( Mode == TTextureMode::Writable )
+	else if ( Mode == TTextureMode::WriteOnly )
 	{
 		Desc.Usage = D3D11_USAGE_DYNAMIC;
-		Desc.Format = GetFormat( Meta.GetFormat() );
+		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8  );
 		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	}
 	else if ( Mode == TTextureMode::ReadOnly )
 	{
+		Desc.Usage = D3D11_USAGE_STAGING;
+		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8  );
+		Desc.BindFlags = 0;
+		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+	}
+	else if ( Mode == TTextureMode::GpuOnly )
+	{
 		Desc.Usage = D3D11_USAGE_DEFAULT;
-		Desc.Format = GetFormat( Meta.GetFormat() );
+		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8  );
 		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		Desc.CPUAccessFlags = 0x0;
+		Desc.CPUAccessFlags = 0;
 	}
 	else
 	{
@@ -379,6 +406,7 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 		Soy::Assert( mTexture, "CreateTexture succeeded, but no texture");
 		mTexture->AddRef();
 		mMeta = Meta;
+		mFormat = Desc.Format;
 	}
 	catch( std::exception& e)
 	{
@@ -388,7 +416,8 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 	ContextDx.Unlock();
 }
 
-Directx::TTexture::TTexture(ID3D11Texture2D* Texture)
+Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
+	mFormat	( DXGI_FORMAT_UNKNOWN )
 {
 	//	validate and throw here
 	Soy::Assert( Texture != nullptr, "null directx texture" );
@@ -399,6 +428,9 @@ Directx::TTexture::TTexture(ID3D11Texture2D* Texture)
 	D3D11_TEXTURE2D_DESC SrcDesc;
 	mTexture->GetDesc( &SrcDesc );
 	mMeta = SoyPixelsMeta( SrcDesc.Width, SrcDesc.Height, GetFormat(SrcDesc.Format) );
+	mFormat = SrcDesc.Format;
+
+	//	todo: copy sample params from Description
 }
 
 Directx::TTextureMode::Type Directx::TTexture::GetMode() const
@@ -408,6 +440,9 @@ Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 	mTexture.mObject->GetDesc( &SrcDesc );
 	bool IsRenderTarget = (SrcDesc.BindFlags & D3D11_BIND_RENDER_TARGET) != 0;
 	bool IsWritable = (SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_WRITE) != 0;
+	bool IsReadable = (SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_READ) != 0;
+
+	//	gr: note, we're not covering IsWritable && IsReadable
 
 	if ( IsRenderTarget )
 	{
@@ -415,35 +450,43 @@ Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 	}
 	else if ( IsWritable )
 	{
-		return TTextureMode::Writable;
+		return TTextureMode::WriteOnly;
 	}
-	else
+	else if ( IsReadable )
 	{
 		return TTextureMode::ReadOnly;
 	}
+	else
+	{
+		return TTextureMode::GpuOnly;
+	}
 }
 
-void Directx::TTexture::Write(TTexture& Destination,TContext& ContextDx)
+void Directx::TTexture::Write(const TTexture& Source,TContext& ContextDx)
 {
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
-	Soy::Assert( Destination.IsValid(), "Writing from invalid texture" );
+	Soy::Assert( Source.IsValid(), "Writing from invalid texture" );
 
 	//	try simple no-errors-reported-by-dx copy resource fast path
-	if ( CanCopyMeta( mMeta, Destination.mMeta ) )
+	if ( CanCopyMeta( mMeta, Source.mMeta ) )
 	{
 		auto& Context = ContextDx.LockGetContext();
-		Context.CopyResource( mTexture, Destination.mTexture );
+
+		const ID3D11Texture2D* Resource = Source.mTexture;
+		auto* ResourceMutable = const_cast<ID3D11Texture2D*>( Resource );
+
+		Context.CopyResource( mTexture, ResourceMutable );
 		ContextDx.Unlock();
 		return;
 	}
 
 	std::stringstream Error;
-	Error << "No path to copy " << (*this) << " to " << Destination;
+	Error << "No path to copy " << (*this) << " to " << Source;
 	throw Soy::AssertException( Error.str() );
 }
 
 
-void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
+Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& ContextDx,bool WriteAccess)
 {
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
 	auto& Context = ContextDx.LockGetContext();
@@ -463,7 +506,9 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 		bool IsDefferedContext = ( ContextType == D3D11_DEVICE_CONTEXT_DEFERRED );
 		
 		bool CanWrite = SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_WRITE;
-		Soy::Assert(CanWrite, "Texture does not have CPU mapping access");
+		bool CanRead = SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_READ;
+		Soy::Assert( WriteAccess || CanRead, "Texture does not have CPU read mapping access");
+		Soy::Assert( !WriteAccess || CanWrite, "Texture does not have CPU write mapping access");
 
 		//	https://msdn.microsoft.com/en-us/library/windows/desktop/ff476457(v=vs.85).aspx
 		//	particular case which doesn't map to a resource and needs to be written to in a different way 
@@ -478,6 +523,7 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 			Directx::IsOkay(hr, ErrorString.str());
 
 			Context.Unmap(nullptr, SubResource);
+			throw Soy::AssertException("Cannot map non read/write(D3D11_USAGE_DEFAULT) texture");
 		}
 		else
 		{
@@ -491,14 +537,25 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 			if ( IsDefferedContext )
 			{
 				MapFlags = 0x0;
-				MapMode = D3D11_MAP_WRITE_DISCARD;
+
+				if ( WriteAccess )
+					MapMode = D3D11_MAP_WRITE_DISCARD;
+				else
+					MapMode = D3D11_MAP_READ;
 			}
 			else
 			{
 				MapFlags = !Blocking ? D3D11_MAP_FLAG_DO_NOT_WAIT : 0x0;
-				//	gr: for immediate context, we ALSO want write_discard
-				//MapMode = D3D11_MAP_WRITE;
-				MapMode = D3D11_MAP_WRITE_DISCARD;
+				if ( WriteAccess )
+				{
+					//	gr: for immediate context, we ALSO want write_discard
+					//MapMode = D3D11_MAP_WRITE;
+					MapMode = D3D11_MAP_WRITE_DISCARD;
+				}
+				else
+				{
+					MapMode = D3D11_MAP_READ;
+				}
 			}
 
 			HRESULT hr = Context.Map(mTexture, SubResource, MapMode, MapFlags, &resource);
@@ -516,22 +573,22 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 				Directx::IsOkay(hr, ErrorString.str());
 			}
 
-			size_t ResourceDataSize = resource.RowPitch * SrcDesc.Height;//	width in bytes
-			auto& PixelsArray = Pixels.GetPixelsArray();
-			if ( PixelsArray.GetDataSize() != ResourceDataSize )
+			//	depth pitch is one slice, so contains the resource's full data. 
+			//	double check in case its zero though...
+			size_t ResourceDataSize = resource.DepthPitch;
+			if ( ResourceDataSize == 0 )
+				ResourceDataSize = resource.RowPitch * SrcDesc.Height;
+
+			auto Unlock = [&]
 			{
-				std::stringstream Error;
-				Error << "Warning: resource/texture data size mismatch; " << PixelsArray.GetDataSize() << " (frame) vs " << ResourceDataSize << " (resource)";
-				std::Debug << Error.str() << std::endl;
+				Context.Unmap( mTexture, SubResource);
+				ContextDx.Unlock();
+			};
 
-				ResourceDataSize = std::min(ResourceDataSize, PixelsArray.GetDataSize());
-			}
+			SoyPixelsMeta ResourceMeta( SrcDesc.Width, SrcDesc.Height, GetFormat(SrcDesc.Format) );
 
-			//	update contents 
-			memcpy(resource.pData, PixelsArray.GetArray(), ResourceDataSize);
-			Context.Unmap( mTexture, SubResource);
+			return TLockedTextureData( resource.pData, ResourceDataSize, ResourceMeta, resource.RowPitch, Unlock );
 		}
-		ContextDx.Unlock();
 	}
 	catch (std::exception& e)
 	{
@@ -542,6 +599,72 @@ void Directx::TTexture::Write(const SoyPixelsImpl& Pixels,TContext& ContextDx)
 }
 
 
+void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& ContextDx)
+{
+	auto Lock = LockTextureData( ContextDx, true );
+
+	//	copy row by row to handle misalignment
+	SoyPixelsRemote DestPixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
+
+	auto SourceChannelCount = SourcePixels.GetChannels();
+	auto DestChannelCount = DestPixels.GetChannels();
+	Soy::Assert( SourceChannelCount==DestChannelCount, "Directx::TTexture::Write expecting channel counts to match");
+
+	auto CopyHeight = std::min( DestPixels.GetHeight(), SourcePixels.GetHeight() );
+	auto CopyWidth = std::min( DestPixels.GetWidth(), SourcePixels.GetWidth() );
+
+	for ( int y=0;	y<CopyHeight;	y++ )
+	{
+		auto* SourceRow = &SourcePixels.GetPixelPtr( 0, y, 0 );
+		auto* DestRow = &DestPixels.GetPixelPtr( 0, y, 0 );
+		memcpy( DestRow, SourceRow, CopyWidth * SourceChannelCount );
+	}
+}
+
+
+void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool<TTexture>* pTexturePool)
+{
+	//	not readable, so copy to a temp texture first and then read
+	//	gr: use try/catch on the lock to cover more cases?
+	if ( GetMode() != TTextureMode::ReadOnly && pTexturePool )
+	{
+		auto& TexturePool = *pTexturePool;
+		auto Meta = TTextureMeta(this->GetMeta(), TTextureMode::ReadOnly);
+
+		auto Alloc = [this,&ContextDx]()
+		{
+			return std::make_shared<TTexture>(this->GetMeta(), ContextDx, TTextureMode::ReadOnly);
+		};
+
+		auto& TempTexture = TexturePool.Alloc(Meta, Alloc);
+		TempTexture.Write(*this, ContextDx);
+		//	no pool!
+		TempTexture.Read(DestPixels, ContextDx);
+		TexturePool.Release(TempTexture);
+		return;
+	}
+
+	auto Lock = LockTextureData( ContextDx, false );
+
+	DestPixels.Init( Lock.mMeta );
+
+	//	copy row by row to handle misalignment
+	SoyPixelsRemote SourcePixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
+
+	auto SourceChannelCount = SourcePixels.GetChannels();
+	auto DestChannelCount = DestPixels.GetChannels();
+	Soy::Assert( SourceChannelCount==DestChannelCount, "Directx::TTexture::Read expecting channel counts to match");
+
+	auto CopyHeight = std::min( DestPixels.GetHeight(), SourcePixels.GetHeight() );
+	auto CopyWidth = std::min( DestPixels.GetWidth(), SourcePixels.GetWidth() );
+
+	for ( int y=0;	y<CopyHeight;	y++ )
+	{
+		auto* SourceRow = &SourcePixels.GetPixelPtr( 0, y, 0 );
+		auto* DestRow = &DestPixels.GetPixelPtr( 0, y, 0 );
+		memcpy( DestRow, SourceRow, CopyWidth * SourceChannelCount );
+	}
+}
 
 Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 	mTexture		( Texture )
@@ -549,13 +672,15 @@ Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 	Soy::Assert(mTexture.IsValid(), "Render target needs a valid texture target" );
 	auto& Meta = mTexture.GetMeta();
 	
+	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
+
 	// Create the render target view.
 	auto& Device = ContextDx.LockGetDevice();
 	try
 	{
 		auto* TextureDx = mTexture.mTexture.mObject;
 		D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
-		renderTargetViewDesc.Format = GetFormat( Meta.GetFormat() );
+		renderTargetViewDesc.Format = GetFormat( Meta.GetFormat(), IsWindows8 );
 		renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 		renderTargetViewDesc.Texture2D.MipSlice = 0;
 		{
@@ -566,7 +691,7 @@ Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 		}
 
 		D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
-		shaderResourceViewDesc.Format = GetFormat( Meta.GetFormat() );
+		shaderResourceViewDesc.Format = GetFormat( Meta.GetFormat(), IsWindows8 );
 		shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 		shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
 		shaderResourceViewDesc.Texture2D.MipLevels = 1;
@@ -1100,6 +1225,17 @@ ID3D11DeviceContext& Directx::TShader::GetContext()
 {
 	Soy::Assert( mBoundContext!=nullptr, "Shader is not bound");
 	return *mBoundContext->mLockedContext;
+}
+
+
+size_t Directx::TLockedTextureData::GetPaddedWidth()
+{
+	auto ChannelCount = mMeta.GetChannels();
+	Soy::Assert( ChannelCount > 0, "Locked data channel count zero, cannot work out padded width");
+	auto Overflow = mRowPitch % ChannelCount;
+	Soy::Assert( Overflow == 0, "Locked data pitch doesn't align to channel count");
+	auto PaddedWidth = mRowPitch / ChannelCount;
+	return PaddedWidth;
 }
 
 

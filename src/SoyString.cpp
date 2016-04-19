@@ -519,6 +519,21 @@ bool Soy::StringTrimRight(std::string& Haystack,const std::string& Suffix,bool C
 }
 
 
+bool Soy::StringTrimRight(std::string& String,char TrimChar)
+{
+	bool Changed = false;
+	while ( !String.empty() )
+	{
+		auto Last = String.length()-1;
+		if ( String[Last] != TrimChar )
+			break;
+		String.erase( Last );
+		Changed = true;
+	}
+	return Changed;
+}
+
+
 void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 {
 	Soy::Assert( Buffer!=nullptr, "Soy::StringToBuffer Buffer expected" );
@@ -889,3 +904,33 @@ bool Soy::StringToUnsignedInteger(size_t& IntegerOut,const std::string& String)
 	return true;
 }
 
+
+void Soy::SplitUrlPathVariables(std::string& Path,std::map<std::string,std::string>& Variables)
+{
+	//	find ?
+	auto VariablesStartPos = Path.find('?');
+	if ( VariablesStartPos == std::string::npos )
+		return;
+	
+	//	pop path & vars
+	auto VariablesString = (VariablesStartPos==Path.length()-1) ? std::string() : Path.substr(VariablesStartPos+1);
+	Path.resize( VariablesStartPos );
+
+	//	split vars
+	auto ParseVariable = [&](const std::string& Variable)
+	{
+		BufferArray<std::string,2> KeyAndValue;
+		StringSplitByMatches( GetArrayBridge(KeyAndValue), Variable, "=", true );
+		KeyAndValue.SetSize(2);
+		UriDecode( KeyAndValue[0] );
+		UriDecode( KeyAndValue[1] );
+		Variables[KeyAndValue[0]] = KeyAndValue[1];
+		return true;
+	};
+	StringSplitByString( ParseVariable, VariablesString, "&", false );
+}
+
+void Soy::UriDecode(std::string& String)
+{
+	//	convert %XX to chars
+}

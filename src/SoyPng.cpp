@@ -136,11 +136,7 @@ bool TPng::ReadHeader(SoyPixelsImpl& Pixels,THeader& Header,ArrayBridge<char>& D
 	}
 	
 	//	allocate
-	if ( !Pixels.Init( Width, Height, PixelFormat ) )
-	{
-		Error << "failed to allocate png " << Width << "x" << Height << " (" << PixelFormat << ")";
-		return false;
-	}
+	Pixels.Init( Width, Height, PixelFormat );
 	
 	//	grab the other bits
 	Header.mCompression = static_cast<TCompression::Type>(Compression);

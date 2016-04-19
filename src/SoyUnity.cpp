@@ -2,6 +2,7 @@
 #include "SoyDebug.h"
 #include <sstream>
 #include "SoyOpenglContext.h"
+#include "SoyExportManager.h"
 
 //	new interfaces in 5.2+
 #include "Unity/IUnityInterface.h"
@@ -50,15 +51,24 @@ namespace Platform
 
 namespace Unity
 {
-	SoyListenerId	DebugListener;
-	
-	void			PushDebugString(const std::string& Message);
-	bool			PopDebugString(std::string& Buffer);
-	void			FlushDebugStrings();
-	
-	std::mutex					DebugBufferLock;
-	std::vector<std::string>	DebugBuffer;
+	static int		gRenderEventTimerMs = 8;
 
+	
+	//	attach to std::debug
+	SoyListenerId	DebugListener;
+	void			PushDebugString(const std::string& Message);
+	
+	//	actual storage of debug strings
+	static size_t	DefaultDebugStringExportLimit = 1000;
+	std::shared_ptr<TExportManager<std::string,char>>	gDebugStringManager;
+	TExportManager<std::string,char>&	GetDebugStringManager();
+	
+	//	c/# interface of strings we've exported and pending to be read by c/#
+	std::mutex							gDebugExportedStringsLock;
+	Array<const char*>					gDebugExportedStrings;
+	bool								gDebugExportedStringsEnabled = true;
+	
+	
 	std::shared_ptr<Opengl::TContext>	OpenglContext;
 #if defined(TARGET_WINDOWS)
 	std::shared_ptr<Directx::TContext>	DirectxContext;
@@ -319,7 +329,7 @@ BOOL APIENTRY DllMain(HMODULE Module, DWORD Reason, LPVOID Reserved)
 
 void Unity::RenderEvent(Unity::sint eventID)
 {
-	ofScopeTimerWarning Timer(__func__,4);
+	ofScopeTimerWarning Timer(__func__,gRenderEventTimerMs);
 
 	//	iterate current context
 	if (Unity::OpenglContext)
@@ -491,82 +501,72 @@ void Unity::Shutdown(UnityDevice::Type Device)
 #endif
 }
 
+void Unity::EnableDebugStrings(bool Enable)
+{
+	gDebugExportedStringsEnabled = Enable;
+}
+
+TExportManager<std::string,char>& Unity::GetDebugStringManager()
+{
+	if ( !gDebugStringManager )
+		gDebugStringManager.reset( new TExportManager<std::string,char>(DefaultDebugStringExportLimit) );
+	
+	return *gDebugStringManager;
+}
+
+
 
 void Unity::PushDebugString(const std::string& Message)
 {
 	if ( Message.empty() )
 		return;
 	
-	static int BufferLimit = 1000;
-	std::lock_guard<std::mutex> Lock( DebugBufferLock );
-	DebugBuffer.push_back( Message );
-	while ( DebugBuffer.size() > BufferLimit )
+	if ( !gDebugExportedStringsEnabled )
+		return;
+
+	//	we now immediately export the string and keep a list of strings for c/# interface to work through
+	try
 	{
-		DebugBuffer.erase( DebugBuffer.begin() );
+		auto& Manager = GetDebugStringManager();
+		auto* LockedString = Manager.Lock( Message );
+		if ( !LockedString )
+			return;
+		std::lock_guard<std::mutex> Lock( gDebugExportedStringsLock );
+		gDebugExportedStrings.PushBack( LockedString );
+	}
+	catch(std::exception& e)
+	{
+		int x;
+		//	recursion?
+		//std::Debug << __func__ << " caught exception: " << e.what() << std::endl;
 	}
 }
 
-bool Unity::PopDebugString(std::string& Buffer)
+const char* Unity::PopDebugString()
 {
-	std::lock_guard<std::mutex> Lock( DebugBufferLock );
-	if ( DebugBuffer.empty() )
-		return false;
-	
-	Buffer = DebugBuffer[0];
-	DebugBuffer.erase( DebugBuffer.begin() );
-	return true;
+	std::lock_guard<std::mutex> Lock( gDebugExportedStringsLock );
+	if ( gDebugExportedStrings.IsEmpty() )
+		return nullptr;
+	auto* PoppedString = gDebugExportedStrings.PopAt(0);
+	return PoppedString;
 }
 
-void Unity::FlushDebugStrings()
+void Unity::ReleaseDebugString(const char* ExportedString)
 {
-	std::lock_guard<std::mutex> Lock( DebugBufferLock );
-	DebugBuffer.clear();
+	auto& Manager = GetDebugStringManager();
+	Manager.Unlock( ExportedString );
 }
 
-__export void FlushDebug(Unity::LogCallback Callback)
+void Unity::ReleaseDebugStringAll()
 {
-	ofScopeTimerWarning UpdateTextureTimer(__func__,15);
-
-	static bool ForceFlush = false;
-	if ( ForceFlush )
-		Callback = nullptr;
-	
-	if ( !Callback )
-		Unity::FlushDebugStrings();
-	
-	//	we might get a thread that's pumping so much debug that we never get back to unity.
-	//	lets break out.
-	//	gr: smaybe flush messages if that happens?
-	size_t PrintCount = 0;
-	static size_t MaxPrintCount = 60;
-	static bool FlushExcessMessages = false;
-
-	std::string Buffer;
-	while ( Unity::PopDebugString( Buffer ) )
 	{
-		if ( Callback )
-		{
-			Callback( Buffer.c_str() );
-		}
-
-		PrintCount++;
-		if ( PrintCount >= MaxPrintCount )
-		{
-			std::stringstream BreakMessage;
-			BreakMessage << "Printed " << PrintCount << " messages in one go. ";
-			
-			if ( FlushExcessMessages )
-				BreakMessage << "Flushing the rest to avoid hang[s].";
-
-			Callback( BreakMessage.str().c_str() );
-
-			if ( FlushExcessMessages )
-				Unity::FlushDebugStrings();
-			break;
-		}
+		std::lock_guard<std::mutex> Lock( gDebugExportedStringsLock );
+		gDebugExportedStrings.Clear();
 	}
+	
+	auto& Manager = GetDebugStringManager();
+	Manager.UnlockAll();
 }
-
 
 
 namespace Unity
@@ -636,6 +636,8 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
 		//Unity::GraphicsDevice = nullptr;
 	}
 }
+
+
 
 void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
 {

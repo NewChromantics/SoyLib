@@ -1,9 +1,8 @@
 #include "SoyJson.h"
-
-
 #include "heaparray.hpp"
 #include "SoyDebug.h"
-void SoyJson::UnitTest()
+
+void Json::UnitTest()
 {
 	TJsonWriter Json;
 	
@@ -30,6 +29,60 @@ void SoyJson::UnitTest()
 	std::Debug << Json << std::endl;
 }
 
+void Json::IsValidJson(const std::string& Json)
+{
+	Soy::Assert( !Json.empty(), "Invalid json, empty" );
+	Soy::Assert( *Json.begin()=='{', "Invalid json does not begin with {" );
+	
+	//	count opening & closing braces
+	int BraceCounter = 0;
+	for ( int i=0;	i<Json.length();	i++ )
+	{
+		if ( Json[i] == '{' )
+			BraceCounter++;
+		if ( Json[i] == '}' )
+			BraceCounter--;
+	}
+	
+	Soy::Assert( BraceCounter==0, "Json braces don't balance" );
+}
+
+std::string Json::EscapeString(const char* RawString)
+{
+	std::stringstream Stream;
+
+	Stream << '"';
+	while ( *RawString )
+	{
+		switch ( *RawString )
+		{
+			case '"':	Stream << "\\\"";	break;
+			case '\t':	Stream << "\\t";	break;
+			case '\r':	Stream << "\\r";	break;
+			case '\n':	Stream << "\\n";	break;
+			case '\f':	Stream << "\\f";	break;
+			case '\b':	Stream << "\\b";	break;
+			case '\\':	Stream << "\\\\";	break;
+			case '/':	Stream << "\\/";	break;
+
+			default:
+				Stream << *RawString;
+				break;
+		}
+		RawString++;
+	}
+
+	Stream << '"';
+
+	return Stream.str();
+}
+
+std::string Json::EscapeString(const std::string& RawString)	
+{	
+	if ( RawString.empty() )
+		return "\"\"";
+	return EscapeString( RawString.c_str() );	
+}
 
 
 std::ostream& operator<< (std::ostream &out,const TJsonWriter &in)
@@ -45,7 +98,11 @@ void TJsonWriter::Open()
 {
 	if ( mOpen )
 		return;
-	mStream << "{";
+	
+	mStream << '{';
+	if ( mPrettyFormatting )
+		mStream << "\n";
+	
 	mOpen = true;
 }
 
@@ -53,85 +110,107 @@ void TJsonWriter::Close()
 {
 	if ( !mOpen )
 		return;
-	mStream << "}";
+	
+	if ( mPrettyFormatting )
+		mStream << '\n';
+	mStream << '}';
+	
 	mOpen = false;
 }
 
 template<typename TYPE>
-bool PushElement(const char* Name,const TYPE& Value,int& mElementCount,std::ostream& mStream,TJsonWriter& Json)
+void PushElement(const char* Name,const TYPE& Value,int& mElementCount,std::ostream& mStream,TJsonWriter& Json,bool mPrettyFormatting)
 {
 	Json.Open();
 	
 	if ( mElementCount > 0 )
-		mStream << ",";
+	{
+		mStream << ',';
+		if ( mPrettyFormatting )
+			mStream << '\n';
+	}
+
+	if ( mPrettyFormatting )
+		mStream << '\t';
 	
-	mStream << '"' << Name << '"' << ":" << Value;
+	mStream << Json::EscapeString(Name) << ':' << Value;
 	mElementCount++;
-	return true;
 }
 	
-bool TJsonWriter::Push(const char* Name,const std::string& Value)
+void TJsonWriter::Push(const char* Name,const std::string& Value)
 {
-	return Push( Name, Value.c_str() );
+	Push( Name, Value.c_str() );
 }
 
-bool TJsonWriter::Push(const char* Name,const char* Value)
+void TJsonWriter::Push(const char* Name,const char* Value,bool EscapeString)
 {
+	if ( EscapeString )
+	{
+		std::string ValueEscaped = Json::EscapeString( Value );
+		PushElement( Name, ValueEscaped, mElementCount, mStream, *this, mPrettyFormatting );
+	}
+	else
+	{
+		PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
+	}
+}
+
+void TJsonWriter::PushStringRaw(const char* Name,const std::string& Value)
+{
+	PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
+}
+
+void TJsonWriter::Push(const char* Name,const size_t& Value)
+{
+	PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
+}
+
+void TJsonWriter::Push(const char* Name,const ssize_t& Value)
+{
+	PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
+}
+
+void TJsonWriter::Push(const char* Name,const float& Value)
+{
+	PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
+}
+
+void TJsonWriter::Push(const char* Name,const TJsonWriter& Value)
+{
+	PushElement( Name, Value, mElementCount, mStream, *this, mPrettyFormatting );
+}
+
+//	attempt to merge this json into this object at the same level
+void TJsonWriter::MergeJson(const std::string& Json)
+{
+	//	extract the structure
+	auto MergeJson = Json;
+	
+	char TrimLeft[] = {'{','\t','\n'};
+	char TrimRight[] = {'}','\t','\n'};
+	
+	Soy::StringTrimLeft( MergeJson, GetArrayBridge(GetRemoteArray(TrimLeft)) );
+	Soy::StringTrimRight( MergeJson, GetArrayBridge(GetRemoteArray(TrimRight)) );
+	
 	Open();
 	
 	if ( mElementCount > 0 )
-		mStream << ",";
-	
-	//	gr: encode control characters etc
-	//	string in quotes!
-	mStream << '"' << Name << '"' << ":" << '"';
- 
-	//	write value as we encode
-	do
 	{
-		switch ( *Value )
-		{
-			case '"':	mStream << "\\\"";	break;
-			case '\t':	mStream << "\\t";	break;
-			case '\r':	mStream << "\\r";	break;
-			case '\n':	mStream << "\\n";	break;
-			case '\f':	mStream << "\\f";	break;
-			case '\b':	mStream << "\\b";	break;
-			case '\\':	mStream << "\\\\";	break;
-			case '/':	mStream << "\\/";	break;
-
-			default:
-				mStream << *Value;
-				break;
-		}
+		mStream << ',';
+		if ( mPrettyFormatting )
+			mStream << '\n';
 	}
-	while ( *(++Value) );
 	
-	mStream << '"';
+	if ( mPrettyFormatting )
+		mStream << '\t';
 	
+	mStream << MergeJson;
 	mElementCount++;
-	
-	return true;
 }
 
-bool TJsonWriter::PushStringRaw(const char* Name,const std::string& Value)
+std::string TJsonWriter::GetString() const
 {
-	return PushElement( Name, Value, mElementCount, mStream, *this );
+	std::stringstream str;
+	str << *this;
+	return str.str();
 }
-
-bool TJsonWriter::Push(const char* Name,const int& Value)
-{
-	return PushElement( Name, Value, mElementCount, mStream, *this );
-}
-
-bool TJsonWriter::Push(const char* Name,const float& Value)
-{
-	return PushElement( Name, Value, mElementCount, mStream, *this );
-}
-
-bool TJsonWriter::Push(const char* Name,const TJsonWriter& Value)
-{
-	return PushElement( Name, Value, mElementCount, mStream, *this );
-}
-
-
