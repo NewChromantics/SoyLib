@@ -559,19 +559,19 @@ public:
 	{
 		mFilename = Filename;
 	}
-	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames,bool ForceNonPlanarOutput,bool ExtractAudioStreams,bool ApplyHeightPadding) :
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted) :
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
-		mReadAheadMs					( ReadAheadMs ),
-		mDiscardOldFrames				( DiscardOldFrames ),
-		mForceNonPlanarOutput			( ForceNonPlanarOutput ),
+		mReadAheadMs					( 0ull ),
+		mDiscardOldFrames				( true ),
+		mForceNonPlanarOutput			( false ),
 		mDebugIntraFrameRect			( false ),
 		mDebugIntraFrameTransparency	( false ),
-		mExtractAudioStreams			( ExtractAudioStreams ),
+		mExtractAudioStreams			( true ),
 		mOnlyExtractKeyframes			( false ),
 		mResetInternalTimestamp			( false ),
 		mAudioSampleRate				( 0 ),
-		mApplyHeightPadding				( ApplyHeightPadding ),
+		mApplyHeightPadding				( true ),
 		mWindowIncludeBorders			( true ),
 		mLiveUseClockTime				( false )
 	{
