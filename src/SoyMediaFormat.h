@@ -57,6 +57,7 @@ namespace SoyMediaFormat
 		Mpeg4,
 		Mpeg4_v3,		//	windows mpeg4 variant MP43 (msmpeg4v3)
 		VC1,			//	in TS files, not sure what this is yet
+		Divx,			//	added to detect, and fail gracefully
 		
 		//	encoded images
 		Png,
@@ -103,7 +104,7 @@ namespace SoyMediaFormat
 	bool		IsText(Type Format);
 	bool		IsH264(Type Format);
 	bool		IsImage(Type Format);	//	encoded image
-	Type		FromFourcc(uint32 Fourcc,int H264LengthSize=-1,bool TryReversed=true);
+	Type		FromFourcc(uint32 Fourcc,int H264LengthSize=-1);
 	uint32		ToFourcc(Type Format);
 	bool		IsH264Fourcc(uint32 Fourcc);
 	std::string	ToMime(Type Format);

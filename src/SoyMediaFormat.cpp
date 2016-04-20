@@ -18,6 +18,78 @@ namespace Mime
 }
 
 
+namespace SoyMediaMetaFlags
+{
+	//	copy & paste this to c#
+	enum Type
+	{
+		None						= 0,
+		IsVideo						= 1<<0,
+		IsAudio						= 1<<1,
+		IsH264						= 1<<2,
+		IsText						= 1<<3,
+		IsImage						= 1<<4,
+	};
+}
+
+class SoyMediaFormatMeta
+{
+public:
+	SoyMediaFormatMeta() :
+		mFormat			( SoyMediaFormat::Invalid ),
+		mFlags			( 0 ),
+		mSubtypeSize	( 0 )
+	{
+	}
+	
+	SoyMediaFormatMeta(SoyMediaFormat::Type Format,const std::initializer_list<std::string>& Mimes,const std::initializer_list<uint32_t>& Fourccs,int Flags,int SubtypeSize) :
+		mFormat			( Format ),
+		mFlags			( Flags ),
+		mSubtypeSize	( SubtypeSize )
+	{
+		for ( auto Fourcc : Fourccs )
+			mFourccs.PushBack( Fourcc );
+		for ( auto Mime : Mimes )
+			mMimes.PushBack( Mime );
+	}
+	SoyMediaFormatMeta(SoyMediaFormat::Type Format,const std::initializer_list<std::string>& Mimes,const uint32_t& Fourcc,int Flags,int SubtypeSize) :
+		mFormat			( Format ),
+		mFlags			( Flags ),
+		mSubtypeSize	( SubtypeSize )
+	{
+		mFourccs.PushBack( Fourcc );
+		for ( auto Mime : Mimes )
+			mMimes.PushBack( Mime );
+	}
+	SoyMediaFormatMeta(SoyMediaFormat::Type Format,const std::string& Mime,const std::initializer_list<uint32_t>& Fourccs,int Flags,int SubtypeSize) :
+		mFormat			( Format ),
+		mFlags			( Flags ),
+		mSubtypeSize	( SubtypeSize )
+	{
+		for ( auto Fourcc : Fourccs )
+			mFourccs.PushBack( Fourcc );
+		mMimes.PushBack( Mime );
+	}
+	SoyMediaFormatMeta(SoyMediaFormat::Type Format,const std::string& Mime,const uint32_t& Fourcc,int Flags,int SubtypeSize) :
+		mFormat			( Format ),
+		mFlags			( Flags ),
+		mSubtypeSize	( SubtypeSize )
+	{
+		mFourccs.PushBack( Fourcc );
+		mMimes.PushBack( Mime );
+	}
+	
+	SoyMediaFormat::Type		mFormat;
+	BufferArray<uint32_t,5>		mFourccs;
+	BufferArray<std::string,5>	mMimes;
+	uint32_t					mFlags;
+	int							mSubtypeSize;
+	
+	bool					Is(SoyMediaMetaFlags::Type Flag) const		{	return bool_cast( mFlags & Flag );	}
+	
+	bool					operator==(const SoyMediaFormat::Type Format) const	{	return mFormat == Format;	}
+};
+
 
 std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 {
@@ -34,6 +106,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Mpeg4,			"Mpeg4" },
 	{ SoyMediaFormat::Mpeg4_v3,			"Mpeg4_v3" },
 	{ SoyMediaFormat::VC1,				"VC1" },
+	{ SoyMediaFormat::Divx,				"Divx" },
 	{ SoyMediaFormat::Audio_AUDS,		"Audio_AUDS" },
 	{ SoyMediaFormat::Wave,				"wave" },
 	{ SoyMediaFormat::Aac,				"aac" },
@@ -95,6 +168,181 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 };
 
 
+namespace SoyMediaFormat
+{
+	const Array<SoyMediaFormatMeta>&	GetFormatMap();
+	void								GetFormatMetas(ArrayBridge<const SoyMediaFormatMeta*>&& MetaMatches,uint32_t Fourcc,size_t Size);
+	const SoyMediaFormatMeta&			GetFormatMeta(SoyMediaFormat::Type Format);
+	const SoyMediaFormatMeta&			GetFormatMetaFromMime(const std::string& Mime);
+}
+
+
+const Array<SoyMediaFormatMeta>& SoyMediaFormat::GetFormatMap()
+{
+	static SoyMediaFormatMeta _FormatMap[] =
+	{
+		SoyMediaFormatMeta(),
+		
+		SoyMediaFormatMeta( SoyMediaFormat::H264_8,			"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, 1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::H264_16,		"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, 2 ),
+
+		//	win7 mediafoundation gives H264 with unknown size, so we assume 32
+		//	gr^^ this should change to ES and re-resolve if not annex-b
+		SoyMediaFormatMeta( SoyMediaFormat::H264_32,		"video/avc",	{'avc1','H264'}, SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, 4 ),
+		SoyMediaFormatMeta( SoyMediaFormat::H264_ES,		"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::H264_PPS_ES,	"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::H264_SPS_ES,	"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, -1 ),
+
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2TS,		"video/ts",		'xxxx', SoyMediaMetaFlags::IsVideo, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2TS_PSI,	"video/ts",		'xxxx', SoyMediaMetaFlags::IsVideo, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2,			"video/mpeg2",	'xxxx', SoyMediaMetaFlags::IsVideo, -1 ),
+		
+		//	windows media foundation has this fourcc in caps (all?)
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg4,			"video/mp4",		{'mp4v','MP4V'}, SoyMediaMetaFlags::IsVideo, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg4_v3,		"video/mp43",		'MP43', SoyMediaMetaFlags::IsVideo, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::VC1,			"video/xxx",		'xxxx', SoyMediaMetaFlags::IsVideo, -1 ),
+		
+		//	verify mime
+		SoyMediaFormatMeta( SoyMediaFormat::Divx,			"video/divx",		'divx', SoyMediaMetaFlags::IsVideo, -1 ),
+
+		
+		SoyMediaFormatMeta( SoyMediaFormat::Wave,			"audio/wave",		'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Audio_AUDS,		"audio/Audio_AUDS",	'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
+		
+		//	verify mime
+		SoyMediaFormatMeta( SoyMediaFormat::Ac3,			"audio/ac3",	'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2Audio,		"audio/mpeg",	'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Dts,			"audio/dts",	'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
+
+		//	gr: change this to handle multiple mime types per format
+		SoyMediaFormatMeta( SoyMediaFormat::Aac,			{ Mime::Aac_Default, Mime::Aac_Android, Mime::Aac_x, Mime::Aac_Other},	'aac ', SoyMediaMetaFlags::IsAudio, -1 ),
+
+		//	https://en.wikipedia.org/wiki/Pulse-code_modulation
+		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_8,	"audio/L8",		'lpcm', SoyMediaMetaFlags::IsAudio, 8  ),
+		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_16,	"audio/L16",	'lpcm', SoyMediaMetaFlags::IsAudio, 16  ),
+		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_20,	"audio/L20",	'lpcm', SoyMediaMetaFlags::IsAudio, 20  ),
+		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_24,	"audio/L24",	'lpcm', SoyMediaMetaFlags::IsAudio, 24  ),
+		SoyMediaFormatMeta( SoyMediaFormat::PcmAndroidRaw,	MIMETYPE_AUDIO_RAW,	'lpcm', SoyMediaMetaFlags::IsAudio, -1 ),
+
+		//	find mime
+		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_float,	"audio/L32",	'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
+
+		//	audio/mpeg is what android reports when I try and open mp3
+		SoyMediaFormatMeta( SoyMediaFormat::Mp3,			"audio/mpeg",	'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
+		
+		//	verify these mimes
+		SoyMediaFormatMeta( SoyMediaFormat::Png,			"image/png",	'xxxx', SoyMediaMetaFlags::IsImage, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Jpeg,			"image/jpeg",	'xxxx', SoyMediaMetaFlags::IsImage, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Bmp,			"image/bmp",	'xxxx', SoyMediaMetaFlags::IsImage, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Tga,			"image/tga",	'xxxx', SoyMediaMetaFlags::IsImage, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Psd,			"image/Psd",	'xxxx', SoyMediaMetaFlags::IsImage, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Gif,			"image/gif",	'xxxx', SoyMediaMetaFlags::IsImage, -1 ),
+
+		
+		SoyMediaFormatMeta( SoyMediaFormat::Text,			"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Json,			"application/javascript",	'xxxx', SoyMediaMetaFlags::IsText, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Html,			"text/html",	'xxxx', SoyMediaMetaFlags::IsText, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ClosedCaption,	"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Subtitle,		"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, -1 ),
+		
+		SoyMediaFormatMeta( SoyMediaFormat::QuicktimeTimecode,	"application/quicktimetimecode",	'tmcd', SoyMediaMetaFlags::None, -1 ),
+
+
+
+
+		//	pixel formats
+		//	gr: some of these fourcc's may exist on specific platforms
+		SoyMediaFormatMeta( SoyMediaFormat::Greyscale,			"application/Greyscale",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::GreyscaleAlpha,		"application/GreyscaleAlpha",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::RGB,				"application/RGB",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::RGBA,				"application/RGBA",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::BGRA,				"application/BGRA",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::BGR,				"application/BGR",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ARGB,				"application/ARGB",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::KinectDepth,		"application/KinectDepth",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepth10bit,	"application/FreenectDepth10bit",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepth11bit,	"application/FreenectDepth11bit",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepthmm,	"application/FreenectDepthmm",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Luma_Full,			"application/Luma_Full",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Luma_Ntsc,			"application/Luma_Ntsc",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Luma_Smptec,		"application/Luma_Smptec",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_88_Full,		"application/Yuv_8_88_Full",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_88_Ntsc,		"application/Yuv_8_88_Ntsc",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_88_Smptec,	"application/Yuv_8_88_Smptec",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_8_8_Full,		"application/Yuv_8_8_8_Full",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_8_8_Ntsc,		"application/Yuv_8_8_8_Ntsc",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_8_8_Smptec,	"application/Yuv_8_8_8_Smptec",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Full,		"application/YYuv_8888_Full",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Ntsc,		"application/YYuv_8888_Ntsc",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Smptec,	"application/YYuv_8888_Smptec",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ChromaUV_8_8,		"application/ChromaUV_8_8",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ChromaUV_88,		"application/ChromaUV_88",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Palettised_RGB_8,	"application/Palettised_RGB_8",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Palettised_RGBA_8,	"application/Palettised_RGBA_8",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+	};
+
+	static Array<SoyMediaFormatMeta> FormatMap( _FormatMap );
+	return FormatMap;
+}
+
+const SoyMediaFormatMeta& SoyMediaFormat::GetFormatMeta(SoyMediaFormat::Type Format)
+{
+	auto& Metas = GetFormatMap();
+	auto* Meta = Metas.Find( Format );
+	if ( !Meta )
+	{
+		std::stringstream Error;
+		Error << "Missing meta for " << Format;
+		throw Soy::AssertException( Error.str() );
+	}
+	return *Meta;
+}
+
+
+const SoyMediaFormatMeta& SoyMediaFormat::GetFormatMetaFromMime(const std::string& Mime)
+{
+	auto& Metas = GetFormatMap();
+	for ( int m=0;	m<Metas.GetSize();	m++ )
+	{
+		auto& Meta = Metas[m];
+		
+		if ( !Meta.mMimes.Find( Mime ) )
+			continue;
+		
+		return Meta;
+	}
+	
+	std::stringstream Error;
+	Error << "No formats found matching mime " << Mime;
+	throw Soy::AssertException( Error.str() );
+}
+
+void SoyMediaFormat::GetFormatMetas(ArrayBridge<const SoyMediaFormatMeta*>&& MetaMatches,uint32_t Fourcc,size_t Size)
+{
+	auto& Metas = GetFormatMap();
+	
+	auto FourccSwapped = Soy::SwapEndian( Fourcc );
+	
+	for ( int m=0;	m<Metas.GetSize();	m++ )
+	{
+		auto& Meta = Metas[m];
+		if ( !Meta.mFourccs.Find( Fourcc ) )
+		{
+			if ( !Meta.mFourccs.Find( FourccSwapped ) )
+				continue;
+			else
+				std::Debug << "Warning: Detected reversed fourcc.(" << Soy::FourCCToString(FourccSwapped) << ") todo: Fix endianness at source." << std::endl;
+			
+		}
+	
+		//	match size
+		if ( Meta.mSubtypeSize != Size )
+			continue;
+
+		MetaMatches.PushBack( &Meta );
+	}
+}
+
 
 SoyPixelsFormat::Type SoyMediaFormat::GetPixelFormat(SoyMediaFormat::Type MediaFormat)
 {
@@ -124,289 +372,72 @@ bool SoyMediaFormat::IsVideo(SoyMediaFormat::Type Format)
 	if ( IsImage(Format) )
 		return true;
 	
-	switch ( Format )
-	{
-		case SoyMediaFormat::Mpeg2TS:
-		case SoyMediaFormat::Mpeg2TS_PSI:
-		case SoyMediaFormat::Mpeg2:
-		case SoyMediaFormat::Mpeg4:
-		case SoyMediaFormat::Mpeg4_v3:
-		case SoyMediaFormat::VC1:
-			return true;
-			
-		default:
-			return false;
-	}
+	auto& Meta = GetFormatMeta( Format );
+	return Meta.Is( SoyMediaMetaFlags::IsVideo );
 }
 
 bool SoyMediaFormat::IsImage(SoyMediaFormat::Type Format)
 {
-	switch ( Format )
-	{
-		case SoyMediaFormat::Png:
-		case SoyMediaFormat::Jpeg:
-		case SoyMediaFormat::Gif:
-		case SoyMediaFormat::Tga:
-		case SoyMediaFormat::Bmp:
-		case SoyMediaFormat::Psd:
-			return true;
-			
-		default:
-			return false;
-	}
+	auto& Meta = GetFormatMeta( Format );
+	return Meta.Is( SoyMediaMetaFlags::IsImage );
 }
+
 bool SoyMediaFormat::IsH264(SoyMediaFormat::Type Format)
 {
-	switch ( Format )
-	{
-		case SoyMediaFormat::H264_8:
-		case SoyMediaFormat::H264_16:
-		case SoyMediaFormat::H264_32:
-		case SoyMediaFormat::H264_ES:
-		case SoyMediaFormat::H264_SPS_ES:
-		case SoyMediaFormat::H264_PPS_ES:
-			return true;
-			
-		default:
-			return false;
-	}
+	auto& Meta = GetFormatMeta( Format );
+	return Meta.Is( SoyMediaMetaFlags::IsH264 );
 }
 
 bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 {
-	switch ( Format )
-	{
-		case SoyMediaFormat::Aac:
-		case SoyMediaFormat::Ac3:
-		case SoyMediaFormat::Mpeg2Audio:
-		case SoyMediaFormat::Mp3:
-		case SoyMediaFormat::Dts:
-		case SoyMediaFormat::PcmLinear_8:
-		case SoyMediaFormat::PcmLinear_16:
-		case SoyMediaFormat::PcmLinear_20:
-		case SoyMediaFormat::PcmLinear_24:
-		case SoyMediaFormat::PcmLinear_float:
-		case SoyMediaFormat::Wave:
-		case SoyMediaFormat::Audio_AUDS:
-		case SoyMediaFormat::PcmAndroidRaw:
-			return true;
-			
-		default:
-			return false;
-	}
+	auto& Meta = GetFormatMeta( Format );
+	return Meta.Is( SoyMediaMetaFlags::IsAudio );
 }
 
 
 bool SoyMediaFormat::IsText(SoyMediaFormat::Type Format)
 {
-	switch ( Format )
-	{
-		case SoyMediaFormat::Text:
-		case SoyMediaFormat::Html:
-		case SoyMediaFormat::Json:
-		case SoyMediaFormat::ClosedCaption:
-		case SoyMediaFormat::Subtitle:
-			return true;
-		
-		default:
-			return false;
-	}
+	auto& Meta = GetFormatMeta( Format );
+	return Meta.Is( SoyMediaMetaFlags::IsText );
+
 }
 
 std::string SoyMediaFormat::ToMime(SoyMediaFormat::Type Format)
 {
-	switch ( Format )
-	{
-		case SoyMediaFormat::H264_8:		return "video/avc";
-		case SoyMediaFormat::H264_16:		return "video/avc";
-		case SoyMediaFormat::H264_32:		return "video/avc";
-		case SoyMediaFormat::H264_ES:		return "video/avc";		//	find the proper version of this
-		case SoyMediaFormat::H264_PPS_ES:	return "video/avc";		//	find the proper version of this
-		case SoyMediaFormat::H264_SPS_ES:	return "video/avc";		//	find the proper version of this
-			
-		case SoyMediaFormat::Mpeg2TS:	return "video/ts";		//	find the proper version of this
-		case SoyMediaFormat::Mpeg2:		return "video/mpeg2";	//	find the proper version of this
-		case SoyMediaFormat::Mpeg4:		return "video/mp4";		//	find the proper version of this
-		case SoyMediaFormat::Mpeg4_v3:	return "video/mp43";	//	find the proper version of this
-	
-		case SoyMediaFormat::Wave:		return "audio/wave";
-		case SoyMediaFormat::Audio_AUDS:	return "audio/Audio_AUDS";
-			
-		//	gr: change this to handle multiple mime types per format
-		case SoyMediaFormat::Aac:		return Mime::Aac_Default;
-
-		//	https://en.wikipedia.org/wiki/Pulse-code_modulation
-		case SoyMediaFormat::PcmLinear_8:	return "audio/L8";
-		case SoyMediaFormat::PcmLinear_16:	return "audio/L16";
-		case SoyMediaFormat::PcmLinear_20:	return "audio/L20";
-		case SoyMediaFormat::PcmLinear_24:	return "audio/L24";
-			
-		case SoyMediaFormat::PcmAndroidRaw:	return MIMETYPE_AUDIO_RAW;
-		case SoyMediaFormat::Mp3:		return "audio/mpeg";	//	audio/mpeg is what android reports when I try and open mp3
-
-		//	verify these
-		case SoyMediaFormat::Png:		return "image/png";
-		case SoyMediaFormat::Jpeg:		return "image/jpeg";
-		case SoyMediaFormat::Bmp:		return "image/bmp";
-		case SoyMediaFormat::Tga:		return "image/tga";
-		case SoyMediaFormat::Psd:		return "image/Psd";
-		case SoyMediaFormat::Gif:		return "image/gif";
-			
-		case SoyMediaFormat::Text:		return "text/plain";
-		case SoyMediaFormat::Json:		return "application/javascript";
-		case SoyMediaFormat::Html:		return "text/html";
-			
-		default:						return "invalid/invalid";
-	}
+	auto& Meta = GetFormatMeta( Format );
+	return Meta.mMimes[0];
 	
 }
 
 SoyMediaFormat::Type SoyMediaFormat::FromMime(const std::string& Mime)
 {
-	//	special multiple-mime case
-	if ( Mime == Mime::Aac_Android )	return SoyMediaFormat::Aac;
-	if ( Mime == Mime::Aac_x )			return SoyMediaFormat::Aac;
-	if ( Mime == Mime::Aac_Other )		return SoyMediaFormat::Aac;
-	
-	if ( Mime == ToMime( SoyMediaFormat::H264_8 ) )			return SoyMediaFormat::H264_8;
-	if ( Mime == ToMime( SoyMediaFormat::H264_16 ) )		return SoyMediaFormat::H264_16;
-	if ( Mime == ToMime( SoyMediaFormat::H264_32 ) )		return SoyMediaFormat::H264_32;
-	if ( Mime == ToMime( SoyMediaFormat::H264_ES ) )		return SoyMediaFormat::H264_ES;
-	if ( Mime == ToMime( SoyMediaFormat::H264_PPS_ES ) )	return SoyMediaFormat::H264_PPS_ES;
-	if ( Mime == ToMime( SoyMediaFormat::H264_SPS_ES ) )	return SoyMediaFormat::H264_SPS_ES;
-	if ( Mime == ToMime( SoyMediaFormat::Mpeg2TS ) )		return SoyMediaFormat::Mpeg2TS;
-	if ( Mime == ToMime( SoyMediaFormat::Mpeg2 ) )			return SoyMediaFormat::Mpeg2;
-	if ( Mime == ToMime( SoyMediaFormat::Mpeg4 ) )			return SoyMediaFormat::Mpeg4;
-	if ( Mime == ToMime( SoyMediaFormat::Mpeg4_v3 ) )		return SoyMediaFormat::Mpeg4_v3;
-	if ( Mime == ToMime( SoyMediaFormat::Wave ) )			return SoyMediaFormat::Wave;
-	if ( Mime == ToMime( SoyMediaFormat::Audio_AUDS ) )		return SoyMediaFormat::Audio_AUDS;
-	if ( Mime == ToMime( SoyMediaFormat::Aac ) )			return SoyMediaFormat::Aac;
-	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_8 ) )	return SoyMediaFormat::PcmLinear_8;
-	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_16 ) )	return SoyMediaFormat::PcmLinear_16;
-	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_20 ) )	return SoyMediaFormat::PcmLinear_20;
-	if ( Mime == ToMime( SoyMediaFormat::PcmLinear_24 ) )	return SoyMediaFormat::PcmLinear_24;
-	if ( Mime == ToMime( SoyMediaFormat::PcmAndroidRaw ) )	return SoyMediaFormat::PcmAndroidRaw;
-	if ( Mime == ToMime( SoyMediaFormat::Mp3 ) )			return SoyMediaFormat::Mp3;
-	
-	if ( Mime == ToMime( SoyMediaFormat::Png ) )			return SoyMediaFormat::Png;
-	if ( Mime == ToMime( SoyMediaFormat::Jpeg ) )			return SoyMediaFormat::Jpeg;
-	if ( Mime == ToMime( SoyMediaFormat::Bmp ) )			return SoyMediaFormat::Bmp;
-	if ( Mime == ToMime( SoyMediaFormat::Tga ) )			return SoyMediaFormat::Tga;
-	if ( Mime == ToMime( SoyMediaFormat::Psd ) )			return SoyMediaFormat::Psd;
-
-	std::Debug << "Unknown mime type: " << Mime << std::endl;
-	return SoyMediaFormat::Invalid;
-}
-
-bool SoyMediaFormat::IsH264Fourcc(uint32 Fourcc)
-{
-	switch ( Fourcc )
-	{
-		case 'avc1':
-		case '1cva':
-			return true;
-		default:
-			return false;
-	};
+	auto& Meta = GetFormatMetaFromMime( Mime );
+	return Meta.mFormat;
 }
 
 uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
 {
-	switch ( Format )
-	{
-		case SoyMediaFormat::Aac:		return 'aac ';
-		case SoyMediaFormat::Mpeg4:		return 'mp4v';
-		case SoyMediaFormat::Mpeg4_v3:	return 'MP43';
-
-		case SoyMediaFormat::PcmLinear_8:
-		case SoyMediaFormat::PcmLinear_16:
-		case SoyMediaFormat::PcmLinear_20:
-		case SoyMediaFormat::PcmLinear_24:
-			return 'lpcm';
-		
-		case SoyMediaFormat::H264_ES:
-		case SoyMediaFormat::H264_SPS_ES:
-		case SoyMediaFormat::H264_PPS_ES:
-		case SoyMediaFormat::H264_8:
-		case SoyMediaFormat::H264_16:
-		case SoyMediaFormat::H264_32:
-			return 'avc1';
-			
-		default:
-			break;
-	}
-
-	std::stringstream Error;
-	Error << __func__ << " unhandled format -> fourcc " << Format;
-	throw Soy::AssertException( Error.str() );
+	auto& Meta = GetFormatMeta( Format );
+	return Meta.mFourccs[0];
 }
 
 	
 
-SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize,bool TryReversed)
+SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize)
 {
-	switch ( Fourcc )
-	{
-		case 'avc1':
-			if ( H264LengthSize == 0 )
-				return SoyMediaFormat::H264_ES;
-			if ( H264LengthSize == 1 )
-				return SoyMediaFormat::H264_8;
-			if ( H264LengthSize == 2 )
-				return SoyMediaFormat::H264_16;
-			if ( H264LengthSize == 4 )
-				return SoyMediaFormat::H264_32;
-			break;
-
-		//	win7 MF - don't know how to get size atm so assuming 32bit (if it matters)
-		case 'H264':
-			return SoyMediaFormat::H264_32;
-			break;
-			
-
-		case 'aac ':
-			return SoyMediaFormat::Aac;
-
-		//	windows/MediaFoundation have fourcc's in caps
-		case 'MP4V':
-		case 'mp4v':
-			return SoyMediaFormat::Mpeg4;
-			
-		case 'MP43':
-			return SoyMediaFormat::Mpeg4_v3;
-
-		case 'lpcm':
-			if ( H264LengthSize == 8 )
-				return SoyMediaFormat::PcmLinear_8;
-			if ( H264LengthSize == 16 )
-				return SoyMediaFormat::PcmLinear_16;
-			if ( H264LengthSize == 20 )
-				return SoyMediaFormat::PcmLinear_20;
-			if ( H264LengthSize == 24 )
-				return SoyMediaFormat::PcmLinear_24;
-			break;
-			
-		//	found in quicktime mov's
-		case 'tmcd':
-            return SoyMediaFormat::QuicktimeTimecode;
-
-		//case 'MJPG':
-		//	return SoyMediaFormat::MovingJpeg;
-	}
+	BufferArray<const SoyMediaFormatMeta*,10> Metas;
+	GetFormatMetas( GetArrayBridge(Metas), Fourcc, H264LengthSize );
 	
-	//	detect reversed fourcc's and encourage converting at the source
-	if ( TryReversed )
+	if ( Metas.IsEmpty() )
 	{
-		auto FourccSwapped = Soy::SwapEndian( Fourcc );
-		auto Type = FromFourcc( FourccSwapped, H264LengthSize, false );
-		if ( Type != SoyMediaFormat::Invalid )
-		{
-			std::Debug << "Warning: Detected reversed fourcc.(" << Soy::FourCCToString(FourccSwapped) << ") todo: Fix endianness at source." << std::endl;
-			return Type;
-		}
+		std::Debug << "Unknown fourcc type: " << Soy::FourCCToString(Fourcc) << " (" << H264LengthSize << ")" << std::endl;
+		return SoyMediaFormat::Invalid;
 	}
 
-	
-	std::Debug << "Unknown fourcc type: " << Soy::FourCCToString(Fourcc) << std::endl;
-	return SoyMediaFormat::Invalid;
+	//	multiple found
+	if ( Metas.GetSize() > 1 )
+		std::Debug << "Warning found multiple metas for fourcc " << Soy::FourCCToString(Fourcc) << " returning first" << std::endl;
+
+	return Metas[0]->mFormat;
+
 }

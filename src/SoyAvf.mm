@@ -418,6 +418,13 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 			//	change this to be like H264 different formats; AAC_8, AAC_16, AAC_float etc
 			Meta.mAudioBitsPerChannel = AudioFormat.mBitsPerChannel;
 			H264LengthSize = size_cast<int>(Meta.mAudioBitsPerChannel);
+			
+			//	gr: if auto bits per channel is zero, it's a compressed format
+			if ( H264LengthSize == 0 )
+			{
+				Meta.mCompressed = true;
+				H264LengthSize = -1;
+			}
 		}
 	}
 	
