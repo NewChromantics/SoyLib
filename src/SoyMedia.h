@@ -573,7 +573,8 @@ public:
 		mAudioSampleRate				( 0 ),
 		mApplyHeightPadding				( true ),
 		mWindowIncludeBorders			( true ),
-		mLiveUseClockTime				( false )
+		mLiveUseClockTime				( false ),
+		mWin7Emulation					( false )
 	{
 	}
 	
@@ -590,6 +591,7 @@ public:
 	bool						mResetInternalTimestamp;
 	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
 	bool						mWindowIncludeBorders;
+	bool						mWin7Emulation;				//	for mediafoundation, expose some bugs
 
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
