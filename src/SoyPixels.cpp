@@ -1399,49 +1399,73 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	}
 }
 
-void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes)
+
+void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas) const
 {
 	//	get the mid-formats
-	auto& ThisMeta = GetMeta();
-	auto& ThisArray = GetPixelsArray();
+	auto& ThisMeta = *this;
 	BufferArray<SoyPixelsMeta,10> Formats;
-	ThisMeta.GetPlanes( GetArrayBridge(Formats), &ThisArray );
+	ThisMeta.GetPlanes( GetArrayBridge(Formats), nullptr );
 
 	//	build error as we go in case we assert mid-way
 	std::stringstream Error;
 	Error << "Split pixel planes (" << ThisMeta << " -> " << Soy::StringJoin( GetArrayBridge(Formats), "," ) << ") but data hasn't aligned after split; ";
 
-	size_t DataOffset = GetHeaderSize( ThisMeta.GetFormat() );
+	size_t DataOffset = SoyPixelsFormat::GetHeaderSize( ThisMeta.GetFormat() );
 	for ( int p=0;	p<Formats.GetSize();	p++ )
 	{
 		auto PlaneMeta = Formats[p];
-		auto* PlaneData = ThisArray.GetArray() + DataOffset;
+		auto PlaneDataOffset = DataOffset;
 		auto PlaneDataSize = PlaneMeta.GetDataSize();
-		std::shared_ptr<SoyPixelsRemote> Pixels(new SoyPixelsRemote( PlaneData, PlaneDataSize, PlaneMeta ) );
+
+		auto PlaneOffsetSizeAndMeta = std::make_tuple( PlaneDataOffset, PlaneDataSize, PlaneMeta );
 		DataOffset += PlaneDataSize;
-		
+
 		Error << "#" << p << "/" << Formats.GetSize() << " " << PlaneMeta << " = " << PlaneDataSize << " bytes; ";
 		//	check for overflow
-		Soy::Assert( DataOffset <= ThisArray.GetDataSize(), Error.str() );
+		Soy::Assert( DataOffset <= PixelDataSize, Error.str() );
 
-		Planes.PushBack(Pixels);
+		PlaneOffsetSizeAndMetas.PushBack(PlaneOffsetSizeAndMeta);
 	}
 
 	//	error, but don't fail if underrun. overrun should be caught in the loop
-	Error << "total " << DataOffset << " out of " << ThisArray.GetDataSize() << " bytes";
+	Error << "total " << DataOffset << " out of " << PixelDataSize << " bytes";
 	static bool ThrowOnUnderflow = false;
 	static bool ThrowOnOverflow = true;
-	if ( DataOffset < ThisArray.GetDataSize() && ThrowOnUnderflow )
+	if ( DataOffset < PixelDataSize && ThrowOnUnderflow )
 	{
 		throw Soy::AssertException( Error.str() );
 	}
-	else if ( DataOffset > ThisArray.GetDataSize() && ThrowOnOverflow )
+	else if ( DataOffset > PixelDataSize && ThrowOnOverflow )
 	{
 		throw Soy::AssertException( Error.str() );
 	}
-	else if ( DataOffset != ThisArray.GetDataSize() )
+	else if ( DataOffset != PixelDataSize )
 	{
 		std::Debug << Error.str() << std::endl;
+	}
+}
+
+void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes)
+{
+	//	get the plane layouts
+	auto& ThisMeta = GetMeta();
+	auto& ThisArray = GetPixelsArray();
+	auto PixelDataSize = ThisArray.GetDataSize();
+	BufferArray<std::tuple<size_t,size_t,SoyPixelsMeta>,10> PlaneOffsetSizeAndMetas;
+	ThisMeta.SplitPlanes( PixelDataSize, GetArrayBridge(PlaneOffsetSizeAndMetas) );
+	
+	//	make up the remote pixels
+	for ( int p=0;	p<PlaneOffsetSizeAndMetas.GetSize();	p++ )
+	{
+		auto& PlaneOffsetSizeAndMeta = PlaneOffsetSizeAndMetas[p];
+		auto PlaneDataOffset = std::get<0>( PlaneOffsetSizeAndMeta );
+		auto PlaneDataSize = std::get<1>( PlaneOffsetSizeAndMeta );
+		auto PlaneMeta = std::get<2>( PlaneOffsetSizeAndMeta );
+		auto* PlaneData = ThisArray.GetArray() + PlaneDataOffset;
+
+		std::shared_ptr<SoyPixelsRemote> Pixels(new SoyPixelsRemote( PlaneData, PlaneDataSize, PlaneMeta ) );
+		Planes.PushBack(Pixels);
 	}
 }
 

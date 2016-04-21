@@ -559,21 +559,22 @@ public:
 	{
 		mFilename = Filename;
 	}
-	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames,bool ForceNonPlanarOutput,bool ExtractAudioStreams,bool ApplyHeightPadding) :
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted) :
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
-		mReadAheadMs					( ReadAheadMs ),
-		mDiscardOldFrames				( DiscardOldFrames ),
-		mForceNonPlanarOutput			( ForceNonPlanarOutput ),
+		mReadAheadMs					( 0ull ),
+		mDiscardOldFrames				( true ),
+		mForceNonPlanarOutput			( false ),
 		mDebugIntraFrameRect			( false ),
 		mDebugIntraFrameTransparency	( false ),
-		mExtractAudioStreams			( ExtractAudioStreams ),
+		mExtractAudioStreams			( true ),
 		mOnlyExtractKeyframes			( false ),
 		mResetInternalTimestamp			( false ),
 		mAudioSampleRate				( 0 ),
-		mApplyHeightPadding				( ApplyHeightPadding ),
+		mApplyHeightPadding				( true ),
 		mWindowIncludeBorders			( true ),
-		mLiveUseClockTime				( false )
+		mLiveUseClockTime				( false ),
+		mWin7Emulation					( false )
 	{
 	}
 	
@@ -590,6 +591,7 @@ public:
 	bool						mResetInternalTimestamp;
 	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
 	bool						mWindowIncludeBorders;
+	bool						mWin7Emulation;				//	for mediafoundation, expose some bugs
 
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
