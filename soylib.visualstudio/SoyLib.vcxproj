@@ -53,6 +53,7 @@
     <ClCompile Include="..\src\SoyMath.cpp" />
     <ClCompile Include="..\src\SoyMedia.cpp" />
     <ClCompile Include="..\src\SoyMediaFormat.cpp" />
+    <ClCompile Include="..\src\SoyMediaFoundation.cpp" />
     <ClCompile Include="..\src\SoyMemFile.cpp" />
     <ClCompile Include="..\src\SoyOpengl.cpp" />
     <ClCompile Include="..\src\SoyOpenglContext.cpp" />
@@ -115,6 +116,7 @@
     <ClInclude Include="..\src\soymath.h" />
     <ClInclude Include="..\src\SoyMedia.h" />
     <ClInclude Include="..\src\SoyMediaFormat.h" />
+    <ClInclude Include="..\src\SoyMediaFoundation.h" />
     <ClInclude Include="..\src\SoyMemFile.h" />
     <ClInclude Include="..\src\SoyOpengl.h" />
     <ClInclude Include="..\src\SoyOpenglContext.h" />
