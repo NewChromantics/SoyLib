@@ -1400,12 +1400,12 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 }
 
 
-void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas) const
+void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,ArrayInterface<uint8>* Data) const
 {
 	//	get the mid-formats
 	auto& ThisMeta = *this;
 	BufferArray<SoyPixelsMeta,10> Formats;
-	ThisMeta.GetPlanes( GetArrayBridge(Formats), nullptr );
+	ThisMeta.GetPlanes( GetArrayBridge(Formats), Data );
 
 	//	build error as we go in case we assert mid-way
 	std::stringstream Error;
@@ -1453,7 +1453,7 @@ void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Pl
 	auto& ThisArray = GetPixelsArray();
 	auto PixelDataSize = ThisArray.GetDataSize();
 	BufferArray<std::tuple<size_t,size_t,SoyPixelsMeta>,10> PlaneOffsetSizeAndMetas;
-	ThisMeta.SplitPlanes( PixelDataSize, GetArrayBridge(PlaneOffsetSizeAndMetas) );
+	ThisMeta.SplitPlanes( PixelDataSize, GetArrayBridge(PlaneOffsetSizeAndMetas), &ThisArray );
 	
 	//	make up the remote pixels
 	for ( int p=0;	p<PlaneOffsetSizeAndMetas.GetSize();	p++ )
