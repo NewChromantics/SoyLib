@@ -505,7 +505,7 @@ bool Platform::IsOkay(HRESULT Error,const std::string& Context,bool ThrowExcepti
 		return true;
 
 	std::stringstream ErrorStr;
-	ErrorStr << "Platform error in " << Context << ": " << GetErrorString(Error) << std::endl;
+	ErrorStr << "Platform error in " << Context << ": " << GetErrorString(Error);
 	
 	if ( !ThrowException )
 	{

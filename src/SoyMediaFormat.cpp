@@ -246,6 +246,39 @@ const Array<SoyMediaFormatMeta>& SoyMediaFormat::GetFormatMap()
 		SoyMediaFormatMeta( SoyMediaFormat::Subtitle,		"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, -1 ),
 		
 		SoyMediaFormatMeta( SoyMediaFormat::QuicktimeTimecode,	"application/quicktimetimecode",	'tmcd', SoyMediaMetaFlags::None, -1 ),
+
+
+
+
+		//	pixel formats
+		//	gr: some of these fourcc's may exist on specific platforms
+		SoyMediaFormatMeta( SoyMediaFormat::Greyscale,			"application/Greyscale",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::GreyscaleAlpha,		"application/GreyscaleAlpha",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::RGB,				"application/RGB",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::RGBA,				"application/RGBA",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::BGRA,				"application/BGRA",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::BGR,				"application/BGR",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ARGB,				"application/ARGB",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::KinectDepth,		"application/KinectDepth",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepth10bit,	"application/FreenectDepth10bit",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepth11bit,	"application/FreenectDepth11bit",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepthmm,	"application/FreenectDepthmm",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Luma_Full,			"application/Luma_Full",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Luma_Ntsc,			"application/Luma_Ntsc",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Luma_Smptec,		"application/Luma_Smptec",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_88_Full,		"application/Yuv_8_88_Full",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_88_Ntsc,		"application/Yuv_8_88_Ntsc",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_88_Smptec,	"application/Yuv_8_88_Smptec",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_8_8_Full,		"application/Yuv_8_8_8_Full",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_8_8_Ntsc,		"application/Yuv_8_8_8_Ntsc",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_8_8_Smptec,	"application/Yuv_8_8_8_Smptec",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Full,		"application/YYuv_8888_Full",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Ntsc,		"application/YYuv_8888_Ntsc",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Smptec,	"application/YYuv_8888_Smptec",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ChromaUV_8_8,		"application/ChromaUV_8_8",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ChromaUV_88,		"application/ChromaUV_88",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Palettised_RGB_8,	"application/Palettised_RGB_8",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Palettised_RGBA_8,	"application/Palettised_RGBA_8",	'xxxx', SoyMediaMetaFlags::None, -1 ),
 	};
 
 	static Array<SoyMediaFormatMeta> FormatMap( _FormatMap );

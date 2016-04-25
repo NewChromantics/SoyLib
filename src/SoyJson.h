@@ -69,31 +69,24 @@ public:
 	void	Push(const char* Name,const std::stringstream&& Value)	{	return Push( Name, Value.str() );	}
 	void	Push(const char* Name,const std::stringstream& Value)	{	return Push( Name, Value.str() );	}
 	void	Push(const char* Name,const char* Value)				{	return Push( Name, Value, true );	}
-	void	Push(const char* Name,const size_t& Value);
-	void	Push(const char* Name,const ssize_t& Value);
+
 	void	Push(const char* Name,const float& Value);
 	
 	//	this is ssize_t on android?
-#if !defined(TARGET_ANDROID)
-	void	Push(const char* Name,const int& Value)			{	Push( Name, static_cast<ssize_t>( Value ) );	}
-#endif
+//#if !defined(TARGET_ANDROID)
+//	void	Push(const char* Name,const int& Value)			{	Push( Name, static_cast<int64_t>( Value ) );	}
+//#endif
 	
-	void	Push(const char* Name,const int8_t& Value)		{	Push( Name, static_cast<ssize_t>( Value ) );	}
-	void	Push(const char* Name,const int16_t& Value)		{	Push( Name, static_cast<ssize_t>( Value ) );	}
-	
-	//void	Push(const char* Name,const int32_t& Value)		{	Push( Name, static_cast<ssize_t>( Value ) );	}
-#if !defined(TARGET_WINDOWS)	//	ssize_t on windows
-	void	Push(const char* Name,const int64_t& Value)		{	Push( Name, static_cast<ssize_t>( Value ) );	}
-#endif
-	void	Push(const char* Name,const uint8_t& Value)		{	Push( Name, static_cast<size_t>( Value ) );	}
-	void	Push(const char* Name,const uint16_t& Value)	{	Push( Name, static_cast<size_t>( Value ) );	}
+	void	Push(const char* Name,const int8_t& Value)		{	Push( Name, static_cast<int64_t>( Value ) );	}
+	void	Push(const char* Name,const int16_t& Value)		{	Push( Name, static_cast<int64_t>( Value ) );	}
+	void	Push(const char* Name,const int32_t& Value)		{	Push( Name, static_cast<int64_t>( Value ) );	}
+	void	Push(const char* Name,const int64_t& Value);
 
-#if !defined(TARGET_ANDROID)	//	this is size_t on android?
+	void	Push(const char* Name,const uint8_t& Value)		{	Push( Name, static_cast<uint64_t>( Value ) );	}
+	void	Push(const char* Name,const uint16_t& Value)	{	Push( Name, static_cast<uint64_t>( Value ) );	}
 	void	Push(const char* Name,const uint32_t& Value)	{	Push( Name, static_cast<size_t>( Value ) );	}
-#endif
-#if !defined(TARGET_WINDOWS)	//	size_t on windows
-	void	Push(const char* Name,const uint64_t& Value)	{	Push( Name, static_cast<size_t>( Value ) );	}
-#endif
+	void	Push(const char* Name,const uint64_t& Value);
+
 	void	Push(const char* Name,const bool& Value)	{	return Push( Name, Value ? "true" : "false", false );	}
 	void	PushNull(const char* Name)					{	return Push( Name, "null" );	}
 	void	Push(const char* Name,const TJsonWriter& Value);
