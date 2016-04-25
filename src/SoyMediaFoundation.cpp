@@ -1,5 +1,6 @@
 #include "SoyMediaFoundation.h"
 #include <SoyDirectx.h>
+#include <SoyMedia.h>
 
 #include <Mferror.h>
 #include <Codecapi.h>
@@ -82,34 +83,47 @@ bool GetMediaFormatGuidFourcc(GUID Guid,uint32& Part)
 	return false;
 }
 
+DWORD MediaFoundation::GetFourcc(SoyMediaFormat::Type Format)
+{
+	auto Guid = GetFormat( Format );
+	uint32 Fourcc = 0;
+	if ( !GetMediaFormatGuidFourcc( Guid, Fourcc ) )
+		return 0;
 
-#define FORMAT_MAP(Enum,SoyFormat)	TPlatformFormatMap<GUID>( Enum, #Enum, SoyFormat )
+	return Fourcc;
+}
+
+
+#define FORMAT_MAP(MajorFormat,MinorFormat,SoyFormat)	TPlatformFormatMap<GUID>( MajorFormat, MinorFormat, #MinorFormat, SoyFormat )
 template<typename PLATFORMTYPE>
 class TPlatformFormatMap
 {
 public:
-	TPlatformFormatMap(PLATFORMTYPE Enum,const char* EnumName,SoyMediaFormat::Type SoyFormat) :
-		mPlatformFormat		( Enum ),
-		mName				( EnumName ),
-		mSoyFormat			( SoyFormat )
+	TPlatformFormatMap(PLATFORMTYPE MajorFormat,PLATFORMTYPE MinorFormat,const char* EnumName,SoyMediaFormat::Type SoyFormat) :
+		mPlatformMajorFormat	( MajorFormat ),
+		mPlatformMinorFormat	( MinorFormat ),
+		mName					( EnumName ),
+		mSoyFormat				( SoyFormat )
 	{
 		Soy::Assert( IsValid(), "Expected valid enum - or invalid enum is bad" );
 	}
 	TPlatformFormatMap() :
-		mPlatformFormat		( 0 ),
-		mName				( "Invalid enum" ),
-		mSoyFormat			( SoyPixelsFormat::Invalid )
+		mPlatformMajorFormat	( 0 ),
+		mPlatformMinorFormat	( 0 ),
+		mName					( "Invalid enum" ),
+		mSoyFormat				( SoyPixelsFormat::Invalid )
 	{
 	}
 
-	bool		IsValid() const		{	return mPlatformFormat != PLATFORMTYPE();	}
+	bool		IsValid() const		{	return mPlatformMinorFormat != PLATFORMTYPE();	}
 
-	bool		operator==(const PLATFORMTYPE& Enum) const				{	return mPlatformFormat == Enum;	}
+	bool		operator==(const PLATFORMTYPE& Enum) const				{	return mPlatformMinorFormat == Enum;	}
 	bool		operator==(const SoyPixelsFormat::Type& Format) const	{	return *this == SoyMediaFormat::FromPixelFormat(Format);	}
 	bool		operator==(const SoyMediaFormat::Type& Format) const	{	return mSoyFormat == Format;	}
 
 public:
-	PLATFORMTYPE			mPlatformFormat;
+	PLATFORMTYPE			mPlatformMajorFormat;
+	PLATFORMTYPE			mPlatformMinorFormat;
 	SoyMediaFormat::Type	mSoyFormat;
 	std::string				mName;
 };
@@ -118,40 +132,40 @@ public:
 
 TPlatformFormatMap<GUID> PlatformFormatMap[] =
 {
-	FORMAT_MAP( MFVideoFormat_RGB32,	SoyMediaFormat::RGBA ),
-	FORMAT_MAP( MFVideoFormat_RGB24,	SoyMediaFormat::RGB ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_RGB32,	SoyMediaFormat::RGBA ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_RGB24,	SoyMediaFormat::RGB ),
 
 	//	YUV format explanations
 	//	https://msdn.microsoft.com/en-us/library/windows/desktop/aa370819(v=vs.85).aspx
 	//	MFVideoFormat_NV11	NV11	4:1:1	Planar	8
 	//	MFVideoFormat_NV12	NV12	4:2:0	Planar	8
-	FORMAT_MAP( MFVideoFormat_NV12,	SoyMediaFormat::Yuv_8_88_Full ),
-	FORMAT_MAP( MFVideoFormat_NV12,	SoyMediaFormat::Yuv_8_88_Ntsc ),
-	FORMAT_MAP( MFVideoFormat_NV12,	SoyMediaFormat::Yuv_8_88_Smptec ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_NV12,	SoyMediaFormat::Yuv_8_88_Full ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_NV12,	SoyMediaFormat::Yuv_8_88_Ntsc ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_NV12,	SoyMediaFormat::Yuv_8_88_Smptec ),
 
 	//	MFVideoFormat_YUY2	YUY2	4:2:2	Packed	8
-	FORMAT_MAP( MFVideoFormat_YUY2,	SoyMediaFormat::YYuv_8888_Full ),
-	FORMAT_MAP( MFVideoFormat_YUY2,	SoyMediaFormat::YYuv_8888_Ntsc ),
-	FORMAT_MAP( MFVideoFormat_YUY2,	SoyMediaFormat::YYuv_8888_Smptec ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_YUY2,	SoyMediaFormat::YYuv_8888_Full ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_YUY2,	SoyMediaFormat::YYuv_8888_Ntsc ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_YUY2,	SoyMediaFormat::YYuv_8888_Smptec ),
 
 	//	gr: not actually YYuv_8888?
 	//	MFVideoFormat_UYVY	UYVY	4:2:2	Packed	8
-	FORMAT_MAP( MFVideoFormat_IYUV,	SoyMediaFormat::YYuv_8888_Full ),
-	FORMAT_MAP( MFVideoFormat_IYUV,	SoyMediaFormat::YYuv_8888_Ntsc ),
-	FORMAT_MAP( MFVideoFormat_IYUV,	SoyMediaFormat::YYuv_8888_Smptec ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_IYUV,	SoyMediaFormat::YYuv_8888_Full ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_IYUV,	SoyMediaFormat::YYuv_8888_Ntsc ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_IYUV,	SoyMediaFormat::YYuv_8888_Smptec ),
 
 	//	gr: not actually YYuv_8888
 	//	MFVideoFormat_Y42T	Y42T	4:2:2	Packed	8
-	FORMAT_MAP( MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Full ),
-	FORMAT_MAP( MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Ntsc ),
-	FORMAT_MAP( MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Smptec ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Full ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Ntsc ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Smptec ),
 
 	//	from an apple sample movie
 	//	http://www.fourcc.org/codecs.php
 	//	YUV 4:2:2 CCIR 601 for V422 (no, I don't understand this either) 
-	FORMAT_MAP( MFVideoFormat_VIDS,	SoyMediaFormat::Yuv_8_88_Full ),
-	FORMAT_MAP( MFVideoFormat_VIDS,	SoyMediaFormat::Yuv_8_88_Ntsc ),
-	FORMAT_MAP( MFVideoFormat_VIDS,	SoyMediaFormat::Yuv_8_88_Smptec ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_VIDS,	SoyMediaFormat::Yuv_8_88_Full ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_VIDS,	SoyMediaFormat::Yuv_8_88_Ntsc ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_VIDS,	SoyMediaFormat::Yuv_8_88_Smptec ),
 
 
 	/*
@@ -178,11 +192,11 @@ TPlatformFormatMap<GUID> PlatformFormatMap[] =
 	return SoyMediaFormat::Yuv_8_44_Full;
 	*/
 	
-	FORMAT_MAP( MFVideoFormat_MP4S,	SoyMediaFormat::Mpeg4 ),
-	FORMAT_MAP( MFVideoFormat_H264,	SoyMediaFormat::H264_8 ),
-	FORMAT_MAP( MFVideoFormat_H264,	SoyMediaFormat::H264_16 ),
-	FORMAT_MAP( MFVideoFormat_H264,	SoyMediaFormat::H264_32 ),
-	FORMAT_MAP( MFVideoFormat_H264,	SoyMediaFormat::H264_ES ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_MP4S,	SoyMediaFormat::Mpeg4 ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_H264,	SoyMediaFormat::H264_8 ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_H264,	SoyMediaFormat::H264_16 ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_H264,	SoyMediaFormat::H264_32 ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_H264,	SoyMediaFormat::H264_ES ),
 
 };
 
@@ -257,7 +271,18 @@ GUID MediaFoundation::GetFormat(SoyPixelsFormat::Type Format)
 	if ( !Meta )
 		return GUID();
 
-	return Meta->mPlatformFormat;
+	return Meta->mPlatformMinorFormat;
+}
+
+GUID MediaFoundation::GetFormat(SoyMediaFormat::Type Format)
+{
+	auto Table = GetRemoteArray( PlatformFormatMap );
+	auto* Meta = GetArrayBridge(Table).Find( Format );
+
+	if ( !Meta )
+		return GUID();
+
+	return Meta->mPlatformMinorFormat;
 }
 
 SoyMediaFormat::Type MediaFoundation::GetFormat(GUID Major,GUID Minor,size_t H264NaluLengthSize)
@@ -418,4 +443,137 @@ std::ostream& operator<<(std::ostream& os, REFGUID guid)
 }
 
 
+
+AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(GUID MajorFormat,GUID MinorFormat)
+{
+	AutoReleasePtr<IMFMediaType> Type;
+	auto Result = MFCreateMediaType( &Type.mObject );
+	Directx::IsOkay( Result, "MFCreateMediaType" );
+
+	Result = Type->SetGUID( MF_MT_MAJOR_TYPE, MajorFormat );
+	Directx::IsOkay( Result, "MFCreateMediaType->SetGuid(MF_MT_MAJOR_TYPE)" );
+
+	Result = Type->SetGUID( MF_MT_SUBTYPE, MinorFormat );
+	Directx::IsOkay( Result, "MFCreateMediaType->SetGuid(MF_MT_SUBTYPE)" );
+
+	return Type;
+}
+
+
+AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyMediaFormat::Type Format)
+{
+	auto Table = GetRemoteArray( PlatformFormatMap );
+	auto* Meta = GetArrayBridge(Table).Find( Format );
+
+	if ( !Meta )
+		return AutoReleasePtr<IMFMediaType>();
+
+	return GetPlatformFormat( Meta->mPlatformMajorFormat, Meta->mPlatformMinorFormat );
+}
+
+
+AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyPixelsFormat::Type Format)
+{
+	auto MediaFormat = SoyMediaFormat::FromPixelFormat( Format );
+	return GetPlatformFormat( MediaFormat );
+}
+
+
+AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packet)
+{
+	AutoReleasePtr<IMFMediaBuffer> pBuffer;
+
+	bool BottomUp = false;
+	auto Fourcc = MediaFoundation::GetFourcc( Packet.mMeta.mCodec );
+	auto Result = MFCreate2DMediaBuffer( Packet.mMeta.mPixelMeta.GetWidth(), Packet.mMeta.mPixelMeta.GetHeight(), Fourcc, BottomUp, &pBuffer.mObject );
+	MediaFoundation::IsOkay( Result, "MFCreate2DMediaBuffer" );
+	pBuffer.Retain();
+
+	auto WritePixelsToBuffer = [&pBuffer](const SoyPixelsImpl& Pixels)
+	{
+		auto& Buffer = *pBuffer.mObject;
+		DWORD BufferSize = 0;
+		DWORD BufferCurrentLength = 0;
+		BYTE* BufferData = nullptr;
+		Buffer.Lock( &BufferData, &BufferSize, &BufferCurrentLength );
+		if ( BufferData == nullptr )
+			throw Soy::AssertException("Failed to lock pixels for buffer");
+		auto WriteLength = BufferSize - BufferCurrentLength;
+		auto& PixelsArray = Pixels.GetPixelsArray();
+		auto* PixelsData = PixelsArray.GetArray();
+		WriteLength = std::min<size_t>( WriteLength, PixelsArray.GetDataSize() );
+		memcpy( &BufferData[BufferCurrentLength], PixelsData, WriteLength );
+		auto SetResult = Buffer.SetCurrentLength( BufferCurrentLength + WriteLength );
+		auto Result = Buffer.Unlock();
+		IsOkay( Result, "Updating buffer current length");
+		IsOkay( Result, "Unlocking buffer");
+	};
+
+	//	fill it
+	if ( Packet.mPixelBuffer )
+	{
+		auto& PixelBuffer = *Packet.mPixelBuffer;
+		float3x3 Transform;
+		BufferArray<SoyPixelsImpl*,4> Pixels;
+		PixelBuffer.Lock( GetArrayBridge(Pixels), Transform );
+		if ( Pixels.IsEmpty() )
+			throw Soy::AssertException("Failed to get pixels from buffer");
+		try
+		{
+			WritePixelsToBuffer( *Pixels[0] );
+			PixelBuffer.Unlock();
+		}
+		catch(...)
+		{
+			PixelBuffer.Unlock();
+			throw;
+		}
+	}
+	else if ( !Packet.mData.IsEmpty() )
+	{
+		auto& Data = Packet.mData;
+		auto Meta = Packet.mMeta.mPixelMeta;
+		SoyPixelsRemote Pixels( GetArrayBridge(Data), Meta );
+		WritePixelsToBuffer( Pixels );
+	}
+
+	AutoReleasePtr<IMFSample> pSample;
+	Result = MFCreateSample( &pSample.mObject );
+	MediaFoundation::IsOkay( Result, "MFCreateSample" );
+	pSample.Retain();
+
+	Result = pSample.mObject->AddBuffer( pBuffer.mObject );
+	MediaFoundation::IsOkay( Result, "AddBuffer" );
+
+	return pSample;
+}
+
+
+AutoReleasePtr<IMFMediaType> MediaFoundation::CreateFormat(SoyMediaFormat::Type Format,size_t FrameRate,size_t BitRate,size_t Width,size_t Height)
+{
+	size_t PixelAspectRatio = 1;
+	auto MfFormat = MediaFoundation::GetFormat( Format );
+
+	AutoReleasePtr<IMFMediaType> pMediaFormat = MediaFoundation::GetPlatformFormat( Format );
+
+	//	setup params
+	auto& MediaFormat = *pMediaFormat.mObject;
+
+	auto Result = MediaFormat.SetUINT32(MF_MT_AVG_BITRATE, BitRate );   
+	MediaFoundation::IsOkay( Result, "set MF_MT_AVG_BITRATE" );
+
+	Result = MediaFormat.SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);   
+	MediaFoundation::IsOkay( Result, "set MF_MT_INTERLACE_MODE" );
+
+	Result = MFSetAttributeSize( &MediaFormat, MF_MT_FRAME_SIZE, Width, Height );   
+	MediaFoundation::IsOkay( Result, "set MF_MT_FRAME_SIZE" );
+
+	Result = MFSetAttributeRatio( &MediaFormat, MF_MT_FRAME_RATE, FrameRate, 1 );   
+	MediaFoundation::IsOkay( Result, "set MF_MT_FRAME_RATE" );
+
+	Result = MFSetAttributeRatio( &MediaFormat, MF_MT_PIXEL_ASPECT_RATIO, PixelAspectRatio, 1 );   
+	MediaFoundation::IsOkay( Result, "set MF_MT_PIXEL_ASPECT_RATIO" );
+
+	return pMediaFormat;
+}
 
