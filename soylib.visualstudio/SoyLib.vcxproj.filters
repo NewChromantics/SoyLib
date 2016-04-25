@@ -145,6 +145,9 @@
     <ClCompile Include="..\src\SoyMemFile.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\SoyMediaFoundation.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\SoyThread.h">
@@ -325,6 +328,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\RemoteArray.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyMediaFoundation.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
