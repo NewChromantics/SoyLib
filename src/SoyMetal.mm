@@ -192,7 +192,7 @@ public:
 
 
 
-TCvVideoTypeMeta<MTLPixelFormat> PixelFormatMap[] =
+static TCvVideoTypeMeta<MTLPixelFormat> Metal_PixelFormatMap[] =
 {
 	CV_VIDEO_TYPE_META( MTLPixelFormatA8Unorm,		SoyPixelsFormat::Greyscale ),
 	CV_VIDEO_TYPE_META( MTLPixelFormatR8Unorm,		SoyPixelsFormat::Greyscale ),
@@ -232,7 +232,7 @@ TCvVideoTypeMeta<MTLPixelFormat> PixelFormatMap[] =
 
 MTLPixelFormat Metal::GetPixelFormat(SoyPixelsFormat::Type Format)
 {
-	auto Table = GetRemoteArray( PixelFormatMap );
+	auto Table = GetRemoteArray( Metal_PixelFormatMap );
 	auto* Meta = GetArrayBridge(Table).Find( Format );
 	
 	if ( !Meta )
@@ -243,7 +243,7 @@ MTLPixelFormat Metal::GetPixelFormat(SoyPixelsFormat::Type Format)
 
 SoyPixelsFormat::Type Metal::GetPixelFormat(MTLPixelFormat Format)
 {
-	auto Table = GetRemoteArray( PixelFormatMap );
+	auto Table = GetRemoteArray( Metal_PixelFormatMap );
 	auto* Meta = GetArrayBridge(Table).Find( Format );
 	
 	if ( !Meta )

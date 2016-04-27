@@ -923,7 +923,7 @@ public:
 
 
 	
-TCvVideoTypeMeta PixelFormatMap[] =
+static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 {
 	/*
 	 //	from avfDecoder ResolveFormat(id)
@@ -993,7 +993,7 @@ TCvVideoTypeMeta PixelFormatMap[] =
 
 std::string Avf::GetPixelFormatString(OSType Format)
 {
-	auto Table = GetRemoteArray( PixelFormatMap );
+	auto Table = GetRemoteArray( Cv_PixelFormatMap );
 	auto* Meta = GetArrayBridge(Table).Find( Format );
 	
 	if ( !Meta )
@@ -1008,7 +1008,7 @@ std::string Avf::GetPixelFormatString(OSType Format)
 
 OSType Avf::GetPlatformPixelFormat(SoyPixelsFormat::Type Format)
 {
-	auto Table = GetRemoteArray( PixelFormatMap );
+	auto Table = GetRemoteArray( Cv_PixelFormatMap );
 	auto* Meta = GetArrayBridge(Table).Find( Format );
 
 	if ( !Meta )
@@ -1019,7 +1019,7 @@ OSType Avf::GetPlatformPixelFormat(SoyPixelsFormat::Type Format)
 
 SoyPixelsFormat::Type Avf::GetPixelFormat(OSType Format)
 {
-	auto Table = GetRemoteArray( PixelFormatMap );
+	auto Table = GetRemoteArray( Cv_PixelFormatMap );
 	auto* Meta = GetArrayBridge(Table).Find( Format );
 	
 	if ( !Meta )
