@@ -167,15 +167,15 @@ void Unity::IosDetectGraphicsDevice()
 	{
 		case apiOpenGLES2:
 			UnitySetGraphicsDevice( UnityGetDataContextEAGL(), UnityDevice::kGfxRendererOpenGLES20, UnityEvent::kGfxDeviceEventInitialize );
-			break;
+			return;
 			
 		case apiOpenGLES3:
 			UnitySetGraphicsDevice( UnityGetDataContextEAGL(), UnityDevice::kGfxRendererOpenGLES30, UnityEvent::kGfxDeviceEventInitialize );
-			break;
+			return;
 			
 		case apiMetal:
 			UnitySetGraphicsDevice( UnityGetMetalDevice(), UnityDevice::kGfxRendererMetal, UnityEvent::kGfxDeviceEventInitialize );
-			break;
+			return;
 
 		default:
 			break;
