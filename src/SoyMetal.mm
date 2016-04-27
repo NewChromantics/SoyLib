@@ -383,6 +383,37 @@ SoyPixelsMeta Metal::TTexture::GetMeta() const
 
 void Metal::TTexture::Write(const SoyPixelsImpl& Pixels,const Opengl::TTextureUploadParams& Params,TContext& Context)
 {
+	//	gr: cannot blit pixels that don't align to 64 bytes. Tried to bodge around it, but cannot start a row-copy that's not aligned either. so HAVE to realign :/
+	{
+		auto RowDataSize = Pixels.GetMeta().GetRowDataSize();
+		auto Alignment64 = RowDataSize % 64;
+		if ( Alignment64 != 0 )
+		{
+			auto ChannelCount = Pixels.GetMeta().GetChannels();
+			//	how many pixels off are we?
+			auto PadRowBytes = 64 - Alignment64;
+			auto PadRowPixels = PadRowBytes / ChannelCount;
+			auto PadRowAlignment = PadRowBytes % ChannelCount;
+			if ( PadRowAlignment != 0 )
+			{
+				std::stringstream Error;
+				Error << "Need to pad blit-to-metal pixels by " << PadRowBytes << " bytes, but doesn't align to channel count (" << ChannelCount << ") " << Pixels.GetMeta();
+				throw Soy::AssertException( Error.str() );
+			}
+			
+			std::Debug << "Warning: Metal blit row doesn't align to 64 bytes +" << Alignment64 << " (" << Pixels.GetMeta() << ") Having to pad pixels" << std::endl;
+			SoyPixels PixelsPadded;
+			PixelsPadded.Copy( Pixels );
+			auto NewWidth = Pixels.GetMeta().GetWidth() + PadRowPixels;
+			auto NewHeight = Pixels.GetMeta().GetHeight();
+			PixelsPadded.ResizeClip( NewWidth, NewHeight );
+			Write( PixelsPadded, Params, Context );
+			return;
+		}
+	}
+
+
+	
 	auto pJob = Context.AllocJob();
 	Soy::Assert( pJob!=nullptr, "Failed to allocate metal job");
 	auto& Job = *pJob;
