@@ -168,6 +168,7 @@ public:
 	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
 	size_t			GetRowDataSize() const			{	return GetChannels() * GetWidth();	}
 	void			GetPlanes(ArrayBridge<SoyPixelsMeta>&& PlaneFormats,ArrayInterface<uint8>* Data=nullptr) const;	//	extract multiple plane formats where applicable (returns self if one plane)
+	void			SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,ArrayInterface<uint8>* Data=nullptr) const;	//	get all the plane split info, asserts if data doesn't align
 
 	//	unsafe funcs. (note: they WERE unsafe...)
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}

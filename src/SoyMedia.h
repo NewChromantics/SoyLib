@@ -204,7 +204,7 @@ public:
 };
 
 
-
+//	gr: now this has audio params, it should probably be renamed PacketBufferParams
 class TPixelBufferParams
 {
 public:
@@ -215,7 +215,9 @@ public:
 		mPushBlockSleepMs		( 3 ),
 		mMaxBufferSize			( 10 ),
 		mMinBufferSize			( 5 ),			//	specific per-codec for OOO packets, not applicable to a lot of other things (audio may want it, text etc)
-		mPopNearestFrame		( false )
+		mPopNearestFrame		( false ),
+		mAudioSampleRate		( 0 ),			//	try and decode to this audio sample rate
+		mAudioChannelCount		( 0 )
 	{
 	}
 	
@@ -227,6 +229,8 @@ public:
 	bool		mPopFrameSync;				//	false to pop ASAP (out of sync)
 	bool		mPopNearestFrame;			//	instead of skipping to the latest frame (<= now), we find the nearest frame (98 will pop frame 99) and allow looking ahead
 	bool		mAllowPushRejection;		//	early frame rejection
+	size_t		mAudioSampleRate;
+	size_t		mAudioChannelCount;
 };
 
 
@@ -362,6 +366,7 @@ public:
 
 	//	reformatting
 	void				SetChannels(size_t Channels);
+	void				SetFrequencey(size_t Frequency);
 
 public:
 	//	consider using stream meta here
@@ -379,15 +384,15 @@ class TAudioBufferManager : public TMediaBufferManager
 public:
 	TAudioBufferManager(const TPixelBufferParams& Params) :
 		mBlocks				( SoyMedia::DefaultHeap ),
-		TMediaBufferManager	( Params ),
-		mChannelCache		( 0 ),
-		mFrequencyCache		( 0 )
+		TMediaBufferManager	( Params )
 	{
+		mFormat.mChannels = Params.mAudioChannelCount;
+		mFormat.mFrequency = Params.mAudioSampleRate;
 	}
 	
 	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
 
-	void			PushAudioBuffer(const TAudioBufferBlock& AudioData);
+	void			PushAudioBuffer(TAudioBufferBlock& AudioData);
 	bool			GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool VerboseDebug,bool PadOutputTail,bool ClipOutputFront,bool ClipOutputBack,bool CullBuffer);	//	returns false if NO data, pads with zeros if not all there
 	void			PopNextAudioData(ArrayBridge<float>&& Data,bool PadData);
 	
@@ -398,13 +403,13 @@ public:
 	void			ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData);
 
 	//	meta of first block. returns zero if none exist
-	size_t			GetChannels() const			{	return mChannelCache;	}
-	size_t			GetFrequency() const		{	return mFrequencyCache;	}
+	size_t			GetChannels() const			{	return mFormat.mChannels;	}
+	size_t			GetFrequency() const		{	return mFormat.mFrequency;	}
 
 private:
-	//	gr: cached these to avoid locks & for when we've flushed all the data
-	size_t						mFrequencyCache;
-	size_t						mChannelCache;
+	//	this is a cached format for when we want to get the meta, but don't have any blocks,
+	//	but ALSO, we can use it to pre-set the format and re-format incoming data
+	TAudioBufferBlock			mFormat;
 
 	std::mutex					mBlocksLock;
 	Array<TAudioBufferBlock>	mBlocks;
@@ -567,21 +572,22 @@ public:
 	{
 		mFilename = Filename;
 	}
-	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,SoyTime ReadAheadMs,bool DiscardOldFrames,bool ForceNonPlanarOutput,bool ExtractAudioStreams,bool ApplyHeightPadding) :
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted) :
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
-		mReadAheadMs					( ReadAheadMs ),
-		mDiscardOldFrames				( DiscardOldFrames ),
-		mForceNonPlanarOutput			( ForceNonPlanarOutput ),
+		mReadAheadMs					( 0ull ),
+		mDiscardOldFrames				( true ),
+		mForceNonPlanarOutput			( false ),
 		mDebugIntraFrameRect			( false ),
 		mDebugIntraFrameTransparency	( false ),
-		mExtractAudioStreams			( ExtractAudioStreams ),
+		mExtractAudioStreams			( true ),
 		mOnlyExtractKeyframes			( false ),
 		mResetInternalTimestamp			( false ),
 		mAudioSampleRate				( 0 ),
-		mApplyHeightPadding				( ApplyHeightPadding ),
+		mApplyHeightPadding				( true ),
 		mWindowIncludeBorders			( true ),
-		mLiveUseClockTime				( false )
+		mLiveUseClockTime				( false ),
+		mWin7Emulation					( false )
 	{
 	}
 	
@@ -598,6 +604,7 @@ public:
 	bool						mResetInternalTimestamp;
 	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
 	bool						mWindowIncludeBorders;
+	bool						mWin7Emulation;				//	for mediafoundation, expose some bugs
 
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;

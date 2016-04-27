@@ -1275,24 +1275,35 @@ void TAudioBufferBlock::SetChannels(size_t Channels)
 	}
 }
 
+void TAudioBufferBlock::SetFrequencey(size_t Frequency)
+{
+	if ( mFrequency == Frequency )
+		return;
 
-void TAudioBufferManager::PushAudioBuffer(const TAudioBufferBlock& AudioData)
+	std::Debug << "todo: resample audio frequency from " << mFrequency << " to " << Frequency << std::endl;
+}
+
+void TAudioBufferManager::PushAudioBuffer(TAudioBufferBlock& AudioData)
 {
 	{
-		std::lock_guard<std::mutex> Lock( mBlocksLock );
-		
+		//	convert to the right format
 		Soy::Assert( AudioData.mFrequency != 0, "Audio data should not have zero frequency");
 		Soy::Assert( AudioData.mChannels != 0, "Audio data should not have zero channels");
-		
-		if ( mChannelCache == 0 )
-			mChannelCache = AudioData.mChannels;
-		if ( mFrequencyCache == 0 )
-			mFrequencyCache = AudioData.mFrequency;
+
+		if ( mFormat.mChannels == 0 )
+			mFormat.mChannels = AudioData.mChannels;
+		if ( mFormat.mFrequency == 0 )
+			mFormat.mFrequency = AudioData.mFrequency;
+
+		AudioData.SetChannels( mFormat.mChannels );
+		AudioData.SetFrequencey( mFormat.mFrequency );
 
 		auto Start = AudioData.GetStartTime();
 		auto End = AudioData.GetEndTime();
 		auto EndIndex = AudioData.GetTimeSampleIndex(End);
 
+
+		std::lock_guard<std::mutex> Lock( mBlocksLock );
 		mBlocks.PushBack( AudioData );
 	}
 	mOnFramePushed.OnTriggered( AudioData.mStartTime );
