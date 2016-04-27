@@ -22,6 +22,10 @@ namespace Metal
 	class TTexture;
 	class TJob;					//	metal command buffer
 	class TBuffer;				//	MTLBuffer
+	
+	class TShader;
+	class TGeometry;
+	class TRenderTarget;
 
 	void		EnumDevices(ArrayBridge<std::shared_ptr<TDevice>>&& Devices);
 };
