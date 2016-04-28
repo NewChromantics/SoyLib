@@ -709,8 +709,11 @@ id<MTLBuffer> Metal::TBuffer::GetCommandBuffer()
 Metal::TJob::TJob(TContext& Context) :
 	mCommandBuffer	( nullptr )
 {
-	static bool Retain = false;
-	mCommandBuffer = make_objc<MTLCommandBuffer_impl>( [Context.GetQueue() commandBuffer], Retain );
+	//	gr: this crashes almost immediately if not retained
+	static bool Retain = true;
+	//	gr: casts badly to void* if we don't explicitly make an id :/
+	id<MTLCommandBuffer> CommandBuffer = [Context.GetQueue() commandBuffer];
+	mCommandBuffer = make_objc<MTLCommandBuffer_impl>( CommandBuffer, Retain );
 }
 
 
