@@ -7,8 +7,8 @@ template<typename ID_TYPE,typename PROTOCOL_BASE_TYPE=NSObject>
 class ObjcWrapper
 {
 public:
-	ObjcWrapper(void* Object);
-	ObjcWrapper(ID_TYPE Id_Object);
+	ObjcWrapper(void* Object,bool Retain=true);
+	ObjcWrapper(ID_TYPE Id_Object,bool Retain=false);
 	~ObjcWrapper();
 
 	//	yet this converts without hassle??
@@ -56,16 +56,22 @@ public:
 };
 
 
-template<typename TYPE_impl>
-Objc<TYPE_impl> make_objc(void* TexturePtr)
+template<typename TYPE_impl,typename OBJECT_TYPE>
+Objc<TYPE_impl> make_objc(OBJECT_TYPE Object,bool Retain)
 {
-	return Objc<TYPE_impl>( std::make_shared<TYPE_impl>( TexturePtr ) );
+	return Objc<TYPE_impl>( std::make_shared<TYPE_impl>( Object, Retain ) );
+}
+
+template<typename TYPE_impl,typename OBJECT_TYPE>
+Objc<TYPE_impl> make_objc(OBJECT_TYPE Object)
+{
+	return Objc<TYPE_impl>( std::make_shared<TYPE_impl>( Object ) );
 }
 
 
 
 template<typename ID_TYPE,typename PROTOCOL_BASE_TYPE>
-ObjcWrapper<ID_TYPE,PROTOCOL_BASE_TYPE>::ObjcWrapper(void* Object)
+ObjcWrapper<ID_TYPE,PROTOCOL_BASE_TYPE>::ObjcWrapper(void* Object,bool Retain)
 {
 	//	gr: we throw to stop the shared_ptr of the wrapper being set like a failed alloc
 	if ( !Object )
@@ -79,8 +85,16 @@ ObjcWrapper<ID_TYPE,PROTOCOL_BASE_TYPE>::ObjcWrapper(void* Object)
 	
 	//	can cast anything to a specific thing
 	mObject = x;
-	[mObject retain];
-	std::Debug << Soy::GetTypeName(*this) << " alloc retain count: " << [mObject retainCount] << std::endl;
+	auto RetainCount = [mObject retainCount];
+	if ( Retain )
+		[mObject retain];
+	else
+		std::Debug << Soy::GetTypeName(*this) << " not retaining void* retain count: " << RetainCount << std::endl;
+	
+	
+	RetainCount = [mObject retainCount];
+	if ( RetainCount > 1 )
+		std::Debug << Soy::GetTypeName(*this) << " void* alloc retain count: " << RetainCount << std::endl;
 	
 	auto* TestPtr = Object;
 	Soy::Assert( TestPtr == Object, "Pointer conversion failed");
@@ -89,11 +103,21 @@ ObjcWrapper<ID_TYPE,PROTOCOL_BASE_TYPE>::ObjcWrapper(void* Object)
 
 
 template<typename ID_TYPE,typename PROTOCOL_BASE_TYPE>
-ObjcWrapper<ID_TYPE,PROTOCOL_BASE_TYPE>::ObjcWrapper(ID_TYPE Id_Object) :
+ObjcWrapper<ID_TYPE,PROTOCOL_BASE_TYPE>::ObjcWrapper(ID_TYPE Id_Object,bool Retain) :
 	mObject	( Id_Object )
 {
 	if ( !mObject )
 		throw Soy::AssertException("null objc object");
+
+	auto RetainCount = [mObject retainCount];
+	if ( Retain )
+		[mObject retain];
+	else
+		std::Debug << Soy::GetTypeName(*this) << " not retaining void* retain count: " << RetainCount << std::endl;
+
+	RetainCount = [mObject retainCount];
+	if ( RetainCount > 1 )
+		std::Debug << Soy::GetTypeName(*this) << " id<> alloc retain count: " << RetainCount << std::endl;
 }
 	
 
@@ -102,7 +126,9 @@ ObjcWrapper<ID_TYPE,PROTOCOL_BASE_TYPE>::~ObjcWrapper()
 {
 	if ( mObject )
 	{
-		std::Debug << Soy::GetTypeName(*this) << " releasing retain count now: " << ([mObject retainCount])-1 << std::endl;
+		auto RetainCount = [mObject retainCount];
+		if ( RetainCount > 1 )
+			std::Debug << Soy::GetTypeName(*this) << " releasing retain count now: " << (RetainCount-1) << std::endl;
 		[mObject release];
 		mObject = nil;
 	}
@@ -338,7 +364,8 @@ Metal::TTexture::TTexture(id<MTLTexture> TexturePtr) :
 	mTexture		( nullptr ),
 	mAutoRelease	( false )
 {
-	mTexture = make_objc<MTLTexture_impl>( TexturePtr );
+	static bool Retain = true;
+	mTexture = make_objc<MTLTexture_impl>( TexturePtr, Retain );
 	Soy::Assert( mTexture, "Expected texture?");
 	
 	std::Debug << "Made external metal texture from id<>: " << GetMeta() << std::endl;
@@ -356,14 +383,17 @@ Metal::TTexture::TTexture(const SoyPixelsMeta& Meta,TContext& Context) :
 	bool MipMapped = false;
 	auto* Descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:PixelFormat width:Width height:Height mipmapped:MipMapped];
 	Metal::IsOkay(Descriptor,Meta);
-	mTexture = make_objc<MTLTexture_impl>( [Device newTextureWithDescriptor:Descriptor] );
+	static bool Retain = true;
+	mTexture = make_objc<MTLTexture_impl>( [Device newTextureWithDescriptor:Descriptor], Retain );
 	
 	if ( !mTexture )
 	{
 		std::stringstream Error;
 		Error << "Failed to create MTLTexture from " << Meta;
 		throw Soy::AssertException( Error.str() );
-	}	
+	}
+	
+	
 }
 
 void Metal::TTexture::Delete()
@@ -585,6 +615,17 @@ Metal::TContext::TContext(void* DevicePtr)
 	//	allocate a new command queue for this thread
 	auto Device = GetDevice();
 	mQueue = make_objc<MTLCommandQueue_impl>( [Device newCommandQueue] );
+	
+	//	allocation test
+	static int AllocTest = 10;
+	for ( int i=0;	i<AllocTest;	i++ )
+	{
+		std::Debug << "Allocating Q " << i << "/" << AllocTest << std::endl;
+		//	should be able to allocate and delete a texture immediately
+		MTLCommandQueuePtr Q = make_objc<MTLCommandQueue_impl>( [Device newCommandQueue] );
+		Q.reset();
+		std::Debug << "Deallocated Q " << i << "/" << AllocTest << std::endl;
+	}
 }
 
 
@@ -647,7 +688,8 @@ Metal::TBuffer::TBuffer(const uint8* Data,size_t DataSize,TDevice& Device) :
 	auto DeviceMtl = Device.GetDevice();
 	Soy::Assert( DeviceMtl!=nullptr, "Expected metal device");
 	
-	mBuffer = make_objc<MTLBuffer_impl>( [DeviceMtl newBufferWithBytes:Data length:DataSize options:Options] );
+	static bool Retain = true;
+	mBuffer = make_objc<MTLBuffer_impl>( [DeviceMtl newBufferWithBytes:Data length:DataSize options:Options], Retain );
 	if ( !mBuffer )
 	{
 		std::stringstream Error;
@@ -667,7 +709,8 @@ id<MTLBuffer> Metal::TBuffer::GetCommandBuffer()
 Metal::TJob::TJob(TContext& Context) :
 	mCommandBuffer	( nullptr )
 {
-	mCommandBuffer = make_objc<MTLCommandBuffer_impl>( [Context.GetQueue() commandBuffer] );
+	static bool Retain = false;
+	mCommandBuffer = make_objc<MTLCommandBuffer_impl>( [Context.GetQueue() commandBuffer], Retain );
 }
 
 
