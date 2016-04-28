@@ -507,7 +507,42 @@ void Metal::TTexture::Write(const TTexture& That,const Opengl::TTextureUploadPar
 	Semaphore.Wait();
 }
 
-
+SoyPixelsMeta Metal::TTexture::CorrectPixelsForUpload(const SoyPixelsMeta& Meta)
+{
+	SoyPixelsMeta NewMeta = Meta;
+	
+	//	gr: cannot blit pixels that don't align to 64 bytes. Tried to bodge around it, but cannot start a row-copy that's not aligned either. so HAVE to realign :/
+	{
+		auto RowDataSize = NewMeta.GetRowDataSize();
+		auto Alignment64 = RowDataSize % 64;
+		if ( Alignment64 != 0 )
+		{
+			auto ChannelCount = NewMeta.GetChannels();
+			//	how many pixels off are we?
+			auto PadRowBytes = 64 - Alignment64;
+			auto PadRowPixels = PadRowBytes / ChannelCount;
+			auto PadRowAlignment = PadRowBytes % ChannelCount;
+			
+			
+			if ( PadRowAlignment == 0 )
+			{
+				SoyPixels PixelsPadded;
+				auto NewWidth = NewMeta.GetWidth() + PadRowPixels;
+				NewMeta.DumbSetWidth( NewWidth );
+			}
+			else
+			{
+				//	cannot realign this format...
+				std::stringstream Error;
+				Error << "Need to pad blit-to-metal pixels by " << PadRowBytes << " bytes, but doesn't align to channel count (" << ChannelCount << ") " << Meta;
+				//throw Soy::AssertException( Error.str() );
+				std::Debug << Error.str() << std::endl;
+			}
+		}
+	}
+	
+	return NewMeta;
+}
 
 Metal::TDevice::TDevice(void* DevicePtr) :
 	mDevice	( nullptr )
@@ -648,17 +683,19 @@ std::string GetBufferError(id<MTLCommandBuffer> Buffer)
 
 void Metal::TJob::Execute(Soy::TSemaphore* Semaphore)
 {
-	auto RealOnCompleted = [=](id<MTLCommandBuffer> Buffer)
+	//	local copy for block (shouldn't need __block, but being explicit)
+	__block Soy::TSemaphore* SemaphoreCopy = Semaphore;
+	auto OnCompleted = ^(id<MTLCommandBuffer> Buffer)
 	{
 		//	gr: for some reason, in c# block or lambda, calling OnFailed eventually leads to a crash in debug print (with no stack)
 		auto Error = GetBufferError(Buffer);
-
-		if ( Semaphore )
+		
+		if ( SemaphoreCopy )
 		{
 			if ( Error.empty() )
-				Semaphore->OnCompleted();
+				SemaphoreCopy->OnCompleted();
 			else
-				Semaphore->OnFailed( Error.c_str() );
+				SemaphoreCopy->OnFailed( Error.c_str() );
 		}
 		else
 		{
@@ -667,12 +704,6 @@ void Metal::TJob::Execute(Soy::TSemaphore* Semaphore)
 			else
 				std::Debug << "Metal job error " << Error << std::endl;
 		}
-		
-	};
-	
-	auto OnCompleted = ^(id<MTLCommandBuffer> Buffer)
-	{
-		RealOnCompleted( Buffer );
 	};
 
 	auto& CommandBuffer = mCommandBuffer->mObject;
