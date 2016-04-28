@@ -446,13 +446,18 @@ void Metal::TTexture::Write(const SoyPixelsImpl& Pixels,const Opengl::TTextureUp
 		MTLOrigin DestinationOrigin = MTLOriginMake(0,0,0);
 		auto Buffer = pBuffer->GetCommandBuffer();
 
-		//	generate command
-		id<MTLBlitCommandEncoder> Command = [Job.GetCommandBuffer() blitCommandEncoder];
-		[Command copyFromBuffer:Buffer sourceOffset:Offset sourceBytesPerRow:BytesPerRow sourceBytesPerImage:BytesPerImage sourceSize:SourceSize toTexture:TargetTexture destinationSlice:DestinationSlice destinationLevel:DestinationLevel destinationOrigin:DestinationOrigin];
+		static bool DoCommand = true;
 		
-		if ( Params.mGenerateMipMaps )
-			[Command generateMipmapsForTexture:TargetTexture];
-		[Command endEncoding];
+		if ( DoCommand )
+		{
+			//	generate command
+			id<MTLBlitCommandEncoder> Command = [Job.GetCommandBuffer() blitCommandEncoder];
+			[Command copyFromBuffer:Buffer sourceOffset:Offset sourceBytesPerRow:BytesPerRow sourceBytesPerImage:BytesPerImage sourceSize:SourceSize toTexture:TargetTexture destinationSlice:DestinationSlice destinationLevel:DestinationLevel destinationOrigin:DestinationOrigin];
+			
+			if ( Params.mGenerateMipMaps )
+				[Command generateMipmapsForTexture:TargetTexture];
+			[Command endEncoding];
+		}
 	}
 	else
 	{
@@ -683,6 +688,16 @@ std::string GetBufferError(id<MTLCommandBuffer> Buffer)
 
 void Metal::TJob::Execute(Soy::TSemaphore* Semaphore)
 {
+	static bool SkipSemaphore = false;
+	
+	if ( SkipSemaphore && Semaphore )
+	{
+		auto& CommandBuffer = mCommandBuffer->mObject;
+		[CommandBuffer commit];
+		Semaphore->OnCompleted();
+		return;
+	}
+	
 	//	local copy for block (shouldn't need __block, but being explicit)
 	__block Soy::TSemaphore* SemaphoreCopy = Semaphore;
 	auto OnCompleted = ^(id<MTLCommandBuffer> Buffer)
