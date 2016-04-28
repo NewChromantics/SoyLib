@@ -80,7 +80,7 @@ ObjcWrapper<ID_TYPE,PROTOCOL_BASE_TYPE>::ObjcWrapper(void* Object)
 	//	can cast anything to a specific thing
 	mObject = x;
 	[mObject retain];
-	std::Debug << Soy::GetTypeName(*this) << " retain count: " << [mObject retainCount] << std::endl;
+	std::Debug << Soy::GetTypeName(*this) << " alloc retain count: " << [mObject retainCount] << std::endl;
 	
 	auto* TestPtr = Object;
 	Soy::Assert( TestPtr == Object, "Pointer conversion failed");
@@ -330,7 +330,18 @@ Metal::TTexture::TTexture(void* TexturePtr) :
 	mTexture = make_objc<MTLTexture_impl>( TexturePtr );
 	Soy::Assert( mTexture, "Expected texture?");
 
-	std::Debug << "Made external metal texture: " << GetMeta() << std::endl;
+	std::Debug << "Made external metal texture from void*: " << GetMeta() << std::endl;
+}
+
+
+Metal::TTexture::TTexture(id<MTLTexture> TexturePtr) :
+	mTexture		( nullptr ),
+	mAutoRelease	( false )
+{
+	mTexture = make_objc<MTLTexture_impl>( TexturePtr );
+	Soy::Assert( mTexture, "Expected texture?");
+	
+	std::Debug << "Made external metal texture from id<>: " << GetMeta() << std::endl;
 }
 
 

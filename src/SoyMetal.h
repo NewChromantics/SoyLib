@@ -196,6 +196,9 @@ public:
 	TTexture(TTexture&& Move)			{	*this = std::move(Move);	}
 	TTexture(const TTexture& Reference)	{	*this = Reference;	}
 	TTexture(void* TexturePtr);			//	referece from external (unity)
+#if defined(__OBJC__)
+	TTexture(id<MTLTexture> TexturePtr);
+#endif
 	explicit TTexture(const SoyPixelsMeta& Meta,TContext& Context);	//	alloc
 	~TTexture()
 	{
