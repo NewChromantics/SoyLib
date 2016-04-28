@@ -219,6 +219,7 @@ public:
 	void			Clear(bool Dealloc=false);
 
 	virtual bool	Copy(const SoyPixelsImpl& that,bool AllowReallocation=true);
+	void			CopyClipped(const SoyPixelsImpl& that);	//	copy different sized images quickly
 	
 	bool			IsValid() const					{	return GetMeta().IsValid();	}
 	uint8			GetBitDepth() const				{	return GetMeta().GetBitDepth();	}
@@ -263,6 +264,9 @@ public:
 
 	//	split these pixels into multiple pixels if there are multiple planes
 	void			SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes);
+	
+	inline bool		operator==(const SoyPixelsImpl& that) const		{	return this == &that;	}
+	inline bool		operator==(const SoyPixelsMeta& Meta) const		{	return GetMeta() == Meta;	}
 	
 	virtual SoyPixelsMeta&					GetMeta()=0;
 	virtual const SoyPixelsMeta&			GetMeta() const=0;
@@ -309,6 +313,12 @@ public:
 		mArray						( Heap ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{
+	}
+	SoyPixels(const SoyPixelsMeta& Meta) :
+		mArray						( DefaultHeap ),
+		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
+	{
+		Init( Meta );
 	}
 	
 	SoyPixels& operator=(const SoyPixels& that)	{	Copy( that );	return *this;	}

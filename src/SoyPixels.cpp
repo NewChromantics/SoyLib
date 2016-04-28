@@ -1354,18 +1354,19 @@ void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour)
 void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 {
 	auto& Pixels = GetPixelsArray();
+	auto Channels = GetChannels();
 	
 	//	simply add/remove rows
 	if ( Height > GetHeight() )
 	{
-		auto RowBytes = GetChannels() * GetWidth();
+		auto RowBytes = Channels * GetWidth();
 		RowBytes *= Height - GetHeight();
 		Pixels.PushBlock( RowBytes );
 		GetMeta().DumbSetHeight( Height );
 	}
 	else if ( Height < GetHeight() )
 	{
-		auto RowBytes = GetChannels() * GetWidth();
+		auto RowBytes = Channels * GetWidth();
 		RowBytes *= GetHeight() - Height;
 		Pixels.SetSize( Pixels.GetDataSize() - RowBytes );
 		GetMeta().DumbSetHeight( Height );
@@ -1373,10 +1374,10 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	
 	//	insert/remove data on the end of each row
 	if ( Width > GetWidth() )
-	{
+	{//	todo: prealloc!
 		//	working backwards makes it easy & fast
-		auto Stride = GetChannels() * GetWidth();
-		auto ColBytes = GetChannels() * (Width - GetWidth());
+		auto Stride = Channels * GetWidth();
+		auto ColBytes = Channels * (Width - GetWidth());
 		for ( ssize_t p=Pixels.GetDataSize();	p>=0;	p-=Stride )
 			Pixels.InsertBlock( p, ColBytes );
 		GetMeta().DumbSetWidth( Width );
@@ -1384,8 +1385,8 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	else if ( Width < GetWidth() )
 	{
 		//	working backwards makes it easy & fast
-		auto Stride = GetChannels() * GetWidth();
-		auto ColBytes = GetChannels() * (GetWidth() - Width);
+		auto Stride = Channels * GetWidth();
+		auto ColBytes = Channels * (GetWidth() - Width);
 		for ( ssize_t p=Pixels.GetDataSize()-ColBytes;	p>=0;	p-=Stride )
 			Pixels.RemoveBlock( p, ColBytes );
 		GetMeta().DumbSetWidth( Width );
@@ -1398,6 +1399,40 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 		throw Soy::AssertException( Error.str() );
 	}
 }
+
+
+void SoyPixelsImpl::CopyClipped(const SoyPixelsImpl& that)
+{
+	auto ThisMeta = GetMeta();
+	auto ThatMeta = that.GetMeta();
+
+	//	todo: handle multiple channels
+	auto ThisChannels = ThisMeta.GetChannels();
+	auto ThatChannels = ThatMeta.GetChannels();
+	if ( ThisChannels != ThatChannels || ThisChannels == 0 )
+	{
+		std::stringstream Error;
+		Error << "Cannot currently CopyClipped pixels of different channel formats: " << ThisMeta << " <-- " << ThatMeta;
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	auto CopyWidth = std::min( ThisMeta.GetWidth(), ThatMeta.GetWidth() );
+	auto CopyHeight = std::min( ThisMeta.GetHeight(), ThatMeta.GetHeight() );
+	
+	
+	auto ThisStride = ThisChannels * ThisMeta.GetWidth();
+	auto ThatStride = ThatChannels * ThatMeta.GetWidth();
+	auto CopyStride = std::min( ThisStride, ThatStride );
+	auto* This00 = &this->GetPixelPtr( 0, 0, 0 );
+	auto* That00 = &that.GetPixelPtr( 0, 0, 0 );
+	for ( int y=0;	y<CopyHeight;	y++ )
+	{
+		auto* Src = &That00[ThatStride * y];
+		auto* Dst = &This00[ThisStride * y];
+		memcpy( Dst, Src, CopyStride );
+	}
+}
+
 
 
 void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,ArrayInterface<uint8>* Data) const
@@ -1613,6 +1648,8 @@ bool SoyPixelsImpl::Copy(const SoyPixelsImpl &that,bool AllowReallocation)
 	this->GetPixelsArray().Copy( that.GetPixelsArray() );
 	return true;
 }
+
+
 
 void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream,bool Hex,const char* PixelSuffix) const
 {
