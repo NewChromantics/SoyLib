@@ -58,7 +58,8 @@ namespace SoyMediaFormat
 		Mpeg4_v3,		//	windows mpeg4 variant MP43 (msmpeg4v3)
 		VC1,			//	in TS files, not sure what this is yet
 		Divx,			//	added to detect, and fail gracefully
-		
+		MotionJpeg,		//	MJPG, series of jpegs
+
 		//	encoded images
 		Png,
 		Jpeg,
@@ -66,7 +67,6 @@ namespace SoyMediaFormat
 		Tga,
 		Bmp,
 		Psd,
-		//MovingJpeg,		//	mjpeg
 		
 		//	audio
 		Audio_AUDS,		//	fourcc from mediafoundation. means "audio stream"

@@ -40,9 +40,8 @@ public:
 		mFlags			( 0 ),
 		mSubtypeSize	( 0 )
 	{
-	}
-	
-	SoyMediaFormatMeta(SoyMediaFormat::Type Format,const std::initializer_list<std::string>& Mimes,const std::initializer_list<uint32_t>& Fourccs,int Flags,int SubtypeSize) :
+	}	
+	SoyMediaFormatMeta(SoyMediaFormat::Type Format,const std::initializer_list<std::string>& Mimes,const std::initializer_list<uint32_t>& Fourccs,int Flags,size_t SubtypeSize) :
 		mFormat			( Format ),
 		mFlags			( Flags ),
 		mSubtypeSize	( SubtypeSize )
@@ -52,7 +51,7 @@ public:
 		for ( auto Mime : Mimes )
 			mMimes.PushBack( Mime );
 	}
-	SoyMediaFormatMeta(SoyMediaFormat::Type Format,const std::initializer_list<std::string>& Mimes,const uint32_t& Fourcc,int Flags,int SubtypeSize) :
+	SoyMediaFormatMeta(SoyMediaFormat::Type Format,const std::initializer_list<std::string>& Mimes,const uint32_t& Fourcc,int Flags,size_t SubtypeSize) :
 		mFormat			( Format ),
 		mFlags			( Flags ),
 		mSubtypeSize	( SubtypeSize )
@@ -61,7 +60,7 @@ public:
 		for ( auto Mime : Mimes )
 			mMimes.PushBack( Mime );
 	}
-	SoyMediaFormatMeta(SoyMediaFormat::Type Format,const std::string& Mime,const std::initializer_list<uint32_t>& Fourccs,int Flags,int SubtypeSize) :
+	SoyMediaFormatMeta(SoyMediaFormat::Type Format,const std::string& Mime,const std::initializer_list<uint32_t>& Fourccs,int Flags,size_t SubtypeSize) :
 		mFormat			( Format ),
 		mFlags			( Flags ),
 		mSubtypeSize	( SubtypeSize )
@@ -70,7 +69,7 @@ public:
 			mFourccs.PushBack( Fourcc );
 		mMimes.PushBack( Mime );
 	}
-	SoyMediaFormatMeta(SoyMediaFormat::Type Format,const std::string& Mime,const uint32_t& Fourcc,int Flags,int SubtypeSize) :
+	SoyMediaFormatMeta(SoyMediaFormat::Type Format,const std::string& Mime,const uint32_t& Fourcc,int Flags,size_t SubtypeSize) :
 		mFormat			( Format ),
 		mFlags			( Flags ),
 		mSubtypeSize	( SubtypeSize )
@@ -83,7 +82,7 @@ public:
 	BufferArray<uint32_t,5>		mFourccs;
 	BufferArray<std::string,5>	mMimes;
 	uint32_t					mFlags;
-	int							mSubtypeSize;
+	size_t						mSubtypeSize;	//	zero is non-specific
 	
 	bool					Is(SoyMediaMetaFlags::Type Flag) const		{	return bool_cast( mFlags & Flag );	}
 	
@@ -107,6 +106,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Mpeg4_v3,			"Mpeg4_v3" },
 	{ SoyMediaFormat::VC1,				"VC1" },
 	{ SoyMediaFormat::Divx,				"Divx" },
+	{ SoyMediaFormat::MotionJpeg,		"MotionJpeg" },
 	{ SoyMediaFormat::Audio_AUDS,		"Audio_AUDS" },
 	{ SoyMediaFormat::Wave,				"wave" },
 	{ SoyMediaFormat::Aac,				"aac" },
@@ -189,96 +189,94 @@ const Array<SoyMediaFormatMeta>& SoyMediaFormat::GetFormatMap()
 		//	win7 mediafoundation gives H264 with unknown size, so we assume 32
 		//	gr^^ this should change to ES and re-resolve if not annex-b
 		SoyMediaFormatMeta( SoyMediaFormat::H264_32,		"video/avc",	{'avc1','H264'}, SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, 4 ),
-		SoyMediaFormatMeta( SoyMediaFormat::H264_ES,		"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::H264_PPS_ES,	"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::H264_SPS_ES,	"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::H264_ES,		"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::H264_PPS_ES,	"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::H264_SPS_ES,	"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, 0 ),
 
-		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2TS,		"video/ts",		'xxxx', SoyMediaMetaFlags::IsVideo, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2TS_PSI,	"video/ts",		'xxxx', SoyMediaMetaFlags::IsVideo, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2,			"video/mpeg2",	'xxxx', SoyMediaMetaFlags::IsVideo, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2TS,		"video/ts",		'xxxx', SoyMediaMetaFlags::IsVideo, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2TS_PSI,	"video/ts",		'xxxx', SoyMediaMetaFlags::IsVideo, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2,			"video/mpeg2",	'xxxx', SoyMediaMetaFlags::IsVideo, 0 ),
 		
 		//	windows media foundation has this fourcc in caps (all?)
-		SoyMediaFormatMeta( SoyMediaFormat::Mpeg4,			"video/mp4",		{'mp4v','MP4V'}, SoyMediaMetaFlags::IsVideo, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Mpeg4_v3,		"video/mp43",		'MP43', SoyMediaMetaFlags::IsVideo, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::VC1,			"video/xxx",		'xxxx', SoyMediaMetaFlags::IsVideo, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg4,			"video/mp4",		{'mp4v','MP4V'}, SoyMediaMetaFlags::IsVideo, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg4_v3,		"video/mp43",		'MP43', SoyMediaMetaFlags::IsVideo, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::VC1,			"video/xxx",		'xxxx', SoyMediaMetaFlags::IsVideo, 0 ),
 		
 		//	verify mime
-		SoyMediaFormatMeta( SoyMediaFormat::Divx,			"video/divx",		'divx', SoyMediaMetaFlags::IsVideo, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Divx,			"video/divx",		'divx', SoyMediaMetaFlags::IsVideo, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::MotionJpeg,		"video/mjpg",		'MJPG', SoyMediaMetaFlags::IsVideo, 0 ),
 
 		
-		SoyMediaFormatMeta( SoyMediaFormat::Wave,			"audio/wave",		'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Audio_AUDS,		"audio/Audio_AUDS",	'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Wave,			"audio/wave",		'xxxx', SoyMediaMetaFlags::IsAudio, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Audio_AUDS,		"audio/Audio_AUDS",	'xxxx', SoyMediaMetaFlags::IsAudio, 0 ),
 		
 		//	verify mime
-		SoyMediaFormatMeta( SoyMediaFormat::Ac3,			"audio/ac3",	'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2Audio,		"audio/mpeg",	'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Dts,			"audio/dts",	'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Ac3,			"audio/ac3",	'xxxx', SoyMediaMetaFlags::IsAudio, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2Audio,		"audio/mpeg",	'xxxx', SoyMediaMetaFlags::IsAudio, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Dts,			"audio/dts",	'xxxx', SoyMediaMetaFlags::IsAudio, 0 ),
 
 		//	gr: change this to handle multiple mime types per format
-		SoyMediaFormatMeta( SoyMediaFormat::Aac,			{ Mime::Aac_Default, Mime::Aac_Android, Mime::Aac_x, Mime::Aac_Other},	'aac ', SoyMediaMetaFlags::IsAudio, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Aac,			{ Mime::Aac_Default, Mime::Aac_Android, Mime::Aac_x, Mime::Aac_Other},	'aac ', SoyMediaMetaFlags::IsAudio, 0 ),
 
 		//	https://en.wikipedia.org/wiki/Pulse-code_modulation
 		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_8,	"audio/L8",		'lpcm', SoyMediaMetaFlags::IsAudio, 8  ),
 		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_16,	"audio/L16",	'lpcm', SoyMediaMetaFlags::IsAudio, 16  ),
 		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_20,	"audio/L20",	'lpcm', SoyMediaMetaFlags::IsAudio, 20  ),
 		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_24,	"audio/L24",	'lpcm', SoyMediaMetaFlags::IsAudio, 24  ),
-		SoyMediaFormatMeta( SoyMediaFormat::PcmAndroidRaw,	MIMETYPE_AUDIO_RAW,	'lpcm', SoyMediaMetaFlags::IsAudio, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::PcmAndroidRaw,	MIMETYPE_AUDIO_RAW,	'lpcm', SoyMediaMetaFlags::IsAudio, 0 ),
 
 		//	find mime
-		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_float,	"audio/L32",	'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_float,	"audio/L32",	'xxxx', SoyMediaMetaFlags::IsAudio, 0 ),
 
 		//	audio/mpeg is what android reports when I try and open mp3
-		SoyMediaFormatMeta( SoyMediaFormat::Mp3,			"audio/mpeg",	'xxxx', SoyMediaMetaFlags::IsAudio, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mp3,			"audio/mpeg",	'xxxx', SoyMediaMetaFlags::IsAudio, 0 ),
 		
 		//	verify these mimes
-		SoyMediaFormatMeta( SoyMediaFormat::Png,			"image/png",	'xxxx', SoyMediaMetaFlags::IsImage, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Jpeg,			"image/jpeg",	'xxxx', SoyMediaMetaFlags::IsImage, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Bmp,			"image/bmp",	'xxxx', SoyMediaMetaFlags::IsImage, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Tga,			"image/tga",	'xxxx', SoyMediaMetaFlags::IsImage, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Psd,			"image/Psd",	'xxxx', SoyMediaMetaFlags::IsImage, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Gif,			"image/gif",	'xxxx', SoyMediaMetaFlags::IsImage, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Png,			"image/png",	'xxxx', SoyMediaMetaFlags::IsImage, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Jpeg,			"image/jpeg",	'xxxx', SoyMediaMetaFlags::IsImage, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Bmp,			"image/bmp",	'xxxx', SoyMediaMetaFlags::IsImage, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Tga,			"image/tga",	'xxxx', SoyMediaMetaFlags::IsImage, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Psd,			"image/Psd",	'xxxx', SoyMediaMetaFlags::IsImage, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Gif,			"image/gif",	'xxxx', SoyMediaMetaFlags::IsImage, 0 ),
 
 		
-		SoyMediaFormatMeta( SoyMediaFormat::Text,			"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Json,			"application/javascript",	'xxxx', SoyMediaMetaFlags::IsText, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Html,			"text/html",	'xxxx', SoyMediaMetaFlags::IsText, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::ClosedCaption,	"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Subtitle,		"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, -1 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Text,			"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Json,			"application/javascript",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Html,			"text/html",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ClosedCaption,	"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Subtitle,		"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
 		
-		SoyMediaFormatMeta( SoyMediaFormat::QuicktimeTimecode,	"application/quicktimetimecode",	'tmcd', SoyMediaMetaFlags::None, -1 ),
-
-
-
+		SoyMediaFormatMeta( SoyMediaFormat::QuicktimeTimecode,	"application/quicktimetimecode",	'tmcd', SoyMediaMetaFlags::None, 0 ),
 
 		//	pixel formats
-		//	gr: some of these fourcc's may exist on specific platforms
-		SoyMediaFormatMeta( SoyMediaFormat::Greyscale,			"application/Greyscale",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::GreyscaleAlpha,		"application/GreyscaleAlpha",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::RGB,				"application/RGB",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::RGBA,				"application/RGBA",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::BGRA,				"application/BGRA",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::BGR,				"application/BGR",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::ARGB,				"application/ARGB",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::KinectDepth,		"application/KinectDepth",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepth10bit,	"application/FreenectDepth10bit",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepth11bit,	"application/FreenectDepth11bit",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepthmm,	"application/FreenectDepthmm",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Luma_Full,			"application/Luma_Full",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Luma_Ntsc,			"application/Luma_Ntsc",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Luma_Smptec,		"application/Luma_Smptec",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_88_Full,		"application/Yuv_8_88_Full",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_88_Ntsc,		"application/Yuv_8_88_Ntsc",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_88_Smptec,	"application/Yuv_8_88_Smptec",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_8_8_Full,		"application/Yuv_8_8_8_Full",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_8_8_Ntsc,		"application/Yuv_8_8_8_Ntsc",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_8_8_Smptec,	"application/Yuv_8_8_8_Smptec",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Full,		"application/YYuv_8888_Full",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Ntsc,		"application/YYuv_8888_Ntsc",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Smptec,	"application/YYuv_8888_Smptec",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::ChromaUV_8_8,		"application/ChromaUV_8_8",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::ChromaUV_88,		"application/ChromaUV_88",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Palettised_RGB_8,	"application/Palettised_RGB_8",	'xxxx', SoyMediaMetaFlags::None, -1 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Palettised_RGBA_8,	"application/Palettised_RGBA_8",	'xxxx', SoyMediaMetaFlags::None, -1 ),
+		//	gr: these fourcc's are from mediafoundation
+		SoyMediaFormatMeta( SoyMediaFormat::Greyscale,			"application/Greyscale",		'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::GreyscaleAlpha,		"application/GreyscaleAlpha",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::RGB,				"application/RGB",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::RGBA,				"application/RGBA",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::BGRA,				"application/BGRA",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::BGR,				"application/BGR",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ARGB,				"application/ARGB",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::KinectDepth,		"application/KinectDepth",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepth10bit,	"application/FreenectDepth10bit",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepth11bit,	"application/FreenectDepth11bit",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepthmm,	"application/FreenectDepthmm",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Luma_Full,			"application/Luma_Full",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Luma_Ntsc,			"application/Luma_Ntsc",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Luma_Smptec,		"application/Luma_Smptec",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_88_Full,		"application/Yuv_8_88_Full",	{'NV12','VIDS'}, SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_88_Ntsc,		"application/Yuv_8_88_Ntsc",	{'NV12','VIDS'}, SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_88_Smptec,	"application/Yuv_8_88_Smptec",	{'NV12','VIDS'}, SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_8_8_Full,		"application/Yuv_8_8_8_Full",	'I420', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_8_8_Ntsc,		"application/Yuv_8_8_8_Ntsc",	'I420', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Yuv_8_8_8_Smptec,	"application/Yuv_8_8_8_Smptec",	'I420', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Full,		"application/YYuv_8888_Full",	{'YUY2','IYUV','Y42T'}, SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Ntsc,		"application/YYuv_8888_Ntsc",		{'YUY2','IYUV','Y42T'}, SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Smptec,	"application/YYuv_8888_Smptec",	{'YUY2','IYUV','Y42T'}, SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ChromaUV_8_8,		"application/ChromaUV_8_8",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ChromaUV_88,		"application/ChromaUV_88",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Palettised_RGB_8,	"application/Palettised_RGB_8",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Palettised_RGBA_8,	"application/Palettised_RGBA_8",	'xxxx', SoyMediaMetaFlags::None, 0 ),
 	};
 
 	static Array<SoyMediaFormatMeta> FormatMap( _FormatMap );
