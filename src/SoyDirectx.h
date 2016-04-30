@@ -166,6 +166,7 @@ public:
 	TTexture()		{}
     explicit TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode);	//	allocate
 	TTexture(ID3D11Texture2D* Texture);
+	TTexture(const TTexture& Texture);
 
 	bool				IsValid() const		{	return mTexture;	}
 	void				Write(const TTexture& Source,TContext& Context);

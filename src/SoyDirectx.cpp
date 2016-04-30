@@ -433,6 +433,12 @@ Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
 	//	todo: copy sample params from Description
 }
 
+Directx::TTexture::TTexture(const TTexture& Texture) :
+	TTexture	( Texture.mTexture.mObject )
+{
+}
+
+
 Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 {
 	//	get meta
