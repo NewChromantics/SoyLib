@@ -922,7 +922,6 @@ void TMediaMuxer::SetStreams(const ArrayBridge<TStreamMeta>&& Streams)
 	
 	mStreams.Copy( Streams );
 	SetupStreams( GetArrayBridge(mStreams) );
-	
 }
 
 void TMediaMuxer::GetMeta(TJsonWriter& Json)
@@ -2326,5 +2325,68 @@ void TMediaPassThroughEncoder::Write(std::shared_ptr<SoyPixelsImpl> pImage,SoyTi
 void TMediaPassThroughEncoder::OnError(const std::string& Error)
 {
 	mFatalError << Error;
+}
+
+
+
+TTextureBuffer::TTextureBuffer(std::shared_ptr<Opengl::TContext> Context) :
+	mOpenglContext	( Context )
+{	
+}
+
+TTextureBuffer::TTextureBuffer(std::shared_ptr<Directx::TContext> Context) :
+	mDirectxContext	( Context )
+{
+}
+
+TTextureBuffer::TTextureBuffer(std::shared_ptr<SoyPixelsImpl> Pixels) :
+	mPixels	( Pixels )
+{
+}
+
+TTextureBuffer::TTextureBuffer(std::shared_ptr<Directx::TTexture> Texture,std::shared_ptr<TPool<Directx::TTexture>> TexturePool) :
+	mDirectxTexture		( Texture ),
+	mDirectxTexturePool	( TexturePool )
+{
+}
+
+
+TTextureBuffer::~TTextureBuffer()
+{
+	if ( mOpenglTexture && mOpenglTexturePool )
+	{
+		try
+		{
+			mOpenglTexturePool->Release( mOpenglTexture );
+		}
+		catch(...)
+		{
+		}
+	}
+
+	if ( mOpenglContext )
+	{
+		Opengl::DeferDelete( mOpenglContext, mOpenglTexture );
+		mOpenglContext.reset();
+	}
+
+#if defined(TARGET_WINDOWS)
+	if ( mDirectxTexture && mDirectxTexturePool )
+	{
+		try
+		{
+			mDirectxTexturePool->Release( mDirectxTexture );
+		}
+		catch(...)
+		{
+		}
+	}
+
+	if ( mDirectxContext )
+	{
+		Opengl::DeferDelete( mDirectxContext, mDirectxTexture );
+		mDirectxContext.reset();
+	}
+#endif
 }
 
