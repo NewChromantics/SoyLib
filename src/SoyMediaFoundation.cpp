@@ -136,8 +136,12 @@ public:
 //	gr: now fourcc's are in MediaFormat's, this should be irrelvent
 TPlatformFormatMap<GUID> PlatformFormatMap[] =
 {
+	//	gr: these RGB[A] formats are BGRA for ENCODING... check decoder and remove RGBA options to force client to convert
 	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_RGB32,	SoyMediaFormat::RGBA ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_ARGB32,	SoyMediaFormat::ARGB ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_RGB32,	SoyMediaFormat::BGRA ),
 	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_RGB24,	SoyMediaFormat::RGB ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_RGB24,	SoyMediaFormat::BGR ),
 
 	//	YUV format explanations
 	//	https://msdn.microsoft.com/en-us/library/windows/desktop/aa370819(v=vs.85).aspx
@@ -489,7 +493,11 @@ AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyMediaFormat::
 	auto* Meta = GetArrayBridge(Table).Find( Format );
 
 	if ( !Meta )
-		return AutoReleasePtr<IMFMediaType>();
+	{
+		std::stringstream Error;
+		Error << __func__ << " failed to get meta for " << Format;
+		throw Soy::AssertException( Error.str() );
+	}
 
 	return GetPlatformFormat( Meta->mPlatformMajorFormat, Meta->mPlatformMinorFormat );
 }
@@ -521,6 +529,10 @@ AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packe
 		Buffer.Lock( &BufferData, &BufferSize, &BufferCurrentLength );
 		if ( BufferData == nullptr )
 			throw Soy::AssertException("Failed to lock pixels for buffer");
+
+		//	gr: buffer is often "pre-allocated"... not sure if I need to set current length before writing if I want to write more than current length?
+		BufferCurrentLength = 0;
+
 		auto WriteLength = BufferSize - BufferCurrentLength;
 		auto& PixelsArray = Pixels.GetPixelsArray();
 		auto* PixelsData = PixelsArray.GetArray();
