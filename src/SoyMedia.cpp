@@ -2275,28 +2275,24 @@ void TMediaPassThroughEncoder::Write(const Opengl::TTexture& Image,SoyTime Timec
 void TMediaPassThroughEncoder::Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context)
 {
 #if defined(TARGET_WINDOWS)
-	//	todo: proper opengl -> CvPixelBuffer
 	
-	//	gr: Avf won't accept RGBA, but it will take RGB so we can force reading that format here
-	if ( Image.GetMeta().GetFormat() != SoyPixelsFormat::RGBA )
+	if ( Image.GetMode() != Directx::TTextureMode::ReadOnly )
 	{
-		throw Soy::AssertException("directx mode unsupported");
+		throw Soy::AssertException("TMediaPassThroughEncoder::Write cannot read texture to cpu");
 	}
-	
+
 	//	gr: cannot currently block for an opengl task, this is called from the main thread on mono, even though the render thread
 	//		is different, it seems to block and our opengl callback isn't called... so, like the higher level code, no block
-	auto ReadPixels = [this,Image,Timecode,&Context]
+	auto* ContextCopy = &Context;
+	auto ReadPixels = [this,Image,Timecode,ContextCopy]
 	{
 		std::shared_ptr<SoyPixels> Pixels( new SoyPixels );
 		auto& ImageMutable = const_cast<Directx::TTexture&>(Image);
-		ImageMutable.Read( *Pixels, Context );
+		ImageMutable.Read( *Pixels, *ContextCopy );
 		Write( Pixels, Timecode );
 	};
 
-	//	gr: this needs to block because of context scope... should opengl one block?
-	Soy::TSemaphore Semaphore;
-	Context.PushJob( ReadPixels, Semaphore );
-	Semaphore.Wait();
+	Context.PushJob( ReadPixels );
 #else
 	throw Soy::AssertException( std::string(__func__) + " not supported");
 #endif
