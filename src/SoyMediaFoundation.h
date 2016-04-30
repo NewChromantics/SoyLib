@@ -19,6 +19,7 @@
 
 
 std::ostream& operator<<(std::ostream& os, REFGUID guid);
+std::ostream& operator<<(std::ostream& os,MFVideoTransferMatrix Mode);
 
 class MfExtractor;
 class TMediaPacket;

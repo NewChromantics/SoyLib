@@ -71,6 +71,8 @@ const char* MediaGuidSpecialToString(REFGUID guid)
 	return nullptr;
 }
 
+
+
 bool GetMediaFormatGuidFourcc(GUID Guid,uint32& Part)
 {
 	//	data1 is the specific one. Pop it and if 0 matches Base then we know it's a MediaFormat guid
@@ -82,6 +84,8 @@ bool GetMediaFormatGuidFourcc(GUID Guid,uint32& Part)
 		return true;
 	return false;
 }
+
+
 
 DWORD MediaFoundation::GetFourcc(SoyMediaFormat::Type Format)
 {
@@ -129,7 +133,7 @@ public:
 };
 
 
-
+//	gr: now fourcc's are in MediaFormat's, this should be irrelvent
 TPlatformFormatMap<GUID> PlatformFormatMap[] =
 {
 	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_RGB32,	SoyMediaFormat::RGBA ),
@@ -318,6 +322,18 @@ SoyMediaFormat::Type MediaFoundation::GetFormat(GUID Major,GUID Minor,size_t H26
 
 	if ( Major == MFMediaType_Video )
 	{
+		//	gr: do fourcc method by default so we can remove all this code
+		//	gr: on win7 with bjork, we get a fourcc of avc1, but the rest doesn't match MediaFormat Base, so this func fails, but secretly has what we want...s
+		uint32 Fourcc = 0;
+		GetMediaFormatGuidFourcc( Minor, Fourcc );
+		{
+			auto Format = SoyMediaFormat::FromFourcc( Fourcc, H264NaluLengthSize );
+			if ( Format != SoyMediaFormat::Invalid )
+				return Format;
+		}
+
+		std::Debug << "Warning: media type not detected via fourcc (" << Minor << "/fourcc=" << Soy::FourCCToString(Fourcc) << ")" << std::endl;
+
 		if ( Minor == MFVideoFormat_H264 )
 		{
 			switch( H264NaluLengthSize )
@@ -353,15 +369,7 @@ SoyMediaFormat::Type MediaFoundation::GetFormat(GUID Major,GUID Minor,size_t H26
 		}
 
 
-		//	extract fourcc
-		//	gr: on win7 with bjork, we get a fourcc of avc1, but the rest doesn't match MediaFormat Base, so this func fails, but secretly has what we want...s
-		uint32 Fourcc = 0;
-		GetMediaFormatGuidFourcc( Minor, Fourcc );
-		{
-			auto Format = SoyMediaFormat::FromFourcc( Fourcc, H264NaluLengthSize );
-			if ( Format != SoyMediaFormat::Invalid )
-				return Format;
-		}
+
 	}
 
 	std::string GuidString;
@@ -376,6 +384,21 @@ SoyMediaFormat::Type MediaFoundation::GetFormat(GUID Major,GUID Minor,size_t H26
 	throw Soy::AssertException( Error.str() );
 }
 
+
+std::ostream& operator<<(std::ostream& os,MFVideoTransferMatrix Mode)
+{
+	switch ( Mode )
+	{
+		case MFVideoTransferMatrix_BT709:		os << "MFVideoTransferMatrix_BT709";	break;
+		case MFVideoTransferMatrix_BT601:		os << "MFVideoTransferMatrix_BT601";	break;
+		case MFVideoTransferMatrix_SMPTE240M:	os << "MFVideoTransferMatrix_SMPTE240M";	break;
+		case MFVideoTransferMatrix_Unknown:		os << "MFVideoTransferMatrix_Unknown";	break;
+		default:
+			os << "MFVideoTransferMatrix_<unknown:" << static_cast<int>(Mode) << ">";
+			break;
+	}
+	return os;
+}
 
 std::ostream& operator<<(std::ostream& os, REFGUID guid)
 {
