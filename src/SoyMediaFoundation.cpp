@@ -602,9 +602,8 @@ AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packe
 
 AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(TMediaEncoderParams Params,size_t Width,size_t Height)
 {
-	//auto MfFormat = MediaFoundation::GetPlatformFormat( Params.mCodec, Width, Height );
-	auto MfFormat = MediaFoundation::GetPlatformFormat( Params.mCodec );
-
+	auto MfFormat = MediaFoundation::GetPlatformFormat( Params.mCodec, Width, Height );
+	
 	//	setup params
 	auto& MediaFormat = *MfFormat.mObject;
 
@@ -620,25 +619,12 @@ AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(TMediaEncoderPar
 		MediaFoundation::IsOkay( Result, "set MF_MT_INTERLACE_MODE" );
 	}
 
-	{
-		auto Result = MFSetAttributeSize( MfFormat.mObject, MF_MT_FRAME_SIZE, Width, Height );   
-		MediaFoundation::IsOkay( Result, "set MF_MT_FRAME_SIZE" );
-	}
-
 	if ( Params.mFrameRate != 0 )
 	{
 		auto Result = MFSetAttributeRatio( MfFormat.mObject, MF_MT_FRAME_RATE, Params.mFrameRate, 1 );   
 		MediaFoundation::IsOkay( Result, "set MF_MT_FRAME_RATE" );
 	}
 
-	{
-		size_t PixelAspectRatio = 1;
-		auto Result = MFSetAttributeRatio( MfFormat.mObject, MF_MT_PIXEL_ASPECT_RATIO, PixelAspectRatio, 1 );   
-		MediaFoundation::IsOkay( Result, "set MF_MT_PIXEL_ASPECT_RATIO" );
-	}
-
-	
-	
 	static bool SetIndependent = false;
 	if ( SetIndependent )
 	{
