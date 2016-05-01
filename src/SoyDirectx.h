@@ -177,6 +177,7 @@ public:
 	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>& TexturePool)	{	Read(Pixels, Context, &TexturePool );	}	
 	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>* TexturePool);
 
+	bool				CanBindToShaderUniform() const;
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 	DXGI_FORMAT			GetDirectxFormat() const	{	return mFormat;	}

@@ -438,6 +438,12 @@ Directx::TTexture::TTexture(const TTexture& Texture) :
 {
 }
 
+bool Directx::TTexture::CanBindToShaderUniform() const
+{
+	auto Mode = GetMode();
+	return Mode == TTextureMode::GpuOnly;
+}
+
 
 Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 {
