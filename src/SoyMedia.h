@@ -4,6 +4,7 @@
 #include "SoyThread.h"
 #include "SoyMediaFormat.h"
 #include "SoyPool.h"
+#include "SoyH264.h"
 
 class TStreamWriter;
 class TStreamBuffer;
@@ -232,6 +233,9 @@ public:
 class TDumbPixelBuffer : public TPixelBuffer
 {
 public:
+	TDumbPixelBuffer()
+	{
+	}
 	TDumbPixelBuffer(SoyPixelsMeta Meta);
 	TDumbPixelBuffer(const SoyPixelsImpl& Pixels,const float3x3& Transform);
 	
@@ -745,6 +749,24 @@ private:
 	SoyListenerId							mOnNewPacketListener;
 };
 
+
+//	mpeg-style encoder params
+class TMediaEncoderParams
+{
+public:
+	TMediaEncoderParams() :
+		mCodec			( SoyMediaFormat::Invalid ),
+		mH264Profile	( H264Profile::Invalid ),
+		mAverageBitRate	( 16 * 1024 * 1024 * 8 ),
+		mFrameRate		( 60 )
+	{
+	}
+
+	SoyMediaFormat::Type	mCodec;
+	H264Profile::Type		mH264Profile;
+	size_t					mAverageBitRate;
+	size_t					mFrameRate;
+};
 
 //	encode to binary - merge this with TMediaDecoder to arbitraily go from any format to another
 class TMediaEncoder
