@@ -503,6 +503,21 @@ AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyMediaFormat::
 }
 
 
+AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyMediaFormat::Type Format,size_t Width,size_t Height)
+{
+	auto MediaFormat = GetPlatformFormat( Format );
+	
+	auto Result = MFSetAttributeSize( MediaFormat.mObject, MF_MT_FRAME_SIZE, Width, Height );   
+	MediaFoundation::IsOkay( Result, "set MF_MT_FRAME_SIZE" );
+
+	size_t PixelAspectRatio = 1;
+
+	Result = MFSetAttributeRatio( MediaFormat.mObject, MF_MT_PIXEL_ASPECT_RATIO, PixelAspectRatio, 1 );   
+	MediaFoundation::IsOkay( Result, "set MF_MT_PIXEL_ASPECT_RATIO" );
+
+	return MediaFormat;
+}
+
 AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyPixelsFormat::Type Format)
 {
 	auto MediaFormat = SoyMediaFormat::FromPixelFormat( Format );
@@ -514,7 +529,8 @@ AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packe
 {
 	AutoReleasePtr<IMFMediaBuffer> pBuffer;
 
-	bool BottomUp = false;
+	//	make this true, and flip read in shader
+	static bool BottomUp = false;
 	auto Fourcc = MediaFoundation::GetFourcc( Packet.mMeta.mCodec );
 	auto Result = MFCreate2DMediaBuffer( Packet.mMeta.mPixelMeta.GetWidth(), Packet.mMeta.mPixelMeta.GetHeight(), Fourcc, BottomUp, &pBuffer.mObject );
 	MediaFoundation::IsOkay( Result, "MFCreate2DMediaBuffer" );
@@ -584,31 +600,60 @@ AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packe
 }
 
 
-AutoReleasePtr<IMFMediaType> MediaFoundation::CreateFormat(SoyMediaFormat::Type Format,size_t FrameRate,size_t BitRate,size_t Width,size_t Height)
+AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(TMediaEncoderParams Params,size_t Width,size_t Height)
 {
-	size_t PixelAspectRatio = 1;
-	auto MfFormat = MediaFoundation::GetFormat( Format );
-
-	AutoReleasePtr<IMFMediaType> pMediaFormat = MediaFoundation::GetPlatformFormat( Format );
+	//auto MfFormat = MediaFoundation::GetPlatformFormat( Params.mCodec, Width, Height );
+	auto MfFormat = MediaFoundation::GetPlatformFormat( Params.mCodec );
 
 	//	setup params
-	auto& MediaFormat = *pMediaFormat.mObject;
+	auto& MediaFormat = *MfFormat.mObject;
 
-	auto Result = MediaFormat.SetUINT32(MF_MT_AVG_BITRATE, BitRate );   
-	MediaFoundation::IsOkay( Result, "set MF_MT_AVG_BITRATE" );
 
-	Result = MediaFormat.SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);   
-	MediaFoundation::IsOkay( Result, "set MF_MT_INTERLACE_MODE" );
+	if ( Params.mAverageBitRate != 0 )
+	{
+		auto Result = MediaFormat.SetUINT32(MF_MT_AVG_BITRATE, Params.mAverageBitRate );   
+		MediaFoundation::IsOkay( Result, "set MF_MT_AVG_BITRATE" );
+	}
+	
+	{
+		auto Result = MediaFormat.SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive);   
+		MediaFoundation::IsOkay( Result, "set MF_MT_INTERLACE_MODE" );
+	}
 
-	Result = MFSetAttributeSize( &MediaFormat, MF_MT_FRAME_SIZE, Width, Height );   
-	MediaFoundation::IsOkay( Result, "set MF_MT_FRAME_SIZE" );
+	{
+		auto Result = MFSetAttributeSize( MfFormat.mObject, MF_MT_FRAME_SIZE, Width, Height );   
+		MediaFoundation::IsOkay( Result, "set MF_MT_FRAME_SIZE" );
+	}
 
-	Result = MFSetAttributeRatio( &MediaFormat, MF_MT_FRAME_RATE, FrameRate, 1 );   
-	MediaFoundation::IsOkay( Result, "set MF_MT_FRAME_RATE" );
+	if ( Params.mFrameRate != 0 )
+	{
+		auto Result = MFSetAttributeRatio( MfFormat.mObject, MF_MT_FRAME_RATE, Params.mFrameRate, 1 );   
+		MediaFoundation::IsOkay( Result, "set MF_MT_FRAME_RATE" );
+	}
 
-	Result = MFSetAttributeRatio( &MediaFormat, MF_MT_PIXEL_ASPECT_RATIO, PixelAspectRatio, 1 );   
-	MediaFoundation::IsOkay( Result, "set MF_MT_PIXEL_ASPECT_RATIO" );
+	{
+		size_t PixelAspectRatio = 1;
+		auto Result = MFSetAttributeRatio( MfFormat.mObject, MF_MT_PIXEL_ASPECT_RATIO, PixelAspectRatio, 1 );   
+		MediaFoundation::IsOkay( Result, "set MF_MT_PIXEL_ASPECT_RATIO" );
+	}
 
-	return pMediaFormat;
+	
+	
+	static bool SetIndependent = false;
+	if ( SetIndependent )
+	{
+		auto Result = MediaFormat.SetUINT32(MF_MT_ALL_SAMPLES_INDEPENDENT, 1 );   
+		MediaFoundation::IsOkay( Result, "set MF_MT_ALL_SAMPLES_INDEPENDENT" );
+	}
+
+	//	check format and only apply if h264?
+	if ( Params.mH264Profile != H264Profile::Invalid )
+	{
+		auto ProfileValue = static_cast<uint32>( Params.mH264Profile );
+		auto Result = MediaFormat.SetUINT32(MF_MT_MPEG2_PROFILE, ProfileValue );   
+		MediaFoundation::IsOkay( Result, "set MF_MT_MPEG2_PROFILE" );
+	}
+
+	return MfFormat;
 }
 
