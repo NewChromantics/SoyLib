@@ -762,6 +762,11 @@ public:
 	{
 	}
 
+	void					SetBitRateMegaBytesPerSecond(float Mbs)
+	{
+		mAverageBitRate = size_cast<size_t>( 1024 * 1024 * 8 * Mbs );
+	}
+
 	SoyMediaFormat::Type	mCodec;
 	H264Profile::Type		mH264Profile;
 	size_t					mAverageBitRate;
