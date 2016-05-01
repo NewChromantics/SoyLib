@@ -530,7 +530,7 @@ AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packe
 	AutoReleasePtr<IMFMediaBuffer> pBuffer;
 
 	//	make this true, and flip read in shader
-	static bool BottomUp = false;
+	static bool BottomUp = true;
 	auto Fourcc = MediaFoundation::GetFourcc( Packet.mMeta.mCodec );
 	auto Result = MFCreate2DMediaBuffer( Packet.mMeta.mPixelMeta.GetWidth(), Packet.mMeta.mPixelMeta.GetHeight(), Fourcc, BottomUp, &pBuffer.mObject );
 	MediaFoundation::IsOkay( Result, "MFCreate2DMediaBuffer" );
