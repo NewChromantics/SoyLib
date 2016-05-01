@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SoyMedia.h>
+#include <SoyMediaFormat.h>
 
 
 namespace H264NaluContent
@@ -88,6 +88,10 @@ namespace H264Profile
 		High9		= 0x80,	//	128
 		
 		HighMultiviewDepth	= 0x8A,	//	138
+
+
+		//	more from/for MediaFoundation for MF_MT_MPEG2_PROFILE
+		Profile_444        = 144,
 	};
 	
 	DECLARE_SOYENUM(H264Profile);

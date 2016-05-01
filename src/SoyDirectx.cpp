@@ -433,6 +433,18 @@ Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
 	//	todo: copy sample params from Description
 }
 
+Directx::TTexture::TTexture(const TTexture& Texture) :
+	TTexture	( Texture.mTexture.mObject )
+{
+}
+
+bool Directx::TTexture::CanBindToShaderUniform() const
+{
+	auto Mode = GetMode();
+	return Mode == TTextureMode::GpuOnly;
+}
+
+
 Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 {
 	//	get meta

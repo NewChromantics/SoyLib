@@ -37,8 +37,8 @@ struct CGAffineTransform;
 
 
 //	gr: dumb types with nice transparent accessors, then for complex stuff, use mathfu::Vector<float,3>
-#define SWIZZLE2(A,B)	vec2x<TYPE>	A##B()		{	return vec2x<TYPE>(A,B);	}
-#define SWIZZLE3(A,B,C)	vec3x<TYPE>	A##B##C()	{	return vec3x<TYPE>(A,B,C);	}
+#define SWIZZLE2(A,B)	vec2x<TYPE>	A##B() const	{	return vec2x<TYPE>(A,B);	}
+#define SWIZZLE3(A,B,C)	vec3x<TYPE>	A##B##C() const	{	return vec3x<TYPE>(A,B,C);	}
 
 template<typename TYPE>
 class vec2x

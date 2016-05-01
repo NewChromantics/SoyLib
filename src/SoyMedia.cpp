@@ -922,7 +922,6 @@ void TMediaMuxer::SetStreams(const ArrayBridge<TStreamMeta>&& Streams)
 	
 	mStreams.Copy( Streams );
 	SetupStreams( GetArrayBridge(mStreams) );
-	
 }
 
 void TMediaMuxer::GetMeta(TJsonWriter& Json)
@@ -2275,28 +2274,24 @@ void TMediaPassThroughEncoder::Write(const Opengl::TTexture& Image,SoyTime Timec
 void TMediaPassThroughEncoder::Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context)
 {
 #if defined(TARGET_WINDOWS)
-	//	todo: proper opengl -> CvPixelBuffer
 	
-	//	gr: Avf won't accept RGBA, but it will take RGB so we can force reading that format here
-	if ( Image.GetMeta().GetFormat() != SoyPixelsFormat::RGBA )
+	if ( Image.GetMode() != Directx::TTextureMode::ReadOnly )
 	{
-		throw Soy::AssertException("directx mode unsupported");
+		throw Soy::AssertException("TMediaPassThroughEncoder::Write cannot read texture to cpu");
 	}
-	
+
 	//	gr: cannot currently block for an opengl task, this is called from the main thread on mono, even though the render thread
 	//		is different, it seems to block and our opengl callback isn't called... so, like the higher level code, no block
-	auto ReadPixels = [this,Image,Timecode,&Context]
+	auto* ContextCopy = &Context;
+	auto ReadPixels = [this,Image,Timecode,ContextCopy]
 	{
 		std::shared_ptr<SoyPixels> Pixels( new SoyPixels );
 		auto& ImageMutable = const_cast<Directx::TTexture&>(Image);
-		ImageMutable.Read( *Pixels, Context );
+		ImageMutable.Read( *Pixels, *ContextCopy );
 		Write( Pixels, Timecode );
 	};
 
-	//	gr: this needs to block because of context scope... should opengl one block?
-	Soy::TSemaphore Semaphore;
-	Context.PushJob( ReadPixels, Semaphore );
-	Semaphore.Wait();
+	Context.PushJob( ReadPixels );
 #else
 	throw Soy::AssertException( std::string(__func__) + " not supported");
 #endif
@@ -2330,5 +2325,68 @@ void TMediaPassThroughEncoder::Write(std::shared_ptr<SoyPixelsImpl> pImage,SoyTi
 void TMediaPassThroughEncoder::OnError(const std::string& Error)
 {
 	mFatalError << Error;
+}
+
+
+
+TTextureBuffer::TTextureBuffer(std::shared_ptr<Opengl::TContext> Context) :
+	mOpenglContext	( Context )
+{	
+}
+
+TTextureBuffer::TTextureBuffer(std::shared_ptr<Directx::TContext> Context) :
+	mDirectxContext	( Context )
+{
+}
+
+TTextureBuffer::TTextureBuffer(std::shared_ptr<SoyPixelsImpl> Pixels) :
+	mPixels	( Pixels )
+{
+}
+
+TTextureBuffer::TTextureBuffer(std::shared_ptr<Directx::TTexture> Texture,std::shared_ptr<TPool<Directx::TTexture>> TexturePool) :
+	mDirectxTexture		( Texture ),
+	mDirectxTexturePool	( TexturePool )
+{
+}
+
+
+TTextureBuffer::~TTextureBuffer()
+{
+	if ( mOpenglTexture && mOpenglTexturePool )
+	{
+		try
+		{
+			mOpenglTexturePool->Release( mOpenglTexture );
+		}
+		catch(...)
+		{
+		}
+	}
+
+	if ( mOpenglContext )
+	{
+		Opengl::DeferDelete( mOpenglContext, mOpenglTexture );
+		mOpenglContext.reset();
+	}
+
+#if defined(TARGET_WINDOWS)
+	if ( mDirectxTexture && mDirectxTexturePool )
+	{
+		try
+		{
+			mDirectxTexturePool->Release( mDirectxTexture );
+		}
+		catch(...)
+		{
+		}
+	}
+
+	if ( mDirectxContext )
+	{
+		Opengl::DeferDelete( mDirectxContext, mDirectxTexture );
+		mDirectxContext.reset();
+	}
+#endif
 }
 
