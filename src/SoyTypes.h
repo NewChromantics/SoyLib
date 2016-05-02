@@ -9,8 +9,15 @@ struct NonCopyable {
 };
 
 
-#if defined(_MSC_VER) && !defined(TARGET_WINDOWS)
-#define TARGET_WINDOWS
+#if defined(TARGET_WINDOWS)
+	#error Compiler now defines TARGET_WINDOWS
+#endif
+#if defined(_MSC_VER)
+	#if defined(_WIN64)
+		#define TARGET_WINDOWS 64
+	#else
+		#define TARGET_WINDOWS 32
+	#endif
 #endif
 
 #if defined(TARGET_IOS)
