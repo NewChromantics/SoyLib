@@ -3,12 +3,9 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <OutDir>bin\</OutDir>
-    <TargetName>$(ProjectName)_$(Configuration)</TargetName>
     <IncludePath>../src;$(IncludePath)</IncludePath>
     <ReferencePath>$(VCInstallDir)atlmfc\lib;$(VCInstallDir)lib</ReferencePath>
     <LinkIncremental>true</LinkIncremental>
-    <IntDir>$(Configuration)\$(MSBuildProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile />
