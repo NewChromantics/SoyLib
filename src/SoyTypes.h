@@ -327,7 +327,9 @@ namespace Platform
 
 	//	gr: would like to make this a bit more generic, hence here rather than in window specific header
 #if defined(TARGET_WINDOWS)
-	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
+	bool				IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
+	bool				IsOkay(int Error,const std::string& Context,bool ThrowException=true);
+	bool				IsOkay(const std::string& Context,bool ThrowException=true);	//	checks last error
 #endif
 };
 

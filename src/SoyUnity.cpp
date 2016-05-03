@@ -3,6 +3,7 @@
 #include <sstream>
 #include "SoyOpenglContext.h"
 #include "SoyExportManager.h"
+#include "SoyFilesystem.h"
 
 #if defined(TARGET_ANDROID)
 #include "SoyJava.h"
@@ -199,6 +200,35 @@ SoyPixelsFormat::Type Unity::GetPixelFormat(Texture2DPixelFormat::Type Format)
 #if defined(TARGET_WINDOWS)
 BOOL APIENTRY DllMain(HMODULE Module, DWORD Reason, LPVOID Reserved)
 {
+	std::string Path;
+
+	char PathBuffer[MAX_PATH];
+	auto PathBufferLength = GetModuleFileNameA( Module, PathBuffer, sizeof(PathBuffer) );
+	if ( Platform::IsOkay( "GetModuleFileName in DLLMain", false ) )
+	{
+		//	just in case 
+		PathBufferLength = std::min<size_t>( PathBufferLength, sizeof(PathBuffer)-1 );
+		PathBuffer[PathBufferLength] = '\0';
+		Path = PathBuffer;
+	}
+
+	/*
+	char path[MAX_PARAM];
+	HMODULE hm = NULL;
+
+	if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | 
+		GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		(LPCSTR)&DllMain, 
+		&hm))
+	{
+		int ret = GetLastError();
+		fprintf(stderr, "GetModuleHandle returned %d\n", ret);
+	}
+	GetModuleFileNameA(hm, path, sizeof(path));
+	*/
+	Platform::SetDllPath( Path );
+
+
 	//std::Debug << "DllMain(" << Reason << ")" << std::endl;
 	return TRUE;
 }

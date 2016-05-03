@@ -516,3 +516,30 @@ bool Platform::IsOkay(HRESULT Error,const std::string& Context,bool ThrowExcepti
 	return Soy::Assert( Error == S_OK, ErrorStr.str() );
 }
 #endif
+
+
+#if defined(TARGET_WINDOWS)
+bool Platform::IsOkay(int Error,const std::string& Context,bool ThrowException)
+{
+	if ( Error == S_OK )
+		return true;
+
+	std::stringstream ErrorStr;
+	ErrorStr << "Platform error in " << Context << ": " << GetErrorString(Error);
+
+	if ( !ThrowException )
+	{
+		std::Debug << ErrorStr.str() << std::endl;
+		return false;
+	}
+
+	return Soy::Assert( Error == S_OK, ErrorStr.str() );
+}
+#endif
+
+#if defined(TARGET_WINDOWS)
+bool Platform::IsOkay(const std::string& Context,bool ThrowException)
+{
+	return IsOkay( GetLastError(), Context, ThrowException );
+}
+#endif

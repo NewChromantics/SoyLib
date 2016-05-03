@@ -24,6 +24,10 @@ namespace Platform
 #if defined(TARGET_OSX) || defined(TARGET_IOS)
 	void	EnumNsDirectory(const std::string& Directory,std::function<void(const std::string&)> OnFileFound,bool Recursive);
 #endif
+
+#if defined(TARGET_WINDOWS)
+	std::string		gDllPath;
+#endif
 }
 
 
@@ -435,3 +439,71 @@ bool Platform::ShowFileExplorer(const std::string& Path)
 	return ReturnResult;
 }
 #endif
+
+
+
+
+#if defined(TARGET_WINDOWS)
+void Platform::SetDllPath(const std::string& Path)
+{
+	gDllPath = Path;
+}
+#endif
+
+#if defined(TARGET_WINDOWS)
+std::string	Platform::GetDllPath()
+{
+	return GetDirectoryFromFilename( gDllPath );
+}
+#endif
+
+bool Platform::IsFullPath(const std::string& Path)
+{
+	//	todo!
+	return false;
+}
+
+std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
+{
+#if defined(TARGET_WINDOWS)
+	char PathBuffer[MAX_PATH];
+	char* FilenameStart = nullptr;	//	pointer to inside buffer
+	auto PathBufferLength = GetFullPathNameA( Filename.c_str(), sizeof(PathBuffer), PathBuffer, &FilenameStart );
+
+	auto LastError = Platform::GetLastError();
+	if ( PathBufferLength == 0 )
+	{
+		//	error
+		std::stringstream Error;
+		Error << "GetFullPathName(" << Filename << ")";
+		Platform::IsOkay( LastError, Error.str() );
+	}
+
+	if ( PathBufferLength > sizeof(PathBuffer) )
+	{
+		std::stringstream Error;
+		Error << "GetFullPathName(" << Filename << ") overflows buffer (" << PathBufferLength << "/" << sizeof(PathBuffer) << ")";
+		Platform::IsOkay( LastError, Error.str() );
+	}
+	PathBufferLength = std::min<size_t>( PathBufferLength, sizeof(PathBuffer)-1 );
+	PathBuffer[PathBufferLength] = '\0';
+
+	return PathBuffer;
+#else
+	throw Soy::AssertException("GetFullPathFromFilename not implemented");
+#endif
+}
+
+std::string	Platform::GetDirectoryFromFilename(const std::string& Filename,bool IncludeTrailingSlash)
+{
+	//	hacky
+	//	gr: why does rfind give us unsigned :|
+	ssize_t LastSlasha = Filename.rfind('/');
+	ssize_t LastSlashb = Filename.rfind('\\');
+	ssize_t LastSlash = std::max( LastSlasha, LastSlashb );
+	if ( LastSlash == std::string::npos )
+		return "";
+
+	return Filename.substr( 0, LastSlash + (IncludeTrailingSlash ? 1 : 0 ) );
+}
+
