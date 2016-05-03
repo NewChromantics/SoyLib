@@ -2,6 +2,7 @@
 #include "heaparray.hpp"
 #include "SoyTypes.h"
 #include "SoyDebug.h"
+#include "SoyFileSystem.h"
 
 
 #if defined(TARGET_OSX)
@@ -145,14 +146,55 @@ Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(vo
 	}
 	
 #elif defined(TARGET_WINDOWS)
-	mHandle = LoadLibraryA( Filename.c_str() );
+	//	todo: warn that / doesn't work in paths, only \ 
+	Soy::StringReplace( Filename, "/", "\\" );
+
+	Array<std::string> SearchPaths;
+
+	if ( ::Platform::IsFullPath(Filename) )
+	{
+		SearchPaths.PushBack( Filename );
+	}
+	else
+	{
+		//	not full path, so add a DLL relative one
+		auto DllPath = ::Platform::GetDllPath();
+		if ( !DllPath.empty() )
+		{
+			//	gr: docs say this needs to be fully qualified, no relative dirs
+			auto DllPrefixedFilename = DllPath + Filename;
+			SearchPaths.PushBack( DllPath + Filename );
+		}
+
+		//	add basic path to search PATH env
+		SearchPaths.PushBack( Filename );
+	}
+
+	Array<std::string> Errors;
+
+	for ( int i=0;	i<SearchPaths.GetSize();	i++ )
+	{
+		auto& LoadPath = SearchPaths[i];
+		mHandle = LoadLibraryA( LoadPath.c_str() );
+		if ( mHandle )
+			break;
+
+		std::stringstream Error;
+		Error << "LoadPath=" << ::Platform::GetLastErrorString();
+		Errors.PushBack( Error.str() );
+	}
+
+	//	failed to load, so throw all our errors
 	if ( !mHandle )
 	{
 		std::stringstream Error;
-		Error << "Failed to load library " << ::Platform::GetLastErrorString();
+		Error << "Failed to load library " << Filename << ": ";
+		for ( int i=0;	i<Errors.GetSize();	i++ )
+			Error << "(" << Errors[i] << ") ";
 		throw Soy::AssertException(Error.str());
 	}
- 
+
+
 #else
 	throw Soy::AssertException("Soy::TRuntimeLibrary not implemented");
 #endif
