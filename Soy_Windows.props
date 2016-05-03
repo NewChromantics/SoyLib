@@ -5,7 +5,7 @@
   <PropertyGroup>
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(POP_PATH)/src;$(SOY_PATH)/src;$(IncludePath)</IncludePath>
-    <OutDir>$(ProjectDir)Bin\$(Platform)</OutDir>
+    <OutDir>$(ProjectDir)Bin\$(Platform)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\$(Platform)\</IntDir>
     <TargetName>$(ProjectName)</TargetName>
   </PropertyGroup>
