@@ -87,6 +87,8 @@ std::shared_ptr<TMediaPacket> Avf::GetH264Packet(CMSampleBufferRef SampleBuffer,
 	int nal_size_field_bytes = 0;
 	auto Result = CMVideoFormatDescriptionGetH264ParameterSetAtIndex( Desc, 0, nullptr, nullptr, nullptr, &nal_size_field_bytes );
 	Avf::IsOkay( Result, "Get H264 param NAL size");
+	if ( nal_size_field_bytes < 0 )
+		nal_size_field_bytes = 0;
 	
 	//	extract SPS/PPS packet
 	auto Fourcc = CFSwapInt32HostToBig( CMFormatDescriptionGetMediaSubType(Desc) );
@@ -370,7 +372,7 @@ FullRangeVideo=0;
 }
 
 
-SoyMediaFormat::Type Avf::SoyMediaFormat_FromFourcc(uint32 Fourcc,int H264LengthSize)
+SoyMediaFormat::Type Avf::SoyMediaFormat_FromFourcc(uint32 Fourcc,size_t H264LengthSize)
 {
 	auto AvfPixelFormat = Avf::GetPixelFormat( Fourcc );
 	if ( AvfPixelFormat != SoyPixelsFormat::Invalid )
@@ -393,13 +395,17 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 	TStreamMeta Meta;
 	auto Fourcc = CMFormatDescriptionGetMediaSubType(FormatDesc);
 
-	int H264LengthSize = -1;
+	size_t H264LengthSize = 0;
 	
 	//if ( SoyMediaFormat::IsH264Fourcc(Fourcc) )
 	{
 		//	gr: this is okay if it goes wrong, probably just doesn't apply to this format
 		//auto Result =
-		CMVideoFormatDescriptionGetH264ParameterSetAtIndex( FormatDesc, 0, nullptr, nullptr, nullptr, &H264LengthSize );
+		int NalUnitLength = 0;
+		CMVideoFormatDescriptionGetH264ParameterSetAtIndex( FormatDesc, 0, nullptr, nullptr, nullptr, &NalUnitLength );
+		if ( NalUnitLength < 0 )
+			NalUnitLength = 0;
+		H264LengthSize = size_cast<size_t>( NalUnitLength );
 		//AvfCompressor::IsOkay( Result, "Get H264 param NAL size", false );
 	}
 	
@@ -417,14 +423,11 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 
 			//	change this to be like H264 different formats; AAC_8, AAC_16, AAC_float etc
 			Meta.mAudioBitsPerChannel = AudioFormat.mBitsPerChannel;
-			H264LengthSize = size_cast<int>(Meta.mAudioBitsPerChannel);
+			H264LengthSize = size_cast<size_t>(Meta.mAudioBitsPerChannel);
 			
 			//	gr: if auto bits per channel is zero, it's a compressed format
 			if ( H264LengthSize == 0 )
-			{
 				Meta.mCompressed = true;
-				H264LengthSize = -1;
-			}
 		}
 	}
 	

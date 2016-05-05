@@ -421,7 +421,7 @@ uint32 SoyMediaFormat::ToFourcc(SoyMediaFormat::Type Format)
 
 	
 
-SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,int H264LengthSize)
+SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,size_t H264LengthSize)
 {
 	BufferArray<const SoyMediaFormatMeta*,10> Metas;
 	GetFormatMetas( GetArrayBridge(Metas), Fourcc, H264LengthSize );
