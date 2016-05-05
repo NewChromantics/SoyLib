@@ -198,7 +198,14 @@ std::string Platform::GetErrorString(int Error)
 		0, NULL );
 
 	if (!bufLen)
-		return std::string();
+	{
+		if (lpMsgBuf)
+			LocalFree(lpMsgBuf);
+
+		std::stringstream ErrorStr;
+		ErrorStr << "<Error=" << Error << ">";
+		return ErrorStr.str();
+	}
     
 	LPCSTR lpMsgStr = (LPCSTR)lpMsgBuf;
 	std::string result(lpMsgStr, lpMsgStr+bufLen);
