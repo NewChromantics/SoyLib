@@ -604,7 +604,7 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 			if ( ResourceDataSize == 0 )
 				ResourceDataSize = resource.RowPitch * SrcDesc.Height;
 
-			auto Unlock = [&]
+			auto Unlock = [this, SubResource, &Context,&ContextDx]
 			{
 				Context.Unmap( mTexture, SubResource);
 				ContextDx.Unlock();
