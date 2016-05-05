@@ -5,6 +5,32 @@
 #include "SoyExportManager.h"
 #include "SoyFilesystem.h"
 
+//	new interfaces in 5.2+
+#include "Unity/IUnityInterface.h"
+#include "Unity/IUnityGraphics.h"
+#if defined(TARGET_WINDOWS)
+class IDirect3D9;
+class IDirect3DDevice9;
+#include "Unity/IUnityGraphicsD3D9.h"
+
+#include "Unity/IUnityGraphicsD3D11.h"
+
+class ID3D12Device;
+class ID3D12CommandQueue;
+class ID3D12Fence;
+class ID3D12Resource;
+class D3D12_RESOURCE_STATES;
+#include "Unity/IUnityGraphicsD3D12.h"
+
+#endif
+
+//	unity 5.4
+/*
+#if defined(ENABLE_METAL)
+#include "Unity/IUnityGraphicsMetal.h"
+#endif
+*/
+
 #if defined(TARGET_ANDROID)
 #include "SoyJava.h"
 #endif
@@ -48,14 +74,24 @@ namespace Unity
 #if defined(TARGET_WINDOWS)
 	std::shared_ptr<Directx::TContext>	DirectxContext;
 #endif
+#if defined(ENABLE_METAL)
 	std::shared_ptr<Metal::TContext>	MetalContext;
-
+#endif
 #if defined(ENABLE_CUDA)
 	std::shared_ptr<Cuda::TContext>		CudaContext;
 #endif
 	
 	
-	SoyEvent<bool>		mOnDeviceShutdown;	
+	SoyEvent<bool>		mOnDeviceShutdown;
+	
+	
+	void				AllocOpenglContext();
+#if defined(ENABLE_METAL)
+	void				AllocMetalContext();
+#endif
+#if defined(TARGET_IOS)
+	void				IosDetectGraphicsDevice();
+#endif
 }
 
 
@@ -88,11 +124,74 @@ std::map<UnityEvent::Type, std::string> UnityEvent::EnumMap =
 	{ UnityEvent::kGfxDeviceEventAfterReset,	"kGfxDeviceEventAfterReset" },
 };
 
+
+//	from ios trampoline / UnityInterface.h
+#if defined(TARGET_IOS)
+typedef enum
+UnityRenderingAPI
+{
+	apiOpenGLES2	= 2,
+	apiOpenGLES3	= 3,
+	apiMetal		= 4,
+}
+UnityRenderingAPI;
+class EAGLContext;
+
+typedef void* MTLDeviceRef;	//	id<MTLDevice>
+extern "C" int					UnitySelectedRenderingAPI();
+extern "C" MTLDeviceRef			UnityGetMetalDevice();
+extern "C" EAGLContext*			UnityGetDataContextEAGL();
+/*
+extern "C" NSBundle*			UnityGetMetalBundle()		{ return _MetalBundle; }
+extern "C" MTLDeviceRef			UnityGetMetalDevice()		{ return _MetalDevice; }
+extern "C" MTLCommandQueueRef	UnityGetMetalCommandQueue()	{ return  ((UnityDisplaySurfaceMTL*)GetMainDisplaySurface())->commandQueue; }
+
+extern "C" EAGLContext*			UnityGetDataContextEAGL()	{ return _GlesContext; }
+extern "C" int					UnitySelectedRenderingAPI()	{ return _renderingAPI; }
+
+extern "C" UnityRenderBuffer	UnityBackbufferColor()		{ return GetMainDisplaySurface()->unityColorBuffer; }
+extern "C" UnityRenderBuffer	UnityBackbufferDepth()		{ return GetMainDisplaySurface()->unityDepthBuffer; }
+*/
+#endif
+
+#if defined(TARGET_IOS)
+void Unity::IosDetectGraphicsDevice()
+{
+	//	already decided
+	if ( OpenglContext || MetalContext )
+		return;
+	
+	//	on ios UnitySetGraphicsDevice never gets called, so we do it ourselves depending on API
+	//	gr: cannot find a more hard api (eg. active metal context, grabbing the system one seems like we'd just be using that, even if unity isnt)
+	auto Api = UnitySelectedRenderingAPI();
+	switch ( Api )
+	{
+		case apiOpenGLES2:
+			UnitySetGraphicsDevice( UnityGetDataContextEAGL(), UnityDevice::kGfxRendererOpenGLES20, UnityEvent::kGfxDeviceEventInitialize );
+			return;
+			
+		case apiOpenGLES3:
+			UnitySetGraphicsDevice( UnityGetDataContextEAGL(), UnityDevice::kGfxRendererOpenGLES30, UnityEvent::kGfxDeviceEventInitialize );
+			return;
+			
+		case apiMetal:
+			UnitySetGraphicsDevice( UnityGetMetalDevice(), UnityDevice::kGfxRendererMetal, UnityEvent::kGfxDeviceEventInitialize );
+			return;
+
+		default:
+			break;
+	}
+	
+	std::stringstream Error;
+	Error << "Unknown unity API selected: " << Api;
+	throw Soy::AssertException( Error.str() );
+}
+#endif
+
 bool Unity::HasOpenglContext()
 {
-	//	auto-init for ios, see GetOpenglContext
 #if defined(TARGET_IOS)
-	GetOpenglContext();
+	IosDetectGraphicsDevice();
 #endif
 	return OpenglContext != nullptr;
 }
@@ -110,10 +209,8 @@ Opengl::TContext& Unity::GetOpenglContext()
 
 std::shared_ptr<Opengl::TContext>& Unity::GetOpenglContextPtr()
 {
-	//	on ios UnitySetGraphicsDevice never gets called, so init... right now!
 #if defined(TARGET_IOS)
-	if ( !OpenglContext )
-		UnitySetGraphicsDevice( nullptr, UnityDevice::kGfxRendererOpenGLES30, UnityEvent::kGfxDeviceEventInitialize );
+	IosDetectGraphicsDevice();
 #endif
 	
 	return OpenglContext;
@@ -143,13 +240,39 @@ std::shared_ptr<Directx::TContext>& Unity::GetDirectxContextPtr()
 }
 #endif
 
+
+
+#if defined(ENABLE_METAL)
+std::shared_ptr<Metal::TContext>& Unity::GetMetalContextPtr()
+{
+#if defined(TARGET_IOS)
+	IosDetectGraphicsDevice();
+#endif
+	return MetalContext;
+}
+#endif
+
+#if defined(ENABLE_METAL)
 Metal::TContext& Unity::GetMetalContext()
 {
-	if (!MetalContext)
+	auto Ptr = GetMetalContextPtr();
+	
+	if (!Ptr)
 		throw Soy::AssertException("Getting metal context on non-metal run");
-
-	return *MetalContext;
+	
+	return *Ptr;
 }
+#endif
+
+#if defined(ENABLE_METAL)
+bool Unity::HasMetalContext()
+{
+#if defined(TARGET_IOS)
+	IosDetectGraphicsDevice();
+#endif
+	return MetalContext != nullptr;
+}
+#endif
 
 #if defined(ENABLE_CUDA)
 std::shared_ptr<Cuda::TContext> Unity::GetCudaContext()
@@ -251,10 +374,12 @@ void Unity::RenderEvent(Unity::sint eventID)
 	}
 #endif
 	
+#if defined(ENABLE_METAL)
 	if ( Unity::MetalContext )
 	{
 		Unity::MetalContext->Iteration();
 	}
+#endif
 }
 
 
@@ -301,6 +426,7 @@ __export void UnityRenderEvent(Unity::sint eventID)
 }
 
 
+
 void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 {
 	if (!Platform::Init())
@@ -333,13 +459,14 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 		case UnityDevice::kGfxRendererOpenGLCore:
 		{
 			//	init context on first run
-			auto InitOpenglContext = []
+			auto InitContext = []
 			{
 				Unity::GetOpenglContext().Init();
 			};
-
+			
 			OpenglContext.reset(new Opengl::TContext);
-			Unity::GetOpenglContext().PushJob(InitOpenglContext);
+			Unity::GetOpenglContext().PushJob(InitContext);
+
 		}
 		break;
 
@@ -354,11 +481,13 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 		break;
 #endif
 		
+#if defined(ENABLE_METAL)
 		case UnityDevice::kGfxRendererMetal:
 		{
-			MetalContext.reset(new Metal::TContext);
+			MetalContext.reset(new Metal::TContext( DevicePtr ) );
 		}
 		break;
+#endif
 			
 		default:
 		{
@@ -394,7 +523,9 @@ void Unity::Shutdown(UnityDevice::Type Device)
 	//	free all contexts
 	//	gr: may need to defer some of these!
 	OpenglContext.reset();
+#if defined(ENABLE_METAL)
 	MetalContext.reset();
+#endif
 #if defined(TARGET_WINDOWS)
 	DirectxContext.reset();
 #endif
@@ -468,6 +599,75 @@ void Unity::ReleaseDebugStringAll()
 }
 
 
+namespace Unity
+{
+	IUnityGraphics*		GraphicsDevice = nullptr;
+	IUnityInterfaces*	Interfaces = nullptr;
+}
+
+
+template<typename INTERFACETYPE>
+void* GetDeviceContext()
+{
+	if ( !Unity::Interfaces )
+		return nullptr;
+
+	auto* Interface = Unity::Interfaces->Get<INTERFACETYPE>();
+	return Interface->GetDevice();
+}
+
+void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType)
+{
+	auto Device = Unity::GraphicsDevice;
+	if ( !Device )
+	{
+		std::Debug << __func__ << " missing graphics device" << std::endl;
+		return;
+	}
+
+	void* DeviceContext = nullptr;
+	auto DeviceType = static_cast<UnityDevice::Type>( Unity::GraphicsDevice->GetRenderer() );
+
+	switch ( DeviceType )
+	{
+#if defined(TARGET_WINDOWS)
+		case kUnityGfxRendererD3D9:		DeviceContext = GetDeviceContext<IUnityGraphicsD3D9>();	break;
+		case kUnityGfxRendererD3D11:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D11>();	break;
+		case kUnityGfxRendererD3D12:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D12>();	break;
+#endif
+			
+		default:
+			break;
+	}
+
+	UnitySetGraphicsDevice( DeviceContext, DeviceType, eventType );
+}
+
+
+// Unity plugin load event
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnityInterfaces* unityInterfaces)
+{
+	Unity::Interfaces = unityInterfaces;
+	Unity::GraphicsDevice = Unity::Interfaces->Get<IUnityGraphics>();
+
+    Unity::GraphicsDevice->RegisterDeviceEventCallback( OnGraphicsDeviceEvent );
+
+    // Run OnGraphicsDeviceEvent(initialize) manually on plugin load
+    // to not miss the event in case the graphics device is already initialized
+    OnGraphicsDeviceEvent( kUnityGfxDeviceEventInitialize );
+}
+
+// Unity plugin unload event
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
+{
+	if ( Unity::GraphicsDevice )
+	{
+		Unity::GraphicsDevice->UnregisterDeviceEventCallback(OnGraphicsDeviceEvent);
+		//Unity::GraphicsDevice = nullptr;
+	}
+}
+
+
 
 void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
 {
@@ -496,4 +696,3 @@ const std::string& Unity::GetBundleIdentifier()
 	static std::string CachedIdentifier = Soy::StringToLower( Platform::GetBundleIdentifier() );
 	return CachedIdentifier;
 }
-

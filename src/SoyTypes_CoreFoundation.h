@@ -115,7 +115,6 @@ public:
 
 
 //	smart pointer for objective c instances
-#if defined(__OBJC__)
 template<typename TYPE>
 class ObjcPtr : public NonCopyable
 {
@@ -141,17 +140,21 @@ public:
 	{
 		Release();
 		mObject = Object;
+#if defined(__OBJC__)
 #if !defined(ARC_ENABLED)
 		if ( mObject )
 			[mObject retain];
+#endif
 #endif
 	}
 	
 	void		Release()
 	{
+#if defined(__OBJC__)
 #if !defined(ARC_ENABLED)
 		if ( mObject )
 			[mObject release];
+#endif
 #endif
 		mObject = nullptr;
 	}
@@ -167,14 +170,16 @@ public:
 	
 	//TYPE*		operator->() const	{	return mObject; }
 	operator	TYPE*() const	{	return mObject; }
+#if defined(__OBJC__)
 #if defined(ARC_ENABLED)
 	operator	bool() const	{	return mObject ? (mObject!=nullptr) : false; }
 #else
 	operator	bool() const	{	return mObject ? ([mObject retainCount]>0) : false; }
 #endif
+#endif
 public:
 	TYPE*	mObject;
 };
-#endif
+
 
 

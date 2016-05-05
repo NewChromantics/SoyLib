@@ -11,6 +11,12 @@
 #include <SoyDirectx.h>
 #endif
 
+#if /*defined(TARGET_OSX)||*/defined(TARGET_IOS)
+#include <SoyMetal.h>
+#define ENABLE_METAL
+#endif
+
+
 
 //	todo: move this out of Unity namespace
 namespace Platform
@@ -18,12 +24,6 @@ namespace Platform
 	std::string		GetBundleIdentifier();
 }
 
-//#define ENABLE_METAL
-
-namespace Metal
-{
-	class TContext;
-};
 
 
 namespace UnityDevice
@@ -180,7 +180,11 @@ namespace Unity
 	std::shared_ptr<Directx::TContext>&	GetDirectxContextPtr();
 	bool							HasDirectxContext();
 #endif
+#if defined(ENABLE_METAL)
 	Metal::TContext&				GetMetalContext();
+	std::shared_ptr<Metal::TContext>&	GetMetalContextPtr();
+	bool							HasMetalContext();
+#endif
 #if defined(ENABLE_CUDA)
 	std::shared_ptr<Cuda::TContext>	GetCudaContext();
 #endif
@@ -207,12 +211,4 @@ namespace Unity
 
 __export void	UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::sint eventType);
 
-
-class Metal::TContext : public PopWorker::TContext
-{
-public:
-	virtual bool	Lock() override { return true; }
-	virtual void	Unlock() override {	}
-	void			Iteration()		{}
-};
 
