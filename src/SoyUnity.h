@@ -11,7 +11,8 @@
 #include <SoyDirectx.h>
 #endif
 
-#if /*defined(TARGET_OSX)||*/defined(TARGET_IOS)
+//#if /*defined(TARGET_OSX)||*/defined(TARGET_IOS)
+#if 0
 #include <SoyMetal.h>
 #define ENABLE_METAL
 #endif
