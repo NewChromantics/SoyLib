@@ -84,7 +84,7 @@ public:
 
 	void	Push(const char* Name,const uint8_t& Value)		{	Push( Name, static_cast<uint64_t>( Value ) );	}
 	void	Push(const char* Name,const uint16_t& Value)	{	Push( Name, static_cast<uint64_t>( Value ) );	}
-	void	Push(const char* Name,const uint32_t& Value)	{	Push( Name, static_cast<size_t>( Value ) );	}
+	void	Push(const char* Name,const uint32_t& Value)	{	Push( Name, static_cast<uint64_t>( Value ) );	}
 	void	Push(const char* Name,const uint64_t& Value);
 
 	void	Push(const char* Name,const bool& Value)	{	return Push( Name, Value ? "true" : "false", false );	}

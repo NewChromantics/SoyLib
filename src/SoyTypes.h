@@ -9,8 +9,15 @@ struct NonCopyable {
 };
 
 
-#if defined(_MSC_VER) && !defined(TARGET_WINDOWS)
-#define TARGET_WINDOWS
+#if defined(TARGET_WINDOWS)
+	#error Compiler now defines TARGET_WINDOWS
+#endif
+#if defined(_MSC_VER)
+	#if defined(_WIN64)
+		#define TARGET_WINDOWS 64
+	#else
+		#define TARGET_WINDOWS 32
+	#endif
 #endif
 
 #if defined(TARGET_IOS)
@@ -320,7 +327,9 @@ namespace Platform
 
 	//	gr: would like to make this a bit more generic, hence here rather than in window specific header
 #if defined(TARGET_WINDOWS)
-	bool			IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
+	bool				IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true);
+	bool				IsOkay(int Error,const std::string& Context,bool ThrowException=true);
+	bool				IsOkay(const std::string& Context,bool ThrowException=true);	//	checks last error
 #endif
 };
 

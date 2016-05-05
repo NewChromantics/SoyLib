@@ -166,6 +166,7 @@ public:
 	TTexture()		{}
     explicit TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode);	//	allocate
 	TTexture(ID3D11Texture2D* Texture);
+	TTexture(const TTexture& Texture);
 
 	bool				IsValid() const		{	return mTexture;	}
 	void				Write(const TTexture& Source,TContext& Context);
@@ -176,6 +177,7 @@ public:
 	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>& TexturePool)	{	Read(Pixels, Context, &TexturePool );	}	
 	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>* TexturePool);
 
+	bool				CanBindToShaderUniform() const;
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 	DXGI_FORMAT			GetDirectxFormat() const	{	return mFormat;	}

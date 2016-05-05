@@ -188,10 +188,23 @@ Directx::TCompiler::TCompiler()
 
 	std::function<LPD3DX11COMPILEFROMMEMORY> CompileFromMemoryFunc;
 	Array<DllReference> DllFunctions;
-	DllFunctions.PushBack( DllReference("d3dcompiler_47.dll","D3DCompile","Win8 sdk 47") );
-	DllFunctions.PushBack( DllReference("d3dcompiler_46.dll","D3DCompile","Win8 sdk 46") );
+
+	//	https://blogs.msdn.microsoft.com/chuckw/2012/05/07/hlsl-fxc-and-d3dcompile/
+	//	remember, 47 & 46 are MUCH FASTER!
+	DllFunctions.PushBack( DllReference("d3dcompiler_47.dll","D3DCompile","Win10/Win8.1 sdk") );
+	DllFunctions.PushBack( DllReference("d3dcompiler_46.dll","D3DCompile","Win8.0 sdk") );
+
 	DllFunctions.PushBack( DllReference("D3DX11d_43.dll","D3DX11CompileFromMemory","DXSDK 2010 June") );
 	DllFunctions.PushBack( DllReference("D3DX11d_42.dll","D3DX11CompileFromMemory","DXSDK 2010 Feb") );
+	DllFunctions.PushBack( DllReference("D3DX11d_41.dll","D3DX11CompileFromMemory","DXSDK 2009 March") );
+	DllFunctions.PushBack( DllReference("D3DX11d_40.dll","D3DX11CompileFromMemory","DXSDK 2008 November") );
+	DllFunctions.PushBack( DllReference("D3DX11d_39.dll","D3DX11CompileFromMemory","DXSDK 2008 August") );
+	DllFunctions.PushBack( DllReference("D3DX11d_38.dll","D3DX11CompileFromMemory","DXSDK 2008 June") );
+	DllFunctions.PushBack( DllReference("D3DX11d_37.dll","D3DX11CompileFromMemory","DXSDK 2008 March") );
+	DllFunctions.PushBack( DllReference("D3DX11d_36.dll","D3DX11CompileFromMemory","DXSDK 2007 November") );
+	DllFunctions.PushBack( DllReference("D3DX11d_35.dll","D3DX11CompileFromMemory","DXSDK 2007 August") );
+	DllFunctions.PushBack( DllReference("D3DX11d_34.dll","D3DX11CompileFromMemory","DXSDK 2007 June") );
+	DllFunctions.PushBack( DllReference("D3DX11d_33.dll","D3DX11CompileFromMemory","DXSDK 2007 Aprli") );
 
 	for ( int d=0;	d<DllFunctions.GetSize();	d++ )
 	{
@@ -204,7 +217,7 @@ Directx::TCompiler::TCompiler()
 				mD3dCompileLib->SetFunction( mD3dCompileFunc, Dll.FunctionName.c_str() );
 			else
 				mD3dCompileLib->SetFunction( CompileFromMemoryFunc, Dll.FunctionName.c_str() );
-			std::Debug << "Using DX compiler from " << Dll.Description << std::endl;
+			std::Debug << "Using DX compiler from " << Dll.Description << " (" << Dll.LibraryName << ")" << std::endl;
 			break;
 		}
 		catch(std::exception& e)
@@ -432,6 +445,18 @@ Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
 
 	//	todo: copy sample params from Description
 }
+
+Directx::TTexture::TTexture(const TTexture& Texture) :
+	TTexture	( Texture.mTexture.mObject )
+{
+}
+
+bool Directx::TTexture::CanBindToShaderUniform() const
+{
+	auto Mode = GetMode();
+	return Mode == TTextureMode::GpuOnly;
+}
+
 
 Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 {

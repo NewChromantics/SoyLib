@@ -3,6 +3,8 @@
 #include "SoyPixels.h"
 #include "SoyThread.h"
 #include "SoyMediaFormat.h"
+#include "SoyPool.h"
+#include "SoyH264.h"
 
 class TStreamWriter;
 class TStreamBuffer;
@@ -238,6 +240,9 @@ public:
 class TDumbPixelBuffer : public TPixelBuffer
 {
 public:
+	TDumbPixelBuffer()
+	{
+	}
 	TDumbPixelBuffer(SoyPixelsMeta Meta);
 	TDumbPixelBuffer(const SoyPixelsImpl& Pixels,const float3x3& Transform);
 	
@@ -753,6 +758,29 @@ private:
 };
 
 
+//	mpeg-style encoder params
+class TMediaEncoderParams
+{
+public:
+	TMediaEncoderParams() :
+		mCodec			( SoyMediaFormat::Invalid ),
+		mH264Profile	( H264Profile::Invalid ),
+		mAverageBitRate	( 16 * 1024 * 1024 * 8 ),
+		mFrameRate		( 60 )
+	{
+	}
+
+	void					SetBitRateMegaBytesPerSecond(float Mbs)
+	{
+		mAverageBitRate = size_cast<size_t>( 1024 * 1024 * 8 * Mbs );
+	}
+
+	SoyMediaFormat::Type	mCodec;
+	H264Profile::Type		mH264Profile;
+	size_t					mAverageBitRate;
+	size_t					mFrameRate;
+};
+
 //	encode to binary - merge this with TMediaDecoder to arbitraily go from any format to another
 class TMediaEncoder
 {
@@ -828,3 +856,33 @@ public:
 };
 
 
+
+
+class TTextureBuffer : public TPixelBuffer
+{
+public:
+	TTextureBuffer()	{}
+	TTextureBuffer(std::shared_ptr<Opengl::TContext> Context);
+	TTextureBuffer(std::shared_ptr<Directx::TContext> Context);
+	TTextureBuffer(std::shared_ptr<SoyPixelsImpl> Pixels);
+	TTextureBuffer(std::shared_ptr<Directx::TTexture> Texture,std::shared_ptr<TPool<Directx::TTexture>> TexturePool);
+	
+	~TTextureBuffer();
+	
+	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override	{}
+	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform) override	{}
+	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform) override	{}
+	virtual void		Unlock() override	{}
+
+	
+public:
+	std::shared_ptr<SoyPixelsImpl>				mPixels;
+
+	std::shared_ptr<Opengl::TContext>			mOpenglContext;
+	std::shared_ptr<Opengl::TTexture>			mOpenglTexture;
+	std::shared_ptr<TPool<Opengl::TTexture>>	mOpenglTexturePool;
+
+	std::shared_ptr<Directx::TContext>			mDirectxContext;
+	std::shared_ptr<Directx::TTexture>			mDirectxTexture;
+	std::shared_ptr<TPool<Directx::TTexture>>	mDirectxTexturePool;
+};
