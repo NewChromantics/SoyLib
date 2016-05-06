@@ -11,6 +11,8 @@
 #include "SoyDirectx.h"
 #endif
 
+#include "SoyPool.h"
+
 
 prmem::Heap SoyMedia::DefaultHeap(true, true, "SoyMedia::DefaultHeap" );
 

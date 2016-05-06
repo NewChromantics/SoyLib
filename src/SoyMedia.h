@@ -3,13 +3,15 @@
 #include "SoyPixels.h"
 #include "SoyThread.h"
 #include "SoyMediaFormat.h"
-#include "SoyPool.h"
 #include "SoyH264.h"
 
 class TStreamWriter;
 class TStreamBuffer;
 class TMediaPacket;
 class TJsonWriter;
+
+template<typename TYPE>
+class TPool;
 
 namespace Soy
 {
@@ -871,6 +873,7 @@ public:
 	
 	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override	{}
 	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform) override	{}
+	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform) override	{}
 	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform) override	{}
 	virtual void		Unlock() override	{}
 
