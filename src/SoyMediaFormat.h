@@ -104,7 +104,7 @@ namespace SoyMediaFormat
 	bool		IsText(Type Format);
 	bool		IsH264(Type Format);
 	bool		IsImage(Type Format);	//	encoded image
-	Type		FromFourcc(uint32 Fourcc,int H264LengthSize=-1);
+	Type		FromFourcc(uint32 Fourcc,size_t H264LengthSize=0);
 	uint32		ToFourcc(Type Format);
 	bool		IsH264Fourcc(uint32 Fourcc);
 	std::string	ToMime(Type Format);

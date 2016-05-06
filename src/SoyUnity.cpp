@@ -158,8 +158,12 @@ extern "C" UnityRenderBuffer	UnityBackbufferDepth()		{ return GetMainDisplaySurf
 void Unity::IosDetectGraphicsDevice()
 {
 	//	already decided
-	if ( OpenglContext || MetalContext )
+	if ( OpenglContext )
 		return;
+#if defined(ENABLE_METAL)
+	if ( MetalContext )
+		return;
+#endif
 	
 	//	on ios UnitySetGraphicsDevice never gets called, so we do it ourselves depending on API
 	//	gr: cannot find a more hard api (eg. active metal context, grabbing the system one seems like we'd just be using that, even if unity isnt)
@@ -175,8 +179,10 @@ void Unity::IosDetectGraphicsDevice()
 			return;
 			
 		case apiMetal:
+#if defined(ENABLE_METAL)
 			UnitySetGraphicsDevice( UnityGetMetalDevice(), UnityDevice::kGfxRendererMetal, UnityEvent::kGfxDeviceEventInitialize );
 			return;
+#endif
 
 		default:
 			break;
