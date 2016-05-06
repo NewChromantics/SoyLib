@@ -79,3 +79,7 @@ public:
 };
 #endif
 
+
+#if defined(__OBJC__)
+std::ostream& operator<<(std::ostream& out,const AVAssetExportSessionStatus& in);
+#endif

@@ -16,6 +16,27 @@
 #include <VideoToolbox/VTErrors.h>
 
 
+
+std::ostream& operator<<(std::ostream& out,const AVAssetExportSessionStatus& in)
+{
+	switch ( in )
+	{
+		case AVAssetExportSessionStatusUnknown:		out << "AVAssetExportSessionStatusUnknown";	 return out;
+		case AVAssetExportSessionStatusWaiting:		out << "AVAssetExportSessionStatusWaiting";	 return out;
+		case AVAssetExportSessionStatusExporting:	out << "AVAssetExportSessionStatusExporting";	 return out;
+		case AVAssetExportSessionStatusCompleted:	out << "AVAssetExportSessionStatusCompleted";	 return out;
+		case AVAssetExportSessionStatusFailed:		out << "AVAssetExportSessionStatusFailed";	 return out;
+		case AVAssetExportSessionStatusCancelled:	out << "AVAssetExportSessionStatusCancelled";	 return out;
+		default:
+		{
+			out << "AVAssetExportSessionStatus<" << static_cast<int>( in ) << ">";
+			return out;
+		}
+	}
+	
+}
+
+
 std::shared_ptr<TMediaPacket> Avf::GetFormatDescriptionPacket(CMSampleBufferRef SampleBuffer,size_t ParamIndex,SoyMediaFormat::Type Format,size_t StreamIndex)
 {
 	auto Desc = CMSampleBufferGetFormatDescription( SampleBuffer );
@@ -851,7 +872,7 @@ void PixelReleaseCallback(void *releaseRefCon, const void *baseAddress)
 CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 {
 	CFAllocatorRef PixelBufferAllocator = nullptr;
-	OSType PixelFormatType = GetPixelFormat( Image.GetFormat() );
+	OSType PixelFormatType = GetPlatformPixelFormat( Image.GetFormat() );
 	auto& PixelsArray = Image.GetPixelsArray();
 	auto* Pixels = const_cast<uint8*>( PixelsArray.GetArray() );
 	auto BytesPerRow = Image.GetMeta().GetRowDataSize();
