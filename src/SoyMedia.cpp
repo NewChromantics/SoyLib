@@ -2310,10 +2310,15 @@ void TMediaPassThroughEncoder::Write(std::shared_ptr<SoyPixelsImpl> pImage,SoyTi
 	
 	auto& PixelsArray = Image.GetPixelsArray();
 	Packet.mData.Copy( PixelsArray );
-	Packet.mTimecode = Timecode;
 	Packet.mMeta.mCodec = SoyMediaFormat::FromPixelFormat( Image.GetFormat() );
 	Packet.mMeta.mPixelMeta = Image.GetMeta();
 	Packet.mMeta.mStreamIndex = mStreamIndex;
+	
+	//	stop timecode correction by setting decode timecode (must be valid)
+	if ( !Timecode.IsValid() )
+		Timecode = SoyTime(1ull);
+	Packet.mTimecode = Timecode;
+	Packet.mDecodeTimecode = Timecode;
 	
 	auto Block = []()
 	{
