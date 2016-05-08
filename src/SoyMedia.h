@@ -595,7 +595,8 @@ public:
 		mApplyHeightPadding				( true ),
 		mWindowIncludeBorders			( true ),
 		mLiveUseClockTime				( false ),
-		mWin7Emulation					( false )
+		mWin7Emulation					( false ),
+		mVerboseDebug					( false )
 	{
 	}
 	
@@ -626,6 +627,8 @@ public:
 	//	for streams (webcams etc) use Real time (clock) rather than SeekTime
 	//	real time works, but when app is paused, threads continue but player time doesnt and it falls behind
 	bool						mLiveUseClockTime;		
+
+	bool						mVerboseDebug;				//	print lots of debug, or only serious stuff
 };
 
 

@@ -33,7 +33,7 @@ namespace MediaFoundation
 	std::shared_ptr<TContext>		GetContext();	//	singleton
 	void							Shutdown();		//	cleanup singleton context
 
-	inline bool						IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true)	{	return Platform::IsOkay( Error, Context, ThrowException );	}
+	bool							IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true,bool Verbose=true);
 
 	SoyMediaFormat::Type			GetFormat(GUID Format);
 	SoyPixelsFormat::Type			GetPixelFormat(GUID Format);

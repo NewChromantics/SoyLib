@@ -20,6 +20,16 @@ DEFINE_MEDIATYPE_GUID_CUSTOM( MFVideoFormat_VIDS,      FCC('vids') );
 DEFINE_MEDIATYPE_GUID_CUSTOM( MFAudioFormat_AUDS,      FCC('auds') );
 
 
+bool MediaFoundation::IsOkay(HRESULT Error,const std::string& Context,bool ThrowException,bool Verbose)
+{
+	if ( !Verbose )
+		return (Error == S_OK);
+
+	return Platform::IsOkay( Error, Context, ThrowException );
+}
+
+
+
 std::string GetFourCCString(uint32 MediaFormatFourCC)
 {
 	//	gr: these are in MFAPi.h, not sure why compiler isn't resolving them
@@ -571,8 +581,8 @@ AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packe
 		memcpy( &BufferData[BufferCurrentLength], PixelsData, WriteLength );
 		auto SetResult = Buffer.SetCurrentLength( BufferCurrentLength + WriteLength );
 		auto Result = Buffer.Unlock();
-		IsOkay( Result, "Updating buffer current length");
-		IsOkay( Result, "Unlocking buffer");
+		MediaFoundation::IsOkay( Result, "Updating buffer current length");
+		MediaFoundation::IsOkay( Result, "Unlocking buffer");
 	};
 
 	//	fill it
