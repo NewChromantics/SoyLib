@@ -5,6 +5,27 @@
 #define MIMETYPE_AUDIO_RAW	"audio/raw"
 
 
+//	media foundation fourcc's 
+#define  WAVE_FORMAT_IEEE_FLOAT                 0x0003 /* Microsoft Corporation */
+#define  WAVE_FORMAT_MPEG                       0x0050 /* Microsoft Corporation */
+#define  WAVE_FORMAT_DTS                        0x0008 /* Microsoft Corporation */
+#define  WAVE_FORMAT_WMAUDIO2                   0x0161 /* Microsoft Corporation */
+#define  WAVE_FORMAT_WMAUDIO3                   0x0162 /* Microsoft Corporation */
+#define  WAVE_FORMAT_WMAUDIO_LOSSLESS           0x0163 /* Microsoft Corporation */
+#define  WAVE_FORMAT_MPEG_HEAAC                 0x1610 /* Microsoft Corporation (MPEG-2 AAC or MPEG-4 HE-AAC v1/v2 streams with any payload (ADTS, ADIF, LOAS/LATM, RAW). Format block includes MP4 AudioSpecificConfig() -- see HEAACWAVEFORMAT below */
+#define  WAVE_FORMAT_DOLBY_AC3_SPDIF            0x0092 /* Sonic Foundry */
+#define  WAVE_FORMAT_DRM                        0x0009 /* Microsoft Corporation */
+#define  WAVE_FORMAT_WMASPDIF                   0x0164 /* Microsoft Corporation */
+#define  WAVE_FORMAT_WMAVOICE9                  0x000A /* Microsoft Corporation */
+#define  WAVE_FORMAT_MPEG_ADTS_AAC              0x1600 /* Microsoft Corporation */
+#define  WAVE_FORMAT_AMR_WP                     0x7363 /* AMR Wideband Plus */
+#define  WAVE_FORMAT_AMR_NB                     0x7361 /* AMR Narrowband */
+#define  WAVE_FORMAT_AMR_WB                     0x7362 /* AMR Wideband */
+#define  WAVE_FORMAT_MPEGLAYER3                 0x0055 /* ISO/MPEG Layer3 Format Tag */
+
+//	gr: this appears in BigBuckBunny surround AC3 5.1, but doesn't match any other fourcc's...
+#define FOURCC_AC3_SURROUND						0x00200000
+
 namespace Mime
 {
 	const char*	Aac_Android = "audio/mp4a-latm";
@@ -79,7 +100,7 @@ public:
 	}
 	
 	SoyMediaFormat::Type		mFormat;
-	BufferArray<uint32_t,5>		mFourccs;
+	BufferArray<uint32_t,15>	mFourccs;
 	BufferArray<std::string,5>	mMimes;
 	uint32_t					mFlags;
 	size_t						mSubtypeSize;	//	zero is non-specific
@@ -120,7 +141,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::PcmLinear_20,		"PcmLinear_20" },
 	{ SoyMediaFormat::PcmLinear_24,		"PcmLinear_24" },
 	{ SoyMediaFormat::PcmLinear_float,	"PcmLinear_float" },
-	{ SoyMediaFormat::Audio_AUDS,		"Audio_AUDS" },
+	{ SoyMediaFormat::Audio_Platform,	"Audio_Platform" },
 	{ SoyMediaFormat::Text,				"text" },
 	{ SoyMediaFormat::Json,				"Json" },
 	{ SoyMediaFormat::Html,				"Html" },
@@ -198,7 +219,8 @@ const Array<SoyMediaFormatMeta>& SoyMediaFormat::GetFormatMap()
 		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2,			"video/mpeg2",	'xxxx', SoyMediaMetaFlags::IsVideo, 0 ),
 		
 		//	windows media foundation has this fourcc in caps (all?)
-		SoyMediaFormatMeta( SoyMediaFormat::Mpeg4,			"video/mp4",		{'mp4v','MP4V'}, SoyMediaMetaFlags::IsVideo, 0 ),
+		//	FMP4 is FFmpeg-mp4
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg4,			"video/mp4",		{'mp4v','MP4V','FMP4'}, SoyMediaMetaFlags::IsVideo, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::Mpeg4_v3,		"video/mp43",		'MP43', SoyMediaMetaFlags::IsVideo, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::VC1,			"video/xxx",		'xxxx', SoyMediaMetaFlags::IsVideo, 0 ),
 		
@@ -212,24 +234,27 @@ const Array<SoyMediaFormatMeta>& SoyMediaFormat::GetFormatMap()
 		
 		//	verify mime
 		SoyMediaFormatMeta( SoyMediaFormat::Ac3,			"audio/ac3",	'xxxx', SoyMediaMetaFlags::IsAudio, 0 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2Audio,		"audio/mpeg",	'xxxx', SoyMediaMetaFlags::IsAudio, 0 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Dts,			"audio/dts",	'xxxx', SoyMediaMetaFlags::IsAudio, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2Audio,		"audio/mpeg",	WAVE_FORMAT_MPEG, SoyMediaMetaFlags::IsAudio, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Dts,			"audio/dts",	WAVE_FORMAT_DTS, SoyMediaMetaFlags::IsAudio, 0 ),
+
+		//	try and encompass all formats that we don't need to specifically handle and can throw around
+		SoyMediaFormatMeta( SoyMediaFormat::Audio_Platform,	"audio/xxx",	{FOURCC_AC3_SURROUND,WAVE_FORMAT_DOLBY_AC3_SPDIF,WAVE_FORMAT_DRM,WAVE_FORMAT_WMAUDIO2,WAVE_FORMAT_WMAUDIO3,WAVE_FORMAT_WMAUDIO_LOSSLESS,WAVE_FORMAT_WMASPDIF,WAVE_FORMAT_WMAVOICE9,WAVE_FORMAT_MPEG_ADTS_AAC,WAVE_FORMAT_AMR_NB,WAVE_FORMAT_AMR_WB,WAVE_FORMAT_AMR_WP}, SoyMediaMetaFlags::IsAudio, 0 ),
 
 		//	gr: change this to handle multiple mime types per format
-		SoyMediaFormatMeta( SoyMediaFormat::Aac,			{ Mime::Aac_Default, Mime::Aac_Android, Mime::Aac_x, Mime::Aac_Other},	'aac ', SoyMediaMetaFlags::IsAudio, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Aac,			{ Mime::Aac_Default, Mime::Aac_Android, Mime::Aac_x, Mime::Aac_Other},	{'aac ',WAVE_FORMAT_MPEG_HEAAC}, SoyMediaMetaFlags::IsAudio, 0 ),
 
 		//	https://en.wikipedia.org/wiki/Pulse-code_modulation
-		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_8,	"audio/L8",		'lpcm', SoyMediaMetaFlags::IsAudio, 8  ),
-		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_16,	"audio/L16",	'lpcm', SoyMediaMetaFlags::IsAudio, 16  ),
-		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_20,	"audio/L20",	'lpcm', SoyMediaMetaFlags::IsAudio, 20  ),
-		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_24,	"audio/L24",	'lpcm', SoyMediaMetaFlags::IsAudio, 24  ),
-		SoyMediaFormatMeta( SoyMediaFormat::PcmAndroidRaw,	MIMETYPE_AUDIO_RAW,	'lpcm', SoyMediaMetaFlags::IsAudio, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_8,	"audio/L8",		{'lpcm',WAVE_FORMAT_PCM}, SoyMediaMetaFlags::IsAudio, 8  ),
+		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_16,	"audio/L16",	{'lpcm',WAVE_FORMAT_PCM}, SoyMediaMetaFlags::IsAudio, 16  ),
+		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_20,	"audio/L20",	{'lpcm',WAVE_FORMAT_PCM}, SoyMediaMetaFlags::IsAudio, 20  ),
+		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_24,	"audio/L24",	{'lpcm',WAVE_FORMAT_PCM}, SoyMediaMetaFlags::IsAudio, 24  ),
+		SoyMediaFormatMeta( SoyMediaFormat::PcmAndroidRaw,	MIMETYPE_AUDIO_RAW,	{'lpcm',WAVE_FORMAT_PCM}, SoyMediaMetaFlags::IsAudio, 0 ),
 
 		//	find mime
-		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_float,	"audio/L32",	'xxxx', SoyMediaMetaFlags::IsAudio, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::PcmLinear_float,	"audio/L32",	WAVE_FORMAT_IEEE_FLOAT, SoyMediaMetaFlags::IsAudio, 0 ),
 
 		//	audio/mpeg is what android reports when I try and open mp3
-		SoyMediaFormatMeta( SoyMediaFormat::Mp3,			"audio/mpeg",	'xxxx', SoyMediaMetaFlags::IsAudio, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Mp3,			"audio/mpeg",	WAVE_FORMAT_MPEGLAYER3, SoyMediaMetaFlags::IsAudio, 0 ),
 		
 		//	verify these mimes
 		SoyMediaFormatMeta( SoyMediaFormat::Png,			"image/png",	'xxxx', SoyMediaMetaFlags::IsImage, 0 ),

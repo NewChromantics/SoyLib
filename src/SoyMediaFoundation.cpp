@@ -297,6 +297,16 @@ SoyMediaFormat::Type MediaFoundation::GetFormat(GUID Major,GUID Minor,size_t H26
 {
 	if (Major == MFMediaType_Audio)
 	{
+		uint32 Fourcc = 0;
+		GetMediaFormatGuidFourcc( Minor, Fourcc );
+		{
+			auto Format = SoyMediaFormat::FromFourcc( Fourcc, H264NaluLengthSize );
+			if ( Format != SoyMediaFormat::Invalid )
+				return Format;
+		}
+	
+		std::Debug << "Warning: audio media type not detected via fourcc (" << Minor << "/fourcc=" << Soy::FourCCToString(Fourcc) << ")" << std::endl;
+
 		if ( Minor == MFAudioFormat_AUDS )
 			return SoyMediaFormat::Audio_AUDS;
 
@@ -336,7 +346,7 @@ SoyMediaFormat::Type MediaFoundation::GetFormat(GUID Major,GUID Minor,size_t H26
 				return Format;
 		}
 
-		std::Debug << "Warning: media type not detected via fourcc (" << Minor << "/fourcc=" << Soy::FourCCToString(Fourcc) << ")" << std::endl;
+		std::Debug << "Warning: video media type not detected via fourcc (" << Minor << "/fourcc=" << Soy::FourCCToString(Fourcc) << ")" << std::endl;
 
 		if ( Minor == MFVideoFormat_H264 )
 		{

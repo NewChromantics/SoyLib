@@ -82,6 +82,7 @@ namespace SoyMediaFormat
 		PcmLinear_20,
 		PcmLinear_24,
 		PcmLinear_float,	//	-1..1 see SoyWave
+		Audio_Platform,		//	try and encompass all formats that we don't need to specifically handle and can throw around
 		
         QuicktimeTimecode,  //  explicitly listing this until I've established what the format is
 		
