@@ -591,6 +591,7 @@ public:
 		mOnlyExtractKeyframes			( false ),
 		mResetInternalTimestamp			( false ),
 		mAudioSampleRate				( 0 ),
+		mAudioChannelCount				( 0 ),
 		mApplyHeightPadding				( true ),
 		mWindowIncludeBorders			( true ),
 		mLiveUseClockTime				( false ),
@@ -605,7 +606,8 @@ public:
 	SoyTime						mReadAheadMs;
 
 	SoyTime						mInitialTime;
-	size_t						mAudioSampleRate;
+	size_t						mAudioSampleRate;			//	try and extract at this rate
+	size_t						mAudioChannelCount;			//	.. with this many channels
 	bool						mExtractAudioStreams;
 	bool						mOnlyExtractKeyframes;
 	bool						mResetInternalTimestamp;
