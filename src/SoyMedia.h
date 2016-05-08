@@ -186,6 +186,13 @@ std::ostream& operator<<(std::ostream& out,const TStreamMeta& in);
 class TPixelBuffer
 {
 public:
+	TPixelBuffer() :
+		mOverrideTransformShaderOpengl		( nullptr ),
+		mOverrideTransformShaderDirectx		( nullptr ),
+		mOverrideTransformShaderMetal		( nullptr )
+	{
+	}
+	
 	//	different paths return arrays now - shader/fbo blit is pretty generic now so move it out of pixel buffer
 	//	generic array, handle that internally (each implementation tends to have it's own lock info anyway)
 	//	for future devices (metal, dx), expand these
@@ -197,6 +204,11 @@ public:
 	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform)=0;
 	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform)=0;
 	virtual void		Unlock()=0;
+
+public:
+	const char*			mOverrideTransformShaderOpengl;
+	const char*			mOverrideTransformShaderDirectx;
+	const char*			mOverrideTransformShaderMetal;
 };
 
 
@@ -579,7 +591,7 @@ public:
 	{
 		mFilename = Filename;
 	}
-	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted) :
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,std::function<void(TPixelBuffer&,const TMediaExtractorParams&)> OnPrePushFrame) :
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
 		mReadAheadMs					( 0ull ),
@@ -596,7 +608,8 @@ public:
 		mWindowIncludeBorders			( true ),
 		mLiveUseClockTime				( false ),
 		mWin7Emulation					( false ),
-		mVerboseDebug					( false )
+		mVerboseDebug					( false ),
+		mOnPrePushFrame					( OnPrePushFrame )
 	{
 	}
 	
@@ -604,6 +617,7 @@ public:
 	std::string					mFilename;
 	std::string					mThreadName;
 	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
+	std::function<void(TPixelBuffer&,const TMediaExtractorParams&)>	mOnPrePushFrame;	//	app override for pre-push. Use this to inject shader transform etc
 	SoyTime						mReadAheadMs;
 
 	SoyTime						mInitialTime;
