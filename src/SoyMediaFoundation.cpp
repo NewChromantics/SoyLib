@@ -527,7 +527,7 @@ AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyPixelsFormat:
 
 AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packet)
 {
-#define WIN_7_MODE
+//#define WIN_7_MODE
 
 #if defined(WIN_7_MODE)
 	throw Soy::AssertException("Not supported in win7 build");
