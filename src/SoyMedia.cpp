@@ -1249,8 +1249,8 @@ void TAudioBufferBlock::SetChannels(size_t Channels)
 		auto RemoveChannelCount = mChannels - Channels;
 		for ( int i = mData.GetSize() - mChannels; i >= 0;	i-=mChannels )
 		{
-			//	remove X samples
-			mData.RemoveBlock(i + 1, RemoveChannelCount);
+			//	remove the LAST X samples, so we assume 0&1 are left & right, and all the others (eg, surround) gets discarded
+			mData.RemoveBlock(i + Channels, RemoveChannelCount);
 		}
 		mChannels = Channels;
 		return;
