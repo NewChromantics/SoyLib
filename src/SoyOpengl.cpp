@@ -445,7 +445,7 @@ void Opengl::GetReadPixelsFormats(ArrayBridge<GLenum> &&Formats)
 }
 
 
-Opengl::TFbo::TFbo(TTexture Texture) :
+Opengl::TFbo::TFbo(TTexture Texture,GLenum CubemapFace) :
 	mFbo		( GL_ASSET_INVALID ),
 	mTarget		( Texture )
 {
@@ -482,9 +482,18 @@ Opengl::TFbo::TFbo(TTexture Texture) :
 
 	GLint MipLevel = 0;
 	if ( mType == GL_TEXTURE_2D )
+	{
 		Opengl::FramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mType, mFboTextureName, MipLevel );
+	}
+	else if ( mType == GL_TEXTURE_CUBE_MAP )
+	{
+		//	cubemap attaches specific faces
+		Opengl::FramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, CubemapFace, mFboTextureName, MipLevel );
+	}
 	else
+	{
 		throw Soy::AssertException("Don't currently support frame buffer texture if not GL_TEXTURE_2D");
+	}
 	Opengl::IsOkay("FBO glFramebufferTexture2D");
 	
 

@@ -492,7 +492,7 @@ public:
 class Opengl::TFbo
 {
 public:
-	TFbo(TTexture Texture);
+	TFbo(TTexture Texture,GLenum CubemapFace=GL_TEXTURE_CUBE_MAP_POSITIVE_X);
 	~TFbo();
 	
 	bool		IsValid() const	{	return mFbo.IsValid() && mTarget.IsValid();	}
