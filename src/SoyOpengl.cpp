@@ -1501,34 +1501,43 @@ SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType) const
 		if ( Type == GL_INVALID_VALUE )
 			continue;
 	
-		Opengl::TTexture TempTexture( mTexture.mName, mMeta, Type );
-		if ( !TempTexture.Bind() )
-			continue;
+		try
+		{
+			Opengl::TTexture TempTexture( mTexture.mName, mMeta, Type );
+			if ( !TempTexture.Bind() )
+				continue;
+			
+			GLint MipLevel = 0;
+			GLint Width = 0;
+			GLint Height = 0;
+			GLint Format = 0;
 		
-		GLint MipLevel = 0;
-		GLint Width = 0;
-		GLint Height = 0;
-		GLint Format = 0;
-		glGetTexLevelParameteriv( Type, MipLevel, GL_TEXTURE_WIDTH, &Width);
-		glGetTexLevelParameteriv( Type, MipLevel, GL_TEXTURE_HEIGHT, &Height);
-		glGetTexLevelParameteriv( Type, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &Format );
-		
-		TempTexture.Unbind();
-		
-		if ( !Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()", false ) )
-			continue;
-		
-		//	we probably won't get an opengl error, but the values won't be good. We can assume it's not that type
-		//	tested on osx
-		if ( Width==0 || Height==0 || Format==0 )
-			continue;
-		
-		if ( Type != mType )
-			std::Debug << "Determined that texture is " << GetEnumString(Type) << " not " << GetEnumString(mType) << std::endl;
-		
-		RealType = Type;
-		auto PixelFormat = GetDownloadPixelFormat( Format );
-		return SoyPixelsMeta( Width, Height, PixelFormat );
+			auto GetParamType = Type == GL_TEXTURE_CUBE_MAP ? GL_TEXTURE_CUBE_MAP_NEGATIVE_X : Type;
+			
+			glGetTexLevelParameteriv( GetParamType, MipLevel, GL_TEXTURE_WIDTH, &Width);
+			glGetTexLevelParameteriv( GetParamType, MipLevel, GL_TEXTURE_HEIGHT, &Height);
+			glGetTexLevelParameteriv( GetParamType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &Format );
+			if ( !Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()", false ) )
+				continue;
+			
+			TempTexture.Unbind();
+			
+			//	we probably won't get an opengl error, but the values won't be good. We can assume it's not that type
+			//	tested on osx
+			if ( Width==0 || Height==0 || Format==0 )
+				continue;
+			
+			if ( Type != mType )
+				std::Debug << "Determined that texture is " << GetEnumString(Type) << " not " << GetEnumString(mType) << std::endl;
+			
+			RealType = Type;
+			auto PixelFormat = GetDownloadPixelFormat( Format );
+			return SoyPixelsMeta( Width, Height, PixelFormat );
+		}
+		catch(std::exception& e)
+		{
+			//	not this
+		}
 	}
 	
 	//	couldn't determine any params... not a known texture type?
