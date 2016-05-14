@@ -5,8 +5,12 @@
 #define MIMETYPE_AUDIO_RAW	"audio/raw"
 
 
-//	media foundation fourcc's 
+//	media foundation fourcc's
+#if !defined(WAVE_FORMAT_PCM)
 #define  WAVE_FORMAT_PCM						0x0001 /* Microsoft Corporation */
+#elif WAVE_FORMAT_PCM!=0x0001
+#error WAVE_FORMAT_PCM define mis match
+#endif
 #define  WAVE_FORMAT_IEEE_FLOAT                 0x0003 /* Microsoft Corporation */
 #define  WAVE_FORMAT_MPEG                       0x0050 /* Microsoft Corporation */
 #define  WAVE_FORMAT_DTS                        0x0008 /* Microsoft Corporation */
