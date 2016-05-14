@@ -213,7 +213,11 @@ void Soy::TRuntimeLibrary::Close()
 	{
 		auto Result = FreeLibrary( mHandle );
 		mHandle = nullptr;
-		std::Debug << "Warning: FreeLibrary() failed for " << mLibraryName << std::endl;
+		if ( !Result )
+		{
+			auto Error = Platform::GetLastErrorString();
+			std::Debug << "Warning: FreeLibrary() failed for " << mLibraryName << ": " << Error << std::endl;
+		}
 	}
 #endif
 }
