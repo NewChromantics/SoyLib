@@ -178,6 +178,13 @@ TPlatformFormatMap<GUID> PlatformFormatMap[] =
 	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Ntsc ),
 	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Smptec ),
 
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_I420,	SoyMediaFormat::Yuv_8_8_8_Full ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_I420,	SoyMediaFormat::Yuv_8_8_8_Ntsc ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_I420,	SoyMediaFormat::Yuv_8_8_8_Smptec ),
+
+
+	
+
 	//	from an apple sample movie
 	//	http://www.fourcc.org/codecs.php
 	//	YUV 4:2:2 CCIR 601 for V422 (no, I don't understand this either) 
