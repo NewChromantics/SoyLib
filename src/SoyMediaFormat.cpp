@@ -125,6 +125,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::H264_ES,			"H264_ES" },
 	{ SoyMediaFormat::H264_SPS_ES,		"H264_SPS_ES" },
 	{ SoyMediaFormat::H264_PPS_ES,		"H264_PPS_ES" },
+	{ SoyMediaFormat::H265,				"H265" },
 	{ SoyMediaFormat::Mpeg2TS,			"Mpeg2TS" },
 	{ SoyMediaFormat::Mpeg2TS_PSI,		"Mpeg2TS_PSI" },
 	{ SoyMediaFormat::Mpeg2,			"Mpeg2" },
@@ -218,6 +219,8 @@ const Array<SoyMediaFormatMeta>& SoyMediaFormat::GetFormatMap()
 		SoyMediaFormatMeta( SoyMediaFormat::H264_ES,		"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::H264_PPS_ES,	"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::H264_SPS_ES,	"video/avc",	'avc1', SoyMediaMetaFlags::IsVideo|SoyMediaMetaFlags::IsH264, 0 ),
+
+		SoyMediaFormatMeta( SoyMediaFormat::H265,			"video/hevc",	{'HEVC','HEVS'}, SoyMediaMetaFlags::IsVideo, 0 ),
 
 		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2TS,		"video/ts",		'xxxx', SoyMediaMetaFlags::IsVideo, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::Mpeg2TS_PSI,	"video/ts",		'xxxx', SoyMediaMetaFlags::IsVideo, 0 ),

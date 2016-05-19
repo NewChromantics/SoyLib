@@ -60,6 +60,8 @@ namespace SoyMediaFormat
 		Divx,			//	added to detect, and fail gracefully
 		MotionJpeg,		//	MJPG, series of jpegs
 
+		H265,			//	hevc
+
 		//	encoded images
 		Png,
 		Jpeg,
