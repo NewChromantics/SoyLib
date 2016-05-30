@@ -2,4 +2,6 @@
 
 [bB]in/
 [dD]ebug/
+[dD]ebug_Win7/
+
 *.visualstudio/[Cc]uda/

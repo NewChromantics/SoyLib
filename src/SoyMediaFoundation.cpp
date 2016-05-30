@@ -554,11 +554,11 @@ AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyPixelsFormat:
 
 AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packet)
 {
-//#define WIN_7_MODE
-
-#if defined(WIN_7_MODE)
+#if defined(WINDOWS7_SUPPORT)
+#pragma message("win7 happy build")
 	throw Soy::AssertException("Not supported in win7 build");
 #else
+#pragma message("This binary will not load on windows 7")
 	AutoReleasePtr<IMFMediaBuffer> pBuffer;
 
 	//	make this true, and flip read in shader
