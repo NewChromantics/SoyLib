@@ -425,6 +425,9 @@ public:
 	size_t			GetChannels() const			{	return mFormat.mChannels;	}
 	size_t			GetFrequency() const		{	return mFormat.mFrequency;	}
 
+public:
+	SoyEvent<TAudioBufferBlock&>	mOnAudioBlockPushed;
+
 private:
 	//	this is a cached format for when we want to get the meta, but don't have any blocks,
 	//	but ALSO, we can use it to pre-set the format and re-format incoming data
@@ -877,6 +880,14 @@ public:
 };
 
 
+class TAudioSplitChannelDecoder : public TMediaPassThroughDecoder
+{
+public:
+	TAudioSplitChannelDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer,std::shared_ptr<TAudioBufferManager>& RealOutput,std::shared_ptr<TMediaDecoder>& RealDecoder,size_t RealChannel);
+
+protected:
+	std::shared_ptr<TAudioBufferManager>	mRealOutputAudioBuffer;
+};
 
 
 class TTextureBuffer : public TPixelBuffer

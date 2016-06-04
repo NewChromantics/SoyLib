@@ -1296,6 +1296,9 @@ void TAudioBufferManager::PushAudioBuffer(TAudioBufferBlock& AudioData)
 		if ( mFormat.mFrequency == 0 )
 			mFormat.mFrequency = AudioData.mFrequency;
 
+		//	gr;  maybe consider changing this to allow rejection of data
+		mOnAudioBlockPushed.OnTriggered( AudioData );
+
 		AudioData.SetChannels( mFormat.mChannels );
 		AudioData.SetFrequencey( mFormat.mFrequency );
 
@@ -2395,5 +2398,30 @@ TTextureBuffer::~TTextureBuffer()
 		mDirectxContext.reset();
 	}
 #endif
+}
+
+
+
+TAudioSplitChannelDecoder::TAudioSplitChannelDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer,std::shared_ptr<TAudioBufferManager>& RealOutput,std::shared_ptr<TMediaDecoder>& RealDecoder,size_t RealChannel) :
+	TMediaPassThroughDecoder	( ThreadName, InputBuffer, OutputBuffer ),
+	mRealOutputAudioBuffer		( RealOutput )
+{
+	//	setup a listener for the real output, modify and push to our "input"
+	Soy::Assert( mRealOutputAudioBuffer != nullptr, "Real output expected");
+	Soy::Assert( mAudioOutput != nullptr, "audio output buffer expected");
+	
+
+	auto OnRealBlock = [this](TAudioBufferBlock& Block)
+	{
+		//	extract the channel we want
+		TAudioBufferBlock ChannelBlock;
+		ChannelBlock.Append( Block );
+
+	#pragma message("Need to set which channel to clip here")
+		ChannelBlock.SetChannels(1);
+		mAudioOutput->PushAudioBuffer( ChannelBlock );
+	};
+
+	mRealOutputAudioBuffer->mOnAudioBlockPushed.AddListener( OnRealBlock );
 }
 
