@@ -3,8 +3,8 @@
 #include "SoyTypes.h"
 #include "SoyEvent.h"
 #include <condition_variable>
-#include "MemHeap.hpp"
-#include "HeapArray.hpp"
+#include "memheap.hpp"
+#include "heaparray.hpp"
 
 
 

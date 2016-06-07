@@ -28,6 +28,8 @@ struct NonCopyable {
 #include "SoyTypes_CoreFoundation.h"
 #elif defined(TARGET_WINDOWS)
 #include "SoyTypes_Windows.h"
+#elif defined(TARGET_LINUX)
+//todo
 #else
 #error no TARGET_XXX defined
 #endif
