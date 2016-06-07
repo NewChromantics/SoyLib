@@ -9,6 +9,7 @@
 #include <mutex>
 #include "SoyTypes.h"
 #include "RemoteArray.h"
+#include <string.h>
 
 
 //	ArrayTest object forces .cpp to be built and not throw away the unittest symbols

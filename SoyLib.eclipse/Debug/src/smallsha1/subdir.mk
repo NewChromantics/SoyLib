@@ -17,7 +17,7 @@ CPP_DEPS += \
 src/smallsha1/sha1.o: /media/graham/Shared/SoyLib/src/smallsha1/sha1.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	g++ -std=c++0x -DTARGET_LINUX -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	clang++-3.5 -std=c++11 -DTARGET_LINUX -D__cplusplus11=201103L -D__GXX_EXPERIMENTAL_CXX0X__ -O0 -g3 -c -fmessage-length=0 -fpermissive -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

@@ -16,9 +16,9 @@
 #ifndef MATHFU_MATRIX_4X4_H_
 #define MATHFU_MATRIX_4X4_H_
 
-#include "mathfu/matrix.h"
-#include "mathfu/vector_4.h"
-#include "mathfu/utilities.h"
+#include "matrix.h"
+#include "vector_4.h"
+#include "utilities.h"
 
 #ifdef MATHFU_COMPILE_WITH_SIMD
 #include "vectorial/simd4x4f.h"

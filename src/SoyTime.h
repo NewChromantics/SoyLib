@@ -4,7 +4,7 @@
 #include <iomanip>
 #include "SoyTypes.h"
 #include "SoyMath.h"	//	just for the range specialisation... maybe move it to reduce includes
-#if defined(TARGET_OSX)||defined(TARGET_IOS)
+#if defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_LINUX)
 #include <sys/time.h>
 #endif
 
@@ -24,11 +24,11 @@ namespace Soy
 }
 
 
-inline unsigned long long	ofGetSystemTime()
+inline uint64	ofGetSystemTime()
 {
 #if defined(TARGET_WINDOWS)
 	return timeGetTime();
-#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
+#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)||defined(TARGET_LINUX)
 	struct timeval now;
 	gettimeofday( &now, NULL );
 	return
@@ -38,8 +38,8 @@ inline unsigned long long	ofGetSystemTime()
 #error GetSystemTime undefined on target
 #endif
 }
-inline unsigned long long	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}	//	gr: offrameworks does -StartTime
-inline float				ofGetElapsedTimef()			{	return static_cast<float>(ofGetElapsedTimeMillis()) / 1000.f;	}
+inline uint64	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}	//	gr: offrameworks does -StartTime
+inline float	ofGetElapsedTimef()			{	return static_cast<float>(ofGetElapsedTimeMillis()) / 1000.f;	}
 
 
 //	gr: repalce uses of this with SoyTime
@@ -146,11 +146,15 @@ inline std::istream& operator>> (std::istream &in,SoyTime &out)
 }
 
 
+namespace Soy
+{
 template<>
-inline float Soy::Range(const SoyTime& Value,const SoyTime& Start,const SoyTime& End)
+inline float Range(const SoyTime& Value,const SoyTime& Start,const SoyTime& End)
 {
 	auto Value_Start = size_cast<ssize_t>(Value.GetTime()) - size_cast<ssize_t>(Start.GetTime());
 	auto End_Start = size_cast<ssize_t>(End.GetTime()) - size_cast<ssize_t>(Start.GetTime());
 	
 	return static_cast<float>(Value_Start) / static_cast<float>(End_Start);
 }
+}
+

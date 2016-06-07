@@ -4,6 +4,10 @@
 #include "heaparray.hpp"
 #include "RemoteArray.h"
 
+#if defined(TARGET_LINUX)
+#include <string.h>
+#endif
+
 std::string	SoyArray::OnCheckBoundsError(size_t Index,size_t Size,const std::string& Typename)
 {
 	std::stringstream Error;

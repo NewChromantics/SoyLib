@@ -29,7 +29,7 @@ struct NonCopyable {
 #elif defined(TARGET_WINDOWS)
 #include "SoyTypes_Windows.h"
 #elif defined(TARGET_LINUX)
-//todo
+#include "SoyTypes_Linux.h"
 #else
 #error no TARGET_XXX defined
 #endif
@@ -53,6 +53,10 @@ typedef	uint64_t	uint64;
 #include <type_traits>
 #include <sstream>
 
+#if defined(TARGET_LINUX)
+#include <limits>	//	linux needs this
+#include <time.h>
+#endif
 
 //	clang(?) macro for testing features missing on android
 #if !defined(__has_feature)

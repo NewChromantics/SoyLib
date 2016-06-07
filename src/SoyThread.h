@@ -6,6 +6,10 @@
 #include "memheap.hpp"
 #include "heaparray.hpp"
 
+#if defined(TARGET_LINUX)
+#include <chrono>
+#include <thread>
+#endif
 
 
 namespace Soy

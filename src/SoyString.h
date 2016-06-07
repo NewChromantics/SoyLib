@@ -184,9 +184,10 @@ public:
 
 
 
-
+namespace Soy
+{
 template<typename TYPE>
-inline bool Soy::StringToType(TYPE& Out,const std::string& String)
+inline bool StringToType(TYPE& Out,const std::string& String)
 {
 	std::stringstream s( String );
 	s >> Out;
@@ -195,23 +196,27 @@ inline bool Soy::StringToType(TYPE& Out,const std::string& String)
 
 	return true;
 }
-
+}
 
 template<>
 bool Soy::StringToType(int& Out,const std::string& String);
 
-	
+namespace Soy
+{
 template<typename TYPE>
-inline TYPE Soy::StringToType(const std::string& String,const TYPE& Default)
+inline TYPE StringToType(const std::string& String,const TYPE& Default)
 {
 	TYPE Value;
 	if ( !StringToType( Value, String ) )
 		return Default;
 	return Value;
 }
+}
 
+namespace Soy
+{
 template<typename TYPE>
-inline std::string Soy::StringJoin(const ArrayBridge<TYPE>& Elements,const std::string& Glue)
+inline std::string StringJoin(const ArrayBridge<TYPE>& Elements,const std::string& Glue)
 {
 	std::stringstream Stream;
 	for ( int i=0;	i<Elements.GetSize();	i++ )
@@ -228,16 +233,19 @@ inline std::string Soy::StringJoin(const ArrayBridge<TYPE>& Elements,const std::
 	}
 	return Stream.str();
 }
+}
 
+namespace Soy
+{
 template <size_t BUFFERSIZE>
-inline bool Soy::StringEndsWith(const std::string& Haystack,const char* (& Needles)[BUFFERSIZE], bool CaseSensitive)
+inline bool StringEndsWith(const std::string& Haystack,const char* (& Needles)[BUFFERSIZE], bool CaseSensitive)
 {
 	for ( int i=0;	i<BUFFERSIZE;	i++ )
 		if ( StringEndsWith( Haystack, Needles[i], CaseSensitive ) )
 			return true;
 	return false;
 }
-
+}
 
 
 template<typename TYPE>

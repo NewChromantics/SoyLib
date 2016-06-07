@@ -1,7 +1,6 @@
 #pragma once
 
 
-#include <jni.h>
 
 #define __func__	__PRETTY_FUNCTION__
 #define __noexcept	_GLIBCXX_USE_NOEXCEPT

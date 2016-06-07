@@ -22,8 +22,8 @@
 #endif  // !defined(_USE_MATH_DEFINES)
 #endif  // _WIN32
 
-#include "mathfu/matrix.h"
-#include "mathfu/vector_3.h"
+#include "matrix.h"
+#include "vector_3.h"
 
 #include <math.h>
 

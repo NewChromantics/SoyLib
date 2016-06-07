@@ -16,10 +16,10 @@
 #ifndef MATHFU_CONSTANTS_H
 #define MATHFU_CONSTANTS_H
 
-#include "mathfu/vector.h"
-#include "mathfu/vector_2.h"
-#include "mathfu/vector_3.h"
-#include "mathfu/vector_4.h"
+#include "vector.h"
+#include "vector_2.h"
+#include "vector_3.h"
+#include "vector_4.h"
 
 namespace mathfu {
 

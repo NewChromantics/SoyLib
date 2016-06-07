@@ -7,7 +7,7 @@
 #include "SoyDebug.h"
 #include <atomic>
 #include "string.hpp"
-#include <SoyThread.h>
+#include "SoyThread.h"
 #include "SoyFilesystem.h"
 
 #if defined(TARGET_WINDOWS)
@@ -21,6 +21,10 @@
 
 #if defined(TARGET_OSX)
 #include <sys/stat.h>
+#endif
+
+#if defined(TARGET_LINUX)
+#include <errno.h>
 #endif
 
 

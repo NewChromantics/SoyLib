@@ -16,8 +16,8 @@
 #ifndef MATHFU_VECTOR_3_H_
 #define MATHFU_VECTOR_3_H_
 
-#include "mathfu/vector.h"
-#include "mathfu/utilities.h"
+#include "vector.h"
+#include "utilities.h"
 
 #include <math.h>
 
