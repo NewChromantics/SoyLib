@@ -612,7 +612,10 @@ public:
 		mLiveUseClockTime				( false ),
 		mWin7Emulation					( false ),
 		mVerboseDebug					( false ),
-		mOnPrePushFrame					( OnPrePushFrame )
+		mOnPrePushFrame					( OnPrePushFrame ),
+		mExtractDepthStream				( true ),
+		mExtractSkeletonStream			( false ),
+		mExtractVideoStreams			( true )
 	{
 	}
 	
@@ -627,6 +630,9 @@ public:
 	size_t						mAudioSampleRate;			//	try and extract at this rate
 	size_t						mAudioChannelCount;			//	.. with this many channels
 	bool						mExtractAudioStreams;
+	bool						mExtractVideoStreams;
+	bool						mExtractDepthStream;		//	for kinect
+	bool						mExtractSkeletonStream;		//	for kinect
 	bool						mOnlyExtractKeyframes;
 	bool						mResetInternalTimestamp;
 	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
