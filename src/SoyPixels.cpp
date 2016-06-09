@@ -375,7 +375,7 @@ void SoyPixelsFormat::GetHeaderPalettised(ArrayBridge<uint8>&& Data,size_t& Pale
 std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 {
 	{ SoyPixelsFormat::Invalid,				"Invalid" },
-	{ SoyPixelsFormat::UnityUnknown,		"UnityUnknown" },
+//	{ SoyPixelsFormat::UnityUnknown,		"UnityUnknown" },
 	{ SoyPixelsFormat::Greyscale,			"Greyscale" },
 	{ SoyPixelsFormat::GreyscaleAlpha,		"GreyscaleAlpha"	},
 	{ SoyPixelsFormat::RGB,					"RGB"	},

@@ -6,6 +6,7 @@
 #include <functional>
 
 #include "SoyOpengl.h"	//	re-using opengl's vertex description atm
+#include "SoyMediaFormat.h"
 
 
 template<typename TYPE>
@@ -43,7 +44,8 @@ namespace Directx
 
 	inline std::string		GetEnumString(HRESULT Error)												{	return Platform::GetErrorString( Error );	}
 	inline bool				IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true)	{	return Platform::IsOkay( Error, Context, ThrowException );	}
-	SoyPixelsFormat::Type	GetFormat(DXGI_FORMAT Format);
+	SoyMediaFormat::Type	GetFormat(DXGI_FORMAT Format,bool Windows8Plus);
+	SoyPixelsFormat::Type	GetPixelFormat(DXGI_FORMAT Format,bool Windows8Plus=true);
 	DXGI_FORMAT				GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus);
 
 	namespace TTextureMode
