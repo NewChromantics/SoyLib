@@ -613,8 +613,8 @@ public:
 		mWin7Emulation					( false ),
 		mVerboseDebug					( false ),
 		mOnPrePushFrame					( OnPrePushFrame ),
-		mExtractDepthStream				( true ),
-		mExtractSkeletonStream			( false ),
+		mExtractDepthStreams			( true ),
+		mExtractSkeletonStreams			( false ),
 		mExtractVideoStreams			( true )
 	{
 	}
@@ -631,8 +631,8 @@ public:
 	size_t						mAudioChannelCount;			//	.. with this many channels
 	bool						mExtractAudioStreams;
 	bool						mExtractVideoStreams;
-	bool						mExtractDepthStream;		//	for kinect
-	bool						mExtractSkeletonStream;		//	for kinect
+	bool						mExtractDepthStreams;		//	for kinect
+	bool						mExtractSkeletonStreams;	//	for kinect
 	bool						mOnlyExtractKeyframes;
 	bool						mResetInternalTimestamp;
 	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
@@ -692,6 +692,7 @@ protected:
 	//	call this when there's a packet ready for ReadNextPacket
 	void							OnPacketExtracted(SoyTime& Timecode,size_t StreamIndex);
 	void							OnPacketExtracted(std::shared_ptr<TMediaPacket>& Packet);
+	void							OnPacketExtracted(TMediaPacket& Packet);
 	void							OnSkippedExtractedPacket(const SoyTime& Timecode);
 	SoyTime							GetExtractorRealTimecode(SoyTime,ssize_t StreamIndex=-1);
 

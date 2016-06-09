@@ -536,10 +536,15 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			//	can have a packet with no data (eg. eof) skip this
 			if ( NextPacket->HasData() )
 			{
-				
 				//	block thread unless it's stopped
 				auto Block = [this,&NextPacket]()
 				{
+					//	gr: wording is wrong here, but regardless, we block when buffer X is full, we shouldn't need them all flushed!
+					//	gr: use only for testing for now!
+					static bool DiscardDoesntBlock = false;
+					if ( DiscardDoesntBlock && this->mParams.mDiscardOldFrames )
+						return false;
+
 					//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
 					if ( IsWorking() )
 					{
@@ -673,9 +678,12 @@ void TMediaExtractor::OnStreamsChanged()
 void TMediaExtractor::OnPacketExtracted(std::shared_ptr<TMediaPacket>& Packet)
 {
 	Soy::Assert( Packet != nullptr, "Packet expected");
+	OnPacketExtracted( *Packet );
+}
 
-	OnPacketExtracted( Packet->mTimecode, Packet->mMeta.mStreamIndex );
-	Wake();
+void TMediaExtractor::OnPacketExtracted(TMediaPacket& Packet)
+{
+	OnPacketExtracted( Packet.mTimecode, Packet.mMeta.mStreamIndex );
 }
 
 void TMediaExtractor::OnPacketExtracted(SoyTime& Timecode,size_t StreamIndex)
