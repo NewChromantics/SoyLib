@@ -164,7 +164,8 @@ public:
 	size_t				mMaxKeyframeSpacing;	//	gr: not sure of entropy yet
 	size_t				mAverageBitRate;		//	gr: not sure of entropy yet
 	float3x3			mTransform;
-	
+	vec2f				mFov;					//	for cameras, or if we can extract from exif, or say for 360 video
+
 	//	audio
 	size_t				mChannelCount;			//	for audio. Maybe expand to planes? but mPixelMeta tell us this
 	size_t				mAudioSampleRate;		//	todo: standardise this to khz?
