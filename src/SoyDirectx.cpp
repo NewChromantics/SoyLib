@@ -156,10 +156,10 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 //	Width and height must be even. Direct3D 11 staging resources and initData parameters for this format use (rowPitch * (height + (height / 2))) bytes.
 //case SoyPixelsFormat::Yuv_844_Full:		return DXGI_FORMAT_420_OPAQUE;
 
-	FORMAT_MAP( SoyMediaFormat::KinectDepth,			DXGI_FORMAT_R16_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::FreenectDepth10bit,	DXGI_FORMAT_R16_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::FreenectDepth11bit,	DXGI_FORMAT_R16_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::FreenectDepthmm,		DXGI_FORMAT_R16_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::KinectDepth,			DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::FreenectDepth10bit,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::FreenectDepth11bit,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::FreenectDepthmm,		DXGI_FORMAT_R8G8_UNORM	),
 };
 
 
