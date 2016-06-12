@@ -385,7 +385,8 @@ public:
 	void				Clip(SoyTime Start, SoyTime End);
 
 	//	reformatting
-	void				SetChannels(size_t Channels);
+	void				SetChannels(const ArrayBridge<size_t>&& NewChannelLayout);
+	void				SetChannels(size_t ChannelCount);
 	void				SetFrequencey(size_t Frequency);
 
 public:
@@ -616,7 +617,8 @@ public:
 		mOnPrePushFrame					( OnPrePushFrame ),
 		mExtractDepthStreams			( true ),
 		mExtractSkeletonStreams			( false ),
-		mExtractVideoStreams			( true )
+		mExtractVideoStreams			( true ),
+		mSplitAudioChannelsIntoStreams	( false )
 	{
 	}
 	
@@ -639,6 +641,8 @@ public:
 	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
 	bool						mWindowIncludeBorders;
 	bool						mWin7Emulation;				//	for mediafoundation, expose some bugs
+
+	bool						mSplitAudioChannelsIntoStreams;	//	if we're splitting audio streams, some extractors need to not reduce to output
 
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;

@@ -1246,42 +1246,56 @@ void TAudioBufferBlock::Clip(SoyTime Start, SoyTime End)
 	RemoveDataUntil(Start);
 }
 
-void TAudioBufferBlock::SetChannels(size_t Channels)
+void TAudioBufferBlock::SetChannels(size_t ChannelCount)
 {
-	if ( mChannels == Channels )
+	if ( mChannels == ChannelCount )
 		return;
 
-	//	re-sample channels
-	if ( Channels < mChannels )
+	//	by default, 
+	BufferArray<size_t,10> NewChannels;
+	for ( int c=0;	c<ChannelCount;	c++ )
 	{
-		auto RemoveChannelCount = mChannels - Channels;
-		for ( int i = mData.GetSize() - mChannels; i >= 0;	i-=mChannels )
-		{
-			//	remove the LAST X samples, so we assume 0&1 are left & right, and all the others (eg, surround) gets discarded
-			mData.RemoveBlock(i + Channels, RemoveChannelCount);
-		}
-		mChannels = Channels;
-		return;
+		auto NewChannel = (c < mChannels) ? c : 0;
+		NewChannels.PushBack( NewChannel );
 	}
-	
-	if ( Channels > mChannels )
+
+	SetChannels( GetArrayBridge( NewChannels ) );
+}
+
+void TAudioBufferBlock::SetChannels(const ArrayBridge<size_t>&& NewChannelLayout)
+{
+	Soy::Assert( NewChannelLayout.GetSize() != 0, "Tried to change audio block channels to zero" );
+	auto NewChannelCount = NewChannelLayout.GetSize();
+	auto OldChannelCount = mChannels;
+
+	//	check for no changes
+	if ( mChannels == NewChannelCount )
 	{
-		auto InsertChannelCount = Channels - mChannels;
-		
-		//	reserve data
-		mData.Reserve( InsertChannelCount* mData.GetSize() );
-		
-		for ( int i = mData.GetSize() - mChannels; i >= 0;	i-=mChannels )
-		{
-			//	insert X samples
-			auto Sample = mData[i];
-			mData.InsertBlock(i + 1, InsertChannelCount);
-			for ( int c = 0; c < InsertChannelCount; c++ )
-				mData[i + 1 + c] = Sample;
-		}
-		mChannels = Channels;
-		return;
+		bool Same = true;
+		for ( int i=0;	i<NewChannelCount;	i++ )
+			Same &= (NewChannelLayout[i] == i);
+		if ( Same )
+			return;
 	}
+
+	//	copy existing data
+	Array<float> OldData;
+	OldData.Copy( mData );
+	auto SampleCount = OldData.GetSize() / OldChannelCount;
+	mData.SetSize( SampleCount * NewChannelCount );
+
+	for ( int s=0;	s<SampleCount;	s++ )
+	{
+		auto* NewSample = &mData[s*NewChannelCount];
+		auto* OldSample = &OldData[s*OldChannelCount];
+		for ( int newc=0;	newc<NewChannelCount;	newc++ )
+		{
+			auto oldc = NewChannelLayout[newc];
+			NewSample[newc] = OldSample[oldc];
+		}
+	}
+
+	mChannels = NewChannelCount;
 }
 
 void TAudioBufferBlock::SetFrequencey(size_t Frequency)
@@ -2340,17 +2354,18 @@ void TMediaPassThroughEncoder::Write(std::shared_ptr<SoyPixelsImpl> pImage,SoyTi
 }
 
 
+
 void TMediaPassThroughEncoder::OnError(const std::string& Error)
 {
 	mFatalError << Error;
 }
 
-
-
 TTextureBuffer::TTextureBuffer(std::shared_ptr<Opengl::TContext> Context) :
 	mOpenglContext	( Context )
 {	
 }
+
+
 
 TTextureBuffer::TTextureBuffer(std::shared_ptr<Directx::TContext> Context) :
 	mDirectxContext	( Context )
@@ -2419,14 +2434,15 @@ TAudioSplitChannelDecoder::TAudioSplitChannelDecoder(const std::string& ThreadNa
 	Soy::Assert( mAudioOutput != nullptr, "audio output buffer expected");
 	
 
-	auto OnRealBlock = [this](TAudioBufferBlock& Block)
+	auto OnRealBlock = [this,RealChannel](TAudioBufferBlock& Block)
 	{
 		//	extract the channel we want
 		TAudioBufferBlock ChannelBlock;
 		ChannelBlock.Append( Block );
 
-	#pragma message("Need to set which channel to clip here")
-		ChannelBlock.SetChannels(1);
+		BufferArray<size_t,10> NewChannels;
+		NewChannels.PushBack( RealChannel );
+		ChannelBlock.SetChannels( GetArrayBridge(NewChannels) );
 		mAudioOutput->PushAudioBuffer( ChannelBlock );
 	};
 
