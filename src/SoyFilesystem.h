@@ -2,7 +2,7 @@
 
 #include "SoyEvent.h"
 #include "SoyTime.h"
-#include <scope_ptr.h>
+#include "scope_ptr.h"
 
 #if defined(TARGET_OSX)
 #include <CoreServices/CoreServices.h>
