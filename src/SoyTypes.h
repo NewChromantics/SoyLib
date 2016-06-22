@@ -12,7 +12,7 @@ struct NonCopyable {
 #if defined(TARGET_WINDOWS)
 	#error Compiler now defines TARGET_WINDOWS
 #endif
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(TARGET_PS4)
 	#if defined(_WIN64)
 		#define TARGET_WINDOWS 64
 	#else
@@ -28,6 +28,8 @@ struct NonCopyable {
 #include "SoyTypes_CoreFoundation.h"
 #elif defined(TARGET_WINDOWS)
 #include "SoyTypes_Windows.h"
+#elif defined(TARGET_PS4)
+#include "SoyTypes_Ps4.h"
 #else
 #error no TARGET_XXX defined
 #endif

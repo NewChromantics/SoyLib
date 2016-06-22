@@ -7,6 +7,7 @@
 #define __noexcept	_GLIBCXX_USE_NOEXCEPT
 #define __noexcept_prefix
 #define __export	extern "C"
+//	gr: consider undefining this to indicate no support
 #define __thread				//	thread local not supported on android
 #define __stdcall
 //#define __pure		__attribute__((pure))
