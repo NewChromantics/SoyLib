@@ -4,7 +4,7 @@
 #include <iomanip>
 #include "SoyTypes.h"
 #include "SoyMath.h"	//	just for the range specialisation... maybe move it to reduce includes
-#if defined(TARGET_OSX)||defined(TARGET_IOS)
+#if defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_PS4)
 #include <sys/time.h>
 #endif
 
@@ -28,7 +28,7 @@ inline unsigned long long	ofGetSystemTime()
 {
 #if defined(TARGET_WINDOWS)
 	return timeGetTime();
-#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
+#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)||defined(TARGET_PS4)
 	struct timeval now;
 	gettimeofday( &now, NULL );
 	return
@@ -38,7 +38,7 @@ inline unsigned long long	ofGetSystemTime()
 #error GetSystemTime undefined on target
 #endif
 }
-inline unsigned long long	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}	//	gr: offrameworks does -StartTime
+inline uint64_t	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}	//	gr: offrameworks does -StartTime
 inline float				ofGetElapsedTimef()			{	return static_cast<float>(ofGetElapsedTimeMillis()) / 1000.f;	}
 
 
