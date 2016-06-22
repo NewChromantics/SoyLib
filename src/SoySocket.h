@@ -12,7 +12,7 @@
 	typedef int socklen_t;
 	typedef ULONG in_addr_t;	//	note, not IN_ADDR as that has extra fields we don't need
 	typedef int socket_data_size_t;
-#elif defined(TARGET_POSIX)
+#elif defined(TARGET_POSIX)||defined(TARGET_PS4)
 	#include <sys/socket.h>
 	#define INVALID_SOCKET -1
 	typedef int SOCKET;

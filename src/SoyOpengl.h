@@ -1,8 +1,8 @@
 #pragma once
 
-#include <SoyEvent.h>
-#include <SoyMath.h>
-#include <SoyPixels.h>
+#include "SoyEvent.h"
+#include "SoyMath.h"
+#include "SoyPixels.h"
 #include "SoyUniform.h"
 
 

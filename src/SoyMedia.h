@@ -515,7 +515,7 @@ public:
 	TMediaPacketBuffer(size_t MaxBufferSize=10) :
 		mPackets				( SoyMedia::DefaultHeap ),
 		mMaxBufferSize			( MaxBufferSize ),
-		mAutoTimestampDuration	( 33ull )
+		mAutoTimestampDuration	( (uint64_t)33 )
 	{
 	}
 	~TMediaPacketBuffer();
@@ -599,7 +599,7 @@ public:
 	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,std::function<void(TPixelBuffer&,const TMediaExtractorParams&)> OnPrePushFrame) :
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
-		mReadAheadMs					( 0ull ),
+		mReadAheadMs					( (uint64_t)0 ),
 		mDiscardOldFrames				( true ),
 		mForceNonPlanarOutput			( false ),
 		mDebugIntraFrameRect			( false ),
