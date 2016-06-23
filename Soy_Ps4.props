@@ -8,8 +8,10 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>TARGET_PS4</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TARGET_PS4;ENABLE_GMNX;MINIZ_NO_TIME</PreprocessorDefinitions>
       <CppExceptions>true</CppExceptions>
+      <DisableSpecificWarnings>reorder</DisableSpecificWarnings>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup />
