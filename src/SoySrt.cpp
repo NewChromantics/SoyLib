@@ -50,7 +50,7 @@ SoyTime Srt::DecodeTime(const std::string& Hours,const std::string& Minutes,cons
 	Time += sec * 1000;
 	Time += min * 1000 * 60;
 	Time += hr * 1000 * 60 * 60;
-	return SoyTime( Time );
+	return SoyTime( std::chrono::milliseconds(Time) );
 }
 
 void Srt::EncodeTime(std::stringstream& Out,const SoyTime& Time)
