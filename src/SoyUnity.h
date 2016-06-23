@@ -196,6 +196,7 @@ namespace Unity
 	
 	//	define these in your project
 	extern int					GetPluginEventId();
+	extern bool					IsDebugPluginEventEnabled();
 	
 	extern SoyEvent<bool>		mOnDeviceShutdown;
 	
