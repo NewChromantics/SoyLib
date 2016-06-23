@@ -4,10 +4,12 @@
 #include "SoyWave.h"
 
 //gr: this is for the pass through encoder, maybe to avoid this dependancy I can move the pass throughs to their own files...
-//#include "SoyOpenGl.h"
-//#include "SoyOpenGlContext.h"
+#if defined(ENABLE_OPENGL)
+#include "SoyOpenGl.h"
+#include "SoyOpenGlContext.h"
+#endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 #include "SoyDirectx.h"
 #endif
 
@@ -2402,7 +2404,7 @@ TTextureBuffer::~TTextureBuffer()
 
 	if ( mOpenglContext )
 	{
-		Opengl::DeferDelete( mOpenglContext, mOpenglTexture );
+		PopWorker::DeferDelete( mOpenglContext, mOpenglTexture );
 		mOpenglContext.reset();
 	}
 #endif
@@ -2421,7 +2423,7 @@ TTextureBuffer::~TTextureBuffer()
 
 	if ( mDirectxContext )
 	{
-		Opengl::DeferDelete( mDirectxContext, mDirectxTexture );
+		PopWorker::DeferDelete( mDirectxContext, mDirectxTexture );
 		mDirectxContext.reset();
 	}
 #endif

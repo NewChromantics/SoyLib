@@ -65,12 +65,10 @@
 namespace Opengl
 {
 	class TFboMeta;
-	class TUniform;
 	class TAsset;
 	class TShader;
 	class TShaderState;
 	class TTexture;
-	class TTextureUploadParams;
 	class TTextureMeta;
 	class TFbo;
 	class TPbo;
@@ -233,19 +231,19 @@ public:
 class Opengl::TShader
 {
 public:
-	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context);
+	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context);
 	~TShader();
 	
 	TShaderState	Bind();	//	let this go out of scope to unbind
-	TUniform		GetUniform(const char* Name) const
+	SoyGraphics::TUniform		GetUniform(const char* Name) const
 	{
 		auto* Uniform = mUniforms.Find( Name );
-		return Uniform ? *Uniform : TUniform();
+		return Uniform ? *Uniform : SoyGraphics::TUniform();
 	}
-	TUniform		GetAttribute(const char* Name) const
+	SoyGraphics::TUniform		GetAttribute(const char* Name) const
 	{
 		auto* Uniform = mAttributes.Find( Name );
-		return Uniform ? *Uniform : TUniform();
+		return Uniform ? *Uniform : SoyGraphics::TUniform();
 	}
 
 public:
@@ -253,8 +251,8 @@ public:
 	TAsset			mVertexShader;
 	TAsset			mFragmentShader;
 	
-	Array<TUniform>	mUniforms;
-	Array<TUniform>	mAttributes;
+	Array<SoyGraphics::TUniform>	mUniforms;
+	Array<SoyGraphics::TUniform>	mAttributes;
 };
 
 
@@ -262,7 +260,7 @@ public:
 class Opengl::TGeometry
 {
 public:
-	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const Opengl::TGeometryVertex& Vertex);
+	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex);
 	~TGeometry();
 
 	void	Draw();
@@ -271,8 +269,10 @@ public:
 	void	Bind();
 	void	Unbind();
 	
+	static void	EnableAttribs(const SoyGraphics::TGeometryVertex& Descripton,bool Enable=true);
+
 public:
-	TGeometryVertex	mVertexDescription;	//	for attrib binding info
+	SoyGraphics::TGeometryVertex	mVertexDescription;	//	for attrib binding info
 	GLuint			mVertexArrayObject;
 	GLuint			mVertexBuffer;
 	GLsizei			mVertexCount;
@@ -394,7 +394,7 @@ public:
 	void				Unbind() const;
 	bool				IsValid(bool InvasiveTest=true) const;	//	only use InvasiveTest on opengl threads
 	void				Delete();
-	void				Write(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
+	void				Write(const SoyPixelsImpl& Pixels,SoyGraphics::TTextureUploadParams Params=SoyGraphics::TTextureUploadParams());
 	void				Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat=SoyPixelsFormat::Invalid,bool Flip=true) const;
 	void				SetRepeat(bool Repeat=true);
 	void				SetFilter(bool Linear);		//	as soon as we need it, implement min/mag options and mipmap levels rather than nearest/linear

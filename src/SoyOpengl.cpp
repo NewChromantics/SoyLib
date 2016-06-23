@@ -5,12 +5,23 @@
 #include <regex>
 
 
+typedef SoyGraphics::TUniform TUniform;
+
 std::ostream& operator<<(std::ostream& out,const Opengl::TTextureMeta& MetaAndType)
 {
 	out << MetaAndType.mMeta << '/' << Opengl::GetEnumString( MetaAndType.mType );
 	return out;
 }
 
+namespace SoyGraphics
+{
+	TElementType::Type	GetType(GLenum Type);
+}
+
+namespace Opengl
+{
+	GLenum				GetType(SoyGraphics::TElementType::Type Type);
+}
 
 
 class TPixelFormatMapping
@@ -214,15 +225,6 @@ std::string Opengl::GetEnumString(GLenum Type)
 	return Unknown.str();
 }
 
-std::ostream& Opengl::operator<<(std::ostream &out,const Opengl::TUniform& in)
-{
-	out << "#" << in.mIndex << " ";
-	out << in.mType;
-	if ( in.mArraySize != 1 )
-		out << "[" << in.mArraySize << "]";
-	out << " " << in.mName;
-	return out;
-}
 
 
 
@@ -1193,7 +1195,7 @@ void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBr
 }
 
 
-void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,Opengl::TTextureUploadParams Params)
+void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTextureUploadParams Params)
 {
 	std::stringstream WholeFunctionContext;
 	WholeFunctionContext << __func__ << " (" << SourcePixels.GetMeta() << "->" << this->GetMeta() << ")";
@@ -1662,7 +1664,7 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
 	Opengl_IsOkay();
 }
 
-Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context)
+Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context)
 {
 	std::string ShaderNameVert = ShaderName + " (vert)";
 	std::string ShaderNameFrag = ShaderName + " (frag)";
@@ -1751,8 +1753,10 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		
 		GLsizei actualLength = 0;
 		GLenum Type;
-		glGetActiveAttrib( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Type, &nameData[0]);
-		Uniform.SetType( Type );
+		GLsizei ArraySize = 0;
+		glGetActiveAttrib( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &ArraySize, &Type, &nameData[0]);
+		Uniform.mArraySize = ArraySize;
+		Uniform.mType = SoyGraphics::GetType( Type );
 		Uniform.mName = std::string( nameData.data(), actualLength );
 		
 		//	todo: check is valid type etc
@@ -1768,8 +1772,10 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		
 		GLsizei actualLength = 0;
 		GLenum Type;
-		glGetActiveUniform( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &Uniform.mArraySize, &Type, &nameData[0]);
-		Uniform.SetType( Type );
+		GLsizei ArraySize = 0;
+		glGetActiveUniform( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &ArraySize, &Type, &nameData[0]);
+		Uniform.mArraySize = ArraySize;
+		Uniform.mType = SoyGraphics::GetType( Type );
 		Uniform.mName = std::string( nameData.data(), actualLength );
 		
 		//	todo: check is valid type etc
@@ -1820,44 +1826,9 @@ Opengl::TShader::~TShader()
 }
 
 
-size_t Opengl::TGeometryVertex::GetDataSize() const
+void Opengl::TGeometry::EnableAttribs(const SoyGraphics::TGeometryVertex& Descripton,bool Enable)
 {
-	size_t Size = 0;
-	for ( int e=0;	e<mElements.GetSize();	e++ )
-		Size += mElements[e].mElementDataSize;
-	return Size;
-}
-
-size_t Opengl::TGeometryVertex::GetOffset(size_t ElementIndex) const
-{
-	size_t Size = 0;
-	for ( int e=0;	e<ElementIndex;	e++ )
-		Size += mElements[e].mElementDataSize;
-	return Size;
-}
-
-size_t Opengl::TGeometryVertex::GetStride(size_t ElementIndex) const
-{
-	//	gr: this is for interleaved vertexes
-	//	todo: handle serial elements AND mixed interleaved & serial
-	//	serial elements would be 0
-	size_t Stride = GetDataSize();
-	Stride -= mElements[ElementIndex].mElementDataSize;
-	return Stride;
-}
-
-size_t Opengl::TGeometryVertex::GetVertexSize() const
-{
-	size_t Size = 0;
-	for ( int e=0;	e<mElements.GetSize();	e++ )
-		Size += mElements[e].mElementDataSize;
-
-	return Size;
-}
-
-
-void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
-{
+	auto& mElements = Descripton.mElements;
 	for ( int at=0;	at<mElements.GetSize();	at++ )
 	{
 		auto& Element = mElements[at];
@@ -1871,7 +1842,7 @@ void Opengl::TGeometryVertex::EnableAttribs(bool Enable) const
 	}
 }
 
-Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const Opengl::TGeometryVertex& Vertex) :
+Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex) :
 	mVertexBuffer( GL_ASSET_INVALID ),
 	mIndexBuffer( GL_ASSET_INVALID ),
 	mVertexArrayObject( GL_ASSET_INVALID ),
@@ -1912,7 +1883,7 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 
 		//std::Debug << "Pushing attrib " << AttribIndex << ", arraysize " << Element.mArraySize << ", stride " << Stride << std::endl;
 		glEnableVertexAttribArray( AttribIndex );
-		glVertexAttribPointer( AttribIndex, Element.mArraySize, Element.GetTypeEnum(), Normalised, Stride, ElementPointer );
+		glVertexAttribPointer( AttribIndex, Element.mArraySize, GetType(Element.mType), Normalised, Stride, ElementPointer );
 		Opengl_IsOkay();
 	}
 	
@@ -1978,14 +1949,14 @@ void Opengl::TGeometry::Draw()
 	Opengl_IsOkay();
 
 #if defined(TARGET_IOS)
-	static bool EnableAttribs = false;
+	static bool DoEnableAttribs = false;
 #else
-	static bool EnableAttribs = true;
+	static bool DoEnableAttribs = true;
 #endif
-	if ( EnableAttribs )
+	if ( DoEnableAttribs )
 	{
 		//	should be left enabled
-		mVertexDescription.EnableAttribs();
+		EnableAttribs(mVertexDescription);
 		Opengl_IsOkay();
 	}
 

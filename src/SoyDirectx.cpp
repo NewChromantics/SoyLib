@@ -860,7 +860,7 @@ void Directx::TRenderTarget::ClearStencil(TContext& ContextDx)
 	std::Debug << "Render target stencil not currently implemented" << std::endl;
 }
 
-Directx::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& _Indexes,const Opengl::TGeometryVertex& Vertex,TContext& ContextDx) :
+Directx::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& _Indexes,const SoyGraphics::TGeometryVertex& Vertex,TContext& ContextDx) :
 	mVertexDescription	( Vertex ),
 	mIndexCount			( 0 )
 {
@@ -1207,7 +1207,7 @@ Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& F
 }
 
 
-Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const Opengl::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& ContextDx) :
+Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& ContextDx) :
 	mBoundContext	( nullptr )
 {
 	auto& Device = ContextDx.LockGetDevice();
@@ -1233,9 +1233,9 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 }
 
 
-DXGI_FORMAT GetType(const std::string& Type,size_t Length)
+DXGI_FORMAT GetType(const SoyGraphics::TElementType::Type& Type,size_t Length)
 {
-	if ( Type == Soy::GetTypeName<float>() )
+	if ( Type == SoyGraphics::TElementType::Float )
 	{
 		if ( Length == 1 )	return DXGI_FORMAT_R32_FLOAT;
 		if ( Length == 2 )	return DXGI_FORMAT_R32G32_FLOAT;
@@ -1243,11 +1243,10 @@ DXGI_FORMAT GetType(const std::string& Type,size_t Length)
 		if ( Length == 4 )	return DXGI_FORMAT_R32G32B32A32_FLOAT;
 	}
 
-	Soy::Assert( false, "Unhandled type");
-	return DXGI_FORMAT_UNKNOWN;
+	throw Soy::AssertException("Unhandled graphics uniform type -> DXGI_FORMAT");
 }
 
-void Directx::TShader::MakeLayout(const Opengl::TGeometryVertex& Vertex,TShaderBlob& ShaderBlob,ID3D11Device& Device)
+void Directx::TShader::MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TShaderBlob& ShaderBlob,ID3D11Device& Device)
 {
 	Array<D3D11_INPUT_ELEMENT_DESC> Layouts;
 
