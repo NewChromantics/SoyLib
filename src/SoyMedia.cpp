@@ -2100,7 +2100,9 @@ std::shared_ptr<TPixelBuffer> TPixelBufferManager::PopPixelBuffer(SoyTime& Times
 	{
 		if ( mFrames.size() < MinBufferSize )
 		{
-			std::Debug << "Waiting for " << (MinBufferSize-mFrames.size()) << " more frames to buffer..." << std::endl;
+			static bool DebugMinBufferSize = false;
+			if ( DebugMinBufferSize )
+				std::Debug << "Waiting for " << (MinBufferSize-mFrames.size()) << " more frames to buffer..." << std::endl;
 			return nullptr;
 		}
 	}
