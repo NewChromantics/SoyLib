@@ -2278,6 +2278,7 @@ TMediaPassThroughEncoder::TMediaPassThroughEncoder(std::shared_ptr<TMediaPacketB
 
 void TMediaPassThroughEncoder::Write(const Opengl::TTexture& Image,SoyTime Timecode,Opengl::TContext& Context)
 {
+#if defined(ENABLE_OPENGL)
 	//	todo: proper opengl -> CvPixelBuffer
 	
 	//	gr: Avf won't accept RGBA, but it will take RGB so we can force reading that format here
@@ -2295,12 +2296,13 @@ void TMediaPassThroughEncoder::Write(const Opengl::TTexture& Image,SoyTime Timec
 		Write( Pixels, Timecode );
 	};
 	Context.PushJob( ReadPixels );
+#endif
 }
 
 
 void TMediaPassThroughEncoder::Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context)
 {
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 	
 	if ( Image.GetMode() != Directx::TTextureMode::ReadOnly )
 	{
@@ -2386,6 +2388,7 @@ TTextureBuffer::TTextureBuffer(std::shared_ptr<Directx::TTexture> Texture,std::s
 
 TTextureBuffer::~TTextureBuffer()
 {
+#if defined(ENABLE_OPENGL)
 	if ( mOpenglTexture && mOpenglTexturePool )
 	{
 		try
@@ -2402,8 +2405,9 @@ TTextureBuffer::~TTextureBuffer()
 		Opengl::DeferDelete( mOpenglContext, mOpenglTexture );
 		mOpenglContext.reset();
 	}
+#endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 	if ( mDirectxTexture && mDirectxTexturePool )
 	{
 		try

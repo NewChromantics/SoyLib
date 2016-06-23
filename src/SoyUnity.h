@@ -1,13 +1,15 @@
 #pragma once
 
-#include "SoyOpenglContext.h"
 
+#if defined(ENABLE_OPENGL)
+#include "SoyOpenglContext.h"
+#endif
 
 #if defined(ENABLE_CUDA)
 #include <SoyCuda.h>
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 #include <SoyDirectx.h>
 #endif
 
@@ -17,6 +19,16 @@
 #define ENABLE_METAL
 #endif
 
+#include "SoyPixels.h"
+//#include <string>
+//#include "SoyEnum.h"
+
+
+//	forward declartions for non-supported platforms
+namespace Opengl
+{
+	class TContext;
+}
 
 
 //	todo: move this out of Unity namespace
@@ -176,7 +188,7 @@ namespace Unity
 	Opengl::TContext&				GetOpenglContext();
 	std::shared_ptr<Opengl::TContext>&	GetOpenglContextPtr();
 	bool							HasOpenglContext();
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 	Directx::TContext&				GetDirectxContext();
 	std::shared_ptr<Directx::TContext>&	GetDirectxContextPtr();
 	bool							HasDirectxContext();

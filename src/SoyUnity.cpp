@@ -1,14 +1,16 @@
 #include "SoyUnity.h"
 #include "SoyDebug.h"
 #include <sstream>
+#if defined(ENABLE_OPENGL)
 #include "SoyOpenglContext.h"
+#endif
 #include "SoyExportManager.h"
 #include "SoyFilesystem.h"
 
 //	new interfaces in 5.2+
 #include "Unity/IUnityInterface.h"
 #include "Unity/IUnityGraphics.h"
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 class IDirect3D9;
 class IDirect3DDevice9;
 #include "Unity/IUnityGraphicsD3D9.h"
@@ -368,12 +370,14 @@ void Unity::RenderEvent(Unity::sint eventID)
 	ofScopeTimerWarning Timer(__func__,gRenderEventTimerMs);
 
 	//	iterate current context
+#if defined(ENABLE_OPENGL)
 	if (Unity::OpenglContext)
 	{
 		Unity::OpenglContext->Iteration();
 	}
+#endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 	if ( Unity::DirectxContext )
 	{
 		Unity::DirectxContext->Iteration();
@@ -459,6 +463,7 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 	//	allocate appropriate context and init
 	switch ( Device )
 	{
+#if defined(ENABLE_OPENGL)
 		case UnityDevice::kGfxRendererOpenGL:
 		case UnityDevice::kGfxRendererOpenGLES20:
 		case UnityDevice::kGfxRendererOpenGLES30:
@@ -475,8 +480,9 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 
 		}
 		break;
+#endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 		case UnityDevice::kGfxRendererD3D11:
 		case UnityDevice::kGfxRendererD3D12:
 		{

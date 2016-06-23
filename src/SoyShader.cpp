@@ -1,8 +1,10 @@
 #include "SoyShader.h"
 #include "Array.hpp"
 #include "SoyString.h"
-#include "SoyOpengl.h"
 
+#if defined(ENABLE_OPENGL)
+#include "SoyOpengl.h"
+#endif
 
 size_t GetNonProcessorFirstLine(ArrayBridge<std::string>& Shader)
 {
@@ -61,7 +63,9 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 	{
 		std::string Profile;
 		
-#if defined(OPENGL_ES)
+#if !defined(ENABLE_OPENGL)
+		Profile = "Not supported";
+#elif defined(OPENGL_ES)
 		//	don't specificy a profile for 1.0 (es2)
 		Profile = "es";
 		if ( Version <= Soy::TVersion(1,0) )
