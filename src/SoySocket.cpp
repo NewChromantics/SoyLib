@@ -3,10 +3,28 @@
 #include <regex>
 
 
-#if defined(TARGET_POSIX)
+
+#if defined(TARGET_PS4)
+
+#include <netinet\in.h>
+#define SOMAXCONN	0
+#define close sceKernelClose
+in_addr_t inet_addr(const char*)
+{
+	return 0; 
+}
+
+#elif defined(TARGET_POSIX)
+
 #include <fcntl.h>	//	fcntl
 #include <unistd.h>	//	close
 #include <netdb.h>	//	gethostbyname
+#include <signal.h>
+
+#else
+
+#include <signal.h>
+
 #endif
 
 
@@ -21,6 +39,9 @@ bool Soy::Winsock::HasError(std::stringstream&& ErrorContext, bool BlockIsError,
 
 SoySockAddr::SoySockAddr(const std::string& Hostname,const uint16 Port)
 {
+#if defined(TARGET_PS4)
+	throw Soy::AssertException("SoySockAddr not implemented");
+#else
 	std::string PortName = Soy::StreamToString( std::stringstream() << Port );
 
 	//	ipv6 friendly host fetch
@@ -34,12 +55,17 @@ SoySockAddr::SoySockAddr(const std::string& Hostname,const uint16 Port)
 
 	*this = SoySockAddr( *pHostAddrInfo );
 	freeaddrinfo( pHostAddrInfo );
+#endif
 }
 
 SoySockAddr::SoySockAddr(struct addrinfo& AddrInfo)
 {
+#if defined(TARGET_PS4)
+	throw Soy::AssertException("SoySockAddr not implemented");
+#else
 	//	copy
 	memcpy( &mAddr, AddrInfo.ai_addr, AddrInfo.ai_addrlen );
+#endif
 }
 
 SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
@@ -51,6 +77,8 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 	auto ExpectedLength = __SOCK_SIZE__;
 #elif defined(TARGET_WINDOWS)
 	auto ExpectedLength = sizeof(sockaddr_storage);
+#elif defined(TARGET_PS4)
+	auto ExpectedLength = sizeof(sockaddr);
 #endif
 
 	//	gr: on windows, accepting unity WWW connection was 16 bytes...
@@ -78,6 +106,9 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 
 SoySockAddr::SoySockAddr(in_addr_t AddressIp4,uint16 Port)
 {
+#if defined(TARGET_PS4)
+	throw Soy::AssertException("Not implemented");
+#else
 	auto& Addr4 = *reinterpret_cast<sockaddr_in*>(&mAddr);
 
 	//	gr: find a proper function for this
@@ -87,6 +118,7 @@ SoySockAddr::SoySockAddr(in_addr_t AddressIp4,uint16 Port)
 	Addr4.sin_len = sizeof(sockaddr_in);
 #endif
 	Addr4.sin_addr.s_addr = AddressIp4;
+#endif
 }
 
 
@@ -105,16 +137,31 @@ socklen_t SoySockAddr::GetSockAddrLength() const
 	auto* SockAddrIn = GetSockAddr();
 	
 	if ( SockAddrIn->sa_family == AF_INET )
+	{
+#if defined(TARGET_PS4)
+		return sizeof(sockaddr);
+#else
 		return sizeof(sockaddr_in);
-	
+#endif
+	}
+
 	if ( SockAddrIn->sa_family == AF_INET6 )
+	{
+#if defined(TARGET_PS4)
+		throw Soy::AssertException("IPv6 not supported on ps4");
+#else
 		return sizeof(sockaddr_in6);
+#endif
+	}
 
 	return 0;
 }
 
 std::ostream& operator<< (std::ostream &out,const SoySockAddr &Addr)
 {
+#if defined(TARGET_PS4)
+	out << "<some ip>";
+#else
 	BufferArray<char,100> Host(100);
 	BufferArray<char,100> Port(100);
 	int Flags = 0;
@@ -152,6 +199,7 @@ std::ostream& operator<< (std::ostream &out,const SoySockAddr &Addr)
 	out << Buffer.GetArray();
 #endif
 */
+#endif
 	return out;
 }
 
@@ -163,7 +211,6 @@ std::ostream& operator<< (std::ostream &out,const SoySocketConnection &in)
 }
 
 
-#include <signal.h>
 bool Soy::Winsock::Init()
 {
 #if defined(TARGET_WINDOWS)
@@ -328,7 +375,7 @@ bool SoySocket::CreateTcp(bool Blocking)
 	}
 
 	//	turn off SIGPIPE signals for broken pipe read/writing
-#if !defined(TARGET_ANDROID)
+#if !defined(TARGET_ANDROID) && !defined(TARGET_PS4)
 	bool EnableSigPipe = false;
 	if ( !EnableSigPipe )
 	{

@@ -101,13 +101,10 @@
     <ClCompile Include="..\src\SoyScope.cpp" />
     <ClCompile Include="..\src\SoyShader.cpp" />
     <ClCompile Include="..\src\SoySocket.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\src\SoySocketStream.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="..\src\SoySocketStream.cpp" />
     <ClCompile Include="..\src\SoySrt.cpp" />
     <ClCompile Include="..\src\SoyStream.cpp" />
     <ClCompile Include="..\src\SoyString.cpp" />

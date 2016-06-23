@@ -692,13 +692,12 @@ std::string Platform::GetBundleIdentifier()
 {
 	return Java::GetBundleIdentifier();
 }
-#endif
-
-
-#if defined(TARGET_WINDOWS)
+#elif defined(TARGET_IOS)
+//	in mm
+#else
 std::string Platform::GetBundleIdentifier()
 {
-	return "Todo:BundleIdentifierForWindows";
+	return "Todo:BundleIdentifier";
 }
 #endif
 

@@ -1,9 +1,14 @@
 #include "SoyThread.h"
 #include "SoyDebug.h"
+
 #if defined(PLATFORM_OSX)
 #include <pthread.h>
 #endif
 
+#if defined(TARGET_PS4)
+#include <pthread.h>
+#include <pthread_np.h>
+#endif
 
 namespace Java
 {
@@ -385,6 +390,8 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 		return;
 	}
 	auto Result = pthread_setname_np( Name.c_str() );
+#elif defined(TARGET_PS4)
+	auto Result = pthread_rename_np( ThreadId, Name.c_str() );
 #else
 	auto Result = pthread_setname_np( ThreadId, Name.c_str() );
 #endif

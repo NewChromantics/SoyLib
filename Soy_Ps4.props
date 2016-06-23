@@ -4,7 +4,9 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <IncludePath>$(SOY_PATH)/src;../;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SOY_PATH)\soylib.visualstudio\Bin\$(Platform);$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SOY_PATH)\soylib.visualstudio\Bin\$(Platform);$(SolutionDir)$(Platform)_$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <OutDir>$(ProjectDir)Bin\$(Platform)\</OutDir>
+    <IntDir>$(ProjectDir)Build\$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -13,6 +15,9 @@
       <DisableSpecificWarnings>reorder</DisableSpecificWarnings>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>SoyLib.a;-lScePosix_stub_weak;-lSceNet_stub_weak;-lSceNetCtl_stub_weak;-lSceNetDebug_stub_weak</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup />
 </Project>
