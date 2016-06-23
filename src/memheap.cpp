@@ -553,7 +553,7 @@ void prmem::HeapDebug::OnAlloc(const void* Object,const std::string& Typename,si
 	AllocItem.mElements = ElementCount;
 	AllocItem.mTypeSize = TypeSize;
 	AllocItem.mTypename = &Typename;
-	AllocItem.mAllocTick = ofGetElapsedTimeMillis();
+	AllocItem.mAllocTick = SoyTime::Now();
 
 	//	save callstack address
 #if defined(ENABLE_STACKTRACE)
@@ -740,8 +740,8 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 		std::Debug << AllocInfo.ToString();
 		
 		//	show age
-		auto AgeSecs = (ofGetElapsedTimeMillis() - AllocInfo.mAllocTick) / 1000;
-		std::Debug << " " << AgeSecs << " secs ago.";
+		auto AgeTime = SoyTime::Now() - AllocInfo.mAllocTick;
+		std::Debug << " " << AgeTime.GetSecondsf() << " secs ago.";
 
 		//	show callstack
 #if defined(ENABLE_STACKTRACE)
@@ -833,21 +833,6 @@ void GetCRTHeapUsage(uint32& AllocCount,uint32& AllocBytes)
 }
 
 
-class ofTimer
-{
-public:
-	ofTimer() :
-		mStartTime	( ofGetElapsedTimef() )
-	{
-	}
-
-	float		GetTimeSeconds() const	{	return ofGetElapsedTimef() - mStartTime;	}
-
-public:
-	float		mStartTime;	//	ofGetElapsedTimef
-};
-
-
 prmem::CRTHeap::CRTHeap(bool EnableDebug) :
 	HeapInfo	( "Default CRT Heap" )
 {
@@ -876,10 +861,10 @@ void prmem::CRTHeap::Update()
 
 	//	gr: I've added a throttle to this, _CrtMemCheckpoint() actually takes between
 	//		0 and 1 ticks to execute, but it may be locking the heap which might intefere with other threads.
-	static ofTimer UpdateHeapStatsTimer;
-	if ( UpdateHeapStatsTimer.GetTimeSeconds() < (1.f/30.f) )
+	static SoyTime UpdateHeapStatsTimer;
+	if ( (SoyTime::Now() - UpdateHeapStatsTimer).GetSecondsf() < (1.f/30.f) )
 		return;
-	UpdateHeapStatsTimer = ofTimer();
+	UpdateHeapStatsTimer = SoyTime::Now();
 	
 	
 	uint32 CrtAllocCount=0,CrtAllocBytes=0,ProcessHeapAllocCount=0,ProcessHeapAllocBytes=0;

@@ -246,14 +246,14 @@ public:
 			DidReport = Report();
 		
 		mStopped = true;
-		return SoyTime( Delta );
+		return std::chrono::milliseconds( Delta );
 	}
 	bool				Report(bool Force=false)
 	{
 		if ( mAccumulatedTime >= mWarningTimeMs || Force )
 		{
 			if ( mReportFunc )
-				mReportFunc( SoyTime(mAccumulatedTime) );
+				mReportFunc( std::chrono::milliseconds(mAccumulatedTime) );
 			//else
 			//	std::Debug << mName << " took " << mAccumulatedTime << "ms to execute" << std::endl;
 			return true;
