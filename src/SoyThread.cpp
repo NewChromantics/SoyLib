@@ -313,8 +313,10 @@ std::thread::native_handle_type SoyThread::GetCurrentThreadNativeHandle()
 {
 #if defined(TARGET_WINDOWS)
 	return ::GetCurrentThread();
-#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
+#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)||defined(TARGET_PS4)
 	return ::pthread_self();
+#else
+#error SoyThread::GetCurrentThreadNativeHandle Platform not handled
 #endif
 }
 

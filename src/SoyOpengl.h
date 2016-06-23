@@ -3,7 +3,7 @@
 #include "SoyEvent.h"
 #include "SoyMath.h"
 #include "SoyPixels.h"
-#include "SoyUniform.h"
+#include "SoyGraphics.h"
 
 
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
@@ -168,28 +168,6 @@ std::ostream& operator<<(std::ostream &out,const Opengl::TUniform& in);
 }
 
 
-class Opengl::TGeometryVertexElement : public TUniform
-{
-public:
-	size_t		mElementDataSize;
-	bool		mNormalised;
-};
-
-class Opengl::TGeometryVertex
-{
-public:
-	size_t							GetDataSize() const;	//	size of vertex struct
-	size_t							GetOffset(size_t ElementIndex) const;
-	size_t							GetStride(size_t ElementIndex) const;
-	size_t							GetVertexSize() const;
-
-	void							EnableAttribs(bool Enable=true) const;
-	void							DisableAttribs() const				{	EnableAttribs(false);	}
-	
-public:
-	Array<TGeometryVertexElement>	mElements;
-};
-
 
 //	gr: for now, POD, no virtuals...
 class Opengl::TAsset
@@ -335,25 +313,6 @@ public:
 	GLenum			mIndexType;		//	short/int etc data stored in index buffer
 };
 
-
-class Opengl::TTextureUploadParams
-{
-public:
-	TTextureUploadParams() :
-		mStretch				( false ),
-		mAllowCpuConversion		( true ),
-		mAllowOpenglConversion	( true ),
-		mAllowClientStorage		( false ),		//	currently unstable on texture release?
-		mGenerateMipMaps		( false )
-	{
-	};
-	
-	bool	mStretch;				//	if smaller, should we stretch (subimage vs teximage)
-	bool	mAllowCpuConversion;
-	bool	mAllowOpenglConversion;
-	bool	mAllowClientStorage;
-	bool	mGenerateMipMaps;		//	should we generate mip maps afterwards
-};
 
 
 class Opengl::TTextureMeta

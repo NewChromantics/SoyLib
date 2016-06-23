@@ -148,6 +148,9 @@
     <ClCompile Include="..\src\SoyMediaFoundation.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\SoyGraphics.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\SoyThread.h">
@@ -334,6 +337,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\SoyTypes_Ps4.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyGraphics.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
