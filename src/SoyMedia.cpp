@@ -327,11 +327,11 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 {
 	//	apparently (not seen it yet) in some formats (eg. ts) some players (eg. vlc) can't cope if DTS is same as PTS
-	static SoyTime DecodeToPresentationOffset( 1ull );
+	static SoyTime DecodeToPresentationOffset( std::chrono::milliseconds(1) );
 	static bool DebugCorrection = false;
 
 	if ( !mLastPacketTimestamp.IsValid() )
-		mLastPacketTimestamp = SoyTime( 1ull ) + DecodeToPresentationOffset;
+		mLastPacketTimestamp = SoyTime( std::chrono::milliseconds(1) ) + DecodeToPresentationOffset;
 	
 	//	gr: if there is no decode timestamp, assume it needs to be in the order it comes in
 	if ( !Packet.mDecodeTimecode.IsValid() )
@@ -977,7 +977,7 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 		if ( mParams.mPreSeek.IsValid() )
 		{
 			std::Debug << "Using preseek, so skipping mFirstTimestamp " << std::endl;
-			mFirstTimestamp = SoyTime( 1ull );
+			mFirstTimestamp = SoyTime( std::chrono::milliseconds(1) );
 		}
 		/*
 		//	disregard pre seek
@@ -1109,7 +1109,7 @@ SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
 		intpart++;
 	}
 	
-	auto SampleTimeMs = size_cast<uint64>( intpart );
+	auto SampleTimeMs = std::chrono::milliseconds( static_cast<int>(intpart) );
 	return mStartTime + SoyTime(SampleTimeMs);
 }
 
@@ -2341,7 +2341,7 @@ void TMediaPassThroughEncoder::Write(std::shared_ptr<SoyPixelsImpl> pImage,SoyTi
 	
 	//	stop timecode correction by setting decode timecode (must be valid)
 	if ( !Timecode.IsValid() )
-		Timecode = SoyTime(1ull);
+		Timecode = SoyTime( std::chrono::milliseconds(1) );
 	Packet.mTimecode = Timecode;
 	Packet.mDecodeTimecode = Timecode;
 	

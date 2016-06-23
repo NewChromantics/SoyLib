@@ -7,6 +7,7 @@
 #if defined(TARGET_OSX)||defined(TARGET_IOS)
 #include <sys/time.h>
 #endif
+#include <chrono>
 
 
 class SoyTime;
@@ -23,23 +24,6 @@ namespace Soy
 	}
 }
 
-
-inline unsigned long long	ofGetSystemTime()
-{
-#if defined(TARGET_WINDOWS)
-	return timeGetTime();
-#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
-	struct timeval now;
-	gettimeofday( &now, NULL );
-	return
-	(unsigned long long) now.tv_usec/1000 +
-	(unsigned long long) now.tv_sec*1000;
-#else 
-#error GetSystemTime undefined on target
-#endif
-}
-inline unsigned long long	ofGetElapsedTimeMillis()	{	return ofGetSystemTime();	}	//	gr: offrameworks does -StartTime
-inline float				ofGetElapsedTimef()			{	return static_cast<float>(ofGetElapsedTimeMillis()) / 1000.f;	}
 
 
 //	gr: repalce uses of this with SoyTime
@@ -74,8 +58,12 @@ public:
 		mTime	( InitToNow ? Now().GetTime() : 0 )
 	{
 	}
-	explicit SoyTime(uint64 Time) :
+	__deprecated_prefix explicit SoyTime(uint64 Time) :
 		mTime	( Time )
+	{
+	}
+	SoyTime(const std::chrono::milliseconds& ms) :
+		mTime	( ms.count() )
 	{
 	}
 	SoyTime(const SoyTime& Time) :
@@ -93,7 +81,7 @@ public:
 
 	uint64			GetTime() const							{	return mTime;	}
 	bool			IsValid() const							{	return mTime!=0;	}
-	static SoyTime	Now()									{	return SoyTime( ofGetElapsedTimeMillis()+1 );	}	//	we +1 so we never have zero for a "real" time
+	static SoyTime	Now();
 	ssize_t			GetDiff(const SoyTime& that) const
 	{
 		ssize_t a = size_cast<ssize_t>( this->GetTime() );
@@ -105,6 +93,7 @@ public:
 	void			SetMicroSeconds(uint64 MicroSecs)		{	mTime = MicroSecs / 1000;	}
 	uint64			GetMicroSeconds() const					{	return mTime * 1000;	}
 	uint64			GetMilliSeconds() const					{	return mTime;	}
+	float			GetSecondsf() const						{	return mTime / 1000.f;	}
 
 	inline bool		operator==(const SoyTime& Time) const	{	return mTime == Time.mTime;	}
 	inline bool		operator!=(const SoyTime& Time) const	{	return mTime != Time.mTime;	}
@@ -116,8 +105,8 @@ public:
 	inline SoyTime&	operator+=(const SoyTime& Step)			{	mTime += Step.GetTime();	return *this;	}
 	inline SoyTime&	operator-=(const uint64& Step) 			{	mTime -= Step;	return *this;	}
 	inline SoyTime&	operator-=(const SoyTime& Step)			{	mTime -= Step.GetTime();	return *this;	}
-	inline SoyTime	operator+(const SoyTime& B) const		{	return SoyTime( mTime + B.mTime );	}
-	inline SoyTime	operator-(const SoyTime& B) const		{	return SoyTime( mTime - B.mTime );	}
+	inline SoyTime	operator+(const SoyTime& B) const		{	return SoyTime( std::chrono::milliseconds(mTime + B.mTime) );	}
+	inline SoyTime	operator-(const SoyTime& B) const		{	return SoyTime( std::chrono::milliseconds(mTime - B.mTime) );	}
 
 public:	//	gr: temporarily public during android/ios merge
 	uint64	mTime;

@@ -2268,7 +2268,7 @@ void Opengl::TSync::Wait(const char* TimerName)
 	
 	//glWaitSync( mSyncObject, 0, GL_TIMEOUT_IGNORED );
 	GLbitfield Flags = GL_SYNC_FLUSH_COMMANDS_BIT;
-	SoyTime Timeout( 1000ull );
+	SoyTime Timeout( std::chrono::milliseconds(1000) );
 	GLuint64 TimeoutNs = Timeout.GetNanoSeconds();
 	GLenum Result = GL_INVALID_ENUM;
 	do
