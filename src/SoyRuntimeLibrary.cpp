@@ -75,6 +75,9 @@ std::string Soy::GetCurrentWorkingDir()
 
 #if defined(TARGET_WINDOWS)
 	while ( !_getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
+#elif defined(TARGET_PS4)
+	throw Soy::AssertException("PS4 doesn't support current working dir");
+	while(false)
 #else
 	while ( !getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
 #endif

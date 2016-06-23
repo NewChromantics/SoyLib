@@ -1,5 +1,5 @@
 #include "SoySocket.h"
-#include <SoyDebug.h>
+#include "SoyDebug.h"
 #include <regex>
 
 
