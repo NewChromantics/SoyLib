@@ -9,17 +9,48 @@ namespace SoyGraphics
 	class TTextureUploadParams;
 	class TGeometryVertex;
 	class TGeometryVertexElement;
+
+	namespace TElementType
+	{
+		enum Type
+		{
+			Invalid,
+			Float,
+		};
+	}
 }
 
 std::ostream& operator<<(std::ostream &out,const SoyGraphics::TTextureUploadParams& in);
 
 
-class SoyGraphics::TGeometryVertexElement : public Soy::TUniform
+
+class SoyGraphics::TGeometryVertexElement
 {
 public:
-	size_t		mElementDataSize;
-	bool		mNormalised;
+	TGeometryVertexElement() :
+		mElementDataSize	( 0 ),
+		mNormalised			( false ),
+		mType				( TElementType::Invalid ),
+		mArraySize			( 0 ),
+		mIndex				( 0 )
+	{
+	}
+
+	template<typename TYPE>
+	void				SetType()	{	throw Soy::AssertException( std::string("Unhandled vertex uniform type ") + Soy::GetTypeName<TYPE>() );	}
+
+public:
+	std::string			mName;
+	size_t				mElementDataSize;
+	bool				mNormalised;
+	TElementType::Type	mType;
+	size_t				mArraySize;	//	for arrays of mType
+	size_t				mIndex;		//	semantic index
 };
+
+template<>
+inline void SoyGraphics::TGeometryVertexElement::SetType<float>()	{	mType = TElementType::Float;	}
+
 
 class SoyGraphics::TGeometryVertex
 {
