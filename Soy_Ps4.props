@@ -1,7 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ImportGroup Label="PropertySheets" />
-  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Label="UserMacros">
+    <PLATFORM_NAME>PS4</PLATFORM_NAME>
+  </PropertyGroup>
   <PropertyGroup>
     <IncludePath>$(SOY_PATH)/src;../;$(IncludePath)</IncludePath>
     <LibraryPath>$(SOY_PATH)\soylib.visualstudio\Bin\$(Platform);$(SolutionDir)$(Platform)_$(Configuration)\;$(LibraryPath)</LibraryPath>
@@ -19,5 +21,10 @@
       <AdditionalDependencies>SoyLib.a;-lScePosix_stub_weak;-lSceNet_stub_weak;-lSceNetCtl_stub_weak;-lSceNetDebug_stub_weak</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <BuildMacro Include="PLATFORM_NAME">
+      <Value>$(PLATFORM_NAME)</Value>
+      <EnvironmentVariable>true</EnvironmentVariable>
+    </BuildMacro>
+  </ItemGroup>
 </Project>
