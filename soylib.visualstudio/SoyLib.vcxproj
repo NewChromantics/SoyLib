@@ -86,15 +86,27 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\src\SoyPixels.cpp" />
-    <ClCompile Include="..\src\SoyPng.cpp" />
+    <ClCompile Include="..\src\SoyPng.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\src\SoyProtocol.cpp" />
     <ClCompile Include="..\src\SoyRef.cpp" />
     <ClCompile Include="..\src\SoyRingArray.cpp" />
-    <ClCompile Include="..\src\SoyRuntimeLibrary.cpp" />
+    <ClCompile Include="..\src\SoyRuntimeLibrary.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\src\SoyScope.cpp" />
     <ClCompile Include="..\src\SoyShader.cpp" />
-    <ClCompile Include="..\src\SoySocket.cpp" />
-    <ClCompile Include="..\src\SoySocketStream.cpp" />
+    <ClCompile Include="..\src\SoySocket.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\src\SoySocketStream.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\src\SoySrt.cpp" />
     <ClCompile Include="..\src\SoyStream.cpp" />
     <ClCompile Include="..\src\SoyString.cpp" />
