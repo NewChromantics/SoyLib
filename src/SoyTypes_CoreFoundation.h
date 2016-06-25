@@ -20,7 +20,7 @@
 #define __noexcept_prefix
 #define __stdcall
 #define __export			extern "C"
-#define __deprecated_prefix	__declspec(deprecated)
+#define __deprecated_prefix	
 
 #if defined(TARGET_IOS)
 #define __thread				//	thread local not supported on IOS devices. todo: make a TLS class!
