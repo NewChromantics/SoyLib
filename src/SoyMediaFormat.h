@@ -1,7 +1,7 @@
 #pragma once
 
 
-#include <SoyPixels.h>
+#include "SoyPixels.h"
 
 
 //	merge this + pixel format at some point

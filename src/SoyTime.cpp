@@ -31,7 +31,7 @@ SoyTime SoyTime::Now()
 {
 #if defined(TARGET_WINDOWS)
 	auto MilliSecs = timeGetTime();
-#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
+#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)||defined(TARGET_PS4)
 	struct timeval now;
 	gettimeofday( &now, NULL );
 	auto MilliSecs = (unsigned long long) now.tv_usec/1000 +

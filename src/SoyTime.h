@@ -4,7 +4,7 @@
 #include <iomanip>
 #include "SoyTypes.h"
 #include "SoyMath.h"	//	just for the range specialisation... maybe move it to reduce includes
-#if defined(TARGET_OSX)||defined(TARGET_IOS)
+#if defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_PS4)
 #include <sys/time.h>
 #endif
 #include <chrono>

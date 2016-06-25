@@ -6,22 +6,28 @@
 
 
 #if defined(TARGET_WINDOWS)
+
 	#include <winsock2.h>
 	#include <ws2tcpip.h>
 	#pragma comment(lib, "Ws2_32.lib")
 	typedef int socklen_t;
 	typedef ULONG in_addr_t;	//	note, not IN_ADDR as that has extra fields we don't need
 	typedef int socket_data_size_t;
+
 #elif defined(TARGET_POSIX)
+
 	#include <sys/socket.h>
+	#include <arpa/inet.h>	//	in_addr_t
+	//	typedef __in_addr_t in_addr_t;
+
+	#if defined(TARGET_PS4)
+		#include <netinet\in.h>
+	#endif
+
 	#define INVALID_SOCKET -1
 	typedef int SOCKET;
 	typedef size_t socket_data_size_t;
-#endif
 
-#if defined(TARGET_POSIX)
-	#include <arpa/inet.h>	//	in_addr_t
-//	typedef __in_addr_t in_addr_t;
 #endif
 
 namespace Soy

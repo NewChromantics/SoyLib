@@ -36,11 +36,6 @@ namespace Opengl
 	class TRenderTargetFbo;
 	
 	
-	//	safe-as-possible deffered delete of an opengl object (pass in your members here!)
-	template<typename TYPE>
-	void	DeferDelete(std::shared_ptr<PopWorker::TJobQueue> Context,std::shared_ptr<TYPE>& pObject,bool ExpectedLast=true);
-
-	
 	//	extension bindings
 	extern std::function<void(GLuint)>					BindVertexArray;
 	extern std::function<void(GLsizei,GLuint*)>			GenVertexArrays;
@@ -150,35 +145,4 @@ public:
 	std::shared_ptr<TFbo>	mFbo;
 	TTexture				mTexture;
 };
-
-
-
-template<typename TYPE>
-inline void Opengl::DeferDelete(std::shared_ptr<PopWorker::TJobQueue> Context,std::shared_ptr<TYPE>& pObject,bool ExpectedLast)
-{
-	if ( !pObject )
-		return;
-	
-	if ( !Context )
-	{
-		std::Debug << __func__ << " Warning; missing opengl context, objects will free immediately in wrong thread" << std::endl;
-		try
-		{
-			pObject.reset();
-		}
-		catch(std::exception& e)
-		{
-			std::Debug << __func__ << " non deffered delete of geo; " << e.what() << std::endl;
-		}
-		return;
-	}
-	
-	//	push deffered delete with copy of object and release local one in this thread
-	//	note: because of race conditions we capture and release the local one first
-	std::shared_ptr<TYPE> LocalpObject = pObject;
-	pObject.reset();
-	std::shared_ptr<PopWorker::TJob> Job( new TDefferedDeleteJob<TYPE>( LocalpObject, ExpectedLast ) );
-	Context->PushJob( Job );
-	LocalpObject.reset();
-}
 

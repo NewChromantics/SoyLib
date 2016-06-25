@@ -89,6 +89,13 @@ void Soy::Platform::DebugPrint(const std::string& Message)
 }
 #endif
 
+#if defined(TARGET_PS4)
+void Soy::Platform::DebugPrint(const std::string& Message)
+{
+#pragma message("Todo debug print")
+}
+#endif
+
 #if defined(USE_HEAP_STRING)
 //	singleton so the heap is created AFTER the heap register
 prmem::Heap& GetDebugStreamHeap()

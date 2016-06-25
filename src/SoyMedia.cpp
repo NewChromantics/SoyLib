@@ -4,10 +4,12 @@
 #include "SoyWave.h"
 
 //gr: this is for the pass through encoder, maybe to avoid this dependancy I can move the pass throughs to their own files...
+#if defined(ENABLE_OPENGL)
 #include "SoyOpenGl.h"
 #include "SoyOpenGlContext.h"
+#endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 #include "SoyDirectx.h"
 #endif
 
@@ -2280,6 +2282,7 @@ TMediaPassThroughEncoder::TMediaPassThroughEncoder(std::shared_ptr<TMediaPacketB
 
 void TMediaPassThroughEncoder::Write(const Opengl::TTexture& Image,SoyTime Timecode,Opengl::TContext& Context)
 {
+#if defined(ENABLE_OPENGL)
 	//	todo: proper opengl -> CvPixelBuffer
 	
 	//	gr: Avf won't accept RGBA, but it will take RGB so we can force reading that format here
@@ -2297,12 +2300,13 @@ void TMediaPassThroughEncoder::Write(const Opengl::TTexture& Image,SoyTime Timec
 		Write( Pixels, Timecode );
 	};
 	Context.PushJob( ReadPixels );
+#endif
 }
 
 
 void TMediaPassThroughEncoder::Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context)
 {
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 	
 	if ( Image.GetMode() != Directx::TTextureMode::ReadOnly )
 	{
@@ -2388,6 +2392,7 @@ TTextureBuffer::TTextureBuffer(std::shared_ptr<Directx::TTexture> Texture,std::s
 
 TTextureBuffer::~TTextureBuffer()
 {
+#if defined(ENABLE_OPENGL)
 	if ( mOpenglTexture && mOpenglTexturePool )
 	{
 		try
@@ -2401,11 +2406,12 @@ TTextureBuffer::~TTextureBuffer()
 
 	if ( mOpenglContext )
 	{
-		Opengl::DeferDelete( mOpenglContext, mOpenglTexture );
+		PopWorker::DeferDelete( mOpenglContext, mOpenglTexture );
 		mOpenglContext.reset();
 	}
+#endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 	if ( mDirectxTexture && mDirectxTexturePool )
 	{
 		try
@@ -2419,7 +2425,7 @@ TTextureBuffer::~TTextureBuffer()
 
 	if ( mDirectxContext )
 	{
-		Opengl::DeferDelete( mDirectxContext, mDirectxTexture );
+		PopWorker::DeferDelete( mDirectxContext, mDirectxTexture );
 		mDirectxContext.reset();
 	}
 #endif

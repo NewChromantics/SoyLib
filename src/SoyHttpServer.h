@@ -1,10 +1,10 @@
 #pragma once
 
-#include <SoySocket.h>
-#include <SoyStream.h>
-#include <SoyHttp.h>
-#include <SoyProtocol.h>
-#include <SoySocketStream.h>
+#include "SoySocket.h"
+#include "SoyStream.h"
+#include "SoyHttp.h"
+#include "SoyProtocol.h"
+#include "SoySocketStream.h"
 #include <future>
 
 
