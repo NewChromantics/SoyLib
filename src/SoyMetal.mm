@@ -3,6 +3,36 @@
 #include <SoyString.h>
 #include <SoyOpengl.h>
 
+
+#if defined(TARGET_OSX) && !defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
+//	need 10.11 sdk for metal on osx
+#error Metal on OSX needs at least sdk 10.11
+#endif
+
+#if defined(ENABLE_METAL)
+	#import <Metal/Metal.h>
+#else
+	#pragma warning Using metal stub
+
+
+typedef NSUInteger MTLPixelFormat;
+enum
+{
+	MTLPixelFormatBGRA8Unorm,
+	MTLPixelFormatBGRA8Unorm_sRGB,
+};
+
+@protocol MTLDevice
+- (id <MTLCommandQueue>)newCommandQueue;
+@end
+
+@protocol MTLCommandBuffer
+- (void)presentDrawable:(id <MTLDrawable>)drawable;
+@end
+
+#endif
+
+
 template<typename ID_TYPE,typename PROTOCOL_BASE_TYPE=NSObject>
 class ObjcWrapper
 {
@@ -135,33 +165,6 @@ ObjcWrapper<ID_TYPE,PROTOCOL_BASE_TYPE>::~ObjcWrapper()
 }
 
 
-#if defined(TARGET_IOS)
-#define ENABLE_METAL
-#elif defined(TARGET_OSX) && defined(AVAILABLE_MAC_OS_X_VERSION_10_11_AND_LATER)
-//	need 10.11 sdk for metal on osx
-#define ENABLE_METAL
-#endif
-
-#if defined(ENABLE_METAL)
-#import <Metal/Metal.h>
-#else
-
-typedef NSUInteger MTLPixelFormat;
-enum
-{
-	MTLPixelFormatBGRA8Unorm,
-	MTLPixelFormatBGRA8Unorm_sRGB,
-};
-
-@protocol MTLDevice
-- (id <MTLCommandQueue>)newCommandQueue;
-@end
-
-@protocol MTLCommandBuffer
-- (void)presentDrawable:(id <MTLDrawable>)drawable;
-@end
-
-#endif
 
 namespace Metal
 {
@@ -422,7 +425,7 @@ SoyPixelsMeta Metal::TTexture::GetMeta() const
 }
 
 
-void Metal::TTexture::Write(const SoyPixelsImpl& Pixels,const Opengl::TTextureUploadParams& Params,TContext& Context)
+void Metal::TTexture::Write(const SoyPixelsImpl& Pixels,const SoyGraphics::TTextureUploadParams& Params,TContext& Context)
 {
 	//	gr: cannot blit pixels that don't align to 64 bytes. Tried to bodge around it, but cannot start a row-copy that's not aligned either. so HAVE to realign :/
 	{
@@ -515,7 +518,7 @@ void Metal::TTexture::Write(const SoyPixelsImpl& Pixels,const Opengl::TTextureUp
 }
 
 
-void Metal::TTexture::Write(const TTexture& That,const Opengl::TTextureUploadParams& Params,TContext& Context)
+void Metal::TTexture::Write(const TTexture& That,const SoyGraphics::TTextureUploadParams& Params,TContext& Context)
 {
 	auto pJob = Context.AllocJob();
 	Soy::Assert( pJob!=nullptr, "Failed to allocate metal job");
