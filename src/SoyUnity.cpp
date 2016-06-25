@@ -692,7 +692,7 @@ std::string Platform::GetBundleIdentifier()
 {
 	return Java::GetBundleIdentifier();
 }
-#elif defined(TARGET_IOS)
+#elif defined(TARGET_IOS)||defined(TARGET_OSX)
 //	in mm
 #else
 std::string Platform::GetBundleIdentifier()
