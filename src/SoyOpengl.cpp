@@ -227,6 +227,25 @@ std::string Opengl::GetEnumString(GLenum Type)
 
 
 
+SoyGraphics::TElementType::Type SoyGraphics::GetType(GLenum Type)
+{
+	switch ( Type )
+	{
+		case GL_FLOAT:	return SoyGraphics::TElementType::Float;
+	}
+
+	throw Soy::AssertException( std::string("Unknown Glenum->SoyGraphics::TElementType::Type conversion for ") + Opengl::GetEnumString(Type) );
+}
+
+GLenum Opengl::GetType(SoyGraphics::TElementType::Type Type)
+{
+	switch ( Type )
+	{
+		case SoyGraphics::TElementType::Float:	return GL_FLOAT;
+	}
+
+	throw Soy::AssertException( std::string("Unknown SoyGraphics::TElementType::Type->Glenum conversion for ") );
+}
 
 template<>
 void Opengl::SetUniform(const TUniform& Uniform,const float3x3& Value)
