@@ -423,8 +423,8 @@ __export void UnityRenderEvent(Unity::sint eventID)
 	//	event triggered by other plugin
 	if ( eventID != Unity::GetPluginEventId() )
 	{
-	//	if ( Unity::mDebugPluginEvent )
-		std::Debug << "UnityRenderEvent(" << eventID << ") Not ours " << Unity::GetPluginEventId() << std::endl;
+		if ( Unity::IsDebugPluginEventEnabled() )
+			std::Debug << "UnityRenderEvent(" << eventID << ") Not ours " << Unity::GetPluginEventId() << std::endl;
 		return;
 	}
 	
