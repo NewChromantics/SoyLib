@@ -232,6 +232,9 @@ SoyGraphics::TElementType::Type SoyGraphics::GetType(GLenum Type)
 	switch ( Type )
 	{
 		case GL_FLOAT:	return SoyGraphics::TElementType::Float;
+			
+		default:
+			break;
 	}
 
 	throw Soy::AssertException( std::string("Unknown Glenum->SoyGraphics::TElementType::Type conversion for ") + Opengl::GetEnumString(Type) );
@@ -241,7 +244,8 @@ GLenum Opengl::GetType(SoyGraphics::TElementType::Type Type)
 {
 	switch ( Type )
 	{
-		case SoyGraphics::TElementType::Float:	return GL_FLOAT;
+		case SoyGraphics::TElementType::Float:		return GL_FLOAT;
+		case SoyGraphics::TElementType::Invalid:	return GL_INVALID_ENUM;
 	}
 
 	throw Soy::AssertException( std::string("Unknown SoyGraphics::TElementType::Type->Glenum conversion for ") );
