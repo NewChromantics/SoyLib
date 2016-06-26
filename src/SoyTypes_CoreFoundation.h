@@ -21,6 +21,7 @@
 #define __stdcall
 #define __export			extern "C"
 #define __deprecated_prefix	
+#define __deprecated		__attribute__((deprecated))
 
 #if defined(TARGET_IOS)
 #define __thread				//	thread local not supported on IOS devices. todo: make a TLS class!

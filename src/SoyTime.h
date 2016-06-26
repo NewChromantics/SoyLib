@@ -58,7 +58,7 @@ public:
 		mTime	( InitToNow ? Now().GetTime() : 0 )
 	{
 	}
-	__deprecated_prefix explicit SoyTime(uint64 Time) :
+	__deprecated_prefix explicit SoyTime(uint64 Time) __deprecated :
 		mTime	( Time )
 	{
 	}
