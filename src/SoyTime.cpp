@@ -3,6 +3,17 @@
 #include <sstream>
 
 
+//	gr: solve this properly and move to somewhere in SoyTypes
+#if defined(TARGET_ANDROID)
+namespace std
+{
+	long long	stoll(const std::string& IntegerStr)
+	{
+		throw Soy::AssertException("todo std::stoll for android");
+	}
+}
+#endif
+
 bool SoyTime::FromString(const std::string& String)
 {
 	std::regex Pattern("T?([0-9]+)$" );
