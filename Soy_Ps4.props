@@ -18,7 +18,7 @@
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>SoyLib.a;-lScePosix_stub_weak;-lSceNet_stub_weak;-lSceNetCtl_stub_weak;-lSceNetDebug_stub_weak</AdditionalDependencies>
+      <AdditionalDependencies>libBink2Orbis.a;SoyLib.a;-lScePosix_stub_weak;-lSceNet_stub_weak;-lSceNetCtl_stub_weak;-lSceNetDebug_stub_weak</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
