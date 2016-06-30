@@ -46,6 +46,10 @@ void	UnityRegisterRenderingPlugin(UnityPluginSetGraphicsDeviceFunc setDevice, Un
 }
 #endif
 
+#if !defined(TARGET_PS4)
+#define ENABLE_UNITY_INTERFACES
+#endif
+
 namespace Platform
 {
 	std::string		GetBundleIdentifier();
@@ -392,7 +396,7 @@ void Unity::RenderEvent(Unity::sint eventID)
 #endif
 }
 
-
+#if defined(ENABLE_UNITY_INTERFACES)
 __export void UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::sint eventType)
 {
 	auto DeviceType = UnityDevice::Validate(deviceType);
@@ -414,7 +418,7 @@ __export void UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::
 		break;
 	};
 }
-
+#endif
 
 
 //	gr: check this is okay with multiple plugins linking, which was the original reason for a unique function name...
@@ -628,6 +632,7 @@ void* GetDeviceContext()
 	return Interface->GetDevice();
 }
 
+#if defined(ENABLE_UNITY_INTERFACES)
 void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType)
 {
 	auto Device = Unity::GraphicsDevice;
@@ -654,9 +659,10 @@ void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType
 
 	UnitySetGraphicsDevice( DeviceContext, DeviceType, eventType );
 }
-
+#endif
 
 // Unity plugin load event
+#if defined(ENABLE_UNITY_INTERFACES)
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnityInterfaces* unityInterfaces)
 {
 	Unity::Interfaces = unityInterfaces;
@@ -668,8 +674,10 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnit
     // to not miss the event in case the graphics device is already initialized
     OnGraphicsDeviceEvent( kUnityGfxDeviceEventInitialize );
 }
+#endif
 
 // Unity plugin unload event
+#if defined(ENABLE_UNITY_INTERFACES)
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
 {
 	if ( Unity::GraphicsDevice )
@@ -678,7 +686,7 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
 		//Unity::GraphicsDevice = nullptr;
 	}
 }
-
+#endif
 
 
 void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
