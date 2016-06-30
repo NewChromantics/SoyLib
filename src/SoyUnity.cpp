@@ -396,9 +396,9 @@ void Unity::RenderEvent(Unity::sint eventID)
 #endif
 }
 
-#if defined(ENABLE_UNITY_INTERFACES)
 __export void UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::sint eventType)
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	auto DeviceType = UnityDevice::Validate(deviceType);
 	auto DeviceEvent = UnityEvent::Validate(eventType);
 
@@ -417,8 +417,10 @@ __export void UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::
 	default:
 		break;
 	};
-}
+#else
+	printf("%s disabled\n",__func__);
 #endif
+}
 
 
 //	gr: check this is okay with multiple plugins linking, which was the original reason for a unique function name...
@@ -428,6 +430,7 @@ __export void UnityRenderEvent_Ios(Unity::sint eventID)
 __export void UnityRenderEvent(Unity::sint eventID)
 #endif
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	//	event triggered by other plugin
 	if ( eventID != Unity::GetPluginEventId() )
 	{
@@ -437,6 +440,9 @@ __export void UnityRenderEvent(Unity::sint eventID)
 	}
 	
 	Unity::RenderEvent( eventID );
+#else
+	printf("%s disabled\n",__func__);
+#endif
 }
 
 
@@ -632,9 +638,9 @@ void* GetDeviceContext()
 	return Interface->GetDevice();
 }
 
-#if defined(ENABLE_UNITY_INTERFACES)
 void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType)
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	auto Device = Unity::GraphicsDevice;
 	if ( !Device )
 	{
@@ -658,13 +664,15 @@ void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType
 	}
 
 	UnitySetGraphicsDevice( DeviceContext, DeviceType, eventType );
-}
+#else
+	printf("%s disabled\n",__func__);
 #endif
+}
 
 // Unity plugin load event
-#if defined(ENABLE_UNITY_INTERFACES)
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnityInterfaces* unityInterfaces)
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	Unity::Interfaces = unityInterfaces;
 	Unity::GraphicsDevice = Unity::Interfaces->Get<IUnityGraphics>();
 
@@ -673,21 +681,24 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnit
     // Run OnGraphicsDeviceEvent(initialize) manually on plugin load
     // to not miss the event in case the graphics device is already initialized
     OnGraphicsDeviceEvent( kUnityGfxDeviceEventInitialize );
-}
+#else
+	printf("%s disabled\n",__func__);
 #endif
+}
 
 // Unity plugin unload event
-#if defined(ENABLE_UNITY_INTERFACES)
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	if ( Unity::GraphicsDevice )
 	{
 		Unity::GraphicsDevice->UnregisterDeviceEventCallback(OnGraphicsDeviceEvent);
 		//Unity::GraphicsDevice = nullptr;
 	}
-}
+#else
+	printf("%s disabled\n",__func__);
 #endif
-
+}
 
 void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
 {
