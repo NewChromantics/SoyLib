@@ -1,6 +1,6 @@
 #pragma once
 
-
+/*
 #if defined(ENABLE_OPENGL)
 #include "SoyOpenglContext.h"
 #endif
@@ -17,6 +17,10 @@
 #include <SoyMetal.h>
 #endif
 
+#if defined(ENABLE_GNM)
+#include <SoyGnm.h>
+#endif
+*/
 #include "SoyPixels.h"
 //#include <string>
 //#include "SoyEnum.h"
@@ -28,6 +32,25 @@ namespace Opengl
 	class TContext;
 }
 
+namespace Directx
+{
+	class TContext;
+}
+
+namespace Cuda
+{
+	class TContext;
+}
+
+namespace Metal
+{
+	class TContext;
+}
+
+namespace Gnm
+{
+	class TContext;
+}
 
 //	todo: move this out of Unity namespace
 namespace Platform
@@ -181,25 +204,28 @@ namespace Unity
 	void				Init(UnityDevice::Type Device,void* DevicePtr);
 	void				Shutdown(UnityDevice::Type Device);
 	void				RenderEvent(Unity::sint EventId);
-	
+
 	//	these throw when accessed if wrong device
-	Opengl::TContext&				GetOpenglContext();
-	std::shared_ptr<Opengl::TContext>&	GetOpenglContextPtr();
-	bool							HasOpenglContext();
-#if defined(ENABLE_DIRECTX)
-	Directx::TContext&				GetDirectxContext();
-	std::shared_ptr<Directx::TContext>&	GetDirectxContextPtr();
-	bool							HasDirectxContext();
-#endif
-#if defined(ENABLE_METAL)
-	Metal::TContext&				GetMetalContext();
-	std::shared_ptr<Metal::TContext>&	GetMetalContextPtr();
-	bool							HasMetalContext();
-#endif
-#if defined(ENABLE_CUDA)
-	std::shared_ptr<Cuda::TContext>	GetCudaContext();
-#endif
-	
+	Opengl::TContext&					GetOpenglContext();
+	std::shared_ptr<Opengl::TContext>	GetOpenglContextPtr();
+	bool								HasOpenglContext();
+
+	Directx::TContext&					GetDirectxContext();
+	std::shared_ptr<Directx::TContext>	GetDirectxContextPtr();
+	bool								HasDirectxContext();
+
+	Metal::TContext&					GetMetalContext();
+	std::shared_ptr<Metal::TContext>	GetMetalContextPtr();
+	bool								HasMetalContext();
+
+	Gnm::TContext&					GetGnmContext();
+	std::shared_ptr<Gnm::TContext>	GetGnmContextPtr();
+	bool							HasGnmContext();
+
+	Cuda::TContext&					GetCudaContext();
+	std::shared_ptr<Cuda::TContext>	GetCudaContextPtr();
+	bool							HasCudaContext();
+
 	SoyPixelsFormat::Type		GetPixelFormat(RenderTexturePixelFormat::Type Format);
 	SoyPixelsFormat::Type		GetPixelFormat(Texture2DPixelFormat::Type Format);
 	void						GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions);
