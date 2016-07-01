@@ -63,6 +63,7 @@
     </ClCompile>
     <ClCompile Include="..\src\SoyEvent.cpp" />
     <ClCompile Include="..\src\SoyFilesystem.cpp" />
+    <ClCompile Include="..\src\SoyGraphics.cpp" />
     <ClCompile Include="..\src\SoyH264.cpp" />
     <ClCompile Include="..\src\SoyHttp.cpp" />
     <ClCompile Include="..\src\SoyHttpConnection.cpp" />
@@ -86,14 +87,23 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\src\SoyPixels.cpp" />
-    <ClCompile Include="..\src\SoyPng.cpp" />
+    <ClCompile Include="..\src\SoyPng.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\src\SoyProtocol.cpp" />
     <ClCompile Include="..\src\SoyRef.cpp" />
     <ClCompile Include="..\src\SoyRingArray.cpp" />
-    <ClCompile Include="..\src\SoyRuntimeLibrary.cpp" />
+    <ClCompile Include="..\src\SoyRuntimeLibrary.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\src\SoyScope.cpp" />
     <ClCompile Include="..\src\SoyShader.cpp" />
-    <ClCompile Include="..\src\SoySocket.cpp" />
+    <ClCompile Include="..\src\SoySocket.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">false</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\src\SoySocketStream.cpp" />
     <ClCompile Include="..\src\SoySrt.cpp" />
     <ClCompile Include="..\src\SoyStream.cpp" />
@@ -135,6 +145,7 @@
     <ClInclude Include="..\src\SoyEvent.h" />
     <ClInclude Include="..\src\SoyExportManager.h" />
     <ClInclude Include="..\src\SoyFilesystem.h" />
+    <ClInclude Include="..\src\SoyGraphics.h" />
     <ClInclude Include="..\src\SoyH264.h" />
     <ClInclude Include="..\src\SoyHttp.h" />
     <ClInclude Include="..\src\SoyHttpConnection.h" />

@@ -1,14 +1,16 @@
 #include "SoyUnity.h"
 #include "SoyDebug.h"
 #include <sstream>
+#if defined(ENABLE_OPENGL)
 #include "SoyOpenglContext.h"
+#endif
 #include "SoyExportManager.h"
 #include "SoyFilesystem.h"
 
 //	new interfaces in 5.2+
 #include "Unity/IUnityInterface.h"
 #include "Unity/IUnityGraphics.h"
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 class IDirect3D9;
 class IDirect3DDevice9;
 #include "Unity/IUnityGraphicsD3D9.h"
@@ -42,6 +44,10 @@ typedef	void	(*UnityPluginSetGraphicsDeviceFunc)(void* device, int deviceType, i
 typedef	void	(*UnityPluginRenderMarkerFunc)(int marker);
 void	UnityRegisterRenderingPlugin(UnityPluginSetGraphicsDeviceFunc setDevice, UnityPluginRenderMarkerFunc renderMarker);
 }
+#endif
+
+#if !defined(TARGET_PS4)
+#define ENABLE_UNITY_INTERFACES
 #endif
 
 namespace Platform
@@ -368,12 +374,14 @@ void Unity::RenderEvent(Unity::sint eventID)
 	ofScopeTimerWarning Timer(__func__,gRenderEventTimerMs);
 
 	//	iterate current context
+#if defined(ENABLE_OPENGL)
 	if (Unity::OpenglContext)
 	{
 		Unity::OpenglContext->Iteration();
 	}
+#endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 	if ( Unity::DirectxContext )
 	{
 		Unity::DirectxContext->Iteration();
@@ -388,9 +396,9 @@ void Unity::RenderEvent(Unity::sint eventID)
 #endif
 }
 
-
 __export void UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::sint eventType)
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	auto DeviceType = UnityDevice::Validate(deviceType);
 	auto DeviceEvent = UnityEvent::Validate(eventType);
 
@@ -409,8 +417,10 @@ __export void UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::
 	default:
 		break;
 	};
+#else
+	printf("%s disabled\n",__func__);
+#endif
 }
-
 
 
 //	gr: check this is okay with multiple plugins linking, which was the original reason for a unique function name...
@@ -420,15 +430,19 @@ __export void UnityRenderEvent_Ios(Unity::sint eventID)
 __export void UnityRenderEvent(Unity::sint eventID)
 #endif
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	//	event triggered by other plugin
 	if ( eventID != Unity::GetPluginEventId() )
 	{
-	//	if ( Unity::mDebugPluginEvent )
-		std::Debug << "UnityRenderEvent(" << eventID << ") Not ours " << Unity::GetPluginEventId() << std::endl;
+		if ( Unity::IsDebugPluginEventEnabled() )
+			std::Debug << "UnityRenderEvent(" << eventID << ") Not ours " << Unity::GetPluginEventId() << std::endl;
 		return;
 	}
 	
 	Unity::RenderEvent( eventID );
+#else
+	printf("%s disabled\n",__func__);
+#endif
 }
 
 
@@ -459,6 +473,7 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 	//	allocate appropriate context and init
 	switch ( Device )
 	{
+#if defined(ENABLE_OPENGL)
 		case UnityDevice::kGfxRendererOpenGL:
 		case UnityDevice::kGfxRendererOpenGLES20:
 		case UnityDevice::kGfxRendererOpenGLES30:
@@ -475,8 +490,9 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 
 		}
 		break;
+#endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 		case UnityDevice::kGfxRendererD3D11:
 		case UnityDevice::kGfxRendererD3D12:
 		{
@@ -624,6 +640,7 @@ void* GetDeviceContext()
 
 void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType)
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	auto Device = Unity::GraphicsDevice;
 	if ( !Device )
 	{
@@ -647,12 +664,15 @@ void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType
 	}
 
 	UnitySetGraphicsDevice( DeviceContext, DeviceType, eventType );
+#else
+	printf("%s disabled\n",__func__);
+#endif
 }
-
 
 // Unity plugin load event
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnityInterfaces* unityInterfaces)
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	Unity::Interfaces = unityInterfaces;
 	Unity::GraphicsDevice = Unity::Interfaces->Get<IUnityGraphics>();
 
@@ -661,19 +681,24 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnit
     // Run OnGraphicsDeviceEvent(initialize) manually on plugin load
     // to not miss the event in case the graphics device is already initialized
     OnGraphicsDeviceEvent( kUnityGfxDeviceEventInitialize );
+#else
+	printf("%s disabled\n",__func__);
+#endif
 }
 
 // Unity plugin unload event
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	if ( Unity::GraphicsDevice )
 	{
 		Unity::GraphicsDevice->UnregisterDeviceEventCallback(OnGraphicsDeviceEvent);
 		//Unity::GraphicsDevice = nullptr;
 	}
+#else
+	printf("%s disabled\n",__func__);
+#endif
 }
-
-
 
 void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
 {
@@ -686,13 +711,12 @@ std::string Platform::GetBundleIdentifier()
 {
 	return Java::GetBundleIdentifier();
 }
-#endif
-
-
-#if defined(TARGET_WINDOWS)
+#elif defined(TARGET_IOS)||defined(TARGET_OSX)
+//	in mm
+#else
 std::string Platform::GetBundleIdentifier()
 {
-	return "Todo:BundleIdentifierForWindows";
+	return "Todo:BundleIdentifier";
 }
 #endif
 

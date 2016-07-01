@@ -3,7 +3,7 @@
 #include "SoyEvent.h"
 #include "SoyMath.h"
 #include "SoyPixels.h"
-#include "SoyUniform.h"
+#include "SoyGraphics.h"
 
 
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
@@ -65,20 +65,16 @@
 namespace Opengl
 {
 	class TFboMeta;
-	class TUniform;
 	class TAsset;
 	class TShader;
 	class TShaderState;
 	class TTexture;
-	class TTextureUploadParams;
 	class TTextureMeta;
 	class TFbo;
 	class TPbo;
 	class TGeoQuad;
 	class TShaderEosBlit;
 	class TGeometry;
-	class TGeometryVertex;
-	class TGeometryVertexElement;
 	class TContext;
 	class TSync;
 
@@ -137,58 +133,6 @@ public:
 };
 
 
-
-
-class Opengl::TUniform : public Soy::TUniform
-{
-public:
-	TUniform(const std::string& Name=std::string()) :
-		Soy::TUniform	( Name, std::string() ),
-		mIndex			( GL_UNIFORM_INVALID ),
-		mTypeEnum		( GL_ASSET_INVALID ),
-		mArraySize		( 0 )
-	{
-	}
-	
-	bool		IsValid() const	{	return mIndex != GL_UNIFORM_INVALID;	}
-	bool		operator==(const std::string& Name) const	{	return mName == Name;	}
-	void		SetType(GLenum Type)	{	mTypeEnum = Type;	mType = GetEnumString(Type);	}
-	GLenum		GetTypeEnum() const		{	return mTypeEnum;	}
-
-public:
-	GLsizei		mArraySize;	//	for arrays of mType
-	GLint		mIndex;		//	attrib index
-
-private:	//	gr: private to catch refactoring
-	GLenum		mTypeEnum;
-};
-namespace Opengl
-{
-std::ostream& operator<<(std::ostream &out,const Opengl::TUniform& in);
-}
-
-
-class Opengl::TGeometryVertexElement : public TUniform
-{
-public:
-	size_t		mElementDataSize;
-	bool		mNormalised;
-};
-
-class Opengl::TGeometryVertex
-{
-public:
-	size_t							GetDataSize() const;	//	size of vertex struct
-	size_t							GetOffset(size_t ElementIndex) const;
-	size_t							GetStride(size_t ElementIndex) const;
-	size_t							GetVertexSize() const;
-
-	void							EnableAttribs(bool Enable=true) const;
-	void							DisableAttribs() const				{	EnableAttribs(false);	}
-	
-public:
-	Array<TGeometryVertexElement>	mElements;
-};
 
 
 //	gr: for now, POD, no virtuals...
@@ -287,19 +231,19 @@ public:
 class Opengl::TShader
 {
 public:
-	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context);
+	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context);
 	~TShader();
 	
 	TShaderState	Bind();	//	let this go out of scope to unbind
-	TUniform		GetUniform(const char* Name) const
+	SoyGraphics::TUniform		GetUniform(const char* Name) const
 	{
 		auto* Uniform = mUniforms.Find( Name );
-		return Uniform ? *Uniform : TUniform();
+		return Uniform ? *Uniform : SoyGraphics::TUniform();
 	}
-	TUniform		GetAttribute(const char* Name) const
+	SoyGraphics::TUniform		GetAttribute(const char* Name) const
 	{
 		auto* Uniform = mAttributes.Find( Name );
-		return Uniform ? *Uniform : TUniform();
+		return Uniform ? *Uniform : SoyGraphics::TUniform();
 	}
 
 public:
@@ -307,8 +251,8 @@ public:
 	TAsset			mVertexShader;
 	TAsset			mFragmentShader;
 	
-	Array<TUniform>	mUniforms;
-	Array<TUniform>	mAttributes;
+	Array<SoyGraphics::TUniform>	mUniforms;
+	Array<SoyGraphics::TUniform>	mAttributes;
 };
 
 
@@ -316,7 +260,7 @@ public:
 class Opengl::TGeometry
 {
 public:
-	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const Opengl::TGeometryVertex& Vertex);
+	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex);
 	~TGeometry();
 
 	void	Draw();
@@ -325,8 +269,10 @@ public:
 	void	Bind();
 	void	Unbind();
 	
+	static void	EnableAttribs(const SoyGraphics::TGeometryVertex& Descripton,bool Enable=true);
+
 public:
-	TGeometryVertex	mVertexDescription;	//	for attrib binding info
+	SoyGraphics::TGeometryVertex	mVertexDescription;	//	for attrib binding info
 	GLuint			mVertexArrayObject;
 	GLuint			mVertexBuffer;
 	GLsizei			mVertexCount;
@@ -335,25 +281,6 @@ public:
 	GLenum			mIndexType;		//	short/int etc data stored in index buffer
 };
 
-
-class Opengl::TTextureUploadParams
-{
-public:
-	TTextureUploadParams() :
-		mStretch				( false ),
-		mAllowCpuConversion		( true ),
-		mAllowOpenglConversion	( true ),
-		mAllowClientStorage		( false ),		//	currently unstable on texture release?
-		mGenerateMipMaps		( false )
-	{
-	};
-	
-	bool	mStretch;				//	if smaller, should we stretch (subimage vs teximage)
-	bool	mAllowCpuConversion;
-	bool	mAllowOpenglConversion;
-	bool	mAllowClientStorage;
-	bool	mGenerateMipMaps;		//	should we generate mip maps afterwards
-};
 
 
 class Opengl::TTextureMeta
@@ -467,7 +394,7 @@ public:
 	void				Unbind() const;
 	bool				IsValid(bool InvasiveTest=true) const;	//	only use InvasiveTest on opengl threads
 	void				Delete();
-	void				Write(const SoyPixelsImpl& Pixels,TTextureUploadParams Params=TTextureUploadParams());
+	void				Write(const SoyPixelsImpl& Pixels,SoyGraphics::TTextureUploadParams Params=SoyGraphics::TTextureUploadParams());
 	void				Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat=SoyPixelsFormat::Invalid,bool Flip=true) const;
 	void				SetRepeat(bool Repeat=true);
 	void				SetFilter(bool Linear);		//	as soon as we need it, implement min/mag options and mipmap levels rather than nearest/linear

@@ -31,3 +31,5 @@
 #if !_HAS_EXCEPTIONS
 #error soy currently uses exceptions... everywhere
 #endif
+
+#define TARGET_POSIX

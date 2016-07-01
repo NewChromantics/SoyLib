@@ -7,7 +7,7 @@
 #include "SoyDebug.h"
 #include <atomic>
 #include "string.hpp"
-#include <SoyThread.h>
+#include "SoyThread.h"
 #include "SoyFilesystem.h"
 
 #if defined(TARGET_WINDOWS)
@@ -416,7 +416,7 @@ std::string Soy::AllocTypeName()
 
 //	http://stackoverflow.com/questions/281818/unmangling-the-result-of-stdtype-infoname
 //#include "type.hpp"
-#ifdef __GNUG__
+#if defined(__GNUG__) && !defined(TARGET_PS4)
 //#include <cstdlib>
 //#include <memory>
 #include <cxxabi.h>

@@ -233,13 +233,13 @@ private:
 class Directx::TGeometry
 {
 public:
-	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const Opengl::TGeometryVertex& Vertex,TContext& ContextDx);
+	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex,TContext& ContextDx);
 	~TGeometry();
 
 	void	Draw(TContext& Context);
 
 public:
-	Opengl::TGeometryVertex			mVertexDescription;	//	for attrib binding info
+	SoyGraphics::TGeometryVertex	mVertexDescription;	//	for attrib binding info
 	AutoReleasePtr<ID3D11Buffer>	mVertexBuffer;
 	AutoReleasePtr<ID3D11Buffer>	mIndexBuffer;
 	size_t							mIndexCount;
@@ -315,7 +315,7 @@ public:
 class Directx::TShader : public Soy::TUniformContainer
 {
 public:
-	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const Opengl::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& Context);
+	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& Context);
 
 	TShaderState	Bind(TContext& Context);	//	let this go out of scope to unbind
 	void			Unbind();
@@ -339,7 +339,7 @@ private:
 
 	ID3D11DeviceContext&		GetContext();
 
-	void			MakeLayout(const Opengl::TGeometryVertex& Vertex,TShaderBlob& Shader,ID3D11Device& Device);
+	void			MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TShaderBlob& Shader,ID3D11Device& Device);
 
 public:
 	TContext*							mBoundContext;	//	this binding should be moved to TShaderState

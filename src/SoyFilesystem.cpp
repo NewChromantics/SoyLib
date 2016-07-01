@@ -507,3 +507,10 @@ std::string	Platform::GetDirectoryFromFilename(const std::string& Filename,bool 
 	return Filename.substr( 0, LastSlash + (IncludeTrailingSlash ? 1 : 0 ) );
 }
 
+
+#if defined(TARGET_PS4)
+bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
+{
+	return false;
+}
+#endif

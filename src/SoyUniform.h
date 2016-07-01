@@ -26,8 +26,11 @@ public:
 	{
 	}
 
+	template<typename TYPE>
+	void			SetType()	{	mType = Soy::GetTypeName<TYPE>();	}
+
 	bool			operator==(const char* Name) const	{	return mName == Name;	}
-	
+
 public:
 	std::string		mName;
 	std::string		mType;
