@@ -12,7 +12,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>TARGET_PS4;ENABLE_GMNX;MINIZ_NO_TIME;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TARGET_PS4;ENABLE_GNM;MINIZ_NO_TIME;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CppExceptions>true</CppExceptions>
       <DisableSpecificWarnings>reorder</DisableSpecificWarnings>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
