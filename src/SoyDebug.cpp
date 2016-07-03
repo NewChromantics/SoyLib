@@ -92,7 +92,7 @@ void Soy::Platform::DebugPrint(const std::string& Message)
 #if defined(TARGET_PS4)
 void Soy::Platform::DebugPrint(const std::string& Message)
 {
-#pragma message("Todo debug print")
+	printf( "PopPs4: %s\n", Message.c_str() );
 }
 #endif
 

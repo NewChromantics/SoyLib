@@ -9,10 +9,14 @@
 #define STBI_NO_STDIO				//	all soy file access is abstracted so don't allow it in stb
 
 //	gr: on windows we currently get a whole load of extra stb warnings
+#if defined(TARGET_WINDOWS)
 #pragma warning(push)
 #pragma warning(disable: 4312)
+#endif
 #include "stb/stb_image.h"
+#if defined(TARGET_WINDOWS)
 #pragma warning(pop)
+#endif
 
 #endif
 
