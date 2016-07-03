@@ -4,9 +4,9 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <ExecutablePath>D:\gstreamer-sdk\0.10\x86\bin;$(ExecutablePath)</ExecutablePath>
-    <IncludePath>$(SOY_PATH)/src;$(AMDAPPSDKROOT)\include;$(KINECTSDK10_DIR)\inc;$(IncludePath)</IncludePath>
+    <IncludePath>$(SOY_PATH)/src;$(AMDAPPSDKROOT)\include;$(IncludePath)</IncludePath>
     <ReferencePath>D:\gstreamer-sdk\0.10\x86\bin;$(VCInstallDir)atlmfc\lib;$(VCInstallDir)lib</ReferencePath>
-    <LibraryPath>$(SOY_PATH)\soylib.visualstudio\Bin\$(Platform);$(AMDAPPSDKROOT)\lib\x86;$(KINECTSDK10_DIR)\lib\x86;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SOY_PATH)\soylib.visualstudio\Bin\$(Platform);$(AMDAPPSDKROOT)\lib\x86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>

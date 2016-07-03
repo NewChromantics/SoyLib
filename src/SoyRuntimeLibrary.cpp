@@ -75,6 +75,9 @@ std::string Soy::GetCurrentWorkingDir()
 
 #if defined(TARGET_WINDOWS)
 	while ( !_getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
+#elif defined(TARGET_PS4)
+	throw Soy::AssertException("PS4 doesn't support current working dir");
+	while(false)
 #else
 	while ( !getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
 #endif
@@ -213,7 +216,11 @@ void Soy::TRuntimeLibrary::Close()
 	{
 		auto Result = FreeLibrary( mHandle );
 		mHandle = nullptr;
-		std::Debug << "Warning: FreeLibrary() failed for " << mLibraryName << std::endl;
+		if ( !Result )
+		{
+			auto Error = ::Platform::GetLastErrorString();
+			std::Debug << "Warning: FreeLibrary() failed for " << mLibraryName << ": " << Error << std::endl;
+		}
 	}
 #endif
 }

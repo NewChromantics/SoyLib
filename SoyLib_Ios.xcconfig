@@ -14,7 +14,7 @@ HEADER_SEARCH_PATHS = $(HEADER_SEARCH_PATHS_BASE)
 
 
 //	unity compatible settings
-ARCHS = $(ARCHS_STANDARD)
+VALID_ARCHS = $(ARCHS_STANDARD)
 SUPPORTED_PLATFORMS = iphoneos
 
 //	gr: reduce this as much as possible

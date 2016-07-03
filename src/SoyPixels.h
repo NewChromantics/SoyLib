@@ -17,7 +17,7 @@ namespace SoyPixelsFormat
 {
 	enum Type
 	{
-		UnityUnknown	=-1,	//	gr: temp for this project
+	//	UnityUnknown	=-1,	//	gr: temp for this project
 
 		Invalid			= 0,
 		Greyscale,

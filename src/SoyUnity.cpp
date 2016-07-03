@@ -1,14 +1,16 @@
 #include "SoyUnity.h"
 #include "SoyDebug.h"
 #include <sstream>
+#if defined(ENABLE_OPENGL)
 #include "SoyOpenglContext.h"
+#endif
 #include "SoyExportManager.h"
 #include "SoyFilesystem.h"
 
 //	new interfaces in 5.2+
 #include "Unity/IUnityInterface.h"
 #include "Unity/IUnityGraphics.h"
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 class IDirect3D9;
 class IDirect3DDevice9;
 #include "Unity/IUnityGraphicsD3D9.h"
@@ -158,8 +160,12 @@ extern "C" UnityRenderBuffer	UnityBackbufferDepth()		{ return GetMainDisplaySurf
 void Unity::IosDetectGraphicsDevice()
 {
 	//	already decided
-	if ( OpenglContext || MetalContext )
+	if ( OpenglContext )
 		return;
+#if defined(ENABLE_METAL)
+	if ( MetalContext )
+		return;
+#endif
 	
 	//	on ios UnitySetGraphicsDevice never gets called, so we do it ourselves depending on API
 	//	gr: cannot find a more hard api (eg. active metal context, grabbing the system one seems like we'd just be using that, even if unity isnt)
@@ -175,8 +181,10 @@ void Unity::IosDetectGraphicsDevice()
 			return;
 			
 		case apiMetal:
+#if defined(ENABLE_METAL)
 			UnitySetGraphicsDevice( UnityGetMetalDevice(), UnityDevice::kGfxRendererMetal, UnityEvent::kGfxDeviceEventInitialize );
 			return;
+#endif
 
 		default:
 			break;
@@ -362,12 +370,14 @@ void Unity::RenderEvent(Unity::sint eventID)
 	ofScopeTimerWarning Timer(__func__,gRenderEventTimerMs);
 
 	//	iterate current context
+#if defined(ENABLE_OPENGL)
 	if (Unity::OpenglContext)
 	{
 		Unity::OpenglContext->Iteration();
 	}
+#endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 	if ( Unity::DirectxContext )
 	{
 		Unity::DirectxContext->Iteration();
@@ -417,8 +427,8 @@ __export void UnityRenderEvent(Unity::sint eventID)
 	//	event triggered by other plugin
 	if ( eventID != Unity::GetPluginEventId() )
 	{
-	//	if ( Unity::mDebugPluginEvent )
-		std::Debug << "UnityRenderEvent(" << eventID << ") Not ours " << Unity::GetPluginEventId() << std::endl;
+		if ( Unity::IsDebugPluginEventEnabled() )
+			std::Debug << "UnityRenderEvent(" << eventID << ") Not ours " << Unity::GetPluginEventId() << std::endl;
 		return;
 	}
 	
@@ -453,6 +463,7 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 	//	allocate appropriate context and init
 	switch ( Device )
 	{
+#if defined(ENABLE_OPENGL)
 		case UnityDevice::kGfxRendererOpenGL:
 		case UnityDevice::kGfxRendererOpenGLES20:
 		case UnityDevice::kGfxRendererOpenGLES30:
@@ -469,8 +480,9 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 
 		}
 		break;
+#endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 		case UnityDevice::kGfxRendererD3D11:
 		case UnityDevice::kGfxRendererD3D12:
 		{
@@ -680,13 +692,12 @@ std::string Platform::GetBundleIdentifier()
 {
 	return Java::GetBundleIdentifier();
 }
-#endif
-
-
-#if defined(TARGET_WINDOWS)
+#elif defined(TARGET_IOS)||defined(TARGET_OSX)
+//	in mm
+#else
 std::string Platform::GetBundleIdentifier()
 {
-	return "Todo:BundleIdentifierForWindows";
+	return "Todo:BundleIdentifier";
 }
 #endif
 

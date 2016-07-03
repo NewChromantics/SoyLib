@@ -3,13 +3,15 @@
 #include "SoyPixels.h"
 #include "SoyThread.h"
 #include "SoyMediaFormat.h"
-#include "SoyPool.h"
 #include "SoyH264.h"
 
 class TStreamWriter;
 class TStreamBuffer;
 class TMediaPacket;
 class TJsonWriter;
+
+template<typename TYPE>
+class TPool;
 
 namespace Soy
 {
@@ -162,7 +164,8 @@ public:
 	size_t				mMaxKeyframeSpacing;	//	gr: not sure of entropy yet
 	size_t				mAverageBitRate;		//	gr: not sure of entropy yet
 	float3x3			mTransform;
-	
+	vec2f				mFov;					//	for cameras, or if we can extract from exif, or say for 360 video
+
 	//	audio
 	size_t				mChannelCount;			//	for audio. Maybe expand to planes? but mPixelMeta tell us this
 	size_t				mAudioSampleRate;		//	todo: standardise this to khz?
@@ -184,6 +187,13 @@ std::ostream& operator<<(std::ostream& out,const TStreamMeta& in);
 class TPixelBuffer
 {
 public:
+	TPixelBuffer() :
+		mOverrideTransformShaderOpengl		( nullptr ),
+		mOverrideTransformShaderDirectx		( nullptr ),
+		mOverrideTransformShaderMetal		( nullptr )
+	{
+	}
+	
 	//	different paths return arrays now - shader/fbo blit is pretty generic now so move it out of pixel buffer
 	//	generic array, handle that internally (each implementation tends to have it's own lock info anyway)
 	//	for future devices (metal, dx), expand these
@@ -195,6 +205,11 @@ public:
 	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform)=0;
 	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform)=0;
 	virtual void		Unlock()=0;
+
+public:
+	const char*			mOverrideTransformShaderOpengl;
+	const char*			mOverrideTransformShaderDirectx;
+	const char*			mOverrideTransformShaderMetal;
 };
 
 
@@ -370,7 +385,8 @@ public:
 	void				Clip(SoyTime Start, SoyTime End);
 
 	//	reformatting
-	void				SetChannels(size_t Channels);
+	void				SetChannels(const ArrayBridge<size_t>&& NewChannelLayout);
+	void				SetChannels(size_t ChannelCount);
 	void				SetFrequencey(size_t Frequency);
 
 public:
@@ -410,6 +426,9 @@ public:
 	//	meta of first block. returns zero if none exist
 	size_t			GetChannels() const			{	return mFormat.mChannels;	}
 	size_t			GetFrequency() const		{	return mFormat.mFrequency;	}
+
+public:
+	SoyEvent<TAudioBufferBlock&>	mOnAudioBlockPushed;
 
 private:
 	//	this is a cached format for when we want to get the meta, but don't have any blocks,
@@ -496,7 +515,7 @@ public:
 	TMediaPacketBuffer(size_t MaxBufferSize=10) :
 		mPackets				( SoyMedia::DefaultHeap ),
 		mMaxBufferSize			( MaxBufferSize ),
-		mAutoTimestampDuration	( 33ull )
+		mAutoTimestampDuration	( std::chrono::milliseconds(33) )
 	{
 	}
 	~TMediaPacketBuffer();
@@ -577,10 +596,9 @@ public:
 	{
 		mFilename = Filename;
 	}
-	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted) :
+	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,std::function<void(TPixelBuffer&,const TMediaExtractorParams&)> OnPrePushFrame) :
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
-		mReadAheadMs					( 0ull ),
 		mDiscardOldFrames				( true ),
 		mForceNonPlanarOutput			( false ),
 		mDebugIntraFrameRect			( false ),
@@ -589,10 +607,17 @@ public:
 		mOnlyExtractKeyframes			( false ),
 		mResetInternalTimestamp			( false ),
 		mAudioSampleRate				( 0 ),
+		mAudioChannelCount				( 0 ),
 		mApplyHeightPadding				( true ),
 		mWindowIncludeBorders			( true ),
 		mLiveUseClockTime				( false ),
-		mWin7Emulation					( false )
+		mWin7Emulation					( false ),
+		mVerboseDebug					( false ),
+		mOnPrePushFrame					( OnPrePushFrame ),
+		mExtractDepthStreams			( true ),
+		mExtractSkeletonStreams			( false ),
+		mExtractVideoStreams			( true ),
+		mSplitAudioChannelsIntoStreams	( false )
 	{
 	}
 	
@@ -600,16 +625,23 @@ public:
 	std::string					mFilename;
 	std::string					mThreadName;
 	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
+	std::function<void(TPixelBuffer&,const TMediaExtractorParams&)>	mOnPrePushFrame;	//	app override for pre-push. Use this to inject shader transform etc
 	SoyTime						mReadAheadMs;
 
 	SoyTime						mInitialTime;
-	size_t						mAudioSampleRate;
+	size_t						mAudioSampleRate;			//	try and extract at this rate
+	size_t						mAudioChannelCount;			//	.. with this many channels
 	bool						mExtractAudioStreams;
+	bool						mExtractVideoStreams;
+	bool						mExtractDepthStreams;		//	for kinect
+	bool						mExtractSkeletonStreams;	//	for kinect
 	bool						mOnlyExtractKeyframes;
 	bool						mResetInternalTimestamp;
 	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
 	bool						mWindowIncludeBorders;
 	bool						mWin7Emulation;				//	for mediafoundation, expose some bugs
+
+	bool						mSplitAudioChannelsIntoStreams;	//	if we're splitting audio streams, some extractors need to not reduce to output
 
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
@@ -622,6 +654,8 @@ public:
 	//	for streams (webcams etc) use Real time (clock) rather than SeekTime
 	//	real time works, but when app is paused, threads continue but player time doesnt and it falls behind
 	bool						mLiveUseClockTime;		
+
+	bool						mVerboseDebug;				//	print lots of debug, or only serious stuff
 };
 
 
@@ -662,6 +696,7 @@ protected:
 	//	call this when there's a packet ready for ReadNextPacket
 	void							OnPacketExtracted(SoyTime& Timecode,size_t StreamIndex);
 	void							OnPacketExtracted(std::shared_ptr<TMediaPacket>& Packet);
+	void							OnPacketExtracted(TMediaPacket& Packet);
 	void							OnSkippedExtractedPacket(const SoyTime& Timecode);
 	SoyTime							GetExtractorRealTimecode(SoyTime,ssize_t StreamIndex=-1);
 
@@ -856,6 +891,14 @@ public:
 };
 
 
+class TAudioSplitChannelDecoder : public TMediaPassThroughDecoder
+{
+public:
+	TAudioSplitChannelDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer,std::shared_ptr<TAudioBufferManager>& RealOutput,std::shared_ptr<TMediaDecoder>& RealDecoder,size_t RealChannel);
+
+protected:
+	std::shared_ptr<TAudioBufferManager>	mRealOutputAudioBuffer;
+};
 
 
 class TTextureBuffer : public TPixelBuffer
@@ -871,6 +914,7 @@ public:
 	
 	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override	{}
 	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform) override	{}
+	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform) override	{}
 	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform) override	{}
 	virtual void		Unlock() override	{}
 

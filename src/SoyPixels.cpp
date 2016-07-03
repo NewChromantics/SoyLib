@@ -375,7 +375,7 @@ void SoyPixelsFormat::GetHeaderPalettised(ArrayBridge<uint8>&& Data,size_t& Pale
 std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 {
 	{ SoyPixelsFormat::Invalid,				"Invalid" },
-	{ SoyPixelsFormat::UnityUnknown,		"UnityUnknown" },
+//	{ SoyPixelsFormat::UnityUnknown,		"UnityUnknown" },
 	{ SoyPixelsFormat::Greyscale,			"Greyscale" },
 	{ SoyPixelsFormat::GreyscaleAlpha,		"GreyscaleAlpha"	},
 	{ SoyPixelsFormat::RGB,					"RGB"	},
@@ -1147,6 +1147,10 @@ bool SoyPixelsImpl::SetRawSoyPixels(const ArrayBridge<char>& RawData)
 
 bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 {
+	//	remove need for Png. Isn't this deprecated anyway
+#if defined(TARGET_PS4)
+	return false;
+#else
 	//	if non-supported PNG colour format, then convert to one that is
 	auto PngColourType = TPng::GetColourType( GetFormat() );
 	if ( PngColourType == TPng::TColour::Invalid )
@@ -1244,6 +1248,7 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 	PngData.PushBackReinterpretReverse( TailCrc );
 	
 	return true;
+#endif
 }
 
 

@@ -16,11 +16,11 @@
 #ifndef MATHFU_MATRIX_H_
 #define MATHFU_MATRIX_H_
 
-#include "mathfu/vector.h"
-#include "mathfu/vector_2.h"
-#include "mathfu/vector_3.h"
-#include "mathfu/vector_4.h"
-#include "mathfu/utilities.h"
+#include "vector.h"
+#include "vector_2.h"
+#include "vector_3.h"
+#include "vector_4.h"
+#include "utilities.h"
 
 #include <cmath>
 

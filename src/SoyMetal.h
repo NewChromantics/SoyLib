@@ -6,12 +6,9 @@
 #include "SoyEnum.h"
 #include "SoyPixels.h"
 #include "SoyUniform.h"
+#include "SoyGraphics.h"
 
 
-namespace Opengl
-{
-	class TTextureUploadParams;
-}
 
 namespace Metal
 {
@@ -232,8 +229,8 @@ public:
 	static SoyPixelsMeta	CorrectPixelsForUpload(const SoyPixelsMeta& Meta);	//	we cannot write certain dimensions to textures, but we CAN create them. so use this func to correct pixels before attempting upload
 	
 	void			Delete();
-	void			Write(const SoyPixelsImpl& Pixels,const Opengl::TTextureUploadParams& Params,TContext& Context);
-	void			Write(const TTexture& That,const Opengl::TTextureUploadParams& Params,TContext& Context);
+	void			Write(const SoyPixelsImpl& Pixels,const SoyGraphics::TTextureUploadParams& Params,TContext& Context);
+	void			Write(const TTexture& That,const SoyGraphics::TTextureUploadParams& Params,TContext& Context);
 
 	SoyPixelsMeta	GetMeta() const;
 	bool			IsValid() const		{	return mTexture;	}

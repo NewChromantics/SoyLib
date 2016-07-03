@@ -42,63 +42,161 @@ std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap
 };
 
 
+
+
+
+
+#define FORMAT_MAP(SoyFormat,PlatformFormat)	TPlatformFormatMap<DXGI_FORMAT>( PlatformFormat, #PlatformFormat, SoyFormat )
+template<typename PLATFORMTYPE,PLATFORMTYPE InvalidValue=DXGI_FORMAT_UNKNOWN>
+class TPlatformFormatMap
+{
+public:
+	TPlatformFormatMap(PLATFORMTYPE PlatformFormat,const char* EnumName,SoyMediaFormat::Type SoyFormat) :
+		mPlatformFormat	( PlatformFormat ),
+		mName			( EnumName ),
+		mSoyFormat		( SoyFormat )
+	{
+		Soy::Assert( IsValid(), "Expected valid enum - or invalid enum is bad" );
+	}
+	TPlatformFormatMap() :
+		mPlatformFormat	( InvalidValue ),
+		mName			( "Invalid enum" ),
+		mSoyFormat		( SoyPixelsFormat::Invalid )
+	{
+	}
+
+	bool		IsValid() const		{	return mPlatformFormat != InvalidValue;	}
+
+	bool		operator==(const PLATFORMTYPE& Enum) const				{	return mPlatformFormat == Enum;	}
+	bool		operator==(const SoyPixelsFormat::Type& Format) const	{	return *this == SoyMediaFormat::FromPixelFormat(Format);	}
+	bool		operator==(const SoyMediaFormat::Type& Format) const	{	return mSoyFormat == Format;	}
+
+public:
+	PLATFORMTYPE			mPlatformFormat;
+	SoyMediaFormat::Type	mSoyFormat;
+	std::string				mName;
+};
+
+
+
+//	https://msdn.microsoft.com/en-gb/library/windows/desktop/bb173059(v=vs.85).aspx
+static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
+{
+	//	gr; very special case!
+//	FORMAT_MAP( SoyPixelsFormat::UnityUnknown,	DXGI_FORMAT_UNKNOWN	),
+
+//	gr: these are unsupported natively by directx, so force 32 bit and have to do conversion in write()
+	FORMAT_MAP( SoyMediaFormat::RGB,	DXGI_FORMAT_R8G8B8A8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::BGR,	DXGI_FORMAT_R8G8B8A8_UNORM	),
+
+	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_TYPELESS	),
+	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_UNORM_SRGB	),
+	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_UINT	),
+
+	FORMAT_MAP( SoyMediaFormat::BGRA,	DXGI_FORMAT_B8G8R8A8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::BGRA,	DXGI_FORMAT_B8G8R8A8_TYPELESS	),
+	FORMAT_MAP( SoyMediaFormat::BGRA,	DXGI_FORMAT_B8G8R8A8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::BGRA,	DXGI_FORMAT_B8G8R8A8_UNORM_SRGB	),
+	
+	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Full,		DXGI_FORMAT_NV12	),	
+	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Ntsc,		DXGI_FORMAT_NV12	),
+	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Smptec,	DXGI_FORMAT_NV12	),	
+
+	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_TYPELESS	),
+	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_UINT	),
+	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_SNORM	),
+	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_SINT	),
+	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_A8_UNORM	),
+			
+	FORMAT_MAP( SoyMediaFormat::Luma_Ntsc,			DXGI_FORMAT_R8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::Luma_Smptec,		DXGI_FORMAT_R8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_TYPELESS	),
+	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_SNORM	),
+	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_UINT	),
+	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_SINT	),
+			
+	FORMAT_MAP( SoyMediaFormat::ChromaUV_88,		DXGI_FORMAT_R8G8_UNORM	),
+
+	//	_R8G8_B8G8 is a special format for YUY2... but I think it may not be supported on everything
+	//	gr: using RG for now and ignoring chroma until we have variables etc... we'll just fix monochrome when someone complains
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		DXGI_FORMAT_YUY2	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		DXGI_FORMAT_YUY2	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		DXGI_FORMAT_YUY2	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
+
+
+//case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
+//case SoyPixelsFormat::YYuv_8888_Ntsc:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
+//case SoyPixelsFormat::YYuv_8888_Smptec:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
+//	DXGI_FORMAT_YUY2 is failing to bind to a resource...
+//case SoyPixelsFormat::YYuv_8888_Full:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
+//case SoyPixelsFormat::YYuv_8888_Ntsc:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
+//case SoyPixelsFormat::YYuv_8888_Smptec:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
+
+//	other dx formats:
+//	https://msdn.microsoft.com/en-us/library/windows/desktop/bb173059(v=vs.85).aspx
+//	DXGI_FORMAT_YUV_444 : DXGI_FORMAT_AYUV	win8+ only
+//	DXGI_FORMAT_Y410 YUV_444 10 bit per channel
+//	DXGI_FORMAT_Y416 YUV_444 16 bit per channel
+//	DXGI_FORMAT_P010  (bi?)planar 4_2_0 10 bit per channel
+
+//	DXGI_FORMAT_P016	yuv_4_2_0	16 bit per channel (bi?) planar
+//	Width and height must be even. Direct3D 11 staging resources and initData parameters for this format use (rowPitch * (height + (height / 2))) bytes. The first (SysMemPitch * height) bytes are the Y plane, the remaining (SysMemPitch * (height / 2)) bytes are the UV plane.
+
+//	Width and height must be even. Direct3D 11 staging resources and initData parameters for this format use (rowPitch * (height + (height / 2))) bytes.
+//case SoyPixelsFormat::Yuv_844_Full:		return DXGI_FORMAT_420_OPAQUE;
+
+	FORMAT_MAP( SoyMediaFormat::KinectDepth,			DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::FreenectDepth10bit,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::FreenectDepth11bit,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::FreenectDepthmm,		DXGI_FORMAT_R8G8_UNORM	),
+};
+
+
+SoyMediaFormat::Type Directx::GetFormat(DXGI_FORMAT Format,bool Windows8Plus)
+{
+	auto Table = GetRemoteArray( PlatformFormatMap );
+	auto* Meta = GetArrayBridge(Table).Find( Format );
+
+	if ( !Meta )
+		return SoyMediaFormat::Invalid;
+
+	return Meta->mSoyFormat;
+}
+
+SoyPixelsFormat::Type Directx::GetPixelFormat(DXGI_FORMAT Format,bool Windows8Plus)
+{
+	auto Table = GetRemoteArray( PlatformFormatMap );
+	auto* Meta = GetArrayBridge(Table).Find( Format );
+
+	if ( !Meta )
+		return SoyPixelsFormat::Invalid;
+
+	return SoyMediaFormat::GetPixelFormat( Meta->mSoyFormat );
+}
+
 DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus)
 {
-	switch ( Format )
-	{
-		//	gr: these are unsupported natively by directx, so force 32 bit and have to do conversion in write()
-		case SoyPixelsFormat::RGB:				return DXGI_FORMAT_R8G8B8A8_UNORM;
-		case SoyPixelsFormat::BGR:				return DXGI_FORMAT_R8G8B8A8_UNORM;
+	auto Table = GetRemoteArray( PlatformFormatMap );
+	auto* Meta = GetArrayBridge(Table).Find( Format );
 
-		case SoyPixelsFormat::RGBA:				return DXGI_FORMAT_R8G8B8A8_UNORM;
-		case SoyPixelsFormat::BGRA:				return DXGI_FORMAT_B8G8R8A8_UNORM;
+	if ( !Meta )
+		return DXGI_FORMAT_UNKNOWN;
 
-		case SoyPixelsFormat::Yuv_8_88_Full:	return DXGI_FORMAT_NV12;	
-		case SoyPixelsFormat::Yuv_8_88_Ntsc:	return DXGI_FORMAT_NV12;	
-		case SoyPixelsFormat::Yuv_8_88_Smptec:	return DXGI_FORMAT_NV12;	
-		
-		case SoyPixelsFormat::Greyscale:		return DXGI_FORMAT_R8_UNORM;
-		case SoyPixelsFormat::Luma_Ntsc:		return DXGI_FORMAT_R8_UNORM;
-		case SoyPixelsFormat::Luma_Smptec:		return DXGI_FORMAT_R8_UNORM;
-		case SoyPixelsFormat::GreyscaleAlpha:	return DXGI_FORMAT_R8G8_UNORM;
-		case SoyPixelsFormat::ChromaUV_88:		return DXGI_FORMAT_R8G8_UNORM;
-	
-		//	_R8G8_B8G8 is a special format for YUY2... but I think it may not be supported on everything
-		//	gr: using RG for now and ignoring chroma until we have variables etc... we'll just fix monochrome when someone complains
-		case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_UNORM;
-		case SoyPixelsFormat::YYuv_8888_Ntsc:		return DXGI_FORMAT_R8G8_UNORM;
-		case SoyPixelsFormat::YYuv_8888_Smptec:		return DXGI_FORMAT_R8G8_UNORM;
-		//case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
-		//case SoyPixelsFormat::YYuv_8888_Ntsc:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
-		//case SoyPixelsFormat::YYuv_8888_Smptec:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
-		//	DXGI_FORMAT_YUY2 is failing to bind to a resource...
-		//case SoyPixelsFormat::YYuv_8888_Full:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
-		//case SoyPixelsFormat::YYuv_8888_Ntsc:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
-		//case SoyPixelsFormat::YYuv_8888_Smptec:		return Windows8Plus ? DXGI_FORMAT_YUY2 : DXGI_FORMAT_R8G8_UNORM;
-	
-		//	other dx formats:
-		//	https://msdn.microsoft.com/en-us/library/windows/desktop/bb173059(v=vs.85).aspx
-		//	DXGI_FORMAT_YUV_444 : DXGI_FORMAT_AYUV	win8+ only
-		//	DXGI_FORMAT_Y410 YUV_444 10 bit per channel
-		//	DXGI_FORMAT_Y416 YUV_444 16 bit per channel
-		//	DXGI_FORMAT_P010  (bi?)planar 4_2_0 10 bit per channel
-	
-		//	DXGI_FORMAT_P016	yuv_4_2_0	16 bit per channel (bi?) planar
-		//	Width and height must be even. Direct3D 11 staging resources and initData parameters for this format use (rowPitch * (height + (height / 2))) bytes. The first (SysMemPitch * height) bytes are the Y plane, the remaining (SysMemPitch * (height / 2)) bytes are the UV plane.
-
-		//	Width and height must be even. Direct3D 11 staging resources and initData parameters for this format use (rowPitch * (height + (height / 2))) bytes.
-		//case SoyPixelsFormat::Yuv_844_Full:		return DXGI_FORMAT_420_OPAQUE;
-
-		default:
-		{
-			//	gr: throw here so we can start handling more formats
-			std::stringstream Error;
-			Error << "Don't know how to convert " << Format << " into DXGI_ format";
-			throw Soy::AssertException( Error.str() );
-			return DXGI_FORMAT_UNKNOWN;
-		}
-	}
+	return Meta->mPlatformFormat;
 }
+
+
 
 bool Directx::CanCopyMeta(const SoyPixelsMeta& Source,const SoyPixelsMeta& Destination)
 {
@@ -115,39 +213,6 @@ bool Directx::CanCopyMeta(const SoyPixelsMeta& Source,const SoyPixelsMeta& Desti
 	return Source == Destination;
 }
 
-
-SoyPixelsFormat::Type Directx::GetFormat(DXGI_FORMAT Format)
-{
-	//	https://msdn.microsoft.com/en-gb/library/windows/desktop/bb173059(v=vs.85).aspx
-	switch ( Format )
-	{
-		default:								return SoyPixelsFormat::Invalid;
-		case DXGI_FORMAT_UNKNOWN:				return SoyPixelsFormat::UnityUnknown;
-
-		case DXGI_FORMAT_R8G8B8A8_TYPELESS:		return SoyPixelsFormat::RGBA;
-		case DXGI_FORMAT_R8G8B8A8_UNORM:		return SoyPixelsFormat::RGBA;
-		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:	return SoyPixelsFormat::RGBA;
-		case DXGI_FORMAT_R8G8B8A8_UINT:			return SoyPixelsFormat::RGBA;
-		case DXGI_FORMAT_B8G8R8A8_TYPELESS:		return SoyPixelsFormat::BGRA;
-		case DXGI_FORMAT_B8G8R8A8_UNORM:		return SoyPixelsFormat::BGRA;
-		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:	return SoyPixelsFormat::BGRA;
-		case DXGI_FORMAT_R8G8_TYPELESS:			return SoyPixelsFormat::GreyscaleAlpha;
-		case DXGI_FORMAT_R8G8_UNORM:			return SoyPixelsFormat::GreyscaleAlpha;
-		case DXGI_FORMAT_R8G8_SNORM:			return SoyPixelsFormat::GreyscaleAlpha;
-		case DXGI_FORMAT_R8G8_UINT:				return SoyPixelsFormat::GreyscaleAlpha;
-		case DXGI_FORMAT_R8G8_SINT:				return SoyPixelsFormat::GreyscaleAlpha;
-		case DXGI_FORMAT_R8_TYPELESS:			return SoyPixelsFormat::Greyscale;
-		case DXGI_FORMAT_R8_UNORM:				return SoyPixelsFormat::Greyscale;
-		case DXGI_FORMAT_R8_UINT:				return SoyPixelsFormat::Greyscale;
-		case DXGI_FORMAT_R8_SNORM:				return SoyPixelsFormat::Greyscale;
-		case DXGI_FORMAT_R8_SINT:				return SoyPixelsFormat::Greyscale;
-		case DXGI_FORMAT_A8_UNORM:				return SoyPixelsFormat::Greyscale;
-		case DXGI_FORMAT_NV12:					return SoyPixelsFormat::Nv12;
-
-		case DXGI_FORMAT_YUY2:					return SoyPixelsFormat::YYuv_8888_Full;
-		case DXGI_FORMAT_R8G8_B8G8_UNORM:		return SoyPixelsFormat::YYuv_8888_Full;
-	}
-}
 
 
 
@@ -440,7 +505,7 @@ Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
 	//	get meta
 	D3D11_TEXTURE2D_DESC SrcDesc;
 	mTexture->GetDesc( &SrcDesc );
-	mMeta = SoyPixelsMeta( SrcDesc.Width, SrcDesc.Height, GetFormat(SrcDesc.Format) );
+	mMeta = SoyPixelsMeta( SrcDesc.Width, SrcDesc.Height, GetPixelFormat( SrcDesc.Format ) );
 	mFormat = SrcDesc.Format;
 
 	//	todo: copy sample params from Description
@@ -604,13 +669,13 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 			if ( ResourceDataSize == 0 )
 				ResourceDataSize = resource.RowPitch * SrcDesc.Height;
 
-			auto Unlock = [&]
+			auto Unlock = [this, SubResource, &Context,&ContextDx]
 			{
 				Context.Unmap( mTexture, SubResource);
 				ContextDx.Unlock();
 			};
 
-			SoyPixelsMeta ResourceMeta( SrcDesc.Width, SrcDesc.Height, GetFormat(SrcDesc.Format) );
+			SoyPixelsMeta ResourceMeta( SrcDesc.Width, SrcDesc.Height, GetPixelFormat(SrcDesc.Format) );
 
 			return TLockedTextureData( resource.pData, ResourceDataSize, ResourceMeta, resource.RowPitch, Unlock );
 		}
@@ -795,7 +860,7 @@ void Directx::TRenderTarget::ClearStencil(TContext& ContextDx)
 	std::Debug << "Render target stencil not currently implemented" << std::endl;
 }
 
-Directx::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& _Indexes,const Opengl::TGeometryVertex& Vertex,TContext& ContextDx) :
+Directx::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& _Indexes,const SoyGraphics::TGeometryVertex& Vertex,TContext& ContextDx) :
 	mVertexDescription	( Vertex ),
 	mIndexCount			( 0 )
 {
@@ -1142,7 +1207,7 @@ Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& F
 }
 
 
-Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const Opengl::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& ContextDx) :
+Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& ContextDx) :
 	mBoundContext	( nullptr )
 {
 	auto& Device = ContextDx.LockGetDevice();
@@ -1168,9 +1233,9 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 }
 
 
-DXGI_FORMAT GetType(const std::string& Type,size_t Length)
+DXGI_FORMAT GetType(const SoyGraphics::TElementType::Type& Type,size_t Length)
 {
-	if ( Type == Soy::GetTypeName<float>() )
+	if ( Type == SoyGraphics::TElementType::Float )
 	{
 		if ( Length == 1 )	return DXGI_FORMAT_R32_FLOAT;
 		if ( Length == 2 )	return DXGI_FORMAT_R32G32_FLOAT;
@@ -1178,11 +1243,10 @@ DXGI_FORMAT GetType(const std::string& Type,size_t Length)
 		if ( Length == 4 )	return DXGI_FORMAT_R32G32B32A32_FLOAT;
 	}
 
-	Soy::Assert( false, "Unhandled type");
-	return DXGI_FORMAT_UNKNOWN;
+	throw Soy::AssertException("Unhandled graphics uniform type -> DXGI_FORMAT");
 }
 
-void Directx::TShader::MakeLayout(const Opengl::TGeometryVertex& Vertex,TShaderBlob& ShaderBlob,ID3D11Device& Device)
+void Directx::TShader::MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TShaderBlob& ShaderBlob,ID3D11Device& Device)
 {
 	Array<D3D11_INPUT_ELEMENT_DESC> Layouts;
 

@@ -7,10 +7,10 @@
 #include <map>
 #include <queue>
 #include <limits>
+#include "SoyTime.h"
 
 
-
-#if defined(TARGET_ANDROID)||defined(TARGET_IOS)
+#if defined(TARGET_ANDROID)||defined(TARGET_IOS)||defined(TARGET_PS4)
 #include <memory>
 #define STD_ALLOC
 #endif
@@ -352,7 +352,7 @@ public:
 	size_t							mElements;		//	number of elements
 	size_t							mTypeSize;		//	sizeof(T)
 	const std::string*				mTypename;		//	gr: this SHOULD be safe, all strings from GetTypeName are either compile-time generated or static.
-	uint64							mAllocTick;		//	time of allocation (ofGetElapsedTimeMillis())
+	SoyTime							mAllocTick;		//	time of allocation (ofGetElapsedTimeMillis())
 	BufferArray<uint64,CallStackSize>	mCallStack;		//	each is an address in the process' symbol data
 };
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( prmem::HeapDebugItem );

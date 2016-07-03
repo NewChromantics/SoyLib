@@ -1,7 +1,7 @@
 #pragma once
 
 
-#include <SoyPixels.h>
+#include "SoyPixels.h"
 
 
 //	merge this + pixel format at some point
@@ -60,6 +60,8 @@ namespace SoyMediaFormat
 		Divx,			//	added to detect, and fail gracefully
 		MotionJpeg,		//	MJPG, series of jpegs
 
+		H265,			//	hevc
+
 		//	encoded images
 		Png,
 		Jpeg,
@@ -82,6 +84,7 @@ namespace SoyMediaFormat
 		PcmLinear_20,
 		PcmLinear_24,
 		PcmLinear_float,	//	-1..1 see SoyWave
+		Audio_Platform,		//	try and encompass all formats that we don't need to specifically handle and can throw around
 		
         QuicktimeTimecode,  //  explicitly listing this until I've established what the format is
 		
@@ -104,7 +107,7 @@ namespace SoyMediaFormat
 	bool		IsText(Type Format);
 	bool		IsH264(Type Format);
 	bool		IsImage(Type Format);	//	encoded image
-	Type		FromFourcc(uint32 Fourcc,int H264LengthSize=-1);
+	Type		FromFourcc(uint32 Fourcc,size_t H264LengthSize=0);
 	uint32		ToFourcc(Type Format);
 	bool		IsH264Fourcc(uint32 Fourcc);
 	std::string	ToMime(Type Format);

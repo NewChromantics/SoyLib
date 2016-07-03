@@ -4,12 +4,16 @@
 #include "SoyWave.h"
 
 //gr: this is for the pass through encoder, maybe to avoid this dependancy I can move the pass throughs to their own files...
+#if defined(ENABLE_OPENGL)
 #include "SoyOpenGl.h"
 #include "SoyOpenGlContext.h"
+#endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 #include "SoyDirectx.h"
 #endif
+
+#include "SoyPool.h"
 
 
 prmem::Heap SoyMedia::DefaultHeap(true, true, "SoyMedia::DefaultHeap" );
@@ -325,11 +329,11 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
 {
 	//	apparently (not seen it yet) in some formats (eg. ts) some players (eg. vlc) can't cope if DTS is same as PTS
-	static SoyTime DecodeToPresentationOffset( 1ull );
+	static SoyTime DecodeToPresentationOffset( std::chrono::milliseconds(1) );
 	static bool DebugCorrection = false;
 
 	if ( !mLastPacketTimestamp.IsValid() )
-		mLastPacketTimestamp = SoyTime( 1ull ) + DecodeToPresentationOffset;
+		mLastPacketTimestamp = SoyTime( std::chrono::milliseconds(1) ) + DecodeToPresentationOffset;
 	
 	//	gr: if there is no decode timestamp, assume it needs to be in the order it comes in
 	if ( !Packet.mDecodeTimecode.IsValid() )
@@ -534,10 +538,15 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			//	can have a packet with no data (eg. eof) skip this
 			if ( NextPacket->HasData() )
 			{
-				
 				//	block thread unless it's stopped
 				auto Block = [this,&NextPacket]()
 				{
+					//	gr: wording is wrong here, but regardless, we block when buffer X is full, we shouldn't need them all flushed!
+					//	gr: use only for testing for now!
+					static bool DiscardDoesntBlock = false;
+					if ( DiscardDoesntBlock && this->mParams.mDiscardOldFrames )
+						return false;
+
 					//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
 					if ( IsWorking() )
 					{
@@ -671,9 +680,12 @@ void TMediaExtractor::OnStreamsChanged()
 void TMediaExtractor::OnPacketExtracted(std::shared_ptr<TMediaPacket>& Packet)
 {
 	Soy::Assert( Packet != nullptr, "Packet expected");
+	OnPacketExtracted( *Packet );
+}
 
-	OnPacketExtracted( Packet->mTimecode, Packet->mMeta.mStreamIndex );
-	Wake();
+void TMediaExtractor::OnPacketExtracted(TMediaPacket& Packet)
+{
+	OnPacketExtracted( Packet.mTimecode, Packet.mMeta.mStreamIndex );
 }
 
 void TMediaExtractor::OnPacketExtracted(SoyTime& Timecode,size_t StreamIndex)
@@ -967,7 +979,7 @@ void TMediaBufferManager::CorrectDecodedFrameTimestamp(SoyTime& Timestamp)
 		if ( mParams.mPreSeek.IsValid() )
 		{
 			std::Debug << "Using preseek, so skipping mFirstTimestamp " << std::endl;
-			mFirstTimestamp = SoyTime( 1ull );
+			mFirstTimestamp = SoyTime( std::chrono::milliseconds(1) );
 		}
 		/*
 		//	disregard pre seek
@@ -1099,7 +1111,7 @@ SoyTime TAudioBufferBlock::GetSampleTime(size_t SampleIndex) const
 		intpart++;
 	}
 	
-	auto SampleTimeMs = size_cast<uint64>( intpart );
+	auto SampleTimeMs = std::chrono::milliseconds( static_cast<int>(intpart) );
 	return mStartTime + SoyTime(SampleTimeMs);
 }
 
@@ -1236,42 +1248,56 @@ void TAudioBufferBlock::Clip(SoyTime Start, SoyTime End)
 	RemoveDataUntil(Start);
 }
 
-void TAudioBufferBlock::SetChannels(size_t Channels)
+void TAudioBufferBlock::SetChannels(size_t ChannelCount)
 {
-	if ( mChannels == Channels )
+	if ( mChannels == ChannelCount )
 		return;
 
-	//	re-sample channels
-	if ( Channels < mChannels )
+	//	by default, 
+	BufferArray<size_t,10> NewChannels;
+	for ( int c=0;	c<ChannelCount;	c++ )
 	{
-		auto RemoveChannelCount = mChannels - Channels;
-		for ( int i = mData.GetSize() - mChannels; i >= 0;	i-=mChannels )
-		{
-			//	remove X samples
-			mData.RemoveBlock(i + 1, RemoveChannelCount);
-		}
-		mChannels = Channels;
-		return;
+		auto NewChannel = (c < mChannels) ? c : 0;
+		NewChannels.PushBack( NewChannel );
 	}
-	
-	if ( Channels > mChannels )
+
+	SetChannels( GetArrayBridge( NewChannels ) );
+}
+
+void TAudioBufferBlock::SetChannels(const ArrayBridge<size_t>&& NewChannelLayout)
+{
+	Soy::Assert( NewChannelLayout.GetSize() != 0, "Tried to change audio block channels to zero" );
+	auto NewChannelCount = NewChannelLayout.GetSize();
+	auto OldChannelCount = mChannels;
+
+	//	check for no changes
+	if ( mChannels == NewChannelCount )
 	{
-		auto InsertChannelCount = Channels - mChannels;
-		
-		//	reserve data
-		mData.Reserve( InsertChannelCount* mData.GetSize() );
-		
-		for ( int i = mData.GetSize() - mChannels; i >= 0;	i-=mChannels )
-		{
-			//	insert X samples
-			auto Sample = mData[i];
-			mData.InsertBlock(i + 1, InsertChannelCount);
-			for ( int c = 0; c < InsertChannelCount; c++ )
-				mData[i + 1 + c] = Sample;
-		}
-		mChannels = Channels;
-		return;
+		bool Same = true;
+		for ( int i=0;	i<NewChannelCount;	i++ )
+			Same &= (NewChannelLayout[i] == i);
+		if ( Same )
+			return;
 	}
+
+	//	copy existing data
+	Array<float> OldData;
+	OldData.Copy( mData );
+	auto SampleCount = OldData.GetSize() / OldChannelCount;
+	mData.SetSize( SampleCount * NewChannelCount );
+
+	for ( int s=0;	s<SampleCount;	s++ )
+	{
+		auto* NewSample = &mData[s*NewChannelCount];
+		auto* OldSample = &OldData[s*OldChannelCount];
+		for ( int newc=0;	newc<NewChannelCount;	newc++ )
+		{
+			auto oldc = NewChannelLayout[newc];
+			NewSample[newc] = OldSample[oldc];
+		}
+	}
+
+	mChannels = NewChannelCount;
 }
 
 void TAudioBufferBlock::SetFrequencey(size_t Frequency)
@@ -1293,6 +1319,9 @@ void TAudioBufferManager::PushAudioBuffer(TAudioBufferBlock& AudioData)
 			mFormat.mChannels = AudioData.mChannels;
 		if ( mFormat.mFrequency == 0 )
 			mFormat.mFrequency = AudioData.mFrequency;
+
+		//	gr;  maybe consider changing this to allow rejection of data
+		mOnAudioBlockPushed.OnTriggered( AudioData );
 
 		AudioData.SetChannels( mFormat.mChannels );
 		AudioData.SetFrequencey( mFormat.mFrequency );
@@ -2073,7 +2102,9 @@ std::shared_ptr<TPixelBuffer> TPixelBufferManager::PopPixelBuffer(SoyTime& Times
 	{
 		if ( mFrames.size() < MinBufferSize )
 		{
-			std::Debug << "Waiting for " << (MinBufferSize-mFrames.size()) << " more frames to buffer..." << std::endl;
+			static bool DebugMinBufferSize = false;
+			if ( DebugMinBufferSize )
+				std::Debug << "Waiting for " << (MinBufferSize-mFrames.size()) << " more frames to buffer..." << std::endl;
 			return nullptr;
 		}
 	}
@@ -2251,6 +2282,7 @@ TMediaPassThroughEncoder::TMediaPassThroughEncoder(std::shared_ptr<TMediaPacketB
 
 void TMediaPassThroughEncoder::Write(const Opengl::TTexture& Image,SoyTime Timecode,Opengl::TContext& Context)
 {
+#if defined(ENABLE_OPENGL)
 	//	todo: proper opengl -> CvPixelBuffer
 	
 	//	gr: Avf won't accept RGBA, but it will take RGB so we can force reading that format here
@@ -2268,12 +2300,13 @@ void TMediaPassThroughEncoder::Write(const Opengl::TTexture& Image,SoyTime Timec
 		Write( Pixels, Timecode );
 	};
 	Context.PushJob( ReadPixels );
+#endif
 }
 
 
 void TMediaPassThroughEncoder::Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context)
 {
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 	
 	if ( Image.GetMode() != Directx::TTextureMode::ReadOnly )
 	{
@@ -2308,10 +2341,15 @@ void TMediaPassThroughEncoder::Write(std::shared_ptr<SoyPixelsImpl> pImage,SoyTi
 	
 	auto& PixelsArray = Image.GetPixelsArray();
 	Packet.mData.Copy( PixelsArray );
-	Packet.mTimecode = Timecode;
 	Packet.mMeta.mCodec = SoyMediaFormat::FromPixelFormat( Image.GetFormat() );
 	Packet.mMeta.mPixelMeta = Image.GetMeta();
 	Packet.mMeta.mStreamIndex = mStreamIndex;
+	
+	//	stop timecode correction by setting decode timecode (must be valid)
+	if ( !Timecode.IsValid() )
+		Timecode = SoyTime( std::chrono::milliseconds(1) );
+	Packet.mTimecode = Timecode;
+	Packet.mDecodeTimecode = Timecode;
 	
 	auto Block = []()
 	{
@@ -2322,17 +2360,18 @@ void TMediaPassThroughEncoder::Write(std::shared_ptr<SoyPixelsImpl> pImage,SoyTi
 }
 
 
+
 void TMediaPassThroughEncoder::OnError(const std::string& Error)
 {
 	mFatalError << Error;
 }
 
-
-
 TTextureBuffer::TTextureBuffer(std::shared_ptr<Opengl::TContext> Context) :
 	mOpenglContext	( Context )
 {	
 }
+
+
 
 TTextureBuffer::TTextureBuffer(std::shared_ptr<Directx::TContext> Context) :
 	mDirectxContext	( Context )
@@ -2353,6 +2392,7 @@ TTextureBuffer::TTextureBuffer(std::shared_ptr<Directx::TTexture> Texture,std::s
 
 TTextureBuffer::~TTextureBuffer()
 {
+#if defined(ENABLE_OPENGL)
 	if ( mOpenglTexture && mOpenglTexturePool )
 	{
 		try
@@ -2366,11 +2406,12 @@ TTextureBuffer::~TTextureBuffer()
 
 	if ( mOpenglContext )
 	{
-		Opengl::DeferDelete( mOpenglContext, mOpenglTexture );
+		PopWorker::DeferDelete( mOpenglContext, mOpenglTexture );
 		mOpenglContext.reset();
 	}
+#endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 	if ( mDirectxTexture && mDirectxTexturePool )
 	{
 		try
@@ -2384,9 +2425,35 @@ TTextureBuffer::~TTextureBuffer()
 
 	if ( mDirectxContext )
 	{
-		Opengl::DeferDelete( mDirectxContext, mDirectxTexture );
+		PopWorker::DeferDelete( mDirectxContext, mDirectxTexture );
 		mDirectxContext.reset();
 	}
 #endif
+}
+
+
+
+TAudioSplitChannelDecoder::TAudioSplitChannelDecoder(const std::string& ThreadName,std::shared_ptr<TMediaPacketBuffer>& InputBuffer,std::shared_ptr<TAudioBufferManager> OutputBuffer,std::shared_ptr<TAudioBufferManager>& RealOutput,std::shared_ptr<TMediaDecoder>& RealDecoder,size_t RealChannel) :
+	TMediaPassThroughDecoder	( ThreadName, InputBuffer, OutputBuffer ),
+	mRealOutputAudioBuffer		( RealOutput )
+{
+	//	setup a listener for the real output, modify and push to our "input"
+	Soy::Assert( mRealOutputAudioBuffer != nullptr, "Real output expected");
+	Soy::Assert( mAudioOutput != nullptr, "audio output buffer expected");
+	
+
+	auto OnRealBlock = [this,RealChannel](TAudioBufferBlock& Block)
+	{
+		//	extract the channel we want
+		TAudioBufferBlock ChannelBlock;
+		ChannelBlock.Append( Block );
+
+		BufferArray<size_t,10> NewChannels;
+		NewChannels.PushBack( RealChannel );
+		ChannelBlock.SetChannels( GetArrayBridge(NewChannels) );
+		mAudioOutput->PushAudioBuffer( ChannelBlock );
+	};
+
+	mRealOutputAudioBuffer->mOnAudioBlockPushed.AddListener( OnRealBlock );
 }
 

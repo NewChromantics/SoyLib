@@ -7,7 +7,7 @@
 namespace Avf
 {
 	class TAsset;
-	SoyMediaFormat::Type			SoyMediaFormat_FromFourcc(uint32 Fourcc,int H264LengthSize);
+	SoyMediaFormat::Type			SoyMediaFormat_FromFourcc(uint32 Fourcc,size_t H264LengthSize);
 	void							GetFileExtensions(ArrayBridge<std::string>&& Extensions);
 
 #if defined(__OBJC__)
@@ -79,3 +79,7 @@ public:
 };
 #endif
 
+
+#if defined(__OBJC__)
+std::ostream& operator<<(std::ostream& out,const AVAssetExportSessionStatus& in);
+#endif

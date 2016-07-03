@@ -5,7 +5,9 @@
 
 
 //	windows complains that I don't need to specify throw exception type?
+#if !defined(TARGET_PS4)
 #pragma warning(disable:4290)	//	C++ exception specification ignored except to indicate a function is not __declspec(nothrow)
+#endif
 
 #if defined(__OBJC__)
 @class NSException;

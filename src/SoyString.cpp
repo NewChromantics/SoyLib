@@ -810,6 +810,7 @@ std::string Soy::FourCCToString(uint32 Fourcc)
 		if ( x >='A' && x <= 'Z' )	return true;
 		if ( x >='a' && x <= 'z' )	return true;
 		if ( x >='0' && x <= '9' )	return true;
+		if ( x >=' ' )	return true;
 		return false;
 	};
 

@@ -20,6 +20,16 @@ DEFINE_MEDIATYPE_GUID_CUSTOM( MFVideoFormat_VIDS,      FCC('vids') );
 DEFINE_MEDIATYPE_GUID_CUSTOM( MFAudioFormat_AUDS,      FCC('auds') );
 
 
+bool MediaFoundation::IsOkay(HRESULT Error,const std::string& Context,bool ThrowException,bool Verbose)
+{
+	if ( !Verbose )
+		return (Error == S_OK);
+
+	return Platform::IsOkay( Error, Context, ThrowException );
+}
+
+
+
 std::string GetFourCCString(uint32 MediaFormatFourCC)
 {
 	//	gr: these are in MFAPi.h, not sure why compiler isn't resolving them
@@ -168,6 +178,13 @@ TPlatformFormatMap<GUID> PlatformFormatMap[] =
 	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Ntsc ),
 	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Smptec ),
 
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_I420,	SoyMediaFormat::Yuv_8_8_8_Full ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_I420,	SoyMediaFormat::Yuv_8_8_8_Ntsc ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_I420,	SoyMediaFormat::Yuv_8_8_8_Smptec ),
+
+
+	
+
 	//	from an apple sample movie
 	//	http://www.fourcc.org/codecs.php
 	//	YUV 4:2:2 CCIR 601 for V422 (no, I don't understand this either) 
@@ -297,6 +314,16 @@ SoyMediaFormat::Type MediaFoundation::GetFormat(GUID Major,GUID Minor,size_t H26
 {
 	if (Major == MFMediaType_Audio)
 	{
+		uint32 Fourcc = 0;
+		GetMediaFormatGuidFourcc( Minor, Fourcc );
+		{
+			auto Format = SoyMediaFormat::FromFourcc( Fourcc, H264NaluLengthSize );
+			if ( Format != SoyMediaFormat::Invalid )
+				return Format;
+		}
+	
+		std::Debug << "Warning: audio media type not detected via fourcc (" << Minor << "/fourcc=" << Soy::FourCCToString(Fourcc) << ")" << std::endl;
+
 		if ( Minor == MFAudioFormat_AUDS )
 			return SoyMediaFormat::Audio_AUDS;
 
@@ -336,7 +363,7 @@ SoyMediaFormat::Type MediaFoundation::GetFormat(GUID Major,GUID Minor,size_t H26
 				return Format;
 		}
 
-		std::Debug << "Warning: media type not detected via fourcc (" << Minor << "/fourcc=" << Soy::FourCCToString(Fourcc) << ")" << std::endl;
+		std::Debug << "Warning: video media type not detected via fourcc (" << Minor << "/fourcc=" << Soy::FourCCToString(Fourcc) << ")" << std::endl;
 
 		if ( Minor == MFVideoFormat_H264 )
 		{
@@ -527,11 +554,11 @@ AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyPixelsFormat:
 
 AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packet)
 {
-#define WIN_7_MODE
-
-#if defined(WIN_7_MODE)
+#if defined(WINDOWS7_SUPPORT)
+#pragma message("win7 happy build")
 	throw Soy::AssertException("Not supported in win7 build");
 #else
+#pragma message("This binary will not load on windows 7")
 	AutoReleasePtr<IMFMediaBuffer> pBuffer;
 
 	//	make this true, and flip read in shader
@@ -561,8 +588,8 @@ AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packe
 		memcpy( &BufferData[BufferCurrentLength], PixelsData, WriteLength );
 		auto SetResult = Buffer.SetCurrentLength( BufferCurrentLength + WriteLength );
 		auto Result = Buffer.Unlock();
-		IsOkay( Result, "Updating buffer current length");
-		IsOkay( Result, "Unlocking buffer");
+		MediaFoundation::IsOkay( Result, "Updating buffer current length");
+		MediaFoundation::IsOkay( Result, "Unlocking buffer");
 	};
 
 	//	fill it
