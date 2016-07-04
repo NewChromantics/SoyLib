@@ -265,11 +265,7 @@ protected:
 
 private:
 	std::string			mThreadName;
-#if defined(TARGET_PS4)
-	bool		mIsRunning;
-#else
 	volatile bool		mIsRunning;
-#endif
 	std::thread			mThread;
 	SoyListenerId		mNameThreadListener;
 	SoyListenerId		mHeapThreadListener;

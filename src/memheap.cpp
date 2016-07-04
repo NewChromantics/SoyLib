@@ -380,13 +380,7 @@ namespace Soy
 	//	"default" heap for prnew and prdelete which we'd prefer to use rather than the [unmonitorable] crt default heap
 	prmem::Heap&	GetDefaultHeap()
 	{
-		static prmem::Heap* Heap = nullptr;
-		if ( Heap == nullptr )
-		{
-			Soy::Platform::DebugPrint("Soy::GetDefaultHeap");
-			Heap = new prmem::Heap( true, true, "prcore::Heap", 0, false );
-		}
-		//static auto* Heap = new prmem::Heap( true, true, "prcore::Heap", 0, false );
+		static auto* Heap = new prmem::Heap( true, true, "prcore::Heap", 0, false );
 		return *Heap;
 	}
 };
@@ -529,10 +523,6 @@ bool prmem::HeapInfo::Debug_Validate(const void* Object) const
 SoyMem::THeapMeta::THeapMeta(const std::string& Name) :
 	mName		( Name )
 {
-	Soy::Platform::DebugPrint("THeapMeta constructor: ");
-	Soy::Platform::DebugPrint(Name);
-	Soy::Platform::DebugPrint("\n");
-
 }
 
 prmem::HeapDebug::HeapDebug(const Heap& OwnerHeap) :

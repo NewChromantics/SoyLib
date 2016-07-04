@@ -211,10 +211,7 @@ SoyThread::SoyThread(const std::string& ThreadName) :
 	mThreadName	( ThreadName ),
 	mIsRunning	( false )
 {
-	Soy::Platform::DebugPrint("SoyThread() start");
-	Soy::Platform::DebugPrint(ThreadName);
 	//	POSIX needs to name threads IN the thread. so do that for everyone by default
-	Soy::Platform::DebugPrint("NameThread lambda");
 	auto NameThread = [this](SoyThread& Thread)
 	{
 	//	Soy::Assert( std::this_thread::id == Thread.get_id(), "Shouldn't call this outside of thread" );
@@ -222,22 +219,13 @@ SoyThread::SoyThread(const std::string& ThreadName) :
 			SetThreadName( mThreadName );
 	};
 
-	{
-		std::stringstream Debug;
-		auto CurrentListenerCount = GetOnThreadStart().GetListenerCount();
-		Debug << "OnThreadStart.listenercount=" << CurrentListenerCount;
-		Soy::Platform::DebugPrint( Debug.str() );
-	}
 	mNameThreadListener = GetOnThreadStart().AddListener( NameThread );
 	
-	Soy::Platform::DebugPrint("CleanupHeapWrapper lambda");
 	auto CleanupHeapWrapper = [this](SoyThread&)
 	{
 		CleanupHeap();
 	};
-	Soy::Platform::DebugPrint("OnThreadFinish.AddListener");
 	mHeapThreadListener = GetOnThreadFinish().AddListener( CleanupHeapWrapper );
-	Soy::Platform::DebugPrint("SoyThread() end");
 }
 
 SoyThread::~SoyThread()
