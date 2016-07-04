@@ -19,6 +19,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <InlinedScopes>true</InlinedScopes>
       <CppLanguageStd>Cpp11</CppLanguageStd>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <AdditionalDependencies>libBink2Orbis.a;SoyLib.a;-lScePosix_stub_weak;-lSceNet_stub_weak;-lSceNetCtl_stub_weak;-lSceNetDebug_stub_weak</AdditionalDependencies>
