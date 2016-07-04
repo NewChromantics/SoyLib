@@ -300,22 +300,22 @@ public:
 class SoyPixels : public SoyPixelsDef<Array<uint8>>
 {
 public:
-	static prmem::Heap		DefaultHeap;
+	static prmem::Heap&				GetDefaultHeap();
 	
 public:
 	SoyPixels(const SoyPixelsImpl& that) :
-		mArray						( DefaultHeap ),
+		mArray						( GetDefaultHeap() ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{
 		Copy( that );
 	}
-	SoyPixels(prmem::Heap& Heap=DefaultHeap) :
+	SoyPixels(prmem::Heap& Heap=GetDefaultHeap()) :
 		mArray						( Heap ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{
 	}
 	SoyPixels(const SoyPixelsMeta& Meta) :
-		mArray						( DefaultHeap ),
+		mArray						( GetDefaultHeap() ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{
 		Init( Meta );

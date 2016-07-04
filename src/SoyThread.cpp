@@ -23,9 +23,21 @@ namespace Soy
 	}
 }
 
-SoyEvent<SoyThread> SoyThread::OnThreadFinish;
-SoyEvent<SoyThread> SoyThread::OnThreadStart;
+SoyEvent<SoyThread>& SoyThread::GetOnThreadFinish()
+{
+	static SoyEvent<SoyThread>* Event;
+	if ( !Event )
+		Event = new SoyEvent<SoyThread>();
+	return *Event;
+}
 
+SoyEvent<SoyThread>& SoyThread::GetOnThreadStart()
+{
+	static SoyEvent<SoyThread>* Event;
+	if ( !Event )
+		Event = new SoyEvent<SoyThread>();
+	return *Event;
+}
 
 void Soy::TSemaphore::OnCompleted()
 {
@@ -199,26 +211,39 @@ SoyThread::SoyThread(const std::string& ThreadName) :
 	mThreadName	( ThreadName ),
 	mIsRunning	( false )
 {
+	Soy::Platform::DebugPrint("SoyThread() start");
+	Soy::Platform::DebugPrint(ThreadName);
 	//	POSIX needs to name threads IN the thread. so do that for everyone by default
+	Soy::Platform::DebugPrint("NameThread lambda");
 	auto NameThread = [this](SoyThread& Thread)
 	{
 	//	Soy::Assert( std::this_thread::id == Thread.get_id(), "Shouldn't call this outside of thread" );
 		if ( !mThreadName.empty() )
 			SetThreadName( mThreadName );
 	};
-	mNameThreadListener = OnThreadStart.AddListener( NameThread );
+
+	{
+		std::stringstream Debug;
+		auto CurrentListenerCount = GetOnThreadStart().GetListenerCount();
+		Debug << "OnThreadStart.listenercount=" << CurrentListenerCount;
+		Soy::Platform::DebugPrint( Debug.str() );
+	}
+	mNameThreadListener = GetOnThreadStart().AddListener( NameThread );
 	
+	Soy::Platform::DebugPrint("CleanupHeapWrapper lambda");
 	auto CleanupHeapWrapper = [this](SoyThread&)
 	{
 		CleanupHeap();
 	};
-	mHeapThreadListener = OnThreadFinish.AddListener( CleanupHeapWrapper );
+	Soy::Platform::DebugPrint("OnThreadFinish.AddListener");
+	mHeapThreadListener = GetOnThreadFinish().AddListener( CleanupHeapWrapper );
+	Soy::Platform::DebugPrint("SoyThread() end");
 }
 
 SoyThread::~SoyThread()
 {
-	OnThreadStart.RemoveListener( mNameThreadListener );
-	OnThreadFinish.RemoveListener( mHeapThreadListener );
+	GetOnThreadStart().RemoveListener( mNameThreadListener );
+	GetOnThreadFinish().RemoveListener( mHeapThreadListener );
 }
 
 
@@ -251,7 +276,7 @@ void SoyThread::Start()
 	{
 		this->mIsRunning = true;
 
-		SoyThread::OnThreadStart.OnTriggered(*this);
+		SoyThread::GetOnThreadStart().OnTriggered(*this);
 		
 		//	gr: even if we're not catching exceptions, java NEEDS us to cleanup the threads or the OS will abort us
 		try
@@ -260,16 +285,16 @@ void SoyThread::Start()
 			{
 				this->Thread();
 			}
-			SoyThread::OnThreadFinish.OnTriggered(*this);
+			SoyThread::GetOnThreadFinish().OnTriggered(*this);
 		}
 		catch(std::exception& e)
 		{
-			SoyThread::OnThreadFinish.OnTriggered(*this);
+			SoyThread::GetOnThreadFinish().OnTriggered(*this);
 			throw;
 		}
 		catch(...)
 		{
-			SoyThread::OnThreadFinish.OnTriggered(*this);
+			SoyThread::GetOnThreadFinish().OnTriggered(*this);
 			throw;
 		}
 		
@@ -601,8 +626,7 @@ prmem::Heap& SoyThread::GetHeap(std::thread::native_handle_type Thread)
 		//	if key exists, but null, the thread has been cleaned up. issue a warning and return the default heap
 		if ( !pHeap )
 		{
-			Soy::Assert( pHeap!=nullptr, "Getting heap for thread that has been destroyed" );
-			return prcore::Heap;
+			throw Soy::AssertException("Getting heap for thread that has been destroyed" );
 		}
 		
 		return *pHeap;

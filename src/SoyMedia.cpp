@@ -16,9 +16,11 @@
 #include "SoyPool.h"
 
 
-prmem::Heap SoyMedia::DefaultHeap(true, true, "SoyMedia::DefaultHeap" );
-
-
+prmem::Heap& SoyMedia::GetDefaultHeap()
+{
+	static auto* Heap = new prmem::Heap( true, true, "SoyMedia::DefaultHeap" );
+	return *Heap;
+}
 
 
 std::ostream& operator<<(std::ostream& out,const TStreamMeta& in)
@@ -812,7 +814,7 @@ TMediaMuxer::TMediaMuxer(std::shared_ptr<TStreamWriter> Output,std::shared_ptr<T
 	SoyWorkerThread		( ThreadName, SoyWorkerWaitMode::Wake ),
 	mOutput				( Output ),
 	mInput				( Input ),
-	mDefferedPackets	( SoyMedia::DefaultHeap )
+	mDefferedPackets	( SoyMedia::GetDefaultHeap() )
 {
 	//Soy::Assert( mOutput!=nullptr, "TMpeg2TsMuxer output missing");
 	Soy::Assert( mInput!=nullptr, "TMpeg2TsMuxer input missing");

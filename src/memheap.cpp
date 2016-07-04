@@ -368,16 +368,27 @@ AtomicArrayBridge<BufferArray<prmem::HeapInfo*,10000>>& prmem::GetMemHeapRegiste
 	return gAtomicMemHeapRegister;
 }
 
-namespace SoyMem
+namespace Soy
 {
 	//	heap used for new/delete global replacements
-	prmem::Heap		GlobalHeap( true, true, "GlobalHeap", 0, false );
-}
+	prmem::Heap&	GetGlobalHeap()
+	{
+		static auto* Heap = new prmem::Heap( true, true, "GlobalHeap", 0, false );
+		return *Heap;
+	}
 
-namespace prcore
-{
 	//	"default" heap for prnew and prdelete which we'd prefer to use rather than the [unmonitorable] crt default heap
-	prmem::Heap		Heap( true, true, "prcore::Heap", 0, false );
+	prmem::Heap&	GetDefaultHeap()
+	{
+		static prmem::Heap* Heap = nullptr;
+		if ( Heap == nullptr )
+		{
+			Soy::Platform::DebugPrint("Soy::GetDefaultHeap");
+			Heap = new prmem::Heap( true, true, "prcore::Heap", 0, false );
+		}
+		//static auto* Heap = new prmem::Heap( true, true, "prcore::Heap", 0, false );
+		return *Heap;
+	}
 };
 
 namespace prmem
@@ -443,13 +454,13 @@ void* operator new(std::size_t sz)
 	//	gr: this causes the placement new... is that what' we want?
 	try
 	{
-		return SoyMem::GlobalHeap.AllocRaw( sz );
+		return Soy::GetGlobalHeap().AllocRaw( sz );
 	}
 	catch(std::bad_alloc& e)
 	{
 		//	for CRT startup, we may get globals allocated before the global heap...
 		//	try and figure this out
-		if ( SoyMem::GlobalHeap.IsValid() )
+		if ( Soy::GetGlobalHeap().IsValid() )
 			throw;
 
 		return std::malloc( sz );
@@ -468,7 +479,7 @@ __noexcept_prefix void operator delete(void* ptr) __noexcept
 	//	without the expensive? heap checks
 	try
 	{
-		if ( !SoyMem::GlobalHeap.Free( reinterpret_cast<uint8*>(ptr) ) )
+		if ( !Soy::GetGlobalHeap().Free( reinterpret_cast<uint8*>(ptr) ) )
 			return std::free( ptr );
 	}
 	catch(...)
@@ -515,7 +526,14 @@ bool prmem::HeapInfo::Debug_Validate(const void* Object) const
 #endif
 }
 
+SoyMem::THeapMeta::THeapMeta(const std::string& Name) :
+	mName		( Name )
+{
+	Soy::Platform::DebugPrint("THeapMeta constructor: ");
+	Soy::Platform::DebugPrint(Name);
+	Soy::Platform::DebugPrint("\n");
 
+}
 
 prmem::HeapDebug::HeapDebug(const Heap& OwnerHeap) :
 	mHeap	( true, true, Soy::StreamToString(std::stringstream()<< "DEBUG " << OwnerHeap.GetName()).c_str() , 0, false ),

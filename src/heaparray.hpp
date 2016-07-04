@@ -23,14 +23,13 @@ public:
 	typedef T TYPE;	//	in case you ever need to get to T in a template function/class, you can use ARRAYPARAM::TYPE (sometimes need typename ARRAYPARAM::TYPE)
 
 	//	default heap, which can be specialised for different templates
-	inline static prmem::Heap&	GetDefaultHeap()	{	return prcore::Heap;	}
+	inline static prmem::Heap&	GetDefaultHeap()	{	return Soy::GetDefaultHeap();	}
 	
 public:
 
 	Array()
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
-		SetHeap( GetDefaultHeap() );
 	}
 
 	explicit Array(prmem::Heap& Heap)
@@ -42,13 +41,11 @@ public:
 	Array(size_t size)
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
-		SetHeap( GetDefaultHeap() );
 		SetSize(size);
 	}
 	Array(int size)
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
-		SetHeap( GetDefaultHeap() );
 		SetSize(size);
 	}
 
@@ -65,7 +62,6 @@ public:
 	explicit Array(const ARRAYTYPE& v)
 	: mdata(nullptr),mmaxsize(0),moffset(0),mHeap(nullptr)
 	{
-		SetHeap( GetDefaultHeap() );
 		Copy( v );
 	}
 
@@ -521,7 +517,7 @@ public:
 			auto& This = *const_cast<Array<T>*>( this );
 			This.SetHeap( GetDefaultHeap() );
 		}
-		return mHeap ? *mHeap : prcore::Heap;	
+		return mHeap ? *mHeap : GetDefaultHeap();	
 	}
 
 	bool			SetHeap(prmem::Heap& Heap)

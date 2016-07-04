@@ -204,8 +204,8 @@ class SoyThread
 {
 public:
 	//	global thread events for platform hooks
-	static SoyEvent<SoyThread>	OnThreadFinish;	//	call whilst in thread
-	static SoyEvent<SoyThread>	OnThreadStart;	//	call whilst in thread
+	static SoyEvent<SoyThread>&	GetOnThreadFinish();	//	call whilst in thread
+	static SoyEvent<SoyThread>&	GetOnThreadStart();	//	call whilst in thread
 
 public:
 	SoyThread(const std::string& ThreadName);
@@ -265,7 +265,11 @@ protected:
 
 private:
 	std::string			mThreadName;
+#if defined(TARGET_PS4)
+	bool		mIsRunning;
+#else
 	volatile bool		mIsRunning;
+#endif
 	std::thread			mThread;
 	SoyListenerId		mNameThreadListener;
 	SoyListenerId		mHeapThreadListener;
@@ -550,7 +554,7 @@ template<class TYPE>
 class TLockQueue
 {
 public:
-	TLockQueue(prmem::Heap& Heap=prcore::Heap) :
+	TLockQueue(prmem::Heap& Heap=Soy::GetDefaultHeap()) :
 		mJobs	( Heap )
 	{
 	}

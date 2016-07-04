@@ -20,7 +20,11 @@
 
 
 
-prmem::Heap SoyPixels::DefaultHeap( true, true, "SoyPixels::DefaultHeap" );
+prmem::Heap& SoyPixels::GetDefaultHeap()
+{
+	static auto* Heap = new prmem::Heap( true, true, "SoyPixels::DefaultHeap" );
+	return *Heap;
+}
 	
 
 SoyPixelsFormat::Type SoyPixelsFormat::GetYuvFull(SoyPixelsFormat::Type Format)
@@ -883,7 +887,6 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::RGBA, SoyPixelsFormat::BGRA, ConvertFormat_BgrToRgb ),
 	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::BGR, ConvertFormat_BgrToRgb ),
 };
-int gConversionFuncsCount = sizeofarray(gConversionFuncs);
 
 
 bool SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
