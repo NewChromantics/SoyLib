@@ -65,6 +65,7 @@ namespace Platform
 }
 
 
+
 namespace Unity
 {
 	static int		gRenderEventTimerMs = 8;
@@ -90,15 +91,20 @@ namespace Unity
 	std::shared_ptr<Metal::TContext>	MetalContext;
 	std::shared_ptr<Cuda::TContext>		CudaContext;
 	std::shared_ptr<Gnm::TContext>		GnmContext;
-	
-	
-	SoyEvent<bool>		mOnDeviceShutdown;
-	
+		
 #if defined(TARGET_IOS)
 	void				IosDetectGraphicsDevice();
 #endif
 }
 
+
+SoyEvent<bool>& Unity::GetOnDeviceShutdown()
+{
+	static SoyEvent<bool>* Event = nullptr;
+	if ( !Event )
+		Event = new SoyEvent<bool>();
+	return *Event;
+}
 
 
 std::map<UnityDevice::Type, std::string> UnityDevice::EnumMap =
@@ -538,7 +544,7 @@ void Unity::Shutdown(UnityDevice::Type Device)
 
 	{
 		bool Dummy;
-		mOnDeviceShutdown.OnTriggered(Dummy);
+		GetOnDeviceShutdown().OnTriggered(Dummy);
 	}
 	
 	//	free all contexts

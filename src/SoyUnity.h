@@ -59,7 +59,6 @@ namespace Platform
 }
 
 
-
 namespace UnityDevice
 {
 	//	GfxDeviceRenderer
@@ -234,7 +233,7 @@ namespace Unity
 	extern int					GetPluginEventId();
 	extern bool					IsDebugPluginEventEnabled();
 	
-	extern SoyEvent<bool>		mOnDeviceShutdown;
+	SoyEvent<bool>&				GetOnDeviceShutdown();
 	
 	//	gr: this is a bit more generic than unity, so might move it later
 	const std::string&			GetBundleIdentifier();
