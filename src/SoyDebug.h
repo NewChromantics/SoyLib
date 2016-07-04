@@ -16,7 +16,7 @@
 //	on ps4 using std::Debug was causing lots of crashes, so lets eliminate that and restore slowly
 //#if defined(TARGET_PS4)
 #define SOYDEBUG_NO_THROW
-//#define SOYDEBUG_ENABLE
+#define SOYDEBUG_ENABLE
 //#endif
 
 
@@ -124,7 +124,7 @@ namespace std
 				#if defined(SOYDEBUG_NO_THROW)
 					if ( &Stream != &mStream )
 					{
-						Soy::Platform::DebugPrint("Wrong locked stream");
+						Platform::DebugPrint("Wrong locked stream");
 						return;
 					}
 				#else
