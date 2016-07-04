@@ -313,7 +313,7 @@ void SoyThread::Start()
 	#if defined(TARGET_ANDROID)
 	bool CatchExceptions = true;
 	#else
-	bool CatchExceptions = !Soy::Platform::IsDebuggerAttached();
+	bool CatchExceptions = !Platform::IsDebuggerAttached();
 	#endif
 	
 	//	start thread

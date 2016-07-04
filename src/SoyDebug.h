@@ -30,16 +30,12 @@ namespace std
 }
 
 
-namespace Soy
+namespace Platform
 {
-	namespace Platform
-	{
-		bool	DebugBreak();
-		bool	IsDebuggerAttached();
-		void	DebugPrint(const std::string& String);
-	}
-	
-};
+	bool	DebugBreak();
+	bool	IsDebuggerAttached();
+	void	DebugPrint(const std::string& String);
+}
 
 
 

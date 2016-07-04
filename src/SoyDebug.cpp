@@ -90,7 +90,7 @@ void Soy::Platform::DebugPrint(const std::string& Message)
 #endif
 
 #if defined(TARGET_PS4)
-void Soy::Platform::DebugPrint(const std::string& Message)
+void Platform::DebugPrint(const std::string& Message)
 {
 	printf( "PopPs4: %s\n", Message.c_str() );
 }
@@ -166,7 +166,7 @@ void std::DebugStreamBuf::flush()
 		if ( PlatformDebugPrint )
 		{
 			std::string BufferStr(Buffer.c_str());
-			Soy::Platform::DebugPrint( BufferStr );
+			Platform::DebugPrint( BufferStr );
 		}
 		
 		if ( mOnFlush.HasListeners() )
@@ -227,7 +227,7 @@ bool XCodeDebuggerAttached()
 #endif
 
 
-bool Soy::Platform::IsDebuggerAttached()
+bool Platform::IsDebuggerAttached()
 {
 #if defined(TARGET_WINDOWS)
 	return IsDebuggerPresent()==TRUE;
@@ -241,7 +241,7 @@ bool Soy::Platform::IsDebuggerAttached()
 }
 
 
-bool Soy::Platform::DebugBreak()
+bool Platform::DebugBreak()
 {
 #if defined(TARGET_OSX)
 	static bool DoBreak = false;
