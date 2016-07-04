@@ -81,6 +81,7 @@ namespace std
 		
 	public:
 		bool			mEnableStdOut;
+		//	gr: need to defer creation of this event(contains mutex) for PS4 until first use (NOT global!)
 		SoyEvent<const std::string>	mOnFlush;		//	catch debug output
 	};
 
@@ -220,6 +221,7 @@ namespace std
 		}
 		
 	private:
+		//	gr: need to defer creation of this mutex for PS4 until first use (NOT global!)
 	#if defined(SOYDEBUG_ENABLE)
 		std::recursive_mutex	mStreamLock;
 		DebugStream				mStream;
@@ -227,6 +229,7 @@ namespace std
 		//	gr: find a better stack system than allocating!
 		std::vector<std::shared_ptr<Soy::TPushPopStreamSettings>>	mPushPopSettings;
 	#else
+		//	gr: need to defer creation of this event(contains mutex) for PS4 until first use (NOT global!)
 		SoyEvent<const std::string>	mDummyFlushEvent;
 	#endif
 	};
