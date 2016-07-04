@@ -75,7 +75,7 @@ __thread std::DebugBufferString* ThreadBuffer = nullptr;	//	thread_local not sup
 
 
 #if defined(TARGET_ANDROID)
-void Soy::Platform::DebugPrint(const std::string& Message)
+void Platform::DebugPrint(const std::string& Message)
 {
 	__android_log_print( ANDROID_LOG_INFO, Soy::DebugContext.c_str(), "pop: %s", Message.c_str() );
 }
@@ -83,7 +83,7 @@ void Soy::Platform::DebugPrint(const std::string& Message)
 
 
 #if defined(TARGET_WINDOWS)
-void Soy::Platform::DebugPrint(const std::string& Message)
+void Platform::DebugPrint(const std::string& Message)
 {
 	OutputDebugStringA( Message.c_str() );
 }
@@ -147,8 +147,8 @@ void std::DebugStreamBuf::flush()
 #if defined(TARGET_WINDOWS)
 
 		//	if there's a debugger attached output to that, otherwise to-screen
-		PlatformStdout &= !Soy::Platform::IsDebuggerAttached();
-		PlatformDebugPrint = Soy::Platform::IsDebuggerAttached();
+		PlatformStdout &= !Platform::IsDebuggerAttached();
+		PlatformDebugPrint = Platform::IsDebuggerAttached();
 
 #elif defined(TARGET_OSX)
 
