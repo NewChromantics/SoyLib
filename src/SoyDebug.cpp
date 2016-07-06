@@ -75,7 +75,7 @@ __thread std::DebugBufferString* ThreadBuffer = nullptr;	//	thread_local not sup
 
 
 #if defined(TARGET_ANDROID)
-void Soy::Platform::DebugPrint(const std::string& Message)
+void Platform::DebugPrint(const std::string& Message)
 {
 	__android_log_print( ANDROID_LOG_INFO, Soy::DebugContext.c_str(), "pop: %s", Message.c_str() );
 }
@@ -83,16 +83,16 @@ void Soy::Platform::DebugPrint(const std::string& Message)
 
 
 #if defined(TARGET_WINDOWS)
-void Soy::Platform::DebugPrint(const std::string& Message)
+void Platform::DebugPrint(const std::string& Message)
 {
 	OutputDebugStringA( Message.c_str() );
 }
 #endif
 
 #if defined(TARGET_PS4)
-void Soy::Platform::DebugPrint(const std::string& Message)
+void Platform::DebugPrint(const std::string& Message)
 {
-#pragma message("Todo debug print")
+	printf( "PopPs4: %s\n", Message.c_str() );
 }
 #endif
 
@@ -147,8 +147,8 @@ void std::DebugStreamBuf::flush()
 #if defined(TARGET_WINDOWS)
 
 		//	if there's a debugger attached output to that, otherwise to-screen
-		PlatformStdout &= !Soy::Platform::IsDebuggerAttached();
-		PlatformDebugPrint = Soy::Platform::IsDebuggerAttached();
+		PlatformStdout &= !Platform::IsDebuggerAttached();
+		PlatformDebugPrint = Platform::IsDebuggerAttached();
 
 #elif defined(TARGET_OSX)
 
@@ -166,7 +166,7 @@ void std::DebugStreamBuf::flush()
 		if ( PlatformDebugPrint )
 		{
 			std::string BufferStr(Buffer.c_str());
-			Soy::Platform::DebugPrint( BufferStr );
+			Platform::DebugPrint( BufferStr );
 		}
 		
 		if ( mOnFlush.HasListeners() )
@@ -227,7 +227,7 @@ bool XCodeDebuggerAttached()
 #endif
 
 
-bool Soy::Platform::IsDebuggerAttached()
+bool Platform::IsDebuggerAttached()
 {
 #if defined(TARGET_WINDOWS)
 	return IsDebuggerPresent()==TRUE;
@@ -241,7 +241,7 @@ bool Soy::Platform::IsDebuggerAttached()
 }
 
 
-bool Soy::Platform::DebugBreak()
+bool Platform::DebugBreak()
 {
 #if defined(TARGET_OSX)
 	static bool DoBreak = false;

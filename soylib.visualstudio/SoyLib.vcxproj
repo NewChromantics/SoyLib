@@ -63,6 +63,12 @@
     </ClCompile>
     <ClCompile Include="..\src\SoyEvent.cpp" />
     <ClCompile Include="..\src\SoyFilesystem.cpp" />
+    <ClCompile Include="..\src\SoyGnm.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\src\SoyGraphics.cpp" />
     <ClCompile Include="..\src\SoyH264.cpp" />
     <ClCompile Include="..\src\SoyHttp.cpp" />
@@ -145,6 +151,7 @@
     <ClInclude Include="..\src\SoyEvent.h" />
     <ClInclude Include="..\src\SoyExportManager.h" />
     <ClInclude Include="..\src\SoyFilesystem.h" />
+    <ClInclude Include="..\src\SoyGnm.h" />
     <ClInclude Include="..\src\SoyGraphics.h" />
     <ClInclude Include="..\src\SoyH264.h" />
     <ClInclude Include="..\src\SoyHttp.h" />

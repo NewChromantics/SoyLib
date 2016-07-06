@@ -8,6 +8,15 @@
 #if defined(TARGET_PS4)
 #include <pthread.h>
 #include <pthread_np.h>
+#define MAX_THREAD_NAME	32	//	from https://ps4.scedev.net/resources/documents/SDK/3.500/Kernel-Reference/0101.html
+#endif
+
+#if defined(TARGET_ANDROID)
+//	max name length found from kernel source;
+//	https://android.googlesource.com/platform/bionic/+/40eabe2/libc/bionic/pthread_setname_np.cpp
+// "This value is not exported by kernel headers."
+#define MAX_TASK_COMM_LEN 16
+#define MAX_THREAD_NAME	MAX_TASK_COMM_LEN
 #endif
 
 namespace Java
@@ -23,9 +32,21 @@ namespace Soy
 	}
 }
 
-SoyEvent<SoyThread> SoyThread::OnThreadFinish;
-SoyEvent<SoyThread> SoyThread::OnThreadStart;
+SoyEvent<SoyThread>& SoyThread::GetOnThreadFinish()
+{
+	static SoyEvent<SoyThread>* Event;
+	if ( !Event )
+		Event = new SoyEvent<SoyThread>();
+	return *Event;
+}
 
+SoyEvent<SoyThread>& SoyThread::GetOnThreadStart()
+{
+	static SoyEvent<SoyThread>* Event;
+	if ( !Event )
+		Event = new SoyEvent<SoyThread>();
+	return *Event;
+}
 
 void Soy::TSemaphore::OnCompleted()
 {
@@ -206,19 +227,20 @@ SoyThread::SoyThread(const std::string& ThreadName) :
 		if ( !mThreadName.empty() )
 			SetThreadName( mThreadName );
 	};
-	mNameThreadListener = OnThreadStart.AddListener( NameThread );
+
+	mNameThreadListener = GetOnThreadStart().AddListener( NameThread );
 	
 	auto CleanupHeapWrapper = [this](SoyThread&)
 	{
 		CleanupHeap();
 	};
-	mHeapThreadListener = OnThreadFinish.AddListener( CleanupHeapWrapper );
+	mHeapThreadListener = GetOnThreadFinish().AddListener( CleanupHeapWrapper );
 }
 
 SoyThread::~SoyThread()
 {
-	OnThreadStart.RemoveListener( mNameThreadListener );
-	OnThreadFinish.RemoveListener( mHeapThreadListener );
+	GetOnThreadStart().RemoveListener( mNameThreadListener );
+	GetOnThreadFinish().RemoveListener( mHeapThreadListener );
 }
 
 
@@ -251,7 +273,7 @@ void SoyThread::Start()
 	{
 		this->mIsRunning = true;
 
-		SoyThread::OnThreadStart.OnTriggered(*this);
+		SoyThread::GetOnThreadStart().OnTriggered(*this);
 		
 		//	gr: even if we're not catching exceptions, java NEEDS us to cleanup the threads or the OS will abort us
 		try
@@ -260,16 +282,16 @@ void SoyThread::Start()
 			{
 				this->Thread();
 			}
-			SoyThread::OnThreadFinish.OnTriggered(*this);
+			SoyThread::GetOnThreadFinish().OnTriggered(*this);
 		}
 		catch(std::exception& e)
 		{
-			SoyThread::OnThreadFinish.OnTriggered(*this);
+			SoyThread::GetOnThreadFinish().OnTriggered(*this);
 			throw;
 		}
 		catch(...)
 		{
-			SoyThread::OnThreadFinish.OnTriggered(*this);
+			SoyThread::GetOnThreadFinish().OnTriggered(*this);
 			throw;
 		}
 		
@@ -300,7 +322,7 @@ void SoyThread::Start()
 	#if defined(TARGET_ANDROID)
 	bool CatchExceptions = true;
 	#else
-	bool CatchExceptions = !Soy::Platform::IsDebuggerAttached();
+	bool CatchExceptions = !Platform::IsDebuggerAttached();
 	#endif
 	
 	//	start thread
@@ -318,8 +340,11 @@ std::thread::native_handle_type SoyThread::GetCurrentThreadNativeHandle()
 {
 #if defined(TARGET_WINDOWS)
 	return ::GetCurrentThread();
-#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)||defined(TARGET_PS4)
+#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
 	return ::pthread_self();
+#elif defined(TARGET_PS4)
+	ScePthread Handle = scePthreadSelf();
+	return Handle;
 #else
 #error SoyThread::GetCurrentThreadNativeHandle Platform not handled
 #endif
@@ -356,30 +381,58 @@ std::string SoyThread::GetCurrentThreadName()
 	std::stringstream OldThreadName;
 	OldThreadName << "Thread-" << CurrentThread;
 	return OldThreadName.str();
+
+#elif defined(TARGET_PS4)
+
+	//	argh unsafe
+	{
+		char Buffer[MAX_THREAD_NAME] = {'\0'};
+		auto Handle = GetCurrentThreadNativeHandle();
+		auto Result = scePthreadGetname( Handle, Buffer );
+		if ( Result == SCE_OK )
+		{
+			if ( Buffer[0] == '\0' )
+				return "<NullThreadName>";
+			return Buffer;
+		}
+		return "<ErrorGettingThreadName>";
+	}
+
 #else
 	return "<NoThreadNameOnThisPlatform>";
 #endif
 }
 
 
-
 void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handle_type ThreadId)
 {
-	//	max name length found from kernel source;
-	//	https://android.googlesource.com/platform/bionic/+/40eabe2/libc/bionic/pthread_setname_np.cpp
-#if defined(TARGET_ANDROID)
-	// "This value is not exported by kernel headers."
-#define MAX_TASK_COMM_LEN 16
-	std::string Name = _Name.substr( 0, MAX_TASK_COMM_LEN-1 );
+#if defined(MAX_THREAD_NAME)
+	std::string Name = _Name.substr( 0, MAX_THREAD_NAME-1 );
 #else
 	auto& Name = _Name;
 #endif
 	
 	
 	auto OldThreadName = GetCurrentThreadName();
-	
-	
-#if defined(TARGET_POSIX)
+		
+
+#if defined(TARGET_PS4)
+
+	//auto Result = pthread_rename_np( ThreadId, Name.c_str() );
+	auto Handle = GetCurrentThreadNativeHandle();
+	auto Result = scePthreadRename( Handle, Name.c_str() );
+
+	if ( Result == SCE_OK )
+	{
+		std::Debug << "Renamed thread from " << OldThreadName << " to " << Name << ": " << std::endl;
+	}
+	else
+	{
+		std::string Error = (Result==ERANGE) ? "Name too long" : Platform::GetErrorString(Result);
+		std::Debug << "Failed to change thread name from " << OldThreadName << " to " << Name << ": " << Error << std::endl;
+	}
+
+#elif defined(TARGET_POSIX)
 	
 #if defined(TARGET_OSX)||defined(TARGET_IOS)
 	//	has to be called whilst in this thread as OSX doesn't take a thread parameter
@@ -390,8 +443,6 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 		return;
 	}
 	auto Result = pthread_setname_np( Name.c_str() );
-#elif defined(TARGET_PS4)
-	auto Result = pthread_rename_np( ThreadId, Name.c_str() );
 #else
 	auto Result = pthread_setname_np( ThreadId, Name.c_str() );
 #endif
@@ -406,9 +457,7 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 		std::Debug << "Failed to change thread name from " << OldThreadName << " to " << Name << ": " << Error << std::endl;
 	}
 
-#endif
-	
-#if defined(TARGET_WINDOWS)
+#elif defined(TARGET_WINDOWS)
 	
 	//	wrap the try() function in a lambda to avoid the unwinding
 	auto SetNameFunc = [](const char* ThreadName,HANDLE ThreadHandle)
@@ -447,6 +496,10 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 	};
 	
 	SetNameFunc( Name.c_str(), ThreadId );
+
+#else
+
+	std::Debug << "Platform does not allow thread rename from " << OldThreadName << " to " << Name << std::endl;
 
 #endif
 }
@@ -601,8 +654,7 @@ prmem::Heap& SoyThread::GetHeap(std::thread::native_handle_type Thread)
 		//	if key exists, but null, the thread has been cleaned up. issue a warning and return the default heap
 		if ( !pHeap )
 		{
-			Soy::Assert( pHeap!=nullptr, "Getting heap for thread that has been destroyed" );
-			return prcore::Heap;
+			throw Soy::AssertException("Getting heap for thread that has been destroyed" );
 		}
 		
 		return *pHeap;

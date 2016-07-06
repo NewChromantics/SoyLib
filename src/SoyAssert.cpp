@@ -29,8 +29,8 @@ void Soy::Private::Assert_Impl(TErrorMessageFunc ErrorMessageFunc) throw(AssertE
 	std::Debug << "Assert: " << ErrorMessage << std::endl;
 	
 	//	if the debugger is attached, try and break the debugger without an exception so we can continue
-	if ( Platform::IsDebuggerAttached() )
-		Soy::Platform::DebugBreak();
+	if ( ::Platform::IsDebuggerAttached() )
+		::Platform::DebugBreak();
 	
 
 	//	throw exception

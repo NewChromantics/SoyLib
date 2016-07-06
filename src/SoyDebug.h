@@ -13,6 +13,13 @@
 #define USE_HEAP_STRING
 #endif
 
+//	on ps4 using std::Debug was causing lots of crashes, so lets eliminate that and restore slowly
+//#if defined(TARGET_PS4)
+#define SOYDEBUG_NO_THROW
+#define SOYDEBUG_ENABLE
+//#endif
+
+
 namespace std
 {
 	class DebugStreamThreadSafeWrapper;
@@ -23,16 +30,12 @@ namespace std
 }
 
 
-namespace Soy
+namespace Platform
 {
-	namespace Platform
-	{
-		bool	DebugBreak();
-		bool	IsDebuggerAttached();
-		void	DebugPrint(const std::string& String);
-	}
-	
-};
+	bool	DebugBreak();
+	bool	IsDebuggerAttached();
+	void	DebugPrint(const std::string& String);
+}
 
 
 
@@ -74,6 +77,7 @@ namespace std
 		
 	public:
 		bool			mEnableStdOut;
+		//	gr: need to defer creation of this event(contains mutex) for PS4 until first use (NOT global!)
 		SoyEvent<const std::string>	mOnFlush;		//	catch debug output
 	};
 
@@ -95,8 +99,7 @@ namespace std
 	};
 
 	
-	
-	
+
 	
 	class DebugStreamThreadSafeWrapper
 	{
@@ -107,20 +110,40 @@ namespace std
 		
 		DebugStream&	LockStream()
 		{
+		#if defined(SOYDEBUG_ENABLE)
 			mStreamLock.lock();
 			return mStream;
+		#else
+			throw Soy::AssertException("SOYDEBUG_ENABLE off");
+		#endif
 		}
 		void			UnlockStream(DebugStream& Stream)
 		{
-			Soy::Assert( &Stream == &mStream, "Wrong stream" );
-			mStreamLock.unlock();
+			#if defined(SOYDEBUG_ENABLE)
+			{
+				#if defined(SOYDEBUG_NO_THROW)
+					if ( &Stream != &mStream )
+					{
+						Platform::DebugPrint("Wrong locked stream");
+						return;
+					}
+				#else
+					Soy::Assert( &Stream == &mStream, "Wrong stream" );
+				#endif
+				mStreamLock.unlock();
+			}
+			#else
+				throw Soy::AssertException("SOYDEBUG_ENABLE off");
+			#endif
 		}
 		
 		template<typename TYPE>
 		DebugStreamThreadSafeWrapper&	operator<<(const TYPE& x)
 		{
+		#if defined(SOYDEBUG_ENABLE)
 			std::lock_guard<std::recursive_mutex> Lock(mStreamLock);
 			mStream << x;
+		#endif
 			return *this;
 		}
 
@@ -130,8 +153,10 @@ namespace std
 		// take in a function with the custom signature
 		DebugStreamThreadSafeWrapper& operator<<(MyStreamManipulator manip)
 		{
+		#if defined(SOYDEBUG_ENABLE)
 			std::lock_guard<std::recursive_mutex> Lock(mStreamLock);
 			manip(*this);
+		#endif
 			return *this;
 		}
 		/*
@@ -151,33 +176,58 @@ namespace std
 		// define an operator<< to take in std::endl
 		DebugStreamThreadSafeWrapper& operator<<(Fstd_endl manip)
 		{
+		#if defined(SOYDEBUG_ENABLE)
 			// call the function, but we cannot return it's value
 			manip(mStream);
+		#endif
 			
 			return *this;
 		}
 		
-		SoyEvent<const std::string>&		GetOnFlushEvent()	{	return mStream.GetOnFlushEvent();	}
+		SoyEvent<const std::string>&		GetOnFlushEvent()	
+		{	
+		#if defined(SOYDEBUG_ENABLE)			
+			return mStream.GetOnFlushEvent();
+		#else
+			return mDummyFlushEvent;
+		#endif
+		}
 		
 		//	toggle std output for this std debug stream
-		void			EnableStdOut(bool Enable)	{	mStream.EnableStdOut(Enable);	}
+		void			EnableStdOut(bool Enable)	
+		{	
+		#if defined(SOYDEBUG_ENABLE)			
+			mStream.EnableStdOut(Enable);
+		#endif
+		}
 		
 		void			PushStreamSettings()
 		{
+		#if defined(SOYDEBUG_ENABLE)			
 			std::shared_ptr<Soy::TPushPopStreamSettings> Push( new Soy::TPushPopStreamSettings(mStream) );
 			mPushPopSettings.push_back( Push );
+		#endif
 		}
+
 		void			PopStreamSettings()
 		{
+		#if defined(SOYDEBUG_ENABLE)			
 			mPushPopSettings.pop_back();
+		#endif
 		}
 		
 	private:
+		//	gr: need to defer creation of this mutex for PS4 until first use (NOT global!)
+	#if defined(SOYDEBUG_ENABLE)
 		std::recursive_mutex	mStreamLock;
 		DebugStream				mStream;
 		
 		//	gr: find a better stack system than allocating!
 		std::vector<std::shared_ptr<Soy::TPushPopStreamSettings>>	mPushPopSettings;
+	#else
+		//	gr: need to defer creation of this event(contains mutex) for PS4 until first use (NOT global!)
+		SoyEvent<const std::string>	mDummyFlushEvent;
+	#endif
 	};
 };
 

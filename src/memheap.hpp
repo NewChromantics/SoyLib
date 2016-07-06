@@ -113,13 +113,12 @@ namespace Soy
 {
 	template<class T>
 	class HeapBridge;		//	for stl
-};
 
-namespace prcore
-{
-	//	global heap to replace new/delete/crt default
-	//	prcore::Heap
-	extern prmem::Heap	Heap;		
+	//	default heap for arrays
+	prmem::Heap&		GetDefaultHeap();
+
+	//	global heap for new/delete
+	prmem::Heap&		GetGlobalHeap();
 }
 
 namespace SoyMem
@@ -269,10 +268,7 @@ public:
 class SoyMem::THeapMeta : public THeapStats
 {
 public:
-	THeapMeta(const std::string& Name=std::string()) :
-		mName		( Name )
-	{
-	}
+	THeapMeta(const std::string& Name=std::string());
 
 public:
 	std::string			mName;	//	name for easy debugging purposes
@@ -726,25 +722,25 @@ public:
 //		std:Map<A,B> myMap;
 //	into
 //		StdMapHeap<A,B> myMap( prcore::Heap );
-template<typename A,typename B,prmem::Heap& HEAP=prcore::Heap>
+template<typename A,typename B>
 class StdMapHeap : public std::map<A,B,std::less<A>,Soy::HeapBridge<std::pair<A,B>>>
 {
 public:
 	typename std::map<A, B, std::less<A>, Soy::HeapBridge<std::pair<A, B>>> SUPER;
 public:
-	StdMapHeap(prmem::Heap& Heap=HEAP) :
+	StdMapHeap(prmem::Heap& Heap=Soy::GetDefaultHeap()) :
 		SUPER	( std::less<A>(), Soy::HeapBridge<std::pair<A const,B>>( Heap ) )
 	{
 	}
 };
 
-template<typename A,prmem::Heap& HEAP=prcore::Heap>
+template<typename A>
 class StdQueueHeap : public std::queue<A,std::deque<A,Soy::HeapBridge<A>>>
 {
 public:
 	typename std::queue<A, std::deque<A, Soy::HeapBridge<A>>> SUPER;
 public:
-	StdQueueHeap(prmem::Heap& Heap=HEAP) :
+	StdQueueHeap(prmem::Heap& Heap=Soy::GetDefaultHeap()) :
 		SUPER	( std::deque<A,Soy::HeapBridge<A>>(Heap) )
 	{
 	}

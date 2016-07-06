@@ -1,20 +1,19 @@
 #include "SoyUnity.h"
 #include "SoyDebug.h"
 #include <sstream>
-#if defined(ENABLE_OPENGL)
-#include "SoyOpenglContext.h"
-#endif
 #include "SoyExportManager.h"
 #include "SoyFilesystem.h"
 
 //	new interfaces in 5.2+
 #include "Unity/IUnityInterface.h"
 #include "Unity/IUnityGraphics.h"
+
 #if defined(ENABLE_DIRECTX)
 class IDirect3D9;
 class IDirect3DDevice9;
 #include "Unity/IUnityGraphicsD3D9.h"
 
+#include "SoyDirectx.h"
 #include "Unity/IUnityGraphicsD3D11.h"
 
 class ID3D12Device;
@@ -24,6 +23,16 @@ class ID3D12Resource;
 class D3D12_RESOURCE_STATES;
 #include "Unity/IUnityGraphicsD3D12.h"
 
+#endif
+
+#if defined(ENABLE_OPENGL)
+#include "SoyOpenglContext.h"
+#endif
+
+
+#if defined(ENABLE_GNM)
+#include "SoyGnm.h"
+#include "Unity/IUnityGraphicsPS4.h"
 #endif
 
 //	unity 5.4
@@ -46,10 +55,15 @@ void	UnityRegisterRenderingPlugin(UnityPluginSetGraphicsDeviceFunc setDevice, Un
 }
 #endif
 
+#if !defined(TARGET_PS4)
+#define ENABLE_UNITY_INTERFACES
+#endif
+
 namespace Platform
 {
 	std::string		GetBundleIdentifier();
 }
+
 
 
 namespace Unity
@@ -71,31 +85,26 @@ namespace Unity
 	Array<const char*>					gDebugExportedStrings;
 	bool								gDebugExportedStringsEnabled = true;
 	
-	
+
 	std::shared_ptr<Opengl::TContext>	OpenglContext;
-#if defined(TARGET_WINDOWS)
 	std::shared_ptr<Directx::TContext>	DirectxContext;
-#endif
-#if defined(ENABLE_METAL)
 	std::shared_ptr<Metal::TContext>	MetalContext;
-#endif
-#if defined(ENABLE_CUDA)
 	std::shared_ptr<Cuda::TContext>		CudaContext;
-#endif
-	
-	
-	SoyEvent<bool>		mOnDeviceShutdown;
-	
-	
-	void				AllocOpenglContext();
-#if defined(ENABLE_METAL)
-	void				AllocMetalContext();
-#endif
+	std::shared_ptr<Gnm::TContext>		GnmContext;
+		
 #if defined(TARGET_IOS)
 	void				IosDetectGraphicsDevice();
 #endif
 }
 
+
+SoyEvent<bool>& Unity::GetOnDeviceShutdown()
+{
+	static SoyEvent<bool>* Event = nullptr;
+	if ( !Event )
+		Event = new SoyEvent<bool>();
+	return *Event;
+}
 
 
 std::map<UnityDevice::Type, std::string> UnityDevice::EnumMap =
@@ -215,7 +224,7 @@ Opengl::TContext& Unity::GetOpenglContext()
 }
 
 
-std::shared_ptr<Opengl::TContext>& Unity::GetOpenglContextPtr()
+std::shared_ptr<Opengl::TContext> Unity::GetOpenglContextPtr()
 {
 #if defined(TARGET_IOS)
 	IosDetectGraphicsDevice();
@@ -224,14 +233,11 @@ std::shared_ptr<Opengl::TContext>& Unity::GetOpenglContextPtr()
 	return OpenglContext;
 }
 
-#if defined(TARGET_WINDOWS)
 bool Unity::HasDirectxContext()
 {
 	return DirectxContext != nullptr;
 }
-#endif
 
-#if defined(TARGET_WINDOWS)
 Directx::TContext& Unity::GetDirectxContext()
 {
 	if (!DirectxContext)
@@ -239,28 +245,23 @@ Directx::TContext& Unity::GetDirectxContext()
 
 	return *DirectxContext;
 }
-#endif
 
-#if defined(TARGET_WINDOWS)
-std::shared_ptr<Directx::TContext>& Unity::GetDirectxContextPtr()
+std::shared_ptr<Directx::TContext> Unity::GetDirectxContextPtr()
 {
 	return DirectxContext;
 }
-#endif
 
 
 
-#if defined(ENABLE_METAL)
-std::shared_ptr<Metal::TContext>& Unity::GetMetalContextPtr()
+std::shared_ptr<Metal::TContext> Unity::GetMetalContextPtr()
 {
 #if defined(TARGET_IOS)
 	IosDetectGraphicsDevice();
 #endif
 	return MetalContext;
 }
-#endif
 
-#if defined(ENABLE_METAL)
+
 Metal::TContext& Unity::GetMetalContext()
 {
 	auto Ptr = GetMetalContextPtr();
@@ -270,9 +271,7 @@ Metal::TContext& Unity::GetMetalContext()
 	
 	return *Ptr;
 }
-#endif
 
-#if defined(ENABLE_METAL)
 bool Unity::HasMetalContext()
 {
 #if defined(TARGET_IOS)
@@ -280,17 +279,19 @@ bool Unity::HasMetalContext()
 #endif
 	return MetalContext != nullptr;
 }
-#endif
 
-#if defined(ENABLE_CUDA)
-std::shared_ptr<Cuda::TContext> Unity::GetCudaContext()
+
+
+std::shared_ptr<Cuda::TContext> Unity::GetCudaContextPtr()
 {
-	if (!CudaContext)
+#if defined(ENABLE_CUDA)
+	if ( !CudaContext )
 		CudaContext.reset(new Cuda::TContext);
+#endif
 
 	return CudaContext;
 }
-#endif
+
 
 SoyPixelsFormat::Type Unity::GetPixelFormat(RenderTexturePixelFormat::Type Format)
 {
@@ -392,9 +393,9 @@ void Unity::RenderEvent(Unity::sint eventID)
 #endif
 }
 
-
 __export void UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::sint eventType)
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	auto DeviceType = UnityDevice::Validate(deviceType);
 	auto DeviceEvent = UnityEvent::Validate(eventType);
 
@@ -413,8 +414,10 @@ __export void UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::
 	default:
 		break;
 	};
+#else
+	printf("%s disabled\n",__func__);
+#endif
 }
-
 
 
 //	gr: check this is okay with multiple plugins linking, which was the original reason for a unique function name...
@@ -424,6 +427,7 @@ __export void UnityRenderEvent_Ios(Unity::sint eventID)
 __export void UnityRenderEvent(Unity::sint eventID)
 #endif
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	//	event triggered by other plugin
 	if ( eventID != Unity::GetPluginEventId() )
 	{
@@ -433,6 +437,9 @@ __export void UnityRenderEvent(Unity::sint eventID)
 	}
 	
 	Unity::RenderEvent( eventID );
+#else
+	printf("%s disabled\n",__func__);
+#endif
 }
 
 
@@ -500,7 +507,15 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 		}
 		break;
 #endif
-			
+
+#if defined(ENABLE_GNM)
+		case UnityDevice::kGfxRendererPS4:
+		{
+			GnmContext = Gnm::AllocContext(DevicePtr);
+		}
+		break;
+#endif
+
 		default:
 		{
 			std::string DeviceName;
@@ -529,18 +544,16 @@ void Unity::Shutdown(UnityDevice::Type Device)
 
 	{
 		bool Dummy;
-		mOnDeviceShutdown.OnTriggered(Dummy);
+		GetOnDeviceShutdown().OnTriggered(Dummy);
 	}
 	
 	//	free all contexts
 	//	gr: may need to defer some of these!
 	OpenglContext.reset();
-#if defined(ENABLE_METAL)
 	MetalContext.reset();
-#endif
-#if defined(TARGET_WINDOWS)
 	DirectxContext.reset();
-#endif
+	CudaContext.reset();
+	GnmContext.reset();
 }
 
 void Unity::EnableDebugStrings(bool Enable)
@@ -628,8 +641,22 @@ void* GetDeviceContext()
 	return Interface->GetDevice();
 }
 
+#if defined(ENABLE_GNM)
+template<>
+void* GetDeviceContext<IUnityGraphicsPS4>()
+{
+	if ( !Unity::Interfaces )
+		return nullptr;
+
+	auto* Interface = Unity::Interfaces->Get<IUnityGraphicsPS4>();
+	return Interface->GetGfxContext();
+}
+#endif
+
+
 void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType)
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	auto Device = Unity::GraphicsDevice;
 	if ( !Device )
 	{
@@ -642,23 +669,28 @@ void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType
 
 	switch ( DeviceType )
 	{
-#if defined(TARGET_WINDOWS)
+#if defined(ENABLE_DIRECTX)
 		case kUnityGfxRendererD3D9:		DeviceContext = GetDeviceContext<IUnityGraphicsD3D9>();	break;
 		case kUnityGfxRendererD3D11:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D11>();	break;
 		case kUnityGfxRendererD3D12:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D12>();	break;
 #endif
-			
+#if defined(ENABLE_GNM)
+		case kUnityGfxRendererPS4:		DeviceContext = GetDeviceContext<IUnityGraphicsPS4>();	break;
+#endif		
 		default:
 			break;
 	}
 
 	UnitySetGraphicsDevice( DeviceContext, DeviceType, eventType );
+#else
+	printf("%s disabled\n",__func__);
+#endif
 }
-
 
 // Unity plugin load event
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnityInterfaces* unityInterfaces)
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	Unity::Interfaces = unityInterfaces;
 	Unity::GraphicsDevice = Unity::Interfaces->Get<IUnityGraphics>();
 
@@ -667,19 +699,24 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnit
     // Run OnGraphicsDeviceEvent(initialize) manually on plugin load
     // to not miss the event in case the graphics device is already initialized
     OnGraphicsDeviceEvent( kUnityGfxDeviceEventInitialize );
+#else
+	printf("%s disabled\n",__func__);
+#endif
 }
 
 // Unity plugin unload event
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
 {
+#if defined(ENABLE_UNITY_INTERFACES)
 	if ( Unity::GraphicsDevice )
 	{
 		Unity::GraphicsDevice->UnregisterDeviceEventCallback(OnGraphicsDeviceEvent);
 		//Unity::GraphicsDevice = nullptr;
 	}
+#else
+	printf("%s disabled\n",__func__);
+#endif
 }
-
-
 
 void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)
 {

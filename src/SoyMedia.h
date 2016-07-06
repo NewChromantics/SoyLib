@@ -45,9 +45,8 @@ namespace Metal
 
 namespace SoyMedia
 {
-	extern prmem::Heap	DefaultHeap;
+	prmem::Heap&	GetDefaultHeap();
 }
-
 
 class Soy::TYuvParams
 {
@@ -366,7 +365,7 @@ class TAudioBufferBlock
 {
 public:
 	TAudioBufferBlock() :
-		mData		( SoyMedia::DefaultHeap ),
+		mData		( SoyMedia::GetDefaultHeap() ),
 		mChannels	( 0 ),
 		mFrequency	( 0 )
 	{
@@ -404,7 +403,7 @@ class TAudioBufferManager : public TMediaBufferManager
 {
 public:
 	TAudioBufferManager(const TPixelBufferParams& Params) :
-		mBlocks				( SoyMedia::DefaultHeap ),
+		mBlocks				( SoyMedia::GetDefaultHeap() ),
 		TMediaBufferManager	( Params )
 	{
 		mFormat.mChannels = Params.mAudioChannelCount;
@@ -444,7 +443,7 @@ class TTextBufferManager : public TMediaBufferManager
 {
 public:
 	TTextBufferManager(const TPixelBufferParams& Params) :
-		mBlocks				( SoyMedia::DefaultHeap ),
+		mBlocks				( SoyMedia::GetDefaultHeap() ),
 		TMediaBufferManager	( Params )
 	{
 	}
@@ -469,7 +468,7 @@ class TMediaPacket
 {
 public:
 	TMediaPacket() :
-		mData			( SoyMedia::DefaultHeap ),
+		mData			( SoyMedia::GetDefaultHeap() ),
 		mIsKeyFrame		( false ),
 		mEncrypted		( false ),
 		mEof			( false )
@@ -513,7 +512,7 @@ class TMediaPacketBuffer
 {
 public:
 	TMediaPacketBuffer(size_t MaxBufferSize=10) :
-		mPackets				( SoyMedia::DefaultHeap ),
+		mPackets				( SoyMedia::GetDefaultHeap() ),
 		mMaxBufferSize			( MaxBufferSize ),
 		mAutoTimestampDuration	( std::chrono::milliseconds(33) )
 	{

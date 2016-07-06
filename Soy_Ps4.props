@@ -12,13 +12,17 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>TARGET_PS4;ENABLE_GMNX;MINIZ_NO_TIME;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>TARGET_PS4;ENABLE_GNM;MINIZ_NO_TIME;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CppExceptions>true</CppExceptions>
       <DisableSpecificWarnings>reorder</DisableSpecificWarnings>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <InlinedScopes>true</InlinedScopes>
+      <CppLanguageStd>Cpp11</CppLanguageStd>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>SoyLib.a;-lScePosix_stub_weak;-lSceNet_stub_weak;-lSceNetCtl_stub_weak;-lSceNetDebug_stub_weak</AdditionalDependencies>
+      <AdditionalDependencies>libBink2Orbis.a;SoyLib.a;-lScePosix_stub_weak;-lSceNet_stub_weak;-lSceNetCtl_stub_weak;-lSceNetDebug_stub_weak</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
