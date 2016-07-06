@@ -373,8 +373,11 @@ namespace Soy
 	//	heap used for new/delete global replacements
 	prmem::Heap&	GetGlobalHeap()
 	{
-		static auto* Heap = new prmem::Heap( true, true, "GlobalHeap", 0, false );
-		return *Heap;
+		//	allocating a global heap, from global new, is recursive (lock throws)
+		//static auto* Heap = new prmem::Heap( true, true, "GlobalHeap", 0, false );
+		//return *Heap;
+		static prmem::Heap GlobalHeap( true, true, "GlobalHeap", 0, false );
+		return GlobalHeap;
 	}
 
 	//	"default" heap for prnew and prdelete which we'd prefer to use rather than the [unmonitorable] crt default heap

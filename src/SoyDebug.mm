@@ -5,7 +5,7 @@
 
 
 #if defined(TARGET_OSX)
-void Soy::Platform::DebugPrint(const std::string& String)
+void Platform::DebugPrint(const std::string& String)
 {
 //	NSString* MacString = Soy::StringToNSString( String );
 
