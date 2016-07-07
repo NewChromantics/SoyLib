@@ -41,6 +41,9 @@ class D3D12_RESOURCE_STATES;
 #include "Unity/IUnityGraphicsMetal.h"
 #endif
 */
+#if defined(ENABLE_METAL)
+#include "SoyMetal.h"
+#endif
 
 #if defined(TARGET_ANDROID)
 #include "SoyJava.h"
@@ -53,6 +56,8 @@ typedef	void	(*UnityPluginSetGraphicsDeviceFunc)(void* device, int deviceType, i
 typedef	void	(*UnityPluginRenderMarkerFunc)(int marker);
 void	UnityRegisterRenderingPlugin(UnityPluginSetGraphicsDeviceFunc setDevice, UnityPluginRenderMarkerFunc renderMarker);
 }
+
+__export void	UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::sint eventType);
 #endif
 
 #if !defined(TARGET_PS4)

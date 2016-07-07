@@ -246,6 +246,3 @@ namespace Unity
 };
 
 
-//__export void	UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::sint eventType);
-
-
