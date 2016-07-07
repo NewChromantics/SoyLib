@@ -97,6 +97,7 @@ namespace Soy
 
 	std::string	StreamToString(std::ostream& Stream);	//	windows
 	std::string	StreamToString(std::stringstream&& Stream);	//	osx
+	std::string	StreamToString(std::istream& Stream);	//	osx
 	inline void	StringStreamClear(std::stringstream& Stream)	{	Stream.str(std::string());	}	//	not .clear, not .empty
 
 	void		SplitStringLines(ArrayBridge<std::string>& StringLines,const std::string& String,bool IncludeEmpty=true);
@@ -128,6 +129,10 @@ namespace Soy
 	bool			StringToType(TYPE& Out,const std::string& String);
 	template<typename TYPE>
 	TYPE			StringToType(const std::string& String,const TYPE& Default);
+
+	//	this version throws
+	template<typename TYPE>
+	TYPE			StringToType(const std::string& String);
 	bool			StringToUnsignedInteger(size_t& IntegerOut,const std::string& String);
 
 	//	max size of vector (ie. buffer array/remote array) dictates expected size
@@ -194,6 +199,23 @@ inline bool Soy::StringToType(TYPE& Out,const std::string& String)
 		return false;
 
 	return true;
+}
+
+
+template<typename TYPE>
+inline TYPE Soy::StringToType(const std::string& String)
+{
+	std::stringstream s( String );
+	TYPE Out;
+	s >> Out;
+
+	if ( s.fail() )
+	{
+		std::stringstream Error;
+		Error << "Failed to parse " << String << " into " << Soy::GetTypeName<TYPE>();
+		throw Soy::AssertException(Error.str());
+	}
+	return Out;
 }
 
 
