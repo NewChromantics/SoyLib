@@ -198,13 +198,9 @@ protected:
 };
 DECLARE_NONCOMPLEX_TYPE( SoyPixelsMeta );
 
+std::ostream& operator<< (std::ostream &out,const SoyPixelsMeta &in);
+std::istream& operator>>( std::istream &in,SoyPixelsMeta &out);
 
-
-inline std::ostream& operator<< (std::ostream &out,const SoyPixelsMeta &in)
-{
-	out << in.GetWidth() << 'x' << in.GetHeight() << '^' << in.GetFormat();
-	return out;
-}
 
 
 //	all the image-manipulation functionality, but data is somewhere else (any array you like, in-place image manipulation!)

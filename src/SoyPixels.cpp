@@ -19,6 +19,58 @@
 #define FREENECT_DEPTH_RAW_NO_VALUE 2047
 
 
+std::ostream& operator<< (std::ostream &out,const SoyPixelsMeta &in)
+{
+	out << in.GetWidth() << 'x' << in.GetHeight() << '^' << in.GetFormat();
+	return out;
+}
+
+std::istream& operator>>( std::istream &in,SoyPixelsMeta &out)
+{
+	bool GotWidth = false;
+	bool GotHeight = false;
+	bool GotFormat = false;
+	auto InString = Soy::StreamToString( in );
+
+	try
+	{
+		auto HandleChunk = [&](const std::string& Chunk,char Delin)
+		{
+			if ( !GotWidth )
+			{
+				out.DumbSetWidth( Soy::StringToType<size_t>( Chunk ) );
+				GotWidth = true;
+				return true;
+			}
+			if ( !GotHeight )
+			{
+				out.DumbSetHeight( Soy::StringToType<size_t>( Chunk ) );
+				GotHeight = true;
+				return true;
+			}
+			if ( !GotFormat )
+			{
+				out.DumbSetFormat( SoyPixelsFormat::ToType( Chunk ) );
+				GotFormat = true;
+				return true;
+			}
+
+			std::stringstream Error;
+			Error << "Too many parts (" << Chunk << ")";
+			throw Soy::AssertException( Error.str() );
+		};
+		Soy::StringSplitByMatches( HandleChunk, InString, "x^", true );
+	}
+	catch(std::exception& e)
+	{
+		in.setstate( std::ios::failbit );
+		std::Debug << "Error parsing " << Soy::GetTypeName(out) << ": " << e.what() << std::endl;
+	}
+	return in;
+}
+
+
+
 
 prmem::Heap& SoyPixels::GetDefaultHeap()
 {
@@ -1784,5 +1836,4 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			break;
 	};
 }
-
 
