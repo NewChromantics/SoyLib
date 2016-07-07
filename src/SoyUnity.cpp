@@ -257,6 +257,24 @@ std::shared_ptr<Directx::TContext> Unity::GetDirectxContextPtr()
 }
 
 
+bool Unity::HasGnmContext()
+{
+	return GnmContext != nullptr;
+}
+
+Gnm::TContext& Unity::GetGnmContext()
+{
+	if (!GnmContext)
+		throw Soy::AssertException("Getting Gnm context on non-Gnm run");
+
+	return *GnmContext;
+}
+
+std::shared_ptr<Gnm::TContext> Unity::GetGnmContextPtr()
+{
+	return GnmContext;
+}
+
 
 std::shared_ptr<Metal::TContext> Unity::GetMetalContextPtr()
 {
