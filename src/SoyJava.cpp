@@ -128,10 +128,10 @@ Java::TThread& Java::GetThread()
 	
 	//	register thread init & cleanup first time we use a java context
 	if ( !mInitThreadListener.IsValid() )
-		mInitThreadListener = SoyThread::OnThreadStart.AddListener( Java::InitThread );
+		mInitThreadListener = SoyThread::GetOnThreadStart().AddListener( Java::InitThread );
 	
 	if ( !mShutdownThreadListener.IsValid() )
-		mShutdownThreadListener = SoyThread::OnThreadFinish.AddListener( Java::ShutdownThread );
+		mShutdownThreadListener = SoyThread::GetOnThreadFinish().AddListener( Java::ShutdownThread );
 	
 	return *pThread;
 }
