@@ -438,7 +438,7 @@ __export void UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::
 		break;
 	};
 #else
-	printf("%s disabled\n",__func__);
+	std::Debug << __func__ << " disabled" << std::endl;
 #endif
 }
 
@@ -461,7 +461,7 @@ __export void UnityRenderEvent(Unity::sint eventID)
 	
 	Unity::RenderEvent( eventID );
 #else
-	printf("%s disabled\n",__func__);
+	std::Debug << __func__ << " disabled" << std::endl;
 #endif
 }
 
@@ -706,7 +706,7 @@ void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType
 
 	UnitySetGraphicsDevice( DeviceContext, DeviceType, eventType );
 #else
-	printf("%s disabled\n",__func__);
+	std::Debug << __func__ << " disabled" << std::endl;
 #endif
 }
 
@@ -723,7 +723,7 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnit
     // to not miss the event in case the graphics device is already initialized
     OnGraphicsDeviceEvent( kUnityGfxDeviceEventInitialize );
 #else
-	printf("%s disabled\n",__func__);
+	std::Debug << __func__ << " disabled" << std::endl;
 #endif
 }
 
@@ -737,7 +737,7 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
 		//Unity::GraphicsDevice = nullptr;
 	}
 #else
-	printf("%s disabled\n",__func__);
+	std::Debug << __func__ << " disabled" << std::endl;
 #endif
 }
 
