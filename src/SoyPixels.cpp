@@ -1460,41 +1460,6 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	}
 }
 
-
-void SoyPixelsImpl::CopyClipped(const SoyPixelsImpl& that)
-{
-	auto ThisMeta = GetMeta();
-	auto ThatMeta = that.GetMeta();
-
-	//	todo: handle multiple channels
-	auto ThisChannels = ThisMeta.GetChannels();
-	auto ThatChannels = ThatMeta.GetChannels();
-	if ( ThisChannels != ThatChannels || ThisChannels == 0 )
-	{
-		std::stringstream Error;
-		Error << "Cannot currently CopyClipped pixels of different channel formats: " << ThisMeta << " <-- " << ThatMeta;
-		throw Soy::AssertException( Error.str() );
-	}
-	
-	auto CopyWidth = std::min( ThisMeta.GetWidth(), ThatMeta.GetWidth() );
-	auto CopyHeight = std::min( ThisMeta.GetHeight(), ThatMeta.GetHeight() );
-	
-	
-	auto ThisStride = ThisChannels * ThisMeta.GetWidth();
-	auto ThatStride = ThatChannels * ThatMeta.GetWidth();
-	auto CopyStride = std::min( ThisStride, ThatStride );
-	auto* This00 = &this->GetPixelPtr( 0, 0, 0 );
-	auto* That00 = &that.GetPixelPtr( 0, 0, 0 );
-	for ( int y=0;	y<CopyHeight;	y++ )
-	{
-		auto* Src = &That00[ThatStride * y];
-		auto* Dst = &This00[ThisStride * y];
-		memcpy( Dst, Src, CopyStride );
-	}
-}
-
-
-
 void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,ArrayInterface<uint8>* Data) const
 {
 	//	get the mid-formats
@@ -1686,29 +1651,99 @@ void SoyPixelsImpl::Flip()
 	}
 }
 
-bool SoyPixelsImpl::Copy(const SoyPixelsImpl &that,bool AllowReallocation)
-{
-	if ( &that == this )
-		return true;
-	
-	if ( that.GetPixelsArray().GetArray() == this->GetPixelsArray().GetArray() )
-		return true;
 
-	if ( !AllowReallocation )
+
+void SoyPixelsImpl::Copy(const SoyPixelsImpl& That,const TSoyPixelsCopyParams& Params)
+{
+	//	same data
+	if ( &That == this )
+		return;
+	auto& This = *this;
+	if ( That.GetPixelsArray().GetArray() == This.GetPixelsArray().GetArray() )
+		return;
+
+	//	simple copy if we can realloc
+	if ( Params.mAllowRealloc )
 	{
-		//	gr: add a "pre-allocated-datasize" func
-		if ( this->GetPixelsArray().GetDataSize() != that.GetPixelsArray().GetDataSize() )
+		This.GetMeta() = That.GetMeta();
+		This.GetPixelsArray().Copy( That.GetPixelsArray() );
+		return;
+	}
+
+	auto ThisWidth = This.GetMeta().GetWidth();
+	auto ThatWidth = That.GetMeta().GetWidth();
+	auto ThisHeight = This.GetMeta().GetHeight();
+	auto ThatHeight = That.GetMeta().GetHeight();
+	auto ThisChannels = This.GetMeta().GetChannels();
+	auto ThatChannels = That.GetMeta().GetChannels();
+
+	//	not allowed to realloc, so require components to match
+	if ( That.GetMeta().GetFormat() != This.GetMeta().GetFormat() )
+	{
+		if ( !Params.mAllowComponentSwizzle )
 		{
-			//	warning here?
-			return false;
+			std::stringstream Error;
+			Error << "Cannot copy " << That.GetMeta() << " into " << This.GetMeta() << " because !AllowComponentSwizzle";
+			throw Soy::AssertException( Error.str() );
+		}
+
+		//	we can swizzle, but require components to match
+		if ( ThisChannels != ThatChannels )
+		{
+			std::stringstream Error;
+			Error << "Cannot copy " << That.GetMeta() << " into " << This.GetMeta() << " with swizzle because channel counts don't match";
+			throw Soy::AssertException( Error.str() );
 		}
 	}
-	
-	this->GetMeta() = that.GetMeta();
-	this->GetPixelsArray().Copy( that.GetPixelsArray() );
-	return true;
-}
 
+	//	global rejection for height difference
+	if ( ThisHeight != ThatHeight )
+	{
+		if ( !Params.mAllowHeightClip )
+		{
+			std::stringstream Error;
+			Error << "Cannot copy " << That.GetMeta() << " into " << This.GetMeta() << ", heights don't align";
+			throw Soy::AssertException( Error.str() );
+		}
+	}
+
+	if ( ThisWidth == ThatWidth )
+	{
+		auto* This00 = &This.GetPixelPtr( 0, 0, 0 );
+		auto* That00 = &That.GetPixelPtr( 0, 0, 0 );
+
+		auto Stride = This.GetMeta().GetChannels() * ThisWidth;
+		auto Height = std::min( ThisHeight, ThatHeight );
+		auto CopyLength = Stride * Height;
+		memcpy( This00, That00, CopyLength );
+	}
+	else
+	{
+		//	slow path where widths doesn't align
+		if ( !Params.mAllowWidthClip )
+		{
+			std::stringstream Error;
+			Error << "Cannot copy " << That.GetMeta() << " into " << This.GetMeta() << " widths don't align";
+			throw Soy::AssertException( Error.str() );
+		}
+
+		//	copy row by row
+		auto CopyWidth = std::min( ThisWidth, ThatWidth );
+		auto CopyHeight = std::min( ThisHeight, ThatHeight );
+		
+		auto ThisStride = ThisChannels * ThisWidth;
+		auto ThatStride = ThatChannels * ThatWidth;
+		auto CopyStride = std::min( ThisStride, ThatStride );
+		auto* This00 = &This.GetPixelPtr( 0, 0, 0 );
+		auto* That00 = &That.GetPixelPtr( 0, 0, 0 );
+		for ( int y=0;	y<CopyHeight;	y++ )
+		{
+			auto* Src = &That00[ThatStride * y];
+			auto* Dst = &This00[ThisStride * y];
+			memcpy( Dst, Src, CopyStride );
+		}
+	}
+}
 
 
 void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream,bool Hex,const char* PixelSuffix) const
