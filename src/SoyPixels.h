@@ -148,15 +148,19 @@ public:
 		mAllowRealloc		( true ),
 		mAllowWidthClip		( true ),
 		mAllowHeightClip	( true ),
-		mAllowComponentSwizzle	( true )
+		mAllowComponentSwizzle	( true ),
+		mFlipSource			( false ),
+		mFlipDestination	( false )
 	{
 	}
 	//	no-realloc copy with params
-	TSoyPixelsCopyParams(bool AllowWidthClip,bool AllowHeightClip,bool AllowComponentSwizzle) :
+	TSoyPixelsCopyParams(bool AllowWidthClip,bool AllowHeightClip,bool AllowComponentSwizzle,bool FlipSource,bool FlipDestination) :
 		mAllowRealloc		( false ),
 		mAllowWidthClip		( AllowWidthClip ),
 		mAllowHeightClip	( AllowHeightClip ),
-		mAllowComponentSwizzle	( AllowComponentSwizzle )
+		mAllowComponentSwizzle	( AllowComponentSwizzle ),
+		mFlipSource			( FlipSource ),
+		mFlipDestination	( FlipDestination )
 	{
 	}
 	
@@ -164,6 +168,8 @@ public:
 	bool	mAllowWidthClip;	//	allow a slow line-by-line copy where widths dont align
 	bool	mAllowHeightClip;	//	allow fast memcpy, if height is clipped
 	bool	mAllowComponentSwizzle;	//	allow BGRA to go into RGBA
+	bool	mFlipSource;
+	bool	mFlipDestination;
 };
 
 

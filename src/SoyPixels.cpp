@@ -1662,9 +1662,14 @@ void SoyPixelsImpl::Copy(const SoyPixelsImpl& That,const TSoyPixelsCopyParams& P
 	if ( That.GetPixelsArray().GetArray() == This.GetPixelsArray().GetArray() )
 		return;
 
+	bool Flip = Params.mFlipDestination||Params.mFlipSource;
+
 	//	simple copy if we can realloc
 	if ( Params.mAllowRealloc )
 	{
+		if ( Flip )
+			std::Debug << "SoyPixelsImpl::Copy realloc copy, flip ignored" << std::endl;
+
 		This.GetMeta() = That.GetMeta();
 		This.GetPixelsArray().Copy( That.GetPixelsArray() );
 		return;
@@ -1707,14 +1712,17 @@ void SoyPixelsImpl::Copy(const SoyPixelsImpl& That,const TSoyPixelsCopyParams& P
 		}
 	}
 
-	if ( ThisWidth == ThatWidth )
+	if ( ThisWidth == ThatWidth && !Flip )
 	{
 		auto* This00 = &This.GetPixelPtr( 0, 0, 0 );
 		auto* That00 = &That.GetPixelPtr( 0, 0, 0 );
 
-		auto Stride = This.GetMeta().GetChannels() * ThisWidth;
+		auto Stride = ThisChannels * ThisWidth;
 		auto Height = std::min( ThisHeight, ThatHeight );
 		auto CopyLength = Stride * Height;
+
+		//std::Debug << __func__ << " full copy stride=" << Stride << " Height=" << Height << " " << CopyLength << std::endl;
+
 		memcpy( This00, That00, CopyLength );
 	}
 	else
@@ -1738,8 +1746,12 @@ void SoyPixelsImpl::Copy(const SoyPixelsImpl& That,const TSoyPixelsCopyParams& P
 		auto* That00 = &That.GetPixelPtr( 0, 0, 0 );
 		for ( int y=0;	y<CopyHeight;	y++ )
 		{
-			auto* Src = &That00[ThatStride * y];
-			auto* Dst = &This00[ThisStride * y];
+			auto ThisY = Params.mFlipDestination ? (ThisHeight-1-y) : y;
+			auto ThatY = Params.mFlipSource ? (ThatHeight-1-y) : y;
+			//std::Debug << __func__ << " scanlinecopy row y=" << y << " ThatStride=" << ThatStride << " ThisStride=" << ThisStride << " CopyStride=" << CopyStride << std::endl;
+
+			auto* Src = &That00[ThatStride * ThatY];
+			auto* Dst = &This00[ThisStride * ThisY];
 			memcpy( Dst, Src, CopyStride );
 		}
 	}
