@@ -696,19 +696,7 @@ void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& Contex
 	//	copy row by row to handle misalignment
 	SoyPixelsRemote DestPixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
 
-	auto SourceChannelCount = SourcePixels.GetChannels();
-	auto DestChannelCount = DestPixels.GetChannels();
-	Soy::Assert( SourceChannelCount==DestChannelCount, "Directx::TTexture::Write expecting channel counts to match");
-
-	auto CopyHeight = std::min( DestPixels.GetHeight(), SourcePixels.GetHeight() );
-	auto CopyWidth = std::min( DestPixels.GetWidth(), SourcePixels.GetWidth() );
-
-	for ( int y=0;	y<CopyHeight;	y++ )
-	{
-		auto* SourceRow = &SourcePixels.GetPixelPtr( 0, y, 0 );
-		auto* DestRow = &DestPixels.GetPixelPtr( 0, y, 0 );
-		memcpy( DestRow, SourceRow, CopyWidth * SourceChannelCount );
-	}
+	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true) );
 }
 
 
@@ -740,20 +728,8 @@ void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool
 
 	//	copy row by row to handle misalignment
 	SoyPixelsRemote SourcePixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
-
-	auto SourceChannelCount = SourcePixels.GetChannels();
-	auto DestChannelCount = DestPixels.GetChannels();
-	Soy::Assert( SourceChannelCount==DestChannelCount, "Directx::TTexture::Read expecting channel counts to match");
-
-	auto CopyHeight = std::min( DestPixels.GetHeight(), SourcePixels.GetHeight() );
-	auto CopyWidth = std::min( DestPixels.GetWidth(), SourcePixels.GetWidth() );
-
-	for ( int y=0;	y<CopyHeight;	y++ )
-	{
-		auto* SourceRow = &SourcePixels.GetPixelPtr( 0, y, 0 );
-		auto* DestRow = &DestPixels.GetPixelPtr( 0, y, 0 );
-		memcpy( DestRow, SourceRow, CopyWidth * SourceChannelCount );
-	}
+	
+	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true) );
 }
 
 Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
