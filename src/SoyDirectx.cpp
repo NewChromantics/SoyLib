@@ -696,7 +696,7 @@ void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& Contex
 	//	copy row by row to handle misalignment
 	SoyPixelsRemote DestPixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
 
-	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true) );
+	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true,false,false) );
 }
 
 
@@ -729,7 +729,7 @@ void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool
 	//	copy row by row to handle misalignment
 	SoyPixelsRemote SourcePixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
 	
-	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true) );
+	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true,false,false) );
 }
 
 Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
