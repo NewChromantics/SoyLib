@@ -72,6 +72,27 @@ public:
 	void							EnableAttribs(bool Enable=true) const;
 	void							DisableAttribs() const				{	EnableAttribs(false);	}
 
+	template<typename TYPE>
+	void							SetUniform(size_t UniformIndex,const TYPE& Value,void* DataStart) const
+	{
+		auto& Uniform = mElements[UniformIndex];
+		void* UniformData = reinterpret_cast<uint8_t*>(DataStart) + GetOffset(UniformIndex);
+		auto* Destination = reinterpret_cast<TYPE*>( UniformData );
+
+		//	check lengths, types etc here
+		auto TotalLength = Uniform.mElementDataSize * Uniform.mArraySize;
+		if ( sizeof(Value) != TotalLength )
+		{
+			std::stringstream Error;
+			Error << "Setting uniform #" << UniformIndex << " (" << Soy::GetTypeName<TYPE>() << " x" << sizeof(Value) << "bytes) into uniform " << Uniform << " size mismatch";
+			throw Soy::AssertException(Error.str());
+		}
+
+		*Destination = Value;
+	}
+
+	ssize_t							GetUniformIndex(const char* Name) const	{	return mElements.FindIndex( Name );	}
+
 public:
 	Array<TUniform>	mElements;
 };
