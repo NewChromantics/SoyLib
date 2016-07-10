@@ -1323,14 +1323,25 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 		Directx::IsOkay( Result, "CreatePixelShader" );
 
 		MakeLayout( Vertex, VertBlob, Device );
-		GetUniforms( VertBlob );
-		GetUniforms( FragBlob );
+
+		//	gr: allow this to fail
+		try
+		{
+			GetUniforms( VertBlob, ContextDx );
+			GetUniforms( FragBlob, ContextDx );
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Failed to get shader (" << ShaderName << ") reflection; " << e.what() << std::endl;
+		}
 	}
 	catch(std::exception& e)
 	{
+		//	gr: should this unlock anyway?
 		ContextDx.Unlock();
 		throw;
 	}
+
 }
 
 
@@ -1347,9 +1358,9 @@ DXGI_FORMAT GetType(const SoyGraphics::TElementType::Type& Type,size_t Length)
 	throw Soy::AssertException("Unhandled graphics uniform type -> DXGI_FORMAT");
 }
 
-void Directx::TShader::GetUniforms(TShaderBlob& Shader)
+void Directx::TShader::GetUniforms(TShaderBlob& Shader,TContext& Context)
 {
-	Directx::GetUniforms( GetArrayBridge(mUniforms), Shader, GetContext() );
+	Directx::GetUniforms( GetArrayBridge(mUniforms), Shader, Context );
 }
 
 /*

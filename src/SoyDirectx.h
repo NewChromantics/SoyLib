@@ -332,7 +332,7 @@ private:
 	TContext&					GetContext();
 	
 	void			MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TShaderBlob& Shader,ID3D11Device& Device);
-	void			GetUniforms(TShaderBlob& Shader);
+	void			GetUniforms(TShaderBlob& Shader,TContext& Context);
 
 public:
 	TContext*							mBoundContext;	//	this binding should be moved to TShaderState
