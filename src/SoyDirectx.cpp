@@ -3,9 +3,20 @@
 #include "SoyRuntimeLibrary.h"
 #include "SoyPool.h"
 
+//	for the reflection IID
+#include <d3d11shader.h>
+//#pragma comment(lib, "d3d11.lib")
+
 
 //	we never use this, but for old DX11 support, we need the type name
 class ID3DX11ThreadPump;
+
+#define REAL_DEFINE_GUID(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
+        EXTERN_C const GUID DECLSPEC_SELECTANY name \
+                = { l, w1, w2, { b1, b2,  b3,  b4,  b5,  b6,  b7,  b8 } }
+
+interface DECLSPEC_UUID("8d536ca1-0cca-4956-a837-786963755584") ID3D11ShaderReflection;
+REAL_DEFINE_GUID(IID_ID3D11ShaderReflection,0x8d536ca1, 0x0cca, 0x4956, 0xa8, 0x37, 0x78, 0x69, 0x63, 0x75, 0x55, 0x84);
 
 
 namespace Directx
@@ -16,7 +27,20 @@ namespace Directx
 	//typedef pD3DCompile D3DCompileFunc;
 	typedef HRESULT (__stdcall D3DCompileFunc)(LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs);
 	typedef void (__stdcall LPD3DX11COMPILEFROMMEMORY)(LPCSTR pSrcData, SIZE_T SrcDataLen, LPCSTR pFileName, const D3D10_SHADER_MACRO *pDefines, LPD3D10INCLUDE pInclude, LPCSTR pFunctionName, LPCSTR pProfile, UINT Flags1, UINT Flags2, ID3DX11ThreadPump *pPump, ID3D10Blob **ppShader, ID3D10Blob **ppErrorMsgs, HRESULT *pHResult);
+	typedef HRESULT (__stdcall D3DReflectFunc)(LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName,REFIID pInterface,void** ppReflector );
+
+
+	SoyGraphics::TUniform			GetUniform(ID3D11ShaderReflectionType* Type);
+	SoyGraphics::TUniform			GetUniform(ID3D11ShaderReflectionVariable& Variable);
+	void							GetUniforms(ArrayBridge<SoyGraphics::TGeometryVertex>&& UniformSets,TShaderBlob& Shader,TContext& Context);
+	SoyGraphics::TGeometryVertex	GetUniforms(ID3D11ShaderReflectionConstantBuffer& ConstantBuffer);
 }
+
+namespace SoyGraphics
+{
+	TElementType::Type	GetType(D3D_SHADER_VARIABLE_TYPE Type);
+}
+
 
 class Directx::TCompiler
 {
@@ -26,9 +50,11 @@ public:
 	//	use win8 sdk d3dcompiler if possible
 	//	https://gist.github.com/rygorous/7936047
 	std::function<D3DCompileFunc>				GetCompilerFunc()	{	return mD3dCompileFunc;	}
+	std::function<D3DReflectFunc>				GetReflectFunc()	{	return mD3dReflectFunc;	}
 	
 private:
 	std::function<D3DCompileFunc>			mD3dCompileFunc;
+	std::function<D3DReflectFunc>			mD3dReflectFunc;
 	std::shared_ptr<Soy::TRuntimeLibrary>	mD3dCompileLib;
 };
 
@@ -216,6 +242,155 @@ bool Directx::CanCopyMeta(const SoyPixelsMeta& Source,const SoyPixelsMeta& Desti
 
 
 
+std::ostream& operator<<(std::ostream& out,const D3D_SHADER_VARIABLE_TYPE& in)
+{
+	out << static_cast<int>(in);
+	return out;
+}
+
+
+SoyGraphics::TElementType::Type SoyGraphics::GetType(D3D_SHADER_VARIABLE_TYPE Type)
+{
+	switch ( Type )
+	{
+		case D3D_SVT_FLOAT:	return TElementType::Float;
+			/*
+D3D_SVT_VOID	= 0,
+D3D_SVT_BOOL	= 1,
+D3D_SVT_INT	= 2,
+D3D_SVT_FLOAT	= 3,
+D3D_SVT_UINT	= 19,
+D3D_SVT_UINT8	= 20,
+D3D_SVT_DOUBLE	= 39,
+*/
+	}
+
+	std::stringstream Error;
+	Error << "Unhandled shader variable type: " << Type;
+	throw Soy::AssertException( Error.str() );
+}
+
+
+
+SoyGraphics::TUniform Directx::GetUniform(ID3D11ShaderReflectionType* Type)
+{
+	Soy::Assert( Type!=nullptr, "Type expected");
+
+	D3D11_SHADER_TYPE_DESC Desc;
+	auto Result = Type->GetDesc( &Desc );
+	Directx::IsOkay( Result, "Getting ID3D11ShaderReflectionType description");
+	 
+	SoyGraphics::TUniform Uniform;
+	Uniform.mType = SoyGraphics::GetType( Desc.Type );
+
+	if ( Desc.Rows != 1 && Desc.Rows != 0 )
+	{
+		std::stringstream Error;
+		Error << __func__ " shader variable has Desc.Rows=" <<  Desc.Rows << " and currently only handle 0/1";
+		throw Soy::AssertException( Error.str() );
+	}
+
+	Soy::Assert( Desc.Members == 0, "Currently not handling struct members != 0" );
+	Soy::Assert( Desc.Offset == 0, "Currently not handling struct offset != 0" );
+
+	Uniform.mArraySize = Desc.Columns * std::max<UINT>(Desc.Elements,1);
+	
+	return Uniform;
+}
+
+
+SoyGraphics::TUniform Directx::GetUniform(ID3D11ShaderReflectionVariable& Variable)
+{
+	D3D11_SHADER_VARIABLE_DESC Desc;
+	auto Result = Variable.GetDesc( &Desc );
+	{
+		std::stringstream Error;
+		Error << "failed to get constant buffer variable description";
+		Directx::IsOkay( Result, Error.str() );
+	}
+
+	if ( Desc.Name == nullptr )
+		Desc.Name = "<null>";
+
+	SoyGraphics::TUniform Uniform = GetUniform( Variable.GetType() );
+	Uniform.mName = Desc.Name;
+	Uniform.mElementDataSize = Desc.Size;
+
+	return Uniform;
+}
+
+SoyGraphics::TGeometryVertex Directx::GetUniforms(ID3D11ShaderReflectionConstantBuffer& ConstantBuffer)
+{
+	D3D11_SHADER_BUFFER_DESC Desc;
+	auto Result = ConstantBuffer.GetDesc( &Desc );
+	{
+		std::stringstream Error;
+		Error << "failed to get constant buffer description";
+		Directx::IsOkay( Result, Error.str() );
+	}
+
+	SoyGraphics::TGeometryVertex Uniforms;
+
+	for ( int i=0;	i<Desc.Variables;	i++ )
+	{
+		auto* Variable = ConstantBuffer.GetVariableByIndex( i );
+		if ( !Variable )
+		{
+			std::stringstream Error;
+			Error << "null variable #" << i;
+			throw Soy::AssertException( Error.str() );
+		}
+		SoyGraphics::TUniform Uniform = GetUniform( *Variable );
+		Uniforms.mElements.PushBack( Uniform );
+	}
+
+	return Uniforms;
+}
+
+
+void Directx::GetUniforms(ArrayBridge<SoyGraphics::TGeometryVertex>&& UniformSets,TShaderBlob& Shader,TContext& Context)
+{
+	auto& Compiler = Context.GetCompiler();
+	std::function<D3DReflectFunc> Reflect = Compiler.GetReflectFunc();
+	Soy::Assert( Reflect!=nullptr, "Reflect func missing" );
+	AutoReleasePtr<ID3D11ShaderReflection> Reflector;
+
+	auto& ShaderName = Shader.mName;
+	const char* SourceName = ShaderName.c_str();
+	auto* ShaderData = Shader.GetBuffer();
+	auto ShaderDataSize = Shader.GetBufferSize();
+	auto Result = Reflect( ShaderData, ShaderDataSize, SourceName, IID_ID3D11ShaderReflection, reinterpret_cast<void**>(&Reflector.mObject) );
+	Directx::IsOkay( Result, __func__ );
+
+
+	D3D11_SHADER_DESC Desc;
+	Result = Reflector->GetDesc( &Desc );
+	{
+		std::stringstream Error;
+		Error << __func__ << " GetDescription for shader " << Shader.mName;
+		Directx::IsOkay( Result, Error.str() );
+	}
+	
+	//	get each buffer
+	for ( int i=0;	i<Desc.ConstantBuffers;	i++ )
+	{
+		try
+		{
+			auto ConstantBuffer = Reflector->GetConstantBufferByIndex(i);
+			if ( !ConstantBuffer )
+				throw Soy::AssertException("Missing constant buffer");
+			auto Uniforms = GetUniforms( *ConstantBuffer );
+			UniformSets.PushBack( Uniforms );
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << ShaderName << " Failed to get constant buffer #" << i << ": " << e.what() << std::endl;
+		}
+	}	
+}
+
+
+
 std::ostream& Directx::operator<<(std::ostream &out,const Directx::TTexture& in)
 {
 	out << in.mMeta << "/" << in.GetMode();
@@ -229,6 +404,7 @@ std::ostream& operator<<(std::ostream &out,const Directx::TTextureMeta& in)
 }
 
 
+
 Directx::TCompiler::TCompiler()
 {
 	//	dynamically link compiler functions
@@ -239,15 +415,17 @@ Directx::TCompiler::TCompiler()
 	{
 	public:
 		DllReference()	{}
-		DllReference(const char* Dll,const char* Func,const char* Desc) :
-			LibraryName		( Dll ),
-			FunctionName	( Func ),
-			Description		( Desc )
+		DllReference(const char* Dll,const char* CompileFunc,const char* ReflectFunc,const char* Desc) :
+			LibraryName			( Dll ),
+			CompileFunctionName	( CompileFunc ),
+			ReflectFunctionName	( ReflectFunc ),
+			Description			( Desc )
 		{
 		};
 
 		std::string	LibraryName;
-		std::string	FunctionName;
+		std::string	CompileFunctionName;
+		std::string	ReflectFunctionName;
 		std::string	Description;
 	};
 
@@ -256,20 +434,20 @@ Directx::TCompiler::TCompiler()
 
 	//	https://blogs.msdn.microsoft.com/chuckw/2012/05/07/hlsl-fxc-and-d3dcompile/
 	//	remember, 47 & 46 are MUCH FASTER!
-	DllFunctions.PushBack( DllReference("d3dcompiler_47.dll","D3DCompile","Win10/Win8.1 sdk") );
-	DllFunctions.PushBack( DllReference("d3dcompiler_46.dll","D3DCompile","Win8.0 sdk") );
+	DllFunctions.PushBack( DllReference("d3dcompiler_47.dll","D3DCompile","D3DReflect","Win10/Win8.1 sdk") );
+	DllFunctions.PushBack( DllReference("d3dcompiler_46.dll","D3DCompile","D3DReflect","Win8.0 sdk") );
 
-	DllFunctions.PushBack( DllReference("D3DX11d_43.dll","D3DX11CompileFromMemory","DXSDK 2010 June") );
-	DllFunctions.PushBack( DllReference("D3DX11d_42.dll","D3DX11CompileFromMemory","DXSDK 2010 Feb") );
-	DllFunctions.PushBack( DllReference("D3DX11d_41.dll","D3DX11CompileFromMemory","DXSDK 2009 March") );
-	DllFunctions.PushBack( DllReference("D3DX11d_40.dll","D3DX11CompileFromMemory","DXSDK 2008 November") );
-	DllFunctions.PushBack( DllReference("D3DX11d_39.dll","D3DX11CompileFromMemory","DXSDK 2008 August") );
-	DllFunctions.PushBack( DllReference("D3DX11d_38.dll","D3DX11CompileFromMemory","DXSDK 2008 June") );
-	DllFunctions.PushBack( DllReference("D3DX11d_37.dll","D3DX11CompileFromMemory","DXSDK 2008 March") );
-	DllFunctions.PushBack( DllReference("D3DX11d_36.dll","D3DX11CompileFromMemory","DXSDK 2007 November") );
-	DllFunctions.PushBack( DllReference("D3DX11d_35.dll","D3DX11CompileFromMemory","DXSDK 2007 August") );
-	DllFunctions.PushBack( DllReference("D3DX11d_34.dll","D3DX11CompileFromMemory","DXSDK 2007 June") );
-	DllFunctions.PushBack( DllReference("D3DX11d_33.dll","D3DX11CompileFromMemory","DXSDK 2007 Aprli") );
+	DllFunctions.PushBack( DllReference("D3DX11d_43.dll","D3DX11CompileFromMemory","D3DReflect","DXSDK 2010 June") );
+	DllFunctions.PushBack( DllReference("D3DX11d_42.dll","D3DX11CompileFromMemory","D3DReflect","DXSDK 2010 Feb") );
+	DllFunctions.PushBack( DllReference("D3DX11d_41.dll","D3DX11CompileFromMemory","D3DReflect","DXSDK 2009 March") );
+	DllFunctions.PushBack( DllReference("D3DX11d_40.dll","D3DX11CompileFromMemory","D3DReflect","DXSDK 2008 November") );
+	DllFunctions.PushBack( DllReference("D3DX11d_39.dll","D3DX11CompileFromMemory","D3DReflect","DXSDK 2008 August") );
+	DllFunctions.PushBack( DllReference("D3DX11d_38.dll","D3DX11CompileFromMemory","D3DReflect","DXSDK 2008 June") );
+	DllFunctions.PushBack( DllReference("D3DX11d_37.dll","D3DX11CompileFromMemory","D3DReflect","DXSDK 2008 March") );
+	DllFunctions.PushBack( DllReference("D3DX11d_36.dll","D3DX11CompileFromMemory","D3DReflect","DXSDK 2007 November") );
+	DllFunctions.PushBack( DllReference("D3DX11d_35.dll","D3DX11CompileFromMemory","D3DReflect","DXSDK 2007 August") );
+	DllFunctions.PushBack( DllReference("D3DX11d_34.dll","D3DX11CompileFromMemory","D3DReflect","DXSDK 2007 June") );
+	DllFunctions.PushBack( DllReference("D3DX11d_33.dll","D3DX11CompileFromMemory","D3DReflect","DXSDK 2007 Aprli") );
 
 	for ( int d=0;	d<DllFunctions.GetSize();	d++ )
 	{
@@ -278,19 +456,23 @@ Directx::TCompiler::TCompiler()
 		{
 			mD3dCompileLib.reset( new Soy::TRuntimeLibrary(Dll.LibraryName) );
 
-			if ( Dll.FunctionName == "D3DCompile" )
-				mD3dCompileLib->SetFunction( mD3dCompileFunc, Dll.FunctionName.c_str() );
+			if ( Dll.CompileFunctionName == "D3DCompile" )
+				mD3dCompileLib->SetFunction( mD3dCompileFunc, Dll.CompileFunctionName.c_str() );
 			else
-				mD3dCompileLib->SetFunction( CompileFromMemoryFunc, Dll.FunctionName.c_str() );
+				mD3dCompileLib->SetFunction( CompileFromMemoryFunc, Dll.CompileFunctionName.c_str() );
+
+			mD3dCompileLib->SetFunction( mD3dReflectFunc, Dll.ReflectFunctionName.c_str() );
+
 			std::Debug << "Using DX compiler from " << Dll.Description << " (" << Dll.LibraryName << ")" << std::endl;
 			break;
 		}
 		catch(std::exception& e)
 		{
-			std::Debug << "Failed to load " << Dll.FunctionName << " from " << Dll.LibraryName << " (" << Dll.Description << ")" << std::endl;
+			std::Debug << "Failed to load " << Dll.CompileFunctionName << " from " << Dll.LibraryName << " (" << Dll.Description << ")" << std::endl;
 
 			mD3dCompileLib.reset();
 			mD3dCompileFunc = nullptr;
+			mD3dReflectFunc = nullptr;
 			CompileFromMemoryFunc = nullptr;
 		}
 	}
@@ -875,7 +1057,7 @@ Directx::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<
 	indexData.pSysMem = Indexes.GetArray();
 	indexData.SysMemPitch = 0;
 	indexData.SysMemSlicePitch = 0;
-
+	
 
 	auto& Device = ContextDx.LockGetDevice();
 	try
@@ -931,20 +1113,8 @@ Directx::TShaderState::TShaderState(const Directx::TShader& Shader) :
 	mShader				( Shader ),
 	mBaked				( false )
 {
-	//	opengl unbinds here rather than in TShader
-	/*
-	//	setup constants buffer for shader[s]
-	D3D11_BUFFER_DESC BufferDesc;
-	BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	BufferDesc.ByteWidth = Data.GetDataSize();//Vertex.GetDataSize();
-	BufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	BufferDesc.MiscFlags = 0;
-	BufferDesc.StructureByteStride = Vertex.GetStride(0);	//	should be 0
-
-
-	nstant buffer can only use a single bind flag (D3D11_BIND_CONSTANT_BUFFER), which cannot be combined with any other bind flag. To bind a shader-constant buffer to the pipeline, call one of the following methods: ID3D11DeviceContext::GSSetConstantBuffers, ID3D11DeviceContext::PSSetConstantBuffers, or ID3D11DeviceContext::VSSetConstantBuffers.
-	*/
+	//	gr: defer this until first SetUniform?
+	AllocConstantBuffers();
 }
 
 Directx::TShaderState::~TShaderState()
@@ -964,6 +1134,20 @@ Directx::TShaderState::~TShaderState()
 	const_cast<TShader&>(mShader).Unbind();
 }
 
+void Directx::TShaderState::AllocConstantBuffers()
+{
+	auto& Constants = GetShader().mUniforms;
+	auto& Device = GetDevice();
+
+	Soy::Assert( mConstantBuffers.IsEmpty(), "Already have constant buffers" );
+
+	for ( int i=0;	i<Constants.GetSize();	i++ )
+	{
+		auto& Uniforms = Constants[i];
+		std::shared_ptr<TConstantBuffer> Buffer( new TConstantBuffer( Device, i, Uniforms ) );
+		mConstantBuffers.PushBack( Buffer );
+	}
+}
 
 ID3D11DeviceContext& Directx::TShaderState::GetContext()
 {
@@ -980,65 +1164,7 @@ ID3D11Device& Directx::TShaderState::GetDevice()
 }
 
 
-bool Directx::TShaderState::SetUniform(const char* Name,const float3x3& v)
-{
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
-	Soy_ThrowTodo;
-}
 
-bool Directx::TShaderState::SetUniform(const char* Name,const float& v)
-{
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
-	Soy_ThrowTodo;
-}
-
-bool Directx::TShaderState::SetUniform(const char* Name,const int& v)
-{
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
-	Soy_ThrowTodo;
-}
-
-bool Directx::TShaderState::SetUniform(const char* Name,const vec4f& v)
-{
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
-	Soy_ThrowTodo;
-}
-
-bool Directx::TShaderState::SetUniform(const char* Name,const vec3f& v)
-{
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
-	Soy_ThrowTodo;
-}
-
-bool Directx::TShaderState::SetUniform(const char* Name,const vec2f& v)
-{
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
-	Soy_ThrowTodo;
-}
 
 bool Directx::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
 {
@@ -1056,21 +1182,11 @@ bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTexture& 
 
 bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture)
 {
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
 	Soy_ThrowTodo;
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const SoyPixelsImpl& Texture)
 {
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
 	Soy_ThrowTodo;
 }
 
@@ -1151,6 +1267,13 @@ void Directx::TShaderState::Bake()
 		Context.PSSetShaderResources( ResourceFirstSlot, Resources.GetSize(), Resources.GetArray() );
 	}
 
+	//	gr: you can only set one buffer at time, so this function may need to update a buffer and mark it as dirty...
+	//	deviceContext->PSSetShaderResources(0, 1, &texture);
+	
+	//	gr: you can only set one buffer at time, so this function may need to update a buffer and mark it as dirty...
+	//deviceContext->VSSetConstantBuffers(bufferNumber, 1, &m_matrixBuffer);
+
+
 	mBaked = true;
 }
 
@@ -1200,6 +1323,8 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 		Directx::IsOkay( Result, "CreatePixelShader" );
 
 		MakeLayout( Vertex, VertBlob, Device );
+		GetUniforms( VertBlob );
+		GetUniforms( FragBlob );
 	}
 	catch(std::exception& e)
 	{
@@ -1221,6 +1346,24 @@ DXGI_FORMAT GetType(const SoyGraphics::TElementType::Type& Type,size_t Length)
 
 	throw Soy::AssertException("Unhandled graphics uniform type -> DXGI_FORMAT");
 }
+
+void Directx::TShader::GetUniforms(TShaderBlob& Shader)
+{
+	Directx::GetUniforms( GetArrayBridge(mUniforms), Shader, GetContext() );
+}
+
+/*
+void Directx::TShader::GetUniforms(const ArrayBridge<uint8_t>&& CompiledShader)
+{
+
+	void							GetUniforms(ArrayBridge<SoyGraphics::TGeometryVertex>&& UniformSets,const ArrayBridge<uint8_t>&& CompiledShader,const std::string& ShaderName);
+
+	ID3D11ShaderReflection* pReflector = nullptr; 
+	auto Result = D3DReflect( pPixelShaderBuffer->GetBufferPointer(), pPixelShaderBuffer->GetBufferSize(), 
+			   IID_ID3D11ShaderReflection, (void**) &pReflector);
+}
+*/
+
 
 void Directx::TShader::MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TShaderBlob& ShaderBlob,ID3D11Device& Device)
 {
@@ -1259,8 +1402,8 @@ Directx::TShaderState Directx::TShader::Bind(TContext& ContextDx)
 	Context.IASetInputLayout( mLayout.mObject );
 
     // Set the vertex and pixel shaders that will be used to render this triangle.
-    Context.VSSetShader( mVertexShader.mObject, nullptr, 0);
-    Context.PSSetShader( mPixelShader.mObject, nullptr, 0);
+    Context.VSSetShader( mVertexShader.mObject, nullptr, 0 );
+    Context.PSSetShader( mPixelShader.mObject, nullptr, 0 );
 
 	return TShaderState(*this);
 }
@@ -1273,23 +1416,16 @@ void Directx::TShader::Unbind()
 	mBoundContext = nullptr;
 }
 
-
-void Directx::TShader::SetPixelUniform(Soy::TUniform& Uniform,const float& v)
+ID3D11DeviceContext& Directx::TShader::GetDxContext()
 {
-	//	gr: you can only set one buffer at time, so this function may need to update a buffer and mark it as dirty...
-//	deviceContext->PSSetShaderResources(0, 1, &texture);
+	auto& Context = GetContext();
+	return *Context.mLockedContext;
 }
 
-void Directx::TShader::SetVertexUniform(Soy::TUniform& Uniform,const float& v)
-{
-	//	gr: you can only set one buffer at time, so this function may need to update a buffer and mark it as dirty...
-	//deviceContext->VSSetConstantBuffers(bufferNumber, 1, &m_matrixBuffer);
-}
-
-ID3D11DeviceContext& Directx::TShader::GetContext()
+Directx::TContext& Directx::TShader::GetContext()
 {
 	Soy::Assert( mBoundContext!=nullptr, "Shader is not bound");
-	return *mBoundContext->mLockedContext;
+	return *mBoundContext;
 }
 
 
@@ -1304,3 +1440,28 @@ size_t Directx::TLockedTextureData::GetPaddedWidth()
 }
 
 
+
+Directx::TConstantBuffer::TConstantBuffer(ID3D11Device& Device,size_t ConstantBufferIndex,const SoyGraphics::TGeometryVertex& Description) :
+	mDirty			( true ),
+	mDescription	( Description ),
+	mBufferIndex	( ConstantBufferIndex )
+{
+	//	msdn example https://msdn.microsoft.com/en-us/library/ff476896.aspx
+	//	setup constants buffer for shader[s]
+	D3D11_BUFFER_DESC BufferDesc;
+	BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	BufferDesc.ByteWidth = Description.GetDataSize();//Vertex.GetDataSize();
+	BufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	BufferDesc.MiscFlags = 0;
+	BufferDesc.StructureByteStride = Description.GetStride(0);	//	should be 0
+	
+	auto Result = Device.CreateBuffer( &BufferDesc, nullptr, &mBuffer.mObject );
+	Directx::IsOkay( Result, "Create constant buffer");
+
+	mData.SetSize( BufferDesc.ByteWidth );
+}
+
+Directx::TConstantBuffer::~TConstantBuffer()
+{
+}

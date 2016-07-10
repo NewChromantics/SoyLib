@@ -22,7 +22,7 @@ class SoyPixelsImpl;
 
 //	if compiling against win8 lib/runtime, then we can include the new d3d compiler lib directly
 #if WINDOWS_TARGET_SDK >= 8
-#include <d3dcompiler.h>
+//#include <d3dcompiler.h>
 //	gr: do not link to d3dcompiler. This means it will not load the DLL and we load it manually (InitCompilerExtension)
 //#pragma comment(lib, "D3DCompiler.lib")
 #endif
@@ -41,6 +41,7 @@ namespace Directx
 	class TTextureSamplingParams;
 	class TCompiler;			//	wrapper to hold the compile func and a reference to the runtime library. Defined in source for cleaner code
 
+	class TConstantBuffer;
 
 	inline std::string		GetEnumString(HRESULT Error)												{	return Platform::GetErrorString( Error );	}
 	inline bool				IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true)	{	return Platform::IsOkay( Error, Context, ThrowException );	}
@@ -264,6 +265,7 @@ public:
 
 //	clever class which does the binding, auto texture mapping, and unbinding
 //	why? so we can use const TShaders and share them across threads
+//	gr: make the constant buffers and states cachable
 class Directx::TShaderState : public Soy::TUniformContainer
 {
 private:
@@ -276,22 +278,25 @@ public:
 	
 	void			Bake();		//	upload final setup to GPU before drawing
 
-	virtual bool	SetUniform(const char* Name,const int& v) override;
-	virtual bool	SetUniform(const char* Name,const float& v) override;
-	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
-	virtual bool	SetUniform(const char* Name,const vec3f& v) override;
-	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
+	virtual bool	SetUniform(const char* Name,const int& v) override		{	return SetUniformImpl( Name, v );	}
+	virtual bool	SetUniform(const char* Name,const float& v) override		{	return SetUniformImpl( Name, v );	}
+	virtual bool	SetUniform(const char* Name,const vec2f& v) override		{	return SetUniformImpl( Name, v );	}
+	virtual bool	SetUniform(const char* Name,const vec3f& v) override		{	return SetUniformImpl( Name, v );	}
+	virtual bool	SetUniform(const char* Name,const vec4f& v) override		{	return SetUniformImpl( Name, v );	}
 	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& Texture);	//	special case which tracks how many textures are bound
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override;
-	bool			SetUniform(const char* Name,const float3x3& v);
+	bool			SetUniform(const char* Name,const float3x3& v)				{	return SetUniformImpl( Name, v );	}
 	bool			SetUniform(const char* Name,const Directx::TTexture& v);
 	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v) override;
 
 	template<typename TYPE>
 	bool	SetUniform(const std::string& Name,const TYPE& v)
 	{
-		return SetUniform( Name.c_str(), v );
+		return SetUniformImpl( Name.c_str(), v );
 	}
+	
+	template<typename TYPE>
+	bool	SetUniformImpl(const char* Name,const TYPE& v);
 									   
 
 	void	BindTexture(size_t TextureIndex,const TTexture& Texture);	//	use to unbind too
@@ -299,20 +304,22 @@ public:
 private:
 	ID3D11DeviceContext&		GetContext();
 	ID3D11Device&				GetDevice();
+	const TShader&				GetShader() const	{	return mShader;	}
 	bool						mBaked;			//	warning for code; if we never baked the shader on destruction, we may have never sent data pre-geo. DirectX needs a bake but others dont...
 
-	void						AllocConstantBuffer();
+	void						AllocConstantBuffers();
 
 public:
 	const TShader&		mShader;
 	size_t				mTextureBindCount;
 	
+	Array<std::shared_ptr<TConstantBuffer>>								mConstantBuffers;
 	Array<std::shared_ptr<AutoReleasePtr<ID3D11SamplerState>>>			mSamplers;
 	Array<std::shared_ptr<AutoReleasePtr<ID3D11ShaderResourceView>>>	mResources;	//	textures
 };
 
 
-class Directx::TShader : public Soy::TUniformContainer
+class Directx::TShader
 {
 public:
 	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& Context);
@@ -320,54 +327,71 @@ public:
 	TShaderState	Bind(TContext& Context);	//	let this go out of scope to unbind
 	void			Unbind();
 
-	bool			SetUniform(const char* Name,const TTexture& v)	{	return SetUniformImpl( Name, v );	}
-
-	virtual bool	SetUniform(const char* Name,const float& v) override	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const vec2f& v) override	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const vec3f& v) override	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const vec4f& v) override	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const int& v) override		{	return SetUniformImpl( Name, v );	}
-	
-	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v)	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v) override		{	return SetUniformImpl( Name, v );	}
-
 private:
-	template<typename TYPE>
-	bool			SetUniformImpl(const char* Name,const TYPE& v);
-	void			SetPixelUniform(Soy::TUniform& Uniform,const float& v);
-	void			SetVertexUniform(Soy::TUniform& Uniform,const float& v);
-
-	ID3D11DeviceContext&		GetContext();
-
+	ID3D11DeviceContext&		GetDxContext();
+	TContext&					GetContext();
+	
 	void			MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TShaderBlob& Shader,ID3D11Device& Device);
+	void			GetUniforms(TShaderBlob& Shader);
 
 public:
 	TContext*							mBoundContext;	//	this binding should be moved to TShaderState
 
-	Array<Soy::TUniform>				mVertexShaderUniforms;
-	Array<Soy::TUniform>				mPixelShaderUniforms;
+	Array<SoyGraphics::TGeometryVertex>	mUniforms;
+
 	AutoReleasePtr<ID3D11VertexShader>	mVertexShader;
 	AutoReleasePtr<ID3D11PixelShader>	mPixelShader;
 	AutoReleasePtr<ID3D11InputLayout>	mLayout;	//	maybe for geometry?
 };
 
 
+class Directx::TConstantBuffer
+{
+public:
+	TConstantBuffer(ID3D11Device& Device,size_t ConstantBufferIndex,const SoyGraphics::TGeometryVertex& Description);
+	~TConstantBuffer();
+
+	template<typename TYPE>
+	void			SetUniform(const char* Name,const TYPE& Value)
+	{
+		auto Index = mDescription.GetUniformIndex(Name);
+		if ( Index < 0 )
+		{
+			std::stringstream Error;
+			Error << "Constant buffer has no uniform " << Name;
+			throw Soy::AssertException( Error.str() );
+		}
+		mDescription.SetUniform( size_cast<size_t>(Index), Value, mData.GetArray() );
+		mDirty = true;
+	}
+
+public:
+	bool							mDirty;
+	Array<uint8>					mData;
+	SoyGraphics::TGeometryVertex	mDescription;
+	AutoReleasePtr<ID3D11Buffer>	mBuffer;
+	size_t							mBufferIndex;
+};
+
+
 
 
 template<typename TYPE>
-bool Directx::TShader::SetUniformImpl(const char* Name,const TYPE& v)
+inline bool Directx::TShaderState::SetUniformImpl(const char* Name,const TYPE& v)
 {
-	auto* VertUniform = mVertexShaderUniforms.Find(Name);
-	//if ( VertUniform )
-	//	SetVertexUniform( *VertUniform, v );
-
-	auto* PixelUniform = mPixelShaderUniforms.Find(Name);
-	//if ( PixelUniform )
-	//	SetPixelUniform( *PixelUniform, v );
-
-	return (PixelUniform || VertUniform);
+	for ( int i=0;	i<mConstantBuffers.GetSize();	i++ )
+	{
+		try
+		{
+			auto& Buffer = mConstantBuffers[i];
+			Buffer->SetUniform( Name, v );
+			return true;
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Error setting uniform " << Name << "; " << e.what() << std::endl;
+		}
+	}
+	return false;
 }
-
-
-
 
