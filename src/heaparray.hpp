@@ -232,7 +232,9 @@ public:
 		if ( Soy::IsComplexType<TYPE>() )
 		{
 			for ( size_t i=curoff;	i<curoff+count;	i++ )
-				mdata[i] = T();
+			{
+				Release( mdata[i] );
+			}
 		}
 		return mdata + curoff;
 	}
@@ -290,7 +292,7 @@ public:
 		}
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
 		auto& ref = mdata[moffset++];
-		ref = T();
+		Release( ref );
 		return ref;
 	}
 
@@ -362,7 +364,12 @@ public:
 			T* src = mdata + moffset - count - 1;
 			T* dest = mdata + moffset - 1;
 			for ( ssize_t i=0; i<left; ++i )
-				*dest-- = *src--;
+			{
+				*dest = *src;
+				Release(*src);
+				dest--;
+				src--;
+			}
 		}
 		else if ( left > 0 )
 		{
@@ -392,10 +399,16 @@ public:
 			for ( size_t i = 0; i < ShiftCount; ++i )
 			{
 				*dest = *src;
+				//Release(*src);
 				dest++;
 				src++;
 			}
 			moffset -= count;
+			for ( size_t i=0;	i<count;	i++ )
+			{
+				auto Index = moffset+i;
+				Release( mdata[Index] );
+			}
 		}
 		else
 		{
@@ -575,6 +588,10 @@ public:
 		assert( moffset <= mmaxsize );
 		return true;
 	}
+
+private:
+	void			Release(T& Element)	{	Element = T();	}
+
 
 private:
 	prmem::Heap*	mHeap;		//	where to alloc/free from
