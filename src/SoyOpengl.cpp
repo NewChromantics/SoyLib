@@ -239,7 +239,12 @@ SoyGraphics::TElementType::Type SoyGraphics::GetType(GLenum Type)
 		case GL_FLOAT_VEC4:		return SoyGraphics::TElementType::Float4;
 		case GL_FLOAT_MAT3:		return SoyGraphics::TElementType::Float3x3;
 		case GL_SAMPLER_2D:		return SoyGraphics::TElementType::Texture2D;
-			
+
+		//	gr: do these need specific element types to convert back?
+		//	only used for vertex generation so, no?
+#if defined(GL_SAMPLER_EXTERNAL_OES)
+		case GL_SAMPLER_EXTERNAL_OES:	return SoyGraphics::TElementType::Texture2D;
+#endif
 		default:
 			break;
 	}
