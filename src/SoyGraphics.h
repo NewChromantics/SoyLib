@@ -15,7 +15,13 @@ namespace SoyGraphics
 		enum Type
 		{
 			Invalid,
+			Int,
 			Float,
+			Float2,
+			Float3,
+			Float4,
+			Float3x3,
+			Texture2D,
 		};
 	}
 }

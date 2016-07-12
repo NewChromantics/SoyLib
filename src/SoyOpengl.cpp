@@ -231,7 +231,14 @@ SoyGraphics::TElementType::Type SoyGraphics::GetType(GLenum Type)
 {
 	switch ( Type )
 	{
-		case GL_FLOAT:	return SoyGraphics::TElementType::Float;
+		case GL_INVALID_ENUM:	return SoyGraphics::TElementType::Invalid;
+		case GL_INT:			return SoyGraphics::TElementType::Int;
+		case GL_FLOAT:			return SoyGraphics::TElementType::Float;
+		case GL_FLOAT_VEC2:		return SoyGraphics::TElementType::Float2;
+		case GL_FLOAT_VEC3:		return SoyGraphics::TElementType::Float3;
+		case GL_FLOAT_VEC4:		return SoyGraphics::TElementType::Float4;
+		case GL_FLOAT_MAT3:		return SoyGraphics::TElementType::Float3x3;
+		case GL_SAMPLER_2D:		return SoyGraphics::TElementType::Texture2D;
 			
 		default:
 			break;
@@ -244,8 +251,14 @@ GLenum Opengl::GetType(SoyGraphics::TElementType::Type Type)
 {
 	switch ( Type )
 	{
-		case SoyGraphics::TElementType::Float:		return GL_FLOAT;
 		case SoyGraphics::TElementType::Invalid:	return GL_INVALID_ENUM;
+		case SoyGraphics::TElementType::Int:		return GL_INT;
+		case SoyGraphics::TElementType::Float:		return GL_FLOAT;
+		case SoyGraphics::TElementType::Float2:		return GL_FLOAT_VEC2;
+		case SoyGraphics::TElementType::Float3:		return GL_FLOAT_VEC3;
+		case SoyGraphics::TElementType::Float4:		return GL_FLOAT_VEC4;
+		case SoyGraphics::TElementType::Float3x3:	return GL_FLOAT_MAT3;
+		case SoyGraphics::TElementType::Texture2D:	return GL_SAMPLER_2D;
 	}
 
 	throw Soy::AssertException( std::string("Unknown SoyGraphics::TElementType::Type->Glenum conversion for ") );
