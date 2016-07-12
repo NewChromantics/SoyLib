@@ -30,7 +30,6 @@ private:
 public:
 	SoyEvent<const std::string>		mOnError;
 	SoyEvent<bool>					mOnConnected;
-	SoyEvent<const Http::TResponseProtocol>	mOnResponse;
 
 protected:
 	std::string						mServerAddress;
