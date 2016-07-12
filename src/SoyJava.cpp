@@ -1501,11 +1501,11 @@ TJniObject TJniClass::GetStaticFieldObject(const std::string& FieldName,const st
 	return Object;
 }
 
-
 void JniMediaPlayer::SetDataSourceAssets(const std::string& Path)
 {
 	//	trying to stream right out of assets
 	std::Debug << "JniMediaPlayer::SetDataSourceAssets(" << Path << ")" << std::endl;
+	
 	
 	//	load file descriptor from assets
 	TJniString PathJString(Path);
@@ -1575,6 +1575,13 @@ void JniMediaPlayer::SetDataSourceAssets(const std::string& Path)
 		//	http://developer.android.com/reference/android/media/MediaPlayer.html#setDataSource(android.content.Context, android.net.Uri)
 		//	http://developer.android.com/reference/android/content/res/AssetFileDescriptor.html#close()
 		AssetFileDescriptor.CallVoidMethod("close");
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << __func__ << " exception: " << e.what() << std::endl;
+		//	close FD here too!
+		AssetFileDescriptor.CallVoidMethod("close");
+		throw;
 	}
 	catch ( ... )
 	{
@@ -1718,38 +1725,61 @@ void JniMediaExtractor::SetDataSourceJar(const std::string& OrigPath)
 		throw Soy::AssertException( Error.str() );
 	}
 	
+	auto& JarFilename = JarAndAsset[0];
+	auto& AssetFilename = JarAndAsset[1];
+
 	//	specific error for missing zip resource class
 	auto ZipResourceClass = "com.android.vending.expansion.zipfile.ZipResourceFile";
 	try
 	{
 		TJniClass UnityPlayerClass(ZipResourceClass);
+		
+		
+		TJniObject Container(ZipResourceClass,JarFilename);
+		
+		//	gr: returns a null object when filenot found (no exception!) so exception is forced on error
+		TJniObject FileDescriptor = Container.CallObjectMethod("getAssetFileDescriptor", "android/content/res/AssetFileDescriptor", AssetFilename );
+		
+		std::Debug << "SetDataSourceAssetFileDescriptor" << std::endl;
+		SetDataSourceAssetFileDescriptor( FileDescriptor, true );
 	}
 	catch(std::exception& e)
 	{
-		std::stringstream Error;
-		Error << "Error getting java class " << ZipResourceClass << ". Maybe need to add jar from android SDK (commonly built as zip_file.jar); " << e.what();
-		//	gr: output to debug and re-throw instead?
-		throw Soy::AssertException( Error.str() );
+		try
+		{
+			//	if we have no zip class, try and load from the apk...
+			//	gr: perhaps check the jar filename for apk?
+			std::Debug << "java class " << ZipResourceClass << " failed to load, trying straight from apk resources..." << std::endl;
+			std::Debug << "JarFilename=" << JarFilename << ", AssetFilename=" << AssetFilename << std::endl;
+			SetDataSourceAssets( AssetFilename );
+			std::Debug << "SetDataSourceAssets done" << std::endl;
+		}
+		catch(std::exception& AssetsException)
+		{
+			std::stringstream Error;
+			Error << "Error getting java class " << ZipResourceClass << ". Maybe need to add jar from android SDK (commonly built as zip_file.jar); " << e.what();
+			Error << "........... Attempted to load from APK but failed: " << AssetsException.what();
+			throw Soy::AssertException( Error.str() );
+		}
 	}
-	
-	auto& JarFilename = JarAndAsset[0];
-	auto& AssetFilename = JarAndAsset[1];
-	
-	TJniObject Container(ZipResourceClass,JarFilename);
-	
-	//	gr: returns a null object when filenot found (no exception!) so exception is forced on error
-	TJniObject FileDescriptor = Container.CallObjectMethod("getAssetFileDescriptor", "android/content/res/AssetFileDescriptor", AssetFilename );
-	
-	std::Debug << "SetDataSourceAssetFileDescriptor" << std::endl;
-	SetDataSourceAssetFileDescriptor( FileDescriptor, true );
+
 }
 
 
-
-void JniMediaExtractor::SetDataSourceAssets(const std::string& Path)
+void JniMediaExtractor::SetDataSourceAssets(const std::string& OrigPath)
 {
 	//	trying to stream right out of assets
-	std::Debug << "JniMediaExtractor::SetDataSourceAssets(" << Path << ")" << std::endl;
+	std::Debug << "JniMediaExtractor::SetDataSourceAssets(" << OrigPath << ")" << std::endl;
+	
+	
+	const char* ApkInternalAssetsPath = "assets/";
+	//	gr: strip assets/ from path (this is the path in the apk, but not "assets")
+	auto Path = OrigPath;
+	if ( Soy::StringTrimLeft( Path, ApkInternalAssetsPath, true ) )
+	{
+	}
+	std::Debug << "Stripped " << ApkInternalAssetsPath << " from " << OrigPath << " to " << Path << std::endl;
+
 	
 	//	load file descriptor from assets
 	TJniString Filename( Path );
@@ -1805,12 +1835,20 @@ void JniMediaExtractor::SetDataSourceAssetFileDescriptor(TJniObject& AssetFileDe
 		std::Debug << "calling SetDataSource..." << std::endl;
 		java().CallVoidMethod( GetWeakObject(), Method_setDataSource, FileDescriptor.GetWeakObject(), FdOffset, FdLength );
 		ThrowJavaException( "SetDataSourceAssetFileDescriptor setDataSource" );
-		
+		std::Debug << "SetDataSource finished" << std::endl;
 		//	close FD. According to docs we should close the fd immediately after SetDataSource returns
 		//	http://developer.android.com/reference/android/media/MediaPlayer.html#setDataSource(android.content.Context, android.net.Uri)
 		//	http://developer.android.com/reference/android/content/res/AssetFileDescriptor.html#close()
 		if ( CloseOnFinish )
 			AssetFileDescriptor.CallVoidMethod("close");
+	}
+	catch (std::exception& e)
+	{
+		std::Debug << __func__ << " threw: " << e.what() << std::endl;
+		//	close FD here too!
+		if ( CloseOnFinish )
+			AssetFileDescriptor.CallVoidMethod("close");
+		throw;
 	}
 	catch ( ... )
 	{
