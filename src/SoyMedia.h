@@ -43,6 +43,12 @@ namespace Metal
 	class TTexture;
 }
 
+namespace Gnm
+{
+	class TContext;
+	class TTexture;
+}
+
 namespace SoyMedia
 {
 	prmem::Heap&	GetDefaultHeap();
@@ -202,6 +208,7 @@ public:
 	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform)=0;
 	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform)=0;
 	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform)=0;
+	virtual void		Lock(ArrayBridge<Gnm::TTexture>&& Textures,Gnm::TContext& Context,float3x3& Transform)	{}		//	gr: too much fuss making this pure
 	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform)=0;
 	virtual void		Unlock()=0;
 
