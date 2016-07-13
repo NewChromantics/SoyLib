@@ -332,6 +332,17 @@ std::string Soy::StreamToString(std::ostream& Stream)
 	return TempStream.str();
 }
 
+std::string Soy::StreamToString(std::istream& Stream)
+{
+	//	see what's best here
+	//	http://stackoverflow.com/questions/3203452/how-to-read-entire-stream-into-a-stdstring
+	//	also see, Soy::ReadStream
+	std::string s;
+	std::ostringstream os;
+	os << Stream.rdbuf();
+	return os.str();
+}
+
 bool Soy::StringTrimLeft(std::string& String,std::function<bool(char)> TrimChar)
 {
 	bool Changed = false;

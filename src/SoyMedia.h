@@ -616,7 +616,8 @@ public:
 		mExtractDepthStreams			( true ),
 		mExtractSkeletonStreams			( false ),
 		mExtractVideoStreams			( true ),
-		mSplitAudioChannelsIntoStreams	( false )
+		mSplitAudioChannelsIntoStreams	( false ),
+		mAllowDecodeInPixelBuffer		( false )
 	{
 	}
 	
@@ -639,6 +640,7 @@ public:
 	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
 	bool						mWindowIncludeBorders;
 	bool						mWin7Emulation;				//	for mediafoundation, expose some bugs
+	bool						mAllowDecodeInPixelBuffer;	//	bink; pre-decode pixels, or decode at pixelbuffer::lock
 
 	bool						mSplitAudioChannelsIntoStreams;	//	if we're splitting audio streams, some extractors need to not reduce to output
 

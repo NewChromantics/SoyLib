@@ -12,4 +12,5 @@ namespace Gnm
 	class TTexture;
 
 	std::shared_ptr<TContext>	AllocContext(void* DevicePtr);
+	void						IterateContext(TContext& Context);
 }

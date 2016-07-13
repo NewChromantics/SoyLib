@@ -41,6 +41,9 @@ class D3D12_RESOURCE_STATES;
 #include "Unity/IUnityGraphicsMetal.h"
 #endif
 */
+#if defined(ENABLE_METAL)
+#include "SoyMetal.h"
+#endif
 
 #if defined(TARGET_ANDROID)
 #include "SoyJava.h"
@@ -53,11 +56,12 @@ typedef	void	(*UnityPluginSetGraphicsDeviceFunc)(void* device, int deviceType, i
 typedef	void	(*UnityPluginRenderMarkerFunc)(int marker);
 void	UnityRegisterRenderingPlugin(UnityPluginSetGraphicsDeviceFunc setDevice, UnityPluginRenderMarkerFunc renderMarker);
 }
+
+__export void	UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::sint eventType);
 #endif
 
-#if !defined(TARGET_PS4)
+//	for debugging new systems, quickly turn off the DLL calls
 #define ENABLE_UNITY_INTERFACES
-#endif
 
 namespace Platform
 {
@@ -252,6 +256,24 @@ std::shared_ptr<Directx::TContext> Unity::GetDirectxContextPtr()
 }
 
 
+bool Unity::HasGnmContext()
+{
+	return GnmContext != nullptr;
+}
+
+Gnm::TContext& Unity::GetGnmContext()
+{
+	if (!GnmContext)
+		throw Soy::AssertException("Getting Gnm context on non-Gnm run");
+
+	return *GnmContext;
+}
+
+std::shared_ptr<Gnm::TContext> Unity::GetGnmContextPtr()
+{
+	return GnmContext;
+}
+
 
 std::shared_ptr<Metal::TContext> Unity::GetMetalContextPtr()
 {
@@ -384,39 +406,53 @@ void Unity::RenderEvent(Unity::sint eventID)
 		Unity::DirectxContext->Iteration();
 	}
 #endif
-	
+
 #if defined(ENABLE_METAL)
 	if ( Unity::MetalContext )
 	{
 		Unity::MetalContext->Iteration();
+	}
+#endif	
+
+#if defined(ENABLE_GNM)
+	if ( Unity::GnmContext )
+	{
+		Gnm::IterateContext( *Unity::GnmContext );
 	}
 #endif
 }
 
 __export void UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::sint eventType)
 {
-#if defined(ENABLE_UNITY_INTERFACES)
-	auto DeviceType = UnityDevice::Validate(deviceType);
-	auto DeviceEvent = UnityEvent::Validate(eventType);
-
-	std::Debug << __func__ << "(" << UnityDevice::ToString(DeviceType) << "," << UnityEvent::ToString(DeviceEvent) << ")" << std::endl;
-
-	switch (DeviceEvent)
+	try
 	{
-	case UnityEvent::kGfxDeviceEventShutdown:
-		Unity::Shutdown(DeviceType);
-		break;
+	#if defined(ENABLE_UNITY_INTERFACES)
+		auto DeviceType = UnityDevice::Validate(deviceType);
+		auto DeviceEvent = UnityEvent::Validate(eventType);
 
-	case UnityEvent::kGfxDeviceEventInitialize:
-		Unity::Init(DeviceType, device);
-		break;
+		std::Debug << __func__ << "(" << UnityDevice::ToString(DeviceType) << "," << UnityEvent::ToString(DeviceEvent) << ")" << std::endl;
 
-	default:
-		break;
-	};
-#else
-	printf("%s disabled\n",__func__);
-#endif
+		switch (DeviceEvent)
+		{
+		case UnityEvent::kGfxDeviceEventShutdown:
+			Unity::Shutdown(DeviceType);
+			break;
+
+		case UnityEvent::kGfxDeviceEventInitialize:
+			Unity::Init(DeviceType, device);
+			break;
+
+		default:
+			break;
+		};
+	#else
+		std::Debug << __func__ << " disabled" << std::endl;
+	#endif
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << __func__ << " exception: " << e.what() << std::endl;
+	}
 }
 
 
@@ -427,19 +463,26 @@ __export void UnityRenderEvent_Ios(Unity::sint eventID)
 __export void UnityRenderEvent(Unity::sint eventID)
 #endif
 {
-#if defined(ENABLE_UNITY_INTERFACES)
-	//	event triggered by other plugin
-	if ( eventID != Unity::GetPluginEventId() )
-	{
-		if ( Unity::IsDebugPluginEventEnabled() )
-			std::Debug << "UnityRenderEvent(" << eventID << ") Not ours " << Unity::GetPluginEventId() << std::endl;
-		return;
-	}
+	try
+		{
+	#if defined(ENABLE_UNITY_INTERFACES)
+		//	event triggered by other plugin
+		if ( eventID != Unity::GetPluginEventId() )
+		{
+			if ( Unity::IsDebugPluginEventEnabled() )
+				std::Debug << "UnityRenderEvent(" << eventID << ") Not ours " << Unity::GetPluginEventId() << std::endl;
+			return;
+		}
 	
-	Unity::RenderEvent( eventID );
-#else
-	printf("%s disabled\n",__func__);
-#endif
+		Unity::RenderEvent( eventID );
+	#else
+		std::Debug << __func__ << " disabled" << std::endl;
+	#endif
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << __func__ << " exception: " << e.what() << std::endl;
+	}
 }
 
 
@@ -656,66 +699,89 @@ void* GetDeviceContext<IUnityGraphicsPS4>()
 
 void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType)
 {
-#if defined(ENABLE_UNITY_INTERFACES)
-	auto Device = Unity::GraphicsDevice;
-	if ( !Device )
+	try
 	{
-		std::Debug << __func__ << " missing graphics device" << std::endl;
-		return;
+		std::Debug << __func__ << "(" << eventType << ")" << std::endl;
+		
+	#if defined(ENABLE_UNITY_INTERFACES)
+		auto Device = Unity::GraphicsDevice;
+		if ( !Device )
+		{
+			std::Debug << __func__ << " missing graphics device" << std::endl;
+			return;
+		}
+
+		void* DeviceContext = nullptr;
+		auto DeviceType = static_cast<UnityDevice::Type>( Unity::GraphicsDevice->GetRenderer() );
+
+		switch ( DeviceType )
+		{
+	#if defined(ENABLE_DIRECTX)
+			case kUnityGfxRendererD3D9:		DeviceContext = GetDeviceContext<IUnityGraphicsD3D9>();	break;
+			case kUnityGfxRendererD3D11:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D11>();	break;
+			case kUnityGfxRendererD3D12:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D12>();	break;
+	#endif
+	#if defined(ENABLE_GNM)
+			case kUnityGfxRendererPS4:		DeviceContext = GetDeviceContext<IUnityGraphicsPS4>();	break;
+	#endif		
+			default:
+				break;
+		}
+
+		UnitySetGraphicsDevice( DeviceContext, DeviceType, eventType );
+	#else
+		std::Debug << __func__ << " disabled" << std::endl;
+	#endif
 	}
-
-	void* DeviceContext = nullptr;
-	auto DeviceType = static_cast<UnityDevice::Type>( Unity::GraphicsDevice->GetRenderer() );
-
-	switch ( DeviceType )
+	catch(std::exception& e)
 	{
-#if defined(ENABLE_DIRECTX)
-		case kUnityGfxRendererD3D9:		DeviceContext = GetDeviceContext<IUnityGraphicsD3D9>();	break;
-		case kUnityGfxRendererD3D11:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D11>();	break;
-		case kUnityGfxRendererD3D12:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D12>();	break;
-#endif
-#if defined(ENABLE_GNM)
-		case kUnityGfxRendererPS4:		DeviceContext = GetDeviceContext<IUnityGraphicsPS4>();	break;
-#endif		
-		default:
-			break;
+		std::Debug << __func__ << " exception: " << e.what() << std::endl;
 	}
-
-	UnitySetGraphicsDevice( DeviceContext, DeviceType, eventType );
-#else
-	printf("%s disabled\n",__func__);
-#endif
 }
 
 // Unity plugin load event
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginLoad(IUnityInterfaces* unityInterfaces)
 {
-#if defined(ENABLE_UNITY_INTERFACES)
-	Unity::Interfaces = unityInterfaces;
-	Unity::GraphicsDevice = Unity::Interfaces->Get<IUnityGraphics>();
+	try
+		{
+	#if defined(ENABLE_UNITY_INTERFACES)
+		Unity::Interfaces = unityInterfaces;
+		Unity::GraphicsDevice = Unity::Interfaces->Get<IUnityGraphics>();
 
-    Unity::GraphicsDevice->RegisterDeviceEventCallback( OnGraphicsDeviceEvent );
+		Unity::GraphicsDevice->RegisterDeviceEventCallback( OnGraphicsDeviceEvent );
 
-    // Run OnGraphicsDeviceEvent(initialize) manually on plugin load
-    // to not miss the event in case the graphics device is already initialized
-    OnGraphicsDeviceEvent( kUnityGfxDeviceEventInitialize );
-#else
-	printf("%s disabled\n",__func__);
-#endif
+		// Run OnGraphicsDeviceEvent(initialize) manually on plugin load
+		// to not miss the event in case the graphics device is already initialized
+		OnGraphicsDeviceEvent( kUnityGfxDeviceEventInitialize );
+	#else
+		std::Debug << __func__ << " disabled" << std::endl;
+	#endif
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << __func__ << " exception: " << e.what() << std::endl;
+	}
 }
 
 // Unity plugin unload event
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API UnityPluginUnload()
 {
-#if defined(ENABLE_UNITY_INTERFACES)
-	if ( Unity::GraphicsDevice )
+	try
 	{
-		Unity::GraphicsDevice->UnregisterDeviceEventCallback(OnGraphicsDeviceEvent);
-		//Unity::GraphicsDevice = nullptr;
+	#if defined(ENABLE_UNITY_INTERFACES)
+		if ( Unity::GraphicsDevice )
+		{
+			Unity::GraphicsDevice->UnregisterDeviceEventCallback(OnGraphicsDeviceEvent);
+			//Unity::GraphicsDevice = nullptr;
+		}
+	#else
+		std::Debug << __func__ << " disabled" << std::endl;
+	#endif
 	}
-#else
-	printf("%s disabled\n",__func__);
-#endif
+	catch(std::exception& e)
+	{
+		std::Debug << __func__ << " exception: " << e.what() << std::endl;
+	}
 }
 
 void Unity::GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions)

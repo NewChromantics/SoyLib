@@ -154,6 +154,9 @@
     <ClCompile Include="..\src\SoyGnm.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\SoyJava.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\SoyThread.h">
@@ -346,6 +349,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\SoyGnm.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyJava.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

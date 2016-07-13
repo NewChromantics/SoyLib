@@ -139,6 +139,41 @@ namespace SoyPixelsFormat
 };
 
 
+//	gr: move all the pixels stuff into a namespace!
+class TSoyPixelsCopyParams
+{
+public:
+	//	dumb realloc copy
+	TSoyPixelsCopyParams() :
+		mAllowRealloc		( true ),
+		mAllowWidthClip		( true ),
+		mAllowHeightClip	( true ),
+		mAllowComponentSwizzle	( true ),
+		mFlipSource			( false ),
+		mFlipDestination	( false )
+	{
+	}
+	//	no-realloc copy with params
+	TSoyPixelsCopyParams(bool AllowWidthClip,bool AllowHeightClip,bool AllowComponentSwizzle,bool FlipSource,bool FlipDestination) :
+		mAllowRealloc		( false ),
+		mAllowWidthClip		( AllowWidthClip ),
+		mAllowHeightClip	( AllowHeightClip ),
+		mAllowComponentSwizzle	( AllowComponentSwizzle ),
+		mFlipSource			( FlipSource ),
+		mFlipDestination	( FlipDestination )
+	{
+	}
+	
+	bool	mAllowRealloc;		//	allow change meta & data
+	bool	mAllowWidthClip;	//	allow a slow line-by-line copy where widths dont align
+	bool	mAllowHeightClip;	//	allow fast memcpy, if height is clipped
+	bool	mAllowComponentSwizzle;	//	allow BGRA to go into RGBA
+	bool	mFlipSource;
+	bool	mFlipDestination;
+};
+
+
+
 //	meta data for pixels (header when using raw data)
 class SoyPixelsMeta
 {
@@ -198,14 +233,10 @@ protected:
 };
 DECLARE_NONCOMPLEX_TYPE( SoyPixelsMeta );
 
+std::ostream& operator<< (std::ostream &out,const SoyPixelsMeta &in);
+std::istream& operator>>( std::istream &in,SoyPixelsMeta &out);
 
-
-inline std::ostream& operator<< (std::ostream &out,const SoyPixelsMeta &in)
-{
-	out << in.GetWidth() << 'x' << in.GetHeight() << '^' << in.GetFormat();
-	return out;
-}
-
+ 
 
 //	all the image-manipulation functionality, but data is somewhere else (any array you like, in-place image manipulation!)
 class SoyPixelsImpl
@@ -218,8 +249,7 @@ public:
 	void			Init(size_t Width,size_t Height,size_t Channels);
 	void			Clear(bool Dealloc=false);
 
-	virtual bool	Copy(const SoyPixelsImpl& that,bool AllowReallocation=true);
-	void			CopyClipped(const SoyPixelsImpl& that);	//	copy different sized images quickly
+	void			Copy(const SoyPixelsImpl& that,const TSoyPixelsCopyParams& Params=TSoyPixelsCopyParams());
 	
 	bool			IsValid() const					{	return GetMeta().IsValid();	}
 	uint8			GetBitDepth() const				{	return GetMeta().GetBitDepth();	}

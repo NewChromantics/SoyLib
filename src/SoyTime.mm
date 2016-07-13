@@ -8,7 +8,7 @@ SoyTime Soy::Platform::GetTime(CMTime Time)
 	
 	Float64 TimeSec = CMTimeGetSeconds(Time);
 	UInt64 TimeMs = 1000.f*TimeSec;
-	return SoyTime( TimeMs );
+	return SoyTime( std::chrono::milliseconds(TimeMs) );
 }
 #endif
 
@@ -23,6 +23,7 @@ CMTime Soy::Platform::GetTime(SoyTime Time)
 #if defined(__OBJC__)
 SoyTime Soy::Platform::GetTime(CFTimeInterval Time)
 {
-	return SoyTime( size_cast<uint64>(Time*1000.0) );
+	auto TimeMs = size_cast<uint64>(Time*1000.0);
+	return SoyTime( std::chrono::milliseconds(TimeMs) );
 }
 #endif

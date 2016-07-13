@@ -105,3 +105,27 @@ float3x3 SoyMath::GetFlipMatrix3x3()
 						0, -1, 0, 
 						0, 1, 0 );
 }
+
+
+uint32_t SoyMath::GetNextPower2(uint32_t x)
+{
+	//	from hackers delight.
+	if ( x == 0 )
+		return 0;
+
+	x--;
+	x |= x >> 1;
+	x |= x >> 2;
+	x |= x >> 4;
+	x |= x >> 8;
+	x |= x >> 16;
+	return x+1;
+}
+
+
+bool SoyMath::IsPower2(uint32_t x)
+{
+	auto Powx = GetNextPower2(x);
+	return Powx == x;
+}
+

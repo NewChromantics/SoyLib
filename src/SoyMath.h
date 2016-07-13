@@ -49,6 +49,7 @@ namespace Soy
 		return static_cast<float>(Value-Start) / static_cast<float>(End-Start);
 	}
 	
+
 	
 	//	will probably replace this at some point, but for now, handy for 3D work
 	class TCamera;
@@ -65,6 +66,9 @@ namespace Soy
 namespace SoyMath
 {
 	float3x3	GetFlipMatrix3x3();
+
+	uint32_t	GetNextPower2(uint32_t x);	//	returns X if already power. 0 returns 0.
+	bool		IsPower2(uint32_t x);
 };
 
 
@@ -193,7 +197,4 @@ namespace Soy
 	inline	TRgb	THsl::rgb() const	{	return TRgb(*this);	}
 	inline	THsl	TRgb::hsl() const	{	return THsl(*this);	}
 }
-
-
-
 

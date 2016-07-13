@@ -1359,7 +1359,10 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 		//	make sure there is never a reallocation, unless it's the first
 		auto& PixelsBuffer = *ClientStorage;
 		bool NewTexture = !PixelsBuffer.IsValid();
-		PixelsBuffer.Copy( FinalPixels, NewTexture );
+		if ( NewTexture )
+			PixelsBuffer.Copy( FinalPixels, TSoyPixelsCopyParams() );
+		else
+			PixelsBuffer.Copy( FinalPixels, TSoyPixelsCopyParams(true,true,true,false,false) );
 		
 		//	need to work out if it's new to the GPU in case pixels were already allocated
 		//if ( NewTexture )

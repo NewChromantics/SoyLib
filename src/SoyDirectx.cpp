@@ -85,10 +85,6 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 	//	gr; very special case!
 //	FORMAT_MAP( SoyPixelsFormat::UnityUnknown,	DXGI_FORMAT_UNKNOWN	),
 
-//	gr: these are unsupported natively by directx, so force 32 bit and have to do conversion in write()
-	FORMAT_MAP( SoyMediaFormat::RGB,	DXGI_FORMAT_R8G8B8A8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::BGR,	DXGI_FORMAT_R8G8B8A8_UNORM	),
-
 	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_TYPELESS	),
 	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_UNORM	),
@@ -99,7 +95,11 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 	FORMAT_MAP( SoyMediaFormat::BGRA,	DXGI_FORMAT_B8G8R8A8_TYPELESS	),
 	FORMAT_MAP( SoyMediaFormat::BGRA,	DXGI_FORMAT_B8G8R8A8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::BGRA,	DXGI_FORMAT_B8G8R8A8_UNORM_SRGB	),
-	
+
+	//	gr: these are unsupported natively by directx, so force 32 bit and hav looking for DXGI_FORMAT_
+	FORMAT_MAP( SoyMediaFormat::RGB,	DXGI_FORMAT_R8G8B8A8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::BGR,	DXGI_FORMAT_R8G8B8A8_UNORM	),
+
 	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Full,		DXGI_FORMAT_NV12	),	
 	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Ntsc,		DXGI_FORMAT_NV12	),
 	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Smptec,	DXGI_FORMAT_NV12	),	
@@ -696,19 +696,7 @@ void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& Contex
 	//	copy row by row to handle misalignment
 	SoyPixelsRemote DestPixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
 
-	auto SourceChannelCount = SourcePixels.GetChannels();
-	auto DestChannelCount = DestPixels.GetChannels();
-	Soy::Assert( SourceChannelCount==DestChannelCount, "Directx::TTexture::Write expecting channel counts to match");
-
-	auto CopyHeight = std::min( DestPixels.GetHeight(), SourcePixels.GetHeight() );
-	auto CopyWidth = std::min( DestPixels.GetWidth(), SourcePixels.GetWidth() );
-
-	for ( int y=0;	y<CopyHeight;	y++ )
-	{
-		auto* SourceRow = &SourcePixels.GetPixelPtr( 0, y, 0 );
-		auto* DestRow = &DestPixels.GetPixelPtr( 0, y, 0 );
-		memcpy( DestRow, SourceRow, CopyWidth * SourceChannelCount );
-	}
+	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true,false,false) );
 }
 
 
@@ -740,20 +728,8 @@ void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool
 
 	//	copy row by row to handle misalignment
 	SoyPixelsRemote SourcePixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
-
-	auto SourceChannelCount = SourcePixels.GetChannels();
-	auto DestChannelCount = DestPixels.GetChannels();
-	Soy::Assert( SourceChannelCount==DestChannelCount, "Directx::TTexture::Read expecting channel counts to match");
-
-	auto CopyHeight = std::min( DestPixels.GetHeight(), SourcePixels.GetHeight() );
-	auto CopyWidth = std::min( DestPixels.GetWidth(), SourcePixels.GetWidth() );
-
-	for ( int y=0;	y<CopyHeight;	y++ )
-	{
-		auto* SourceRow = &SourcePixels.GetPixelPtr( 0, y, 0 );
-		auto* DestRow = &DestPixels.GetPixelPtr( 0, y, 0 );
-		memcpy( DestRow, SourceRow, CopyWidth * SourceChannelCount );
-	}
+	
+	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true,false,false) );
 }
 
 Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
