@@ -697,6 +697,34 @@ void* GetDeviceContext<IUnityGraphicsPS4>()
 #endif
 
 
+void* Unity::GetPlatformDeviceContext(UnityDevice::Type Device)
+{
+	switch ( Device )
+	{
+	#if defined(ENABLE_DIRECTX)
+		case kUnityGfxRendererD3D9:		return GetDeviceContext<IUnityGraphicsD3D9>();
+		case kUnityGfxRendererD3D11:	return GetDeviceContext<IUnityGraphicsD3D11>();
+		case kUnityGfxRendererD3D12:	return GetDeviceContext<IUnityGraphicsD3D12>();
+	#endif
+	
+	#if defined(ENABLE_GNM)
+		case kUnityGfxRendererPS4:		return GetDeviceContext<IUnityGraphicsPS4>();
+	#endif		
+	
+		default:
+			return nullptr;
+	}
+}
+
+void* Unity::GetPlatformDeviceContext()
+{
+	auto Device = Unity::GraphicsDevice;
+	if ( !Device )
+		throw Soy::AssertException("missing graphics device");
+	auto DeviceType = static_cast<UnityDevice::Type>( Unity::GraphicsDevice->GetRenderer() );
+	return GetPlatformDeviceContext( DeviceType );
+}
+
 void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType)
 {
 	try
@@ -711,22 +739,8 @@ void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType
 			return;
 		}
 
-		void* DeviceContext = nullptr;
 		auto DeviceType = static_cast<UnityDevice::Type>( Unity::GraphicsDevice->GetRenderer() );
-
-		switch ( DeviceType )
-		{
-	#if defined(ENABLE_DIRECTX)
-			case kUnityGfxRendererD3D9:		DeviceContext = GetDeviceContext<IUnityGraphicsD3D9>();	break;
-			case kUnityGfxRendererD3D11:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D11>();	break;
-			case kUnityGfxRendererD3D12:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D12>();	break;
-	#endif
-	#if defined(ENABLE_GNM)
-			case kUnityGfxRendererPS4:		DeviceContext = GetDeviceContext<IUnityGraphicsPS4>();	break;
-	#endif		
-			default:
-				break;
-		}
+		void* DeviceContext = Unity::GetPlatformDeviceContext(DeviceType);
 
 		UnitySetGraphicsDevice( DeviceContext, DeviceType, eventType );
 	#else

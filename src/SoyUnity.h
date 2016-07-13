@@ -203,6 +203,8 @@ namespace Unity
 	void				Init(UnityDevice::Type Device,void* DevicePtr);
 	void				Shutdown(UnityDevice::Type Device);
 	void				RenderEvent(Unity::sint EventId);
+	void*				GetPlatformDeviceContext(UnityDevice::Type Device);
+	void*				GetPlatformDeviceContext();
 
 	//	these throw when accessed if wrong device
 	Opengl::TContext&					GetOpenglContext();
