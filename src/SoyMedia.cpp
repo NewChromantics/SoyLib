@@ -1909,7 +1909,7 @@ template<typename NEWTYPE,typename OLDTYPE>
 inline FixedRemoteArray<NEWTYPE> CastArray(const ArrayBridge<OLDTYPE>&& Array)
 {
 	auto OldDataSize = Array.GetDataSize();
-	auto OldElementSize = Array.GetElementSize();
+	//auto OldElementSize = Array.GetElementSize();
 	auto NewElementSize = sizeof(NEWTYPE);
 	
 	auto NewElementCount = OldDataSize / NewElementSize;
