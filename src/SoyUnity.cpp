@@ -99,8 +99,15 @@ namespace Unity
 #if defined(TARGET_IOS)
 	void				IosDetectGraphicsDevice();
 #endif
-}
 
+	IUnityGraphics*		GraphicsDevice = nullptr;
+	IUnityInterfaces*	Interfaces = nullptr;
+
+#if defined(TARGET_PS4)
+	void*				GpuAlloc(size_t Size);
+	bool				GpuFree(void* Object);
+#endif
+}
 
 SoyEvent<bool>& Unity::GetOnDeviceShutdown()
 {
@@ -554,7 +561,7 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 #if defined(ENABLE_GNM)
 		case UnityDevice::kGfxRendererPS4:
 		{
-			GnmContext = Gnm::AllocContext(DevicePtr);
+			GnmContext = Gnm::AllocContext( DevicePtr, Unity::GpuAlloc, Unity::GpuFree );
 		}
 		break;
 #endif
@@ -667,11 +674,6 @@ void Unity::ReleaseDebugStringAll()
 }
 
 
-namespace Unity
-{
-	IUnityGraphics*		GraphicsDevice = nullptr;
-	IUnityInterfaces*	Interfaces = nullptr;
-}
 
 
 template<typename INTERFACETYPE>
@@ -696,6 +698,35 @@ void* GetDeviceContext<IUnityGraphicsPS4>()
 }
 #endif
 
+
+#if defined(TARGET_PS4)
+void* Unity::GpuAlloc(size_t Size)
+{
+	if ( !Unity::Interfaces )
+		return nullptr;
+	auto* Interface = Unity::Interfaces->Get<IUnityGraphicsPS4>();
+	if ( !Interface )
+		return nullptr;
+
+	int Alignment = 0;
+	return Interface->AllocateGPUMemory( Size, Alignment );
+}
+#endif
+
+#if defined(TARGET_PS4)
+bool Unity::GpuFree(void* Object)
+{
+	if ( !Unity::Interfaces )
+		return nullptr;
+	auto* Interface = Unity::Interfaces->Get<IUnityGraphicsPS4>();
+	if ( !Interface )
+		return nullptr;
+
+	int Alignment = 0;
+	Interface->ReleaseGPUMemory( Object );
+	return true;
+}
+#endif
 
 void* Unity::GetPlatformDeviceContext(UnityDevice::Type Device)
 {
