@@ -708,8 +708,9 @@ void* Unity::GpuAlloc(size_t Size)
 	if ( !Interface )
 		return nullptr;
 
-	int Alignment = 0;
-	return Interface->AllocateGPUMemory( Size, Alignment );
+	int kAlignmentOfShaderInBytes = 256;
+
+	return Interface->AllocateGPUMemory( Size, kAlignmentOfShaderInBytes );
 }
 #endif
 
