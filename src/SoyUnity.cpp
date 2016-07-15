@@ -9,10 +9,6 @@
 #include "Unity/IUnityGraphics.h"
 
 #if defined(ENABLE_DIRECTX)
-class IDirect3D9;
-class IDirect3DDevice9;
-#include "Unity/IUnityGraphicsD3D9.h"
-
 #include "SoyDirectx.h"
 #include "Unity/IUnityGraphicsD3D11.h"
 
@@ -22,6 +18,16 @@ class ID3D12Fence;
 class ID3D12Resource;
 class D3D12_RESOURCE_STATES;
 #include "Unity/IUnityGraphicsD3D12.h"
+
+#endif
+
+
+#if defined(ENABLE_DIRECTX9)
+class IDirect3D9;
+class IDirect3DDevice9;
+#include "Unity/IUnityGraphicsD3D9.h"
+
+#include "SoyDirectx9.h"
 
 #endif
 
@@ -92,6 +98,7 @@ namespace Unity
 
 	std::shared_ptr<Opengl::TContext>	OpenglContext;
 	std::shared_ptr<Directx::TContext>	DirectxContext;
+	std::shared_ptr<Directx9::TContext>	Directx9Context;
 	std::shared_ptr<Metal::TContext>	MetalContext;
 	std::shared_ptr<Cuda::TContext>		CudaContext;
 	std::shared_ptr<Gnm::TContext>		GnmContext;
@@ -263,6 +270,24 @@ std::shared_ptr<Directx::TContext> Unity::GetDirectxContextPtr()
 }
 
 
+bool Unity::HasDirectx9Context()
+{
+	return Directx9Context != nullptr;
+}
+
+Directx9::TContext& Unity::GetDirectx9Context()
+{
+	if (!Directx9Context)
+		throw Soy::AssertException("Getting directx9 context on non-directx run");
+
+	return *Directx9Context;
+}
+
+std::shared_ptr<Directx9::TContext> Unity::GetDirectx9ContextPtr()
+{
+	return Directx9Context;
+}
+
 bool Unity::HasGnmContext()
 {
 	return GnmContext != nullptr;
@@ -413,6 +438,12 @@ void Unity::RenderEvent(Unity::sint eventID)
 		Unity::DirectxContext->Iteration();
 	}
 #endif
+#if defined(ENABLE_DIRECTX9)
+	if ( Unity::Directx9Context )
+	{
+		Unity::Directx9Context->Iteration();
+	}
+#endif
 
 #if defined(ENABLE_METAL)
 	if ( Unity::MetalContext )
@@ -539,7 +570,7 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 		break;
 #endif
 
-#if defined(ENABLE_DIRECTX)
+	#if defined(ENABLE_DIRECTX)
 		case UnityDevice::kGfxRendererD3D11:
 		case UnityDevice::kGfxRendererD3D12:
 		{
@@ -548,8 +579,18 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 			DirectxContext.reset(new Directx::TContext( *DeviceDx ) );
 		}
 		break;
-#endif
-		
+	#endif
+
+	#if defined(ENABLE_DIRECTX9)
+		case UnityDevice::kGfxRendererD3D9:
+		{
+			auto* DeviceDx = static_cast<IDirect3DDevice9*>( DevicePtr );
+			Soy::Assert( DeviceDx != nullptr, "Missing device pointer to create directx context");
+			Directx9Context.reset(new Directx9::TContext( *DeviceDx ) );
+		}
+		break;
+	#endif
+
 #if defined(ENABLE_METAL)
 		case UnityDevice::kGfxRendererMetal:
 		{
@@ -602,6 +643,7 @@ void Unity::Shutdown(UnityDevice::Type Device)
 	OpenglContext.reset();
 	MetalContext.reset();
 	DirectxContext.reset();
+	Directx9Context.reset();
 	CudaContext.reset();
 	GnmContext.reset();
 }
@@ -734,11 +776,12 @@ void* Unity::GetPlatformDeviceContext(UnityDevice::Type Device)
 	switch ( Device )
 	{
 	#if defined(ENABLE_DIRECTX)
-		case kUnityGfxRendererD3D9:		return GetDeviceContext<IUnityGraphicsD3D9>();
 		case kUnityGfxRendererD3D11:	return GetDeviceContext<IUnityGraphicsD3D11>();
 		case kUnityGfxRendererD3D12:	return GetDeviceContext<IUnityGraphicsD3D12>();
 	#endif
-	
+	#if defined(ENABLE_DIRECTX9)
+		case kUnityGfxRendererD3D9:		return GetDeviceContext<IUnityGraphicsD3D9>();
+	#endif
 	#if defined(ENABLE_GNM)
 		case kUnityGfxRendererPS4:		return GetDeviceContext<IUnityGraphicsPS4>();
 	#endif		

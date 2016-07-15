@@ -37,6 +37,11 @@ namespace Directx
 	class TContext;
 }
 
+namespace Directx9
+{
+	class TContext;
+}
+
 namespace Cuda
 {
 	class TContext;
@@ -214,6 +219,10 @@ namespace Unity
 	Directx::TContext&					GetDirectxContext();
 	std::shared_ptr<Directx::TContext>	GetDirectxContextPtr();
 	bool								HasDirectxContext();
+
+	Directx9::TContext&					GetDirectx9Context();
+	std::shared_ptr<Directx9::TContext>	GetDirectx9ContextPtr();
+	bool								HasDirectx9Context();
 
 	Metal::TContext&					GetMetalContext();
 	std::shared_ptr<Metal::TContext>	GetMetalContextPtr();
