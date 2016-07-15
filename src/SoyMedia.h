@@ -624,7 +624,7 @@ public:
 		mExtractSkeletonStreams			( false ),
 		mExtractVideoStreams			( true ),
 		mSplitAudioChannelsIntoStreams	( false ),
-		mAllowDecodeInPixelBuffer		( false )
+		mAllowDecodeInPixelBuffer		( true )
 	{
 	}
 	
