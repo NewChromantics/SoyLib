@@ -34,10 +34,10 @@ namespace Directx9
 
 	inline std::string		GetEnumString(HRESULT Error)												{	return Platform::GetErrorString( Error );	}
 	inline bool				IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true)	{	return Platform::IsOkay( Error, Context, ThrowException );	}
-	SoyMediaFormat::Type	GetFormat(DXGI_FORMAT Format,bool Windows8Plus);
-	SoyPixelsFormat::Type	GetPixelFormat(DXGI_FORMAT Format,bool Windows8Plus=true);
-	DXGI_FORMAT				GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus);
-
+	//SoyMediaFormat::Type	GetFormat(DXGI_FORMAT Format,bool Windows8Plus);
+	//SoyPixelsFormat::Type	GetPixelFormat(DXGI_FORMAT Format,bool Windows8Plus=true);
+	//DXGI_FORMAT				GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus);
+	
 	namespace TTextureMode
 	{
 		enum Type
@@ -49,7 +49,7 @@ namespace Directx9
 			RenderTarget,
 		};
 
-		DECLARE_SOYENUM(Directx::TTextureMode);
+		DECLARE_SOYENUM(Directx9::TTextureMode);
 	}
 
 }
@@ -71,7 +71,7 @@ public:
 
 public:
 	//AutoReleasePtr<ID3D11DeviceContext>	mLockedContext;
-	//size_t						mLockCount;		//	for recursive locking
+	size_t						mLockCount;		//	for recursive locking
 	IDirect3DDevice9*			mDevice;
 	//std::shared_ptr<TCompiler>	mCompiler;
 };

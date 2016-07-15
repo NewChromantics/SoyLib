@@ -1,9 +1,11 @@
-#include "SoyDirectx.h"
+#include "SoyDirectx9.h"
 #include "SoyPixels.h"
 #include "SoyRuntimeLibrary.h"
 #include "SoyPool.h"
 
+namespace Directx = Directx9;
 
+/*
 //	we never use this, but for old DX11 support, we need the type name
 class ID3DX11ThreadPump;
 
@@ -201,15 +203,7 @@ DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus)
 bool Directx::CanCopyMeta(const SoyPixelsMeta& Source,const SoyPixelsMeta& Destination)
 {
 	//	gr: this function could do with a tiny bit of changing for very specific format comparison
-	/*
-		from CopyResources
-		https://msdn.microsoft.com/en-us/library/windows/desktop/ff476392(v=vs.85).aspx
-		Must have compatible DXGI formats, which means the formats must be identical or at least 
-		from the same type group. For example, a DXGI_FORMAT_R32G32B32_FLOAT texture can be copied 
-		to an DXGI_FORMAT_R32G32B32_UINT texture since both of these formats are in the 
-		DXGI_FORMAT_R32G32B32_TYPELESS group. CopyResource can copy between a few format types. 
-		For more info, see Format Conversion using Direct3D 10.1.
-		*/
+	
 	return Source == Destination;
 }
 
@@ -355,64 +349,26 @@ void GetBlobString(ID3DBlob* Blob,std::ostream& String)
 
 
 
+*/
 
-
-Directx::TContext::TContext(ID3D11Device& Device) :
+Directx::TContext::TContext(IDirect3DDevice9& Device) :
 	mDevice			( &Device ),
 	mLockCount		( 0 )
 {
 	//	gr: just pre-empting for testing, could be done on-demand
-	mCompiler.reset( new TCompiler );
+//	mCompiler.reset( new TCompiler );
 }
 
-ID3D11DeviceContext& Directx::TContext::LockGetContext()
-{
-	if ( !Lock() )
-		throw Soy::AssertException("Failed to lock context");
-
-	return *mLockedContext.mObject;
-}
-
-ID3D11Device& Directx::TContext::LockGetDevice()
-{
-	Soy::Assert( mDevice!=nullptr, "Device expected" );
-
-	if ( !Lock() )
-		throw Soy::AssertException("Failed to lock context");
-
-	return *mDevice;
-}
 
 bool Directx::TContext::Lock()
 {
-	if ( mLockedContext )
-	{
-		mLockCount++;
-		return true;
-	}
-
-	mDevice->GetImmediateContext( &mLockedContext.mObject );
-	if ( !Soy::Assert( mLockedContext!=nullptr, "Failed to get immediate context" ) )
-		return false;
-	Soy::Assert( mLockCount == 0, "Lock count is not zero");
-	mLockCount++;
-
 	return true;
 }
 
 void Directx::TContext::Unlock()
 {
-	Soy::Assert( mLockedContext!=nullptr, "Context not locked!" );
-	Soy::Assert( mLockCount>0, "Context lock counter invalid!" );
-
-	mLockCount--;
-
-	if ( mLockCount == 0 )
-	{
-		mLockedContext.Release();
-	}
 }
-
+/*
 Directx::TCompiler& Directx::TContext::GetCompiler()
 {
 	if ( !mCompiler )
@@ -932,33 +888,12 @@ Directx::TShaderState::TShaderState(const Directx::TShader& Shader) :
 	mBaked				( false )
 {
 	//	opengl unbinds here rather than in TShader
-	/*
-	//	setup constants buffer for shader[s]
-	D3D11_BUFFER_DESC BufferDesc;
-	BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	BufferDesc.ByteWidth = Data.GetDataSize();//Vertex.GetDataSize();
-	BufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	BufferDesc.MiscFlags = 0;
-	BufferDesc.StructureByteStride = Vertex.GetStride(0);	//	should be 0
-
-
-	nstant buffer can only use a single bind flag (D3D11_BIND_CONSTANT_BUFFER), which cannot be combined with any other bind flag. To bind a shader-constant buffer to the pipeline, call one of the following methods: ID3D11DeviceContext::GSSetConstantBuffers, ID3D11DeviceContext::PSSetConstantBuffers, or ID3D11DeviceContext::VSSetConstantBuffers.
-	*/
+	
 }
 
 Directx::TShaderState::~TShaderState()
 {
 	Soy::Assert( mBaked, "ShaderState was never baked before being destroyed. Code maybe missing a .Bake() (needed for directx)");
-	/*
-	//	unbind textures
-	TTexture NullTexture;
-	while ( mTextureBindCount > 0 )
-	{
-		BindTexture( mTextureBindCount-1, NullTexture );
-		mTextureBindCount--;
-	}
-	*/
 	
 	//	opengl unbinds here rather than in TShader
 	const_cast<TShader&>(mShader).Unbind();
@@ -1304,3 +1239,4 @@ size_t Directx::TLockedTextureData::GetPaddedWidth()
 }
 
 
+*/
