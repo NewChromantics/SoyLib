@@ -34,9 +34,9 @@ namespace Directx9
 
 	inline std::string		GetEnumString(HRESULT Error)												{	return Platform::GetErrorString( Error );	}
 	inline bool				IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true)	{	return Platform::IsOkay( Error, Context, ThrowException );	}
-	//SoyMediaFormat::Type	GetFormat(DXGI_FORMAT Format,bool Windows8Plus);
-	//SoyPixelsFormat::Type	GetPixelFormat(DXGI_FORMAT Format,bool Windows8Plus=true);
-	//DXGI_FORMAT				GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus);
+	SoyMediaFormat::Type	GetFormat(D3DFORMAT Format);
+	SoyPixelsFormat::Type	GetPixelFormat(D3DFORMAT Format);
+	D3DFORMAT				GetFormat(SoyPixelsFormat::Type Format);
 	
 	namespace TTextureMode
 	{
@@ -187,7 +187,7 @@ public:
 //	TTextureSamplingParams			mSamplingParams;
 	SoyPixelsMeta					mMeta;			//	cache
 	AutoReleasePtr<IDirect3DTexture9>	mTexture;
-//	DXGI_FORMAT						mFormat;		//	dx format
+	D3DFORMAT						mFormat;		//	dx format
 };
 namespace Directx9
 {

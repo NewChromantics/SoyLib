@@ -43,13 +43,12 @@ std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap
 	{	Directx::TTextureMode::RenderTarget,	"RenderTarget"	},
 };
 
+*/
 
 
 
-
-
-#define FORMAT_MAP(SoyFormat,PlatformFormat)	TPlatformFormatMap<DXGI_FORMAT>( PlatformFormat, #PlatformFormat, SoyFormat )
-template<typename PLATFORMTYPE,PLATFORMTYPE InvalidValue=DXGI_FORMAT_UNKNOWN>
+#define FORMAT_MAP(SoyFormat,PlatformFormat)	TPlatformFormatMap<D3DFORMAT>( PlatformFormat, #PlatformFormat, SoyFormat )
+template<typename PLATFORMTYPE,PLATFORMTYPE InvalidValue=D3DFMT_UNKNOWN>
 class TPlatformFormatMap
 {
 public:
@@ -82,59 +81,38 @@ public:
 
 
 //	https://msdn.microsoft.com/en-gb/library/windows/desktop/bb173059(v=vs.85).aspx
-static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
+static TPlatformFormatMap<D3DFORMAT> PlatformFormatMap[] =
 {
 	//	gr; very special case!
 //	FORMAT_MAP( SoyPixelsFormat::UnityUnknown,	DXGI_FORMAT_UNKNOWN	),
 
-	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_TYPELESS	),
-	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_UNORM_SRGB	),
-	FORMAT_MAP( SoyMediaFormat::RGBA,	DXGI_FORMAT_R8G8B8A8_UINT	),
+	FORMAT_MAP( SoyMediaFormat::ARGB,	D3DFMT_A8R8G8B8	),
+	FORMAT_MAP( SoyMediaFormat::RGBA,	D3DFMT_A8R8G8B8	),
 
-	FORMAT_MAP( SoyMediaFormat::BGRA,	DXGI_FORMAT_B8G8R8A8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::BGRA,	DXGI_FORMAT_B8G8R8A8_TYPELESS	),
-	FORMAT_MAP( SoyMediaFormat::BGRA,	DXGI_FORMAT_B8G8R8A8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::BGRA,	DXGI_FORMAT_B8G8R8A8_UNORM_SRGB	),
+	//FORMAT_MAP( SoyMediaFormat::BGRA,	DXGI_FORMAT_B8G8R8A8_UNORM	),
+	//ABGR	D3DFMT_A8B8G8R8
 
 	//	gr: these are unsupported natively by directx, so force 32 bit and hav looking for DXGI_FORMAT_
-	FORMAT_MAP( SoyMediaFormat::RGB,	DXGI_FORMAT_R8G8B8A8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::BGR,	DXGI_FORMAT_R8G8B8A8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::RGB,	D3DFMT_R8G8B8	),
+	//FORMAT_MAP( SoyMediaFormat::BGR,	DXGI_FORMAT_R8G8B8A8_UNORM	),
 
-	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Full,		DXGI_FORMAT_NV12	),	
-	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Ntsc,		DXGI_FORMAT_NV12	),
-	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Smptec,	DXGI_FORMAT_NV12	),	
+	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Full,		D3DFMT_UYVY	),	
+	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Ntsc,		D3DFMT_UYVY	),
+	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Smptec,	D3DFMT_UYVY	),	
 
-	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_TYPELESS	),
-	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_UINT	),
-	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_SNORM	),
-	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_SINT	),
-	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_A8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::Greyscale,			D3DFMT_A8	),
+	FORMAT_MAP( SoyMediaFormat::Luma_Ntsc,			D3DFMT_A8	),
+	FORMAT_MAP( SoyMediaFormat::Luma_Smptec,		D3DFMT_A8	),
+
+	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		D3DFMT_A8L8	),
 			
-	FORMAT_MAP( SoyMediaFormat::Luma_Ntsc,			DXGI_FORMAT_R8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::Luma_Smptec,		DXGI_FORMAT_R8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_TYPELESS	),
-	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_SNORM	),
-	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_UINT	),
-	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_SINT	),
-			
-	FORMAT_MAP( SoyMediaFormat::ChromaUV_88,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::ChromaUV_88,		D3DFMT_A8L8	),
 
 	//	_R8G8_B8G8 is a special format for YUY2... but I think it may not be supported on everything
 	//	gr: using RG for now and ignoring chroma until we have variables etc... we'll just fix monochrome when someone complains
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		DXGI_FORMAT_YUY2	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		DXGI_FORMAT_YUY2	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		DXGI_FORMAT_YUY2	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		D3DFMT_YUY2	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		D3DFMT_YUY2	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		D3DFMT_YUY2	),
 
 
 //case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
@@ -158,14 +136,14 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 //	Width and height must be even. Direct3D 11 staging resources and initData parameters for this format use (rowPitch * (height + (height / 2))) bytes.
 //case SoyPixelsFormat::Yuv_844_Full:		return DXGI_FORMAT_420_OPAQUE;
 
-	FORMAT_MAP( SoyMediaFormat::KinectDepth,			DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::FreenectDepth10bit,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::FreenectDepth11bit,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::FreenectDepthmm,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::KinectDepth,			D3DFMT_D16	),
+	FORMAT_MAP( SoyMediaFormat::FreenectDepth10bit,		D3DFMT_D16	),
+	FORMAT_MAP( SoyMediaFormat::FreenectDepth11bit,		D3DFMT_D16	),
+	FORMAT_MAP( SoyMediaFormat::FreenectDepthmm,		D3DFMT_D16	),
 };
 
 
-SoyMediaFormat::Type Directx::GetFormat(DXGI_FORMAT Format,bool Windows8Plus)
+SoyMediaFormat::Type Directx::GetFormat(D3DFORMAT Format)
 {
 	auto Table = GetRemoteArray( PlatformFormatMap );
 	auto* Meta = GetArrayBridge(Table).Find( Format );
@@ -176,7 +154,7 @@ SoyMediaFormat::Type Directx::GetFormat(DXGI_FORMAT Format,bool Windows8Plus)
 	return Meta->mSoyFormat;
 }
 
-SoyPixelsFormat::Type Directx::GetPixelFormat(DXGI_FORMAT Format,bool Windows8Plus)
+SoyPixelsFormat::Type Directx::GetPixelFormat(D3DFORMAT Format)
 {
 	auto Table = GetRemoteArray( PlatformFormatMap );
 	auto* Meta = GetArrayBridge(Table).Find( Format );
@@ -187,17 +165,17 @@ SoyPixelsFormat::Type Directx::GetPixelFormat(DXGI_FORMAT Format,bool Windows8Pl
 	return SoyMediaFormat::GetPixelFormat( Meta->mSoyFormat );
 }
 
-DXGI_FORMAT Directx::GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus)
+D3DFORMAT Directx::GetFormat(SoyPixelsFormat::Type Format)
 {
 	auto Table = GetRemoteArray( PlatformFormatMap );
 	auto* Meta = GetArrayBridge(Table).Find( Format );
 
 	if ( !Meta )
-		return DXGI_FORMAT_UNKNOWN;
+		return D3DFMT_UNKNOWN;
 
 	return Meta->mPlatformFormat;
 }
-
+/*
 
 
 bool Directx::CanCopyMeta(const SoyPixelsMeta& Source,const SoyPixelsMeta& Destination)
@@ -453,25 +431,23 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 	*/
 }
 
-Directx::TTexture::TTexture(IDirect3DTexture9* Texture)
-//	:
-//	mFormat	( DXGI_FORMAT_UNKNOWN )
+Directx::TTexture::TTexture(IDirect3DTexture9* Texture)	:
+	mFormat	( D3DFMT_UNKNOWN )
 {
-	Soy_AssertTodo();
 	//	validate and throw here
 	Soy::Assert( Texture != nullptr, "null directx texture" );
 
 	mTexture.Set( Texture, true );
-	/*
-
+	
 	//	get meta
-	D3D11_TEXTURE2D_DESC SrcDesc;
-	mTexture->GetDesc( &SrcDesc );
+	D3DSURFACE_DESC SrcDesc;
+	auto Result = mTexture->GetLevelDesc( 0, &SrcDesc );
+	IsOkay( Result, "Get texture description");
 	mMeta = SoyPixelsMeta( SrcDesc.Width, SrcDesc.Height, GetPixelFormat( SrcDesc.Format ) );
 	mFormat = SrcDesc.Format;
 
 	//	todo: copy sample params from Description
-	*/
+	
 }
 
 Directx::TTexture::TTexture(const TTexture& Texture) :
