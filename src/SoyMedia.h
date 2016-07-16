@@ -37,6 +37,12 @@ namespace Directx
 	class TTexture;
 }
 
+namespace Directx9
+{
+	class TContext;
+	class TTexture;
+}
+
 namespace Metal
 {
 	class TContext;
@@ -207,6 +213,7 @@ public:
 	//virtual void		Lock(ArrayBridge<Opencl::TTexture>&& Textures)=0;
 	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform)=0;
 	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform)=0;
+	virtual void		Lock(ArrayBridge<Directx9::TTexture>&& Textures,Directx9::TContext& Context,float3x3& Transform)	{}	//	gr: too much fuss making this pure
 	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform)=0;
 	virtual void		Lock(ArrayBridge<Gnm::TTexture>&& Textures,Gnm::TContext& Context,float3x3& Transform)	{}		//	gr: too much fuss making this pure
 	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform)=0;

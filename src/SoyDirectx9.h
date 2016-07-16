@@ -153,13 +153,13 @@ public:
 std::ostream& operator<<(std::ostream &out,const Directx::TTextureMeta& in);
 */
 
-/*
+
 class Directx9::TTexture
 {
 public:
 	TTexture()		{}
     explicit TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode);	//	allocate
-	TTexture(ID3D11Texture2D* Texture);
+	TTexture(IDirect3DTexture9* Texture);
 	TTexture(const TTexture& Texture);
 
 	bool				IsValid() const		{	return mTexture;	}
@@ -174,9 +174,9 @@ public:
 	bool				CanBindToShaderUniform() const;
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
-	DXGI_FORMAT			GetDirectxFormat() const	{	return mFormat;	}
+//	DXGI_FORMAT			GetDirectxFormat() const	{	return mFormat;	}
 
-	bool				operator==(const TTextureMeta& Meta) const	{	return mMeta == Meta.mMeta && GetMode() == Meta.mMode;	}
+//	bool				operator==(const TTextureMeta& Meta) const	{	return mMeta == Meta.mMeta && GetMode() == Meta.mMode;	}
 	bool				operator==(const TTexture& that) const	{	return mTexture.mObject == that.mTexture.mObject;	}
 	bool				operator!=(const TTexture& that) const	{	return !(*this == that);	}
 
@@ -184,16 +184,16 @@ private:
 	TLockedTextureData	LockTextureData(TContext& Context,bool WriteAccess);
 	
 public:
-	TTextureSamplingParams			mSamplingParams;
+//	TTextureSamplingParams			mSamplingParams;
 	SoyPixelsMeta					mMeta;			//	cache
-	AutoReleasePtr<ID3D11Texture2D>	mTexture;
-	DXGI_FORMAT						mFormat;		//	dx format
+	AutoReleasePtr<IDirect3DTexture9>	mTexture;
+//	DXGI_FORMAT						mFormat;		//	dx format
 };
 namespace Directx9
 {
 std::ostream& operator<<(std::ostream &out,const Directx9::TTexture& in);
 }
-*/
+
 
 /*
 class Directx::TRenderTarget

@@ -375,9 +375,11 @@ Directx::TCompiler& Directx::TContext::GetCompiler()
 		mCompiler.reset( new TCompiler );
 	return *mCompiler;
 }
-
+*/
 Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode)
 {
+	throw Soy::AssertException("Todo");
+	/*
 	static bool AutoMipMap = false;
 	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
 
@@ -448,15 +450,19 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 		throw;
 	}
 	ContextDx.Unlock();
+	*/
 }
 
-Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
-	mFormat	( DXGI_FORMAT_UNKNOWN )
+Directx::TTexture::TTexture(IDirect3DTexture9* Texture)
+//	:
+//	mFormat	( DXGI_FORMAT_UNKNOWN )
 {
+	throw Soy::AssertException("Todo");
 	//	validate and throw here
 	Soy::Assert( Texture != nullptr, "null directx texture" );
 
 	mTexture.Set( Texture, true );
+	/*
 
 	//	get meta
 	D3D11_TEXTURE2D_DESC SrcDesc;
@@ -465,13 +471,14 @@ Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
 	mFormat = SrcDesc.Format;
 
 	//	todo: copy sample params from Description
+	*/
 }
 
 Directx::TTexture::TTexture(const TTexture& Texture) :
 	TTexture	( Texture.mTexture.mObject )
 {
 }
-
+/*
 bool Directx::TTexture::CanBindToShaderUniform() const
 {
 	auto Mode = GetMode();
@@ -507,9 +514,11 @@ Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 		return TTextureMode::GpuOnly;
 	}
 }
-
+*/
 void Directx::TTexture::Write(const TTexture& Source,TContext& ContextDx)
 {
+	throw Soy::AssertException("Todo");
+	/*
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
 	Soy::Assert( Source.IsValid(), "Writing from invalid texture" );
 
@@ -529,9 +538,10 @@ void Directx::TTexture::Write(const TTexture& Source,TContext& ContextDx)
 	std::stringstream Error;
 	Error << "No path to copy " << (*this) << " to " << Source;
 	throw Soy::AssertException( Error.str() );
+	*/
 }
 
-
+/*
 Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& ContextDx,bool WriteAccess)
 {
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
@@ -643,21 +653,26 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 		throw;
 	}
 }
-
+*/
 
 void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& ContextDx)
 {
+	throw Soy::AssertException("Todo");
+	/*
 	auto Lock = LockTextureData( ContextDx, true );
 
 	//	copy row by row to handle misalignment
 	SoyPixelsRemote DestPixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
 
 	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true,false,false) );
+	*/
 }
 
 
 void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool<TTexture>* pTexturePool)
 {
+	throw Soy::AssertException("Todo");
+	/*
 	//	not readable, so copy to a temp texture first and then read
 	//	gr: use try/catch on the lock to cover more cases?
 	if ( GetMode() != TTextureMode::ReadOnly && pTexturePool )
@@ -686,8 +701,9 @@ void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool
 	SoyPixelsRemote SourcePixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
 	
 	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true,false,false) );
+	*/
 }
-
+/*
 Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 	mTexture		( Texture )
 {
