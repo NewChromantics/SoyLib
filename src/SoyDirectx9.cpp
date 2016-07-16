@@ -378,7 +378,7 @@ Directx::TCompiler& Directx::TContext::GetCompiler()
 */
 Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode)
 {
-	throw Soy::AssertException("Todo");
+	Soy_AssertTodo();
 	/*
 	static bool AutoMipMap = false;
 	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
@@ -457,7 +457,7 @@ Directx::TTexture::TTexture(IDirect3DTexture9* Texture)
 //	:
 //	mFormat	( DXGI_FORMAT_UNKNOWN )
 {
-	throw Soy::AssertException("Todo");
+	Soy_AssertTodo();
 	//	validate and throw here
 	Soy::Assert( Texture != nullptr, "null directx texture" );
 
@@ -517,7 +517,7 @@ Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 */
 void Directx::TTexture::Write(const TTexture& Source,TContext& ContextDx)
 {
-	throw Soy::AssertException("Todo");
+	Soy_AssertTodo();
 	/*
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
 	Soy::Assert( Source.IsValid(), "Writing from invalid texture" );
@@ -657,7 +657,7 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 
 void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& ContextDx)
 {
-	throw Soy::AssertException("Todo");
+	Soy_AssertTodo();
 	/*
 	auto Lock = LockTextureData( ContextDx, true );
 
@@ -671,7 +671,7 @@ void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& Contex
 
 void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool<TTexture>* pTexturePool)
 {
-	throw Soy::AssertException("Todo");
+	Soy_AssertTodo();
 	/*
 	//	not readable, so copy to a temp texture first and then read
 	//	gr: use try/catch on the lock to cover more cases?
@@ -938,7 +938,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const float3x3& v)
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const float& v)
@@ -948,7 +948,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const float& v)
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const int& v)
@@ -958,7 +958,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const int& v)
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const vec4f& v)
@@ -968,7 +968,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const vec4f& v)
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const vec3f& v)
@@ -978,7 +978,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const vec3f& v)
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const vec2f& v)
@@ -988,7 +988,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const vec2f& v)
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
@@ -1012,7 +1012,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTextureAn
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const SoyPixelsImpl& Texture)
@@ -1022,7 +1022,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const SoyPixelsImpl& Tex
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 

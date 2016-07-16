@@ -146,8 +146,8 @@ namespace Soy
 		return Assert_Impl( Condition, ErrorFunc );
 	}
 };
-#define Soy_AssertTodo()	Soy::Assert(false, std::stringstream()<<"todo: "<<__func__ )
-#define Soy_ThrowTodo		throw Soy::AssertException( Soy::StreamToString(std::stringstream()<<"todo: "<<__func__) )
+
+#define Soy_AssertTodo()	throw Soy::AssertException( Soy::StreamToString(std::stringstream()<<"todo: "<<__func__) )
 
 
 

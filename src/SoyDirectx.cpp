@@ -2,6 +2,7 @@
 #include "SoyPixels.h"
 #include "SoyRuntimeLibrary.h"
 #include "SoyPool.h"
+#include "SoyAssert.h"
 
 
 //	we never use this, but for old DX11 support, we need the type name
@@ -987,7 +988,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const float3x3& v)
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const float& v)
@@ -997,7 +998,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const float& v)
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const int& v)
@@ -1007,7 +1008,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const int& v)
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const vec4f& v)
@@ -1017,7 +1018,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const vec4f& v)
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const vec3f& v)
@@ -1027,7 +1028,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const vec3f& v)
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const vec2f& v)
@@ -1037,7 +1038,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const vec2f& v)
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
@@ -1061,7 +1062,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTextureAn
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const SoyPixelsImpl& Texture)
@@ -1071,7 +1072,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const SoyPixelsImpl& Tex
 	if ( !VertUniform && !PixelUniform )
 		return false;
 	
-	Soy_ThrowTodo;
+	Soy_AssertTodo();
 }
 
 
