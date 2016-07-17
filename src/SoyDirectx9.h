@@ -235,13 +235,19 @@ public:
 	void	Draw(TContext& Context);
 
 public:
-	/*
 	SoyGraphics::TGeometryVertex	mVertexDescription;	//	for attrib binding info
+	AutoReleasePtr<IDirect3DVertexDeclaration9>	mVertexDeclaration;
+	//AutoReleasePtr<IDirect3DVertexBuffer9>	mVertexBuffer;
+	Array<uint8>					mVertexData;		//	this should probably be in a buffer
+	Array<uint16_t>					mIndexes;			//	this should probably be in a buffer
+	/*
 	AutoReleasePtr<ID3D11Buffer>	mVertexBuffer;
 	AutoReleasePtr<ID3D11Buffer>	mIndexBuffer;
 	size_t							mIndexCount;
 	DXGI_FORMAT						mIndexFormat;
 	*/
+	size_t							mVertexCount;
+	size_t							mTriangleCount;
 };
 
 /*

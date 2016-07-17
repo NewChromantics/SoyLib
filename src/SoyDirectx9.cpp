@@ -775,12 +775,89 @@ void Directx::TRenderTarget::ClearColour(TContext& ContextDx,Soy::TRgb Colour,fl
 	IsOkay( Result, "Device Clear");
 }
 
-/*
+BYTE GetType(SoyGraphics::TElementType::Type Type)
+{
+	switch ( Type )
+	{
+		case SoyGraphics::TElementType::Float:	return D3DDECLTYPE_FLOAT1;
+		case SoyGraphics::TElementType::Float2:	return D3DDECLTYPE_FLOAT2;
+		case SoyGraphics::TElementType::Float3:	return D3DDECLTYPE_FLOAT3;
+		case SoyGraphics::TElementType::Float4:	return D3DDECLTYPE_FLOAT4;
+		//	D3DDECLTYPE_D3DCOLOR
+	}
+
+	std::stringstream Error;
+	Error << "Don't know how to convert " << Type << " to D3D type";
+	throw Soy::AssertException( Error.str() );
+}
+
+BYTE GetSemantic(const SoyGraphics::TUniform& Uniform)
+{
+	auto& Semantic = Uniform.mName;
+	if ( Semantic == "TEXCOORD" || Semantic == "TexCoord" )
+	{
+		//	UvAttrib.mIndex = 0;	//	gr: does this matter?	//	gr: use this as semantic number in dx?
+		return D3DDECLUSAGE_TEXCOORD;
+	}
+
+	if ( Semantic == "POSITION" )
+	{
+		return D3DDECLUSAGE_POSITION;
+	}
+
+	//D3DDECLUSAGE_POSITION
+	//D3DDECLUSAGE_NORMAL
+	//D3DDECLUSAGE_TEXCOORD
+	//D3DDECLUSAGE_COLOR
+
+	std::stringstream Error;
+	Error << "Unhandled semantic " << Semantic;
+	throw Soy::AssertException( Error.str() );
+}
+
+D3DVERTEXELEMENT9 GetElement(const SoyGraphics::TUniform& Uniform,size_t StreamIndex,const SoyGraphics::TGeometryVertex& Vertex,size_t ElementIndex)
+{
+	D3DVERTEXELEMENT9 Element;
+	Element.Stream = StreamIndex;
+	Element.Offset = Vertex.GetOffset(ElementIndex);
+	Element.Method = D3DDECLMETHOD_DEFAULT;
+	Element.Usage = GetSemantic( Uniform );
+	Element.UsageIndex = Uniform.mIndex;
+	Element.Type = GetType( Uniform.mType );
+	return Element;
+}
 
 Directx::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& _Indexes,const SoyGraphics::TGeometryVertex& Vertex,TContext& ContextDx) :
 	mVertexDescription	( Vertex ),
-	mIndexCount			( 0 )
+	mTriangleCount		( 0 )
 {
+	mTriangleCount = _Indexes.GetSize() / 3;
+	mVertexCount = Data.GetSize() / Vertex.GetDataSize();
+
+	auto& Device = ContextDx.GetDevice();
+
+	for ( int i=0;	i<_Indexes.GetSize();	i++ )
+		mIndexes.PushBack( size_cast<uint16>( _Indexes[i] ) );
+
+
+	//	create declaration
+	Array<D3DVERTEXELEMENT9> VertexDesc;
+	auto StreamIndex = 0;
+	for ( int i=0;	i<Vertex.mElements.GetSize();	i++ )
+	{
+		auto ElementDesc = GetElement( Vertex.mElements[i], StreamIndex, Vertex, i );
+		VertexDesc.PushBack( ElementDesc );
+	}
+	VertexDesc.PushBack( D3DDECL_END() );
+
+	auto Result = Device.CreateVertexDeclaration( VertexDesc.GetArray(), &mVertexDeclaration.mObject );
+	IsOkay( Result, "CreateVertexDeclaration");
+	
+	mVertexData.Copy( Data );
+	//DWORD Usage = 0;
+	//auto Result = Device.CreateVertexBuffer( )
+
+	/*
 	Array<uint32> Indexes;
 	for ( int i=0;	i<_Indexes.GetSize();	i++ )
 		Indexes.PushBack( size_cast<uint32>( _Indexes[i] ) );
@@ -834,6 +911,7 @@ Directx::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<
 		ContextDx.Unlock();
 		throw;
 	}
+	*/
 }
 
 Directx::TGeometry::~TGeometry()
@@ -841,8 +919,35 @@ Directx::TGeometry::~TGeometry()
 }
 
 
-void Directx::TGeometry::Draw(TContext& ContextDx)
+void Directx::TGeometry::Draw(TContext& Context)
 {
+	auto& Device = Context.GetDevice();
+
+	auto Result = Device.SetVertexDeclaration( mVertexDeclaration.mObject );
+	IsOkay( Result, "SetVertexDeclaration");
+	auto Stride = mVertexDescription.GetDataSize();
+	/*
+	int StreamIndex = 0;
+	auto Result = Device.SetStreamSource( StreamIndex, mVertexBuffer.mObject, 0, Stride );
+
+	auto Result = Device.DrawPrimitive( D3DPT_TRIANGLELIST, 0, mTriangleCount );
+	IsOkay( Result, "DrawPrimitive");
+	*/
+	Device.SetRenderState( D3DRS_ZENABLE, D3DZB_FALSE );
+	Device.SetRenderState( D3DRS_FILLMODE, D3DFILL_SOLID );
+	Device.SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE  );
+	Device.SetRenderState( D3DRS_ZFUNC, D3DCMP_ALWAYS );
+	Device.SetRenderState( D3DRS_ZWRITEENABLE, false );
+
+
+	D3DFORMAT IndexFormat = D3DFMT_INDEX16;
+	auto MinVertexIndex = 0;
+	Result = Device.DrawIndexedPrimitiveUP( D3DPT_TRIANGLELIST, MinVertexIndex, mVertexCount, mTriangleCount, mIndexes.GetArray(), IndexFormat, mVertexData.GetArray(), Stride );
+	//Result = Device.DrawPrimitiveUP( D3DPT_TRIANGLELIST, mTriangleCount, mVertexData.GetArray(), Stride );
+	IsOkay( Result, "DrawPrimitiveUP");
+
+
+	/*
 	auto& Context = ContextDx.LockGetContext();
 
 	// Set vertex buffer stride and offset.
@@ -862,11 +967,12 @@ void Directx::TGeometry::Draw(TContext& ContextDx)
 	Context.DrawIndexed( mIndexCount, 0, 0);
 
 	ContextDx.Unlock();
+	*/
 }
 
 
 
-
+/*
 Directx::TShaderState::TShaderState(const Directx::TShader& Shader) :
 	mTextureBindCount	( 0 ),
 	mShader				( Shader ),
