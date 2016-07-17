@@ -1173,10 +1173,12 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 
 	try
 	{
+		const char* VertTarget = "vs_1_0";
+		const char* FragTarget = "ps_2_0";
 		Array<uint8> VertBlob;
 		Array<uint8> FragBlob;
-		Compiler.Compile( GetArrayBridge(VertBlob), vertexSrc, "Vert", "vs_5_0", ShaderName + " vert shader" );
-		Compiler.Compile( GetArrayBridge(FragBlob), fragmentSrc, "Frag", "ps_5_0", ShaderName + " frag shader" );
+		Compiler.Compile( GetArrayBridge(VertBlob), vertexSrc, "Vert", VertTarget, ShaderName + " vert shader" );
+		Compiler.Compile( GetArrayBridge(FragBlob), fragmentSrc, "Frag", FragTarget, ShaderName + " frag shader" );
 
 		auto* VertBlob16 = reinterpret_cast<DWORD*>( VertBlob.GetArray() );
 		auto* FragBlob16 = reinterpret_cast<DWORD*>( FragBlob.GetArray() );
@@ -1240,18 +1242,14 @@ void Directx::TShader::MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TSh
 
 Directx::TShaderState Directx::TShader::Bind(TContext& Context)
 {
-	/*
-	Soy::Assert(mBoundContext==nullptr,"Shader already bound");
-	mBoundContext = &ContextDx;
-	auto& Context = ContextDx.LockGetContext();
-
-	// Set the vertex input layout.
-	Context.IASetInputLayout( mLayout.mObject );
-
-    // Set the vertex and pixel shaders that will be used to render this triangle.
-    Context.VSSetShader( mVertexShader.mObject, nullptr, 0);
-    Context.PSSetShader( mPixelShader.mObject, nullptr, 0);
-	*/
+	auto& Device = Context.GetDevice();
+	
+	auto Result = Device.SetVertexShader( this->mVertexShader.mObject );
+	IsOkay( Result, "SetVertexShader");
+	
+	Result = Device.SetPixelShader( this->mPixelShader.mObject );
+	IsOkay( Result, "SetPixelShader");
+	
 	return TShaderState(*this,Context);
 }
 
