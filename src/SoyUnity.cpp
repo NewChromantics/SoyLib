@@ -586,6 +586,16 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 		{
 			auto* DeviceDx = static_cast<IDirect3DDevice9*>( DevicePtr );
 			Soy::Assert( DeviceDx != nullptr, "Missing device pointer to create directx context");
+
+			//	already setup (going through new & legacy interface)
+			if ( Directx9Context && Directx9Context->mDevice == DeviceDx )
+			{
+				std::Debug << "DX9 graphics device already created." << std::endl;
+				break;
+			}
+
+			if ( Directx9Context )
+				std::Debug << "DX9 context changed" << std::endl;
 			Directx9Context.reset(new Directx9::TContext( *DeviceDx ) );
 		}
 		break;
