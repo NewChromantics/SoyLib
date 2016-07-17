@@ -15,6 +15,11 @@ class SoyPixelsImpl;
 
 #include <d3d9.h>
 
+namespace DirectxCompiler
+{
+	class TCompiler;			//	wrapper to hold the compile func and a reference to the runtime library. Defined in source for cleaner code
+}
+
 
 
 namespace Directx9
@@ -27,9 +32,7 @@ namespace Directx9
 	class TGeometry;
 	class TShader;
 	class TShaderState;
-	class TShaderBlob;
 	class TTextureSamplingParams;
-	class TCompiler;			//	wrapper to hold the compile func and a reference to the runtime library. Defined in source for cleaner code
 
 
 	inline std::string		GetEnumString(HRESULT Error)												{	return Platform::GetErrorString( Error );	}
@@ -66,14 +69,14 @@ public:
 
 //	ID3D11DeviceContext&	LockGetContext();
 //	ID3D11Device&			LockGetDevice();
-//	TCompiler&				GetCompiler();
+	DirectxCompiler::TCompiler&	GetCompiler();
 	IDirect3DDevice9&		GetDevice()		{	return *mDevice;	}
 
 public:
 	//AutoReleasePtr<ID3D11DeviceContext>	mLockedContext;
 	size_t						mLockCount;		//	for recursive locking
 	IDirect3DDevice9*			mDevice;
-	//std::shared_ptr<TCompiler>	mCompiler;
+	std::shared_ptr<DirectxCompiler::TCompiler>	mCompiler;
 };
 
 /*
@@ -250,21 +253,8 @@ public:
 	size_t							mTriangleCount;
 };
 
-/*
-//	compiled shader
-class Directx::TShaderBlob
-{
-public:
-	TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name,TCompiler& Compiler);
 
-	void*		GetBuffer()			{	return mBlob ? mBlob->GetBufferPointer() : nullptr;	}
-	size_t		GetBufferSize()		{	return mBlob ? mBlob->GetBufferSize() : 0;	}
 
-public:
-	std::string					mName;
-	AutoReleasePtr<ID3D10Blob>	mBlob;
-};
-*/
 /*
 //	clever class which does the binding, auto texture mapping, and unbinding
 //	why? so we can use const TShaders and share them across threads
@@ -315,26 +305,25 @@ public:
 	Array<std::shared_ptr<AutoReleasePtr<ID3D11ShaderResourceView>>>	mResources;	//	textures
 };
 
-
+*/
 class Directx9::TShader
 {
 public:
-	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& Context);
+	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,TContext& Context);
 
-	TShaderState	Bind(TContext& Context);	//	let this go out of scope to unbind
-	void			Unbind();
+	//TShaderState	Bind(TContext& Context);	//	let this go out of scope to unbind
+	//void			Unbind();
 
 private:
 
-	ID3D11DeviceContext&		GetContext();
+	//ID3D11DeviceContext&		GetContext();
 
-	void			MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TShaderBlob& Shader,ID3D11Device& Device);
+	//void			MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TShaderBlob& Shader,ID3D11Device& Device);
 
 public:
-	TContext*							mBoundContext;	//	this binding should be moved to TShaderState
-//	AutoReleasePtr<ID3D11VertexShader>	mVertexShader;
-//	AutoReleasePtr<ID3D11PixelShader>	mPixelShader;
+	//TContext*							mBoundContext;	//	this binding should be moved to TShaderState
+	AutoReleasePtr<IDirect3DVertexShader9>	mVertexShader;
+	AutoReleasePtr<IDirect3DPixelShader9>	mPixelShader;
 //	AutoReleasePtr<ID3D11InputLayout>	mLayout;	//	maybe for geometry?
 };
-*/
 

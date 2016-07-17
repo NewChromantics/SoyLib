@@ -19,13 +19,10 @@ class SoyPixelsImpl;
 #include <d3d11.h>
 #pragma warning( pop )
 
-
-//	if compiling against win8 lib/runtime, then we can include the new d3d compiler lib directly
-#if WINDOWS_TARGET_SDK >= 8
-#include <d3dcompiler.h>
-//	gr: do not link to d3dcompiler. This means it will not load the DLL and we load it manually (InitCompilerExtension)
-//#pragma comment(lib, "D3DCompiler.lib")
-#endif
+namespace DirectxCompiler
+{
+	class TCompiler;
+}
 
 namespace Directx
 {
@@ -39,7 +36,6 @@ namespace Directx
 	class TShaderState;
 	class TShaderBlob;
 	class TTextureSamplingParams;
-	class TCompiler;			//	wrapper to hold the compile func and a reference to the runtime library. Defined in source for cleaner code
 
 
 	inline std::string		GetEnumString(HRESULT Error)												{	return Platform::GetErrorString( Error );	}
@@ -75,15 +71,15 @@ public:
 	void			Iteration()			{	Flush(*this);	}
 	bool			HasMultithreadAccess() const	{	return false;	}	//	gr: do real probe for... deffered, not immediate, context type?
 
-	ID3D11DeviceContext&	LockGetContext();
-	ID3D11Device&			LockGetDevice();
-	TCompiler&				GetCompiler();
+	ID3D11DeviceContext&		LockGetContext();
+	ID3D11Device&				LockGetDevice();
+	DirectxCompiler::TCompiler&	GetCompiler();
 
 public:
-	AutoReleasePtr<ID3D11DeviceContext>	mLockedContext;
-	size_t						mLockCount;		//	for recursive locking
-	ID3D11Device*				mDevice;
-	std::shared_ptr<TCompiler>	mCompiler;
+	AutoReleasePtr<ID3D11DeviceContext>			mLockedContext;
+	size_t										mLockCount;		//	for recursive locking
+	ID3D11Device*								mDevice;
+	std::shared_ptr<DirectxCompiler::TCompiler>	mCompiler;
 };
 
 
@@ -247,20 +243,6 @@ public:
 };
 
 
-//	compiled shader
-class Directx::TShaderBlob
-{
-public:
-	TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name,TCompiler& Compiler);
-
-	void*		GetBuffer()			{	return mBlob ? mBlob->GetBufferPointer() : nullptr;	}
-	size_t		GetBufferSize()		{	return mBlob ? mBlob->GetBufferSize() : 0;	}
-
-public:
-	std::string					mName;
-	AutoReleasePtr<ID3D10Blob>	mBlob;
-};
-
 
 //	clever class which does the binding, auto texture mapping, and unbinding
 //	why? so we can use const TShaders and share them across threads
@@ -315,7 +297,7 @@ public:
 class Directx::TShader : public Soy::TUniformContainer
 {
 public:
-	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& Context);
+	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,TContext& Context);
 
 	TShaderState	Bind(TContext& Context);	//	let this go out of scope to unbind
 	void			Unbind();

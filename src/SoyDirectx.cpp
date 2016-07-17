@@ -3,35 +3,14 @@
 #include "SoyRuntimeLibrary.h"
 #include "SoyPool.h"
 #include "SoyAssert.h"
-
-
-//	we never use this, but for old DX11 support, we need the type name
-class ID3DX11ThreadPump;
+#include "SoyDirectxCompiler.h"
 
 
 namespace Directx
 {
 	bool	CanCopyMeta(const SoyPixelsMeta& Source,const SoyPixelsMeta& Destination);
-
-	//	gr: not sure why I can't do this (pD3DCompile is in the SDK header)
-	//typedef pD3DCompile D3DCompileFunc;
-	typedef HRESULT (__stdcall D3DCompileFunc)(LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs);
-	typedef void (__stdcall LPD3DX11COMPILEFROMMEMORY)(LPCSTR pSrcData, SIZE_T SrcDataLen, LPCSTR pFileName, const D3D10_SHADER_MACRO *pDefines, LPD3D10INCLUDE pInclude, LPCSTR pFunctionName, LPCSTR pProfile, UINT Flags1, UINT Flags2, ID3DX11ThreadPump *pPump, ID3D10Blob **ppShader, ID3D10Blob **ppErrorMsgs, HRESULT *pHResult);
 }
 
-class Directx::TCompiler
-{
-public:
-	TCompiler();
-
-	//	use win8 sdk d3dcompiler if possible
-	//	https://gist.github.com/rygorous/7936047
-	std::function<D3DCompileFunc>				GetCompilerFunc()	{	return mD3dCompileFunc;	}
-	
-private:
-	std::function<D3DCompileFunc>			mD3dCompileFunc;
-	std::shared_ptr<Soy::TRuntimeLibrary>	mD3dCompileLib;
-};
 
 std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap = 
 {
@@ -230,131 +209,6 @@ std::ostream& operator<<(std::ostream &out,const Directx::TTextureMeta& in)
 }
 
 
-Directx::TCompiler::TCompiler()
-{
-	//	dynamically link compiler functions
-	//	https://github.com/pathscale/nvidia_sdk_samples/blob/master/matrixMul/common/inc/dynlink_d3d11.h
-	//	https://gist.github.com/rygorous/7936047
-	
-	class DllReference
-	{
-	public:
-		DllReference()	{}
-		DllReference(const char* Dll,const char* Func,const char* Desc) :
-			LibraryName		( Dll ),
-			FunctionName	( Func ),
-			Description		( Desc )
-		{
-		};
-
-		std::string	LibraryName;
-		std::string	FunctionName;
-		std::string	Description;
-	};
-
-	std::function<LPD3DX11COMPILEFROMMEMORY> CompileFromMemoryFunc;
-	Array<DllReference> DllFunctions;
-
-	//	https://blogs.msdn.microsoft.com/chuckw/2012/05/07/hlsl-fxc-and-d3dcompile/
-	//	remember, 47 & 46 are MUCH FASTER!
-	DllFunctions.PushBack( DllReference("d3dcompiler_47.dll","D3DCompile","Win10/Win8.1 sdk") );
-	DllFunctions.PushBack( DllReference("d3dcompiler_46.dll","D3DCompile","Win8.0 sdk") );
-
-	DllFunctions.PushBack( DllReference("D3DX11d_43.dll","D3DX11CompileFromMemory","DXSDK 2010 June") );
-	DllFunctions.PushBack( DllReference("D3DX11d_42.dll","D3DX11CompileFromMemory","DXSDK 2010 Feb") );
-	DllFunctions.PushBack( DllReference("D3DX11d_41.dll","D3DX11CompileFromMemory","DXSDK 2009 March") );
-	DllFunctions.PushBack( DllReference("D3DX11d_40.dll","D3DX11CompileFromMemory","DXSDK 2008 November") );
-	DllFunctions.PushBack( DllReference("D3DX11d_39.dll","D3DX11CompileFromMemory","DXSDK 2008 August") );
-	DllFunctions.PushBack( DllReference("D3DX11d_38.dll","D3DX11CompileFromMemory","DXSDK 2008 June") );
-	DllFunctions.PushBack( DllReference("D3DX11d_37.dll","D3DX11CompileFromMemory","DXSDK 2008 March") );
-	DllFunctions.PushBack( DllReference("D3DX11d_36.dll","D3DX11CompileFromMemory","DXSDK 2007 November") );
-	DllFunctions.PushBack( DllReference("D3DX11d_35.dll","D3DX11CompileFromMemory","DXSDK 2007 August") );
-	DllFunctions.PushBack( DllReference("D3DX11d_34.dll","D3DX11CompileFromMemory","DXSDK 2007 June") );
-	DllFunctions.PushBack( DllReference("D3DX11d_33.dll","D3DX11CompileFromMemory","DXSDK 2007 Aprli") );
-
-	for ( int d=0;	d<DllFunctions.GetSize();	d++ )
-	{
-		auto& Dll = DllFunctions[d];
-		try
-		{
-			mD3dCompileLib.reset( new Soy::TRuntimeLibrary(Dll.LibraryName) );
-
-			if ( Dll.FunctionName == "D3DCompile" )
-				mD3dCompileLib->SetFunction( mD3dCompileFunc, Dll.FunctionName.c_str() );
-			else
-				mD3dCompileLib->SetFunction( CompileFromMemoryFunc, Dll.FunctionName.c_str() );
-			std::Debug << "Using DX compiler from " << Dll.Description << " (" << Dll.LibraryName << ")" << std::endl;
-			break;
-		}
-		catch(std::exception& e)
-		{
-			std::Debug << "Failed to load " << Dll.FunctionName << " from " << Dll.LibraryName << " (" << Dll.Description << ")" << std::endl;
-
-			mD3dCompileLib.reset();
-			mD3dCompileFunc = nullptr;
-			CompileFromMemoryFunc = nullptr;
-		}
-	}
-
-	//	assigned direct func
-	if ( mD3dCompileFunc )
-		return;
-
-	//	need a wrapper to old func
-	if ( !mD3dCompileFunc && CompileFromMemoryFunc )
-	{
-		std::function<D3DCompileFunc> WrapperFunc = [CompileFromMemoryFunc](LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs)
-		{
-			//	make wrapper!
-			//	https://msdn.microsoft.com/en-us/library/windows/desktop/ff476262(v=vs.85).aspx
-			ID3DX11ThreadPump* Pump = nullptr;
-			const char* Source = reinterpret_cast<const char*>( pSrcData );
-			auto* Profile = pTarget;
-			HRESULT Result = S_FALSE;
-			CompileFromMemoryFunc( Source, SrcDataSize, pSourceName, pDefines, pInclude, pEntrypoint, Profile, Flags1, Flags2, Pump, ppCode, ppErrorMsgs, &Result );
-			return Result;
-		};
-		mD3dCompileFunc = WrapperFunc;
-		return;
-	}
-
-	//	didn't find any func
-	//	gr: should this throw here? or during compile...as current code does...
-//	throw Soy::AssertException("Failed to load directx shader compiler");
-	std::function<D3DCompileFunc> UnsupportedFunc = [](LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs)
-	{
-		throw Soy::AssertException( "D3D shader compiling unsupported." );
-		return (HRESULT)S_FALSE;
-	};
-	mD3dCompileFunc = UnsupportedFunc;
-}
-
-
-
-void GetBlobString(ID3DBlob* Blob,std::ostream& String)
-{
-	if ( !Blob )
-		return;
-
-	Array<char> Buffer;
-	auto BlobSize = Blob->GetBufferSize();
-	auto* BlobData = reinterpret_cast<char*>( Blob->GetBufferPointer() );
-	if ( !BlobData )
-	{
-		String << "<BlobBufferMissing[" << BlobSize << "]>";
-		return;
-	}
-
-	//	clip size to something sensible
-	if ( BlobSize > 1024*1024*1 )
-		BlobSize = 1024*1024*1;
-
-	auto BlobBuffer = GetRemoteArray( BlobData, BlobSize );
-	String << BlobBuffer.GetArray();
-}
-
-
-
 
 
 
@@ -363,7 +217,7 @@ Directx::TContext::TContext(ID3D11Device& Device) :
 	mLockCount		( 0 )
 {
 	//	gr: just pre-empting for testing, could be done on-demand
-	mCompiler.reset( new TCompiler );
+	mCompiler.reset( new DirectxCompiler::TCompiler );
 }
 
 ID3D11DeviceContext& Directx::TContext::LockGetContext()
@@ -414,10 +268,11 @@ void Directx::TContext::Unlock()
 	}
 }
 
-Directx::TCompiler& Directx::TContext::GetCompiler()
+
+DirectxCompiler::TCompiler& Directx::TContext::GetCompiler()
 {
 	if ( !mCompiler )
-		mCompiler.reset( new TCompiler );
+		mCompiler.reset( new DirectxCompiler::TCompiler );
 	return *mCompiler;
 }
 
@@ -1155,56 +1010,33 @@ void Directx::TShaderState::Bake()
 	mBaked = true;
 }
 
-Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name,TCompiler& Compiler) :
-	mName	( Name )
-{
-	Array<char> SourceBuffer;
-	Soy::StringToArray( Source, GetArrayBridge(SourceBuffer) );
-	const D3D_SHADER_MACRO* Macros = nullptr;
-	ID3DInclude* IncludeMode = nullptr;
-	UINT ShaderOptions = D3D10_SHADER_ENABLE_STRICTNESS;
-	UINT EffectOptions = 0;
-
-	AutoReleasePtr<ID3DBlob> ErrorBlob;
-
-	auto Compile = Compiler.GetCompilerFunc();
-	Soy::Assert( Compile!=nullptr, "Compile func missing" );
-
-	auto Result = Compile( SourceBuffer.GetArray(), SourceBuffer.GetDataSize(),
-          Name.c_str(), Macros, IncludeMode, Function.c_str(), Target.c_str(), ShaderOptions,
-         EffectOptions,
-         &mBlob.mObject,
-        &ErrorBlob.mObject );
-
-	std::stringstream Error;
-	Error << "D3DCompile()->";
-	GetBlobString( ErrorBlob.mObject, Error );
-
-	Directx::IsOkay( Result, Error.str() );
-}
 
 
-Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& ContextDx) :
+Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,TContext& Context) :
 	mBoundContext	( nullptr )
 {
-	auto& Device = ContextDx.LockGetDevice();
+	auto& Device = Context.LockGetDevice();
+	auto& Compiler = Context.GetCompiler();
 
 	try
 	{
-		TShaderBlob VertBlob( vertexSrc, "Vert", "vs_5_0", ShaderName + " vert shader", ContextDx.GetCompiler() );
-		TShaderBlob FragBlob( fragmentSrc, "Frag", "ps_5_0", ShaderName + " frag shader", ContextDx.GetCompiler() );
+		Array<uint8> VertBlob;
+		Array<uint8> FragBlob;
+		Compiler.Compile( GetArrayBridge(VertBlob), vertexSrc, "Vert", "vs_5_0", ShaderName + " vert shader" );
+		Compiler.Compile( GetArrayBridge(FragBlob), fragmentSrc, "Frag", "ps_5_0", ShaderName + " frag shader" );
 	
-		auto Result = Device.CreateVertexShader( VertBlob.GetBuffer(), VertBlob.GetBufferSize(), nullptr, &mVertexShader.mObject );
+		auto Result = Device.CreateVertexShader( VertBlob.GetArray(), VertBlob.GetDataSize(), nullptr, &mVertexShader.mObject );
 		Directx::IsOkay( Result, "CreateVertexShader" );
 
-		Result = Device.CreatePixelShader( FragBlob.GetBuffer(), FragBlob.GetBufferSize(), nullptr, &mPixelShader.mObject );
+		Result = Device.CreatePixelShader( FragBlob.GetArray(), FragBlob.GetDataSize(), nullptr, &mPixelShader.mObject );
 		Directx::IsOkay( Result, "CreatePixelShader" );
 
-		MakeLayout( Vertex, VertBlob, Device );
+		//MakeLayout( Vertex, VertBlob, Device );
+		Context.Unlock();
 	}
 	catch(std::exception& e)
 	{
-		ContextDx.Unlock();
+		Context.Unlock();
 		throw;
 	}
 }
@@ -1225,6 +1057,8 @@ DXGI_FORMAT GetType(const SoyGraphics::TElementType::Type& Type,size_t Length)
 
 void Directx::TShader::MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TShaderBlob& ShaderBlob,ID3D11Device& Device)
 {
+	Soy_AssertTodo();
+	/*
 	Array<D3D11_INPUT_ELEMENT_DESC> Layouts;
 
 	for ( int e=0;	e<Vertex.mElements.GetSize();	e++ )
@@ -1247,6 +1081,7 @@ void Directx::TShader::MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TSh
 	std::stringstream Error;
 	Error << "CreateInputLayout(" << ShaderBlob.mName << ")";
 	Directx::IsOkay( Result, Error.str() );
+	*/
 }
 
 

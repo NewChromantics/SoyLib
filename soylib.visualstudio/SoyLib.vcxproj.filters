@@ -160,6 +160,9 @@
     <ClCompile Include="..\src\SoyDirectx9.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\SoyDirectxCompiler.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\SoyThread.h">
@@ -358,6 +361,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\SoyDirectx9.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\SoyDirectxCompiler.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>

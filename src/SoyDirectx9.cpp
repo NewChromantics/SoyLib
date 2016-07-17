@@ -2,6 +2,7 @@
 #include "SoyPixels.h"
 #include "SoyRuntimeLibrary.h"
 #include "SoyPool.h"
+#include "SoyDirectxCompiler.h"
 
 namespace Directx = Directx9;
 
@@ -338,7 +339,7 @@ Directx::TContext::TContext(IDirect3DDevice9& Device) :
 	mLockCount		( 0 )
 {
 	//	gr: just pre-empting for testing, could be done on-demand
-//	mCompiler.reset( new TCompiler );
+	mCompiler.reset( new DirectxCompiler::TCompiler );
 }
 
 
@@ -358,6 +359,15 @@ Directx::TCompiler& Directx::TContext::GetCompiler()
 	return *mCompiler;
 }
 */
+
+
+DirectxCompiler::TCompiler& Directx::TContext::GetCompiler()
+{
+	if ( !mCompiler )
+		mCompiler.reset( new DirectxCompiler::TCompiler );
+	return *mCompiler;
+}
+
 
 DWORD Directx::GetUsage(TTextureMode::Type Mode)
 {
@@ -948,7 +958,7 @@ void Directx::TGeometry::Draw(TContext& Context)
 	Device.SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE  );
 	Device.SetRenderState( D3DRS_ZFUNC, D3DCMP_ALWAYS );
 	Device.SetRenderState( D3DRS_ZWRITEENABLE, false );
-
+	Device.SetRenderState( D3DRS_LIGHTING, false );
 
 	D3DFORMAT IndexFormat = D3DFMT_INDEX16;
 	auto MinVertexIndex = 0;
@@ -1218,33 +1228,40 @@ Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& F
 	Directx::IsOkay( Result, Error.str() );
 }
 
+*/
 
-Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& ContextDx) :
-	mBoundContext	( nullptr )
+Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,TContext& Context)
 {
-	auto& Device = ContextDx.LockGetDevice();
+	auto& Device = Context.GetDevice();
+	auto& Compiler = Context.GetCompiler();
 
 	try
 	{
-		TShaderBlob VertBlob( vertexSrc, "Vert", "vs_5_0", ShaderName + " vert shader", ContextDx.GetCompiler() );
-		TShaderBlob FragBlob( fragmentSrc, "Frag", "ps_5_0", ShaderName + " frag shader", ContextDx.GetCompiler() );
-	
-		auto Result = Device.CreateVertexShader( VertBlob.GetBuffer(), VertBlob.GetBufferSize(), nullptr, &mVertexShader.mObject );
+		Array<uint8> VertBlob;
+		Array<uint8> FragBlob;
+		Compiler.Compile( GetArrayBridge(VertBlob), vertexSrc, "Vert", "vs_5_0", ShaderName + " vert shader" );
+		Compiler.Compile( GetArrayBridge(FragBlob), fragmentSrc, "Frag", "ps_5_0", ShaderName + " frag shader" );
+
+		auto* VertBlob16 = reinterpret_cast<DWORD*>( VertBlob.GetArray() );
+		auto* FragBlob16 = reinterpret_cast<DWORD*>( FragBlob.GetArray() );
+
+		auto Result = Device.CreateVertexShader( VertBlob16, &mVertexShader.mObject );
 		Directx::IsOkay( Result, "CreateVertexShader" );
 
-		Result = Device.CreatePixelShader( FragBlob.GetBuffer(), FragBlob.GetBufferSize(), nullptr, &mPixelShader.mObject );
+		Result = Device.CreatePixelShader( FragBlob16, &mPixelShader.mObject );
 		Directx::IsOkay( Result, "CreatePixelShader" );
 
-		MakeLayout( Vertex, VertBlob, Device );
+		//MakeLayout( Vertex, VertBlob, Device );
+		Context.Unlock();
 	}
 	catch(std::exception& e)
 	{
-		ContextDx.Unlock();
+		Context.Unlock();
 		throw;
 	}
 }
 
-
+/*
 DXGI_FORMAT GetType(const SoyGraphics::TElementType::Type& Type,size_t Length)
 {
 	if ( Type == SoyGraphics::TElementType::Float )
