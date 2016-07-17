@@ -232,7 +232,7 @@ SoyGraphics::TElementType::Type SoyGraphics::GetType(GLenum Type)
 	switch ( Type )
 	{
 		case GL_INVALID_ENUM:	return SoyGraphics::TElementType::Invalid;
-		case GL_INT:			return SoyGraphics::TElementType::Int;
+		case GL_INT:			return SoyGraphics::TElementType::Int32;
 		case GL_FLOAT:			return SoyGraphics::TElementType::Float;
 		case GL_FLOAT_VEC2:		return SoyGraphics::TElementType::Float2;
 		case GL_FLOAT_VEC3:		return SoyGraphics::TElementType::Float3;
@@ -257,7 +257,7 @@ GLenum Opengl::GetType(SoyGraphics::TElementType::Type Type)
 	switch ( Type )
 	{
 		case SoyGraphics::TElementType::Invalid:	return GL_INVALID_ENUM;
-		case SoyGraphics::TElementType::Int:		return GL_INT;
+		case SoyGraphics::TElementType::Int32:		return GL_INT;
 		case SoyGraphics::TElementType::Float:		return GL_FLOAT;
 		case SoyGraphics::TElementType::Float2:		return GL_FLOAT_VEC2;
 		case SoyGraphics::TElementType::Float3:		return GL_FLOAT_VEC3;

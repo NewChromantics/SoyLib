@@ -28,7 +28,7 @@ size_t SoyGraphics::TGeometryVertex::GetDataSize() const
 {
 	size_t Size = 0;
 	for ( int e=0;	e<mElements.GetSize();	e++ )
-		Size += mElements[e].mElementDataSize;
+		Size += mElements[e].GetElementDataSize();
 	return Size;
 }
 
@@ -36,7 +36,7 @@ size_t SoyGraphics::TGeometryVertex::GetOffset(size_t ElementIndex) const
 {
 	size_t Size = 0;
 	for ( int e=0;	e<ElementIndex;	e++ )
-		Size += mElements[e].mElementDataSize;
+		Size += mElements[e].GetElementDataSize();
 	return Size;
 }
 
@@ -46,7 +46,7 @@ size_t SoyGraphics::TGeometryVertex::GetStride(size_t ElementIndex) const
 	//	todo: handle serial elements AND mixed interleaved & serial
 	//	serial elements would be 0
 	size_t Stride = GetDataSize();
-	Stride -= mElements[ElementIndex].mElementDataSize;
+	Stride -= mElements[ElementIndex].GetElementDataSize();
 	return Stride;
 }
 
@@ -54,7 +54,25 @@ size_t SoyGraphics::TGeometryVertex::GetVertexSize() const
 {
 	size_t Size = 0;
 	for ( int e=0;	e<mElements.GetSize();	e++ )
-		Size += mElements[e].mElementDataSize;
+		Size += mElements[e].GetElementDataSize();
 
 	return Size;
 }
+
+size_t SoyGraphics::TElementType::GetDataSize(Type t)
+{
+	switch (t)
+	{
+		case Int32:			return sizeof(uint32_t);
+		case Float:			return sizeof(float);
+		case Float2:		return sizeof(vec2f);
+		case Float3:		return sizeof(vec3f);
+		case Float4:		return sizeof(vec4f);
+		case Float3x3:		return sizeof(float3x3);
+	}
+
+	std::stringstream Error;
+	Error << __func__ << "not implemented for " << t;
+	throw Soy::AssertException( Error.str() );
+}
+
