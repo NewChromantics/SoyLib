@@ -42,11 +42,10 @@ namespace Directx9
 	{
 		enum Type
 		{
-			Invalid,		//	only for soyenum!
-			GpuOnly,		//	not mappable
-			ReadOnly,		//	mappable
-			WriteOnly,		//	mappable
+			Invalid,
+			Dynamic,
 			RenderTarget,
+			DepthStencil,
 		};
 
 		DECLARE_SOYENUM(Directx9::TTextureMode);
@@ -68,6 +67,7 @@ public:
 //	ID3D11DeviceContext&	LockGetContext();
 //	ID3D11Device&			LockGetDevice();
 //	TCompiler&				GetCompiler();
+	IDirect3DDevice9&		GetDevice()		{	return *mDevice;	}
 
 public:
 	//AutoReleasePtr<ID3D11DeviceContext>	mLockedContext;
@@ -136,7 +136,7 @@ private:
 };
 */
 
-/*
+
 class Directx9::TTextureMeta
 {
 public:
@@ -150,8 +150,8 @@ public:
 	SoyPixelsMeta		mMeta;
 	TTextureMode::Type	mMode;
 };
-std::ostream& operator<<(std::ostream &out,const Directx::TTextureMeta& in);
-*/
+std::ostream& operator<<(std::ostream &out,const Directx9::TTextureMeta& in);
+
 
 
 class Directx9::TTexture
@@ -171,18 +171,19 @@ public:
 	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>& TexturePool)	{	Read(Pixels, Context, &TexturePool );	}	
 	void				Read(SoyPixelsImpl& Pixels,TContext& Context,TPool<TTexture>* TexturePool);
 
-	bool				CanBindToShaderUniform() const;
+//	bool				CanBindToShaderUniform() const;
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 //	DXGI_FORMAT			GetDirectxFormat() const	{	return mFormat;	}
 
-//	bool				operator==(const TTextureMeta& Meta) const	{	return mMeta == Meta.mMeta && GetMode() == Meta.mMode;	}
+	bool				operator==(const TTextureMeta& Meta) const	{	return mMeta == Meta.mMeta && GetMode() == Meta.mMode;	}
 	bool				operator==(const TTexture& that) const	{	return mTexture.mObject == that.mTexture.mObject;	}
 	bool				operator!=(const TTexture& that) const	{	return !(*this == that);	}
 
 private:
 	TLockedTextureData	LockTextureData(TContext& Context,bool WriteAccess);
-	
+	void				CacheMeta(SoyPixelsFormat::Type OverrideFormat=SoyPixelsFormat::Invalid);
+
 public:
 //	TTextureSamplingParams			mSamplingParams;
 	SoyPixelsMeta					mMeta;			//	cache
@@ -195,8 +196,8 @@ std::ostream& operator<<(std::ostream &out,const Directx9::TTexture& in);
 }
 
 
-/*
-class Directx::TRenderTarget
+
+class Directx9::TRenderTarget
 {
 public:
 	TRenderTarget(TTexture& Texture,TContext& ContextDx);
@@ -205,25 +206,26 @@ public:
 	void			Unbind(TContext& ContextDx);
 
 	void			ClearColour(TContext& ContextDx,Soy::TRgb Colour,float Alpha=1.f);
-	void			ClearDepth(TContext& ContextDx);
-	void			ClearStencil(TContext& ContextDx);
+	//void			ClearDepth(TContext& ContextDx);
+	//void			ClearStencil(TContext& ContextDx);
 	SoyPixelsMeta	GetMeta() const									{	return mTexture.GetMeta();	}
 
 	bool			operator==(const TTexture& Texture) const		{	return mTexture == Texture;	}
 	bool			operator!=(const TTexture& Texture) const		{	return !(*this == Texture);	}
 
 private:
-	AutoReleasePtr<ID3D11ShaderResourceView>	mShaderResourceView;
-	AutoReleasePtr<ID3D11RenderTargetView>		mRenderTargetView;
+	AutoReleasePtr<IDirect3DSurface9>			mSurface;
+//	AutoReleasePtr<ID3D11ShaderResourceView>	mShaderResourceView;
+//	AutoReleasePtr<ID3D11RenderTargetView>		mRenderTargetView;
 	TTexture									mTexture;
 
-	AutoReleasePtr<ID3D11RenderTargetView>		mRestoreRenderTarget;
-	AutoReleasePtr<ID3D11DepthStencilView>		mRestoreStencilTarget;
+//	AutoReleasePtr<ID3D11RenderTargetView>		mRestoreRenderTarget;
+//	AutoReleasePtr<ID3D11DepthStencilView>		mRestoreStencilTarget;
 };
-*/
 
-/*
-class Directx::TGeometry
+
+
+class Directx9::TGeometry
 {
 public:
 	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex,TContext& ContextDx);
@@ -232,13 +234,15 @@ public:
 	void	Draw(TContext& Context);
 
 public:
+	/*
 	SoyGraphics::TGeometryVertex	mVertexDescription;	//	for attrib binding info
 	AutoReleasePtr<ID3D11Buffer>	mVertexBuffer;
 	AutoReleasePtr<ID3D11Buffer>	mIndexBuffer;
 	size_t							mIndexCount;
 	DXGI_FORMAT						mIndexFormat;
+	*/
 };
-*/
+
 /*
 //	compiled shader
 class Directx::TShaderBlob
@@ -257,7 +261,7 @@ public:
 /*
 //	clever class which does the binding, auto texture mapping, and unbinding
 //	why? so we can use const TShaders and share them across threads
-class Directx::TShaderState : public Soy::TUniformContainer
+class Directx9::TShaderState : public Soy::TUniformContainer
 {
 private:
 	//	gr: inheriting from noncopyable means we cannot use this scoped class in lambdas, not sure why it works if we specify the =delete here
@@ -303,10 +307,9 @@ public:
 	Array<std::shared_ptr<AutoReleasePtr<ID3D11SamplerState>>>			mSamplers;
 	Array<std::shared_ptr<AutoReleasePtr<ID3D11ShaderResourceView>>>	mResources;	//	textures
 };
-*/
 
-/*
-class Directx::TShader : public Soy::TUniformContainer
+
+class Directx9::TShader
 {
 public:
 	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Directx::TContext& Context);
@@ -314,22 +317,7 @@ public:
 	TShaderState	Bind(TContext& Context);	//	let this go out of scope to unbind
 	void			Unbind();
 
-	bool			SetUniform(const char* Name,const TTexture& v)	{	return SetUniformImpl( Name, v );	}
-
-	virtual bool	SetUniform(const char* Name,const float& v) override	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const vec2f& v) override	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const vec3f& v) override	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const vec4f& v) override	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const int& v) override		{	return SetUniformImpl( Name, v );	}
-	
-	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v)	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v) override		{	return SetUniformImpl( Name, v );	}
-
 private:
-	template<typename TYPE>
-	bool			SetUniformImpl(const char* Name,const TYPE& v);
-	void			SetPixelUniform(Soy::TUniform& Uniform,const float& v);
-	void			SetVertexUniform(Soy::TUniform& Uniform,const float& v);
 
 	ID3D11DeviceContext&		GetContext();
 
@@ -337,32 +325,9 @@ private:
 
 public:
 	TContext*							mBoundContext;	//	this binding should be moved to TShaderState
-
-	Array<Soy::TUniform>				mVertexShaderUniforms;
-	Array<Soy::TUniform>				mPixelShaderUniforms;
-	AutoReleasePtr<ID3D11VertexShader>	mVertexShader;
-	AutoReleasePtr<ID3D11PixelShader>	mPixelShader;
-	AutoReleasePtr<ID3D11InputLayout>	mLayout;	//	maybe for geometry?
+//	AutoReleasePtr<ID3D11VertexShader>	mVertexShader;
+//	AutoReleasePtr<ID3D11PixelShader>	mPixelShader;
+//	AutoReleasePtr<ID3D11InputLayout>	mLayout;	//	maybe for geometry?
 };
-
 */
 
-/*
-template<typename TYPE>
-bool Directx9::TShader::SetUniformImpl(const char* Name,const TYPE& v)
-{
-	auto* VertUniform = mVertexShaderUniforms.Find(Name);
-	//if ( VertUniform )
-	//	SetVertexUniform( *VertUniform, v );
-
-	auto* PixelUniform = mPixelShaderUniforms.Find(Name);
-	//if ( PixelUniform )
-	//	SetPixelUniform( *PixelUniform, v );
-
-	return (PixelUniform || VertUniform);
-}
-
-
-
-
-*/

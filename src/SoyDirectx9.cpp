@@ -5,6 +5,12 @@
 
 namespace Directx = Directx9;
 
+namespace Directx9
+{
+	DWORD	GetUsage(TTextureMode::Type Mode);
+}
+
+
 /*
 //	we never use this, but for old DX11 support, we need the type name
 class ID3DX11ThreadPump;
@@ -33,17 +39,15 @@ private:
 	std::function<D3DCompileFunc>			mD3dCompileFunc;
 	std::shared_ptr<Soy::TRuntimeLibrary>	mD3dCompileLib;
 };
-
+*/
 std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap = 
 {
 	{	Directx::TTextureMode::Invalid,			"Invalid"	},
-	{	Directx::TTextureMode::ReadOnly,		"ReadOnly"	},
-	{	Directx::TTextureMode::WriteOnly,		"WriteOnly"	},
-	{	Directx::TTextureMode::GpuOnly,			"GpuOnly"	},
+	{	Directx::TTextureMode::Dynamic,			"Dynamic"	},
 	{	Directx::TTextureMode::RenderTarget,	"RenderTarget"	},
+	{	Directx::TTextureMode::DepthStencil,	"DepthStencil"	},
 };
 
-*/
 
 
 
@@ -187,7 +191,7 @@ bool Directx::CanCopyMeta(const SoyPixelsMeta& Source,const SoyPixelsMeta& Desti
 
 
 
-
+*/
 std::ostream& Directx::operator<<(std::ostream &out,const Directx::TTexture& in)
 {
 	out << in.mMeta << "/" << in.GetMode();
@@ -199,7 +203,7 @@ std::ostream& operator<<(std::ostream &out,const Directx::TTextureMeta& in)
 	out << in.mMeta << "/" << in.mMode;
 	return out;
 }
-
+/*
 
 Directx::TCompiler::TCompiler()
 {
@@ -354,81 +358,28 @@ Directx::TCompiler& Directx::TContext::GetCompiler()
 	return *mCompiler;
 }
 */
+
+DWORD Directx::GetUsage(TTextureMode::Type Mode)
+{
+	switch ( Mode )
+	{
+		case TTextureMode::Dynamic:			return D3DUSAGE_DYNAMIC;
+		case TTextureMode::RenderTarget:	return D3DUSAGE_RENDERTARGET;
+	}
+	std::stringstream Error;
+	Error << "Unhandled Mode to usage " << Mode;
+	throw Soy::AssertException( Error.str() );
+}
+
 Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode)
 {
-	Soy_AssertTodo();
-	/*
-	static bool AutoMipMap = false;
-	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
+	auto& Device = ContextDx.GetDevice();
 
-	Soy::Assert( Meta.IsValid(), "Cannot create texture with invalid meta");
-	
-	//	create description
-	D3D11_TEXTURE2D_DESC Desc;
-	memset(&Desc, 0, sizeof(Desc));
-	Desc.Width = Meta.GetWidth();
-	Desc.Height = Meta.GetHeight();
-	Desc.MipLevels = AutoMipMap ? 0 : 1;
-	Desc.ArraySize = 1;
-	Desc.SampleDesc.Count = 1;
-	Desc.SampleDesc.Quality = 0;
-
-	if ( Mode == TTextureMode::RenderTarget )
-	{
-		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8 );//DXGI_FORMAT_R32G32B32A32_FLOAT;
-		Desc.Usage = D3D11_USAGE_DEFAULT;
-		Desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-		Desc.CPUAccessFlags = 0;
-	}
-	else if ( Mode == TTextureMode::WriteOnly )
-	{
-		Desc.Usage = D3D11_USAGE_DYNAMIC;
-		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8  );
-		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	}
-	else if ( Mode == TTextureMode::ReadOnly )
-	{
-		Desc.Usage = D3D11_USAGE_STAGING;
-		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8  );
-		Desc.BindFlags = 0;
-		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-	}
-	else if ( Mode == TTextureMode::GpuOnly )
-	{
-		Desc.Usage = D3D11_USAGE_DEFAULT;
-		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8  );
-		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		Desc.CPUAccessFlags = 0;
-	}
-	else
-	{
-		throw Soy::AssertException("Dont know this texture mode");
-	}
-
-	ID3D11Texture2D* pTexture = nullptr;
-	auto& Context = ContextDx.LockGetContext();
-	Soy::Assert( ContextDx.mDevice, "Device expected");
-	auto& Device = *ContextDx.mDevice;
-
-	try
-	{
-		auto Result = Device.CreateTexture2D( &Desc, nullptr, &mTexture.mObject );
-		std::stringstream Error;
-		Error << "Creating texture2D(" << Meta << ")";
-		Directx::IsOkay( Result, Error.str() );
-		Soy::Assert( mTexture, "CreateTexture succeeded, but no texture");
-		mTexture->AddRef();
-		mMeta = Meta;
-		mFormat = Desc.Format;
-	}
-	catch( std::exception& e)
-	{
-		ContextDx.Unlock();
-		throw;
-	}
-	ContextDx.Unlock();
-	*/
+	auto Levels = 1;
+	auto Pool = D3DPOOL_DEFAULT;
+	auto Result = Device.CreateTexture( Meta.GetWidth(), Meta.GetHeight(), Levels, GetUsage(Mode), GetFormat(Meta.GetFormat()), Pool, &mTexture.mObject, nullptr );
+	IsOkay( Result, "CreateTexture" );
+	CacheMeta( Meta.GetFormat() );
 }
 
 Directx::TTexture::TTexture(IDirect3DTexture9* Texture)	:
@@ -439,15 +390,7 @@ Directx::TTexture::TTexture(IDirect3DTexture9* Texture)	:
 
 	mTexture.Set( Texture, true );
 	
-	//	get meta
-	D3DSURFACE_DESC SrcDesc;
-	auto Result = mTexture->GetLevelDesc( 0, &SrcDesc );
-	IsOkay( Result, "Get texture description");
-	mMeta = SoyPixelsMeta( SrcDesc.Width, SrcDesc.Height, GetPixelFormat( SrcDesc.Format ) );
-	mFormat = SrcDesc.Format;
-
-	//	todo: copy sample params from Description
-	
+	CacheMeta();
 }
 
 Directx::TTexture::TTexture(const TTexture& Texture) :
@@ -460,37 +403,40 @@ bool Directx::TTexture::CanBindToShaderUniform() const
 	auto Mode = GetMode();
 	return Mode == TTextureMode::GpuOnly;
 }
+*/
+void Directx::TTexture::CacheMeta(SoyPixelsFormat::Type OverrideFormat)
+{
+	//	get meta
+	D3DSURFACE_DESC SrcDesc;
+	auto Result = mTexture->GetLevelDesc( 0, &SrcDesc );
+	IsOkay( Result, "Get texture description");
+
+	if ( OverrideFormat == SoyPixelsFormat::Invalid )
+		OverrideFormat = GetPixelFormat( SrcDesc.Format );
+
+	mMeta = SoyPixelsMeta( SrcDesc.Width, SrcDesc.Height, OverrideFormat );
+	mFormat = SrcDesc.Format;
+
+	//	todo: copy sample params from Description
+}
 
 
 Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 {
 	//	get meta
-	D3D11_TEXTURE2D_DESC SrcDesc;
-	mTexture.mObject->GetDesc( &SrcDesc );
-	bool IsRenderTarget = (SrcDesc.BindFlags & D3D11_BIND_RENDER_TARGET) != 0;
-	bool IsWritable = (SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_WRITE) != 0;
-	bool IsReadable = (SrcDesc.CPUAccessFlags & D3D11_CPU_ACCESS_READ) != 0;
-
-	//	gr: note, we're not covering IsWritable && IsReadable
-
-	if ( IsRenderTarget )
+	D3DSURFACE_DESC SrcDesc;
+	mTexture.mObject->GetLevelDesc( 0, &SrcDesc );
+	
+	switch ( SrcDesc.Usage )
 	{
-		return TTextureMode::RenderTarget;
-	}
-	else if ( IsWritable )
-	{
-		return TTextureMode::WriteOnly;
-	}
-	else if ( IsReadable )
-	{
-		return TTextureMode::ReadOnly;
-	}
-	else
-	{
-		return TTextureMode::GpuOnly;
-	}
+		case D3DUSAGE_DYNAMIC:		return Directx::TTextureMode::Dynamic;
+		case D3DUSAGE_RENDERTARGET:	return Directx::TTextureMode::RenderTarget;
+		case D3DUSAGE_DEPTHSTENCIL:	return Directx::TTextureMode::DepthStencil;
+		default:
+			return Directx::TTextureMode::Invalid;
+	};
 }
-*/
+
 void Directx::TTexture::Write(const TTexture& Source,TContext& ContextDx)
 {
 	Soy_AssertTodo();
@@ -633,15 +579,37 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 
 void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& ContextDx)
 {
-	Soy_AssertTodo();
-	/*
-	auto Lock = LockTextureData( ContextDx, true );
+	{
+		auto Meta = GetMeta();
+		if ( Meta.GetWidth() != SourcePixels.GetWidth() || Meta.GetHeight() != SourcePixels.GetHeight() )
+		{
+			std::Debug << "Todo: dx9 texture lock only matching area (" << SourcePixels.GetMeta() << " onto " << Meta << ")" << std::endl;
+		}
+	}
+	RECT* Rect = nullptr;
+	D3DLOCKED_RECT Lock;
+	//D3DLOCK_DISCARD
+	//D3DLOCK_NO_DIRTY_UPDATE
+	//D3DLOCK_NOSYSLOCK
+	//D3DLOCK_READONLY
+	DWORD Flags = 0;
+	auto Level = 0;
+	auto Result = mTexture->LockRect( Level, &Lock, Rect, Flags );
+	IsOkay( Result, "Texture Lock Rect");
+
+	SoyPixelsMeta LockMeta = GetMeta();
+	auto Channels = LockMeta.GetChannels();
+	auto LockWidth = Lock.Pitch / Channels;
+	LockMeta.DumbSetWidth( LockWidth );
+	auto Size = LockMeta.GetDataSize();
 
 	//	copy row by row to handle misalignment
-	SoyPixelsRemote DestPixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
-
+	SoyPixelsRemote DestPixels( reinterpret_cast<uint8*>(Lock.pBits), Size, LockMeta );
 	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true,false,false) );
-	*/
+
+	Result = mTexture->UnlockRect( Level );
+	IsOkay( Result, "Texture unLock Rect");
+
 }
 
 
@@ -679,64 +647,37 @@ void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool
 	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true,false,false) );
 	*/
 }
-/*
+
 Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 	mTexture		( Texture )
 {
 	Soy::Assert(mTexture.IsValid(), "Render target needs a valid texture target" );
 	auto& Meta = mTexture.GetMeta();
 	
-	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
-
 	// Create the render target view.
-	auto& Device = ContextDx.LockGetDevice();
+	auto& Device = ContextDx.GetDevice();
 	try
 	{
-		auto* TextureDx = mTexture.mTexture.mObject;
-		D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
-		renderTargetViewDesc.Format = GetFormat( Meta.GetFormat(), IsWindows8 );
-		renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		renderTargetViewDesc.Texture2D.MipSlice = 0;
-		{
-			auto Result = Device.CreateRenderTargetView( TextureDx, &renderTargetViewDesc, &mRenderTargetView.mObject );
-			std::stringstream Error;
-			Error << "CreateRenderTargetView(" << Texture << ")";
-			Directx::IsOkay( Result, Error.str() );
-		}
-
-		D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
-		shaderResourceViewDesc.Format = GetFormat( Meta.GetFormat(), IsWindows8 );
-		shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
-		shaderResourceViewDesc.Texture2D.MipLevels = 1;
-		{
-			auto Result = Device.CreateShaderResourceView( TextureDx, &shaderResourceViewDesc, &mShaderResourceView.mObject );
-			std::stringstream Error;
-			Error << "CreateShaderResourceView(" << Texture << ")";
-			Directx::IsOkay( Result, Error.str() );
-		}
-
-		ContextDx.Unlock();
+		auto MipLevel = 0;
+		auto Result = Texture.mTexture->GetSurfaceLevel( MipLevel, &mSurface.mObject );
+		IsOkay( Result, "GetSurfaceLevel of texture");
 	}
 	catch(std::exception& e)
 	{
-		ContextDx.Unlock();
 		throw;
 	}
 }
 
 void Directx::TRenderTarget::Bind(TContext& ContextDx)
 {
-	auto& Context = ContextDx.LockGetContext();
+	auto& Device = ContextDx.GetDevice();
 
-	//	save rendertargets to restore
-	mRestoreRenderTarget.Release();
-	mRestoreStencilTarget.Release();
-	Context.OMGetRenderTargets( 1, &mRestoreRenderTarget.mObject, &mRestoreStencilTarget.mObject );
-
-	//	set new render target
-	Context.OMSetRenderTargets( 1, &mRenderTargetView.mObject, nullptr );
+	auto Result = Device.SetRenderTarget( 0, mSurface.mObject );
+	IsOkay( Result, "SetRenderTarget");
 	
+	Result = Device.BeginScene();
+	IsOkay( Result, "BeginScene");
+	/*
 	//	set viewport
 	D3D11_VIEWPORT Viewport;
 	ZeroMemory(&Viewport, sizeof(D3D11_VIEWPORT));
@@ -747,12 +688,15 @@ void Directx::TRenderTarget::Bind(TContext& ContextDx)
 	Viewport.Height = GetMeta().GetHeight();
 
 	Context.RSSetViewports( 1, &Viewport );
-	
-	ContextDx.Unlock();
+	*/
 }
 
 void Directx::TRenderTarget::Unbind(TContext& ContextDx)
 {
+	auto& Device = ContextDx.GetDevice();
+	auto Result = Device.EndScene();
+	IsOkay( Result, "EndScene");
+	/*
 	//	restore pre-bind render targets
 	auto& Context = ContextDx.LockGetContext();
 
@@ -762,27 +706,21 @@ void Directx::TRenderTarget::Unbind(TContext& ContextDx)
 	mRestoreStencilTarget.Release();
 
 	ContextDx.Unlock();
+	*/
 }
 
 void Directx::TRenderTarget::ClearColour(TContext& ContextDx,Soy::TRgb Colour,float Alpha)
 {
-	float Colour4[4] = { Colour.r(), Colour.g(), Colour.b(), Alpha };
-
-	auto& Context = ContextDx.LockGetContext();
-	Context.ClearRenderTargetView( mRenderTargetView, Colour4 );
-    //Context.ClearDepthStencilView( depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	ContextDx.Unlock();
+	auto& Device = ContextDx.GetDevice();
+	auto Stencil = 0;
+	auto ColourDx = D3DCOLOR_COLORVALUE( Colour.r(), Colour.g(), Colour.b(), Alpha );
+	const D3DRECT* Rects = nullptr;
+	float Z = 1;
+	auto Result = Device.Clear( 0, Rects, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, ColourDx, Z, Stencil );
+	IsOkay( Result, "Device Clear");
 }
 
-void Directx::TRenderTarget::ClearDepth(TContext& ContextDx)
-{
-	std::Debug << "Render target depth not currently implemented" << std::endl;
-}
-
-void Directx::TRenderTarget::ClearStencil(TContext& ContextDx)
-{
-	std::Debug << "Render target stencil not currently implemented" << std::endl;
-}
+/*
 
 Directx::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& _Indexes,const SoyGraphics::TGeometryVertex& Vertex,TContext& ContextDx) :
 	mVertexDescription	( Vertex ),
