@@ -175,6 +175,7 @@ public:
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 //	DXGI_FORMAT			GetDirectxFormat() const	{	return mFormat;	}
+	D3DPOOL				GetPool() const;
 
 	bool				operator==(const TTextureMeta& Meta) const	{	return mMeta == Meta.mMeta && GetMode() == Meta.mMode;	}
 	bool				operator==(const TTexture& that) const	{	return mTexture.mObject == that.mTexture.mObject;	}

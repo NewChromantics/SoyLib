@@ -437,12 +437,67 @@ Directx::TTextureMode::Type Directx::TTexture::GetMode() const
 	};
 }
 
+D3DPOOL Directx::TTexture::GetPool() const
+{
+	IDirect3DTexture9* Texture = mTexture.mObject;
+	//	get meta
+	D3DSURFACE_DESC SrcDesc;
+	auto Result = Texture->GetLevelDesc( 0, &SrcDesc );
+	IsOkay( Result, "Get texture description");
+
+	return SrcDesc.Pool;
+}
+
+
 void Directx::TTexture::Write(const TTexture& Source,TContext& ContextDx)
 {
-	Soy_AssertTodo();
-	/*
+	std::stringstream Error;
+	Error << "Texture (" << Source.GetMeta() << ") -> Texture (" << this->GetMeta() << ") copy. ";
+
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
 	Soy::Assert( Source.IsValid(), "Writing from invalid texture" );
+	auto& Device = ContextDx.GetDevice();
+
+	auto UpdateTexture = [&]
+	{
+		auto Result = Device.UpdateTexture( this->mTexture.mObject, Source.mTexture.mObject );
+
+		Error << "UpdateTexture() ";
+
+		if ( Result != S_OK )
+		{
+			auto SourcePool = Source.GetPool();
+			auto DestPool = this->GetPool();
+
+			if ( SourcePool != D3DPOOL_SYSTEMMEM )
+				Error << "Source pool not D3DPOOL_SYSTEMMEM.";
+			if ( DestPool != D3DPOOL_DEFAULT )
+				Error << "Dest pool not D3DPOOL_DEFAULT.";
+		}
+		IsOkay( Result, Error.str() );
+	};
+
+	auto StretchRect = [&]
+	{
+		AutoReleasePtr<IDirect3DSurface9> Src;
+		AutoReleasePtr<IDirect3DSurface9> Dst;
+		auto Result = Source.mTexture.mObject->GetSurfaceLevel( 0, &Src.mObject );
+		IsOkay( Result, "Get Src surface");
+		Result = this->mTexture.mObject->GetSurfaceLevel( 0, &Dst.mObject );
+		IsOkay( Result, "Get Dst surface");
+		auto Filter = D3DTEXF_NONE;
+		Result = Device.StretchRect( Src.mObject, nullptr, Dst, nullptr, Filter );
+		IsOkay( Result, "StretchRect" );		
+	};
+
+	StretchRect();
+
+
+
+
+
+
+	/*
 
 	//	try simple no-errors-reported-by-dx copy resource fast path
 	if ( CanCopyMeta( mMeta, Source.mMeta ) )
