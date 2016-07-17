@@ -255,7 +255,7 @@ public:
 
 
 
-/*
+
 //	clever class which does the binding, auto texture mapping, and unbinding
 //	why? so we can use const TShaders and share them across threads
 class Directx9::TShaderState : public Soy::TUniformContainer
@@ -265,7 +265,7 @@ private:
 	TShaderState& operator=(const TShaderState&) = delete;
 	//TShaderState(const TShaderState&) = delete;
 public:
-	TShaderState(const TShader& Shader);
+	TShaderState(const TShader& Shader,TContext& Context);
 	~TShaderState();
 	
 	void			Bake();		//	upload final setup to GPU before drawing
@@ -278,7 +278,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& Texture);	//	special case which tracks how many textures are bound
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override;
 	bool			SetUniform(const char* Name,const float3x3& v);
-	bool			SetUniform(const char* Name,const Directx::TTexture& v);
+//	bool			SetUniform(const char* Name,const Directx::TTexture& v);
 	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v) override;
 
 	template<typename TYPE>
@@ -291,28 +291,26 @@ public:
 	void	BindTexture(size_t TextureIndex,const TTexture& Texture);	//	use to unbind too
 	
 private:
-	ID3D11DeviceContext&		GetContext();
-	ID3D11Device&				GetDevice();
+	//ID3D11DeviceContext&		GetContext();
+	//ID3D11Device&				GetDevice();
 	bool						mBaked;			//	warning for code; if we never baked the shader on destruction, we may have never sent data pre-geo. DirectX needs a bake but others dont...
-
-	void						AllocConstantBuffer();
 
 public:
 	const TShader&		mShader;
 	size_t				mTextureBindCount;
-	
-	Array<std::shared_ptr<AutoReleasePtr<ID3D11SamplerState>>>			mSamplers;
-	Array<std::shared_ptr<AutoReleasePtr<ID3D11ShaderResourceView>>>	mResources;	//	textures
+	TContext*			mBoundContext;
+	//Array<std::shared_ptr<AutoReleasePtr<ID3D11SamplerState>>>			mSamplers;
+	//Array<std::shared_ptr<AutoReleasePtr<ID3D11ShaderResourceView>>>	mResources;	//	textures
 };
 
-*/
+
 class Directx9::TShader
 {
 public:
 	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,TContext& Context);
 
-	//TShaderState	Bind(TContext& Context);	//	let this go out of scope to unbind
-	//void			Unbind();
+	TShaderState	Bind(TContext& Context);	//	let this go out of scope to unbind
+	void			Unbind();
 
 private:
 
@@ -322,6 +320,8 @@ private:
 
 public:
 	//TContext*							mBoundContext;	//	this binding should be moved to TShaderState
+	Array<Soy::TUniform>				mVertexShaderUniforms;
+	Array<Soy::TUniform>				mPixelShaderUniforms;
 	AutoReleasePtr<IDirect3DVertexShader9>	mVertexShader;
 	AutoReleasePtr<IDirect3DPixelShader9>	mPixelShader;
 //	AutoReleasePtr<ID3D11InputLayout>	mLayout;	//	maybe for geometry?

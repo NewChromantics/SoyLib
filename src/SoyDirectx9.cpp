@@ -751,19 +751,6 @@ void Directx::TRenderTarget::Bind(TContext& ContextDx)
 	Viewport.Height = GetMeta().GetHeight();
 	Result = Device.SetViewport( &Viewport );
 	IsOkay( Result, "SetViewport");
-
-	/*
-	//	set viewport
-	D3D11_VIEWPORT Viewport;
-	ZeroMemory(&Viewport, sizeof(D3D11_VIEWPORT));
-
-	Viewport.TopLeftX = 0;
-	Viewport.TopLeftY = 0;
-	Viewport.Width = GetMeta().GetWidth();
-	Viewport.Height = GetMeta().GetHeight();
-
-	Context.RSSetViewports( 1, &Viewport );
-	*/
 }
 
 void Directx::TRenderTarget::Unbind(TContext& ContextDx)
@@ -965,41 +952,17 @@ void Directx::TGeometry::Draw(TContext& Context)
 	Result = Device.DrawIndexedPrimitiveUP( D3DPT_TRIANGLELIST, MinVertexIndex, mVertexCount, mTriangleCount, mIndexes.GetArray(), IndexFormat, mVertexData.GetArray(), Stride );
 	//Result = Device.DrawPrimitiveUP( D3DPT_TRIANGLELIST, mTriangleCount, mVertexData.GetArray(), Stride );
 	IsOkay( Result, "DrawPrimitiveUP");
-
-
-	/*
-	auto& Context = ContextDx.LockGetContext();
-
-	// Set vertex buffer stride and offset.
-	unsigned int stride = mVertexDescription.GetVertexSize();	//sizeof(VertexType); 
-	unsigned int offset = 0;
-    
-	// Set the vertex buffer to active in the input assembler so it can be rendered.
-	Context.IASetVertexBuffers( 0, 1, &mVertexBuffer.mObject, &stride, &offset);
-
-	// Set the index buffer to active in the input assembler so it can be rendered.
-	Context.IASetIndexBuffer( mIndexBuffer, mIndexFormat, 0);
-
-	// Set the type of primitive that should be rendered from this vertex buffer, in this case triangles.
-	Context.IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	//	render
-	Context.DrawIndexed( mIndexCount, 0, 0);
-
-	ContextDx.Unlock();
-	*/
 }
 
 
 
-/*
-Directx::TShaderState::TShaderState(const Directx::TShader& Shader) :
+
+Directx::TShaderState::TShaderState(const TShader& Shader,TContext& Context) :
 	mTextureBindCount	( 0 ),
 	mShader				( Shader ),
-	mBaked				( false )
+	mBaked				( false ),
+	mBoundContext		( &Context )
 {
-	//	opengl unbinds here rather than in TShader
-	
 }
 
 Directx::TShaderState::~TShaderState()
@@ -1010,7 +973,7 @@ Directx::TShaderState::~TShaderState()
 	const_cast<TShader&>(mShader).Unbind();
 }
 
-
+/*
 ID3D11DeviceContext& Directx::TShaderState::GetContext()
 {
 	Soy::Assert( mShader.mBoundContext, "Shader not bound");
@@ -1024,7 +987,7 @@ ID3D11Device& Directx::TShaderState::GetDevice()
 	Soy::Assert( mShader.mBoundContext->mDevice, "Shader bound missing device");
 	return *mShader.mBoundContext->mDevice;
 }
-
+*/
 
 bool Directx::TShaderState::SetUniform(const char* Name,const float3x3& v)
 {
@@ -1085,7 +1048,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const vec2f& v)
 	
 	Soy_AssertTodo();
 }
-
+/*
 bool Directx::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
 {
 	//	find uniform to put texture in the right slot
@@ -1093,7 +1056,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
 	mTextureBindCount++;
 	return true;
 }
-
+*/
 bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTexture& Texture)
 {
 	Soy::Assert(false, "Opengl->Directx without context Not supported");
@@ -1119,7 +1082,7 @@ bool Directx::TShaderState::SetUniform(const char* Name,const SoyPixelsImpl& Tex
 	
 	Soy_AssertTodo();
 }
-
+/*
 
 void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Texture)
 {
@@ -1165,12 +1128,13 @@ void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Text
 		mResources.PushBack( pResourceView );
 	}
 }
-
+*/
 void Directx::TShaderState::Bake()
 {
+	/*
 	//	Set the sampler state in the pixel shader.
 	auto& Context = GetContext();
-
+	
 	{
 		int SamplerFirstSlot = 0;
 		Soy::Assert( SamplerFirstSlot+mSamplers.GetSize() < D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, "binding too many samplers in shader" );
@@ -1196,39 +1160,11 @@ void Directx::TShaderState::Bake()
 		//	gr: can I use a temporary here?
 		Context.PSSetShaderResources( ResourceFirstSlot, Resources.GetSize(), Resources.GetArray() );
 	}
-
+	*/
 	mBaked = true;
 }
 
-Directx::TShaderBlob::TShaderBlob(const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name,TCompiler& Compiler) :
-	mName	( Name )
-{
-	Array<char> SourceBuffer;
-	Soy::StringToArray( Source, GetArrayBridge(SourceBuffer) );
-	const D3D_SHADER_MACRO* Macros = nullptr;
-	ID3DInclude* IncludeMode = nullptr;
-	UINT ShaderOptions = D3D10_SHADER_ENABLE_STRICTNESS;
-	UINT EffectOptions = 0;
 
-	AutoReleasePtr<ID3DBlob> ErrorBlob;
-
-	auto Compile = Compiler.GetCompilerFunc();
-	Soy::Assert( Compile!=nullptr, "Compile func missing" );
-
-	auto Result = Compile( SourceBuffer.GetArray(), SourceBuffer.GetDataSize(),
-          Name.c_str(), Macros, IncludeMode, Function.c_str(), Target.c_str(), ShaderOptions,
-         EffectOptions,
-         &mBlob.mObject,
-        &ErrorBlob.mObject );
-
-	std::stringstream Error;
-	Error << "D3DCompile()->";
-	GetBlobString( ErrorBlob.mObject, Error );
-
-	Directx::IsOkay( Result, Error.str() );
-}
-
-*/
 
 Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,TContext& Context)
 {
@@ -1300,10 +1236,11 @@ void Directx::TShader::MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TSh
 	Error << "CreateInputLayout(" << ShaderBlob.mName << ")";
 	Directx::IsOkay( Result, Error.str() );
 }
+*/
 
-
-Directx::TShaderState Directx::TShader::Bind(TContext& ContextDx)
+Directx::TShaderState Directx::TShader::Bind(TContext& Context)
 {
+	/*
 	Soy::Assert(mBoundContext==nullptr,"Shader already bound");
 	mBoundContext = &ContextDx;
 	auto& Context = ContextDx.LockGetContext();
@@ -1314,18 +1251,17 @@ Directx::TShaderState Directx::TShader::Bind(TContext& ContextDx)
     // Set the vertex and pixel shaders that will be used to render this triangle.
     Context.VSSetShader( mVertexShader.mObject, nullptr, 0);
     Context.PSSetShader( mPixelShader.mObject, nullptr, 0);
-
-	return TShaderState(*this);
+	*/
+	return TShaderState(*this,Context);
 }
 
 void Directx::TShader::Unbind()
 {
-	Soy::Assert(mBoundContext!=nullptr,"Shader was not bound");
-
-	mBoundContext->Unlock();
-	mBoundContext = nullptr;
+	//Soy::Assert(mBoundContext!=nullptr,"Shader was not bound");
+	//mBoundContext->Unlock();
+	//mBoundContext = nullptr;
 }
-
+/*
 
 void Directx::TShader::SetPixelUniform(Soy::TUniform& Uniform,const float& v)
 {
