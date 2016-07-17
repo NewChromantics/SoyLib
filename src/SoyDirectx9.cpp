@@ -732,6 +732,16 @@ void Directx::TRenderTarget::Bind(TContext& ContextDx)
 	
 	Result = Device.BeginScene();
 	IsOkay( Result, "BeginScene");
+
+	D3DVIEWPORT9 Viewport;
+	ZeroMemory(&Viewport, sizeof(D3DVIEWPORT9));
+	Viewport.X = 0;
+	Viewport.Y = 0;
+	Viewport.Width = GetMeta().GetWidth();
+	Viewport.Height = GetMeta().GetHeight();
+	Result = Device.SetViewport( &Viewport );
+	IsOkay( Result, "SetViewport");
+
 	/*
 	//	set viewport
 	D3D11_VIEWPORT Viewport;
