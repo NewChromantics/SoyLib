@@ -624,7 +624,11 @@ public:
 		mExtractSkeletonStreams			( false ),
 		mExtractVideoStreams			( true ),
 		mSplitAudioChannelsIntoStreams	( false ),
-		mAllowDecodeInPixelBuffer		( true )
+		mAllowDecodeInPixelBuffer		( true ),
+		mDecoderUseHardwareBuffer		( true ),
+		mMergeYuv						( true ),
+		mPlanesAsSeperateStreams		( false ),
+		mAllowPushRejection				( true )
 	{
 	}
 	
@@ -664,6 +668,13 @@ public:
 	bool						mLiveUseClockTime;		
 
 	bool						mVerboseDebug;				//	print lots of debug, or only serious stuff
+	bool						mDecoderUseHardwareBuffer;
+	
+	//	make these work together, maybe remove the merge totally (though still useful to debug shaders)
+	bool						mMergeYuv;					//	bink splits/merges at extraction time. change this to an explicit planes-as-streams (usual implementation just grabs luma)
+	bool						mPlanesAsSeperateStreams;
+
+	bool						mAllowPushRejection;
 };
 
 
