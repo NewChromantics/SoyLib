@@ -646,7 +646,10 @@ bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyfr
 	//	skip non-keyframes
 	if ( !IsKeyframe && mParams.mOnlyExtractKeyframes )
 		return false;
-	
+
+	if ( !mParams.mAllowPushRejection )
+		return true;
+
 	if ( Time >= mSeekTime )
 		return true;
 	
