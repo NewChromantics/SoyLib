@@ -623,12 +623,12 @@ public:
 		mExtractDepthStreams			( true ),
 		mExtractSkeletonStreams			( false ),
 		mExtractVideoStreams			( true ),
+		mExtractAlpha					( true ),
 		mSplitAudioChannelsIntoStreams	( false ),
-		mAllowDecodeInPixelBuffer		( true ),
 		mDecoderUseHardwareBuffer		( true ),
-		mMergeYuv						( true ),
-		mPlanesAsSeperateStreams		( false ),
-		mAllowPushRejection				( true )
+		mSplitVideoPlanesIntoStreams	( false ),
+		mAllowPushRejection				( true ),
+		mEnableDecoderThreading			( true )
 	{
 	}
 	
@@ -646,18 +646,17 @@ public:
 	bool						mExtractVideoStreams;
 	bool						mExtractDepthStreams;		//	for kinect
 	bool						mExtractSkeletonStreams;	//	for kinect
+	bool						mExtractAlpha;				//	for bink
 	bool						mOnlyExtractKeyframes;
 	bool						mResetInternalTimestamp;
 	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
 	bool						mWindowIncludeBorders;
 	bool						mWin7Emulation;				//	for mediafoundation, expose some bugs
-	bool						mAllowDecodeInPixelBuffer;	//	bink; pre-decode pixels, or decode at pixelbuffer::lock
 
 	bool						mSplitAudioChannelsIntoStreams;	//	if we're splitting audio streams, some extractors need to not reduce to output
 
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
-	bool						mForceNonPlanarOutput;		//	for some extractors which have pixelly settings
 	
 	//	for gifs
 	bool						mDebugIntraFrameRect;
@@ -671,10 +670,11 @@ public:
 	bool						mDecoderUseHardwareBuffer;
 	
 	//	make these work together, maybe remove the merge totally (though still useful to debug shaders)
-	bool						mMergeYuv;					//	bink splits/merges at extraction time. change this to an explicit planes-as-streams (usual implementation just grabs luma)
-	bool						mPlanesAsSeperateStreams;
+	bool						mSplitVideoPlanesIntoStreams;	
+	bool						mForceNonPlanarOutput;		//	for some extractors which have pixelly settings
 
-	bool						mAllowPushRejection;
+	bool						mAllowPushRejection;		//	push skip
+	bool						mEnableDecoderThreading;	//	for bink; enable threaded decoding
 };
 
 
