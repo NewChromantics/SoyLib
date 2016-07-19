@@ -2088,6 +2088,8 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::Luma_Smptec,	Opengl8BitFormats ),
 		TPixelFormatMapping( SoyPixelsFormat::Greyscale,	Opengl8BitFormats ),
 		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_8_8,	Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::ChromaU_8,	Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::ChromaV_8,	Opengl8BitFormats ),
 
 		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_88,			Opengl16BitFormats ),
 		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha,		Opengl16BitFormats ),
