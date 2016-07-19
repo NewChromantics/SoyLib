@@ -268,6 +268,8 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
 	case ChromaUV_8_8:	return 1;
 	case ChromaUV_88:	return 2;
+	case ChromaU_8:		return 1;
+	case ChromaV_8:		return 1;
 
 	//	yuv 844 is interlaced luma & chroma, so kinda have 2 channels (helps with a lot of things when it aligns even though we have technically 3 channels)
 	case YYuv_8888_Full:
@@ -314,6 +316,8 @@ const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyP
 		Map[Yuv_8_8_8_Full].PushBackArray( { Luma_Full, ChromaUV_8_8 } );
 		Map[Yuv_8_8_8_Ntsc].PushBackArray( { Luma_Ntsc, ChromaUV_8_8 } );
 		Map[Yuv_8_8_8_Smptec].PushBackArray( { Luma_Smptec, ChromaUV_8_8 } );
+
+		Map[ChromaUV_8_8].PushBackArray( { ChromaU_8, ChromaV_8 } );
 	}
 
 	return Map;
@@ -457,6 +461,8 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::Luma_Smptec,			"Luma_Smptec"	},
 	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
 	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
+	{ SoyPixelsFormat::ChromaU_8,			"ChromaU_8"	},
+	{ SoyPixelsFormat::ChromaV_8,			"ChromaV_8"	},
 	{ SoyPixelsFormat::Palettised_RGB_8,	"Palettised_RGB_8"	},
 	{ SoyPixelsFormat::Palettised_RGBA_8,	"Palettised_RGBA_8"	},
 };
@@ -1832,6 +1838,10 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
 			break;
 			
+		case SoyPixelsFormat::ChromaUV_8_8:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaU_8 ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaV_8 ) );
+			break;
 
 			//	gr: this doesn't split as it's on the same plane!
 			/*

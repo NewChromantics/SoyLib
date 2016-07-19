@@ -308,6 +308,8 @@ const Array<SoyMediaFormatMeta>& SoyMediaFormat::GetFormatMap()
 		SoyMediaFormatMeta( SoyMediaFormat::YYuv_8888_Smptec,	"application/YYuv_8888_Smptec",	{'YUY2','IYUV','Y42T','UYVY'}, SoyMediaMetaFlags::None, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::ChromaUV_8_8,		"application/ChromaUV_8_8",	'xxxx', SoyMediaMetaFlags::None, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::ChromaUV_88,		"application/ChromaUV_88",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ChromaU_8,			"application/ChromaU_8",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::ChromaV_8,			"application/ChromaV_8",	'xxxx', SoyMediaMetaFlags::None, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::Palettised_RGB_8,	"application/Palettised_RGB_8",	'xxxx', SoyMediaMetaFlags::None, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::Palettised_RGBA_8,	"application/Palettised_RGBA_8",	'xxxx', SoyMediaMetaFlags::None, 0 ),
 	};
