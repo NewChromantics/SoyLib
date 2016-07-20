@@ -628,7 +628,8 @@ public:
 		mDecoderUseHardwareBuffer		( true ),
 		mSplitVideoPlanesIntoStreams	( false ),
 		mAllowPushRejection				( true ),
-		mEnableDecoderThreading			( true )
+		mEnableDecoderThreading			( true ),
+		mPeekBeforeDefferedCopy			( true )
 	{
 	}
 	
@@ -675,6 +676,8 @@ public:
 
 	bool						mAllowPushRejection;		//	push skip
 	bool						mEnableDecoderThreading;	//	for bink; enable threaded decoding
+
+	bool						mPeekBeforeDefferedCopy;	//	gr: copied only for warning output for bink
 };
 
 
