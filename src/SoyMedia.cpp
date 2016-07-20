@@ -518,6 +518,12 @@ bool TMediaExtractor::Iteration()
 	return true;
 }
 
+bool TMediaExtractor::CanSleep()	
+{
+	//	gr: to go with the null-packet
+	return false;	
+}
+
 
 void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 {
@@ -529,7 +535,11 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			
 			//	no packet, error? try again
 			if ( !NextPacket )
-				continue;
+			{
+				//	gr: changed this to return to let the thread sleep & wake
+				//		changed MediaExtractor at the same time to not-sleep in worker to maintain same functionality
+				return;
+			}
 			
 			//	if we successfully read a packet, clear the last error
 			OnClearError();

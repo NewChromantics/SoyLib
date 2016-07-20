@@ -725,6 +725,7 @@ protected:
 	
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);
+	virtual bool					CanSleep() override;
 	SoyTime							GetSeekTime() const			{	return mSeekTime;	}
 	SoyTime							GetExtractTime() const		{	return mSeekTime + mExtractAheadMs;	}
 	
