@@ -675,7 +675,9 @@ bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyfr
 
 void TMediaExtractor::OnSkippedExtractedPacket(const SoyTime& Timecode)
 {
-	std::Debug << "Extractor skipped frame " << Timecode << " (vs " << mSeekTime << ") in the past (non-keyframe)" << std::endl;
+	//	gr: change to debug_render_Frames
+	if ( mParams.mVerboseDebug )
+		std::Debug << "Extractor skipped frame " << Timecode << " (vs " << mSeekTime << ") in the past (non-keyframe)" << std::endl;
 }
 
 void TMediaExtractor::OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)
