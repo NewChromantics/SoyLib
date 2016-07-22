@@ -278,7 +278,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const Opengl::TTexture& Texture);	//	special case which tracks how many textures are bound
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture) override;
 	bool			SetUniform(const char* Name,const float3x3& v);
-//	bool			SetUniform(const char* Name,const Directx::TTexture& v);
+	bool			SetUniform(const char* Name,const Directx9::TTexture& v);
 	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v) override;
 
 	template<typename TYPE>
@@ -291,6 +291,7 @@ public:
 	void	BindTexture(size_t TextureIndex,const TTexture& Texture);	//	use to unbind too
 	
 private:
+	TContext&			GetContext()		{	return *mBoundContext;	}
 	//ID3D11DeviceContext&		GetContext();
 	//ID3D11Device&				GetDevice();
 	bool						mBaked;			//	warning for code; if we never baked the shader on destruction, we may have never sent data pre-geo. DirectX needs a bake but others dont...

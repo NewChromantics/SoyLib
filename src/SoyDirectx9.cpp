@@ -1048,15 +1048,14 @@ bool Directx::TShaderState::SetUniform(const char* Name,const vec2f& v)
 	
 	Soy_AssertTodo();
 }
-/*
+
 bool Directx::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
 {
-	//	find uniform to put texture in the right slot
 	BindTexture( mTextureBindCount, Texture );
 	mTextureBindCount++;
 	return true;
 }
-*/
+
 bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTexture& Texture)
 {
 	Soy::Assert(false, "Opengl->Directx without context Not supported");
@@ -1082,15 +1081,25 @@ bool Directx::TShaderState::SetUniform(const char* Name,const SoyPixelsImpl& Tex
 	
 	Soy_AssertTodo();
 }
-/*
+
 
 void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Texture)
 {
+	//	gr: how do I pick the right sampler?
+
+	//	todo: setup sampler
+
+	auto& Device = GetContext().GetDevice();
+	DWORD SamplerIndex = TextureIndex;
+	auto Result = Device.SetTexture( SamplerIndex, Texture.mTexture.mObject );
+	IsOkay( Result, "SetTexture");
+
+	/*
 	//	allocate sampler
 	{
 		std::shared_ptr<AutoReleasePtr<ID3D11SamplerState>> pSampler( new AutoReleasePtr<ID3D11SamplerState> );
 		auto& Sampler = pSampler->mObject;
-		auto& TextureParams = Texture.mSamplingParams;
+		//auto& TextureParams = Texture.mSamplingParams;
 
 		D3D11_SAMPLER_DESC samplerDesc;
 		samplerDesc.Filter = TextureParams.mLinearFilter ? D3D11_FILTER_MIN_MAG_MIP_LINEAR : D3D11_FILTER_MIN_MAG_MIP_POINT;
@@ -1108,8 +1117,10 @@ void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Text
 		samplerDesc.MaxLOD = TextureParams.mMaxLod == -1 ? D3D11_FLOAT32_MAX : TextureParams.mMaxLod;
 
 		// Create the texture sampler state.
-		auto& Device = GetDevice();
-		auto Result = Device.CreateSamplerState( &samplerDesc, &Sampler );
+		auto& Device = GetContext().GetDevice();
+		D3DSAMPLERSTATETYPE SamplerDesc;
+		Device.SetSamplerState
+		auto Result = Device.SetSamplerState( Sampler, (( &samplerDesc, &Sampler );
 		Directx::IsOkay( Result, "Creating sampler" );
 		mSamplers.PushBack( pSampler );
 	}
@@ -1127,8 +1138,9 @@ void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Text
 		Directx::IsOkay( Result, "Createing resource view");
 		mResources.PushBack( pResourceView );
 	}
+	*/
 }
-*/
+
 void Directx::TShaderState::Bake()
 {
 	/*
