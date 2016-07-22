@@ -629,7 +629,9 @@ public:
 		mSplitVideoPlanesIntoStreams	( false ),
 		mAllowPushRejection				( true ),
 		mEnableDecoderThreading			( true ),
-		mPeekBeforeDefferedCopy			( true )
+		mPeekBeforeDefferedCopy			( true ),
+		mCopyBuffersInExtraction		( false ),
+		mExtractorPreDecodeSkip			( false )
 	{
 	}
 	
@@ -676,6 +678,8 @@ public:
 
 	bool						mAllowPushRejection;		//	push skip
 	bool						mEnableDecoderThreading;	//	for bink; enable threaded decoding
+	bool						mCopyBuffersInExtraction;
+	bool						mExtractorPreDecodeSkip;
 
 	bool						mPeekBeforeDefferedCopy;	//	gr: copied only for warning output for bink
 };
