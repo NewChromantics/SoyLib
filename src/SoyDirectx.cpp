@@ -90,7 +90,21 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_SNORM	),
 	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_SINT	),
 	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_A8_UNORM	),
-			
+
+	FORMAT_MAP( SoyMediaFormat::ChromaU_8,			DXGI_FORMAT_R8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::ChromaU_8,			DXGI_FORMAT_R8_TYPELESS	),
+	FORMAT_MAP( SoyMediaFormat::ChromaU_8,			DXGI_FORMAT_R8_UINT	),
+	FORMAT_MAP( SoyMediaFormat::ChromaU_8,			DXGI_FORMAT_R8_SNORM	),
+	FORMAT_MAP( SoyMediaFormat::ChromaU_8,			DXGI_FORMAT_R8_SINT	),
+	FORMAT_MAP( SoyMediaFormat::ChromaU_8,			DXGI_FORMAT_A8_UNORM	),
+
+	FORMAT_MAP( SoyMediaFormat::ChromaV_8,			DXGI_FORMAT_R8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::ChromaV_8,			DXGI_FORMAT_R8_TYPELESS	),
+	FORMAT_MAP( SoyMediaFormat::ChromaV_8,			DXGI_FORMAT_R8_UINT	),
+	FORMAT_MAP( SoyMediaFormat::ChromaV_8,			DXGI_FORMAT_R8_SNORM	),
+	FORMAT_MAP( SoyMediaFormat::ChromaV_8,			DXGI_FORMAT_R8_SINT	),
+	FORMAT_MAP( SoyMediaFormat::ChromaV_8,			DXGI_FORMAT_A8_UNORM	),
+
 	FORMAT_MAP( SoyMediaFormat::Luma_Ntsc,			DXGI_FORMAT_R8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::Luma_Smptec,		DXGI_FORMAT_R8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_UNORM	),
