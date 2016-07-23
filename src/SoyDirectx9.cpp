@@ -105,9 +105,9 @@ static TPlatformFormatMap<D3DFORMAT> PlatformFormatMap[] =
 	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Ntsc,		D3DFMT_UYVY	),
 	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Smptec,	D3DFMT_UYVY	),	
 
-	FORMAT_MAP( SoyMediaFormat::Greyscale,			D3DFMT_A8	),
-	FORMAT_MAP( SoyMediaFormat::Luma_Ntsc,			D3DFMT_A8	),
-	FORMAT_MAP( SoyMediaFormat::Luma_Smptec,		D3DFMT_A8	),
+	FORMAT_MAP( SoyMediaFormat::Greyscale,			D3DFMT_L8	),
+	FORMAT_MAP( SoyMediaFormat::Luma_Ntsc,			D3DFMT_L8	),
+	FORMAT_MAP( SoyMediaFormat::Luma_Smptec,		D3DFMT_L8	),
 
 	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		D3DFMT_A8L8	),
 			
@@ -1178,7 +1178,7 @@ void Directx::TShaderState::Bake()
 
 
 
-Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,TContext& Context)
+Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,const std::map<std::string,std::string>& Macros,TContext& Context)
 {
 	auto& Device = Context.GetDevice();
 	auto& Compiler = Context.GetCompiler();
@@ -1189,8 +1189,8 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 		const char* FragTarget = "ps_2_0";
 		Array<uint8> VertBlob;
 		Array<uint8> FragBlob;
-		Compiler.Compile( GetArrayBridge(VertBlob), vertexSrc, "Vert", VertTarget, ShaderName + " vert shader" );
-		Compiler.Compile( GetArrayBridge(FragBlob), fragmentSrc, "Frag", FragTarget, ShaderName + " frag shader" );
+		Compiler.Compile( GetArrayBridge(VertBlob), vertexSrc, "Vert", VertTarget, ShaderName + " vert shader", Macros );
+		Compiler.Compile( GetArrayBridge(FragBlob), fragmentSrc, "Frag", FragTarget, ShaderName + " frag shader", Macros );
 
 		auto* VertBlob16 = reinterpret_cast<DWORD*>( VertBlob.GetArray() );
 		auto* FragBlob16 = reinterpret_cast<DWORD*>( FragBlob.GetArray() );

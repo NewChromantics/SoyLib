@@ -297,7 +297,7 @@ public:
 class Directx::TShader : public Soy::TUniformContainer
 {
 public:
-	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,TContext& Context);
+	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,const std::map<std::string,std::string>& Macros,TContext& Context);
 
 	TShaderState	Bind(TContext& Context);	//	let this go out of scope to unbind
 	void			Unbind();

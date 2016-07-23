@@ -43,7 +43,7 @@ class DirectxCompiler::TCompiler
 {
 public:
 	TCompiler();
-	void		Compile(ArrayBridge<uint8>&& Compiled,const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name);
+	void		Compile(ArrayBridge<uint8>&& Compiled,const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name,const std::map<std::string,std::string>& Macros);
 
 public:
 	std::shared_ptr<Soy::TRuntimeLibrary>	mCompileLib;

@@ -164,11 +164,18 @@ void GetBlobString(ID3DBlob* Blob,std::ostream& String)
 
 
 
-void DirectxCompiler::TCompiler::Compile(ArrayBridge<uint8_t>&& Compiled,const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name)
+void DirectxCompiler::TCompiler::Compile(ArrayBridge<uint8_t>&& Compiled,const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name,const std::map<std::string,std::string>& Macros)
 {
 	Array<char> SourceBuffer;
 	Soy::StringToArray( Source, GetArrayBridge(SourceBuffer) );
-	const D3D_SHADER_MACRO* Macros = nullptr;
+	
+	Array<D3D_SHADER_MACRO> MacrosArray;
+	for ( auto it=Macros.begin();	it!=Macros.end();	it++ )
+	{
+		MacrosArray.PushBack( { it->first.c_str(), it->second.c_str()} );
+	}
+	MacrosArray.PushBack( {nullptr,nullptr} );
+
 	ID3DInclude* IncludeMode = nullptr;
 	UINT ShaderOptions = D3D10_SHADER_ENABLE_STRICTNESS;
 	UINT EffectOptions = 0;
@@ -180,7 +187,7 @@ void DirectxCompiler::TCompiler::Compile(ArrayBridge<uint8_t>&& Compiled,const s
 	Soy::Assert( Compile!=nullptr, "Compile func missing" );
 
 	auto Result = Compile( SourceBuffer.GetArray(), SourceBuffer.GetDataSize(),
-						  Name.c_str(), Macros, IncludeMode, Function.c_str(), Target.c_str(), ShaderOptions,
+						  Name.c_str(), MacrosArray.GetArray(), IncludeMode, Function.c_str(), Target.c_str(), ShaderOptions,
 						  EffectOptions,
 						  &DataBlob.mObject,
 						  &ErrorBlob.mObject );

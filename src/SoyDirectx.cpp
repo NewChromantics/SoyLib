@@ -1026,7 +1026,7 @@ void Directx::TShaderState::Bake()
 
 
 
-Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,TContext& Context) :
+Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,const std::map<std::string,std::string>& Macros,TContext& Context) :
 	mBoundContext	( nullptr )
 {
 	auto& Device = Context.LockGetDevice();
@@ -1036,8 +1036,8 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 	{
 		Array<uint8> VertBlob;
 		Array<uint8> FragBlob;
-		Compiler.Compile( GetArrayBridge(VertBlob), vertexSrc, "Vert", "vs_5_0", ShaderName + " vert shader" );
-		Compiler.Compile( GetArrayBridge(FragBlob), fragmentSrc, "Frag", "ps_5_0", ShaderName + " frag shader" );
+		Compiler.Compile( GetArrayBridge(VertBlob), vertexSrc, "Vert", "vs_5_0", ShaderName + " vert shader", Macros );
+		Compiler.Compile( GetArrayBridge(FragBlob), fragmentSrc, "Frag", "ps_5_0", ShaderName + " frag shader", Macros );
 	
 		auto Result = Device.CreateVertexShader( VertBlob.GetArray(), VertBlob.GetDataSize(), nullptr, &mVertexShader.mObject );
 		Directx::IsOkay( Result, "CreateVertexShader" );
