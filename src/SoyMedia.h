@@ -622,6 +622,7 @@ public:
 		mAudioSampleRate				( 0 ),
 		mAudioChannelCount				( 0 ),
 		mApplyHeightPadding				( true ),
+		mApplyWidthPadding				( true ),
 		mWindowIncludeBorders			( true ),
 		mLiveUseClockTime				( false ),
 		mWin7Emulation					( false ),
@@ -660,6 +661,7 @@ public:
 	bool						mOnlyExtractKeyframes;
 	bool						mResetInternalTimestamp;
 	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
+	bool						mApplyWidthPadding;			//	for windows where we need height padding sometimes, can turn off with this
 	bool						mWindowIncludeBorders;
 	bool						mWin7Emulation;				//	for mediafoundation, expose some bugs
 
