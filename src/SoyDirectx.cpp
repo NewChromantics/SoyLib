@@ -1045,7 +1045,7 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 		Result = Device.CreatePixelShader( FragBlob.GetArray(), FragBlob.GetDataSize(), nullptr, &mPixelShader.mObject );
 		Directx::IsOkay( Result, "CreatePixelShader" );
 
-		//MakeLayout( Vertex, VertBlob, Device );
+		MakeLayout( Vertex, GetArrayBridge(VertBlob), ShaderName, Device );
 		Context.Unlock();
 	}
 	catch(std::exception& e)
@@ -1069,10 +1069,8 @@ DXGI_FORMAT GetType(const SoyGraphics::TElementType::Type& Type,size_t Length)
 	throw Soy::AssertException("Unhandled graphics uniform type -> DXGI_FORMAT");
 }
 
-void Directx::TShader::MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TShaderBlob& ShaderBlob,ID3D11Device& Device)
+void Directx::TShader::MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,ArrayBridge<uint8>&& CompiledShader,const std::string& ShaderName,ID3D11Device& Device)
 {
-	Soy_AssertTodo();
-	/*
 	Array<D3D11_INPUT_ELEMENT_DESC> Layouts;
 
 	for ( int e=0;	e<Vertex.mElements.GetSize();	e++ )
@@ -1091,11 +1089,10 @@ void Directx::TShader::MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TSh
 		Layout.InstanceDataStepRate = 0;
 	}
 
-	auto Result = Device.CreateInputLayout( Layouts.GetArray(), Layouts.GetSize(), ShaderBlob.GetBuffer(), ShaderBlob.GetBufferSize(), &mLayout.mObject );
+	auto Result = Device.CreateInputLayout( Layouts.GetArray(), Layouts.GetSize(), CompiledShader.GetArray(), CompiledShader.GetDataSize(), &mLayout.mObject );
 	std::stringstream Error;
-	Error << "CreateInputLayout(" << ShaderBlob.mName << ")";
+	Error << "CreateInputLayout(" << ShaderName << ")";
 	Directx::IsOkay( Result, Error.str() );
-	*/
 }
 
 
@@ -1106,6 +1103,7 @@ Directx::TShaderState Directx::TShader::Bind(TContext& ContextDx)
 	auto& Context = ContextDx.LockGetContext();
 
 	// Set the vertex input layout.
+	Soy::Assert( mLayout!=nullptr, "Missing vertex input layout");
 	Context.IASetInputLayout( mLayout.mObject );
 
     // Set the vertex and pixel shaders that will be used to render this triangle.

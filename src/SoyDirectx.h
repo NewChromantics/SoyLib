@@ -34,7 +34,6 @@ namespace Directx
 	class TGeometry;
 	class TShader;
 	class TShaderState;
-	class TShaderBlob;
 	class TTextureSamplingParams;
 
 
@@ -321,7 +320,7 @@ private:
 
 	ID3D11DeviceContext&		GetContext();
 
-	void			MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,TShaderBlob& Shader,ID3D11Device& Device);
+	void			MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,ArrayBridge<uint8>&& CompiledShader,const std::string& ShaderName,ID3D11Device& Device);
 
 public:
 	TContext*							mBoundContext;	//	this binding should be moved to TShaderState
