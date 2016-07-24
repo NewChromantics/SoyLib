@@ -50,7 +50,9 @@ public:
 
 	bool				IsValid() const	{	return mType != TElementType::Invalid;	}
 
-	size_t				GetElementDataSize() const			{	return TElementType::GetDataSize(mType) * mArraySize;	}
+	size_t				GetElementDataSize() const			{	return TElementType::GetDataSize(mType);	}
+	size_t				GetDataSize() const					{	return GetElementDataSize() * GetArraySize();	}
+	size_t				GetArraySize() const				{	return std::max<size_t>( 1, mArraySize );	}
 
 	bool				operator==(const char* Name) const	{	return mName == Name;	}
 

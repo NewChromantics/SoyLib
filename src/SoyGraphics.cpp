@@ -28,7 +28,7 @@ size_t SoyGraphics::TGeometryVertex::GetDataSize() const
 {
 	size_t Size = 0;
 	for ( int e=0;	e<mElements.GetSize();	e++ )
-		Size += mElements[e].GetElementDataSize();
+		Size += mElements[e].GetDataSize();
 	return Size;
 }
 
@@ -36,7 +36,7 @@ size_t SoyGraphics::TGeometryVertex::GetOffset(size_t ElementIndex) const
 {
 	size_t Size = 0;
 	for ( int e=0;	e<ElementIndex;	e++ )
-		Size += mElements[e].GetElementDataSize();
+		Size += mElements[e].GetDataSize();
 	return Size;
 }
 
@@ -46,7 +46,7 @@ size_t SoyGraphics::TGeometryVertex::GetStride(size_t ElementIndex) const
 	//	todo: handle serial elements AND mixed interleaved & serial
 	//	serial elements would be 0
 	size_t Stride = GetDataSize();
-	Stride -= mElements[ElementIndex].GetElementDataSize();
+	Stride -= mElements[ElementIndex].GetDataSize();
 	return Stride;
 }
 
@@ -54,7 +54,7 @@ size_t SoyGraphics::TGeometryVertex::GetVertexSize() const
 {
 	size_t Size = 0;
 	for ( int e=0;	e<mElements.GetSize();	e++ )
-		Size += mElements[e].GetElementDataSize();
+		Size += mElements[e].GetDataSize();
 
 	return Size;
 }
