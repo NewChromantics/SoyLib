@@ -1058,12 +1058,12 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 
 DXGI_FORMAT GetType(const SoyGraphics::TElementType::Type& Type,size_t Length)
 {
-	if ( Type == SoyGraphics::TElementType::Float )
+	switch ( Type )
 	{
-		if ( Length == 1 )	return DXGI_FORMAT_R32_FLOAT;
-		if ( Length == 2 )	return DXGI_FORMAT_R32G32_FLOAT;
-		if ( Length == 3 )	return DXGI_FORMAT_R32G32B32_FLOAT;
-		if ( Length == 4 )	return DXGI_FORMAT_R32G32B32A32_FLOAT;
+		case SoyGraphics::TElementType::Float:	return DXGI_FORMAT_R32_FLOAT;
+		case SoyGraphics::TElementType::Float2:	return DXGI_FORMAT_R32G32_FLOAT;
+		case SoyGraphics::TElementType::Float3:	return DXGI_FORMAT_R32G32B32_FLOAT;
+		case SoyGraphics::TElementType::Float4:	return DXGI_FORMAT_R32G32B32A32_FLOAT;
 	}
 
 	throw Soy::AssertException("Unhandled graphics uniform type -> DXGI_FORMAT");
@@ -1081,8 +1081,7 @@ void Directx::TShader::MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,Arr
 		
 		Layout.SemanticName = Element.mName.c_str();
 		Layout.Format = GetType( Element.mType, Element.mArraySize );
-		//Layout.SemanticIndex = Element.mIndex;
-		Layout.SemanticIndex = 0;
+		Layout.SemanticIndex = Element.mIndex;
 		Layout.InputSlot = 0;
 		Layout.AlignedByteOffset = 0;	//	D3D11_APPEND_ALIGNED_ELEMENT
 		Layout.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
