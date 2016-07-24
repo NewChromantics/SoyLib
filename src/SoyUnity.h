@@ -37,6 +37,11 @@ namespace Directx
 	class TContext;
 }
 
+namespace Directx9
+{
+	class TContext;
+}
+
 namespace Cuda
 {
 	class TContext;
@@ -203,6 +208,8 @@ namespace Unity
 	void				Init(UnityDevice::Type Device,void* DevicePtr);
 	void				Shutdown(UnityDevice::Type Device);
 	void				RenderEvent(Unity::sint EventId);
+	void*				GetPlatformDeviceContext(UnityDevice::Type Device);
+	void*				GetPlatformDeviceContext();
 
 	//	these throw when accessed if wrong device
 	Opengl::TContext&					GetOpenglContext();
@@ -212,6 +219,10 @@ namespace Unity
 	Directx::TContext&					GetDirectxContext();
 	std::shared_ptr<Directx::TContext>	GetDirectxContextPtr();
 	bool								HasDirectxContext();
+
+	Directx9::TContext&					GetDirectx9Context();
+	std::shared_ptr<Directx9::TContext>	GetDirectx9ContextPtr();
+	bool								HasDirectx9Context();
 
 	Metal::TContext&					GetMetalContext();
 	std::shared_ptr<Metal::TContext>	GetMetalContextPtr();

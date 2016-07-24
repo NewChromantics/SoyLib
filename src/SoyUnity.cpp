@@ -9,10 +9,6 @@
 #include "Unity/IUnityGraphics.h"
 
 #if defined(ENABLE_DIRECTX)
-class IDirect3D9;
-class IDirect3DDevice9;
-#include "Unity/IUnityGraphicsD3D9.h"
-
 #include "SoyDirectx.h"
 #include "Unity/IUnityGraphicsD3D11.h"
 
@@ -22,6 +18,16 @@ class ID3D12Fence;
 class ID3D12Resource;
 class D3D12_RESOURCE_STATES;
 #include "Unity/IUnityGraphicsD3D12.h"
+
+#endif
+
+
+#if defined(ENABLE_DIRECTX9)
+class IDirect3D9;
+class IDirect3DDevice9;
+#include "Unity/IUnityGraphicsD3D9.h"
+
+#include "SoyDirectx9.h"
 
 #endif
 
@@ -92,6 +98,7 @@ namespace Unity
 
 	std::shared_ptr<Opengl::TContext>	OpenglContext;
 	std::shared_ptr<Directx::TContext>	DirectxContext;
+	std::shared_ptr<Directx9::TContext>	Directx9Context;
 	std::shared_ptr<Metal::TContext>	MetalContext;
 	std::shared_ptr<Cuda::TContext>		CudaContext;
 	std::shared_ptr<Gnm::TContext>		GnmContext;
@@ -99,8 +106,15 @@ namespace Unity
 #if defined(TARGET_IOS)
 	void				IosDetectGraphicsDevice();
 #endif
-}
 
+	IUnityGraphics*		GraphicsDevice = nullptr;
+	IUnityInterfaces*	Interfaces = nullptr;
+
+#if defined(TARGET_PS4)
+	void*				GpuAlloc(size_t Size);
+	bool				GpuFree(void* Object);
+#endif
+}
 
 SoyEvent<bool>& Unity::GetOnDeviceShutdown()
 {
@@ -256,6 +270,24 @@ std::shared_ptr<Directx::TContext> Unity::GetDirectxContextPtr()
 }
 
 
+bool Unity::HasDirectx9Context()
+{
+	return Directx9Context != nullptr;
+}
+
+Directx9::TContext& Unity::GetDirectx9Context()
+{
+	if (!Directx9Context)
+		throw Soy::AssertException("Getting directx9 context on non-directx run");
+
+	return *Directx9Context;
+}
+
+std::shared_ptr<Directx9::TContext> Unity::GetDirectx9ContextPtr()
+{
+	return Directx9Context;
+}
+
 bool Unity::HasGnmContext()
 {
 	return GnmContext != nullptr;
@@ -406,6 +438,12 @@ void Unity::RenderEvent(Unity::sint eventID)
 		Unity::DirectxContext->Iteration();
 	}
 #endif
+#if defined(ENABLE_DIRECTX9)
+	if ( Unity::Directx9Context )
+	{
+		Unity::Directx9Context->Iteration();
+	}
+#endif
 
 #if defined(ENABLE_METAL)
 	if ( Unity::MetalContext )
@@ -532,7 +570,7 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 		break;
 #endif
 
-#if defined(ENABLE_DIRECTX)
+	#if defined(ENABLE_DIRECTX)
 		case UnityDevice::kGfxRendererD3D11:
 		case UnityDevice::kGfxRendererD3D12:
 		{
@@ -541,8 +579,28 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 			DirectxContext.reset(new Directx::TContext( *DeviceDx ) );
 		}
 		break;
-#endif
-		
+	#endif
+
+	#if defined(ENABLE_DIRECTX9)
+		case UnityDevice::kGfxRendererD3D9:
+		{
+			auto* DeviceDx = static_cast<IDirect3DDevice9*>( DevicePtr );
+			Soy::Assert( DeviceDx != nullptr, "Missing device pointer to create directx context");
+
+			//	already setup (going through new & legacy interface)
+			if ( Directx9Context && Directx9Context->mDevice == DeviceDx )
+			{
+				std::Debug << "DX9 graphics device already created." << std::endl;
+				break;
+			}
+
+			if ( Directx9Context )
+				std::Debug << "DX9 context changed" << std::endl;
+			Directx9Context.reset(new Directx9::TContext( *DeviceDx ) );
+		}
+		break;
+	#endif
+
 #if defined(ENABLE_METAL)
 		case UnityDevice::kGfxRendererMetal:
 		{
@@ -554,7 +612,7 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 #if defined(ENABLE_GNM)
 		case UnityDevice::kGfxRendererPS4:
 		{
-			GnmContext = Gnm::AllocContext(DevicePtr);
+			GnmContext = Gnm::AllocContext( DevicePtr, Unity::GpuAlloc, Unity::GpuFree );
 		}
 		break;
 #endif
@@ -595,6 +653,7 @@ void Unity::Shutdown(UnityDevice::Type Device)
 	OpenglContext.reset();
 	MetalContext.reset();
 	DirectxContext.reset();
+	Directx9Context.reset();
 	CudaContext.reset();
 	GnmContext.reset();
 }
@@ -667,11 +726,6 @@ void Unity::ReleaseDebugStringAll()
 }
 
 
-namespace Unity
-{
-	IUnityGraphics*		GraphicsDevice = nullptr;
-	IUnityInterfaces*	Interfaces = nullptr;
-}
 
 
 template<typename INTERFACETYPE>
@@ -697,6 +751,65 @@ void* GetDeviceContext<IUnityGraphicsPS4>()
 #endif
 
 
+#if defined(TARGET_PS4)
+void* Unity::GpuAlloc(size_t Size)
+{
+	if ( !Unity::Interfaces )
+		return nullptr;
+	auto* Interface = Unity::Interfaces->Get<IUnityGraphicsPS4>();
+	if ( !Interface )
+		return nullptr;
+
+	int kAlignmentOfShaderInBytes = 256;
+
+	return Interface->AllocateGPUMemory( Size, kAlignmentOfShaderInBytes );
+}
+#endif
+
+#if defined(TARGET_PS4)
+bool Unity::GpuFree(void* Object)
+{
+	if ( !Unity::Interfaces )
+		return nullptr;
+	auto* Interface = Unity::Interfaces->Get<IUnityGraphicsPS4>();
+	if ( !Interface )
+		return nullptr;
+
+	int Alignment = 0;
+	Interface->ReleaseGPUMemory( Object );
+	return true;
+}
+#endif
+
+void* Unity::GetPlatformDeviceContext(UnityDevice::Type Device)
+{
+	switch ( Device )
+	{
+	#if defined(ENABLE_DIRECTX)
+		case kUnityGfxRendererD3D11:	return GetDeviceContext<IUnityGraphicsD3D11>();
+		case kUnityGfxRendererD3D12:	return GetDeviceContext<IUnityGraphicsD3D12>();
+	#endif
+	#if defined(ENABLE_DIRECTX9)
+		case kUnityGfxRendererD3D9:		return GetDeviceContext<IUnityGraphicsD3D9>();
+	#endif
+	#if defined(ENABLE_GNM)
+		case kUnityGfxRendererPS4:		return GetDeviceContext<IUnityGraphicsPS4>();
+	#endif		
+	
+		default:
+			return nullptr;
+	}
+}
+
+void* Unity::GetPlatformDeviceContext()
+{
+	auto Device = Unity::GraphicsDevice;
+	if ( !Device )
+		throw Soy::AssertException("missing graphics device");
+	auto DeviceType = static_cast<UnityDevice::Type>( Unity::GraphicsDevice->GetRenderer() );
+	return GetPlatformDeviceContext( DeviceType );
+}
+
 void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType)
 {
 	try
@@ -711,22 +824,8 @@ void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType
 			return;
 		}
 
-		void* DeviceContext = nullptr;
 		auto DeviceType = static_cast<UnityDevice::Type>( Unity::GraphicsDevice->GetRenderer() );
-
-		switch ( DeviceType )
-		{
-	#if defined(ENABLE_DIRECTX)
-			case kUnityGfxRendererD3D9:		DeviceContext = GetDeviceContext<IUnityGraphicsD3D9>();	break;
-			case kUnityGfxRendererD3D11:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D11>();	break;
-			case kUnityGfxRendererD3D12:	DeviceContext = GetDeviceContext<IUnityGraphicsD3D12>();	break;
-	#endif
-	#if defined(ENABLE_GNM)
-			case kUnityGfxRendererPS4:		DeviceContext = GetDeviceContext<IUnityGraphicsPS4>();	break;
-	#endif		
-			default:
-				break;
-		}
+		void* DeviceContext = Unity::GetPlatformDeviceContext(DeviceType);
 
 		UnitySetGraphicsDevice( DeviceContext, DeviceType, eventType );
 	#else

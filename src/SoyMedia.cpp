@@ -518,6 +518,12 @@ bool TMediaExtractor::Iteration()
 	return true;
 }
 
+bool TMediaExtractor::CanSleep()	
+{
+	//	gr: to go with the null-packet
+	return false;	
+}
+
 
 void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 {
@@ -529,7 +535,11 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 			
 			//	no packet, error? try again
 			if ( !NextPacket )
-				continue;
+			{
+				//	gr: changed this to return to let the thread sleep & wake
+				//		changed MediaExtractor at the same time to not-sleep in worker to maintain same functionality
+				return;
+			}
 			
 			//	if we successfully read a packet, clear the last error
 			OnClearError();
@@ -646,7 +656,10 @@ bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyfr
 	//	skip non-keyframes
 	if ( !IsKeyframe && mParams.mOnlyExtractKeyframes )
 		return false;
-	
+
+	if ( !mParams.mAllowPushRejection )
+		return true;
+
 	if ( Time >= mSeekTime )
 		return true;
 	
@@ -662,7 +675,9 @@ bool TMediaExtractor::CanPushPacket(SoyTime Time,size_t StreamIndex,bool IsKeyfr
 
 void TMediaExtractor::OnSkippedExtractedPacket(const SoyTime& Timecode)
 {
-	std::Debug << "Extractor skipped frame " << Timecode << " (vs " << mSeekTime << ") in the past (non-keyframe)" << std::endl;
+	//	gr: change to debug_render_Frames
+	if ( mParams.mVerboseDebug )
+		std::Debug << "Extractor skipped frame " << Timecode << " (vs " << mSeekTime << ") in the past (non-keyframe)" << std::endl;
 }
 
 void TMediaExtractor::OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)
@@ -1909,7 +1924,7 @@ template<typename NEWTYPE,typename OLDTYPE>
 inline FixedRemoteArray<NEWTYPE> CastArray(const ArrayBridge<OLDTYPE>&& Array)
 {
 	auto OldDataSize = Array.GetDataSize();
-	auto OldElementSize = Array.GetElementSize();
+	//auto OldElementSize = Array.GetElementSize();
 	auto NewElementSize = sizeof(NEWTYPE);
 	
 	auto NewElementCount = OldDataSize / NewElementSize;

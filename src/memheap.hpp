@@ -604,6 +604,42 @@ public:
 		return RealFree( pObject, Elements );
 	}
 
+protected:
+	virtual void*	RealAllocImpl(size_t Size)
+	{
+	#if defined(WINHEAP_ALLOC)
+		return HeapAlloc( mHandle, 0x0, Size );
+	#elif defined(ZONE_ALLOC)
+		return malloc_zone_malloc( mHandle, Size );
+	#elif defined(STD_ALLOC)
+		return mAllocator.allocate( Size );
+	#endif
+	}
+	virtual bool	CanFreeImpl(void* Object,size_t Size)
+	{
+	#if defined(ZONE_ALLOC)
+		//	gr: avoid abort. find out if this is expensive
+		if ( malloc_zone_from_ptr(pObject) != mHandle )
+			return false;
+	#endif
+		return true;
+	}
+
+	virtual bool	RealFreeImpl(void* Object,size_t Size)
+	{
+	#if defined(WINHEAP_ALLOC)
+		//	no need to specify length, mem manager already knows the real size of pObject
+		if ( !HeapFree( mHandle, 0, Object ) )
+			return false;
+	#elif defined(ZONE_ALLOC)
+		malloc_zone_free( mHandle, Object );
+	#elif defined(STD_ALLOC)
+		mAllocator.deallocate( reinterpret_cast<char*>(Object), Size );
+	#endif
+
+		return true;
+	}
+
 private:
 	template<typename TYPE>
 	inline TYPE*	RealAlloc(const size_t Elements)
@@ -611,13 +647,7 @@ private:
 		if ( !Private_IsValid() )
 			throw std::bad_alloc_withmessage("Allocating on uninitialised heap");
 
-#if defined(WINHEAP_ALLOC)
-		TYPE* pData = static_cast<TYPE*>( HeapAlloc( mHandle, 0x0, Elements*sizeof(TYPE) ) );
-#elif defined(ZONE_ALLOC)
-		TYPE* pData = reinterpret_cast<TYPE*>( malloc_zone_malloc( mHandle, Elements*sizeof(TYPE) ) );
-#elif defined(STD_ALLOC)
-		TYPE* pData = reinterpret_cast<TYPE*>( mAllocator.allocate( Elements*sizeof(TYPE) ) );
-#endif
+		TYPE* pData = static_cast<TYPE*>( RealAllocImpl( Elements*sizeof(TYPE) ) );
 		if ( !pData )
 		{
 			//	if we fail, do a heap validation, this will reveal corruption, rather than OOM
@@ -641,11 +671,9 @@ private:
 		if ( !Private_IsValid() )
 			return false;
 
-#if defined(ZONE_ALLOC)
-		//	gr: avoid abort. find out if this is expensive
-		if ( malloc_zone_from_ptr(pObject) != mHandle )
+		if ( !CanFreeImpl( pObject, Elements*sizeof(TYPE) ) )
 			return false;
-#endif
+
 		return true;
 	}
 
@@ -656,15 +684,8 @@ private:
 		if ( !CanFree( pObject, Elements ) )
 			return false;
 
-#if defined(WINHEAP_ALLOC)
-		//	no need to specify length, mem manager already knows the real size of pObject
-		if ( !HeapFree( mHandle, 0, pObject ) )
+		if ( !RealFreeImpl( pObject, Elements*sizeof(TYPE) ) )
 			return false;
-#elif defined(ZONE_ALLOC)
-		malloc_zone_free( mHandle, pObject );
-#elif defined(STD_ALLOC)
-		mAllocator.deallocate( reinterpret_cast<char*>(pObject), Elements );
-#endif
 
 		if ( mHeapDebug )
 			mHeapDebug->OnFree( pObject );
