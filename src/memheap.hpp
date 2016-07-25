@@ -619,7 +619,7 @@ protected:
 	{
 	#if defined(ZONE_ALLOC)
 		//	gr: avoid abort. find out if this is expensive
-		if ( malloc_zone_from_ptr(pObject) != mHandle )
+		if ( malloc_zone_from_ptr(Object) != mHandle )
 			return false;
 	#endif
 		return true;
