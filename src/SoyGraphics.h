@@ -15,7 +15,7 @@ namespace SoyGraphics
 		enum Type
 		{
 			Invalid,
-			Int,
+			Int32,
 			Float,
 			Float2,
 			Float3,
@@ -23,6 +23,8 @@ namespace SoyGraphics
 			Float3x3,
 			Texture2D,
 		};
+
+		size_t		GetDataSize(Type t);
 	}
 }
 
@@ -34,7 +36,6 @@ class SoyGraphics::TUniform
 {
 public:
 	TUniform() :
-		mElementDataSize	( 0 ),
 		mNormalised			( false ),
 		mType				( TElementType::Invalid ),
 		mArraySize			( 0 ),
@@ -44,14 +45,19 @@ public:
 
 	template<typename TYPE>
 	void				SetType()	{	throw Soy::AssertException( std::string("Unhandled vertex uniform type ") + Soy::GetTypeName<TYPE>() );	}
+	template<typename TYPE>
+	void				SetType(const TYPE& t)	{	SetType<TYPE>();	}
 
 	bool				IsValid() const	{	return mType != TElementType::Invalid;	}
+
+	size_t				GetElementDataSize() const			{	return TElementType::GetDataSize(mType);	}
+	size_t				GetDataSize() const					{	return GetElementDataSize() * GetArraySize();	}
+	size_t				GetArraySize() const				{	return std::max<size_t>( 1, mArraySize );	}
 
 	bool				operator==(const char* Name) const	{	return mName == Name;	}
 
 public:
 	std::string			mName;
-	size_t				mElementDataSize;
 	bool				mNormalised;
 	TElementType::Type	mType;
 	size_t				mArraySize;	//	for arrays of mType
@@ -65,6 +71,15 @@ namespace SoyGraphics
 
 template<>
 inline void SoyGraphics::TUniform::SetType<float>()	{	mType = TElementType::Float;	}
+
+template<>
+inline void SoyGraphics::TUniform::SetType<vec2f>()	{	mType = TElementType::Float2;	}
+
+template<>
+inline void SoyGraphics::TUniform::SetType<vec3f>()	{	mType = TElementType::Float3;	}
+
+template<>
+inline void SoyGraphics::TUniform::SetType<vec4f>()	{	mType = TElementType::Float4;	}
 
 
 class SoyGraphics::TGeometryVertex

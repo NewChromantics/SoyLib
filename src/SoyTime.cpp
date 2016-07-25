@@ -9,7 +9,7 @@ namespace std
 {
 	long long	stoll(const std::string& IntegerStr)
 	{
-		throw Soy::AssertException("todo std::stoll for android");
+		Soy_AssertTodo();
 	}
 }
 #endif

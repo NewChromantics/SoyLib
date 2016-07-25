@@ -37,7 +37,19 @@ namespace Directx
 	class TTexture;
 }
 
+namespace Directx9
+{
+	class TContext;
+	class TTexture;
+}
+
 namespace Metal
+{
+	class TContext;
+	class TTexture;
+}
+
+namespace Gnm
 {
 	class TContext;
 	class TTexture;
@@ -201,7 +213,9 @@ public:
 	//virtual void		Lock(ArrayBridge<Opencl::TTexture>&& Textures)=0;
 	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform)=0;
 	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform)=0;
+	virtual void		Lock(ArrayBridge<Directx9::TTexture>&& Textures,Directx9::TContext& Context,float3x3& Transform)	{}	//	gr: too much fuss making this pure
 	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform)=0;
+	virtual void		Lock(ArrayBridge<Gnm::TTexture>&& Textures,Gnm::TContext& Context,float3x3& Transform)	{}		//	gr: too much fuss making this pure
 	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform)=0;
 	virtual void		Unlock()=0;
 
@@ -608,6 +622,7 @@ public:
 		mAudioSampleRate				( 0 ),
 		mAudioChannelCount				( 0 ),
 		mApplyHeightPadding				( true ),
+		mApplyWidthPadding				( true ),
 		mWindowIncludeBorders			( true ),
 		mLiveUseClockTime				( false ),
 		mWin7Emulation					( false ),
@@ -616,8 +631,15 @@ public:
 		mExtractDepthStreams			( true ),
 		mExtractSkeletonStreams			( false ),
 		mExtractVideoStreams			( true ),
+		mExtractAlpha					( true ),
 		mSplitAudioChannelsIntoStreams	( false ),
-		mAllowDecodeInPixelBuffer		( false )
+		mDecoderUseHardwareBuffer		( true ),
+		mSplitVideoPlanesIntoStreams	( false ),
+		mAllowPushRejection				( true ),
+		mEnableDecoderThreading			( true ),
+		mPeekBeforeDefferedCopy			( true ),
+		mCopyBuffersInExtraction		( false ),
+		mExtractorPreDecodeSkip			( false )
 	{
 	}
 	
@@ -635,18 +657,18 @@ public:
 	bool						mExtractVideoStreams;
 	bool						mExtractDepthStreams;		//	for kinect
 	bool						mExtractSkeletonStreams;	//	for kinect
+	bool						mExtractAlpha;				//	for bink
 	bool						mOnlyExtractKeyframes;
 	bool						mResetInternalTimestamp;
 	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
+	bool						mApplyWidthPadding;			//	for windows where we need height padding sometimes, can turn off with this
 	bool						mWindowIncludeBorders;
 	bool						mWin7Emulation;				//	for mediafoundation, expose some bugs
-	bool						mAllowDecodeInPixelBuffer;	//	bink; pre-decode pixels, or decode at pixelbuffer::lock
 
 	bool						mSplitAudioChannelsIntoStreams;	//	if we're splitting audio streams, some extractors need to not reduce to output
 
 	//	some extractors have some decoder-themed params
 	bool						mDiscardOldFrames;
-	bool						mForceNonPlanarOutput;		//	for some extractors which have pixelly settings
 	
 	//	for gifs
 	bool						mDebugIntraFrameRect;
@@ -657,6 +679,18 @@ public:
 	bool						mLiveUseClockTime;		
 
 	bool						mVerboseDebug;				//	print lots of debug, or only serious stuff
+	bool						mDecoderUseHardwareBuffer;
+	
+	//	make these work together, maybe remove the merge totally (though still useful to debug shaders)
+	bool						mSplitVideoPlanesIntoStreams;	
+	bool						mForceNonPlanarOutput;		//	for some extractors which have pixelly settings
+
+	bool						mAllowPushRejection;		//	push skip
+	bool						mEnableDecoderThreading;	//	for bink; enable threaded decoding
+	bool						mCopyBuffersInExtraction;
+	bool						mExtractorPreDecodeSkip;
+
+	bool						mPeekBeforeDefferedCopy;	//	gr: copied only for warning output for bink
 };
 
 
@@ -707,6 +741,7 @@ protected:
 	
 	//virtual void					ResetTo(SoyTime Time);			//	for when we seek backwards, assume a stream needs resetting
 	void							ReadPacketsUntil(SoyTime Time,std::function<bool()> While);
+	virtual bool					CanSleep() override;
 	SoyTime							GetSeekTime() const			{	return mSeekTime;	}
 	SoyTime							GetExtractTime() const		{	return mSeekTime + mExtractAheadMs;	}
 	

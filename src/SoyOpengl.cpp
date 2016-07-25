@@ -20,7 +20,7 @@ namespace SoyGraphics
 
 namespace Opengl
 {
-	GLenum				GetType(SoyGraphics::TElementType::Type Type);
+	std::pair<GLenum,GLint>	GetType(SoyGraphics::TElementType::Type Type);
 }
 
 
@@ -232,7 +232,7 @@ SoyGraphics::TElementType::Type SoyGraphics::GetType(GLenum Type)
 	switch ( Type )
 	{
 		case GL_INVALID_ENUM:	return SoyGraphics::TElementType::Invalid;
-		case GL_INT:			return SoyGraphics::TElementType::Int;
+		case GL_INT:			return SoyGraphics::TElementType::Int32;
 		case GL_FLOAT:			return SoyGraphics::TElementType::Float;
 		case GL_FLOAT_VEC2:		return SoyGraphics::TElementType::Float2;
 		case GL_FLOAT_VEC3:		return SoyGraphics::TElementType::Float3;
@@ -252,18 +252,24 @@ SoyGraphics::TElementType::Type SoyGraphics::GetType(GLenum Type)
 	throw Soy::AssertException( std::string("Unknown Glenum->SoyGraphics::TElementType::Type conversion for ") + Opengl::GetEnumString(Type) );
 }
 
-GLenum Opengl::GetType(SoyGraphics::TElementType::Type Type)
+std::pair<GLenum,GLint> Opengl::GetType(SoyGraphics::TElementType::Type Type)
 {
 	switch ( Type )
 	{
-		case SoyGraphics::TElementType::Invalid:	return GL_INVALID_ENUM;
-		case SoyGraphics::TElementType::Int:		return GL_INT;
-		case SoyGraphics::TElementType::Float:		return GL_FLOAT;
-		case SoyGraphics::TElementType::Float2:		return GL_FLOAT_VEC2;
-		case SoyGraphics::TElementType::Float3:		return GL_FLOAT_VEC3;
-		case SoyGraphics::TElementType::Float4:		return GL_FLOAT_VEC4;
-		case SoyGraphics::TElementType::Float3x3:	return GL_FLOAT_MAT3;
-		case SoyGraphics::TElementType::Texture2D:	return GL_SAMPLER_2D;
+		case SoyGraphics::TElementType::Invalid:	return std::make_pair( GL_INVALID_ENUM, 0 );
+		case SoyGraphics::TElementType::Int32:		return std::make_pair( GL_INT, 1 );
+		case SoyGraphics::TElementType::Float:		return std::make_pair( GL_FLOAT, 1 );
+		case SoyGraphics::TElementType::Float2:		return std::make_pair( GL_FLOAT, 2 );
+		case SoyGraphics::TElementType::Float3:		return std::make_pair( GL_FLOAT, 3 );
+		case SoyGraphics::TElementType::Float4:		return std::make_pair( GL_FLOAT, 4 );
+
+		//	see here on how to handle matrixes
+		//	calling code needs to change
+		//	https://www.opengl.org/discussion_boards/showthread.php/164099-how-to-specify-a-matrix-vertex-attribute
+		case SoyGraphics::TElementType::Float3x3:	
+			throw Soy::AssertException("Not currently handling matrixes in vertex attribs");
+
+		case SoyGraphics::TElementType::Texture2D:	return std::make_pair( GL_SAMPLER_2D, 1 );
 	}
 
 	throw Soy::AssertException( std::string("Unknown SoyGraphics::TElementType::Type->Glenum conversion for ") );
@@ -1927,7 +1933,14 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 
 		//std::Debug << "Pushing attrib " << AttribIndex << ", arraysize " << Element.mArraySize << ", stride " << Stride << std::endl;
 		glEnableVertexAttribArray( AttribIndex );
-		glVertexAttribPointer( AttribIndex, Element.mArraySize, GetType(Element.mType), Normalised, Stride, ElementPointer );
+		Opengl_IsOkay();
+
+		//	https://www.opengl.org/sdk/docs/man/html/glVertexAttribPointer.xhtml
+		//	must be 1,2,3 or 4
+		auto ArraySize = size_cast<GLint>( Element.GetArraySize() );
+		auto Type = GetType( Element.mType );
+
+		glVertexAttribPointer( AttribIndex, ArraySize * Type.second, Type.first, Normalised, Stride, ElementPointer );
 		Opengl_IsOkay();
 	}
 	
@@ -2088,6 +2101,8 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::Luma_Smptec,	Opengl8BitFormats ),
 		TPixelFormatMapping( SoyPixelsFormat::Greyscale,	Opengl8BitFormats ),
 		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_8_8,	Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::ChromaU_8,	Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::ChromaV_8,	Opengl8BitFormats ),
 
 		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_88,			Opengl16BitFormats ),
 		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha,		Opengl16BitFormats ),
