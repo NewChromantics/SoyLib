@@ -69,6 +69,8 @@ size_t SoyGraphics::TElementType::GetDataSize(Type t)
 		case Float3:		return sizeof(vec3f);
 		case Float4:		return sizeof(vec4f);
 		case Float3x3:		return sizeof(float3x3);
+
+		default:break;
 	}
 
 	std::stringstream Error;
