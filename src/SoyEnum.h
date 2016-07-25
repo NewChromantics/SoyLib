@@ -39,7 +39,8 @@ std::map<TDeviceType::Type,std::string> TDeviceType::EnumMap =
 #define DECLARE_SOYENUM(Namespace)	\
 	extern std::map<Namespace::Type,std::string> EnumMap;	\
 	inline Type						ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap, Invalid );	}	\
-	inline std::string				ToString(Type type)			{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
+	inline const std::string&		ToString(Type type)			{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
+	inline const char*				ToCString(Type type)		{	return ToString( type ).c_str();	}	\
 	template<typename T>inline bool	IsValid(T type)				{	return SoyEnum::Validate<Type>( type, EnumMap, Invalid ) != Invalid;	}	\
 	template<typename T>inline Type	Validate(T type)			{	return SoyEnum::Validate<Type>( static_cast<Type>(type), EnumMap, Invalid );	}	\
 	template<>inline Type			Validate(Type type)			{	return SoyEnum::Validate<Type>( type, EnumMap, Invalid );	}	\
@@ -49,28 +50,28 @@ std::map<TDeviceType::Type,std::string> TDeviceType::EnumMap =
 
 #define DECLARE_SOYENUM_WITHINVALID(Namespace,INVALID)	\
 	extern std::map<Namespace::Type,std::string> EnumMap;	\
-	inline Type			ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap, INVALID );	}	\
-	inline std::string	ToString(Type type)					{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
-	inline bool			IsValid(Type type)					{	return SoyEnum::Validate<Type>( type, EnumMap, INVALID ) != INVALID;	}	\
-	inline Type			Validate(Type type)					{	return SoyEnum::Validate<Type>( type, EnumMap, INVALID );	}	\
+	inline Type					ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap, INVALID );	}	\
+	inline const std::string&	ToString(Type type)					{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
+	inline bool					IsValid(Type type)					{	return SoyEnum::Validate<Type>( type, EnumMap, INVALID ) != INVALID;	}	\
+	inline Type					Validate(Type type)					{	return SoyEnum::Validate<Type>( type, EnumMap, INVALID );	}	\
 \
 
 
 namespace SoyEnum
 {
 	template<typename ENUMTYPE,class ENUMMAP>
-	std::string	ToString(ENUMTYPE Type,const ENUMMAP& EnumMap);
+	const std::string&	ToString(ENUMTYPE Type,const ENUMMAP& EnumMap);
 	
 	template<typename ENUMTYPE,class ENUMMAP>
-	ENUMTYPE	ToType(const std::string& String,const ENUMMAP& EnumMap,ENUMTYPE Default);
+	ENUMTYPE			ToType(const std::string& String,const ENUMMAP& EnumMap,ENUMTYPE Default);
 	
 	template<typename ENUMTYPE,class ENUMMAP>
-	ENUMTYPE	Validate(ENUMTYPE Type,const ENUMMAP& EnumMap,ENUMTYPE InvalidReturn);
+	ENUMTYPE			Validate(ENUMTYPE Type,const ENUMMAP& EnumMap,ENUMTYPE InvalidReturn);
 	
 }
 
 template<typename ENUMTYPE,class ENUMMAP>
-inline std::string SoyEnum::ToString(ENUMTYPE Type,const ENUMMAP& EnumMap)
+inline const std::string& SoyEnum::ToString(ENUMTYPE Type,const ENUMMAP& EnumMap)
 {
 	//	stop bad cases being created in the map
 	auto it = EnumMap.find( Type );
