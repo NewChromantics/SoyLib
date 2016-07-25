@@ -5,7 +5,6 @@
 #include "SoyUniform.h"
 #include <functional>
 
-#include "SoyOpengl.h"	//	re-using opengl's vertex description atm
 #include "SoyMediaFormat.h"
 
 

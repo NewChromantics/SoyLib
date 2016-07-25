@@ -65,7 +65,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\src\SoyDirectxCompiler.cpp" />
+    <ClCompile Include="..\src\SoyDirectxCompiler.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|ORBIS'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_Win7|ORBIS'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\src\SoyEvent.cpp" />
     <ClCompile Include="..\src\SoyFilesystem.cpp" />
     <ClCompile Include="..\src\SoyGnm.cpp">

@@ -1,7 +1,7 @@
 #include "SoyTime.h"
 #include <regex>
 #include <sstream>
-#include <SoyString.h>
+#include "SoyString.h"
 
 
 //	gr: solve this properly and move to somewhere in SoyTypes
