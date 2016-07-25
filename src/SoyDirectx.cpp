@@ -22,6 +22,26 @@ std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap
 };
 
 
+//	skip std::string alloc, move to platform!
+bool Directx::IsOkay(HRESULT Error,const char* Context,bool ThrowException)			
+{
+	if ( Error == S_OK )
+		return true;
+
+	return Platform::IsOkay( Error, Context, ThrowException );
+}
+
+//	skip lots of string stuff, move to platform!
+bool Directx::IsOkay(HRESULT Error,const std::function<void(std::stringstream&)>& Context,bool ThrowException)
+{
+	if ( Error == S_OK )
+		return true;
+	
+	std::stringstream ContextStr;
+	Context( ContextStr );
+	return IsOkay( Error, ContextStr.str(), ThrowException );
+}
+
 
 
 
@@ -478,9 +498,11 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 			D3D11_MAP MapMode = D3D11_MAP_WRITE_DISCARD;
 			HRESULT hr = Context.Map(mTexture, SubResource, MapMode, MapFlags, nullptr );
 
-			std::stringstream ErrorString;
-			ErrorString << "Failed to get Map() for immediate/usage_default dynamic texture(" << SrcDesc.Width << "," << SrcDesc.Height << ")";
-			Directx::IsOkay(hr, ErrorString.str());
+			auto ErrorContext = [&](std::stringstream& Context)
+			{
+				Context << "Failed to get Map() for immediate/usage_default dynamic texture(" << SrcDesc.Width << "," << SrcDesc.Height << ")";
+			};
+			Directx::IsOkay(hr, ErrorContext);
 
 			Context.Unmap(nullptr, SubResource);
 			throw Soy::AssertException("Cannot map non read/write(D3D11_USAGE_DEFAULT) texture");
@@ -528,9 +550,11 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 
 			//	check for other error
 			{
-				std::stringstream ErrorString;
-				ErrorString << "Failed to get Map() for dynamic texture(" << SrcDesc.Width << "," << SrcDesc.Height << ")";
-				Directx::IsOkay(hr, ErrorString.str());
+				auto Context = [&](std::stringstream& Context)
+				{
+					Context << "Failed to get Map() for dynamic texture(" << SrcDesc.Width << "," << SrcDesc.Height << ")";
+				};
+				Directx::IsOkay( hr, Context );
 			}
 
 			//	depth pitch is one slice, so contains the resource's full data. 
