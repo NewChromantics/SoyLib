@@ -147,7 +147,7 @@ namespace Soy
 	}
 };
 
-#define Soy_AssertTodo()	throw Soy::AssertException( Soy::StreamToString(std::stringstream()<<"todo: "<<__func__) )
+#define Soy_AssertTodo()	throw Soy::AssertException( std::string("todo: ").append(__func__) )
 
 
 
