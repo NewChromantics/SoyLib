@@ -22,7 +22,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>libBink2Orbis.a;SoyLib.a;libScePosix_stub_weak.a;libSceNet_stub_weak.a;libSceNetCtl_stub_weak.a;libSceNetDebug_stub_weak.a;-lSceGnmDriver_stub_weak;-lScePm4Dump;-lSceGnf;-lSceShaderBinary;-lSceGpuAddress;-lSceGnmx;-lSceGnm;-lScePosix_stub_weak;-lScePad_stub_weak</AdditionalDependencies>
+      <AdditionalDependencies>SoyLib.a;libScePosix_stub_weak.a;libSceNet_stub_weak.a;libSceNetCtl_stub_weak.a;libSceNetDebug_stub_weak.a;-lSceGnmDriver_stub_weak;-lScePm4Dump;-lSceGnf;-lSceShaderBinary;-lSceGpuAddress;-lSceGnmx;-lSceGnm;-lScePosix_stub_weak;-lScePad_stub_weak</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
