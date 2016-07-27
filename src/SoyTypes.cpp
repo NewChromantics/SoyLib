@@ -24,6 +24,16 @@
 #endif
 
 
+#if defined(TARGET_PS4)
+Soy::TVersion Platform::GetSdkVersion()
+{
+	//#define SCE_ORBIS_SDK_VERSION (0x03508051u)
+	auto Major = SCE_ORBIS_SDK_VERSION >> 24;
+	auto Minor = SCE_ORBIS_SDK_VERSION & 0x00ffffff;
+	return Soy::TVersion( Major, Minor );
+}
+#endif
+
 
 
 bool Platform::Init()
