@@ -92,7 +92,7 @@ public:
 	void			SetNanoSeconds(uint64 NanoSecs)			{	mTime = NanoSecs / 1000000;	}
 	void			SetMicroSeconds(uint64 MicroSecs)		{	mTime = MicroSecs / 1000;	}
 	uint64			GetMicroSeconds() const					{	return mTime * 1000;	}
-	uint64			GetMilliSeconds() const					{	return mTime;	}
+	std::chrono::milliseconds	GetMilliSeconds() const		{	return std::chrono::milliseconds(mTime);	}
 	float			GetSecondsf() const						{	return mTime / 1000.f;	}
 
 	inline bool		operator==(const SoyTime& Time) const	{	return mTime == Time.mTime;	}
