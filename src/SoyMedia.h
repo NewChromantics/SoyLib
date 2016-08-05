@@ -174,7 +174,7 @@ public:
 	bool				mDrmProtected;
 	size_t				mMaxKeyframeSpacing;	//	gr: not sure of entropy yet
 	size_t				mAverageBitRate;		//	gr: not sure of entropy yet
-	float3x3			mTransform;
+	float3x3			mTransform;				//	gr: is this used, or always referenced in pixel buffer now?
 	vec2f				mFov;					//	for cameras, or if we can extract from exif, or say for 360 video
 
 	//	audio
@@ -289,6 +289,33 @@ public:
 
 public:
 	SoyPixels		mPixels;
+	float3x3		mTransform;
+};
+
+class TDumbSharedPixelBuffer : public TPixelBuffer
+{
+public:
+	TDumbSharedPixelBuffer(std::shared_ptr<SoyPixelsImpl>& Pixels,const float3x3& Transform) :
+		mPixels	( Pixels )
+	{
+		Soy::Assert( mPixels!=nullptr, "TDumbSharedPixelBuffer: Expected pixel buffer");
+	}
+
+	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override	{}
+	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform) override	{}
+	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform) override	{}
+	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform) override
+	{
+		Transform = mTransform;
+		Textures.PushBack( mPixels.get() );
+	}
+
+	virtual void	Unlock() override
+	{
+	}
+
+public:
+	std::shared_ptr<SoyPixelsImpl>	mPixels;
 	float3x3		mTransform;
 };
 
@@ -699,7 +726,7 @@ public:
 class TMediaExtractor : public SoyWorkerThread
 {
 public:
-	TMediaExtractor(const TMediaExtractorParams& Params);
+	TMediaExtractor(const TMediaExtractorParams& Params,size_t RunAtFrameRate=0);
 	~TMediaExtractor();
 	
 	void							Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames);				//	keep calling this, controls the packet read-ahead
