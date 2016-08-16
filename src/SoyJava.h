@@ -590,6 +590,7 @@ public:
 	//	gr: change this to a file handle factory and let SetDataSource run off that
 	void			SetDataSourceAssets(const std::string& Path);
 	void			SetDataSourceJar(const std::string& Path);
+	void			SetDataSourceSdCard(const std::string& Path);
 	void			SetDataSourcePath(const std::string& Path);
 	void			SetDataSourceAssetFileDescriptor(TJniObject& AssetFileDescriptor,bool CloseOnFinish=true);
 

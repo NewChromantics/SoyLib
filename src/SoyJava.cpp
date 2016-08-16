@@ -1860,6 +1860,16 @@ void JniMediaExtractor::SetDataSourceAssetFileDescriptor(TJniObject& AssetFileDe
 }
 
 
+void JniMediaExtractor::SetDataSourceSdCard(const std::string& OrigPath)
+{
+	auto SdCardPath = Platform::GetSdCardDirectory();
+	std::stringstream Path;
+	Path << SdCardPath << "/" << OrigPath;
+	std::Debug << "SetDataSourceSdCard(" << OrigPath << ") -> " << Path.str() << std::endl;
+	SetDataSourcePath( Path.str() );
+}
+
+
 void JniMediaExtractor::SetDataSourcePath(const std::string& Path)
 {
 	//	gr: this is unreliable;
