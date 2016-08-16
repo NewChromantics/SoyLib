@@ -52,10 +52,7 @@ public:
 	
 	~TJsonWriter()
 	{
-		if ( mOpen )
-		{
-			throw Soy::AssertException("Json was not closed");
-		}
+		Close();
 	}
 
 	void		Open();

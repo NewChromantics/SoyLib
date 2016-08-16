@@ -33,3 +33,15 @@
 #endif
 
 #define TARGET_POSIX
+
+namespace Soy
+{
+	class TVersion;
+}
+
+namespace Platform
+{
+	Soy::TVersion	GetSdkVersion();
+}
+
+

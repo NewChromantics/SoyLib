@@ -406,8 +406,8 @@ bool TMediaPacketBuffer::PrePushBuffer(SoyTime Timestamp)
 
 
 
-TMediaExtractor::TMediaExtractor(const TMediaExtractorParams& Params) :
-	SoyWorkerThread			( Params.mThreadName, SoyWorkerWaitMode::Wake ),
+TMediaExtractor::TMediaExtractor(const TMediaExtractorParams& Params,size_t RunAtFrameRate) :
+	SoyWorkerThread			( Params.mThreadName, (RunAtFrameRate!=0) ? SoyWorkerWaitMode::Sleep : SoyWorkerWaitMode::Wake ),
 	mExtractAheadMs			( Params.mReadAheadMs ),
 	mOnPacketExtracted		( Params.mOnFrameExtracted ),
 	mParams					( Params )

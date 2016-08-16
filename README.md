@@ -1,35 +1,23 @@
-ofxSoylent
+SoyLib
 ==========
+Soylib is all my common & open source c++ code.
 
-My "little things" lib. Formerly to go with openframeworks, but not any more. Designed to be cross platform for ios, mac and windows, using as much stl c++11 code as possible for simplification.
+- Much of it is being culled in place of c++11 improvements. All the old thread stuff is gone, the strings etc
+- There are a few files which are redundant now and need deleting
+- Opengl, directx, metal, opencl and other GPU/device style work run on a rough job system for very simple interfaces.
+- My JNI java implementation I discovered is INCREDIBLY similar to another JNI implementation (I forget which, I think it's used in chromium) and could do with removing.
+- The array system was very good for it's initial fast, concurrency and explicit management usage (game engines), and fast usage(explicit complex & non complex types) but these days probably a bit redundant for modern work. It was useful in 2009 :)
 
-Trying to clean up this code to remove dependencies so often only a few files need to be included rather than the whole lib.
 
-Noteable code
+Noteable work
 ==========
-The Soy::Assert's should be particularly useful as they provide dynamic assert messages but with zero overhead when calling Soy::Assert (the callbacks, or lambda's are only instintiated or called IF the condition is not met)
-
-SoyOpencl
-==========
-Multi-threaded/context, safe, auto-reloading opencl implementation. Much of the MSAOpencl code is now obsolete and has been pretty much wholly replaced. (SoyOpencl is high level, MSAOpencl is low level)
-This could do with refactoring to seperate the content (.cl concatonation, includes, reloading) from the SoyRunners, which themselves might be better implemented with a generic system for mapping params, uniforms etc which can work with metal, opengl multi-threaded shaders, vulkan as they all execute in similar ways.
-
-Heaps
-==========
-Multiple heap implementation on windows was AMAZING for concurrency, memory management, memory monitoring for different threads/uses. 
-I want to expand this type for Shared memory (instead of shared memory as an array), heaps on buffers (so nested heaps could be possible)
+- The protocol system is VERY useful, flexible, and allows quick interchange of formats (and nested protocols). It also, in conjunction with the SoyBuffers can read & write protocols with streams, so files, pipes etc don't have to be finished in order to read chunks of data.
+- Job system for opengl, directx*, metal, opencl works very well for concurrency
+- heap implementations, although not the best, allow very good concurrency
+- opengl, directx etc implementations are very RAII
+- Socket wrapper is designed for explicit client/server use
 
 
-Code debt
-==========
-Note: a lot of these are out of date, or have been replaced with content from my private PopLib (which will be moved over at some point)
+There is no documentation other than the source. This is mostly for me, but any questions, just message/tweet. 
 
-Out of date:
-Sockets - replaced in poplib with socket channel and cross-platform SOCKET implementation
-Packet - replaced with SoyData encapsulation
-XML - needs a faster implementation for large XML
-Json - Finish SoyJson for a faster implementation
-Commandline args - repalced with pop lib "CLI" protocol
-Shape/math code - replaced with mathfu
-String.hpp - replaced with using std::string and various helper functions in SoyString. Still need a good non-allocated buffer string (one based on ArrayBridge)
-SoyRef - still used, but would be better in a more specific 64bit format
+(@SoylentGraham)[http://twitter.com/soylentgraham/]
