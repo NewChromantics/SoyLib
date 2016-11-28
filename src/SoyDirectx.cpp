@@ -849,19 +849,26 @@ Directx::TShaderState::TShaderState(const Directx::TShader& Shader) :
 
 Directx::TShaderState::~TShaderState()
 {
-	Soy::Assert( mBaked, "ShaderState was never baked before being destroyed. Code maybe missing a .Bake() (needed for directx)");
-	/*
-	//	unbind textures
-	TTexture NullTexture;
-	while ( mTextureBindCount > 0 )
+	try
 	{
-		BindTexture( mTextureBindCount-1, NullTexture );
-		mTextureBindCount--;
-	}
-	*/
+		Soy::Assert( mBaked, "ShaderState was never baked before being destroyed. Code maybe missing a .Bake() (needed for directx)");
+		/*
+		//	unbind textures
+		TTexture NullTexture;
+		while ( mTextureBindCount > 0 )
+		{
+			BindTexture( mTextureBindCount-1, NullTexture );
+			mTextureBindCount--;
+		}
+		*/
 	
-	//	opengl unbinds here rather than in TShader
-	const_cast<TShader&>(mShader).Unbind();
+		//	opengl unbinds here rather than in TShader
+		const_cast<TShader&>(mShader).Unbind();
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "caught exception in " << __func__ << " " << e.what() << std::endl;
+	}
 }
 
 
