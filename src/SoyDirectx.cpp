@@ -398,6 +398,12 @@ Directx::TTexture::TTexture(ID3D11Texture2D* Texture) :
 	mMeta = SoyPixelsMeta( SrcDesc.Width, SrcDesc.Height, GetPixelFormat( SrcDesc.Format ) );
 	mFormat = SrcDesc.Format;
 
+	//	gr: add pixel format for this
+	if ( mFormat == DXGI_FORMAT_R32G32B32A32_TYPELESS )
+	{
+		std::Debug << "Warning, DX texture DXGI_FORMAT_R32G32B32A32_TYPELESS (in unity; ARGB float) currently unsupported" << std::endl;
+	}
+
 	//	todo: copy sample params from Description
 }
 
