@@ -168,7 +168,7 @@ SoyPathType::Type GetPathType(WIN32_FIND_DATA& FindData)
 #endif
 
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS) && !defined(HOLOLENS_SUPPORT)
 bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DATA&)> OnItemFound)
 {
 	WIN32_FIND_DATA FindData;
@@ -215,6 +215,13 @@ bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DA
 #endif
 
 
+
+#if defined(TARGET_WINDOWS) && defined(HOLOLENS_SUPPORT)
+bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DATA&)> OnItemFound)
+{
+	return false;
+}
+#endif
 
 #if defined(TARGET_WINDOWS)
 bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
@@ -429,6 +436,9 @@ void Platform::CreateDirectory(const std::string& Path)
 #if defined(TARGET_WINDOWS)
 bool Platform::ShowFileExplorer(const std::string& Path)
 {
+#if defined(HOLOLENS_SUPPORT)
+	return false;
+#else
 	auto PathList = ILCreateFromPath( Path.c_str() );
 	if ( !PathList )
 		return false;
@@ -437,6 +447,7 @@ bool Platform::ShowFileExplorer(const std::string& Path)
 	bool ReturnResult = Platform::IsOkay( Result, "SHOpenFolderAndSelectItems", false );
 	ILFree( PathList );
 	return ReturnResult;
+#endif
 }
 #endif
 
@@ -465,7 +476,7 @@ bool Platform::IsFullPath(const std::string& Path)
 
 std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 {
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS) && !defined(HOLOLENS_SUPPORT)
 	char PathBuffer[MAX_PATH];
 	char* FilenameStart = nullptr;	//	pointer to inside buffer
 	auto PathBufferLength = GetFullPathNameA( Filename.c_str(), sizeof(PathBuffer), PathBuffer, &FilenameStart );

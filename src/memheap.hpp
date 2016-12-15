@@ -15,6 +15,10 @@
 #define STD_ALLOC
 #endif
 
+#if defined(HOLOLENS_SUPPORT)
+#define STD_ALLOC
+#endif
+
 //	OSX now uses zoned heaps
 //		vmmap <pid>
 //	to get OS mem info

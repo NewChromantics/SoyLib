@@ -6,6 +6,8 @@
     <ClCompile>
       <PreprocessorDefinitions>HOLOLENS_SUPPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <UndefinePreprocessorDefinitions>ENABLE_OPENGL;ENABLE_DIRECTX9;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup />

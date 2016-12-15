@@ -148,7 +148,7 @@ Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(vo
 		throw Soy::AssertException( Error.str() );
 	}
 	
-#elif defined(TARGET_WINDOWS)
+#elif defined(TARGET_WINDOWS) && !defined(HOLOLENS_SUPPORT)
 	//	todo: warn that / doesn't work in paths, only \ 
 	Soy::StringReplace( Filename, "/", "\\" );
 

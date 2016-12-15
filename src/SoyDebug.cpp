@@ -257,7 +257,7 @@ bool Platform::DebugBreak()
 	return true;
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS) && !defined(HOLOLENS_SUPPORT)
 	static bool DoBreak = false;
 	if (DoBreak)
 	{

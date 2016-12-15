@@ -951,7 +951,7 @@ void prmem::CRTHeap::Update()
 	}
 	*/
 	
-#elif defined(TARGET_IOS) || defined(TARGET_ANDROID) || defined(TARGET_PS4)
+#elif defined(STD_ALLOC)
 	
 	size_t AllocCount = 0;
 	size_t AllocBytes = 0;

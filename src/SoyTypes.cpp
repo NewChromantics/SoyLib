@@ -192,7 +192,15 @@ std::string Platform::GetErrorString(HRESULT Error)
 
 std::string Platform::GetErrorString(int Error)
 {
-#if defined(TARGET_WINDOWS)
+	//	gr: UWA has no LocalFree so need to redo FormatMessage
+#if defined(HOLOLENS_SUPPORT)
+	if ( Error == 0 )
+		return std::string();
+
+	std::stringstream ErrorStr;
+	ErrorStr << "Error=" << Error;
+	return ErrorStr.str();
+#elif defined(TARGET_WINDOWS)
 	if ( Error == ERROR_SUCCESS )
 		return std::string();
 
@@ -209,6 +217,7 @@ std::string Platform::GetErrorString(int Error)
 
 	if (!bufLen)
 	{
+		//	gr: LocalFree missing on hololens, change buffering
 		if (lpMsgBuf)
 			LocalFree(lpMsgBuf);
 
