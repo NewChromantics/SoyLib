@@ -44,6 +44,7 @@ namespace Directx
 	SoyMediaFormat::Type	GetFormat(DXGI_FORMAT Format,bool Windows8Plus);
 	SoyPixelsFormat::Type	GetPixelFormat(DXGI_FORMAT Format,bool Windows8Plus=true);
 	DXGI_FORMAT				GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus);
+	bool					FormatIsTypeless(DXGI_FORMAT Format);
 
 	namespace TTextureMode
 	{

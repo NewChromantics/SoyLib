@@ -177,6 +177,41 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 };
 
 
+bool Directx::FormatIsTypeless(DXGI_FORMAT Format)
+{
+	switch ( Format )
+	{
+		case DXGI_FORMAT_R32G32B32A32_TYPELESS:
+		case DXGI_FORMAT_R32G32B32_TYPELESS:
+		case DXGI_FORMAT_R16G16B16A16_TYPELESS:
+		case DXGI_FORMAT_R32G32_TYPELESS:
+		case DXGI_FORMAT_R32G8X24_TYPELESS:
+		case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+		case DXGI_FORMAT_R10G10B10A2_TYPELESS:
+		case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+		case DXGI_FORMAT_R16G16_TYPELESS:
+		case DXGI_FORMAT_R32_TYPELESS:
+		case DXGI_FORMAT_R24G8_TYPELESS:
+		case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+		case DXGI_FORMAT_R8G8_TYPELESS:
+		case DXGI_FORMAT_R16_TYPELESS:
+		case DXGI_FORMAT_R8_TYPELESS:
+		case DXGI_FORMAT_BC1_TYPELESS:
+		case DXGI_FORMAT_BC2_TYPELESS:
+		case DXGI_FORMAT_BC3_TYPELESS:
+		case DXGI_FORMAT_BC4_TYPELESS:
+		case DXGI_FORMAT_BC5_TYPELESS:
+		case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+		case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+		case DXGI_FORMAT_BC6H_TYPELESS:
+		case DXGI_FORMAT_BC7_TYPELESS:
+			return true;
+		default:
+			return false;
+	}
+}
+
+
 SoyMediaFormat::Type Directx::GetFormat(DXGI_FORMAT Format,bool Windows8Plus)
 {
 	auto Table = GetRemoteArray( PlatformFormatMap );
@@ -849,19 +884,20 @@ Directx::TShaderState::TShaderState(const Directx::TShader& Shader) :
 
 Directx::TShaderState::~TShaderState()
 {
+	if ( !mBaked )
+		std::Debug << "ShaderState was never baked before being destroyed. Code maybe missing a .Bake() (needed for directx)" << std::endl;
+	/*
+	//	unbind textures
+	TTexture NullTexture;
+	while ( mTextureBindCount > 0 )
+	{
+		BindTexture( mTextureBindCount-1, NullTexture );
+		mTextureBindCount--;
+	}
+	*/
+	
 	try
 	{
-		Soy::Assert( mBaked, "ShaderState was never baked before being destroyed. Code maybe missing a .Bake() (needed for directx)");
-		/*
-		//	unbind textures
-		TTexture NullTexture;
-		while ( mTextureBindCount > 0 )
-		{
-			BindTexture( mTextureBindCount-1, NullTexture );
-			mTextureBindCount--;
-		}
-		*/
-	
 		//	opengl unbinds here rather than in TShader
 		const_cast<TShader&>(mShader).Unbind();
 	}
@@ -1018,8 +1054,33 @@ void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Text
 		auto& ResourceView = *pResourceView;
 
 		ID3D11Resource* Resource = Texture.mTexture.mObject;
+
+		//	below will fail if bind flags doesn't have D3D11_BIND_SHADER_RESOURCE
+		auto Mode = Texture.GetMode();
+
 		//	no description means it uses original params
 		const D3D11_SHADER_RESOURCE_VIEW_DESC* ResourceDesc = nullptr;
+		D3D11_SHADER_RESOURCE_VIEW_DESC TempResourceDesc;
+
+		//	if internal type is typeless, and there is no raw-view setting, we need to set the format
+		if ( Directx::FormatIsTypeless(Texture.GetDirectxFormat()) )
+		{
+			D3D11_TEXTURE2D_DESC SrcDesc;
+			Texture.mTexture.mObject->GetDesc( &SrcDesc );
+			bool AllowsRawView = bool_cast(SrcDesc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS);
+			if ( !AllowsRawView )
+			{
+				UINT MostDetailedMip;
+				UINT MipLevels;
+				TempResourceDesc.Texture2D.MipLevels = SrcDesc.MipLevels;
+				TempResourceDesc.Texture2D.MostDetailedMip = 0;
+				//	gr: what goes here?
+				TempResourceDesc.Format = DXGI_FORMAT_R8G8B8A8_UINT;
+				TempResourceDesc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+				ResourceDesc = &TempResourceDesc;
+			}
+		}
+
 		auto& Device = GetDevice();
 		auto Result = Device.CreateShaderResourceView( Resource, ResourceDesc, &ResourceView.mObject );
 		Directx::IsOkay( Result, "Createing resource view");
