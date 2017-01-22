@@ -136,6 +136,7 @@ namespace SoyPixelsFormat
 	Type			GetYuvFull(Type Format);
 	Type			GetYuvNtsc(Type Format);
 	Type			GetYuvSmptec(Type Format);
+	Type			ChangeYuvColourRange(Type Format,Type YuvColourRange);
 	
 	DECLARE_SOYENUM( SoyPixelsFormat );
 };

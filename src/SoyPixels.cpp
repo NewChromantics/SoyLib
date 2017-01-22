@@ -173,6 +173,36 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetYuvSmptec(SoyPixelsFormat::Type Format
 	throw Soy::AssertException( std::string(__func__) + " no equivilent");
 }
 
+SoyPixelsFormat::Type SoyPixelsFormat::ChangeYuvColourRange(Type Format,Type YuvColourRange)
+{
+	switch ( YuvColourRange )
+	{
+		case Luma_Full:
+		case Yuv_8_88_Full:
+		case Yuv_8_8_8_Full:
+		case YYuv_8888_Full:
+			return GetYuvFull( Format );
+
+		case Luma_Ntsc:
+		case Yuv_8_88_Ntsc:
+		case Yuv_8_8_8_Ntsc:
+		case YYuv_8888_Ntsc:
+			return GetYuvNtsc( Format );
+
+		case Luma_Smptec:
+		case Yuv_8_88_Smptec:
+		case Yuv_8_8_8_Smptec:
+		case YYuv_8888_Smptec:
+			return GetYuvSmptec( Format );
+
+		default:
+			break;
+	}
+
+	std::stringstream Error;
+	Error << std::string(__func__) << " " << Format << "," << YuvColourRange << " no conversion";
+	throw Soy::AssertException( Error.str() );
+}
 
 bool SoyPixelsFormat::GetIsFrontToBackDepth(SoyPixelsFormat::Type Format)
 {
