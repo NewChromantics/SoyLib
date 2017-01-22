@@ -641,6 +641,7 @@ public:
 		mOnFrameExtracted				( OnFrameExtracted ),
 		mDiscardOldFrames				( true ),
 		mForceNonPlanarOutput			( false ),
+		mForceYuvColourFormat			( SoyPixelsFormat::Invalid ),
 		mDebugIntraFrameRect			( false ),
 		mDebugIntraFrameTransparency	( false ),
 		mExtractAudioStreams			( true ),
@@ -711,6 +712,8 @@ public:
 	//	make these work together, maybe remove the merge totally (though still useful to debug shaders)
 	bool						mSplitVideoPlanesIntoStreams;	
 	bool						mForceNonPlanarOutput;		//	for some extractors which have pixelly settings
+
+	SoyPixelsFormat::Type		mForceYuvColourFormat;
 
 	bool						mAllowPushRejection;		//	push skip
 	bool						mEnableDecoderThreading;	//	for bink; enable threaded decoding
