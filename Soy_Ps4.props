@@ -6,7 +6,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <IncludePath>$(SOY_PATH)/src;../;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SOY_PATH)\soylib.visualstudio\Bin\$(Platform);$(SolutionDir)$(Platform)_$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)$(Platform)_$(Configuration)\;$(LibraryPath)</LibraryPath>
     <OutDir>$(ProjectDir)Bin\$(Platform)\</OutDir>
     <IntDir>$(ProjectDir)Build\$(Configuration)\$(Platform)\</IntDir>
   </PropertyGroup>
