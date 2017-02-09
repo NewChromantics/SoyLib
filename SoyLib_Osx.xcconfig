@@ -22,7 +22,8 @@ LIBRARY_SEARCH_PATHS = $(LIBRARY_SEARCH_PATHS_BASE)
 //	c++11
 CLANG_CXX_LANGUAGE_STANDARD = c++0x
 CLANG_CXX_LIBRARY = libc++
-MACOSX_DEPLOYMENT_TARGET = 10.7
+//	gr: std::futures need 10.8 sdk onwards (now an error in 10.12 sdk)
+MACOSX_DEPLOYMENT_TARGET = 10.8
 
 
 //	universal build by default. 32bit required for unity plugins
