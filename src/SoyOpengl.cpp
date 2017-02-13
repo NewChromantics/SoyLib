@@ -408,7 +408,7 @@ void CompileShader(const Opengl::TAsset& Shader,ArrayBridge<std::string>&& SrcLi
 		Error << ErrorLog;
 		for ( int i=0;	i<SrcLines.GetSize();	i++ )
 		{
-			Error << SrcLines[i];
+			Error << i << ':' << SrcLines[i];
 		}
 		throw Soy::AssertException( Error.str() );
 	}
