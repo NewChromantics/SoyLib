@@ -1,5 +1,6 @@
 #include "SoyDirectxCompiler.h"
 #include "SoyRuntimeLibrary.h"
+#include "SoyGraphics.h"
 
 
 //	if compiling against win8 lib/runtime, then we can include the new d3d compiler lib directly
@@ -26,6 +27,8 @@ namespace DirectxCompiler
 	//typedef pD3DCompile D3DCompileFunc;
 	typedef HRESULT (__stdcall D3DCompileFunc)(LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs);
 	typedef void (__stdcall LPD3DX11COMPILEFROMMEMORY)(LPCSTR pSrcData, SIZE_T SrcDataLen, LPCSTR pFileName, const D3D10_SHADER_MACRO *pDefines, LPD3D10INCLUDE pInclude, LPCSTR pFunctionName, LPCSTR pProfile, UINT Flags1, UINT Flags2, ID3DX11ThreadPump *pPump, ID3D10Blob **ppShader, ID3D10Blob **ppErrorMsgs, HRESULT *pHResult);
+	
+	typedef HRESULT (__stdcall D3DReflectFunc)(LPCVOID pSrcData,SIZE_T SrcDataSize,REFIID pInterface,void** ppReflector);
 }
 
 
@@ -33,12 +36,19 @@ class DirectxCompiler::TCompilerImpl
 {
 public:
 	std::function<D3DCompileFunc>	mD3dCompileFunc;
+	std::function<D3DReflectFunc>	mD3dReflectFunc;
 };
 
 
 
 DirectxCompiler::TCompiler::TCompiler() :
 	mImpl	( new TCompilerImpl )
+{
+	BindCompileFunc();
+	BindReflectFunc();
+}
+
+void DirectxCompiler::TCompiler::BindCompileFunc()
 {
 	//	dynamically link compiler functions
 	//	https://github.com/pathscale/nvidia_sdk_samples/blob/master/matrixMul/common/inc/dynlink_d3d11.h
@@ -138,7 +148,9 @@ DirectxCompiler::TCompiler::TCompiler() :
 	mD3dCompileFunc = UnsupportedFunc;
 }
 
-
+void DirectxCompiler::TCompiler::BindReflectFunc()
+{
+}
 
 void GetBlobString(ID3DBlob* Blob,std::ostream& String)
 {
@@ -202,4 +214,79 @@ void DirectxCompiler::TCompiler::Compile(ArrayBridge<uint8_t>&& Compiled,const s
 	auto BlobDataSize = DataBlob->GetBufferSize();
 	auto BlobArray = GetRemoteArray( BlobData, BlobDataSize );
 	Compiled.Copy( BlobArray );
+}
+
+
+
+
+void DirectxCompiler::ReadShaderUniforms(ArrayBridge<uint8_t>&& ShaderBlob,ArrayBridge<TUniformBuffer>&& UniformBuffers)
+{
+	ID3D11ShaderReflection* pReflection = nullptr;
+	{
+		void** pReflection = (void**)(&pReflection);
+		auto Result = D3DReflect( ShaderBlob.GetArray(), ShaderBlob.GetDataSize(), IID_ID3D11ShaderReflection, pReflection );
+		Directx::IsOkay( Result, "D3DReflect");
+	}
+	auto& Reflection = *pReflection;
+
+	D3D11_SHADER_DESC Description;
+	Reflection.GetDesc(&Description);
+
+
+	//	iterator from http://gamedev.stackexchange.com/a/62395/23967
+	//	Find all constant buffers
+	for ( int i=0;	i<Description.ConstantBuffers;	i++ )
+	{
+		try
+		{
+			ID3D11ShaderReflectionConstantBuffer* Buffer = Reflection.GetConstantBufferByIndex(i);
+			D3D11_SHADER_BUFFER_DESC BufferDescription;
+			{
+				auto Result = Buffer->GetDesc( &BufferDescription );
+				Directx::IsOkay( Result, "Get Constant buffer description");
+			}
+
+			size_t RegisterIndex = 0;
+			for( int k=0;	k<Description.BoundResources;	k++ )
+			{
+				D3D11_SHADER_INPUT_BIND_DESC ibdesc;
+				auto Result = Reflection.GetResourceBindingDesc(k, &ibdesc);
+				Directx::IsOkay( Result, "Get Constant buffer bind description");
+
+				if ( strcmp(ibdesc.Name, BufferDescription.Name) != 0 )
+					continue;
+
+				RegisterIndex = ibdesc.BindPoint;
+				break;
+			}
+
+			TUniformBuffer Uniforms( RegisterIndex, BufferDescription.Name );
+
+			//	populate
+			for( int u=0;	u<BufferDescription.Variables;	u++ )
+			{
+				ID3D11ShaderReflectionVariable* Variable = Buffer->GetVariableByIndex(u);
+				D3D11_SHADER_VARIABLE_DESC VariableDescription;
+				auto Result = Variable->GetDesc(&VariableDescription);
+				Directx::IsOkay( Result, "Getting buffer variable description");
+
+				SoyGraphics::TUniform Uniform;
+				Uniform.mName = VariableDescription.Name;
+			
+				Uniform.mArraySize = 0;
+				Uniform.mType = SoyGraphics::TElementType::GetFromSize( VariableDescription.Size );
+
+				Uniforms.mUniforms.InsertElementAt( VariableDescription.StartOffset, Uniform );
+			}
+
+			UniformBuffers.PushBack( Uniforms );
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Error getting uniforms for buffer " << i << "; " << e.what() << std::endl;
+		}
+	}
+
+
+
 }

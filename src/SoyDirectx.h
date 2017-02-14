@@ -7,6 +7,7 @@
 
 #include "SoyOpengl.h"	//	re-using opengl's vertex description atm
 #include "SoyMediaFormat.h"
+#include "SoyDirectxCompiler.h"
 
 
 template<typename TYPE>
@@ -19,10 +20,6 @@ class SoyPixelsImpl;
 #include <d3d11.h>
 #pragma warning( pop )
 
-namespace DirectxCompiler
-{
-	class TCompiler;
-}
 
 namespace Directx
 {
@@ -35,7 +32,6 @@ namespace Directx
 	class TShader;
 	class TShaderState;
 	class TTextureSamplingParams;
-
 
 	inline std::string		GetEnumString(HRESULT Error)												{	return Platform::GetErrorString( Error );	}
 	bool					IsOkay(HRESULT Error,const char* Context,bool ThrowException=true);
@@ -285,18 +281,24 @@ private:
 	ID3D11Device&				GetDevice();
 	bool						mBaked;			//	warning for code; if we never baked the shader on destruction, we may have never sent data pre-geo. DirectX needs a bake but others dont...
 
-	void						AllocConstantBuffer();
+	void						AllocPixelShaderConstantBuffer();
+	void						AllocVertexShaderConstantBuffer();
 
 public:
 	const TShader&		mShader;
 	size_t				mTextureBindCount;
 	
+	Array<uint8_t>						mPixelShaderConstantData;
+	Array<uint8_t>						mVertexShaderConstantData;
+	AutoReleasePtr<ID3D11Buffer>		mPixelShaderConstantBuffer;
+	AutoReleasePtr<ID3D11Buffer>		mVertexShaderConstantBuffer;
+
 	Array<std::shared_ptr<AutoReleasePtr<ID3D11SamplerState>>>			mSamplers;
 	Array<std::shared_ptr<AutoReleasePtr<ID3D11ShaderResourceView>>>	mResources;	//	textures
 };
 
 
-class Directx::TShader : public Soy::TUniformContainer
+class Directx::TShader
 {
 public:
 	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,const std::map<std::string,std::string>& Macros,TContext& Context);
@@ -304,32 +306,18 @@ public:
 	TShaderState	Bind(TContext& Context);	//	let this go out of scope to unbind
 	void			Unbind();
 
-	bool			SetUniform(const char* Name,const TTexture& v)	{	return SetUniformImpl( Name, v );	}
-
-	virtual bool	SetUniform(const char* Name,const float& v) override	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const vec2f& v) override	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const vec3f& v) override	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const vec4f& v) override	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const int& v) override		{	return SetUniformImpl( Name, v );	}
-	
-	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v)	{	return SetUniformImpl( Name, v );	}
-	virtual bool	SetUniform(const char* Name,const SoyPixelsImpl& v) override		{	return SetUniformImpl( Name, v );	}
-
 private:
-	template<typename TYPE>
-	bool			SetUniformImpl(const char* Name,const TYPE& v);
-	void			SetPixelUniform(Soy::TUniform& Uniform,const float& v);
-	void			SetVertexUniform(Soy::TUniform& Uniform,const float& v);
-
 	ID3D11DeviceContext&		GetContext();
 
-	void			MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,ArrayBridge<uint8>&& CompiledShader,const std::string& ShaderName,ID3D11Device& Device);
+	void						MakeLayout(const SoyGraphics::TGeometryVertex& Vertex,ArrayBridge<uint8>&& CompiledShader,const std::string& ShaderName,ID3D11Device& Device);
 
 public:
 	TContext*							mBoundContext;	//	this binding should be moved to TShaderState
 
-	Array<Soy::TUniform>				mVertexShaderUniforms;
-	Array<Soy::TUniform>				mPixelShaderUniforms;
+	//	in directx you can have multiple CBuffers at their respective register indexes
+	Array<DirectxCompiler::TUniformBuffer>	mVertexShaderUniforms;
+	Array<DirectxCompiler::TUniformBuffer>	mPixelShaderUniforms;
+
 	AutoReleasePtr<ID3D11VertexShader>	mVertexShader;
 	AutoReleasePtr<ID3D11PixelShader>	mPixelShader;
 	AutoReleasePtr<ID3D11InputLayout>	mLayout;	//	maybe for geometry?

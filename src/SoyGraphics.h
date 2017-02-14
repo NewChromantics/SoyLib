@@ -22,9 +22,11 @@ namespace SoyGraphics
 			Float4,
 			Float3x3,
 			Texture2D,
+			Padding,		//	for directx structs
 		};
 
 		size_t		GetDataSize(Type t);
+		Type		GetFromSize(size_t Size);
 	}
 }
 
@@ -40,6 +42,14 @@ public:
 		mType				( TElementType::Invalid ),
 		mArraySize			( 0 ),
 		mIndex				( 0 )
+	{
+	}
+	TUniform(TElementType::Type ElementType,const std::string& Name,size_t ArraySize) :
+		mNormalised			( false ),
+		mType				( ElementType ),
+		mArraySize			( ArraySize ),
+		mIndex				( 0 ),
+		mName				( Name )
 	{
 	}
 
@@ -85,13 +95,31 @@ inline void SoyGraphics::TUniform::SetType<vec4f>()	{	mType = TElementType::Floa
 class SoyGraphics::TGeometryVertex
 {
 public:
-	size_t							GetDataSize() const;	//	size of vertex struct
-	size_t							GetOffset(size_t ElementIndex) const;
-	size_t							GetStride(size_t ElementIndex) const;
-	size_t							GetVertexSize() const;
+	size_t				GetDataSize() const;	//	size of vertex struct
+	size_t				GetOffset(size_t ElementIndex) const;
+	size_t				GetStride(size_t ElementIndex) const;
+	size_t				GetVertexSize() const;
 
-	void							EnableAttribs(bool Enable=true) const;
-	void							DisableAttribs() const				{	EnableAttribs(false);	}
+	void				InsertElementAt(size_t DataOffset,const TUniform& Uniform);		//	add element and pad as neccessary
+
+	template<typename TYPE>
+	void				Write(ArrayBridge<uint8_t>&& Buffer,const char* Name,const TYPE& Value) const
+	{
+		//	find element index
+		auto UniformIndex = mElements.FindIndex(Name);
+		if ( UniformIndex == -1 )
+		{
+			std::stringstream Error;
+			Error << "Unknown uniform " << Name;
+			throw Soy::AssertException( Error.str() );
+		}
+		auto& Uniform = mElements[UniformIndex];
+
+		//	do implicit type conversions
+
+		//	memcpy
+		throw Soy::AssertException("Todo writing to Uniform Buffer");
+	}
 
 public:
 	Array<TUniform>	mElements;

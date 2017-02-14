@@ -866,20 +866,9 @@ Directx::TShaderState::TShaderState(const Directx::TShader& Shader) :
 	mShader				( Shader ),
 	mBaked				( false )
 {
-	//	opengl unbinds here rather than in TShader
-	/*
-	//	setup constants buffer for shader[s]
-	D3D11_BUFFER_DESC BufferDesc;
-	BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	BufferDesc.ByteWidth = Data.GetDataSize();//Vertex.GetDataSize();
-	BufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	BufferDesc.MiscFlags = 0;
-	BufferDesc.StructureByteStride = Vertex.GetStride(0);	//	should be 0
+	AllocVertexShaderConstantBuffer();
+	AllocPixelShaderConstantBuffer();
 
-
-	nstant buffer can only use a single bind flag (D3D11_BIND_CONSTANT_BUFFER), which cannot be combined with any other bind flag. To bind a shader-constant buffer to the pipeline, call one of the following methods: ID3D11DeviceContext::GSSetConstantBuffers, ID3D11DeviceContext::PSSetConstantBuffers, or ID3D11DeviceContext::VSSetConstantBuffers.
-	*/
 }
 
 Directx::TShaderState::~TShaderState()
@@ -923,64 +912,112 @@ ID3D11Device& Directx::TShaderState::GetDevice()
 }
 
 
+void AllocShaderConstantBuffer(ID3D11Device& Device,AutoReleasePtr<ID3D11Buffer>& Buffer,Array<uint8_t>& Data,const Array<DirectxCompiler::TUniformBuffer>& UniformBuffers)
+{
+	//	gr: just support one for now
+	if ( UniformBuffers.IsEmpty() )
+		return;
+	if ( UniformBuffers.GetSize() > 1 )
+		throw Soy::AssertException("Currently only supporting one uniform buffer");
+
+	auto& Uniforms = UniformBuffers[0].mUniforms;
+
+	D3D11_BUFFER_DESC BufferDesc;
+	BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	BufferDesc.ByteWidth = Uniforms.GetDataSize();
+	BufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	BufferDesc.MiscFlags = 0;
+	BufferDesc.StructureByteStride = Uniforms.GetStride(0);	//	should be 0
+
+
+	Data.SetSize( Uniforms.GetDataSize() );
+
+	D3D11_SUBRESOURCE_DATA InitData;
+	InitData.pSysMem = Data.GetArray();
+	InitData.SysMemPitch = 0;
+	InitData.SysMemSlicePitch = 0;
+
+	auto Result = Device.CreateBuffer( &BufferDesc, &InitData, &Buffer.mObject );
+	Directx::IsOkay( Result, "AllocPixelShaderConstantBuffer" );
+}
+
+void Directx::TShaderState::AllocPixelShaderConstantBuffer()
+{
+	auto& Device = GetDevice();
+	auto& Uniforms = mShader.mPixelShaderUniforms;
+	auto& Data = mPixelShaderConstantData;
+	auto& Buffer = mPixelShaderConstantBuffer;
+
+	AllocShaderConstantBuffer( Device, Buffer, Data, Uniforms );
+}
+
+void Directx::TShaderState::AllocVertexShaderConstantBuffer()
+{
+	auto& Device = GetDevice();
+	auto& Uniforms = mShader.mPixelShaderUniforms;
+	auto& Data = mPixelShaderConstantData;
+	auto& Buffer = mPixelShaderConstantBuffer;
+
+	AllocShaderConstantBuffer( Device, Buffer, Data, Uniforms );
+}
+
+template<typename TYPE>
+bool SafeSetUniform(const char* Name,const TYPE& Value,Array<uint8_t>& VertexBuffer,const Array<DirectxCompiler::TUniformBuffer>& VertexUniforms,Array<uint8_t>& PixelBuffer,const Array<DirectxCompiler::TUniformBuffer>& PixelUniforms)
+{
+	bool Written = false;
+
+	auto TryWrite = [&](const SoyGraphics::TGeometryVertex& Uniforms,Array<uint8_t>& Buffer)
+	{
+		try
+		{
+			Uniforms.Write( GetArrayBridge( Buffer ), Name, Value );
+			Written = true;
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << __func__ << " failed to set uniform; " << e.what() << std::endl;
+		}
+	};
+
+	for ( int i=0;	i<VertexUniforms.GetSize();	i++ )
+		TryWrite( VertexUniforms[i].mUniforms, VertexBuffer );
+
+	for ( int i=0;	i<VertexUniforms.GetSize();	i++ )
+		TryWrite( VertexUniforms[i].mUniforms, PixelBuffer );
+
+	return Written;
+}
+
+
 bool Directx::TShaderState::SetUniform(const char* Name,const float3x3& v)
 {
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
-	Soy_AssertTodo();
+	return SafeSetUniform( Name, v, mVertexShaderConstantData, mShader.mVertexShaderUniforms, mPixelShaderConstantData, mShader.mPixelShaderUniforms );
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const float& v)
 {
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
-	Soy_AssertTodo();
+	return SafeSetUniform( Name, v, mVertexShaderConstantData, mShader.mVertexShaderUniforms, mPixelShaderConstantData, mShader.mPixelShaderUniforms );
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const int& v)
 {
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
-	Soy_AssertTodo();
+	return SafeSetUniform( Name, v, mVertexShaderConstantData, mShader.mVertexShaderUniforms, mPixelShaderConstantData, mShader.mPixelShaderUniforms );
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const vec4f& v)
 {
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
-	Soy_AssertTodo();
+	return SafeSetUniform( Name, v, mVertexShaderConstantData, mShader.mVertexShaderUniforms, mPixelShaderConstantData, mShader.mPixelShaderUniforms );
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const vec3f& v)
 {
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
-	Soy_AssertTodo();
+	return SafeSetUniform( Name, v, mVertexShaderConstantData, mShader.mVertexShaderUniforms, mPixelShaderConstantData, mShader.mPixelShaderUniforms );
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const vec2f& v)
 {
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
-	Soy_AssertTodo();
+	return SafeSetUniform( Name, v, mVertexShaderConstantData, mShader.mVertexShaderUniforms, mPixelShaderConstantData, mShader.mPixelShaderUniforms );
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
@@ -999,21 +1036,11 @@ bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTexture& 
 
 bool Directx::TShaderState::SetUniform(const char* Name,const Opengl::TTextureAndContext& Texture)
 {
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
 	Soy_AssertTodo();
 }
 
 bool Directx::TShaderState::SetUniform(const char* Name,const SoyPixelsImpl& Texture)
 {
-	auto* VertUniform = mShader.mVertexShaderUniforms.Find(Name);
-	auto* PixelUniform = mShader.mPixelShaderUniforms.Find(Name);
-	if ( !VertUniform && !PixelUniform )
-		return false;
-	
 	Soy_AssertTodo();
 }
 
@@ -1119,6 +1146,17 @@ void Directx::TShaderState::Bake()
 		Context.PSSetShaderResources( ResourceFirstSlot, Resources.GetSize(), Resources.GetArray() );
 	}
 
+	//	set constant buffers (uniforms)
+	if ( mVertexShaderConstantBuffer )
+	{
+		Context.VSSetConstantBuffers( 0, 1, &mVertexShaderConstantBuffer.mObject );
+	}
+
+	if ( mPixelShaderConstantBuffer )
+	{
+		Context.PSSetConstantBuffers( 0, 1, &mPixelShaderConstantBuffer.mObject );
+	}
+
 	mBaked = true;
 }
 
@@ -1144,6 +1182,10 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 		Directx::IsOkay( Result, "CreatePixelShader" );
 
 		MakeLayout( Vertex, GetArrayBridge(VertBlob), ShaderName, Device );
+
+		DirectxCompiler::ReadShaderUniforms( GetArrayBridge(VertBlob), GetArrayBridge(mVertexShaderUniforms) );
+		DirectxCompiler::ReadShaderUniforms( GetArrayBridge(FragBlob), GetArrayBridge(mPixelShaderUniforms) );
+		
 		Context.Unlock();
 	}
 	catch(std::exception& e)
@@ -1218,18 +1260,6 @@ void Directx::TShader::Unbind()
 	mBoundContext = nullptr;
 }
 
-
-void Directx::TShader::SetPixelUniform(Soy::TUniform& Uniform,const float& v)
-{
-	//	gr: you can only set one buffer at time, so this function may need to update a buffer and mark it as dirty...
-//	deviceContext->PSSetShaderResources(0, 1, &texture);
-}
-
-void Directx::TShader::SetVertexUniform(Soy::TUniform& Uniform,const float& v)
-{
-	//	gr: you can only set one buffer at time, so this function may need to update a buffer and mark it as dirty...
-	//deviceContext->VSSetConstantBuffers(bufferNumber, 1, &m_matrixBuffer);
-}
 
 ID3D11DeviceContext& Directx::TShader::GetContext()
 {

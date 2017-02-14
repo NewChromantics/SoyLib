@@ -6,6 +6,7 @@
 #include <functional>
 
 #include "SoyMediaFormat.h"
+#include "SoyGraphics.h"
 
 
 template<typename TYPE>
@@ -31,6 +32,9 @@ namespace DirectxCompiler
 {
 	class TCompiler;			//	wrapper to hold the compile func and a reference to the runtime library. Defined in source for cleaner code
 	class TCompilerImpl;
+	class TUniformBuffer;
+
+	void	ReadShaderUniforms(ArrayBridge<uint8_t>&& ShaderBlob,ArrayBridge<TUniformBuffer>&& UniformBuffers);
 }
 
 namespace Soy
@@ -47,5 +51,25 @@ public:
 public:
 	std::shared_ptr<Soy::TRuntimeLibrary>	mCompileLib;
 	std::shared_ptr<TCompilerImpl>			mImpl;
+};
+
+
+class DirectxCompiler::TUniformBuffer
+{
+public:
+	TUniformBuffer() :
+		mRegisterIndex		( 0 )
+	{
+	}
+	TUniformBuffer(size_t RegisterIndex,const std::string& Name) :
+		mRegisterIndex		( RegisterIndex ),
+		mName				( Name )
+	{
+	}
+
+public:
+	size_t							mRegisterIndex;
+	std::string						mName;
+	SoyGraphics::TGeometryVertex	mUniforms;
 };
 
