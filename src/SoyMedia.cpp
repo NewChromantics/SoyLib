@@ -150,6 +150,10 @@ bool TMediaDecoder::Iteration()
 				mInput->UnPopPacket( Packet );
 			}
 		}
+		else
+		{
+			std::Debug << __func__ << " Waiting for input packet" << std::endl;
+		}
 		Soy::StringStreamClear(mFatalError);
 	}
 	catch (std::exception& e)
@@ -282,7 +286,7 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 	
 	//	gr: maybe needs to be atomic?
 	while ( mPackets.GetSize() >= mMaxBufferSize )
-	{
+	{		
 		if ( !Block() )
 		{
 			std::Debug << "MediaPacketBuffer buffer full " << mPackets.GetSize() << "/" << mMaxBufferSize << ", dropped packet: " << *Packet << std::endl;
@@ -408,7 +412,7 @@ bool TMediaPacketBuffer::PrePushBuffer(SoyTime Timestamp)
 
 TMediaExtractor::TMediaExtractor(const TMediaExtractorParams& Params,size_t RunAtFrameRate) :
 	SoyWorkerThread			( Params.mThreadName, (RunAtFrameRate!=0) ? SoyWorkerWaitMode::Sleep : SoyWorkerWaitMode::Wake ),
-	mExtractAheadMs			( Params.mReadAheadMs ),
+	mExtractAheadMs			( Params.mExtractAheadMs ),
 	mOnPacketExtracted		( Params.mOnFrameExtracted ),
 	mParams					( Params )
 {
@@ -427,7 +431,7 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::AllocStreamBuffer(size_t St
 	
 	if ( !Buffer )
 	{
-		Buffer.reset( new TMediaPacketBuffer );
+		Buffer.reset( new TMediaPacketBuffer( this->mParams.mMaxBufferSize ) );
 		
 		auto OnPacketExtracted = [StreamIndex,this](std::shared_ptr<TMediaPacket>& Packet)
 		{
@@ -562,8 +566,9 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 					//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
 					if ( IsWorking() )
 					{
-						//std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << std::endl;
-						std::this_thread::sleep_for( std::chrono::milliseconds(100) );
+						static int SleepFor = 10;
+						std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << " sleeping for " << SleepFor << "ms" << std::endl;
+						std::this_thread::sleep_for( std::chrono::milliseconds(SleepFor) );
 					}
 					return IsWorking();
 				};
@@ -2119,7 +2124,7 @@ std::shared_ptr<TPixelBuffer> TPixelBufferManager::PopPixelBuffer(SoyTime& Times
 	{
 		if ( mFrames.size() < MinBufferSize )
 		{
-			static bool DebugMinBufferSize = false;
+			static bool DebugMinBufferSize = true;
 			if ( DebugMinBufferSize )
 				std::Debug << "Waiting for " << (MinBufferSize-mFrames.size()) << " more frames to buffer..." << std::endl;
 			return nullptr;
@@ -2289,10 +2294,11 @@ void TPixelBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 
 
 
-TMediaPassThroughEncoder::TMediaPassThroughEncoder(std::shared_ptr<TMediaPacketBuffer>& OutputBuffer,size_t StreamIndex) :
+TMediaPassThroughEncoder::TMediaPassThroughEncoder(std::shared_ptr<TMediaPacketBuffer>& OutputBuffer,size_t StreamIndex,size_t MaxBufferSize) :
 	TMediaEncoder	( OutputBuffer ),
 	mOutputMeta		( 256, 256, SoyPixelsFormat::RGBA ),
-	mStreamIndex	( StreamIndex )
+	mStreamIndex	( StreamIndex ),
+	mFrames			( MaxBufferSize )
 {
 }
 

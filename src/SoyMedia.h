@@ -552,7 +552,7 @@ std::ostream& operator<<(std::ostream& out,const TMediaPacket& in);
 class TMediaPacketBuffer
 {
 public:
-	TMediaPacketBuffer(size_t MaxBufferSize=10) :
+	TMediaPacketBuffer(size_t MaxBufferSize) :
 		mPackets				( SoyMedia::GetDefaultHeap() ),
 		mMaxBufferSize			( MaxBufferSize ),
 		mAutoTimestampDuration	( std::chrono::milliseconds(33) )
@@ -667,7 +667,8 @@ public:
 		mEnableDecoderThreading			( true ),
 		mPeekBeforeDefferedCopy			( true ),
 		mCopyBuffersInExtraction		( false ),
-		mExtractorPreDecodeSkip			( false )
+		mExtractorPreDecodeSkip			( false ),
+		mMaxBufferSize					( 10 )
 	{
 	}
 	
@@ -676,7 +677,8 @@ public:
 	std::string					mThreadName;
 	std::function<void(const SoyTime,size_t)>	mOnFrameExtracted;
 	std::function<void(TPixelBuffer&,const TMediaExtractorParams&)>	mOnPrePushFrame;	//	app override for pre-push. Use this to inject shader transform etc
-	SoyTime						mReadAheadMs;
+	SoyTime						mExtractAheadMs;
+	size_t						mMaxBufferSize;
 
 	SoyTime						mInitialTime;
 	size_t						mAudioSampleRate;			//	try and extract at this rate
@@ -942,7 +944,7 @@ protected:
 class TMediaPassThroughEncoder : public TMediaEncoder
 {
 public:
-	TMediaPassThroughEncoder(std::shared_ptr<TMediaPacketBuffer>& OutputBuffer,size_t StreamIndex);
+	TMediaPassThroughEncoder(std::shared_ptr<TMediaPacketBuffer>& OutputBuffer,size_t StreamIndex,size_t MaxBufferSize);
 	
 	virtual void		Write(const Opengl::TTexture& Image,SoyTime Timecode,Opengl::TContext& Context) override;
 	virtual void		Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context) override;
