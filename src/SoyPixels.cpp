@@ -1496,7 +1496,8 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	}
 }
 
-void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,ArrayInterface<uint8>* Data) const
+//	gr: replace mis-alignment problems with exceptions to allow user to choose what to do
+void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,ArrayInterface<uint8>* Data,bool ReturnAnyPlanes) const
 {
 	//	get the mid-formats
 	auto& ThisMeta = *this;
@@ -1505,7 +1506,7 @@ void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size
 
 	//	build error as we go in case we assert mid-way
 	std::stringstream Error;
-	Error << "Split pixel planes (" << ThisMeta << " -> " << Soy::StringJoin( GetArrayBridge(Formats), "," ) << ") but data hasn't aligned after split; ";
+	Error << "Split pixel planes (" << ThisMeta << " -> " << Soy::StringJoin( GetArrayBridge(Formats), "," ) << ") but data (" << PixelDataSize << " bytes) hasn't aligned after split; ";
 
 	size_t DataOffset = SoyPixelsFormat::GetHeaderSize( ThisMeta.GetFormat() );
 	for ( int p=0;	p<Formats.GetSize();	p++ )
@@ -1518,12 +1519,22 @@ void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size
 		DataOffset += PlaneDataSize;
 
 		Error << "#" << p << "/" << Formats.GetSize() << " " << PlaneMeta << " = " << PlaneDataSize << " bytes; ";
-		//	check for overflow
-		Soy::Assert( DataOffset <= PixelDataSize, Error.str() );
 
+		//	check for overflow
+		if ( DataOffset > PixelDataSize )
+		{
+			if ( ReturnAnyPlanes && !PlaneOffsetSizeAndMetas.IsEmpty() )
+			{
+				std::Debug << Error.str() << " (returning first " << PlaneOffsetSizeAndMetas.GetSize() << " planes)" << std::endl;
+				return;
+			}
+			throw Soy::AssertException( Error.str() );
+		}
+		
 		PlaneOffsetSizeAndMetas.PushBack(PlaneOffsetSizeAndMeta);
 	}
 
+	//	gr: replace these with specific exceptions to allow user to choose what to do
 	//	error, but don't fail if underrun. overrun should be caught in the loop
 	Error << "total " << DataOffset << " out of " << PixelDataSize << " bytes";
 	static bool ThrowOnUnderflow = false;
@@ -1542,14 +1553,14 @@ void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size
 	}
 }
 
-void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes)
+void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes,bool ReturnAnyPlanes)
 {
 	//	get the plane layouts
 	auto& ThisMeta = GetMeta();
 	auto& ThisArray = GetPixelsArray();
 	auto PixelDataSize = ThisArray.GetDataSize();
 	BufferArray<std::tuple<size_t,size_t,SoyPixelsMeta>,10> PlaneOffsetSizeAndMetas;
-	ThisMeta.SplitPlanes( PixelDataSize, GetArrayBridge(PlaneOffsetSizeAndMetas), &ThisArray );
+	ThisMeta.SplitPlanes( PixelDataSize, GetArrayBridge(PlaneOffsetSizeAndMetas), &ThisArray, ReturnAnyPlanes );
 	
 	//	make up the remote pixels
 	for ( int p=0;	p<PlaneOffsetSizeAndMetas.GetSize();	p++ )
