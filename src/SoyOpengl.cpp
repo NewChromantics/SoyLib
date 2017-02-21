@@ -245,6 +245,9 @@ SoyGraphics::TElementType::Type SoyGraphics::GetType(GLenum Type)
 #if defined(GL_SAMPLER_EXTERNAL_OES)
 		case GL_SAMPLER_EXTERNAL_OES:	return SoyGraphics::TElementType::Texture2D;
 #endif
+#if defined(GL_SAMPLER_2D_RECT)
+		case GL_SAMPLER_2D_RECT:	return SoyGraphics::TElementType::Texture2D;
+#endif
 		default:
 			break;
 	}
