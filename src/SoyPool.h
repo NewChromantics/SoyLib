@@ -33,7 +33,8 @@ public:
 	bool							IsFull() const				{	return GetAllocCount() >= mLimit;	}
 
 public:
-	size_t							mLimit;
+	size_t								mLimit;
+	std::function<void(size_t,size_t)>	mOnPoolChanged;			//	old usage, new usage
 
 	//	gr: make shared ptr optional and change to a ring buffer for performance? (lockless etc)
 	std::mutex						mPoolUsedLock;
@@ -60,6 +61,8 @@ inline std::shared_ptr<TYPE> TPool<TYPE>::AllocPtr(const MATCHTYPE& Meta,const s
 		//	match!
 		mUsed.PushBack( pFree );
 		mPool.RemoveBlock( i, 1 );
+		if ( mOnPoolChanged )
+			mOnPoolChanged( mUsed.GetSize()-1, mUsed.GetSize() );
 		return pFree;
 	}
 	
@@ -90,6 +93,9 @@ inline std::shared_ptr<TYPE> TPool<TYPE>::AllocPtr(const MATCHTYPE& Meta,const s
 	}
 	
 	mUsed.PushBack( pNew );
+	if ( mOnPoolChanged )
+		mOnPoolChanged( mUsed.GetSize()-1, mUsed.GetSize() );
+
 	return pNew;
 }
 
@@ -110,6 +116,8 @@ inline std::shared_ptr<TYPE> TPool<TYPE>::AllocPtr(const std::function<std::shar
 		//	match!
 		mUsed.PushBack( pFree );
 		mPool.RemoveBlock( i, 1 );
+		if ( mOnPoolChanged )
+			mOnPoolChanged( mUsed.GetSize()-1, mUsed.GetSize() );
 		return pFree;
 	}
 	
@@ -141,6 +149,9 @@ inline std::shared_ptr<TYPE> TPool<TYPE>::AllocPtr(const std::function<std::shar
 	}
 	*/
 	mUsed.PushBack( pNew );
+	if ( mOnPoolChanged )
+		mOnPoolChanged( mUsed.GetSize()-1, mUsed.GetSize() );
+
 	return pNew;
 }
 
@@ -165,6 +176,8 @@ void TPool<TYPE>::Release(const std::function<bool(const TYPE&)>& Compare)
 		
 		mPool.PushBack( mUsed[i] );
 		mUsed.RemoveBlock( i, 1 );
+		if ( mOnPoolChanged )
+			mOnPoolChanged( mUsed.GetSize()+1, mUsed.GetSize() );
 		return;
 	}
 	
@@ -210,7 +223,11 @@ void TPool<TYPE>::ReleaseAll()
 	std::lock_guard<std::mutex> Lock( mPoolUsedLock );
 
 	mPool.PushBackArray( mUsed );
+	auto OldSize = mUsed.GetSize();
 	mUsed.Clear();
+	
+	if ( mOnPoolChanged )
+		mOnPoolChanged( OldSize, 0 );
 }
 
 
