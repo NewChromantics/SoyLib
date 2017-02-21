@@ -218,6 +218,8 @@ public:
 	virtual void		Lock(ArrayBridge<Gnm::TTexture>&& Textures,Gnm::TContext& Context,float3x3& Transform)	{}		//	gr: too much fuss making this pure
 	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform)=0;
 	virtual void		Unlock()=0;
+	
+	virtual bool		IsDumb() const			{	return true;	}	//	don't allow double buffering into a dumb pixel buffer. RTTI might be better here.
 
 public:
 	const char*			mOverrideTransformShaderOpengl;
@@ -394,6 +396,7 @@ public:
 	virtual void		ReleaseFrames() override;
 	virtual void		ReleaseFramesAfter(SoyTime FlushTime) override;
 	
+	void				ForEachFrame(std::function<void(TPixelBufferFrame&)> ForEach);
 	
 private:
 	std::mutex						mFrameLock;
@@ -668,7 +671,8 @@ public:
 		mPeekBeforeDefferedCopy			( true ),
 		mCopyBuffersInExtraction		( false ),
 		mExtractorPreDecodeSkip			( false ),
-		mMaxBufferSize					( 10 )
+		mMaxBufferSize					( 10 ),
+		mAllowReseek					( true )
 	{
 	}
 	
@@ -723,6 +727,8 @@ public:
 	bool						mExtractorPreDecodeSkip;
 
 	bool						mPeekBeforeDefferedCopy;	//	gr: copied only for warning output for bink
+	
+	bool						mAllowReseek;				//	when we're out of sync, allow extractor to re-seek
 };
 
 
@@ -980,11 +986,11 @@ public:
 	
 	~TTextureBuffer();
 	
-	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override	{}
-	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform) override	{}
-	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform) override	{}
-	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform) override	{}
-	virtual void		Unlock() override	{}
+	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override;
+	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform) override;
+	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform) override;
+	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform) override;
+	virtual void		Unlock() override;
 
 	
 public:

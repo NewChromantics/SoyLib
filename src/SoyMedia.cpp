@@ -566,8 +566,10 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 					//	gr: this is happening a LOT, probably because the extractor is very fast... maybe throttle the thread...
 					if ( IsWorking() )
 					{
-						static int SleepFor = 10;
-						std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << " sleeping for " << SleepFor << "ms" << std::endl;
+						static int SleepFor = 100;
+						static bool Debug = false;
+						if ( Debug )
+							std::Debug << "MediaExtractor blocking in push packet; " << *NextPacket << " sleeping for " << SleepFor << "ms" << std::endl;
 						std::this_thread::sleep_for( std::chrono::milliseconds(SleepFor) );
 					}
 					return IsWorking();
@@ -2291,6 +2293,15 @@ void TPixelBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 	mFrameLock.unlock();
 }
 
+void TPixelBufferManager::ForEachFrame(std::function<void(TPixelBufferFrame&)> ForEach)
+{
+	std::lock_guard<std::mutex> Lock( mFrameLock );
+	
+	for ( auto Frame : mFrames )
+	{
+		ForEach( Frame );
+	}
+}
 
 
 
@@ -2421,6 +2432,7 @@ TTextureBuffer::~TTextureBuffer()
 		try
 		{
 			mOpenglTexturePool->Release( mOpenglTexture );
+			mOpenglTexture.reset();
 		}
 		catch(...)
 		{
@@ -2452,6 +2464,31 @@ TTextureBuffer::~TTextureBuffer()
 		mDirectxContext.reset();
 	}
 #endif
+}
+
+
+void TTextureBuffer::Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform)
+{
+	Textures.PushBack( *mOpenglTexture );
+}
+
+void TTextureBuffer::Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform)
+{
+	Soy_AssertTodo();
+}
+
+void TTextureBuffer::Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform)
+{
+	Soy_AssertTodo();
+}
+
+void TTextureBuffer::Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform)
+{
+	Soy_AssertTodo();
+}
+
+void TTextureBuffer::Unlock()
+{
 }
 
 
