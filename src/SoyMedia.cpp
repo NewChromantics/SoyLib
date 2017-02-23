@@ -145,6 +145,7 @@ bool TMediaDecoder::Iteration()
 			//std::Debug << "Encoder Processing packet " << Packet->mTimecode << "(pts) " << Packet->mDecodeTimecode << "(dts)" << std::endl;
 			if ( !ProcessPacket( Packet ) )
 			{
+				Soy::TScopeTimerPrint Timer("Returning input packet",0);
 				std::Debug << "Returned decoder input packet (" << *Packet << ") back to buffer" << std::endl;
 				//	gr: only do this for important frames?
 				mInput->UnPopPacket( Packet );
