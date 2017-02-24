@@ -138,22 +138,48 @@ bool TMediaDecoder::Iteration()
 	{
 		Soy::Assert( mInput!=nullptr, "Input missing");
 		
-		//	pop next packet
-		auto Packet = mInput->PopPacket();
-		if ( Packet )
+		
+		static bool PeekAndRemove = true;
+		
+		if ( PeekAndRemove )
 		{
-			//std::Debug << "Encoder Processing packet " << Packet->mTimecode << "(pts) " << Packet->mDecodeTimecode << "(dts)" << std::endl;
-			if ( !ProcessPacket( Packet ) )
+			if ( mInput->HasPackets() )
 			{
-				Soy::TScopeTimerPrint Timer("Returning input packet",0);
-				std::Debug << "Returned decoder input packet (" << *Packet << ") back to buffer" << std::endl;
-				//	gr: only do this for important frames?
-				mInput->UnPopPacket( Packet );
+				//	pop next packet
+				auto Packet = mInput->PeekPacket();
+				if ( Packet )
+				{
+					//std::Debug << "Encoder Processing packet " << Packet->mTimecode << "(pts) " << Packet->mDecodeTimecode << "(dts)" << std::endl;
+					if ( ProcessPacket( Packet ) )
+					{
+						mInput->PopPacket();
+					}
+				}
+			}
+			else
+			{
+				std::Debug << __func__ << " Waiting for input packet" << std::endl;
 			}
 		}
 		else
 		{
-			std::Debug << __func__ << " Waiting for input packet" << std::endl;
+			//	pop next packet
+			auto Packet = mInput->PopPacket();
+			if ( Packet )
+			{
+				//std::Debug << "Encoder Processing packet " << Packet->mTimecode << "(pts) " << Packet->mDecodeTimecode << "(dts)" << std::endl;
+				if ( !ProcessPacket( Packet ) )
+				{
+					Soy::TScopeTimerPrint Timer("Returning input packet",0);
+					std::Debug << "Returned decoder input packet (" << *Packet << ") back to buffer" << std::endl;
+					//	gr: only do this for important frames?
+					mInput->UnPopPacket( Packet );
+				}
+			}
+			else
+			{
+				std::Debug << __func__ << " Waiting for input packet" << std::endl;
+			}
 		}
 		Soy::StringStreamClear(mFatalError);
 	}
@@ -248,6 +274,21 @@ TMediaPacketBuffer::~TMediaPacketBuffer()
 	mPackets.Clear();
 }
 
+std::shared_ptr<TMediaPacket> TMediaPacketBuffer::PeekPacket()
+{
+	if ( mPackets.IsEmpty() )
+		return nullptr;
+	
+	std::lock_guard<std::mutex> Lock( mPacketsLock );
+	//	todo: options here so we can get the next packet we need
+	//		where we skip over all frames until the prev-to-Time keyframe
+	if ( mPackets.IsEmpty() )
+		return nullptr;
+	
+	return mPackets[0];
+}
+
+
 std::shared_ptr<TMediaPacket> TMediaPacketBuffer::PopPacket()
 {
 	if ( mPackets.IsEmpty() )
@@ -264,7 +305,6 @@ std::shared_ptr<TMediaPacket> TMediaPacketBuffer::PopPacket()
 	
 	return mPackets.PopAt(0);
 }
-
 
 void TMediaPacketBuffer::UnPopPacket(std::shared_ptr<TMediaPacket> Packet)
 {
