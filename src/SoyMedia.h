@@ -674,7 +674,8 @@ public:
 		mCopyBuffersInExtraction		( false ),
 		mExtractorPreDecodeSkip			( false ),
 		mMaxBufferSize					( 10 ),
-		mAllowReseek					( true )
+		mAllowReseek					( true ),
+		mSkipPixelBuffers				( false )
 	{
 	}
 	
@@ -731,6 +732,7 @@ public:
 	bool						mPeekBeforeDefferedCopy;	//	gr: copied only for warning output for bink
 	
 	bool						mAllowReseek;				//	when we're out of sync, allow extractor to re-seek
+	bool						mSkipPixelBuffers;
 };
 
 
