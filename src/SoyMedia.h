@@ -676,7 +676,8 @@ public:
 		mExtractorPreDecodeSkip			( false ),
 		mMaxBufferSize					( 10 ),
 		mAllowReseek					( true ),
-		mSkipPixelBuffers				( false )
+		mSkipPixelBuffers				( false ),
+		mEnableLowPowerDecoding			( false )
 	{
 	}
 	
@@ -735,6 +736,7 @@ public:
 	
 	bool						mAllowReseek;				//	when we're out of sync, allow extractor to re-seek
 	bool						mSkipPixelBuffers;
+	bool						mEnableLowPowerDecoding;
 };
 
 
