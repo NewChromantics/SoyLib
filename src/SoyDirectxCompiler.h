@@ -48,6 +48,10 @@ public:
 	TCompiler();
 	void		Compile(ArrayBridge<uint8>&& Compiled,const std::string& Source,const std::string& Function,const std::string& Target,const std::string& Name,const std::map<std::string,std::string>& Macros);
 
+private:
+	void		BindCompileFunc();
+	void		BindReflectFunc();
+
 public:
 	std::shared_ptr<Soy::TRuntimeLibrary>	mCompileLib;
 	std::shared_ptr<TCompilerImpl>			mImpl;

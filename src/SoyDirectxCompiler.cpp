@@ -150,6 +150,100 @@ void DirectxCompiler::TCompiler::BindCompileFunc()
 
 void DirectxCompiler::TCompiler::BindReflectFunc()
 {
+	auto& mD3dReflectFunc = mImpl->mD3dReflectFunc;
+	/*
+	class DllReference
+	{
+	public:
+		DllReference()	{}
+		DllReference(const char* Dll,const char* Func,const char* Desc) :
+			LibraryName		( Dll ),
+			FunctionName	( Func ),
+			Description		( Desc )
+		{
+		};
+
+		std::string	LibraryName;
+		std::string	FunctionName;
+		std::string	Description;
+	};
+
+	std::function<LPD3DX11COMPILEFROMMEMORY> CompileFromMemoryFunc;
+	Array<DllReference> DllFunctions;
+
+	//	https://blogs.msdn.microsoft.com/chuckw/2012/05/07/hlsl-fxc-and-d3dcompile/
+	//	remember, 47 & 46 are MUCH FASTER!
+	DllFunctions.PushBack( DllReference("d3dcompiler_47.dll","D3DCompile","Win10/Win8.1 sdk") );
+	DllFunctions.PushBack( DllReference("d3dcompiler_46.dll","D3DCompile","Win8.0 sdk") );
+
+	DllFunctions.PushBack( DllReference("D3DX11d_43.dll","D3DX11CompileFromMemory","DXSDK 2010 June") );
+	DllFunctions.PushBack( DllReference("D3DX11d_42.dll","D3DX11CompileFromMemory","DXSDK 2010 Feb") );
+	DllFunctions.PushBack( DllReference("D3DX11d_41.dll","D3DX11CompileFromMemory","DXSDK 2009 March") );
+	DllFunctions.PushBack( DllReference("D3DX11d_40.dll","D3DX11CompileFromMemory","DXSDK 2008 November") );
+	DllFunctions.PushBack( DllReference("D3DX11d_39.dll","D3DX11CompileFromMemory","DXSDK 2008 August") );
+	DllFunctions.PushBack( DllReference("D3DX11d_38.dll","D3DX11CompileFromMemory","DXSDK 2008 June") );
+	DllFunctions.PushBack( DllReference("D3DX11d_37.dll","D3DX11CompileFromMemory","DXSDK 2008 March") );
+	DllFunctions.PushBack( DllReference("D3DX11d_36.dll","D3DX11CompileFromMemory","DXSDK 2007 November") );
+	DllFunctions.PushBack( DllReference("D3DX11d_35.dll","D3DX11CompileFromMemory","DXSDK 2007 August") );
+	DllFunctions.PushBack( DllReference("D3DX11d_34.dll","D3DX11CompileFromMemory","DXSDK 2007 June") );
+	DllFunctions.PushBack( DllReference("D3DX11d_33.dll","D3DX11CompileFromMemory","DXSDK 2007 Aprli") );
+
+	for ( int d=0;	d<DllFunctions.GetSize();	d++ )
+	{
+		auto& Dll = DllFunctions[d];
+		try
+		{
+			mCompileLib.reset( new Soy::TRuntimeLibrary(Dll.LibraryName) );
+
+			if ( Dll.FunctionName == "D3DCompile" )
+				mCompileLib->SetFunction( mD3dCompileFunc, Dll.FunctionName.c_str() );
+			else
+				mCompileLib->SetFunction( CompileFromMemoryFunc, Dll.FunctionName.c_str() );
+			std::Debug << "Using DX compiler from " << Dll.Description << " (" << Dll.LibraryName << ")" << std::endl;
+			break;
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Failed to load " << Dll.FunctionName << " from " << Dll.LibraryName << " (" << Dll.Description << ")" << std::endl;
+
+			mCompileLib.reset();
+			mD3dCompileFunc = nullptr;
+			CompileFromMemoryFunc = nullptr;
+		}
+	}
+
+	//	assigned direct func
+	if ( mD3dCompileFunc )
+		return;
+
+	//	need a wrapper to old func
+	if ( !mD3dCompileFunc && CompileFromMemoryFunc )
+	{
+		std::function<D3DCompileFunc> WrapperFunc = [CompileFromMemoryFunc](LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs)
+		{
+			//	make wrapper!
+			//	https://msdn.microsoft.com/en-us/library/windows/desktop/ff476262(v=vs.85).aspx
+			ID3DX11ThreadPump* Pump = nullptr;
+			const char* Source = reinterpret_cast<const char*>( pSrcData );
+			auto* Profile = pTarget;
+			HRESULT Result = S_FALSE;
+			CompileFromMemoryFunc( Source, SrcDataSize, pSourceName, pDefines, pInclude, pEntrypoint, Profile, Flags1, Flags2, Pump, ppCode, ppErrorMsgs, &Result );
+			return Result;
+		};
+		mD3dCompileFunc = WrapperFunc;
+		return;
+	}
+
+	//	didn't find any func
+	//	gr: should this throw here? or during compile...as current code does...
+	//	throw Soy::AssertException("Failed to load directx shader compiler");
+	std::function<D3DCompileFunc> UnsupportedFunc = [](LPCVOID pSrcData,SIZE_T SrcDataSize,LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs)
+	{
+		throw Soy::AssertException( "D3D shader compiling unsupported." );
+		return (HRESULT)S_FALSE;
+	};
+	mD3dCompileFunc = UnsupportedFunc;
+	*/
 }
 
 void GetBlobString(ID3DBlob* Blob,std::ostream& String)
