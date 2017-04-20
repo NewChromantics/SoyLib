@@ -2393,8 +2393,8 @@ void Java::TThread::FlushLocals()
 {
 	try
 	{
-		mLocalStack.reset();
-		mLocalStack.reset( new TLocalRefStack() );
+	//	mLocalStack.reset();
+	//	mLocalStack.reset( new TLocalRefStack() );
 	}
 	catch(std::exception& e)
 	{
