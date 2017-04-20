@@ -81,7 +81,14 @@ bool Java::HasThread()
 	auto ThreadId = std::this_thread::get_id();
 
 	std::lock_guard<std::recursive_mutex> Lock( Private::ThreadsLock );
-	return ( Private::Threads.find( ThreadId ) != Private::Threads.end() );
+	auto ThreadIt = Private::Threads.find( ThreadId );
+	if ( ThreadIt == Private::Threads.end() )
+		return false;
+	
+	auto& pThread = ThreadIt->second;
+	if ( pThread == nullptr )
+		std::Debug << "null thread in java thread list" << std::endl;
+	return pThread != nullptr;
 }
 
 
@@ -390,8 +397,14 @@ TJniString::~TJniString()
 {
 	if ( mString )
 	{
-		//std::Debug << "Release JString: " << mCache << std::endl;
-		java().DeleteLocalRef( mString );
+		try
+		{
+			//std::Debug << "Release JString: " << mCache << std::endl;
+			java().DeleteLocalRef( mString );
+		}
+		catch(...)
+		{
+		}
 		mString = nullptr;
 	}
 }
@@ -2359,14 +2372,36 @@ Java::TThread::TThread(JavaVM& vm) :
 
 Java::TThread::~TThread()
 {
-	mLocalStack.reset();
+	try
+	{
+		mLocalStack.reset();
 	
-	auto EnvId = mVirtualMachine.DetachCurrentThread();
-	Soy::Assert( EnvId == JNI_OK, "Failed to detatch java thread");
+		auto EnvId = mVirtualMachine.DetachCurrentThread();
+		Soy::Assert( EnvId == JNI_OK, "Failed to detatch java thread");
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Exception in " << __func__ << ": " << e.what() << std::endl;
+	}
+	catch(...)
+	{
+		std::Debug << "Unknown Exception in " << __func__ << std::endl;
+	}
 }
 
 void Java::TThread::FlushLocals()
 {
-	mLocalStack.reset();
-	mLocalStack.reset( new TLocalRefStack() );
+	try
+	{
+		mLocalStack.reset();
+		mLocalStack.reset( new TLocalRefStack() );
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << "Exception in " << __func__ << ": " << e.what() << std::endl;
+	}
+	catch(...)
+	{
+		std::Debug << "Unknown Exception in " << __func__ << std::endl;
+	}
 }
