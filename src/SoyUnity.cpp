@@ -563,6 +563,10 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 				Unity::GetOpenglContext().Init();
 			};
 			
+			//	already initialised
+			if ( OpenglContext )
+				break;
+			
 			OpenglContext.reset(new Opengl::TContext);
 			Unity::GetOpenglContext().PushJob(InitContext);
 
