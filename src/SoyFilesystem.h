@@ -24,6 +24,9 @@ namespace SoyPathType
 };
 
 
+template<typename TYPE>
+class ArrayBridge;
+
 
 
 namespace Platform
@@ -78,4 +81,23 @@ public:
 	scope_ptr<FSEventStreamRef>	mStream;
 #endif
 };
+
+
+namespace Soy
+{
+	//	gr: move file things to their own files!
+	void		FileToArray(ArrayBridge<char>& Data,std::string Filename);
+	inline void	FileToArray(ArrayBridge<char>&& Data,std::string Filename)		{	FileToArray( Data, Filename );	}
+	void		ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename);
+	inline void	LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename)	{	FileToArray( Data, Filename );	}
+	bool		ReadStream(ArrayBridge<char>& Data, std::istream& Stream, std::ostream& Error);
+	bool		ReadStream(ArrayBridge<char>&& Data, std::istream& Stream, std::ostream& Error);
+	bool		ReadStreamChunk( ArrayBridge<char>& Data, std::istream& Stream );
+	inline bool	ReadStreamChunk( ArrayBridge<char>&& Data, std::istream& Stream )	{	return ReadStreamChunk( Data, Stream );		}
+	bool		StringToFile(std::string Filename,std::string String);
+	bool		FileToString(std::string Filename,std::string& String);
+	bool		FileToString(std::string Filename,std::string& String,std::ostream& Error);
+	bool		FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::ostream& Error);
+	inline bool	FileToStringLines(std::string Filename,ArrayBridge<std::string>&& StringLines,std::ostream& Error)	{	return FileToStringLines( Filename, StringLines, Error );	}
+}
 

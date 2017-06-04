@@ -19,6 +19,10 @@
 #include <Shlobj.h>
 #endif
 
+#include <sstream>
+#include <fstream>
+
+
 namespace Platform
 {
 #if defined(TARGET_OSX) || defined(TARGET_IOS)
@@ -525,3 +529,182 @@ bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(con
 	return false;
 }
 #endif
+
+
+
+
+bool Soy::ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream)
+{
+	//	dunno how much to read
+	if ( !Soy::Assert( !Data.IsEmpty(), "Soy::ReadStreamChunk no data length specified, resorting to 1byte" ) )
+		Data.SetSize(1);
+	if ( Data.IsEmpty() )
+		return false;
+	
+	auto Peek = Stream.peek();
+	if ( Peek == std::char_traits<char>::eof() )
+		return false;
+	
+	Stream.read( Data.GetArray(), Data.GetDataSize() );
+	
+	if ( Stream.fail() && !Stream.eof() )
+		return false;
+	
+	auto BytesRead = Stream.gcount();
+	Data.SetSize( BytesRead );
+	
+	return true;
+}
+
+bool Soy::ReadStream(ArrayBridge<char>&& Data,std::istream& Stream,std::ostream& Error)
+{
+	BufferArray<char,5*1024> Buffer;
+	while ( !Stream.eof() )
+	{
+		//	read a chunk
+		Buffer.SetSize( Buffer.MaxSize() );
+		auto BufferBridge = GetArrayBridge( Buffer );
+		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
+		{
+			Error << "Error reading stream";
+			return false;
+		}
+		
+		Data.PushBackArray( Buffer );
+	}
+	
+	return true;
+}
+
+
+bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::ostream& Error)
+{
+	//	gr: todo: re-use function above, just need to send lambda or something for PushBackArary
+	BufferArray<char,5*1024> Buffer;
+	while ( !Stream.eof() )
+	{
+		//	read a chunk
+		Buffer.SetSize( Buffer.MaxSize() );
+		auto BufferBridge = GetArrayBridge( Buffer );
+		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
+		{
+			Error << "Error reading stream";
+			return false;
+		}
+		
+		Data.PushBackArray( Buffer );
+	}
+	
+	return true;
+}
+
+void Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename)
+{
+	//	gr: would be nice to have an array! MemFileArray maybe, if it can be cross paltform...
+	std::ifstream Stream( Filename, std::ios::binary|std::ios::in );
+	
+	if ( !Stream.is_open() )
+	{
+		std::stringstream Error;
+		Error << "Failed to open " << Filename << " (" << ::Platform::GetLastErrorString() << ")";
+		throw Soy::AssertException(Error.str());
+	}
+	
+	//	read block by block
+	std::stringstream Error;
+	bool Result = ReadStream( Data, Stream, Error );
+	Stream.close();
+	
+	if ( !Result )
+		throw Soy::AssertException( Error.str() );
+}
+
+
+
+void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename)
+{
+	::Platform::CreateDirectory(Filename);
+	
+	std::ofstream File( Filename, std::ios::out );
+	Soy::Assert( File.is_open(), std::string("Failed to open ")+Filename );
+	
+	if ( !Data.IsEmpty() )
+		File.write( Data.GetArray(), Data.GetDataSize() );
+	
+	if ( File.fail() )
+	{
+		File.close();
+		
+		std::stringstream Error;
+		Error << "Failed to write " << Soy::FormatSizeBytes( Data.GetDataSize() ) << " to " << Filename;
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	File.close();
+}
+
+bool Soy::StringToFile(std::string Filename,std::string String)
+{
+	std::ofstream File( Filename, std::ios::out );
+	if ( !File.is_open() )
+		return false;
+	
+	File << String;
+	bool Success = !File.fail();
+	
+	File.close();
+	return Success;
+}
+
+
+bool Soy::FileToString(std::string Filename,std::string& String)
+{
+	auto& Stream = std::Debug.LockStream();
+	auto Result = FileToString( Filename, String, Stream );
+	std::Debug.UnlockStream( Stream );
+	return Result;
+}
+
+bool Soy::FileToString(std::string Filename,std::string& String,std::ostream& Error)
+{
+	//	gr: err surely a better way
+	Array<char> StringData;
+	auto StringDataBridge = GetArrayBridge( StringData );
+	try
+	{
+		LoadBinaryFile( StringDataBridge, Filename );
+	}
+	catch(std::exception& e)
+	{
+		Error << e.what();
+		return false;
+	}
+	
+	String = Soy::ArrayToString( StringDataBridge );
+	return true;
+	/*
+	 std::ifstream File( Filename, std::ios::in );
+	 if ( !File.is_open() )
+		return false;
+	 
+	 #error this only pulls out first word
+	 File >> String;
+	 bool Success = !File.fail();
+	 
+	 File.close();
+	 return Success;
+	 */
+}
+
+bool Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::ostream& Error)
+{
+	//	get file as string then parse
+	std::string FileContents;
+	if ( !FileToString( Filename, FileContents, Error ) )
+		return false;
+	
+	Soy::SplitStringLines( StringLines, FileContents );
+	return true;
+}
+
+
