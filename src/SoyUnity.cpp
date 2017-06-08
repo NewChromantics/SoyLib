@@ -412,7 +412,9 @@ BOOL APIENTRY DllMain(HMODULE Module, DWORD Reason, LPVOID Reserved)
 	}
 	GetModuleFileNameA(hm, path, sizeof(path));
 	*/
-	Platform::SetDllPath( Path );
+
+	//	gr: removed so I didn't need to include SoyFileSystem... maybe can move that to DLL/library related files
+//	Platform::SetDllPath( Path );
 
 
 	//std::Debug << "DllMain(" << Reason << ")" << std::endl;
@@ -580,6 +582,14 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 		{
 			auto* DeviceDx = static_cast<ID3D11Device*>( DevicePtr );
 			Soy::Assert( DeviceDx != nullptr, "Missing device pointer to create directx context");
+
+			//	already setup (going through new & legacy interface)
+			if ( DirectxContext && DirectxContext->mDevice == DeviceDx )
+			{
+				std::Debug << "DX11 graphics device already created." << std::endl;
+				break;
+			}
+
 			DirectxContext.reset(new Directx::TContext( *DeviceDx ) );
 		}
 		break;

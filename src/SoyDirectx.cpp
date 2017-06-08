@@ -286,7 +286,7 @@ Directx::TContext::TContext(ID3D11Device& Device) :
 	mLockCount		( 0 )
 {
 	//	gr: just pre-empting for testing, could be done on-demand
-	mCompiler.reset( new DirectxCompiler::TCompiler );
+	auto& Compiler = GetCompiler();
 }
 
 ID3D11DeviceContext& Directx::TContext::LockGetContext()
@@ -340,9 +340,13 @@ void Directx::TContext::Unlock()
 
 DirectxCompiler::TCompiler& Directx::TContext::GetCompiler()
 {
+#if defined(ENABLE_DIRECTXCOMPILER)
 	if ( !mCompiler )
 		mCompiler.reset( new DirectxCompiler::TCompiler );
 	return *mCompiler;
+#else
+	throw Soy::AssertException("DX compiler unsupported");
+#endif
 }
 
 Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode)
@@ -1127,6 +1131,9 @@ void Directx::TShaderState::Bake()
 Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,const std::map<std::string,std::string>& Macros,TContext& Context) :
 	mBoundContext	( nullptr )
 {
+#if !defined(ENABLE_DIRECTXCOMPILER)
+	throw Soy::AssertException("No ENABLE_DIRECTXCOMPILER");
+#else
 	auto& Device = Context.LockGetDevice();
 	auto& Compiler = Context.GetCompiler();
 
@@ -1151,6 +1158,7 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 		Context.Unlock();
 		throw;
 	}
+#endif
 }
 
 

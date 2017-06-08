@@ -339,7 +339,7 @@ Directx::TContext::TContext(IDirect3DDevice9& Device) :
 	mLockCount		( 0 )
 {
 	//	gr: just pre-empting for testing, could be done on-demand
-	mCompiler.reset( new DirectxCompiler::TCompiler );
+	auto& Compiler = GetCompiler();
 }
 
 
@@ -351,21 +351,17 @@ bool Directx::TContext::Lock()
 void Directx::TContext::Unlock()
 {
 }
-/*
-Directx::TCompiler& Directx::TContext::GetCompiler()
-{
-	if ( !mCompiler )
-		mCompiler.reset( new TCompiler );
-	return *mCompiler;
-}
-*/
 
 
 DirectxCompiler::TCompiler& Directx::TContext::GetCompiler()
 {
+#if defined(ENABLE_DIRECTXCOMPILER)
 	if ( !mCompiler )
 		mCompiler.reset( new DirectxCompiler::TCompiler );
 	return *mCompiler;
+#else
+	throw Soy::AssertException("DX compiler unsupported");
+#endif
 }
 
 
@@ -1182,7 +1178,9 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 {
 	auto& Device = Context.GetDevice();
 	auto& Compiler = Context.GetCompiler();
-
+#if !defined(ENABLE_DIRECTXCOMPILER)
+	throw Soy::AssertException("No ENABLE_DIRECTXCOMPILER");
+#else
 	try
 	{
 		const char* VertTarget = "vs_1_0";
@@ -1209,6 +1207,7 @@ Directx::TShader::TShader(const std::string& vertexSrc,const std::string& fragme
 		Context.Unlock();
 		throw;
 	}
+#endif
 }
 
 /*
