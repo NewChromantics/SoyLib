@@ -285,8 +285,15 @@ Directx::TContext::TContext(ID3D11Device& Device) :
 	mDevice			( &Device ),
 	mLockCount		( 0 )
 {
-	//	gr: just pre-empting for testing, could be done on-demand
-	auto& Compiler = GetCompiler();
+	//	gr: lets... let this happen. Let it fail when we actually need a shader
+	try
+	{
+		//	gr: just pre-empting for testing, could be done on-demand
+		auto& Compiler = GetCompiler();
+	}
+	catch(...)
+	{
+	}
 }
 
 ID3D11DeviceContext& Directx::TContext::LockGetContext()
