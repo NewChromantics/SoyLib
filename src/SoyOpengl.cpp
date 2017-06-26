@@ -997,12 +997,6 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 {
 	Soy::Assert( IsValid(), "Trying to read from invalid texture" );
 	
-	//	not currently supported directly in opengl ES (need to make a pixel buffer, copy to it and read, I think)
-#if defined(TARGET_ANDROID) || defined(TARGET_IOS)
-	throw Soy::AssertException( std::string(__func__) + " not supported on opengl es yet");
-	return;
-#else
-	
 	Bind();
 	
 	if ( !Pixels.IsValid() )
@@ -1125,6 +1119,10 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 	}
 	else
 	{
+		//	no glGetTexImage on opengl ES
+#if defined(TARGET_IOS)||defined(TARGET_ANDROID)
+		throw Soy::AssertException("glGetTexImage not supported on opengl ES");
+#else
 		//	make sure no padding is applied so glGetTexImage & glReadPixels doesn't override tail memory
 		glPixelStorei(GL_PACK_ROW_LENGTH,0);	//	gr: not sure this had any effect, but implemented anyway
 		Opengl_IsOkay();
@@ -1140,6 +1138,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 			Success = Opengl::IsOkay("glGetTexImage", false);
 		}
 		Soy::Assert( Success, "glGetTextImage failed");
+#endif
 	}
 	
 	static int DebugPixelCount_ = 0;
@@ -1159,7 +1158,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 	{
 		Pixels.Flip();
 	}
-#endif
+
 }
 
 
