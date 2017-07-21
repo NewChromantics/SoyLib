@@ -1074,16 +1074,27 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 	//	glReadPixels only accepts the formats below
 	BufferArray<GLenum,5> FboFormats;
 	GetReadPixelsFormats( GetArrayBridge(FboFormats) );
-	
+
+	//	gr; bodge for floats which don't change the output type
+	//		need to change GetDownloadPixelFormat to handle 2 types of output (eg. RGBA and Flaot4)
+	bool FboFloatFormat = false;
 	//	gr: sometimes the caller wants a specific format, and FBO(glReadPixels) doesn't allow that
 	if ( UseFbo )
 	{
 		auto PrefferedFormat = Pixels.GetFormat();
-		if ( PrefferedFormat != GetDownloadPixelFormat(FboFormats[1]) &&
-			PrefferedFormat != GetDownloadPixelFormat(FboFormats[3]) &&
-			PrefferedFormat != GetDownloadPixelFormat(FboFormats[4]) )
+		
+		if ( SoyPixelsFormat::IsFloatChannel(PrefferedFormat) )
 		{
-			UseFbo = false;
+			FboFloatFormat = true;
+		}
+		else
+		{
+			if ( PrefferedFormat != GetDownloadPixelFormat(FboFormats[1]) &&
+				PrefferedFormat != GetDownloadPixelFormat(FboFormats[3]) &&
+				PrefferedFormat != GetDownloadPixelFormat(FboFormats[4]) )
+			{
+				UseFbo = false;
+			}
 		}
 	}
 	
@@ -1107,12 +1118,22 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 		Opengl_IsOkay();
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		Opengl_IsOkay();
-		glReadPixels( x, y, size_cast<GLsizei>(Pixels.GetWidth()), size_cast<GLsizei>(Pixels.GetHeight()), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
+		
+		auto ReadFormat = FboFloatFormat ? GL_FLOAT : GL_UNSIGNED_BYTE;
+		//	gr: this crashes hard if readformat is wrong. Check data alignment!
+		auto SizeDiv = FboFloatFormat ? 4 : 1;
+		auto Width = size_cast<GLsizei>( Pixels.GetWidth() / SizeDiv );
+		auto Height = size_cast<GLsizei>( Pixels.GetHeight() / SizeDiv );
+		
+		glReadPixels( x, y, Width, Height, FboFormats[ChannelCount], ReadFormat, PixelBytes );
 		Opengl::IsOkay("glReadPixels");
 
-		//	as glReadPixels forces us to a format, we need to update the meta on the pixels
-		auto NewFormat = GetDownloadPixelFormat( FboFormats[ChannelCount] );
-		Pixels.GetMeta().DumbSetFormat( NewFormat );
+		if ( !FboFloatFormat )
+		{
+			//	as glReadPixels forces us to a format, we need to update the meta on the pixels
+			auto NewFormat = GetDownloadPixelFormat( FboFormats[ChannelCount] );
+			Pixels.GetMeta().DumbSetFormat( NewFormat );
+		}
 		
 		FrameBuffer.Unbind();
 		Opengl_IsOkay();
@@ -2122,6 +2143,11 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 #else
 		TPixelFormatMapping( SoyPixelsFormat::BGR,			{ GL_RGB	} ),
 #endif
+
+		TPixelFormatMapping( SoyPixelsFormat::Float1,		Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::Float2,		Opengl16BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::Float3,		{ GL_RGB	} ),
+		TPixelFormatMapping( SoyPixelsFormat::Float4,		{ GL_RGBA	} ),
 	};
 	static Array<TPixelFormatMapping> PixelFormatMap( _PixelFormatMap );
 	return PixelFormatMap;
