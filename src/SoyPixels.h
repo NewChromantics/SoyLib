@@ -123,7 +123,7 @@ namespace SoyPixelsFormat
 
 	//	gr: consider changing this to either Type, Bytes per channel or bits per channel to handle 16 bit better
 	bool			IsFloatChannel(Type Format);
-	inline bool		GetBytesPerChannel(Type Format)		{	return IsFloatChannel(Format) ? 4 : 1;	}
+	inline size_t	GetBytesPerChannel(Type Format)		{	return IsFloatChannel(Format) ? 4 : 1;	}
 	
 	size_t			GetChannelCount(Type Format);
 	Type			GetFormatFromChannelCount(size_t ChannelCount);

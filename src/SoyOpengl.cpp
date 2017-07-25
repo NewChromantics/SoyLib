@@ -1049,6 +1049,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 		}
 	}
 	auto* PixelBytes = Pixels.GetPixelsArray().GetArray();
+	auto PixelBytesSize = Pixels.GetPixelsArray().GetDataSize();
 
 	
 	//	try to use PBO's
@@ -1120,10 +1121,18 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 		Opengl_IsOkay();
 		
 		auto ReadFormat = FboFloatFormat ? GL_FLOAT : GL_UNSIGNED_BYTE;
-		//	gr: this crashes hard if readformat is wrong. Check data alignment!
-		auto SizeDiv = FboFloatFormat ? 4 : 1;
-		auto Width = size_cast<GLsizei>( Pixels.GetWidth() / SizeDiv );
-		auto Height = size_cast<GLsizei>( Pixels.GetHeight() / SizeDiv );
+		auto Width = size_cast<GLsizei>( Pixels.GetWidth() );
+		auto Height = size_cast<GLsizei>( Pixels.GetHeight() );
+		
+		//	just to check as we'll crash hard if we over-write
+		auto FormatComponentSize = (ReadFormat == GL_FLOAT) ? 4 : 1;
+		auto ReadSize = Width * Height * ChannelCount * FormatComponentSize;
+		if ( ReadSize > PixelBytesSize )
+		{
+			std::stringstream ErrorStr;
+			ErrorStr << __func__ << "about to glReadPixels " << ReadSize << " bytes into " << PixelBytesSize << " buffer";
+			throw Soy::AssertException( ErrorStr.str() );
+		}
 		
 		glReadPixels( x, y, Width, Height, FboFormats[ChannelCount], ReadFormat, PixelBytes );
 		Opengl::IsOkay("glReadPixels");
