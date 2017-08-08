@@ -1120,12 +1120,18 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		Opengl_IsOkay();
 		
-		auto ReadFormat = FboFloatFormat ? GL_FLOAT : GL_UNSIGNED_BYTE;
+#define GL_HALF_FLOAT_OES	0x8d61
+		//	GL_RGBA16F	//	unity uses this as the colour for half floats
+		//	GL_HALF_FLOAT for ES3	implicit type is still GL_RGBA
+
+		static bool UseHalfFloat = false;
+		
+		auto ReadFormat = FboFloatFormat ? (UseHalfFloat ? GL_HALF_FLOAT_OES : GL_FLOAT) : GL_UNSIGNED_BYTE;
 		auto Width = size_cast<GLsizei>( Pixels.GetWidth() );
 		auto Height = size_cast<GLsizei>( Pixels.GetHeight() );
 		
 		//	just to check as we'll crash hard if we over-write
-		auto FormatComponentSize = (ReadFormat == GL_FLOAT) ? 4 : 1;
+		auto FormatComponentSize = (ReadFormat == GL_HALF_FLOAT_OES) ? 2 : ((ReadFormat == GL_FLOAT) ? 4 : 1);
 		auto ReadSize = Width * Height * ChannelCount * FormatComponentSize;
 		if ( ReadSize > PixelBytesSize )
 		{
@@ -1134,7 +1140,40 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 			throw Soy::AssertException( ErrorStr.str() );
 		}
 		
-		glReadPixels( x, y, Width, Height, FboFormats[ChannelCount], ReadFormat, PixelBytes );
+		auto ColourFormat = FboFormats[ChannelCount];
+		static bool UseRgba16f = false;
+		if ( UseRgba16f )
+			ColourFormat = GL_RGBA16F;
+
+		
+		//	query internal format to avoid conversion.
+		//	glReadPixels ES3 allows RGBA and RGBA_INTEGER, and the internal format
+		//	https://www.khronos.org/registry/OpenGL-Refpages/es3.0/html/glReadPixels.xhtml
+		
+		// no-conversion reading format/type
+		GLenum implReadFormat=0, implReadType=0;
+		try
+		{
+			glGetIntegerv( GL_IMPLEMENTATION_COLOR_READ_FORMAT, (GLint*)&implReadFormat );
+			Opengl::IsOkay("GL_IMPLEMENTATION_COLOR_READ_FORMAT");
+			glGetIntegerv( GL_IMPLEMENTATION_COLOR_READ_TYPE, (GLint*)&implReadType );
+			Opengl::IsOkay("GL_IMPLEMENTATION_COLOR_READ_TYPE");
+		}
+		catch(std::exception& e)
+		{
+			Platform::DebugPrint( e.what() );
+		}
+
+		static bool UseImplReadFormat = false;
+		if ( UseImplReadFormat && implReadFormat != 0 )
+			ColourFormat =implReadFormat;
+		
+		static bool UseImplReadType = false;
+		if ( UseImplReadType && implReadType != 0 )
+			ReadFormat = implReadType;
+		
+		
+		glReadPixels( x, y, Width, Height, ColourFormat, ReadFormat, PixelBytes );
 		Opengl::IsOkay("glReadPixels");
 
 		if ( !FboFloatFormat )
