@@ -104,6 +104,12 @@ namespace SoyPixelsFormat
 		Palettised_RGB_8,
 		Palettised_RGBA_8,
 		
+		//	to distinguish from RGBA etc
+		Float1,
+		Float2,
+		Float3,
+		Float4,
+		
 		
 		//	shorthand names
 		//	http://www.fourcc.org/yuv.php
@@ -115,7 +121,10 @@ namespace SoyPixelsFormat
 		Count=99,
 	};
 
-	inline size_t	GetBitsPerChannel(Type Format)	{	return 8;	}
+	//	gr: consider changing this to either Type, Bytes per channel or bits per channel to handle 16 bit better
+	bool			IsFloatChannel(Type Format);
+	inline size_t	GetBytesPerChannel(Type Format)		{	return IsFloatChannel(Format) ? 4 : 1;	}
+	
 	size_t			GetChannelCount(Type Format);
 	Type			GetFormatFromChannelCount(size_t ChannelCount);
 	void			GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats);
@@ -137,6 +146,8 @@ namespace SoyPixelsFormat
 	Type			GetYuvNtsc(Type Format);
 	Type			GetYuvSmptec(Type Format);
 	Type			ChangeYuvColourRange(Type Format,Type YuvColourRange);
+	Type			GetFloatFormat(Type Format);
+	Type			GetByteFormat(Type Format);
 	
 	DECLARE_SOYENUM( SoyPixelsFormat );
 };
@@ -200,11 +211,13 @@ public:
 	
 	//	gr: deprecate this! shouldn't ever use it raw
 	uint8			GetChannels() const				{	return size_cast<uint8>(SoyPixelsFormat::GetChannelCount(mFormat));	}
+	uint8_t			GetBytesPerChannel() const		{	return SoyPixelsFormat::GetBytesPerChannel(mFormat);	}
+	bool			IsFloatChannel() const			{	return SoyPixelsFormat::IsFloatChannel(mFormat);	}
 	size_t			GetWidth() const				{	return mWidth;	}
 	size_t			GetHeight() const				{	return mHeight;	}
 	size_t			GetDataSize() const;			//	probes multiple planes to get full data size
 	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
-	size_t			GetRowDataSize() const			{	return GetChannels() * GetWidth();	}
+	size_t			GetRowDataSize() const			{	return GetChannels() * GetBytesPerChannel() * GetWidth();	}
 	void			GetPlanes(ArrayBridge<SoyPixelsMeta>&& PlaneFormats,ArrayInterface<uint8>* Data=nullptr) const;	//	extract multiple plane formats where applicable (returns self if one plane)
 	void			SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,ArrayInterface<uint8>* Data=nullptr) const;	//	get all the plane split info, asserts if data doesn't align
 
@@ -226,7 +239,7 @@ public:
 	}
 	
 private:
-	size_t			GetSelfDataSize() const			{	return GetHeight() * GetWidth() * GetChannels();	}
+	size_t			GetSelfDataSize() const			{	return GetHeight() * GetWidth() * GetChannels() * GetBytesPerChannel();	}
 
 protected:
 	//	gr: assuming we will always have a length of data so we can determine height/stride

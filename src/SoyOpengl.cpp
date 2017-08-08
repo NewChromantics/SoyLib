@@ -1049,6 +1049,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 		}
 	}
 	auto* PixelBytes = Pixels.GetPixelsArray().GetArray();
+	auto PixelBytesSize = Pixels.GetPixelsArray().GetDataSize();
 
 	
 	//	try to use PBO's
@@ -1074,16 +1075,27 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 	//	glReadPixels only accepts the formats below
 	BufferArray<GLenum,5> FboFormats;
 	GetReadPixelsFormats( GetArrayBridge(FboFormats) );
-	
+
+	//	gr; bodge for floats which don't change the output type
+	//		need to change GetDownloadPixelFormat to handle 2 types of output (eg. RGBA and Flaot4)
+	bool FboFloatFormat = false;
 	//	gr: sometimes the caller wants a specific format, and FBO(glReadPixels) doesn't allow that
 	if ( UseFbo )
 	{
 		auto PrefferedFormat = Pixels.GetFormat();
-		if ( PrefferedFormat != GetDownloadPixelFormat(FboFormats[1]) &&
-			PrefferedFormat != GetDownloadPixelFormat(FboFormats[3]) &&
-			PrefferedFormat != GetDownloadPixelFormat(FboFormats[4]) )
+		
+		if ( SoyPixelsFormat::IsFloatChannel(PrefferedFormat) )
 		{
-			UseFbo = false;
+			FboFloatFormat = true;
+		}
+		else
+		{
+			if ( PrefferedFormat != GetDownloadPixelFormat(FboFormats[1]) &&
+				PrefferedFormat != GetDownloadPixelFormat(FboFormats[3]) &&
+				PrefferedFormat != GetDownloadPixelFormat(FboFormats[4]) )
+			{
+				UseFbo = false;
+			}
 		}
 	}
 	
@@ -1107,12 +1119,69 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 		Opengl_IsOkay();
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		Opengl_IsOkay();
-		glReadPixels( x, y, size_cast<GLsizei>(Pixels.GetWidth()), size_cast<GLsizei>(Pixels.GetHeight()), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, PixelBytes );
+		
+#define GL_HALF_FLOAT_OES	0x8d61
+		//	GL_RGBA16F	//	unity uses this as the colour for half floats
+		//	GL_HALF_FLOAT for ES3	implicit type is still GL_RGBA
+
+		static bool UseHalfFloat = false;
+		
+		auto ReadFormat = FboFloatFormat ? (UseHalfFloat ? GL_HALF_FLOAT_OES : GL_FLOAT) : GL_UNSIGNED_BYTE;
+		auto Width = size_cast<GLsizei>( Pixels.GetWidth() );
+		auto Height = size_cast<GLsizei>( Pixels.GetHeight() );
+		
+		//	just to check as we'll crash hard if we over-write
+		auto FormatComponentSize = (ReadFormat == GL_HALF_FLOAT_OES) ? 2 : ((ReadFormat == GL_FLOAT) ? 4 : 1);
+		auto ReadSize = Width * Height * ChannelCount * FormatComponentSize;
+		if ( ReadSize > PixelBytesSize )
+		{
+			std::stringstream ErrorStr;
+			ErrorStr << __func__ << "about to glReadPixels " << ReadSize << " bytes into " << PixelBytesSize << " buffer";
+			throw Soy::AssertException( ErrorStr.str() );
+		}
+		
+		auto ColourFormat = FboFormats[ChannelCount];
+		static bool UseRgba16f = false;
+		if ( UseRgba16f )
+			ColourFormat = GL_RGBA16F;
+
+		
+		//	query internal format to avoid conversion.
+		//	glReadPixels ES3 allows RGBA and RGBA_INTEGER, and the internal format
+		//	https://www.khronos.org/registry/OpenGL-Refpages/es3.0/html/glReadPixels.xhtml
+		
+		// no-conversion reading format/type
+		GLenum implReadFormat=0, implReadType=0;
+		try
+		{
+			glGetIntegerv( GL_IMPLEMENTATION_COLOR_READ_FORMAT, (GLint*)&implReadFormat );
+			Opengl::IsOkay("GL_IMPLEMENTATION_COLOR_READ_FORMAT");
+			glGetIntegerv( GL_IMPLEMENTATION_COLOR_READ_TYPE, (GLint*)&implReadType );
+			Opengl::IsOkay("GL_IMPLEMENTATION_COLOR_READ_TYPE");
+		}
+		catch(std::exception& e)
+		{
+			Platform::DebugPrint( e.what() );
+		}
+
+		static bool UseImplReadFormat = false;
+		if ( UseImplReadFormat && implReadFormat != 0 )
+			ColourFormat =implReadFormat;
+		
+		static bool UseImplReadType = false;
+		if ( UseImplReadType && implReadType != 0 )
+			ReadFormat = implReadType;
+		
+		
+		glReadPixels( x, y, Width, Height, ColourFormat, ReadFormat, PixelBytes );
 		Opengl::IsOkay("glReadPixels");
 
-		//	as glReadPixels forces us to a format, we need to update the meta on the pixels
-		auto NewFormat = GetDownloadPixelFormat( FboFormats[ChannelCount] );
-		Pixels.GetMeta().DumbSetFormat( NewFormat );
+		if ( !FboFloatFormat )
+		{
+			//	as glReadPixels forces us to a format, we need to update the meta on the pixels
+			auto NewFormat = GetDownloadPixelFormat( FboFormats[ChannelCount] );
+			Pixels.GetMeta().DumbSetFormat( NewFormat );
+		}
 		
 		FrameBuffer.Unbind();
 		Opengl_IsOkay();
@@ -2122,6 +2191,11 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 #else
 		TPixelFormatMapping( SoyPixelsFormat::BGR,			{ GL_RGB	} ),
 #endif
+
+		TPixelFormatMapping( SoyPixelsFormat::Float1,		Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::Float2,		Opengl16BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::Float3,		{ GL_RGB	} ),
+		TPixelFormatMapping( SoyPixelsFormat::Float4,		{ GL_RGBA	} ),
 	};
 	static Array<TPixelFormatMapping> PixelFormatMap( _PixelFormatMap );
 	return PixelFormatMap;

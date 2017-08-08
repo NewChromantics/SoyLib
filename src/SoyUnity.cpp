@@ -358,6 +358,24 @@ SoyPixelsFormat::Type Unity::GetPixelFormat(RenderTexturePixelFormat::Type Forma
 		//	todo: test this
 		case RenderTexturePixelFormat::R8:		return SoyPixelsFormat::Greyscale;
 
+		//	floats, test all these!
+		case RenderTexturePixelFormat::Depth:	return SoyPixelsFormat::Greyscale;
+		case RenderTexturePixelFormat::ARGBHalf:	return SoyPixelsFormat::RGBA;
+		case RenderTexturePixelFormat::ARGBFloat:	return SoyPixelsFormat::RGBA;
+		case RenderTexturePixelFormat::RFloat:		return SoyPixelsFormat::Greyscale;
+		case RenderTexturePixelFormat::RGHalf:		return SoyPixelsFormat::GreyscaleAlpha;
+		case RenderTexturePixelFormat::RGFloat:		return SoyPixelsFormat::GreyscaleAlpha;
+		case RenderTexturePixelFormat::RHalf:		return SoyPixelsFormat::Greyscale;
+			
+		//	test these!
+		//case RenderTexturePixelFormat::Shadowmap:	return SoyPixelsFormat::RGBA;
+		//case RenderTexturePixelFormat::DefaultHDR:	return SoyPixelsFormat::RGBA;
+			
+		//	16 bit treated as 2 channel
+		case RenderTexturePixelFormat::ARGB4444:	return SoyPixelsFormat::GreyscaleAlpha;
+		case RenderTexturePixelFormat::RGB565:		return SoyPixelsFormat::GreyscaleAlpha;
+		case RenderTexturePixelFormat::ARGB1555:	return SoyPixelsFormat::GreyscaleAlpha;
+			
 		default:
 			return SoyPixelsFormat::Invalid;
 	}

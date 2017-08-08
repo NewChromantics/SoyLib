@@ -204,6 +204,69 @@ SoyPixelsFormat::Type SoyPixelsFormat::ChangeYuvColourRange(Type Format,Type Yuv
 	throw Soy::AssertException( Error.str() );
 }
 
+SoyPixelsFormat::Type SoyPixelsFormat::GetFloatFormat(Type Format)
+{
+	switch ( Format )
+	{
+		case Float1:
+		case Float2:
+		case Float3:
+		case Float4:
+			return Format;
+			
+		case Greyscale:
+		case ChromaU_8:
+		case ChromaV_8:
+			return Float1;
+			
+		case GreyscaleAlpha:
+		case ChromaUV_88:
+		case ChromaUV_8_8:
+			return Float2;
+			
+		case RGB:
+		case BGR:
+			return Float3;
+			
+		case RGBA:
+		case ARGB:
+		case BGRA:
+			return Float4;
+			
+		default:
+			break;
+	}
+	
+	
+	std::stringstream Error;
+	Error << std::string(__func__) << " " << Format << " no conversion";
+	throw Soy::AssertException( Error.str() );
+
+}
+
+SoyPixelsFormat::Type SoyPixelsFormat::GetByteFormat(Type Format)
+{
+	switch ( Format )
+	{
+		case Float1:
+			return Greyscale;
+			
+		case Float2:
+			return GreyscaleAlpha;
+			
+		case Float3:
+			return RGB;
+			
+		case Float4:
+			return RGBA;
+		
+		default:
+			return Format;
+	}
+}
+
+
+
 bool SoyPixelsFormat::GetIsFrontToBackDepth(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
@@ -307,6 +370,12 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case YYuv_8888_Smptec:
 		return 2;
 
+	case Float1:	return 1;
+	case Float2:	return 2;
+	case Float3:	return 3;
+	case Float4:	return 4;
+	
+			
 	default:
 		break;
 	}
@@ -315,6 +384,49 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	Error << __func__ << " not implemented for " << Format;
 	throw Soy::AssertException( Error.str() );
 }
+
+
+bool SoyPixelsFormat::IsFloatChannel(SoyPixelsFormat::Type Format)
+{
+	switch ( Format )
+	{
+		case Float1:
+		case Float2:
+		case Float3:
+		case Float4:
+			return true;
+
+		case Greyscale:
+		case Luma_Ntsc:
+		case Luma_Smptec:
+		case GreyscaleAlpha:
+		case RGB:
+		case BGR:
+		case RGBA:
+		case BGRA:
+		case ARGB:
+		case KinectDepth:
+		case FreenectDepth11bit:
+		case FreenectDepth10bit:
+		case FreenectDepthmm:
+		case ChromaUV_8_8:
+		case ChromaUV_88:
+		case ChromaU_8:
+		case ChromaV_8:
+		case YYuv_8888_Full:
+		case YYuv_8888_Ntsc:
+		case YYuv_8888_Smptec:
+			return false;
+			
+		default:
+			break;
+	}
+	
+	std::stringstream Error;
+	Error << __func__ << " not implemented for " << Format;
+	throw Soy::AssertException( Error.str() );
+}
+
 
 SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(size_t ChannelCount)
 {
@@ -495,6 +607,10 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::ChromaV_8,			"ChromaV_8"	},
 	{ SoyPixelsFormat::Palettised_RGB_8,	"Palettised_RGB_8"	},
 	{ SoyPixelsFormat::Palettised_RGBA_8,	"Palettised_RGBA_8"	},
+	{ SoyPixelsFormat::Float1,				"Float1"	},
+	{ SoyPixelsFormat::Float2,				"Float2"	},
+	{ SoyPixelsFormat::Float3,				"Float3"	},
+	{ SoyPixelsFormat::Float4,				"Float4"	},
 };
 
 
