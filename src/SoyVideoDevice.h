@@ -130,13 +130,12 @@ public:
 	{
 	}
 	
-	virtual bool						Copy(const SoyPixelsImpl& that,bool AllowReallocation=true) override
+	virtual void		Copy(const SoyPixelsImpl& that,const TSoyPixelsCopyParams& Params) override
 	{
-		if ( !SoyPixelsImpl::Copy( that, AllowReallocation ) )
-			return false;
+		SoyPixelsImpl::Copy( that, Params );
 		
 		//	update memfile
-		return GetRawSoyPixels( GetArrayBridge( mMemFileArray ) );
+		GetRawSoyPixels( GetArrayBridge( mMemFileArray ) );
 	}
 	
 	virtual SoyPixelsMeta&					GetMeta() override				{	return mMeta;	}

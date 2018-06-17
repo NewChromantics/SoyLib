@@ -265,7 +265,7 @@ public:
 	void			Init(size_t Width,size_t Height,size_t Channels);
 	void			Clear(bool Dealloc=false);
 
-	void			Copy(const SoyPixelsImpl& that,const TSoyPixelsCopyParams& Params=TSoyPixelsCopyParams());
+	virtual void	Copy(const SoyPixelsImpl& that,const TSoyPixelsCopyParams& Params=TSoyPixelsCopyParams());
 	
 	bool			IsValid() const					{	return GetMeta().IsValid();	}
 	uint8			GetBitDepth() const				{	return GetMeta().GetBitDepth();	}

@@ -133,7 +133,10 @@ void TVideoDevice::OnNewFrame(const SoyPixelsImpl& Pixels,SoyTime Timecode)
 		return;
 	}
 	
-	if ( !mLastFrame.mPixels->Copy( Pixels ) )
+	
+	mLastFrame.mPixels->Copy( Pixels );
+
+	//if ( !mLastFrame.mPixels->Copy( Pixels ) )
 	{
 		mLastError = "Failed to copy pixels";
 		return;
