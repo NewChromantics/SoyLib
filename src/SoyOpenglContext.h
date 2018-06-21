@@ -69,6 +69,7 @@ public:
 	virtual ~TContext()				{}
 
 	void			Init();
+    bool            IsInitialised() const   {   return mVersion != Soy::TVersion();  }
 	void			Iteration()			{	Flush(*this);	}
 	virtual bool	Lock() override;
 	virtual void	Unlock() override;
