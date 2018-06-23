@@ -1900,7 +1900,7 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		mUniforms.PushBack( Uniform );
 	}
 
-	static bool DebugUniforms = false;
+	static bool DebugUniforms = true;
 	if ( DebugUniforms )
 	{
 		std::Debug << ShaderName << " has " << mAttributes.GetSize() << " attributes; " << std::endl;
@@ -1970,13 +1970,16 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 	mVertexDescription	( Vertex )
 {
 	Opengl_IsOkayFlush();
-		
+	
+	bool GenerateIndexes = (Indexes.GetSize() > 0);
+	
 	//	fill vertex array
 	Opengl::GenVertexArrays( 1, &mVertexArrayObject );
 	Opengl::IsOkay( std::string(__func__) + " glGenVertexArrays" );
 	
 	glGenBuffers( 1, &mVertexBuffer );
-	glGenBuffers( 1, &mIndexBuffer );
+	if ( GenerateIndexes )
+		glGenBuffers( 1, &mIndexBuffer );
 	Opengl::IsOkay( std::string(__func__) + " glGenBuffers" );
 
 	Bind();
@@ -2015,16 +2018,19 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 	//	gr: disabling vertex attribs stops rendering on ios
 	//Vertex.DisableAttribs();
 
-	//	push indexes as glshorts
-	Array<GLshort> Indexes16;
-	for ( int i=0;	i<Indexes.GetSize();	i++ )
-		Indexes16.PushBack( size_cast<GLshort>(Indexes[i]) );
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
-	glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes16.GetDataSize(), Indexes16.GetArray(), GL_STATIC_DRAW );
-	mIndexCount = size_cast<GLsizei>( Indexes16.GetSize() );
-	mIndexType = Opengl::GetTypeEnum<GLshort>();
-	Opengl_IsOkay();
-
+	if ( GenerateIndexes )
+	{
+		//	push indexes as glshorts
+		Array<GLshort> Indexes16;
+		for ( int i=0;	i<Indexes.GetSize();	i++ )
+			Indexes16.PushBack( size_cast<GLshort>(Indexes[i]) );
+		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
+		glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes16.GetDataSize(), Indexes16.GetArray(), GL_STATIC_DRAW );
+		mIndexCount = size_cast<GLsizei>( Indexes16.GetSize() );
+		mIndexType = Opengl::GetTypeEnum<GLshort>();
+		Opengl_IsOkay();
+	}
+	
 	//	
 	glFinish();
 
@@ -2070,9 +2076,15 @@ void Opengl::TGeometry::Draw()
 	//	should already be bound, so these should do nothing
 	glBindBuffer( GL_ARRAY_BUFFER, mVertexBuffer );
 	Opengl_IsOkay();
-	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
-	Opengl_IsOkay();
-
+	
+	bool HasIndexes = ( mIndexBuffer != GL_ASSET_INVALID );
+	
+	if ( HasIndexes )
+	{
+		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
+		Opengl_IsOkay();
+	}
+	
 #if defined(TARGET_IOS)
 	static bool DoEnableAttribs = false;
 #else
@@ -2084,15 +2096,19 @@ void Opengl::TGeometry::Draw()
 		EnableAttribs(mVertexDescription);
 		Opengl_IsOkay();
 	}
-
-	//	gr: shouldn't use this, only for debug
-	//glDrawArrays( GL_TRIANGLES, 0, this->vertexCount );
-	//Opengl_IsOkay();
 	
+	if ( !HasIndexes )
+	{
+		//	gr: shouldn't use this, only for debug
+		glDrawArrays( GL_TRIANGLES, 0, this->mVertexCount );
+		Opengl_IsOkay();
+	}
+	else
+	{
+		glDrawElements( GL_TRIANGLES, mIndexCount, mIndexType, nullptr );
+		Opengl::IsOkay("glDrawElements");
+	}
 	
-	glDrawElements( GL_TRIANGLES, mIndexCount, mIndexType, nullptr );
-	Opengl::IsOkay("glDrawElements");
-
 	Unbind();
 }
 
