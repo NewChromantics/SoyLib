@@ -144,7 +144,7 @@ void SoyShader::Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,Soy:
 		Soy::StringReplace( Shader, "gl_FragColor", AutoFragColorName );
 		Soy::StringReplace( Shader, "texture2D(", "texture(" );
 	
-		
+		//	todo: only if there isn't an existing out
 		//	auto declare the new gl_FragColor variable after all processor directives
 		std::stringstream FragVariable;
 		FragVariable << "out vec4 " << AutoFragColorName << ";" << std::endl;
