@@ -97,3 +97,31 @@ size_t SoyGraphics::TElementType::GetFloatCount(Type t)
 	throw Soy::AssertException( Error.str() );
 }
 
+bool SoyGraphics::TElementType::IsFloat(Type t)
+{
+	switch (t)
+	{
+		case Float:
+		case Float2:
+		case Float3:
+		case Float4:
+		case Float3x3:
+			return true;
+		
+		default:
+			return false;
+	}
+}
+
+
+bool SoyGraphics::TElementType::IsImage(Type t)
+{
+	switch (t)
+	{
+		case Texture2D:
+			return true;
+		
+		default:
+			return false;
+	}
+}

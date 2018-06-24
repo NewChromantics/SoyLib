@@ -26,6 +26,8 @@ namespace SoyGraphics
 
 		size_t		GetDataSize(Type t);
 		size_t		GetFloatCount(Type t);	//	throws if not a float type
+		bool		IsFloat(Type t);
+		bool		IsImage(Type t);
 	}
 }
 
