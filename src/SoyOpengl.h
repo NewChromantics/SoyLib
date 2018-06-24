@@ -221,7 +221,7 @@ public:
 	}
 									   
 
-	void	BindTexture(size_t TextureIndex,TTexture Texture);	//	use to unbind too
+	static void		BindTexture(size_t TextureIndex,TTexture Texture,size_t UniformIndex);	//	use to unbind too
 	
 public:
 	const TShader&	mShader;
@@ -247,6 +247,7 @@ public:
 	}
 	
 	void			SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Floats);
+	void			SetUniform(const SoyGraphics::TUniform& Uniform,const TTexture& Texture,size_t BindIndex);
 
 public:
 	TAsset			mProgram;

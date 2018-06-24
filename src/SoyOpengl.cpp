@@ -1683,7 +1683,9 @@ Opengl::TShaderState::~TShaderState()
 	TTexture NullTexture;
 	while ( mTextureBindCount > 0 )
 	{
-		BindTexture( mTextureBindCount-1, NullTexture );
+		//	uniform doesn't matter for unbinding
+		auto UniformIndex = 0;
+		BindTexture( mTextureBindCount-1, NullTexture, UniformIndex );
 		mTextureBindCount--;
 	}
 	
@@ -1758,14 +1760,12 @@ bool Opengl::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
 		return false;
 
 	auto BindTextureIndex = size_cast<GLint>( mTextureBindCount );
-	BindTexture( BindTextureIndex, Texture );
-	glUniform1i( Uniform.mIndex, BindTextureIndex );
-	Opengl_IsOkay();
+	BindTexture( BindTextureIndex, Texture, Uniform.mIndex );
 	mTextureBindCount++;
 	return true;
 }
 
-void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
+void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,size_t UniformIndex)
 {
 	const GLenum _TexturesBindings[] =
 	{
@@ -1779,6 +1779,8 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture)
 	glActiveTexture( TextureBindings[TextureIndex] );
 	Opengl_IsOkay();
 	glBindTexture( Texture.mType, Texture.mTexture.mName );
+	Opengl_IsOkay();
+	glUniform1i( UniformIndex, UniformIndex );
 	Opengl_IsOkay();
 }
 
@@ -1973,6 +1975,14 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 	auto glUniformXv = GetglUniformXv( Uniform.mType );
 	glUniformXv( Uniform.mIndex, Uniform.GetArraySize(), Floats.GetArray() );
 	Opengl_IsOkay();
+}
+
+void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,const TTexture& Texture,size_t BindIndex)
+{
+	if ( Uniform.mType != SoyGraphics::TElementType::Texture2D )
+		throw Soy::AssertException( std::string("Trying to set image on non-image uniform ") + Uniform.mName );
+	
+	TShaderState::BindTexture( BindIndex, Texture, Uniform.mIndex );
 }
 
 void Opengl::TGeometry::EnableAttribs(const SoyGraphics::TGeometryVertex& Descripton,bool Enable)
