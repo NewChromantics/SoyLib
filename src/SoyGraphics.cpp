@@ -78,3 +78,22 @@ size_t SoyGraphics::TElementType::GetDataSize(Type t)
 	throw Soy::AssertException( Error.str() );
 }
 
+
+size_t SoyGraphics::TElementType::GetFloatCount(Type t)
+{
+	switch (t)
+	{
+		case Float:			return 1;
+		case Float2:		return 2;
+		case Float3:		return 3;
+		case Float4:		return 4;
+		case Float3x3:		return 3*3;
+		
+		default:break;
+	}
+	
+	std::stringstream Error;
+	Error << __func__ << " not float type " << t;
+	throw Soy::AssertException( Error.str() );
+}
+

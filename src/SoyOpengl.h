@@ -245,6 +245,8 @@ public:
 		auto* Uniform = mAttributes.Find( Name );
 		return Uniform ? *Uniform : SoyGraphics::TUniform();
 	}
+	
+	void			SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Floats);
 
 public:
 	TAsset			mProgram;

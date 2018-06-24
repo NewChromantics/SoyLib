@@ -1943,6 +1943,37 @@ Opengl::TShader::~TShader()
 	}
 }
 
+std::function<void(GLint,GLsizei,const GLfloat *)> GetglUniformXv(SoyGraphics::TElementType::Type ElementType)
+{
+	switch ( ElementType )
+	{
+		case SoyGraphics::TElementType::Float:	return glUniform1fv;
+		case SoyGraphics::TElementType::Float2:	return glUniform2fv;
+		case SoyGraphics::TElementType::Float3:	return glUniform3fv;
+		case SoyGraphics::TElementType::Float4:	return glUniform4fv;
+		default:break;
+	}
+
+	std::stringstream Error;
+	Error << "Don't know which glUniformXv to use for  " << ElementType;
+	throw Soy::AssertException(Error.str());
+}
+
+void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Floats)
+{
+	//	work out how many floats we're expecting
+	auto FloatCount = Uniform.GetFloatCount();
+	if ( Floats.GetSize() != FloatCount )
+	{
+		std::stringstream Error;
+		Error << __func__ << " expected " << FloatCount << " floats but got " << Floats.GetSize();
+		throw Soy::AssertException(Error.str());
+	}
+
+	auto glUniformXv = GetglUniformXv( Uniform.mType );
+	glUniformXv( Uniform.mIndex, Uniform.GetArraySize(), Floats.GetArray() );
+	Opengl_IsOkay();
+}
 
 void Opengl::TGeometry::EnableAttribs(const SoyGraphics::TGeometryVertex& Descripton,bool Enable)
 {

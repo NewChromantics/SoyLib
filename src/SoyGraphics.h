@@ -25,6 +25,7 @@ namespace SoyGraphics
 		};
 
 		size_t		GetDataSize(Type t);
+		size_t		GetFloatCount(Type t);	//	throws if not a float type
 	}
 }
 
@@ -53,7 +54,7 @@ public:
 	size_t				GetElementDataSize() const			{	return TElementType::GetDataSize(mType);	}
 	size_t				GetDataSize() const					{	return GetElementDataSize() * GetArraySize();	}
 	size_t				GetArraySize() const				{	return std::max<size_t>( 1, mArraySize );	}
-
+	size_t				GetFloatCount() const				{	return TElementType::GetFloatCount(mType) * GetArraySize(); }
 	bool				operator==(const char* Name) const	{	return mName == Name;	}
 
 public:
