@@ -34,11 +34,35 @@ size_t GetNonProcessorFirstLine(ArrayBridge<std::string>& Shader)
 	return LastProcessorDirectiveLine+1;
 }
 
-
+template<typename S>
+inline bool	IsWhitespaceChar(S Char)
+{
+	return ( Char == ' ' ||
+			Char == '\n' ||
+			Char == '\t' ||
+			Char == '\0' ||
+			Char == ',' );
+}
 //	change this in the chain so pre-process and #include is done much earlier in the chain
 //	see my opencl code for a working example!
 void PreprocessShader(ArrayBridge<std::string>& Shader)
 {
+	//	remove prefix whitespace lines
+	//	why? #version in glsl needs to have nothing at all before it removed
+	//	maybe this should be something specific to glsl.
+	//	also, it means line numbers (if we ever really passed them back) would be off.
+	//	so if we were doing this properly, we need to have some line-number mapping (for #include too)
+	while ( Shader.GetSize() > 0 )
+	{
+		auto AllWhitespace = true;
+		auto& Line = Shader[0];
+		for ( int c=0;	c<Line.length() && AllWhitespace;	c++ )
+			AllWhitespace &= IsWhitespaceChar<char>( Line[c] );
+		if ( !AllWhitespace )
+			break;
+		Shader.RemoveBlock(0,1);
+	}
+	
 	for ( int i=0;	i<Shader.GetSize();	i++ )
 	{
 		auto& Line = Shader[i];
@@ -58,6 +82,10 @@ void PreprocessShader(ArrayBridge<std::string>& Shader)
 //	vert & frag changes
 void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 {
+	//	pragmas need to be first char in string
+	if ( Soy::StringContains( Shader[0], "#", true ) )
+		Soy::StringTrimLeft( Shader[0], IsWhitespaceChar<char> );
+	
 	//	insert version if there isn't one there
 	if ( !Soy::StringBeginsWith(Shader[0],"#version",true) )
 	{
