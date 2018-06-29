@@ -1902,7 +1902,7 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		mUniforms.PushBack( Uniform );
 	}
 
-	static bool DebugUniforms = true;
+	static bool DebugUniforms = false;
 	if ( DebugUniforms )
 	{
 		std::Debug << ShaderName << " has " << mAttributes.GetSize() << " attributes; " << std::endl;
