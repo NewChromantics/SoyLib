@@ -49,6 +49,8 @@ namespace Platform
 	void		SetDllPath(const std::string& Path);
 	std::string	GetDllPath();
 #endif
+	extern std::string	ExePath;
+
 
 	bool	ShowFileExplorer(const std::string& Path);
 }

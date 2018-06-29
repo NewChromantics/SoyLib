@@ -32,6 +32,7 @@ namespace Platform
 #if defined(TARGET_WINDOWS)
 	std::string		gDllPath;
 #endif
+	std::string		ExePath;
 }
 
 
