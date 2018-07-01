@@ -1780,7 +1780,7 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,size
 	Opengl_IsOkay();
 	glBindTexture( Texture.mType, Texture.mTexture.mName );
 	Opengl_IsOkay();
-	glUniform1i( UniformIndex, UniformIndex );
+	glUniform1i( UniformIndex, TextureIndex );
 	Opengl_IsOkay();
 }
 
