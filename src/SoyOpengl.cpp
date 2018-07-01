@@ -1775,13 +1775,16 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,size
 	};
 	auto TextureBindings = GetRemoteArray( _TexturesBindings );
 	
-	Opengl_IsOkay();
+	Opengl::IsOkay("TShaderState::BindTexture flush");
+
 	glActiveTexture( TextureBindings[TextureIndex] );
-	Opengl_IsOkay();
+	Opengl::IsOkay("TShaderState::BindTexture glActiveTexture");
+
 	glBindTexture( Texture.mType, Texture.mTexture.mName );
-	Opengl_IsOkay();
+	Opengl::IsOkay("TShaderState::BindTexture glBindTexture");
+
 	glUniform1i( UniformIndex, TextureIndex );
-	Opengl_IsOkay();
+	Opengl::IsOkay("TShaderState::BindTexture glUniform1i");
 }
 
 Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context)
@@ -1898,11 +1901,17 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		Uniform.mType = SoyGraphics::GetType( Type );
 		Uniform.mName = std::string( nameData.data(), actualLength );
 		
+		//	some hardware returns things like
+		//		Colours[0] or Colours[] for
+		//	in vec4 Colours[1000];
+		//	other data is good, so strip the name
+		Uniform.mName = Soy::StringPopUntil( Uniform.mName, '[' );
+		
 		//	todo: check is valid type etc
 		mUniforms.PushBack( Uniform );
 	}
 
-	static bool DebugUniforms = false;
+	static bool DebugUniforms = true;
 	if ( DebugUniforms )
 	{
 		std::Debug << ShaderName << " has " << mAttributes.GetSize() << " attributes; " << std::endl;
