@@ -79,6 +79,7 @@ namespace Opencl
 	class TKernelIteration;
 
 	void				GetDevices(ArrayBridge<TDeviceMeta>&& Metas,OpenclDevice::Type Filter);
+	void				EnumDevices(std::function<void(const TDeviceMeta&)> EnumDevice);
 	std::string			GetErrorString(cl_int Error);
 	cl_image_format		GetImageFormat(SoyPixelsFormat::Type Format);
 	
@@ -113,7 +114,9 @@ public:
 	TPlatform(cl_platform_id Platform);
 	
 	void			GetDevices(ArrayBridge<TDeviceMeta>& Metas,OpenclDevice::Type Filter);
-	
+	void			EnumDevices(std::function<void(const TDeviceMeta&)> EnumDevice,OpenclDevice::Type Filter);
+
+public:
 	std::string		mName;
 	std::string		mVersion;
 	std::string		mVendor;
@@ -255,7 +258,8 @@ public:
 	virtual bool		CanSleep() override		{	return !PopWorker::TJobQueue::HasJobs();	}	//	break out of conditional with this
 };
 
-
+//	threadsafe in opencl 1.1
+//	https://forums.khronos.org/showthread.php/7354-are-clCreateProgramWithSource-amp-clBuildProgram-thread-safe
 class Opencl::TProgram
 {
 public:

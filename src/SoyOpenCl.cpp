@@ -363,7 +363,10 @@ Opencl::TPlatform::TPlatform(cl_platform_id Platform) :
 }
 
 
-void Opencl::TPlatform::GetDevices(ArrayBridge<TDeviceMeta>& Metas,OpenclDevice::Type Filter)
+
+
+
+void Opencl::TPlatform::EnumDevices(std::function<void(const TDeviceMeta&)> EnumDevice,OpenclDevice::Type Filter)
 {
 	cl_device_id DeviceBuffer[100];
 	cl_uint DeviceCount = 0;
@@ -376,28 +379,49 @@ void Opencl::TPlatform::GetDevices(ArrayBridge<TDeviceMeta>& Metas,OpenclDevice:
 		throw Soy::AssertException( Error.str() );
 		return;
 	}
-		
+	
 	for ( int d=0;	d<DeviceCount;	d++ )
 	{
 		TDeviceMeta Meta( DeviceBuffer[d] );
-		Metas.PushBack( Meta );
+		EnumDevice( Meta );
 	}
+}
+
+void Opencl::TPlatform::GetDevices(ArrayBridge<TDeviceMeta>& Metas,OpenclDevice::Type Filter)
+{
+	auto EnumDevice = [&](const TDeviceMeta& DeviceMeta)
+	{
+		Metas.PushBack(DeviceMeta);
+	};
+	EnumDevices( EnumDevice, Filter );
 }
 	
 
 void Opencl::GetDevices(ArrayBridge<TDeviceMeta>&& Metas,OpenclDevice::Type Filter)
 {
+	auto EnumDevice = [&](const TDeviceMeta& DeviceMeta)
+	{
+		Metas.PushBack(DeviceMeta);
+	};
+	EnumDevices( EnumDevice );
+}
+
+
+void Opencl::EnumDevices(std::function<void(const TDeviceMeta&)> EnumDevice)
+{
 	//	windows AMD sdk/ati radeon driver implementation doesn't accept NULL as a platform ID, so fetch the list of platforms first
 	Array<cl_platform_id> Platforms;
 	GetPlatforms( GetArrayBridge(Platforms) );
-
+	
 	//	collect devices
 	for ( int p=0;	p<Platforms.GetSize();	p++ )
 	{
 		TPlatform Platform(Platforms[p]);
 		
-		Platform.GetDevices( Metas, Filter );
+		Platform.EnumDevices( EnumDevice, OpenclDevice::GPU );
+		Platform.EnumDevices( EnumDevice, OpenclDevice::CPU );
 	}
+
 }
 
 
