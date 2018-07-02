@@ -1614,10 +1614,12 @@ void Opencl::TKernelState::QueueIterationImpl(const TKernelIteration& Iteration,
 			UnassignedUniforms.PushBack( Uniform.mName );
 		}
 
-		std::Debug << "Detected unassigned uniforms x" << UnassignedUniforms.GetSize() << ": ";
+		//	gr: this will fail, so lets throw this
+		std::stringstream Error;
+		Error << "Detected unassigned uniforms x" << UnassignedUniforms.GetSize() << ": ";
 		for ( int i=0;	i<UnassignedUniforms.GetSize();	i++ )
-			std::Debug << UnassignedUniforms[i] << ", ";
-		std::Debug << std::endl;
+			Error << UnassignedUniforms[i] << ", ";
+		throw Soy::AssertException( Error.str() );
 	}
 	
 	Opencl::IsOkay( Err, "clEnqueueNDRangeKernel" );
