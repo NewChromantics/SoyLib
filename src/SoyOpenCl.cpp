@@ -652,8 +652,10 @@ Opencl::TProgram::TProgram(const std::string& Source,TContext& Context) :
 	//	throw if error
 	if ( Err != CL_SUCCESS )
 	{
+		//	gr: if you're here, possible problem: a kernel with no params doesn't compile on some Radeons";
+		//	https://github.com/nengo/nengo-ocl/issues/51
 		std::stringstream Error;
-		Error << "Failed to compile kernel; " << BuildLog.str();
+		Error << "Failed to compile kernel; " << BuildLog.str() << "; gr: possible problem: a kernel with no params doesn't compile on some Radeons";
 		throw Soy::AssertException( Error.str() );
 	}
 	
