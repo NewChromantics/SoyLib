@@ -307,8 +307,10 @@ public:
 		Read( GetArrayBridge( ItemArray ), Context, Sync );
 	}
 	
-	size_t		GetMaxSize() const	{	return mBufferSize;	}
-	
+	size_t			GetMaxSize() const			{	return mBufferSize;	}
+	virtual size_t	GetArraySize() const		{	throw Soy::AssertException("Buffer is not an array");	}
+	virtual size_t	GetArrayElementSize() const	{	throw Soy::AssertException("Buffer is not an array");	}
+
 protected:
 	void		ReadImpl(ArrayInterface<uint8>& Array,TContext& Context,TSync* Sync);
 	void		Write(const uint8* Array,size_t Size,TContext& Context,TSync* Sync);
@@ -339,8 +341,9 @@ public:
 		mElementSize = Array.GetElementSize();
 	}
 	
-	size_t	GetSize() const	{	return mBufferSize / mElementSize;	}
-	
+	virtual size_t	GetArraySize() const override			{	return mBufferSize / mElementSize;	}
+	virtual size_t	GetArrayElementSize() const override	{	return mElementSize;	}
+
 	static std::shared_ptr<TBufferArray<TYPE>> Alloc(ArrayBridge<TYPE>&& Array,TContext& Context,const std::string& DebugName)
 	{
 		std::shared_ptr<TBufferArray<TYPE>> BufferPtr( new TBufferArray( Array, Context, DebugName ) );
@@ -458,7 +461,7 @@ public:
 	void			ReadUniform(const char* Name,SoyPixelsImpl& Pixels);
 	void			ReadUniform(const char* Name,Opengl::TTextureAndContext& Texture);
 	template<typename TYPE>
-	void			ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead);
+	void			ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead=0);
 	void			ReadUniform(const char* Name,TBuffer& Buffer);
 
 	void			GetIterations(ArrayBridge<TKernelIteration>&& IterationSplits,const ArrayBridge<vec2x<size_t>>&& Iterations);
@@ -568,8 +571,22 @@ public:
 template<typename TYPE>
 inline void Opencl::TKernelState::ReadUniform(const char* Name,ArrayBridge<TYPE>&& Data,size_t ElementsToRead)
 {
-	auto ArrayWrapper = GetRemoteArray( Data.GetArray(), ElementsToRead );
 	auto& Buffer = GetUniformBuffer(Name);
+	if ( ElementsToRead == 0 )
+		ElementsToRead = Buffer.GetArraySize();
+	
+	if ( Buffer.GetArrayElementSize() != Data.GetElementSize() )
+	{
+		std::stringstream Error;
+		Error << "ReadUniform() to array (element size=" << Data.GetElementSize() << ") from buffer array(element size=" << Buffer.GetArrayElementSize() << ") mismatch";
+		throw Soy::AssertException(Error.str());
+	}
+	
+	//	auto alloc array
+	if ( Data.GetSize() < ElementsToRead )
+		Data.SetSize(ElementsToRead);
+		
+	auto ArrayWrapper = GetRemoteArray( Data.GetArray(), ElementsToRead );
 	Opencl::TSync Semaphore;
 	Buffer.Read( GetArrayBridge(ArrayWrapper), GetContext(), &Semaphore );
 	Semaphore.Wait();
