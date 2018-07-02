@@ -428,6 +428,8 @@ protected:
 public:
 	virtual ~TKernelState();
 	
+	TUniform		GetUniform(const std::string& Name) const;
+
 	//	gr: not uniforms, but matching name of opengl
 	//	gr: like opengl, these now throw on error, silent(return) if uniform doesn't exist
 	virtual bool	SetUniform(const char* Name,const int& v) override;

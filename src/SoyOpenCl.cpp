@@ -809,6 +809,19 @@ Opencl::TKernelState::~TKernelState()
 	mKernel.Unlock();
 }
 
+Opencl::TUniform Opencl::TKernelState::GetUniform(const std::string& Name) const
+{
+	auto Uniform = mKernel.GetUniform( Name.c_str() );
+	if ( !Uniform.IsValid() )
+	{
+		std::stringstream Error;
+		Error << "No uniform matching " << Name;
+		throw Soy::AssertException( Error.str() );
+	}
+	return Uniform;
+}
+
+
 template<typename TYPE>
 bool SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Value)
 {
