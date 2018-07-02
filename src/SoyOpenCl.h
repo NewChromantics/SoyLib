@@ -341,6 +341,12 @@ public:
 	
 	size_t	GetSize() const	{	return mBufferSize / mElementSize;	}
 	
+	static std::shared_ptr<TBufferArray<TYPE>> Alloc(ArrayBridge<TYPE>&& Array,TContext& Context,const std::string& DebugName)
+	{
+		std::shared_ptr<TBufferArray<TYPE>> BufferPtr( new TBufferArray( Array, Context, DebugName ) );
+		return BufferPtr;
+	}
+	
 private:
 	size_t	mElementSize;
 };
@@ -445,7 +451,8 @@ public:
 	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels) override		{	return SetUniform( Name, Pixels, OpenclBufferReadWrite::ReadWrite );	}
 	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels,OpenclBufferReadWrite::Type ReadWriteMode);
 	bool			SetUniform(const char* Name,TBuffer& Buffer);
-	
+	void			SetUniform(const std::string& Name,std::shared_ptr<TBuffer>& Buffer);
+
 	//	throw on error, assuming wrong uniform is fatal
 	//	read back data from a buffer that was used as a uniform
 	void			ReadUniform(const char* Name,SoyPixelsImpl& Pixels);
@@ -467,7 +474,7 @@ private:
 
 	//	get buffer for a uniform - only applies to temporary ones we created
 	TBuffer&		GetUniformBuffer(const char* Name);	//	throw if non-existant. assuming fatal if we're trying to read data from a uniform
-	void			OnAssignedUniform(const char* Name,bool Success)
+	void			OnAssignedUniform(const std::string& Name,bool Success)
 	{
 		if ( Success )
 			mAssignedArguments.PushBack( Name );

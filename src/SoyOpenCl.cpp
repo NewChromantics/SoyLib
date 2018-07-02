@@ -841,6 +841,21 @@ bool SetKernelArg(Opencl::TKernelState& Kernel,const char* Name,const TYPE& Valu
 }
 
 
+template<typename TYPE>
+void SetKernelArg(Opencl::TKernelState& Kernel,const std::string& Name,const TYPE& Value)
+{
+	auto Uniform = Kernel.GetUniform(Name);
+	
+	//	gr: ByNameAPPLE will fail if we haven't compiled kernel info
+	//		Opencl::BuildOption_KernelInfo
+	auto* NameStr = Name.c_str();
+	auto Error = clSetKernelArgByNameAPPLE( Kernel.mKernel.mKernel, NameStr, sizeof(TYPE), &Value );
+	
+	std::stringstream ErrorString;
+	ErrorString << "SetKernelArg(" << Name << ", " << Soy::GetTypeName<TYPE>() << ")";
+	Opencl::IsOkay(Error, ErrorString.str() );
+}
+
 
 cl_channel_order Opencl::GetImageChannelOrder(SoyPixelsFormat::Type Format,cl_channel_type& DataType)
 {
@@ -1394,6 +1409,22 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const int& Value)
 	bool Result = SetKernelArg( *this, Name, Value );
 	OnAssignedUniform( Name, Result );
 	return Result;
+}
+
+void Opencl::TKernelState::SetUniform(const std::string& Name,std::shared_ptr<TBuffer>& Buffer)
+{
+	//	try and assign first
+	if ( !Buffer )
+	{
+		std::stringstream Error;
+		Error << "SetUniform( " << Name << " ) with null buffer";
+		throw Soy::AssertException(Error.str());
+	}
+	SetKernelArg( *this, Name, Buffer->GetMemBuffer() );
+	
+	mBuffers.PushBack( std::make_pair(Name,Buffer) );
+	
+	OnAssignedUniform( Name, true );
 }
 
 bool Opencl::TKernelState::SetUniform(const char* Name,TBuffer& Buffer)
