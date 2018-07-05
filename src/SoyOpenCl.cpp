@@ -1372,6 +1372,20 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const SoyPixelsImpl& Pixe
 }
 
 
+void Opencl::TKernelState::SetUniform(const std::string& Name,const SoyPixelsImpl& Pixels,OpenclBufferReadWrite::Type ReadWriteMode,bool Blocking)
+{
+	//	make image buffer
+	Opencl::TSync Sync;
+	Opencl::TSync* pSync = Blocking ? &Sync : nullptr;
+	std::shared_ptr<TBuffer> Buffer( new TBufferImage( Pixels, GetContext(), false, ReadWriteMode, std::string("Uniform ") + Name, pSync ) );
+
+	if ( pSync )
+		Sync.Wait();
+
+	SetUniform( Name, Buffer );
+}
+
+
 bool Opencl::TKernelState::SetUniform(const char* Name,const vec4f& Value)
 {
 	auto Value2 = Soy::VectorToCl( Value );

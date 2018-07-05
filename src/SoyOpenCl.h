@@ -455,6 +455,7 @@ public:
 	bool			SetUniform(const char* Name,const SoyPixelsImpl& Pixels,OpenclBufferReadWrite::Type ReadWriteMode);
 	bool			SetUniform(const char* Name,TBuffer& Buffer);
 	void			SetUniform(const std::string& Name,std::shared_ptr<TBuffer>& Buffer);
+	void			SetUniform(const std::string& Name,const SoyPixelsImpl& Pixels,OpenclBufferReadWrite::Type ReadWriteMode,bool Blocking);
 
 	//	throw on error, assuming wrong uniform is fatal
 	//	read back data from a buffer that was used as a uniform
