@@ -1252,7 +1252,14 @@ void Opencl::TBufferImage::Write(TBufferImage& Image,Opencl::TSync* Semaphore)
 
 void Opencl::TBufferImage::Read(SoyPixelsImpl& Image,Opencl::TSync* Semaphore)
 {
+	//	resize pixels to fit image if not provided
+	//	assume we want to only read a region if different size...
+	//	todo: seperate function for rect-read
+	if ( !Image.GetMeta().IsValid() )
+		Image.Init(mMeta);
+	
 	size_t Origin[] = { 0,0,0 };
+	//	gr: we get CL_INVALID_VALUE if w/h is zero
 	size_t Region[] = { Image.GetWidth(), Image.GetHeight(), 1 };
 	auto Queue = mContext.GetQueue();
 	cl_bool Block = CL_TRUE;
