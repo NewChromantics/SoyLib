@@ -17,6 +17,12 @@ size_t GetNonProcessorFirstLine(ArrayBridge<std::string>& Shader)
 		
 		bool IsHeader = false;
 		
+		if ( !Soy::StringBeginsWith( Line, "#define endofheader", true ) )
+		{
+			LastProcessorDirectiveLine = i;
+			break;
+		}
+		
 		if ( Line[0] == '#' )
 		{
 			if ( !Soy::StringBeginsWith( Line, "#define", true ) )
