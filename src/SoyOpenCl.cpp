@@ -948,7 +948,7 @@ void Opencl::TBuffer::ReadImpl(ArrayInterface<uint8>& Array,TContext& Context,TS
 	//	todo; check size of mem. We should store this on mMem set
 	size_t StartBytes = 0;
 	size_t ByteCount = Array.GetDataSize();
-	static bool Blocking = true;
+	static auto Blocking = CL_TRUE;
 	
 	//	gr: sync's from clEnqueueReadBuffer never seem to finish if bytecount is 0. Should bail out earlier, but just in case...
 	if ( ByteCount == 0 )

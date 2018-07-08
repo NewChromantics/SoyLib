@@ -344,9 +344,9 @@ public:
 	virtual size_t	GetArraySize() const override			{	return mBufferSize / mElementSize;	}
 	virtual size_t	GetArrayElementSize() const override	{	return mElementSize;	}
 
-	static std::shared_ptr<TBufferArray<TYPE>> Alloc(ArrayBridge<TYPE>&& Array,TContext& Context,const std::string& DebugName)
+	static std::shared_ptr<TBufferArray<TYPE>> Alloc(ArrayBridge<TYPE>&& Array,TContext& Context,const std::string& DebugName,TSync* Sync=nullptr)
 	{
-		std::shared_ptr<TBufferArray<TYPE>> BufferPtr( new TBufferArray( Array, Context, DebugName ) );
+		std::shared_ptr<TBufferArray<TYPE>> BufferPtr( new TBufferArray( Array, Context, DebugName, Sync ) );
 		return BufferPtr;
 	}
 	
