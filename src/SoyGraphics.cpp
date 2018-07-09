@@ -11,6 +11,27 @@ std::ostream& operator<<(std::ostream &out,const SoyGraphics::TTextureUploadPara
 }
 
 
+namespace SoyGraphics
+{
+std::ostream& operator<<(std::ostream &out,const SoyGraphics::TElementType::Type& in)
+{
+	switch ( in )
+	{
+		case SoyGraphics::TElementType::Type::Float:	out << "Float";	break;
+		case SoyGraphics::TElementType::Type::Float2:	out << "Float2";	break;
+		case SoyGraphics::TElementType::Type::Float3:	out << "Float3";	break;
+		case SoyGraphics::TElementType::Type::Float4:	out << "Float4";	break;
+		case SoyGraphics::TElementType::Type::Float3x3:	out << "Float3x3";	break;
+		case SoyGraphics::TElementType::Type::Int32:	out << "Int32";	break;
+		case SoyGraphics::TElementType::Type::Texture2D:	out << "Texture2D";	break;
+		
+		default:
+			out << "<unhandled type #" << static_cast<int>(in) << ">";	break;
+	}
+	return out;
+}
+}
+
 std::ostream& SoyGraphics::operator<<(std::ostream &out,const SoyGraphics::TUniform& in)
 {
 	out << "#" << in.mIndex << " ";

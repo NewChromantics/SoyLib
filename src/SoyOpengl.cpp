@@ -1689,6 +1689,10 @@ Opengl::TShaderState::~TShaderState()
 		mTextureBindCount--;
 	}
 	
+	glActiveTexture( GL_TEXTURE0 );
+	Opengl::IsOkay("~TShaderState glActiveTexture( GL_TEXTURE0 )");
+
+	
 	//	unbind shader
 	glUseProgram(0);
 }
@@ -1783,8 +1787,10 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,size
 	glBindTexture( Texture.mType, Texture.mTexture.mName );
 	Opengl::IsOkay("TShaderState::BindTexture glBindTexture");
 
-	glUniform1i( UniformIndex, TextureIndex );
-	Opengl::IsOkay("TShaderState::BindTexture glUniform1i");
+	auto TextureIndexInt = size_cast<GLint>(TextureIndex);
+	auto UniformIndexInt = size_cast<GLint>(UniformIndex);
+	glUniform1i( UniformIndexInt, TextureIndexInt );
+	Opengl::IsOkay("TShaderState::BindTexture glUniform1i",false);
 }
 
 Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context)
@@ -1981,9 +1987,17 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 		throw Soy::AssertException(Error.str());
 	}
 
+	Opengl_IsOkayFlush();
+	
+	auto UniformIndex = size_cast<GLint>( Uniform.mIndex );
+	auto ArraySize = size_cast<GLsizei>(Uniform.GetArraySize());
+	auto pFloats = Floats.GetArray();
 	auto glUniformXv = GetglUniformXv( Uniform.mType );
-	glUniformXv( Uniform.mIndex, Uniform.GetArraySize(), Floats.GetArray() );
-	Opengl_IsOkay();
+	glUniformXv( UniformIndex, ArraySize, pFloats );
+	
+	std::stringstream Error;
+	Error << "SetUniform( " << Uniform << ")";
+	Opengl::IsOkay( Error.str(), true );
 }
 
 void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,const TTexture& Texture,size_t BindIndex)

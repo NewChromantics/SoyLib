@@ -33,6 +33,10 @@ namespace SoyGraphics
 
 std::ostream& operator<<(std::ostream &out,const SoyGraphics::TTextureUploadParams& in);
 
+namespace SoyGraphics
+{
+	std::ostream& operator<<(std::ostream &out,const SoyGraphics::TElementType::Type& in);
+}
 
 
 class SoyGraphics::TUniform
