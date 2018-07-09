@@ -1684,8 +1684,7 @@ Opengl::TShaderState::~TShaderState()
 	while ( mTextureBindCount > 0 )
 	{
 		//	uniform doesn't matter for unbinding
-		auto UniformIndex = 0;
-		BindTexture( mTextureBindCount-1, NullTexture, UniformIndex );
+		BindTexture( mTextureBindCount-1, NullTexture, nullptr );
 		mTextureBindCount--;
 	}
 	
@@ -1769,7 +1768,8 @@ bool Opengl::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
 	return true;
 }
 
-void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,size_t UniformIndex)
+
+void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,std::function<void(GLuint)> SetUniform)
 {
 	const GLenum _TexturesBindings[] =
 	{
@@ -1780,18 +1780,57 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,size
 	auto TextureBindings = GetRemoteArray( _TexturesBindings );
 	
 	Opengl::IsOkay("TShaderState::BindTexture flush");
-
+	
 	glActiveTexture( TextureBindings[TextureIndex] );
 	Opengl::IsOkay("TShaderState::BindTexture glActiveTexture");
-
+	
 	glBindTexture( Texture.mType, Texture.mTexture.mName );
 	Opengl::IsOkay("TShaderState::BindTexture glBindTexture");
 
+	if ( SetUniform != nullptr )
+	{
+		auto TextureIndexInt = size_cast<GLuint>(TextureIndex);
+		SetUniform( TextureIndexInt );
+		Opengl::IsOkay("TShaderState::BindTexture SetUniform()",false);
+	}
+}
+
+/*
+ 
+ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,size_t UniformIndex)
+ {
+	const GLenum _TexturesBindings[] =
+	{
+ GL_TEXTURE0, GL_TEXTURE1, GL_TEXTURE2, GL_TEXTURE3, GL_TEXTURE4, GL_TEXTURE5, GL_TEXTURE6, GL_TEXTURE7, GL_TEXTURE8, GL_TEXTURE9,
+ GL_TEXTURE10, GL_TEXTURE11, GL_TEXTURE12, GL_TEXTURE13, GL_TEXTURE14, GL_TEXTURE15, GL_TEXTURE16, GL_TEXTURE17, GL_TEXTURE18, GL_TEXTURE19,
+ GL_TEXTURE20, GL_TEXTURE21, GL_TEXTURE22, GL_TEXTURE23, GL_TEXTURE24, GL_TEXTURE25, GL_TEXTURE26, GL_TEXTURE27, GL_TEXTURE28, GL_TEXTURE29,
+	};
+	auto TextureBindings = GetRemoteArray( _TexturesBindings );
+	
+	Opengl::IsOkay("TShaderState::BindTexture flush");
+ 
+	glActiveTexture( TextureBindings[TextureIndex] );
+	Opengl::IsOkay("TShaderState::BindTexture glActiveTexture");
+ 
+	glBindTexture( Texture.mType, Texture.mTexture.mName );
+	Opengl::IsOkay("TShaderState::BindTexture glBindTexture");
+ 
 	auto TextureIndexInt = size_cast<GLint>(TextureIndex);
 	auto UniformIndexInt = size_cast<GLint>(UniformIndex);
 	glUniform1i( UniformIndexInt, TextureIndexInt );
 	Opengl::IsOkay("TShaderState::BindTexture glUniform1i",false);
+ }
+*/
+void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,size_t UniformIndex)
+{
+	auto SetUniformIndex = [&](GLuint TextureIndex)
+	{
+		auto UniformIndexInt = size_cast<GLint>(UniformIndex);
+		glUniform1i( UniformIndexInt, TextureIndex );
+	};
+	BindTexture( TextureIndex, Texture, SetUniformIndex );
 }
+
 
 Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context)
 {
@@ -1960,21 +1999,24 @@ Opengl::TShader::~TShader()
 	}
 }
 
-std::function<void(GLint,GLsizei,const GLfloat *)> GetglUniformXv(SoyGraphics::TElementType::Type ElementType)
+
+
+std::function<void(GLuint,GLint,GLsizei,const GLfloat *)> GetglProgramUniformXv(SoyGraphics::TElementType::Type ElementType)
 {
 	switch ( ElementType )
 	{
-		case SoyGraphics::TElementType::Float:	return glUniform1fv;
-		case SoyGraphics::TElementType::Float2:	return glUniform2fv;
-		case SoyGraphics::TElementType::Float3:	return glUniform3fv;
-		case SoyGraphics::TElementType::Float4:	return glUniform4fv;
+		case SoyGraphics::TElementType::Float:	return glProgramUniform1fv;
+		case SoyGraphics::TElementType::Float2:	return glProgramUniform2fv;
+		case SoyGraphics::TElementType::Float3:	return glProgramUniform3fv;
+		case SoyGraphics::TElementType::Float4:	return glProgramUniform4fv;
 		default:break;
 	}
-
+	
 	std::stringstream Error;
 	Error << "Don't know which glUniformXv to use for  " << ElementType;
 	throw Soy::AssertException(Error.str());
 }
+
 
 void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Floats)
 {
@@ -1992,9 +2034,10 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 	auto UniformIndex = size_cast<GLint>( Uniform.mIndex );
 	auto ArraySize = size_cast<GLsizei>(Uniform.GetArraySize());
 	auto pFloats = Floats.GetArray();
-	auto glUniformXv = GetglUniformXv( Uniform.mType );
-	glUniformXv( UniformIndex, ArraySize, pFloats );
-	
+	auto glProgramUniformXv = GetglProgramUniformXv( Uniform.mType );
+	auto ProgramName = mProgram.mName;
+	glProgramUniformXv( ProgramName, UniformIndex, ArraySize, pFloats );
+
 	std::stringstream Error;
 	Error << "SetUniform( " << Uniform << ")";
 	Opengl::IsOkay( Error.str(), true );
@@ -2005,7 +2048,17 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,const TTex
 	if ( Uniform.mType != SoyGraphics::TElementType::Texture2D )
 		throw Soy::AssertException( std::string("Trying to set image on non-image uniform ") + Uniform.mName );
 	
-	TShaderState::BindTexture( BindIndex, Texture, Uniform.mIndex );
+	
+	auto SetUniformIndex = [&](GLuint TextureIndex)
+	{
+		auto UniformIndexInt = size_cast<GLint>( Uniform.mIndex );
+		glProgramUniform1i( mProgram.mName, UniformIndexInt, TextureIndex );
+		
+		std::stringstream Error;
+		Error << "glProgramUniform1i( " << mProgram.mName << ", " << UniformIndexInt << ", " << TextureIndex << ")";
+		Opengl::IsOkay( Error.str(), true );
+	};
+	TShaderState::BindTexture( BindIndex, Texture, SetUniformIndex );
 }
 
 void Opengl::TGeometry::EnableAttribs(const SoyGraphics::TGeometryVertex& Descripton,bool Enable)

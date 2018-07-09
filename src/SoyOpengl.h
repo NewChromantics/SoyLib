@@ -222,6 +222,8 @@ public:
 									   
 
 	static void		BindTexture(size_t TextureIndex,TTexture Texture,size_t UniformIndex);	//	use to unbind too
+	static void		BindTexture(size_t TextureIndex,TTexture Texture,std::function<void(GLuint)> SetUniform);
+	
 	
 public:
 	const TShader&	mShader;
