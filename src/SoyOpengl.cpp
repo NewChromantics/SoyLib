@@ -1901,6 +1901,7 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		}
 	}
 	
+	
 	//	enum attribs and uniforms
 	//	lookout for new version;	http://stackoverflow.com/a/12611619/355753
 	GLint numActiveAttribs = 0;
@@ -1953,8 +1954,12 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		//		Colours[0] or Colours[] for
 		//	in vec4 Colours[1000];
 		//	other data is good, so strip the name
-		Uniform.mName = Soy::StringPopUntil( Uniform.mName, '[' );
-		
+		if ( Soy::StringContains( Uniform.mName, "[", true ) )
+		{
+			std::Debug << "Stripping uniform name " << Uniform.mName;
+			Uniform.mName = Soy::StringPopUntil( Uniform.mName, '[' );
+			std::Debug << " to " << Uniform.mName << std::endl;
+		}
 		//	todo: check is valid type etc
 		mUniforms.PushBack( Uniform );
 	}
@@ -2040,17 +2045,41 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 	}
 
 	Opengl_IsOkayFlush();
-	
+
 	auto UniformIndex = size_cast<GLint>( Uniform.mIndex );
 	auto ArraySize = size_cast<GLsizei>(Uniform.GetArraySize());
 	auto pFloats = Floats.GetArray();
 	auto glProgramUniformXv = GetglProgramUniformXv( Uniform.mType );
 	auto ProgramName = mProgram.mName;
-	glProgramUniformXv( ProgramName, UniformIndex, ArraySize, pFloats );
 
-	std::stringstream Error;
-	Error << "SetUniform( " << Uniform << ")";
-	Opengl::IsOkay( Error.str(), true );
+	static bool SetManually = true;
+	if ( SetManually )
+	{
+		for ( int i=0;	i<Uniform.GetArraySize();	i++ )
+		{
+			std::stringstream UniformName;
+			UniformName << Uniform.mName << "[" << i << "]";
+			auto Location = glGetUniformLocation( ProgramName, UniformName.str().c_str() );
+			
+			std::Debug << UniformName.str() << " at uniform location " << Location << " (orig: " << UniformIndex << ")" << std::endl;
+			
+			auto ElementFloatCount = Uniform.GetElementFloatCount();
+			auto* FloatsX = &pFloats[ i * ElementFloatCount ];
+			glProgramUniformXv( ProgramName, Location, 1, FloatsX );
+
+			std::stringstream Error;
+			Error << "SetUniform( Array[" << i << ", location: " << Location << ": " << Uniform << ")";
+			Opengl::IsOkay( Error.str(), false );
+		}
+	}
+	else
+	{
+		glProgramUniformXv( ProgramName, UniformIndex, ArraySize, pFloats );
+	
+		std::stringstream Error;
+		Error << "SetUniform( " << Uniform << ")";
+		Opengl::IsOkay( Error.str(), false );
+	}
 }
 
 void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,const TTexture& Texture,size_t BindIndex)
@@ -2065,8 +2094,8 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,const TTex
 		glProgramUniform1i( mProgram.mName, UniformIndexInt, TextureIndex );
 		
 		std::stringstream Error;
-		Error << "glProgramUniform1i( " << mProgram.mName << ", " << UniformIndexInt << ", " << TextureIndex << ")";
-		Opengl::IsOkay( Error.str(), true );
+		Error << "glProgramUniform1i( " << mProgram.mName << ", " << UniformIndexInt << ", " << TextureIndex << "; " << Uniform << " )";
+		Opengl::IsOkay( Error.str(), false );
 	};
 	TShaderState::BindTexture( BindIndex, Texture, SetUniformIndex );
 }
