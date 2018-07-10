@@ -21,6 +21,7 @@ namespace SoyGraphics
 			Float3,
 			Float4,
 			Float3x3,
+			Float4x4,
 			Texture2D,
 		};
 
@@ -61,6 +62,7 @@ public:
 	size_t				GetDataSize() const					{	return GetElementDataSize() * GetArraySize();	}
 	size_t				GetArraySize() const				{	return std::max<size_t>( 1, mArraySize );	}
 	size_t				GetFloatCount() const				{	return TElementType::GetFloatCount(mType) * GetArraySize(); }
+	size_t				GetElementFloatCount() const		{	return TElementType::GetFloatCount(mType); }
 	bool				operator==(const char* Name) const	{	return mName == Name;	}
 
 public:

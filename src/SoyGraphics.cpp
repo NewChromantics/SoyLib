@@ -22,6 +22,7 @@ std::ostream& operator<<(std::ostream &out,const SoyGraphics::TElementType::Type
 		case SoyGraphics::TElementType::Type::Float3:	out << "Float3";	break;
 		case SoyGraphics::TElementType::Type::Float4:	out << "Float4";	break;
 		case SoyGraphics::TElementType::Type::Float3x3:	out << "Float3x3";	break;
+		case SoyGraphics::TElementType::Type::Float4x4:	out << "Float4x4";	break;
 		case SoyGraphics::TElementType::Type::Int32:	out << "Int32";	break;
 		case SoyGraphics::TElementType::Type::Texture2D:	out << "Texture2D";	break;
 		
@@ -90,6 +91,7 @@ size_t SoyGraphics::TElementType::GetDataSize(Type t)
 		case Float3:		return sizeof(vec3f);
 		case Float4:		return sizeof(vec4f);
 		case Float3x3:		return sizeof(float3x3);
+		case Float4x4:		return sizeof(float4x4);
 
 		default:break;
 	}
@@ -109,7 +111,8 @@ size_t SoyGraphics::TElementType::GetFloatCount(Type t)
 		case Float3:		return 3;
 		case Float4:		return 4;
 		case Float3x3:		return 3*3;
-		
+		case Float4x4:		return 4*4;
+			
 		default:break;
 	}
 	
@@ -127,6 +130,7 @@ bool SoyGraphics::TElementType::IsFloat(Type t)
 		case Float3:
 		case Float4:
 		case Float3x3:
+		case Float4x4:
 			return true;
 		
 		default:
