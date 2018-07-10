@@ -1927,9 +1927,16 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		GLenum Type;
 		GLsizei ArraySize = 0;
 		glGetActiveAttrib( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &ArraySize, &Type, &nameData[0]);
+		Opengl::IsOkay("glGetActiveAttrib");
+		
 		Uniform.mArraySize = ArraySize;
 		Uniform.mType = SoyGraphics::GetType( Type );
 		Uniform.mName = std::string( nameData.data(), actualLength );
+		
+		//	refetch the real location. This changes when we have arrays and structs
+		auto Location = glGetAttribLocation( ProgramName, nameData.data() );
+		Opengl::IsOkay( std::string("glGetAttribLocation( ") + Uniform.mName );
+		Uniform.mIndex = Location;
 		
 		//	todo: check is valid type etc
 		mAttributes.PushBack( Uniform );
@@ -1946,9 +1953,16 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		GLenum Type;
 		GLsizei ArraySize = 0;
 		glGetActiveUniform( ProgramName, attrib, size_cast<GLsizei>(nameData.size()), &actualLength, &ArraySize, &Type, &nameData[0]);
+		Opengl::IsOkay("glGetActiveUniform");
+		
 		Uniform.mArraySize = ArraySize;
 		Uniform.mType = SoyGraphics::GetType( Type );
 		Uniform.mName = std::string( nameData.data(), actualLength );
+		
+		//	refetch the real location. This changes when we have arrays and structs
+		auto Location = glGetUniformLocation( ProgramName, nameData.data() );
+		Opengl::IsOkay( std::string("glGetUniformLocation( ") + Uniform.mName );
+		Uniform.mIndex = Location;
 		
 		//	some hardware returns things like
 		//		Colours[0] or Colours[] for
@@ -2052,14 +2066,16 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 	auto glProgramUniformXv = GetglProgramUniformXv( Uniform.mType );
 	auto ProgramName = mProgram.mName;
 
-	static bool SetManually = true;
-	if ( SetManually )
+	//	for debugging, we can set individually elements
+	static bool SetManually = false;
+	if ( SetManually && ArraySize > 1 )
 	{
 		for ( int i=0;	i<Uniform.GetArraySize();	i++ )
 		{
 			std::stringstream UniformName;
 			UniformName << Uniform.mName << "[" << i << "]";
 			auto Location = glGetUniformLocation( ProgramName, UniformName.str().c_str() );
+			Opengl::IsOkay( std::string("glGetUniformLocation( ") + UniformName.str() );
 			
 			std::Debug << UniformName.str() << " at uniform location " << Location << " (orig: " << UniformIndex << ")" << std::endl;
 			
@@ -2069,7 +2085,7 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 
 			std::stringstream Error;
 			Error << "SetUniform( Array[" << i << ", location: " << Location << ": " << Uniform << ")";
-			Opengl::IsOkay( Error.str(), false );
+			Opengl::IsOkay( Error.str() );
 		}
 	}
 	else
@@ -2078,7 +2094,7 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 	
 		std::stringstream Error;
 		Error << "SetUniform( " << Uniform << ")";
-		Opengl::IsOkay( Error.str(), false );
+		Opengl::IsOkay( Error.str() );
 	}
 }
 
@@ -2095,7 +2111,7 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,const TTex
 		
 		std::stringstream Error;
 		Error << "glProgramUniform1i( " << mProgram.mName << ", " << UniformIndexInt << ", " << TextureIndex << "; " << Uniform << " )";
-		Opengl::IsOkay( Error.str(), false );
+		Opengl::IsOkay( Error.str() );
 	};
 	TShaderState::BindTexture( BindIndex, Texture, SetUniformIndex );
 }
