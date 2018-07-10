@@ -238,6 +238,7 @@ SoyGraphics::TElementType::Type SoyGraphics::GetType(GLenum Type)
 		case GL_FLOAT_VEC3:		return SoyGraphics::TElementType::Float3;
 		case GL_FLOAT_VEC4:		return SoyGraphics::TElementType::Float4;
 		case GL_FLOAT_MAT3:		return SoyGraphics::TElementType::Float3x3;
+		case GL_FLOAT_MAT4:		return SoyGraphics::TElementType::Float4x4;
 		case GL_SAMPLER_2D:		return SoyGraphics::TElementType::Texture2D;
 
 		//	gr: do these need specific element types to convert back?
@@ -266,7 +267,9 @@ std::pair<GLenum,GLint> Opengl::GetType(SoyGraphics::TElementType::Type Type)
 		//	see here on how to handle matrixes
 		//	calling code needs to change
 		//	https://www.opengl.org/discussion_boards/showthread.php/164099-how-to-specify-a-matrix-vertex-attribute
-		case SoyGraphics::TElementType::Float3x3:	
+		case SoyGraphics::TElementType::Float3x3:
+			throw Soy::AssertException("Not currently handling matrixes in vertex attribs");
+		case SoyGraphics::TElementType::Float4x4:
 			throw Soy::AssertException("Not currently handling matrixes in vertex attribs");
 
 		case SoyGraphics::TElementType::Texture2D:	return std::make_pair( GL_SAMPLER_2D, 1 );
@@ -2003,12 +2006,19 @@ Opengl::TShader::~TShader()
 
 std::function<void(GLuint,GLint,GLsizei,const GLfloat *)> GetglProgramUniformXv(SoyGraphics::TElementType::Type ElementType)
 {
+	auto glProgramUniform4x4fv = [](GLuint program,GLint location,GLsizei count,const GLfloat * value)
+	{
+		GLboolean transpose = GL_FALSE;
+		glProgramUniformMatrix4fv( program, location, count, transpose, value );
+	};
+	
 	switch ( ElementType )
 	{
-		case SoyGraphics::TElementType::Float:	return glProgramUniform1fv;
-		case SoyGraphics::TElementType::Float2:	return glProgramUniform2fv;
-		case SoyGraphics::TElementType::Float3:	return glProgramUniform3fv;
-		case SoyGraphics::TElementType::Float4:	return glProgramUniform4fv;
+		case SoyGraphics::TElementType::Float:		return glProgramUniform1fv;
+		case SoyGraphics::TElementType::Float2:		return glProgramUniform2fv;
+		case SoyGraphics::TElementType::Float3:		return glProgramUniform3fv;
+		case SoyGraphics::TElementType::Float4:		return glProgramUniform4fv;
+		case SoyGraphics::TElementType::Float4x4:	return glProgramUniform4x4fv;
 		default:break;
 	}
 	
