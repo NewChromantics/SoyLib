@@ -240,6 +240,7 @@ SoyGraphics::TElementType::Type SoyGraphics::GetType(GLenum Type)
 		case GL_FLOAT_MAT3:		return SoyGraphics::TElementType::Float3x3;
 		case GL_FLOAT_MAT4:		return SoyGraphics::TElementType::Float4x4;
 		case GL_SAMPLER_2D:		return SoyGraphics::TElementType::Texture2D;
+		case GL_BOOL:			return SoyGraphics::TElementType::Bool;
 
 		//	gr: do these need specific element types to convert back?
 		//	only used for vertex generation so, no?
@@ -263,6 +264,7 @@ std::pair<GLenum,GLint> Opengl::GetType(SoyGraphics::TElementType::Type Type)
 		case SoyGraphics::TElementType::Float2:		return std::make_pair( GL_FLOAT, 2 );
 		case SoyGraphics::TElementType::Float3:		return std::make_pair( GL_FLOAT, 3 );
 		case SoyGraphics::TElementType::Float4:		return std::make_pair( GL_FLOAT, 4 );
+		case SoyGraphics::TElementType::Bool:		return std::make_pair( GL_BOOL, 1 );
 
 		//	see here on how to handle matrixes
 		//	calling code needs to change
@@ -2096,6 +2098,16 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 		Error << "SetUniform( " << Uniform << ")";
 		Opengl::IsOkay( Error.str() );
 	}
+}
+
+
+void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,bool Bool)
+{
+	auto UniformIndex = size_cast<GLint>( Uniform.mIndex );
+	auto BoolValue = size_cast<GLint>(Bool);
+	
+	glProgramUniform1i( mProgram.mName, UniformIndex, BoolValue );
+	Opengl::IsOkay("SetUniform(bool)");
 }
 
 void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,const TTexture& Texture,size_t BindIndex)

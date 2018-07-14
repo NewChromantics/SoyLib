@@ -23,6 +23,7 @@ namespace SoyGraphics
 			Float3x3,
 			Float4x4,
 			Texture2D,
+			Bool,
 		};
 
 		size_t		GetDataSize(Type t);

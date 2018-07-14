@@ -25,7 +25,8 @@ std::ostream& operator<<(std::ostream &out,const SoyGraphics::TElementType::Type
 		case SoyGraphics::TElementType::Type::Float4x4:	out << "Float4x4";	break;
 		case SoyGraphics::TElementType::Type::Int32:	out << "Int32";	break;
 		case SoyGraphics::TElementType::Type::Texture2D:	out << "Texture2D";	break;
-		
+		case SoyGraphics::TElementType::Type::Bool:		out << "Bool";	break;
+
 		default:
 			out << "<unhandled type #" << static_cast<int>(in) << ">";	break;
 	}
