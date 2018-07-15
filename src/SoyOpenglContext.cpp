@@ -582,14 +582,17 @@ void Opengl::TRenderTarget::SetViewportNormalised(Soy::Rectf Viewport)
 {
 	auto Rect = Soy::Rectf( GetSize() );
 
-	Rect.x -= Viewport.x * Rect.w;
-	Rect.y -= Viewport.y * Rect.h;
-	Rect.w /= Viewport.w;
-	Rect.h /= Viewport.h;
-	Rect.x /= Viewport.w;
-	Rect.y /= Viewport.h;
+	auto Lerp = [](float Min,float Max,float Time)
+	{
+		return Min + ( (Max-Min) * Time );
+	};
 	
-	Opengl::SetViewport( Rect );
+	auto x = Lerp( Rect.Left(), Rect.Right(), Viewport.x );
+	auto y = Lerp( Rect.Top(), Rect.Bottom(), Viewport.y );
+	auto w = Rect.GetWidth() * Viewport.w;
+	auto h = Rect.GetHeight() * Viewport.h;
+
+	Opengl::SetViewport( Soy::Rectf( x, y, w, h ) );
 }
 
 
