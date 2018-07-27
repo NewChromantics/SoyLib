@@ -217,7 +217,8 @@ public:
 	size_t			GetHeight() const				{	return mHeight;	}
 	size_t			GetDataSize() const;			//	probes multiple planes to get full data size
 	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
-	size_t			GetRowDataSize() const			{	return GetChannels() * GetBytesPerChannel() * GetWidth();	}
+	uint8_t			GetPixelDataSize() const		{	return GetChannels() * GetBytesPerChannel();	}
+	size_t			GetRowDataSize() const			{	return GetPixelDataSize() * GetWidth();	}
 	void			GetPlanes(ArrayBridge<SoyPixelsMeta>&& PlaneFormats,ArrayInterface<uint8>* Data=nullptr) const;	//	extract multiple plane formats where applicable (returns self if one plane)
 	void			SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,ArrayInterface<uint8>* Data=nullptr) const;	//	get all the plane split info, asserts if data doesn't align
 
