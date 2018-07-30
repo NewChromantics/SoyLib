@@ -6,6 +6,22 @@
 #include "SoyOpengl.h"
 #endif
 
+
+bool IsShaderNoUpgrade(ArrayBridge<std::string>& Shader)
+{
+	if ( Shader.GetSize() == 0 )
+	return false;
+	
+	if ( Soy::StringBeginsWith(Shader[0], "//no upgrade", false ) )
+	{
+		Shader.RemoveBlock(0,1);
+		return true;
+	}
+	
+	return false;
+}
+
+
 size_t GetNonProcessorFirstLine(ArrayBridge<std::string>& Shader)
 {
 	size_t LastProcessorDirectiveLine = 0;
@@ -120,9 +136,9 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 	//	gr: osx, maybe a desktop only thing?
 	if ( Version >= Soy::TVersion(1,20) )
 	{
-		Soy::StringReplace( Shader, "highp", "" );
-		Soy::StringReplace( Shader, "mediump", "" );
-		Soy::StringReplace( Shader, "lowp", "" );
+		//Soy::StringReplace( Shader, "highp", "" );
+		//Soy::StringReplace( Shader, "mediump", "" );
+		//Soy::StringReplace( Shader, "lowp", "" );
 	}
 
 	//	All versions of IOS, and android ES3? require a precision specifier
@@ -147,6 +163,9 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 
 void SoyShader::Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,Soy::TVersion Version)
 {
+	if ( IsShaderNoUpgrade(Shader) )
+		return;
+	
 	PreprocessShader( Shader );
 	UpgradeShader( Shader, Version );
 	
@@ -162,6 +181,9 @@ void SoyShader::Opengl::UpgradeVertShader(ArrayBridge<std::string>&& Shader,Soy:
 
 void SoyShader::Opengl::UpgradeFragShader(ArrayBridge<std::string>&& Shader,Soy::TVersion Version)
 {
+	if ( IsShaderNoUpgrade(Shader) )
+		return;
+
 	PreprocessShader( Shader );
 	UpgradeShader( Shader, Version );
 	

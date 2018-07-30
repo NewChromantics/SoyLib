@@ -233,7 +233,7 @@ public:
 class Opengl::TShader
 {
 public:
-	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context);
+	TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const std::string& ShaderName,Opengl::TContext& Context);
 	~TShader();
 	
 	TShaderState	Bind();	//	let this go out of scope to unbind

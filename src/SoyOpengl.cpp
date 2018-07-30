@@ -1837,7 +1837,7 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,size
 }
 
 
-Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const SoyGraphics::TGeometryVertex& Vertex,const std::string& ShaderName,Opengl::TContext& Context)
+Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmentSrc,const std::string& ShaderName,Opengl::TContext& Context)
 {
 	std::string ShaderNameVert = ShaderName + " (vert)";
 	std::string ShaderNameFrag = ShaderName + " (frag)";
@@ -1863,14 +1863,6 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 	auto& ProgramName = mProgram.mName;
 	glAttachShader( ProgramName, mVertexShader.mName );
 	glAttachShader( ProgramName, mFragmentShader.mName );
-	
-	//	gr: this is not required. We cache the links that the compiler generates AFTERwards
-	//	bind attributes before linking to match geometry
-	for ( int i=0;	i<Vertex.mElements.GetSize();	i++ )
-	{
-	//	auto& Attrib = Vertex.mElements[i];
-	//	glBindAttribLocation( ProgramName, Attrib.mIndex, Attrib.mName.c_str() );
-	}
 	
 	// link and error check
 	glLinkProgram( ProgramName );
