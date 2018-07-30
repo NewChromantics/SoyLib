@@ -1895,7 +1895,8 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		}
 	}
 	
-	
+	static bool DebugUniforms = false;
+
 	//	enum attribs and uniforms
 	//	lookout for new version;	http://stackoverflow.com/a/12611619/355753
 	GLint numActiveAttribs = 0;
@@ -1935,7 +1936,7 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		//	todo: check is valid type etc
 		mAttributes.PushBack( Uniform );
 	}
-	
+
 	for( GLint attrib=0;	attrib<numActiveUniforms;	++attrib )
 	{
 		std::vector<GLchar> nameData( MaxNameLength );
@@ -1964,15 +1965,18 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 		//	other data is good, so strip the name
 		if ( Soy::StringContains( Uniform.mName, "[", true ) )
 		{
-			std::Debug << "Stripping uniform name " << Uniform.mName;
+			if ( DebugUniforms )
+				std::Debug << "Stripping uniform name " << Uniform.mName;
+			
 			Uniform.mName = Soy::StringPopUntil( Uniform.mName, '[' );
-			std::Debug << " to " << Uniform.mName << std::endl;
+			
+			if ( DebugUniforms )
+				std::Debug << " to " << Uniform.mName << std::endl;
 		}
 		//	todo: check is valid type etc
 		mUniforms.PushBack( Uniform );
 	}
 
-	static bool DebugUniforms = true;
 	if ( DebugUniforms )
 	{
 		std::Debug << ShaderName << " has " << mAttributes.GetSize() << " attributes; " << std::endl;
