@@ -961,6 +961,37 @@ bool ConvertFormat_RgbToRgba(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,S
 	return true;
 }
 
+bool ConvertFormat_GreyscaleToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+{
+	auto& GreyMeta = Meta;
+	auto w = GreyMeta.GetWidth();
+	auto h = GreyMeta.GetHeight();
+	SoyPixelsMeta RgbMeta( w, h, NewFormat );
+	auto PixelCount = size_cast<int>(w*h);
+	auto GreyStride = GreyMeta.GetPixelDataSize();
+	auto RgbStride = RgbMeta.GetPixelDataSize();
+	Pixels.SetSize( RgbMeta.GetDataSize() );
+	
+	if ( GreyStride != 1 )
+		throw Soy::AssertException("ConvertFormat_GreyscaleToRgb: Expected source stride of 1 bytes");
+	if ( RgbStride != 3 )
+		throw Soy::AssertException("ConvertFormat_GreyscaleToRgb: Expected destination stride of 3 bytes");
+	
+	//	fill backwards and we won't overwrite anything
+	for ( int p=PixelCount-1;	p>=0;	p-- )
+	{
+		uint8_t* OldPos = &Pixels[p*GreyStride];
+		uint8_t* NewPos = &Pixels[p*RgbStride];
+		NewPos[0] = OldPos[0];
+		NewPos[1] = OldPos[0];
+		NewPos[2] = OldPos[0];
+	}
+	
+	Meta = RgbMeta;
+	return true;
+}
+
+
 
 bool ConvertFormat_RGBAToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
@@ -1122,6 +1153,7 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::RGBA, SoyPixelsFormat::BGRA, ConvertFormat_BgrToRgb ),
 	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::BGR, ConvertFormat_BgrToRgb ),
 	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::RGBA, ConvertFormat_RgbToRgba ),
+	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::RGB, ConvertFormat_GreyscaleToRgb ),
 };
 
 
