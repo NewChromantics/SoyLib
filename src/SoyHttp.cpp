@@ -10,8 +10,9 @@ std::string Http::GetDefaultResponseString(size_t ResponseCode)
 	//	todo: find the HTTP spec defaults
 	switch ( ResponseCode )
 	{
-		case Response_OK:			return "OK";
-		case Response_FileNotFound:	return "File Not Found";
+		case Response_OK:					return "OK";
+		case Response_FileNotFound:			return "File Not Found";
+		case Response_SwitchingProtocols:	return "Switching Protocols";
 		default:
 			break;
 	}

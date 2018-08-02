@@ -16,6 +16,7 @@ namespace Http
 	const size_t	Response_Invalid = 0;
 	const size_t	Response_OK = 200;
 	const size_t	Response_FileNotFound = 404;
+	const size_t	Response_SwitchingProtocols = 101;
 	
 	std::string		GetDefaultResponseString(size_t ResponseCode);
 }
