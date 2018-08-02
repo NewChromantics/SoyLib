@@ -378,13 +378,14 @@ public:
 	}
 	
 	TYPE	Left() const		{	return x;	}
-	TYPE	Right() const		{	return x+w-1;	}
+	TYPE	Right() const		{	return x+w;	}
 	TYPE	Top() const			{	return y;	}
-	TYPE	Bottom() const		{	return y+h-1;	}
+	TYPE	Bottom() const		{	return y+h;	}
 	TYPE	GetWidth() const	{	return w;	}
 	TYPE	GetHeight() const	{	return h;	}
 	vec4x<TYPE>	GetVec4() const	{	return vec4x<TYPE>(x,y,w,h);	}
-	void	FitToRect(const Rectx& Parent);		//	align into rect (scale down, scale up, move etc). Kinda assume this is normalised...
+	void	ScaleTo(const Rectx& Parent);		//	assume this is normalised
+	void	Normalise(const Rectx& Parent);		//	make this the normalised
 	
 	bool	operator==(const Rectx& that) const	{	return (x==that.x) && (y==that.y) && (w==that.w) && (h==that.h);	}
 	bool	operator!=(const Rectx& that) const	{	return !(*this == that);	}
@@ -508,17 +509,37 @@ inline Soy::Rectf NSRectToRect(NSRect Rect)
 
 
 template<typename TYPE>
-inline void Soy::Rectx<TYPE>::FitToRect(const Rectx& Parent)
+inline void Soy::Rectx<TYPE>::ScaleTo(const Rectx& Parent)
 {
-	//	https://github.com/SoylentGraham/PopUnityCommon/blob/master/PopMath.cs
-	auto& RectNorm = *this;
-	auto& Body = Parent;
-	
-	RectNorm.x *= Body.w;
-	RectNorm.w *= Body.w;
-	RectNorm.y *= Body.h;
-	RectNorm.h *= Body.h;
+	auto Lerp = [](float Min,float Max,float Time)
+	{
+		return Min + ( Time * (Max-Min) );
+	};
 
-	RectNorm.x += Body.x;
-	RectNorm.y += Body.y;
+	auto& Normalised = *this;
+	auto l = Lerp( Parent.Left(), Parent.Right(), Normalised.Left() );
+	auto r = Lerp( Parent.Left(), Parent.Right(), Normalised.Right() );
+	auto t = Lerp( Parent.Top(), Parent.Bottom(), Normalised.Top() );
+	auto b = Lerp( Parent.Top(), Parent.Bottom(), Normalised.Bottom() );
+	auto w = r-l;
+	auto h = b-t;
+	Normalised = Soy::Rectf( l, t, w, h );
+}
+
+template<typename TYPE>
+inline void Soy::Rectx<TYPE>::Normalise(const Rectx& Parent)
+{
+	auto Range = [](float Min, float Max, float Value )
+	{
+		return (Value-Min) / (Max-Min);
+	};
+
+	auto& Child = *this;
+	auto l = Range( Parent.Left(), Parent.Right(), Child.Left() );
+	auto r = Range( Parent.Left(), Parent.Right(), Child.Right() );
+	auto t = Range( Parent.Top(), Parent.Bottom(), Child.Top() );
+	auto b = Range( Parent.Top(), Parent.Bottom(), Child.Bottom() );
+	auto w = r-l;
+	auto h = b-t;
+	Child = Soy::Rectf( l, t, w, h );
 }
