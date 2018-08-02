@@ -1,7 +1,7 @@
 #include "SoySocket.h"
 #include "SoyDebug.h"
 #include <regex>
-
+#include "heaparray.hpp"
 
 
 #if defined(TARGET_PS4)
@@ -211,7 +211,7 @@ std::ostream& operator<< (std::ostream &out,const SoySocketConnection &in)
 }
 
 
-bool Soy::Winsock::Init()
+void Soy::Winsock::Init()
 {
 #if defined(TARGET_WINDOWS)
 	WORD wVersionRequested = MAKEWORD(2,2);
@@ -220,11 +220,11 @@ bool Soy::Winsock::Init()
 	auto Error = WSAStartup(wVersionRequested, &wsaData);
 	if ( Error != 0 )
 	{
-		std::Debug << "Failed to initialise Winsock. " << ::Platform::GetLastErrorString() << std::endl; 
-		return false;
+		std::StringStream Error;
+		Error << "Failed to initialise Winsock. " << ::Platform::GetLastErrorString();
+		throw Soy::AssertException(Error.str())
 	}
 #endif
-	return true;
 }
 
 void Soy::Winsock::Shutdown()
@@ -335,25 +335,24 @@ bool SoySocket::IsUdp() const
 }
 
 
-bool SoySocket::CreateTcp(bool Blocking)
+void SoySocket::CreateTcp(bool Blocking)
 {
 	//	already created
 	if ( IsCreated() && !IsUdp() )
-		return true;
+		return;
 
 	if ( IsCreated() )
 		Close();
 	
-	if ( !Soy::Winsock::Init() )
-		return false;
-
+	Soy::Winsock::Init();
+	
 	mConnectionLock.lock();
 	mSocket = socket( AF_INET, SOCK_STREAM, IPPROTO_IP );
 	if ( mSocket == INVALID_SOCKET )
 	{
 		Soy::Winsock::HasError("Create socket");
 		mConnectionLock.unlock();
-		return false;
+		throw Soy::AssertException("Failed to create socket");
 	}
 	//	gr: don't have an ip/port until bound?
 	mSocketAddr = SoySockAddr();
@@ -395,27 +394,26 @@ bool SoySocket::CreateTcp(bool Blocking)
 	
 	if ( !Success )
 	{
-		std::Debug << "Could not make socket " << (Blocking?"":"non-") << "blocking" << std::endl;
+		std::stringstream Error;
+		Error << "Could not make socket " << (Blocking?"":"non-") << "blocking";
 		Soy::Winsock::HasError( Soy::StreamToString( std::stringstream()<< "make socket " << (Blocking?"":"non-") << "blocking" ) );
 		mConnectionLock.unlock();
 		Close();
-		return false;
+		throw Soy::AssertException(Error.str());
 	}
 
 	mConnectionLock.unlock();
-	return true;
 }
 
 
 
-bool SoySocket::CreateUdp(bool Broadcast)
+void SoySocket::CreateUdp(bool Broadcast)
 {
 	//	already created
 	if ( IsCreated() && IsUdp() )
-		return true;
+		return;
 	
-	if ( !Soy::Winsock::Init() )
-		return false;
+	Soy::Winsock::Init();
 	
 	mConnectionLock.lock();
 	mSocket = socket( AF_INET, SOCK_DGRAM, IPPROTO_UDP );
@@ -423,7 +421,7 @@ bool SoySocket::CreateUdp(bool Broadcast)
 	{
 		Soy::Winsock::HasError("Create socket");
 		mConnectionLock.unlock();
-		return false;
+		throw Soy::AssertException("Failed to create socket");
 	}
 	//	gr: don't have an ip/port until bound?
 	mSocketAddr = SoySockAddr();
@@ -438,15 +436,13 @@ bool SoySocket::CreateUdp(bool Broadcast)
 		std::stringstream Dbg;
 		Dbg << "Could not make socket " << (Broadcast?"":"non-") << "Broadcast";
 		
-		std::Debug << Dbg.str() << std::endl;
 		Soy::Winsock::HasError( Dbg.str() );
 		mConnectionLock.unlock();
 		Close();
-		return false;
+		throw Soy::AssertException(Dbg.str());
 	}
 
 	mConnectionLock.unlock();
-	return true;
 }
 
 
@@ -508,37 +504,43 @@ bool SoySocket::Bind(uint16 Port,SoySockAddr& outSockAddr)
 	return true;
 }
 
-bool SoySocket::ListenTcp(int Port)
+void SoySocket::ListenTcp(int Port)
 {
 	SoySockAddr SockAddr;
 	if (!Bind(Port, SockAddr))
-		return false;
+	{
+		std::stringstream Error;
+		Error << "Failed to bind to port " << Port;
+		throw Soy::AssertException(Error.str());
+	}
 
 	auto MaxConnections = SOMAXCONN;
 	if ( ::listen(mSocket, MaxConnections) == SOCKET_ERROR)
 	{
-		Soy::Winsock::HasError(Soy::StreamToString(std::stringstream() << "listen on " << Port));
+		std::stringstream Error;
+		Error << "Failed to listen on port " << Port;
+		Soy::Winsock::HasError(Error.str());
 		Close();
-		return false;
+		throw Soy::AssertException(Error.str());
 	}
 
 	mSocketAddr = SockAddr;
 	std::Debug << "Socket listening on " << SockAddr << std::endl;
-
-	return true;
 }
 
 
-bool SoySocket::ListenUdp(int Port)
+void SoySocket::ListenUdp(int Port)
 {
 	SoySockAddr SockAddr;
 	if (!Bind(Port, SockAddr))
-		return false;
+	{
+		std::stringstream Error;
+		Error << "Failed to bind to port " << Port;
+		throw Soy::AssertException(Error.str());
+	}
 
 	//	udp just binds
 	std::Debug << "Socket UDP bound on " << SockAddr << std::endl;
-
-	return true;
 }
 
 
@@ -663,15 +665,17 @@ SoyRef SoySocket::UdpConnect(SoySockAddr Address)
 	
 	//	udp has to explicitly bind() in order to recv.
 	//	gr: OSX does NOT require this, windows does
-	if ( !ListenUdp(PORT_ANY) )
+	try
+	{
+		ListenUdp(PORT_ANY);
+		mConnectionLock.unlock();
+		return OnConnection( Connection );
+	}
+	catch(...)
 	{
 		mConnectionLock.unlock();
-		return SoyRef();
+		throw;
 	}
-	
-	mConnectionLock.unlock();
-	
-	return OnConnection( Connection );
 }
 
 SoyRef SoySocket::OnConnection(SoySocketConnection Connection)
@@ -746,7 +750,6 @@ void SoySocket::Disconnect(SoyRef ConnectionRef,const std::string& Reason)
 	}
 }
 
-
 SoySocketConnection SoySocket::GetFirstConnection() const
 {
 	//	unsafe due to lack of lock! on const func
@@ -774,11 +777,33 @@ SoySocketConnection SoySocket::GetConnection(SoyRef ConnectionRef)
 }
 
 
+void SoySocket::EnumConnections(std::function<void(SoySocketConnection)> EnumConnection)
+{
+	//	grab all the keys
+	Array<SoyRef> ConnectionRefs;
+	{
+		std::lock_guard<std::recursive_mutex> Lock(mConnectionLock);
+		for(auto const& Connection : mConnections)
+			ConnectionRefs.PushBack(Connection.first);
+	}
+	
+	//	run through them all, locking in-between
+	for ( int i=0;	i<ConnectionRefs.GetSize();	i++ )
+	{
+		//	catch?
+		auto ConnectionRef = ConnectionRefs[i];
+		auto Connection = GetConnection(ConnectionRef);
+		EnumConnection( Connection );
+	}
+}
+
+
+
 
 bool SoySocketConnection::Recieve(ArrayBridge<char>&& Buffer)
 {
 	//	gr: if you ask for 0 bytes in the buffer, we'll get 0 result, which we assume is "gracefully closed"
-	if ( !Soy::Assert( Buffer.GetDataSize() > 0, "Should ask for more than 0 bytes or we can get confused" ) )
+	if ( Buffer.GetDataSize() == 0 )
 		Buffer.SetSize( 1024 );
 		
 	int Flags = 0;

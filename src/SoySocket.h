@@ -3,6 +3,7 @@
 #include "SoyTypes.h"
 #include "SoyRef.h"
 #include "SoyEvent.h"
+#include "array.hpp"
 
 
 #if defined(TARGET_WINDOWS)
@@ -34,7 +35,7 @@ namespace Soy
 {
 	namespace Winsock
 	{
-		bool		Init();
+		void		Init();
 		void		Shutdown();
 		int			GetError();
 		bool		HasError(const std::string& ErrorContext,bool BlockIsError=true,int Error=GetError(),std::ostream* ErrorStream=nullptr);
@@ -109,14 +110,14 @@ public:
 	}
 	~SoySocket()	{	Close();	}
 
-	bool		CreateTcp(bool Blocking=false);
-	bool		CreateUdp(bool Broadcast);
+	void		CreateTcp(bool Blocking=false);
+	void		CreateUdp(bool Broadcast);
 	bool		IsCreated() const		{	return mSocket != INVALID_SOCKET;	}
 	void		Close();
 
 	SoyRef		AllocConnectionRef();
-	bool		ListenTcp(int Port);
-	bool		ListenUdp(int Port);
+	void		ListenTcp(int Port);
+	void		ListenUdp(int Port);
 	SoyRef		WaitForClient();
 	SoyRef		Connect(std::string Address);
 	SoyRef		UdpConnect(const char* Address,uint16 Port);	//	this doesn't "do" a connect, but fakes one as a success, and starts listening (required only on windows
@@ -133,6 +134,8 @@ public:
 
 	SOCKET		GetSocket()	{	return mSocket;	}	//	gr: don't think I should be providing access here....
 	
+	//	run a function on each connection (client) with appropriate locking
+	void		EnumConnections(std::function<void(SoySocketConnection)> EnumConnection);
 	
 protected:
 	SoyRef		OnConnection(SoySocketConnection Connection);
