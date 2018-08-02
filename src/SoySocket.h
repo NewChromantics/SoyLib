@@ -135,16 +135,16 @@ public:
 	SOCKET		GetSocket()	{	return mSocket;	}	//	gr: don't think I should be providing access here....
 	
 	//	run a function on each connection (client) with appropriate locking
-	void		EnumConnections(std::function<void(SoySocketConnection)> EnumConnection);
+	void		EnumConnections(std::function<void(SoyRef,SoySocketConnection)> EnumConnection);
 	
 protected:
 	SoyRef		OnConnection(SoySocketConnection Connection);
 	bool		Bind(uint16 Port,SoySockAddr& outSockAddr);
 
 public:
-	SoyEvent<const SoyRef>					mOnConnect;
-	SoyEvent<const SoyRef>					mOnDisconnect;
-	SoySockAddr								mSocketAddr;		//	current socket address; gr: find this from the socket? Is it the first connection?
+	std::function<void(SoyRef)>			mOnConnect;
+	std::function<void(SoyRef)>			mOnDisconnect;
+	SoySockAddr							mSocketAddr;		//	current socket address; gr: find this from the socket? Is it the first connection?
 
 private:
 	//	lock to control ordered connect/disconnect (not strictly for race conditions)

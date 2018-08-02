@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SoyProtocol.h"
-#include "HeapArray.hpp"
+#include "heaparray.hpp"
 #include "SoyMedia.h"
 
 

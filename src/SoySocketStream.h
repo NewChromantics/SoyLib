@@ -48,7 +48,14 @@ public:
 	TSocketReadThread_Impl(std::shared_ptr<SoySocket>& Socket,SoyRef ConnectionRef) :
 		TSocketReadThread	( Socket, ConnectionRef )
 	{
+		mOnDataRecieved = [this](std::shared_ptr<Soy::TReadProtocol>& Data)
+		{
+			auto CastData = std::dynamic_pointer_cast<PROTOCOL>( Data );
+			OnDataRecieved( CastData );
+		};
 	}
+	
+	virtual void OnDataRecieved(std::shared_ptr<PROTOCOL>& Data)=0;
 	
 	virtual std::shared_ptr<Soy::TReadProtocol>	AllocProtocol() override
 	{

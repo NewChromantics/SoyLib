@@ -352,6 +352,16 @@ bool TStreamBuffer::PeekBack(ArrayBridge<char> &&Data)
 TStreamReader::TStreamReader(const std::string& Name,std::shared_ptr<TStreamBuffer> ReadBuffer) :
 	SoyWorkerThread	( Name, SoyWorkerWaitMode::Sleep )
 {
+	//	initialise the callbakcs to debug funcs
+	mOnError = [](const std::string& Error)
+	{
+		std::Debug << "Protocol error: " << Error << std::endl;
+	};
+	mOnDataRecieved = [](std::shared_ptr<Soy::TReadProtocol>& ReadData)
+	{
+		std::Debug << "Protocol decoded data (unhandled)" << std::endl;
+	};
+	
 	//	if we're using an external buffer, wake when it's modified
 	if ( ReadBuffer )
 	{
@@ -477,7 +487,7 @@ bool TStreamReader::Iteration()
 	
 	//	notify (with shared ptr so data can be cheaply saved)
 	if ( CurrentProtocol )
-		mOnDataRecieved.OnTriggered( CurrentProtocol );
+		mOnDataRecieved( CurrentProtocol );
 	
 	//	dealloc for next
 	mCurrentProtocol.reset();
@@ -495,7 +505,6 @@ bool TStreamReader::Iteration()
 	//	don't abort thread until we've used up all the data
 	return true;
 }
-
 
 
 

@@ -688,7 +688,8 @@ SoyRef SoySocket::OnConnection(SoySocketConnection Connection)
 
 	mConnectionLock.unlock();
 
-	mOnConnect.OnTriggered( ConnectionRef );
+	if ( mOnConnect != nullptr )
+		mOnConnect( ConnectionRef );
 	return ConnectionRef;
 }
 
@@ -723,7 +724,8 @@ void SoySocket::Disconnect(SoyRef ConnectionRef,const std::string& Reason)
 
 	//	do callback in case we want to try a hail mary
 	//	gr: the old Disconnect() had this AFTER closing socket, OnError did NOT
-	mOnDisconnect.OnTriggered(ConnectionRef);
+	if ( mOnDisconnect != nullptr )
+		mOnDisconnect(ConnectionRef);
 
 	//	if the connection's socket is ourselves, (we are a client connecting to a server) close
 	if ( ClosingSelf )
@@ -777,7 +779,7 @@ SoySocketConnection SoySocket::GetConnection(SoyRef ConnectionRef)
 }
 
 
-void SoySocket::EnumConnections(std::function<void(SoySocketConnection)> EnumConnection)
+void SoySocket::EnumConnections(std::function<void(SoyRef,SoySocketConnection)> EnumConnection)
 {
 	//	grab all the keys
 	Array<SoyRef> ConnectionRefs;
@@ -793,7 +795,7 @@ void SoySocket::EnumConnections(std::function<void(SoySocketConnection)> EnumCon
 		//	catch?
 		auto ConnectionRef = ConnectionRefs[i];
 		auto Connection = GetConnection(ConnectionRef);
-		EnumConnection( Connection );
+		EnumConnection( ConnectionRef, Connection );
 	}
 }
 

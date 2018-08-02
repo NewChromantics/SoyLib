@@ -87,11 +87,11 @@ protected:
 	virtual void									Shutdown() __noexcept =0;		//	close file/disconnect etc. Currently called after reader or protocol dictates EOF, not called externally
 
 private:
-	void											OnError(const std::string& Error)	{	mOnError.OnTriggered( Error );	}
+	void											OnError(const std::string& Error)	{	mOnError( Error );	}
 
 public:
-	SoyEvent<const std::string>						mOnError;						//	caused when protocol throws, reader will disconnect shortly afterwards
-	SoyEvent<std::shared_ptr<Soy::TReadProtocol>>	mOnDataRecieved;
+	std::function<void(const std::string&)>						mOnError;						//	caused when protocol throws, reader will disconnect shortly afterwards
+	std::function<void(std::shared_ptr<Soy::TReadProtocol>&)>	mOnDataRecieved;
 	
 private:
 	std::shared_ptr<TStreamBuffer>			mReadBuffer;
