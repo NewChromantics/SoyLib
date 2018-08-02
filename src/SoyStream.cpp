@@ -573,8 +573,8 @@ bool TStreamWriter::Iteration()
 		}
 		//Soy::Assert( Buffer.GetBufferedSize() == 0, "Still some data to write");
 	};
-/*
-	auto Future = std::async( AsyncWrite );
+
+	auto Future = std::async(/*std::launch::async,*/ AsyncWrite );
 
 	try
 	{
@@ -600,7 +600,7 @@ bool TStreamWriter::Iteration()
 	{
 		OnError( WriteError.str() );
 	}
-	*/
+	
 	return true;
 }
 
