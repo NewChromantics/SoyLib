@@ -56,7 +56,12 @@ public:
 	bool						Read(uint64& Data,int BitCount);
 	bool						Read(uint8& Data,int BitCount);
 	int							Read(int BitCount)					{	int Data;	return Read( Data, BitCount) ? Data : -1;	}
-	unsigned int				BitPosition() const					{	return mBitPos;	}
+	size_t						BitPosition() const					{	return mBitPos;	}
+	size_t						BytesRead() const
+	{
+		auto RoundUpBits = (8 - (mBitPos % 8)) % 8;
+		return (mBitPos+RoundUpBits) / 8;
+	}
 
 	template<int BYTES,typename STORAGE>
 	bool						ReadBytes(STORAGE& Data,int BitCount);
