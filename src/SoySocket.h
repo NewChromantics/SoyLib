@@ -44,6 +44,11 @@ namespace Soy
 }
 
 
+class SoySocket;
+
+
+//	internal socket address structure. Handles different sizes, different functio calls, different types on different platforms
+//	shouldn't really use it externally
 class SoySockAddr
 {
 public:
@@ -69,6 +74,8 @@ public:
 	const sockaddr*		GetSockAddr() const;
 	sockaddr*			GetSockAddr();
 
+	bool				operator==(const SoySockAddr& That) const;
+	
 public:
 	sockaddr_storage	mAddr;
 };
@@ -89,8 +96,17 @@ public:
 		return mSocket != INVALID_SOCKET;	
 	}
 
-	bool		Recieve(ArrayBridge<char>&& Buffer);	//	throws on error. Returns false on graceful disconnection
+	//	throws on error. false on graceful close
+	//	if SoyRef is returned, it's the client-ref of the reciver (invalid SoyRef if graceful close)
+	//	- this is allocated on UDP so we have a persistent record of the SockAddr (ie so we can send back)
+	//	- on TCP client, this should be itself
+	bool		Recieve(ArrayBridge<char>&& Buffer);
+	SoyRef		Recieve(ArrayBridge<char>&& Buffer,SoySocket& Parent);
+
 	void		Send(ArrayBridge<char>&& Buffer,bool IsUdp);		//	throws on error. keeps writing until all sent
+
+private:
+	SoyRef		Recieve(ArrayBridge<char>& Buffer,SoySocket* Parent);
 
 public:
 	SoySockAddr		mAddr;
@@ -103,6 +119,8 @@ std::ostream& operator<< (std::ostream &out,const SoySockAddr &in);
 
 class SoySocket
 {
+	friend class SoySocketConnection;	//	to allow UDP connectionref alloc
+	
 public:
 	SoySocket() :
 		mSocket			( INVALID_SOCKET )
@@ -136,8 +154,11 @@ public:
 	
 	//	run a function on each connection (client) with appropriate locking
 	void		EnumConnections(std::function<void(SoyRef,SoySocketConnection)> EnumConnection);
-	
+
 protected:
+	SoyRef		GetConnectionRef(const SoySockAddr& SockAddr);	//	get/alloc client reference to this address
+	
+private:
 	SoyRef		OnConnection(SoySocketConnection Connection);
 	bool		Bind(uint16 Port,SoySockAddr& outSockAddr);
 

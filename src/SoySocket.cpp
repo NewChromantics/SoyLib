@@ -154,7 +154,25 @@ socklen_t SoySockAddr::GetSockAddrLength() const
 #endif
 	}
 
+	//	uninitialised (empty struct), return our struct size
+	if ( SockAddrIn->sa_family == 0 )
+	{
+		return sizeof(mAddr);
+	}
+	
 	return 0;
+}
+
+bool SoySockAddr::operator==(const SoySockAddr& That) const
+{
+	auto& ThisAddr = mAddr;
+	auto& ThatAddr = That.mAddr;
+	
+	if ( ThisAddr.ss_len != ThatAddr.ss_len )
+		return false;
+	
+	auto Compare = memcmp( &ThisAddr, &ThatAddr, ThisAddr.ss_len);
+	return Compare == 0;
 }
 
 std::ostream& operator<< (std::ostream &out,const SoySockAddr &Addr)
@@ -541,6 +559,12 @@ void SoySocket::ListenUdp(int Port)
 
 	//	udp just binds
 	std::Debug << "Socket UDP bound on " << SockAddr << std::endl;
+	
+	//	udp needs a socket to recieve from for any new clients
+	//	gr: maybe add to WaitForClient?
+	SoySocketConnection PossibleClient;
+	PossibleClient.mSocket = this->mSocket;
+	OnConnection( PossibleClient );
 }
 
 
@@ -694,6 +718,26 @@ SoyRef SoySocket::OnConnection(SoySocketConnection Connection)
 }
 
 
+SoyRef SoySocket::GetConnectionRef(const SoySockAddr& SockAddr)
+{
+	//	if this doesn't exist, we allocate it
+	{
+		std::lock_guard<std::recursive_mutex> Lock( mConnectionLock );
+		for ( auto& ConnectionElement : mConnections )
+		{
+			auto& ConnectionRef = ConnectionElement.first;
+			auto& Connection = ConnectionElement.second;
+			if ( Connection.mAddr == SockAddr )
+				return ConnectionRef;
+		}
+	}
+	
+	//	new connection
+	SoySocketConnection NewConnection;
+	NewConnection.mAddr = SockAddr;
+	return OnConnection( NewConnection );
+}
+
 void SoySocket::OnError(SoyRef ConnectionRef,const std::string& Reason)
 {
 	Disconnect( ConnectionRef, Reason );
@@ -799,22 +843,35 @@ void SoySocket::EnumConnections(std::function<void(SoyRef,SoySocketConnection)> 
 	}
 }
 
-
-
-
 bool SoySocketConnection::Recieve(ArrayBridge<char>&& Buffer)
 {
+	auto Sender = Recieve( Buffer, nullptr );
+	return Sender.IsValid();
+}
+
+SoyRef SoySocketConnection::Recieve(ArrayBridge<char>&& Buffer,SoySocket& Parent)
+{
+	return Recieve( Buffer, &Parent );
+}
+
+SoyRef SoySocketConnection::Recieve(ArrayBridge<char>& Buffer,SoySocket* Parent)
+{
+	//	gr: don't try and recieve from an invalid socket.
+	//		example case: dummy UDP client (who has no socket, just Ref to match a SockAddr)
+	//		doesn't throw, just pretends is disconnected.
+	if ( mSocket == INVALID_SOCKET )
+		return SoyRef();
+	
 	//	gr: if you ask for 0 bytes in the buffer, we'll get 0 result, which we assume is "gracefully closed"
-	if ( Buffer.GetDataSize() == 0 )
+	if ( Buffer.IsEmpty() )
 		Buffer.SetSize( 1024 );
-		
+	
 	int Flags = 0;
-	auto Result = recv( mSocket, Buffer.GetArray(), size_cast<socket_data_size_t>(Buffer.GetDataSize()), Flags );
-	/*
-		sockaddr FromAddr;
-		int FromAddrLen = sizeof(FromAddr);
-		auto Result = recvfrom(ClientSocket.mSocket, Buffer.GetArray(), Buffer.GetDataSize(), Flags, &FromAddr, &FromAddrLen);
-	 */
+	//auto Result = recv( mSocket, Buffer.GetArray(), size_cast<socket_data_size_t>(Buffer.GetDataSize()), Flags );
+	SoySockAddr FromAddr;
+	socklen_t FromAddrLen = FromAddr.GetSockAddrLength();
+	auto Result = recvfrom( mSocket, Buffer.GetArray(), size_cast<socket_data_size_t>(Buffer.GetDataSize()), Flags, FromAddr.GetSockAddr(), &FromAddrLen);
+	
 	if ( Result == 0 )
 	{
 		//	socket closed gracefully
@@ -823,23 +880,45 @@ bool SoySocketConnection::Recieve(ArrayBridge<char>&& Buffer)
 		//	no error to check!
 		//	http://stackoverflow.com/questions/30257722/what-is-socket-accept-error-errno-316
 		//	graceful close, don't throw
-		return false;
+		return SoyRef();
 	}
 	else if ( Result == SOCKET_ERROR )
 	{
 		if ( Soy::Winsock::HasError("recv",false) )
 		{
-			throw Soy::AssertException("recv socket error");
+			std::stringstream Error;
+			Error << "recv socket error.";
+			Error << "SOCKET=" << (int)mSocket;
+			throw Soy::AssertException( Error.str() );
 		}
 	
 		//	error, must be non blocking, nowt to recieve so sleep a bit longer than normal
 		Buffer.SetSize(0);
-		return true;
+		return SoyRef();
+	}
+	
+	//	on osx, using TCP server, this socket is client.
+	//	recv() okay, this is zero, the from address should be us
+	if ( FromAddrLen != 0 )
+	{
+		//	re-create in case length is different
+		FromAddr = SoySockAddr( *FromAddr.GetSockAddr(), FromAddrLen );
+	}
+	else
+	{
+		FromAddr = this->mAddr;
+	}
+	
+	//	if no parent provided, we can't return a valid ref!
+	auto SenderRef = SoyRef("Unknown");
+	if ( Parent )
+	{
+		SenderRef = Parent->GetConnectionRef( FromAddr );
 	}
 	
 	//	resize buffer to reflect real contents size
 	Buffer.SetSize( Result );
-	return true;
+	return SenderRef;
 }
 
 
