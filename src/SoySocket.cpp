@@ -782,8 +782,11 @@ SoyRef SoySocket::GetConnectionRef(const SoySockAddr& SockAddr)
 	}
 	
 	//	new connection
+	//	gr: for UDP, we need OUR socket here with the new address so when we grab it, we'll send over our own socket...
+	//		maybe we need something more dynamic
 	SoySocketConnection NewConnection;
 	NewConnection.mAddr = SockAddr;
+	NewConnection.mSocket = mSocket;
 	return OnConnection( NewConnection );
 }
 
@@ -1068,6 +1071,11 @@ void SoySocketConnection::Send(ArrayBridge<char>&& Buffer,bool IsUdp)
 		
 		auto DataToRemove = size_cast<size_t>( Result );
 		
+		//	gr: to allow use of non-resizable arrays, we break out early without deleting data
+		//		solution could be a temporary array in this func with a start offset
+		//		alternatively, we have another local buffer we switch to if we have to break up the send
+		if ( DataToRemove == Out.GetSize() )
+			break;
 		//	pop the data that's been sent
 		Out.RemoveBlock( 0, DataToRemove );
 	}
