@@ -20,6 +20,7 @@ in_addr_t inet_addr(const char*)
 #include <unistd.h>	//	close
 #include <netdb.h>	//	gethostbyname
 #include <signal.h>
+#include <ifaddrs.h>	//	getifaddrs
 
 #else
 
@@ -131,6 +132,35 @@ sockaddr* SoySockAddr::GetSockAddr()
 {
 	return reinterpret_cast<sockaddr*>( &mAddr );
 }
+
+void SoySockAddr::SetPort(uint16 Port)
+{
+	//	cast for ipv4
+	//	https://stackoverflow.com/a/12811907/355753
+	if ( this->mAddr.ss_family == AF_INET )
+	{
+		auto* sin = (struct sockaddr_in*)&mAddr;
+		sin->sin_port = Port;
+		return;
+	}
+	
+	throw Soy::AssertException("Don't know how to set port for non IPV4 address");
+}
+
+uint16_t SoySockAddr::GetPort() const
+{
+	//	cast for ipv4
+	//	https://stackoverflow.com/a/12811907/355753
+	if ( this->mAddr.ss_family == AF_INET )
+	{
+		auto* sin = (struct sockaddr_in*)&mAddr;
+		return sin->sin_port;
+	}
+	
+	throw Soy::AssertException("Don't know how to get port for non IPV4 address");
+}
+
+
 
 socklen_t SoySockAddr::GetSockAddrLength() const
 {
@@ -519,6 +549,7 @@ bool SoySocket::Bind(uint16 Port,SoySockAddr& outSockAddr)
 		return false;
 	}
 	
+	
 	return true;
 }
 
@@ -543,14 +574,21 @@ void SoySocket::ListenTcp(int Port)
 	}
 
 	mSocketAddr = SockAddr;
-	std::Debug << "Socket listening on " << SockAddr << std::endl;
+
+	
+	std::Debug << "Socket bound on " << mSocketAddr << ", on interfaces ";
+	auto DebugAddresses = [](std::string& InterfaceName,SoySockAddr& InterfaceAddr)
+	{
+		std::Debug << InterfaceName << ": " << InterfaceAddr << ", ";
+	};
+	this->GetSocketAddresses(DebugAddresses);
+	std::Debug << std::endl;
 }
 
 
 void SoySocket::ListenUdp(int Port)
 {
-	SoySockAddr SockAddr;
-	if (!Bind(Port, SockAddr))
+	if (!Bind(Port, mSocketAddr))
 	{
 		std::stringstream Error;
 		Error << "Failed to bind to port " << Port;
@@ -558,13 +596,24 @@ void SoySocket::ListenUdp(int Port)
 	}
 
 	//	udp just binds
-	std::Debug << "Socket UDP bound on " << SockAddr << std::endl;
+	std::Debug << "Socket UDP bound on " << mSocketAddr << std::endl;
 	
 	//	udp needs a socket to recieve from for any new clients
 	//	gr: maybe add to WaitForClient?
 	SoySocketConnection PossibleClient;
+	PossibleClient.mAddr = mSocketAddr;
 	PossibleClient.mSocket = this->mSocket;
 	OnConnection( PossibleClient );
+
+	
+	std::Debug << "Socket bound on " << mSocketAddr << ", on interfaces ";
+	auto DebugAddresses = [](std::string& InterfaceName,SoySockAddr& InterfaceAddr)
+	{
+		std::Debug << InterfaceName << ": " << InterfaceAddr << ", ";
+	};
+	this->GetSocketAddresses(DebugAddresses);
+	std::Debug << std::endl;
+
 }
 
 
@@ -841,6 +890,56 @@ void SoySocket::EnumConnections(std::function<void(SoyRef,SoySocketConnection)> 
 		auto Connection = GetConnection(ConnectionRef);
 		EnumConnection( ConnectionRef, Connection );
 	}
+}
+
+
+void SoySocket::GetSocketAddresses(std::function<void(std::string& Name,SoySockAddr&)> EnumAdress) const
+{
+	//	https://stackoverflow.com/questions/4139405/how-can-i-get-to-know-the-ip-address-for-interfaces-in-c
+	
+	auto FamilyFilter = this->mSocketAddr.mAddr.ss_family;
+
+	struct ifaddrs* Interfaces = nullptr;
+	auto Success = getifaddrs( &Interfaces );
+	if ( Success != 0 )
+	{
+		Soy::Winsock::HasError("getifaddrs()");
+		return;
+	}
+	
+	//	override port with our port
+	auto Port = 0;
+	try
+	{
+		Port = mSocketAddr.GetPort();
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << e.what() << std::endl;
+	}
+	
+	for ( auto* ifa = Interfaces; ifa; ifa = ifa->ifa_next)
+	{
+		auto& Interface = *ifa;
+		if (Interface.ifa_addr->sa_family!=FamilyFilter)
+			continue;
+		
+		try
+		{
+			socklen_t AddrLen = Interface.ifa_addr->sa_len;
+			SoySockAddr Addr( *Interface.ifa_addr, AddrLen );
+			Addr.SetPort( Port );
+			
+			std::string InterfaceName( Interface.ifa_name );
+			EnumAdress( InterfaceName, Addr );
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Error fetching interface address " << e.what() << std::endl;
+		}
+	}
+
+	freeifaddrs(Interfaces);
 }
 
 bool SoySocketConnection::Recieve(ArrayBridge<char>&& Buffer)

@@ -69,6 +69,9 @@ public:
 		SoySockAddr Null;
 		return memcmp( &Null.mAddr, &mAddr, sizeof(mAddr) ) != 0;
 	}
+	
+	void				SetPort(uint16 Port);
+	uint16_t			GetPort() const;
 
 	socklen_t			GetSockAddrLength() const;
 	const sockaddr*		GetSockAddr() const;
@@ -150,6 +153,10 @@ public:
 
 	void		OnError(SoyRef ConnectionRef,const std::string& Error);	//	error occured, disconnect from this
 
+	//	we [currently] create sockets on IN_ANYADDR so we open sockets on all interfaces
+	//	which gives us multiple IP's, but our ip is 0.0.0.0, so
+	//	for each interface this socket is connected on, get it's IP
+	void		GetSocketAddresses(std::function<void(std::string&,SoySockAddr&)> EnumAdress) const;
 	SOCKET		GetSocket()	{	return mSocket;	}	//	gr: don't think I should be providing access here....
 	
 	//	run a function on each connection (client) with appropriate locking
