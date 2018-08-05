@@ -116,6 +116,9 @@ public:
 	void			PushJob(std::shared_ptr<TJob>& Job)									{	PushJobImpl( Job, nullptr );	}
 	void			PushJob(std::shared_ptr<TJob>& Job,Soy::TSemaphore& Semaphore)		{	PushJobImpl( Job, &Semaphore );	}
 	
+	template<typename TYPE>
+	void			QueueDelete(std::shared_ptr<TYPE>& Object);
+	
 protected:
 	virtual void	PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore);
 	
@@ -661,3 +664,10 @@ inline void PopWorker::DeferDelete(std::shared_ptr<PopWorker::TJobQueue> Context
 	LocalpObject.reset();
 }
 
+template<typename TYPE>
+inline void PopWorker::TJobQueue::QueueDelete(std::shared_ptr<TYPE>& Object)
+{
+	std::shared_ptr<PopWorker::TJob> DefferedDelete( new TDefferedDeleteJob<TYPE>( Object, true ) );
+	Object.reset();
+	this->PushJob( DefferedDelete );
+}
