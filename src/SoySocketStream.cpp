@@ -108,6 +108,14 @@ void TSocketWriteThread::Write(TStreamBuffer& Buffer,const std::function<bool()>
 	}
 }
 
+SoySockAddr TSocketWriteThread::GetSocketAddress() const
+{
+	if ( !mSocket )
+		throw Soy::AssertException("TSocketWriteThread::GetSocketAddress has no socket");
+	
+	auto Connection = mSocket->GetConnection(mConnectionRef);
+	return Connection.mAddr;
+}
 
 
 

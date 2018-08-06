@@ -32,6 +32,7 @@ public:
 	
 protected:
 	virtual void					Write(TStreamBuffer& Buffer,const std::function<bool()>& Block) override;
+	SoySockAddr						GetSocketAddress() const;
 	
 private:
 	Array<char>						mSendBuffer;		//	static buffer, just save realloc
