@@ -470,7 +470,12 @@ bool TStreamReader::Iteration()
 	{
 			//	waiting for more data, just let thread re-iterate
 		case TProtocolState::Waiting:
-			return true;
+			if ( KeepAlive )
+				return true;
+
+			//	waiting for data, but eof... forcing disconnect (fall through)
+			std::Debug << "TStreamReader protocol " << Soy::GetTypeName(*CurrentProtocol) << " waiting for data, but EOF, so disconnecting" << std::endl;
+			break;
 			
 			//	fall through
 		case TProtocolState::Disconnect:
