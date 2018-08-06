@@ -89,7 +89,8 @@ void TSocketWriteThread::Write(TStreamBuffer& Buffer,const std::function<bool()>
 		
 		static size_t PopMaxSize = 1024 * 1024 * 1;
 		size_t PopSize = std::min( PopMaxSize, Buffer.GetBufferedSize() );
-		if ( !Buffer.Pop( PopSize, GetArrayBridge(mSendBuffer) ) )
+		BufferArray<char,1024 * 1024 * 1> SendBuffer;
+		if ( !Buffer.Pop( PopSize, GetArrayBridge(SendBuffer) ) )
 		{
 			std::Debug << "Buffer data has gone missing. Trying again" << std::endl;
 			continue;
@@ -98,7 +99,7 @@ void TSocketWriteThread::Write(TStreamBuffer& Buffer,const std::function<bool()>
 		//	write to socket
 		try
 		{
-			ClientSocket.Send( GetArrayBridge(mSendBuffer), mSocket->IsUdp() );
+			ClientSocket.Send( GetArrayBridge(SendBuffer), mSocket->IsUdp() );
 		}
 		catch (std::exception& e)
 		{

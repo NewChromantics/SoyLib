@@ -35,7 +35,6 @@ protected:
 	SoySockAddr						GetSocketAddress() const;
 	
 private:
-	Array<char>						mSendBuffer;		//	static buffer, just save realloc
 	SoyRef							mConnectionRef;
 	std::shared_ptr<SoySocket>		mSocket;			//	socket we're writing to
 };

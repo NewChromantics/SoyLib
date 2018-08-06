@@ -1024,27 +1024,32 @@ SoyRef SoySocketConnection::Recieve(ArrayBridge<char>& Buffer,SoySocket* Parent)
 }
 
 
-void SoySocketConnection::Send(ArrayBridge<char>&& Buffer,bool IsUdp)
+void SoySocketConnection::Send(const ArrayBridge<char>&& Data,bool IsUdp)
 {
-	auto& Out = Buffer;
-	
 	//	gr: this code suggests, it HAS happened? or could happen.
 	static int FailMax = 10;
 	int FailCount = 0;
-
+	
+	auto BytesWritten = 0;
+	
 	//	todo: change this to an offset rather than re-allocating
-	while ( !Out.IsEmpty() )
+	while ( BytesWritten < Data.GetDataSize() )
 	{
 		int Flags = 0;
 		ssize_t Result = 0;
 		
+		//	cast away const so we can get an array we'll use readonly (don't really have a const FixedArray type)
+		//	this is a tiny bit expensive, but stack alloc and safe!
+		auto& MutableData = *const_cast<ArrayBridge<char>*>( &Data );
+		auto SendArray = MutableData.GetSubArray( BytesWritten );
+		
 		if ( IsUdp )
 		{
-			Result = ::sendto( mSocket, Out.GetArray(), size_cast<socket_data_size_t>(Out.GetDataSize()), Flags, mAddr.GetSockAddr(), mAddr.GetSockAddrLength() );
+			Result = ::sendto( mSocket, SendArray.GetArray(), size_cast<socket_data_size_t>(SendArray.GetDataSize()), Flags, mAddr.GetSockAddr(), mAddr.GetSockAddrLength() );
 		}
 		else
 		{
-			Result = ::send( mSocket, Out.GetArray(), size_cast<socket_data_size_t>(Out.GetDataSize()), Flags );
+			Result = ::send( mSocket, SendArray.GetArray(), size_cast<socket_data_size_t>(SendArray.GetDataSize()), Flags );
 		}
 		
 		//	gr; not sure when this might happen, but don't get stuck in a loop
@@ -1070,14 +1075,7 @@ void SoySocketConnection::Send(ArrayBridge<char>&& Buffer,bool IsUdp)
 		}
 		
 		auto DataToRemove = size_cast<size_t>( Result );
-		
-		//	gr: to allow use of non-resizable arrays, we break out early without deleting data
-		//		solution could be a temporary array in this func with a start offset
-		//		alternatively, we have another local buffer we switch to if we have to break up the send
-		if ( DataToRemove == Out.GetSize() )
-			break;
-		//	pop the data that's been sent
-		Out.RemoveBlock( 0, DataToRemove );
+		BytesWritten += DataToRemove;
 	}
 }
 
