@@ -180,3 +180,32 @@ bool Platform::ShowFileExplorer(const std::string& Path)
 #endif
 }
 
+
+
+std::string Platform::GetAppResourcesDirectory()
+{
+	//	https://stackoverflow.com/a/24420220
+	CFURLRef url = CFBundleCopyResourcesDirectoryURL(CFBundleGetMainBundle());
+	if ( !url )
+		throw Soy::AssertException("Failed to get bundle resources url");
+
+	try
+	{
+		char PathChars[PATH_MAX];
+		auto* Path8 = reinterpret_cast<UInt8*>(PathChars);
+		if ( !CFURLGetFileSystemRepresentation(url, true, Path8, sizeof(PathChars) ) )
+			throw Soy::AssertException("Failed to get bundle resources directory name from url");
+	
+		CFRelease(url);
+		std::string Path( PathChars );
+		if ( !Soy::StringEndsWith( Path, "/", true ) )
+			Path += "/";
+		return Path;
+	}
+	catch(...)
+	{
+		CFRelease(url);
+		throw;
+	}
+}
+

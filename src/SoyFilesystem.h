@@ -51,6 +51,11 @@ namespace Platform
 #endif
 	extern std::string	ExePath;
 
+	
+	//	gr: this is the resources dir inside .app on osx
+#if defined(TARGET_OSX)
+	std::string	GetAppResourcesDirectory();
+#endif
 
 	bool	ShowFileExplorer(const std::string& Path);
 }
