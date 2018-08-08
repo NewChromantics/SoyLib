@@ -117,6 +117,7 @@ namespace SoyMediaFormat
 	bool		IsH264Fourcc(uint32 Fourcc);
 	std::string	ToMime(Type Format);
 	Type		FromMime(const std::string& Mime);
+	Type		FromExtension(const std::string& Extension);
 	
 	DECLARE_SOYENUM(SoyMediaFormat);
 }
