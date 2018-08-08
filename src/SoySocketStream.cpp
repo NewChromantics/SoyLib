@@ -87,9 +87,10 @@ void TSocketWriteThread::Write(TStreamBuffer& Buffer,const std::function<bool()>
 			throw Soy::AssertException("Connection lost");
 		}
 		
-		static size_t PopMaxSize = 1024 * 1024 * 1;
-		size_t PopSize = std::min( PopMaxSize, Buffer.GetBufferedSize() );
-		BufferArray<char,1024 * 1024 * 1> SendBuffer;
+		//	1mb was crashing on stack on write . limited stack size setting?
+#define PopMaxSize	(500 * 1024 * 1)
+		size_t PopSize = std::min<size_t>( PopMaxSize, Buffer.GetBufferedSize() );
+		BufferArray<char,PopMaxSize> SendBuffer;
 		if ( !Buffer.Pop( PopSize, GetArrayBridge(SendBuffer) ) )
 		{
 			std::Debug << "Buffer data has gone missing. Trying again" << std::endl;
