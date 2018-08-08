@@ -102,9 +102,8 @@ namespace Soy
 	bool		ReadStreamChunk( ArrayBridge<char>& Data, std::istream& Stream );
 	inline bool	ReadStreamChunk( ArrayBridge<char>&& Data, std::istream& Stream )	{	return ReadStreamChunk( Data, Stream );		}
 	bool		StringToFile(std::string Filename,std::string String);
-	bool		FileToString(std::string Filename,std::string& String);
-	bool		FileToString(std::string Filename,std::string& String,std::ostream& Error);
-	bool		FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::ostream& Error);
-	inline bool	FileToStringLines(std::string Filename,ArrayBridge<std::string>&& StringLines,std::ostream& Error)	{	return FileToStringLines( Filename, StringLines, Error );	}
+	void		FileToString(std::string Filename,std::string& String);
+	void		FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines);
+	inline void	FileToStringLines(std::string Filename,ArrayBridge<std::string>&& StringLines)	{	return FileToStringLines( Filename, StringLines );	}
 }
 

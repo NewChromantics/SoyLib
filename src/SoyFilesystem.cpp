@@ -658,31 +658,15 @@ bool Soy::StringToFile(std::string Filename,std::string String)
 }
 
 
-bool Soy::FileToString(std::string Filename,std::string& String)
-{
-	auto& Stream = std::Debug.LockStream();
-	auto Result = FileToString( Filename, String, Stream );
-	std::Debug.UnlockStream( Stream );
-	return Result;
-}
 
-bool Soy::FileToString(std::string Filename,std::string& String,std::ostream& Error)
+void Soy::FileToString(std::string Filename,std::string& String)
 {
 	//	gr: err surely a better way
 	Array<char> StringData;
 	auto StringDataBridge = GetArrayBridge( StringData );
-	try
-	{
-		LoadBinaryFile( StringDataBridge, Filename );
-	}
-	catch(std::exception& e)
-	{
-		Error << e.what();
-		return false;
-	}
+	LoadBinaryFile( StringDataBridge, Filename );
 	
 	String = Soy::ArrayToString( StringDataBridge );
-	return true;
 	/*
 	 std::ifstream File( Filename, std::ios::in );
 	 if ( !File.is_open() )
@@ -697,15 +681,13 @@ bool Soy::FileToString(std::string Filename,std::string& String,std::ostream& Er
 	 */
 }
 
-bool Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines,std::ostream& Error)
+void Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines)
 {
 	//	get file as string then parse
 	std::string FileContents;
-	if ( !FileToString( Filename, FileContents, Error ) )
-		return false;
+	FileToString( Filename, FileContents );
 	
 	Soy::SplitStringLines( StringLines, FileContents );
-	return true;
 }
 
 
