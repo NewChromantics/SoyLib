@@ -979,7 +979,7 @@ bool ConvertFormat_RgbToRgba(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,S
 	return true;
 }
 
-bool ConvertFormat_GreyscaleToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+bool ConvertFormat_GreyscaleToRgb(ArrayInterface<uint8>& PixelsArray,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	auto& GreyMeta = Meta;
 	auto w = GreyMeta.GetWidth();
@@ -988,12 +988,14 @@ bool ConvertFormat_GreyscaleToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& M
 	auto PixelCount = size_cast<int>(w*h);
 	auto GreyStride = GreyMeta.GetPixelDataSize();
 	auto RgbStride = RgbMeta.GetPixelDataSize();
-	Pixels.SetSize( RgbMeta.GetDataSize() );
+	PixelsArray.SetSize( RgbMeta.GetDataSize() );
 	
 	if ( GreyStride != 1 )
 		throw Soy::AssertException("ConvertFormat_GreyscaleToRgb: Expected source stride of 1 bytes");
 	if ( RgbStride != 3 )
 		throw Soy::AssertException("ConvertFormat_GreyscaleToRgb: Expected destination stride of 3 bytes");
+	
+	auto* Pixels = PixelsArray.GetArray();
 	
 	//	fill backwards and we won't overwrite anything
 	for ( int p=PixelCount-1;	p>=0;	p-- )
@@ -1831,9 +1833,12 @@ void SoyPixelsImpl::ResizeFastSample(size_t NewWidth, size_t NewHeight)
 	auto OldChannelCount = Old.GetChannels();
 	auto MinChannelCount = std::min( OldChannelCount, NewChannelCount );
 	
-	auto& OldPixels = Old.GetPixelsArray();
-	auto& NewPixels = New.GetPixelsArray();
+	auto& OldPixelsArray = Old.GetPixelsArray();
+	auto& NewPixelsArray = New.GetPixelsArray();
 	
+	auto* OldPixels = OldPixelsArray.GetArray();
+	auto* NewPixels = NewPixelsArray.GetArray();
+
 	for ( int ny=0;	ny<NewHeight;	ny++ )
 	{
 		float yf = ny/static_cast<float>(NewHeight);
@@ -1841,9 +1846,14 @@ void SoyPixelsImpl::ResizeFastSample(size_t NewWidth, size_t NewHeight)
 
 		auto OldLineSize = OldWidth * OldChannelCount;
 		auto NewLineSize = NewWidth * NewChannelCount;
-		auto OldRow = GetRemoteArray( &OldPixels.GetArray()[oy*OldLineSize], OldLineSize );
-		auto NewRow = GetRemoteArray( &NewPixels.GetArray()[ny*NewLineSize], NewLineSize );
-		
+//#define SAFE_RESIZE
+#if defined(SAFE_RESIZE)
+		auto OldRow = GetRemoteArray( &OldPixels[oy*OldLineSize], OldLineSize );
+		auto NewRow = GetRemoteArray( &NewPixels[ny*NewLineSize], NewLineSize );
+#else
+		auto OldRow = &OldPixels[oy*OldLineSize];
+		auto NewRow = &NewPixels[ny*NewLineSize];
+#endif
 		for ( int nx=0;	nx<NewWidth;	nx++ )
 		{
 			float xf = nx / static_cast<float>(NewWidth);
