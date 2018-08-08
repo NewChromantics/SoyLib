@@ -13,6 +13,7 @@ std::string Http::GetDefaultResponseString(size_t ResponseCode)
 		case Response_OK:					return "OK";
 		case Response_FileNotFound:			return "File Not Found";
 		case Response_SwitchingProtocols:	return "Switching Protocols";
+		case Response_Error:				return "Internal error";
 		default:
 			break;
 	}
@@ -187,21 +188,14 @@ Http::TResponseProtocol::TResponseProtocol(std::function<void(TStreamBuffer&)> W
 
 void Http::TResponseProtocol::Encode(TStreamBuffer& Buffer)
 {
-	size_t ResultCode = Response_OK;
-	std::string ResultString;
-
 	//	specific response
-	if ( mResponseCode != 0 )
+	if ( mResponseCode == 0 )
 	{
-		ResultCode = mResponseCode;
-	}
-	if ( !mUrl.empty() )
-	{
-		ResultString = mUrl;
+		mResponseCode = Response_OK;
 	}
 	
-	if ( ResultString.empty() )
-		ResultString = GetDefaultResponseString( ResultCode );
+	if ( mResponseString.empty() )
+		mResponseString = GetDefaultResponseString( mResponseCode );
 
 	//	write request header
 	{
@@ -214,7 +208,7 @@ void Http::TResponseProtocol::Encode(TStreamBuffer& Buffer)
 		HttpVersion = "HTTP/1.1";
 				
 		std::stringstream RequestHeader;
-		RequestHeader << HttpVersion << " " << ResultCode << " " <<  ResultString << "\r\n";
+		RequestHeader << HttpVersion << " " << mResponseCode << " " <<  mResponseString << "\r\n";
 		Buffer.Push( RequestHeader.str() );
 	}
 

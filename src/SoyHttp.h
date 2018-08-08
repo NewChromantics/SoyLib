@@ -16,8 +16,10 @@ namespace Http
 	const size_t	Response_Invalid = 0;
 	const size_t	Response_OK = 200;
 	const size_t	Response_FileNotFound = 404;
+	const size_t	Response_Forbidden = 403;
 	const size_t	Response_SwitchingProtocols = 101;
-	
+	const size_t	Response_Error = 500;
+
 	std::string		GetDefaultResponseString(size_t ResponseCode);
 }
 
@@ -119,6 +121,7 @@ protected:
 	virtual TProtocolState::Type	Decode(TStreamBuffer& Buffer) override	{	return TCommonProtocol::Decode( Buffer );	}
 	
 public:
+	std::string&					mResponseString = mUrl;	//	could be "Bad Request" or "OK" for responses
 };
 
 
