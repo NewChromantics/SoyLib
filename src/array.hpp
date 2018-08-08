@@ -302,8 +302,12 @@ private:
 			throw Soy::AssertException("Tried to copy Null data into array");
 		if ( NewDataIndex >= GetSize() )
 			throw Soy::AssertException(std::string(__func__) + " index out of range");
-		if ( NewDataIndex+Length > GetSize() )	
-			throw Soy::AssertException(std::string(__func__) + " index+length out of range");
+		if ( NewDataIndex+Length > GetSize() )
+		{
+			std::stringstream Error;
+			Error << __func__ << " index+length out of range. (" << NewDataIndex << " + " << Length << " > " << GetSize() << ")";
+			throw Soy::AssertException(Error.str());
+		}
 				
 		if ( Soy::DoComplexCopy<T,SOURCE_T>() )
 		{
