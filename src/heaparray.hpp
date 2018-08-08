@@ -102,13 +102,13 @@ public:
 
 	T& GetAt(size_t index)
 	{
-		SoyArray::CheckBounds( index, *this );
+		SoyArray_CheckBounds( index, *this );
 		return mdata[index];
 	}
 
 	const T& GetAtConst(size_t index) const
 	{
-		SoyArray::CheckBounds( index, *this );
+		SoyArray_CheckBounds( index, *this );
 		return mdata[index];
 	}
 	T&			operator [] (size_t index)				{	return GetAt(index);	}
@@ -325,7 +325,7 @@ public:
 
 	T& PopBack()
 	{
-		SoyArray::CheckBounds(moffset,*this);
+		SoyArray_CheckBounds(moffset,*this);
 		return mdata[--moffset];
 	}
 
@@ -466,7 +466,7 @@ public:
 	//	swap two elements
 	void	Swap(size_t a,size_t b)
 	{
-		if ( !SoyArray::CheckBounds( a, *this ) || !SoyArray::CheckBounds(b, *this ) )
+		if ( !SoyArray_CheckBounds( a, *this ) || !SoyArray_CheckBounds(b, *this ) )
 			return;
 		auto& ElementA = (*this)[a];
 		auto& ElementB = (*this)[b];

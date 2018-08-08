@@ -4,12 +4,18 @@
 
 namespace SoyArray
 {
+	//	gr: this wasnt inlined
+	//	#define	DLIB_FORCE_INLINE __attribute__((always_inline)) inline
+#define SoyArray_CheckBounds(Index,This)	(true)
+#if !defined(SoyArray_CheckBounds)
 	template<typename ARRAY>
 	bool		CheckBounds(size_t Index,const ARRAY& This);
+#endif
 	std::string	OnCheckBoundsError(size_t Index,size_t Size,const std::string& Typename);
 };
 
 
+#if !defined(SoyArray_CheckBounds)
 //	gr: this should be a very fast (x<y) index check, and only do the error construction when we fail
 //		maybe cost of lambda? which could be wrapped in another lambda to pass parameters only on-error? if a lambda has to construct each indivudal one
 template<typename ARRAY>
@@ -29,5 +35,5 @@ inline bool SoyArray::CheckBounds(size_t Index,const ARRAY& This)
 	 */
 	//return Soy::Assert( (Index>=0) && (Index<This.GetSize()), "Index out of bounds" );
 };
-
+#endif
 

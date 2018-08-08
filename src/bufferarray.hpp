@@ -93,13 +93,13 @@ public:
 
 	T& operator[](size_t index)
 	{
-		SoyArray::CheckBounds( index, *this );
+		SoyArray_CheckBounds( index, *this );
 		return mdata[index];
 	}
 
 	const T& operator[](size_t index) const
 	{
-		SoyArray::CheckBounds( index, *this );
+		SoyArray_CheckBounds( index, *this );
 		return mdata[index];
 	}
 
@@ -254,7 +254,7 @@ public:
 
 	T& PopBack()
 	{
-		SoyArray::CheckBounds( moffset, *this );
+		SoyArray_CheckBounds( moffset, *this );
 		return mdata[--moffset];
 	}
 
@@ -327,7 +327,7 @@ public:
 
 	void SetIndex(size_t index)
 	{
-		SoyArray::CheckBounds( index, *this );
+		SoyArray_CheckBounds( index, *this );
 		moffset = index;
 	}
 
@@ -378,7 +378,7 @@ public:
 	//	swap two elements
 	void	Swap(size_t a,size_t b)
 	{
-		if ( !SoyArray::CheckBounds(a,*this) || !SoyArray::CheckBounds(b,*this) )
+		if ( !SoyArray_CheckBounds(a,*this) || !SoyArray_CheckBounds(b,*this) )
 			return;
 		T& ElementA = (*this)[a];
 		T& ElementB = (*this)[b];

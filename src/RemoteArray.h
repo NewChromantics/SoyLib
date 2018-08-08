@@ -49,13 +49,13 @@ public:
 	
 	T& operator [] (size_t Index)
 	{
-		SoyArray::CheckBounds( Index, *this );
+		SoyArray_CheckBounds( Index, *this );
 		return mData[Index];
 	}
 	
 	const T& operator [] (size_t Index) const
 	{
-		SoyArray::CheckBounds( Index, *this );
+		SoyArray_CheckBounds( Index, *this );
 		return mData[Index];
 	}
 	
