@@ -974,7 +974,7 @@ static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 	//	gr: are these the same luma range?
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Yuv_844_Full ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::Yuv_844_Full ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::Yuv_844_Video ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::Yuv_844_Ntsc ),
 */
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::Invalid ),
@@ -1047,8 +1047,10 @@ SoyPixelsFormat::Type Avf::GetPixelFormat(OSType Format)
 	auto* Meta = GetArrayBridge(Table).Find( Format );
 	
 	if ( !Meta )
+	{
+		std::Debug << "Unknown Avf CV pixel format " << Format << std::endl;
 		return SoyPixelsFormat::Invalid;
-	
+	}
 	return Meta->mSoyFormat;
 }
 

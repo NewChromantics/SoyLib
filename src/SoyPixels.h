@@ -62,6 +62,12 @@ namespace SoyPixelsFormat
 		YYuv_8888_Full,
 		YYuv_8888_Ntsc,
 		YYuv_8888_Smptec,
+		
+		//	https://stackoverflow.com/a/22793325/355753
+		//	4:2:2, apple call this yuvs
+		Yuv_844_Full,
+		Yuv_844_Ntsc,
+		Yuv_844_Smptec,
 
 		ChromaUV_8_8,		//	8 bit plane, 8 bit plane
 		ChromaUV_88,		//	16 bit interleaved plane

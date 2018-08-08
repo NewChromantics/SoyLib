@@ -103,6 +103,11 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetYuvFull(SoyPixelsFormat::Type Format)
 		case YYuv_8888_Smptec:
 			return YYuv_8888_Full;
 
+		case Yuv_844_Ntsc:
+		case Yuv_844_Full:
+		case Yuv_844_Smptec:
+			return Yuv_844_Full;
+
 		default:
 			break;
 	}
@@ -135,6 +140,11 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetYuvNtsc(SoyPixelsFormat::Type Format)
 		case YYuv_8888_Smptec:
 			return YYuv_8888_Ntsc;
 
+		case Yuv_844_Ntsc:
+		case Yuv_844_Full:
+		case Yuv_844_Smptec:
+			return Yuv_844_Ntsc;
+
 		default:
 			break;
 	}
@@ -166,6 +176,11 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetYuvSmptec(SoyPixelsFormat::Type Format
 		case YYuv_8888_Smptec:
 			return YYuv_8888_Smptec;
 
+		case Yuv_844_Full:
+		case Yuv_844_Ntsc:
+		case Yuv_844_Smptec:
+			return Yuv_844_Smptec;
+			
 		default:
 			break;
 	}
@@ -598,6 +613,9 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::YYuv_8888_Full,		"YYuv_8888_Full"	},
 	{ SoyPixelsFormat::YYuv_8888_Ntsc,		"YYuv_8888_Ntsc"	},
 	{ SoyPixelsFormat::YYuv_8888_Smptec,	"YYuv_8888_Smptec"	},
+	{ SoyPixelsFormat::Yuv_844_Full,		"Yuv_844_Full"	},
+	{ SoyPixelsFormat::Yuv_844_Ntsc,		"Yuv_844_Ntsc"	},
+	{ SoyPixelsFormat::Yuv_844_Smptec,		"Yuv_844_Smptec"	},
 	{ SoyPixelsFormat::Luma_Full,			"LumaFull"	},
 	{ SoyPixelsFormat::Luma_Ntsc,			"Luma_Ntsc"	},
 	{ SoyPixelsFormat::Luma_Smptec,			"Luma_Smptec"	},
