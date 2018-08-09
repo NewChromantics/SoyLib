@@ -1319,7 +1319,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 {
 	std::stringstream WholeFunctionContext;
 	WholeFunctionContext << __func__ << " (" << SourcePixels.GetMeta() << "->" << this->GetMeta() << ")";
-	Soy::TScopeTimerPrint WholeTimer( WholeFunctionContext.str().c_str(), 10 );
+	Soy::TScopeTimerPrint WholeTimer( WholeFunctionContext.str().c_str(), 30 );
 
 	Soy::Assert( IsValid(), "Trying to upload to invalid texture ");
 	
