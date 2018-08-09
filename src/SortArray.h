@@ -49,7 +49,12 @@ public:
 		mSortFunc	( SortFunc )
 	{
 	}
-	
+	SortArrayLambda(ArrayBridge<TYPE>& Array,std::function<int(const TYPE&,const TYPE&)> SortFunc) :
+		mArray		( Array ),
+		mSortFunc	( SortFunc )
+	{
+	}
+
 	virtual TYPE&		operator[](size_t index) override		{	return mArray[index];	}
 	virtual const TYPE&	operator[](size_t index) const override	{	return mArray[index];	}
 	virtual TYPE&		GetBack() override						{	return mArray.GetBack();	}
