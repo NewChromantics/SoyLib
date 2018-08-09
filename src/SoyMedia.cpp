@@ -320,7 +320,8 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 			}
 		}
 		
-		SortArrayLambda<std::shared_ptr<TMediaPacket>> SortedPackets( GetArrayBridge(mPackets), SortPackets );
+		auto mPacketsBridge = GetArrayBridge(mPackets);
+		SortArrayLambda<std::shared_ptr<TMediaPacket>> SortedPackets( mPacketsBridge, SortPackets );
 		SortedPackets.Push( Packet );
 		
 		//std::Debug << "Pushed intput packet to buffer " << *Packet << std::endl;
