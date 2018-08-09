@@ -356,8 +356,8 @@ public:
 	static prmem::Heap&				GetDefaultHeap();
 	
 public:
-	SoyPixels(const SoyPixelsImpl& that) :
-		mArray						( GetDefaultHeap() ),
+	SoyPixels(const SoyPixelsImpl& that,prmem::Heap& Heap=GetDefaultHeap()) :
+		mArray						( Heap ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{
 		Copy( that );
@@ -367,8 +367,8 @@ public:
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{
 	}
-	SoyPixels(const SoyPixelsMeta& Meta) :
-		mArray						( GetDefaultHeap() ),
+	SoyPixels(const SoyPixelsMeta& Meta,prmem::Heap& Heap=GetDefaultHeap()) :
+		mArray						( Heap ),
 		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
 	{
 		Init( Meta );
