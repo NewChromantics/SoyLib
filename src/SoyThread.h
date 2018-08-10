@@ -294,7 +294,7 @@ public:
 		mWaitMode	( WaitMode )
 	{
 	}
-	virtual ~SoyWorker()	{}
+	virtual ~SoyWorker();
 	
 	virtual void		Start();
 	virtual void		Stop();
@@ -355,7 +355,7 @@ public:
 		SoyThread	( ThreadName )
 	{
 	}
-	~SoyWorkerThread()
+	virtual ~SoyWorkerThread()
 	{
 		//	hail mary
 		if ( IsWorking() )

@@ -269,40 +269,44 @@ void SoyThread::Start()
 	//	maybe stopping...
 	Soy::Assert( !mIsRunning, "Thread doesn't exist, but is marked as running");
 	
-	auto ThreadFuncWrapper = [this](void*)
+	auto ThreadFuncWrapper = [](void* pThis)
 	{
-		this->mIsRunning = true;
+		auto* This = reinterpret_cast<SoyThread*>(pThis);
+		This->mIsRunning = true;
 
-		SoyThread::GetOnThreadStart().OnTriggered(*this);
+		SoyThread::GetOnThreadStart().OnTriggered(*This);
 		
 		//	gr: even if we're not catching exceptions, java NEEDS us to cleanup the threads or the OS will abort us
 		try
 		{
-			while ( this->mIsRunning )
+			
+			while ( This->mIsRunning )
 			{
-				this->Thread();
+				This->Thread();
+				if ( This == nullptr )
+					throw Soy::AssertException("How did this get null");
 			}
-			SoyThread::GetOnThreadFinish().OnTriggered(*this);
+			SoyThread::GetOnThreadFinish().OnTriggered(*This);
 		}
 		catch(std::exception& e)
 		{
-			SoyThread::GetOnThreadFinish().OnTriggered(*this);
+			SoyThread::GetOnThreadFinish().OnTriggered(*This);
 			throw;
 		}
 		catch(...)
 		{
-			SoyThread::GetOnThreadFinish().OnTriggered(*this);
+			SoyThread::GetOnThreadFinish().OnTriggered(*This);
 			throw;
 		}
 		
 		return 0;
 	};
 	
-	auto CatchException_ThreadFuncWrapper = [=](void* x)
+	auto CatchException_ThreadFuncWrapper = [=](void* This)
 	{
 		try
 		{
-			return ThreadFuncWrapper(x);
+			return ThreadFuncWrapper(This);
 		}
 		catch(std::exception& e)
 		{
@@ -325,14 +329,16 @@ void SoyThread::Start()
 	bool CatchExceptions = !Platform::IsDebuggerAttached();
 	#endif
 	
+	CatchExceptions = false;
+	
 	//	start thread
 	if ( CatchExceptions )
 	{
-		mThread = std::thread( CatchException_ThreadFuncWrapper, nullptr );
+		mThread = std::thread( CatchException_ThreadFuncWrapper, this );
 	}
 	else
 	{
-		mThread = std::thread( ThreadFuncWrapper, nullptr );
+		mThread = std::thread( ThreadFuncWrapper, this );
 	}
 }
 
@@ -536,6 +542,11 @@ std::string SoyThread::GetThreadName(std::thread::native_handle_type ThreadId)
 	return "Thread??";
 }
 
+SoyWorker::~SoyWorker()
+{
+	std::unique_lock<std::mutex> Lock( mWaitMutex );
+}
+
 void SoyWorker::Start()
 {
 	mWorking = true;
@@ -565,7 +576,8 @@ void SoyWorker::Loop()
 	//	first call
 	bool Dummy = true;
 	mOnStart.OnTriggered(Dummy);
-	
+	auto SleepDuration = GetSleepDuration();
+
 	while ( IsWorking() )
 	{
 		//	do wait
@@ -576,7 +588,7 @@ void SoyWorker::Loop()
 					mWaitConditional.wait( Lock );
 				break;
 			case SoyWorkerWaitMode::Sleep:
-				mWaitConditional.wait_for( Lock, GetSleepDuration() );
+				mWaitConditional.wait_for( Lock, SleepDuration );
 				break;
 			default:
 				break;
