@@ -644,17 +644,31 @@ void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename
 	File.close();
 }
 
-bool Soy::StringToFile(std::string Filename,std::string String)
+void Soy::StringToFile(std::string Filename,std::string String,bool Append)
 {
-	std::ofstream File( Filename, std::ios::out );
+	auto Flags = std::ios::out;
+	if ( Append )
+		Flags |= std::ios::app;
+	
+	std::ofstream File( Filename, Flags );
 	if ( !File.is_open() )
-		return false;
+	{
+		std::stringstream Error;
+		Error << "Failed to open file " << Filename;
+		throw Soy::AssertException( Error.str() );
+	}
 	
 	File << String;
 	bool Success = !File.fail();
 	
 	File.close();
-	return Success;
+
+	if ( !Success )
+	{
+		std::stringstream Error;
+		Error << "Failed to write to file " << Filename;
+		throw Soy::AssertException( Error.str() );
+	}
 }
 
 
