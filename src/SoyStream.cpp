@@ -299,14 +299,14 @@ bool TStreamBuffer::UnPop(const std::string& String)
 }
 
 
-bool TStreamBuffer::Peek(ArrayBridge<char>&& Data)
+bool TStreamBuffer::Peek(ArrayBridge<char>& Data)
 {
 	Soy::Assert( !Data.IsEmpty(), "Shouldn't peek for 0 bytes" );
-				
+	
 	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	if ( mData.GetSize() < Data.GetSize() )
-		return false;
+	return false;
 	
 	auto DataHead = GetRemoteArray( mData.GetArray(), Data.GetSize() );
 	Data.Copy( DataHead );
