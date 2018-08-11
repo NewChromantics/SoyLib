@@ -212,7 +212,8 @@ void PopWorker::TJobQueue::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphor
 	mJobs.push_back( Job );
 	mJobLock.unlock();
 	
-	mOnJobPushed.OnTriggered( Job );
+	if ( mOnJobPushed )
+		mOnJobPushed( Job );
 }
 
 
@@ -574,8 +575,8 @@ void SoyWorker::Loop()
 	std::unique_lock<std::mutex> Lock( mWaitMutex );
 	
 	//	first call
-	bool Dummy = true;
-	mOnStart.OnTriggered(Dummy);
+	if ( mOnStart )
+		mOnStart();
 	auto SleepDuration = GetSleepDuration();
 
 	while ( IsWorking() )
@@ -597,7 +598,8 @@ void SoyWorker::Loop()
 		if ( !IsWorking() )
 			break;
 
-		mOnPreIteration.OnTriggered(Dummy);
+		if ( mOnPreIteration )
+			mOnPreIteration();
 		
 #if defined(TARGET_ANDROID)
 		Java::FlushThreadLocals();
@@ -607,7 +609,8 @@ void SoyWorker::Loop()
 			break;
 	}
 	
-	mOnFinish.OnTriggered(Dummy);
+	if ( mOnFinish )
+		mOnFinish();
 }
 
 

@@ -18,7 +18,8 @@ class SoyListenerId
 {
 public:
 	static SoyListenerId	Alloc(SoyEventBase& Event) { return SoyListenerId(mListenerCounter++, Event); }
-	
+	static SoyListenerId	Alloc() { return SoyListenerId(mListenerCounter++); }
+
 	SoyListenerId() :
 		mId		( 0 )
 	{
@@ -30,16 +31,21 @@ public:
 	inline bool		operator<(const SoyListenerId& That) const	{	return this->mId < That.mId;	}
 	
 private:
-	SoyListenerId(int Id,SoyEventBase& Event) :
+	SoyListenerId(uint64_t Id,SoyEventBase& Event) :
 		mId		( Id ),
 		mEvent	( &Event )
 	{
 	}
-	
+	SoyListenerId(uint64_t Id) :
+		mId		( Id ),
+		mEvent	( nullptr )
+	{
+	}
+
 private:
-	int					mId;
+	uint64_t			mId;
 	SoyEventBase*		mEvent;		//	only for debug atm
-	static std::atomic<int>	mListenerCounter;
+	static std::atomic<uint64_t>	mListenerCounter;
 };
 
 

@@ -127,7 +127,7 @@ private:
 	void			RunJob(std::shared_ptr<TJob>& Job);
 
 public:
-	SoyEvent<std::shared_ptr<TJob>>		mOnJobPushed;
+	std::function<void(std::shared_ptr<TJob>&)>		mOnJobPushed;
 	
 private:
 	std::vector<std::shared_ptr<TJob>>	mJobs;			//	gr: change this to a nice soy ringbuffer
@@ -315,6 +315,21 @@ public:
 		//	gr: can't really add a listener and then unsubscribe here... what if the event dies...
 		return Event.AddListener( HandlerFunc );
 	}
+	template<typename TYPE>
+	SoyListenerId		WakeOnEvent(std::function<void(TYPE)>& Event)
+	{
+		//	gr: maybe we can have some global that goes "this is no longer valid"
+		auto HandlerFunc = [this](TYPE& Param)
+		{
+			this->Wake();
+		};
+		
+		if ( Event != nullptr )
+			throw Soy::AssertException("Switching to std::function means we currently limit to 1 listener for event");
+		Event = HandlerFunc;
+		auto Listener = SoyListenerId::Alloc();
+		return Listener;
+	}
 	void				SetWakeMode(SoyWorkerWaitMode::Type WakeMode)	{	mWaitMode = WakeMode;	Wake();	}
 	SoyWorkerWaitMode::Type	GetWakeMode() const	{	return mWaitMode;	}
 
@@ -326,9 +341,9 @@ private:
 	void				Loop();
 	
 public:
-	SoyEvent<bool>		mOnPreIteration;
-	SoyEvent<bool>		mOnStart;
-	SoyEvent<bool>		mOnFinish;
+	std::function<void()>	mOnPreIteration;
+	std::function<void()>	mOnStart;
+	std::function<void()>	mOnFinish;
 	
 private:
 	std::condition_variable	mWaitConditional;

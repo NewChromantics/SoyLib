@@ -31,8 +31,8 @@ namespace Soy
 class SoyWindow
 {
 public:
-	SoyEvent<const TMousePos>		mOnMouseDown;
-	SoyEvent<const TMousePos>		mOnMouseMove;
-	SoyEvent<const TMousePos>		mOnMouseUp;
+	std::function<void(const TMousePos&)>		mOnMouseDown;
+	std::function<void(const TMousePos&)>		mOnMouseMove;
+	std::function<void(const TMousePos&)>		mOnMouseUp;
 };
 
