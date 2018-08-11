@@ -44,11 +44,6 @@ template<typename TYPE>
 class SortArrayLambda : public ArrayInterface<TYPE>
 {
 public:
-	SortArrayLambda(ArrayBridge<TYPE>&& Array,std::function<int(const TYPE&,const TYPE&)> SortFunc) :
-		mArray		( Array ),
-		mSortFunc	( SortFunc )
-	{
-	}
 	SortArrayLambda(ArrayBridge<TYPE>& Array,std::function<int(const TYPE&,const TYPE&)> SortFunc) :
 		mArray		( Array ),
 		mSortFunc	( SortFunc )

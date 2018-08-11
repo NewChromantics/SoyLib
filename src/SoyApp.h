@@ -45,11 +45,6 @@ public:
 		mBitPos	( 0 )
 	{
 	}
-	TBitReader(const ArrayBridge<char>&& Data) :
-		mData	( Data ),
-		mBitPos	( 0 )
-	{
-	}
 	
 	bool						Eof() const			{	return BitPosition() >= (mData.GetDataSize()*8);	}
 	bool						Read(int& Data,int BitCount);
@@ -74,11 +69,6 @@ private:
 class TBitWriter
 {
 public:
-	TBitWriter(ArrayBridge<char>&& Data) :
-		mData	( Data ),
-		mBitPos	( 0 )
-	{
-	}
 	TBitWriter(ArrayBridge<char>& Data) :
 		mData	( Data ),
 		mBitPos	( 0 )
