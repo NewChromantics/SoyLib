@@ -1507,6 +1507,17 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 #if !defined(OPENGL_ES)
 #endif
 	
+	//	if there's a crash below, (reading out of bounds) may be beause opengl is expecting padding of 2/4/8
+	//	our pixels are not padded!
+	//	make sure no padding is applied so glGetTexImage & glReadPixels doesn't override tail memory
+	glPixelStorei(GL_PACK_ROW_LENGTH,0);	//	gr: not sure this had any effect, but implemented anyway
+	Opengl::IsOkay("glPixelStorei(GL_PACK_ROW_LENGTH,0)");
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	Opengl::IsOkay("glPixelStorei(GL_PACK_ALIGNMENT,1)");
+
+	//	gr: this is still crashing from overread!
+	
+	
 	//	try subimage
 	//	gr: if we find glTexImage2D faster add && !IsSameDimensions
 	if ( SubImage && ! (Prefer_TexImage && !IsSameDimensions) )
