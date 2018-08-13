@@ -1225,6 +1225,10 @@ void SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 	auto* ConversionFunc = GetArrayBridge(ConversionFuncs).Find( std::make_tuple( OldFormat, Format ) );
 	if ( ConversionFunc )
 	{
+		std::stringstream TimerName;
+		TimerName << "SoyPixel::SetFormat( " << OldFormat << " to " << Format << " )";
+		Soy::TScopeTimerPrint Timer( TimerName.str().c_str(), 5 );
+
 		ConversionFunc->mFunction( PixelsArray, GetMeta(), Format );
 		return;
 	}
