@@ -179,7 +179,10 @@ bool Opengl::TContext::IsLocked(std::thread::id Thread)
 
 bool Opengl::TContext::Lock()
 {
-	Soy::Assert( mLockedThread == std::thread::id(), "context already locked" );
+	if ( mLockedThread != std::thread::id() )
+	{
+		throw Soy::AssertException("context already locked");
+	}
 	
 	mLockedThread = std::this_thread::get_id();
 	return true;
