@@ -672,10 +672,10 @@ bool TPixels::Get(msa::OpenCLImage& Pixels,cl_command_queue Queue,cl_int clMemMo
 #endif
 
 
-bool SoyPixelsImpl::SetChannels(uint8 Channels)
+void SoyPixelsImpl::SetChannels(uint8 Channels)
 {
 	SoyPixelsFormat::Type Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
-	return SetFormat( Format );
+	SetFormat( Format );
 }
 
 
@@ -754,7 +754,7 @@ void SetDepthColour(uint8& Red,uint8& Green,uint8& Blue,float Depth,int PlayerIn
 	}
 }
 
-bool ConvertFormat_KinectDepthToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+void ConvertFormat_KinectDepthToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	bool GreyscaleAlphaFormat = (NewFormat == SoyPixelsFormat::GreyscaleAlpha);
 	auto Height = Meta.GetHeight();
@@ -780,10 +780,9 @@ bool ConvertFormat_KinectDepthToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixel
 		Pixels.SetSize( PixelCount );
 	Meta.DumbSetFormat( GreyscaleAlphaFormat ? SoyPixelsFormat::GreyscaleAlpha : SoyPixelsFormat::Greyscale );
 	assert( Meta.IsValid() );
-	return true;
 }
 
-bool ConvertFormat_KinectDepthToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+void ConvertFormat_KinectDepthToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	Array<uint16> DepthPixels;
 	DepthPixels.SetSize( Pixels.GetSize() / 2 );
@@ -825,7 +824,6 @@ bool ConvertFormat_KinectDepthToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta&
 	Meta.DumbSetFormat( NewFormat );
 	assert( Meta.IsValid() );
 	assert( Meta.GetHeight() == Height );
-	return true;
 }
 
 
@@ -1012,6 +1010,38 @@ bool ConvertFormat_GreyscaleToRgb(ArrayInterface<uint8>& PixelsArray,SoyPixelsMe
 }
 
 
+void ConvertFormat_GreyscaleToRgba(ArrayInterface<uint8>& PixelsArray,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+{
+	auto& GreyMeta = Meta;
+	auto w = GreyMeta.GetWidth();
+	auto h = GreyMeta.GetHeight();
+	SoyPixelsMeta RgbaMeta( w, h, NewFormat );
+	auto PixelCount = size_cast<int>(w*h);
+	auto GreyStride = GreyMeta.GetPixelDataSize();
+	auto RgbaStride = RgbaMeta.GetPixelDataSize();
+	PixelsArray.SetSize( RgbaMeta.GetDataSize() );
+	
+	if ( GreyStride != 1 )
+		throw Soy::AssertException("ConvertFormat_GreyscaleToRgba: Expected source stride of 1 bytes");
+	if ( RgbaStride != 4 )
+		throw Soy::AssertException("ConvertFormat_GreyscaleToRgba: Expected destination stride of 4 bytes");
+	
+	auto* Pixels = PixelsArray.GetArray();
+	
+	//	fill backwards and we won't overwrite anything
+	for ( int p=PixelCount-1;	p>=0;	p-- )
+	{
+		uint8_t* OldPos = &Pixels[p*GreyStride];
+		uint8_t* NewPos = &Pixels[p*RgbaStride];
+		NewPos[0] = OldPos[0];
+		NewPos[1] = OldPos[0];
+		NewPos[2] = OldPos[0];
+		NewPos[3] = 255;
+	}
+	
+	Meta = RgbaMeta;
+}
+
 
 bool ConvertFormat_RGBAToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
@@ -1053,15 +1083,13 @@ int GetDepthFormatBits(SoyPixelsFormat::Type Format)
 	}
 }
 
-bool ConvertDepth16(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+void ConvertDepth16(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	auto OldFormat = Meta.GetFormat();
 
 	//	assume this is a valid depth format...
-	if ( !Soy::Assert(SoyPixelsFormat::GetChannelCount(OldFormat) == 2, "expected 2-channel 16 bit depth format" ) )
-		return false;
-	if ( !Soy::Assert(SoyPixelsFormat::GetChannelCount(NewFormat) == 2, "expected 2-channel 16 bit depth format" ) )
-		return false;
+	Soy::Assert(SoyPixelsFormat::GetChannelCount(OldFormat) == 2, "expected 2-channel 16 bit depth format" );
+	Soy::Assert(SoyPixelsFormat::GetChannelCount(NewFormat) == 2, "expected 2-channel 16 bit depth format" );
 	
 	int OldInvalid = SoyPixelsFormat::GetInvalidValue( OldFormat );
 	int OldMin = SoyPixelsFormat::GetMinValue( OldFormat );
@@ -1111,7 +1139,6 @@ bool ConvertDepth16(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsF
 		std::Debug << std::endl;
 	
 	Meta.DumbSetFormat( NewFormat );
-	return true;
 }
 
 class TConvertFunc
@@ -1134,7 +1161,7 @@ public:
 
 	SoyPixelsFormat::Type	mSrcFormat;
 	SoyPixelsFormat::Type	mDestFormat;
-	std::function<bool(ArrayInterface<uint8>&,SoyPixelsMeta&,SoyPixelsFormat::Type)>	mFunction;
+	std::function<void(ArrayInterface<uint8>&,SoyPixelsMeta&,SoyPixelsFormat::Type)>	mFunction;
 };
 
 
@@ -1174,38 +1201,46 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::BGR, ConvertFormat_BgrToRgb ),
 	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::RGBA, ConvertFormat_RgbToRgba ),
 	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::RGB, ConvertFormat_GreyscaleToRgb ),
+	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::RGBA, ConvertFormat_GreyscaleToRgba ),
 };
 
 
-bool SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
+void SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 {
 	auto OldFormat = GetFormat();
 	if ( !SoyPixelsFormat::IsValid( Format ) )
-		return false;
+	{
+		std::stringstream Error;
+		Error << "Trying to change to " << Format << " (invalid)";
+		throw Soy::AssertException(Error.str());
+	}
 
 	if ( OldFormat == Format )
-		return true;
+		return;
 	if ( !IsValid() )
-		return false;
+		throw Soy::AssertException("Pixels are not valid");
 
 	auto& PixelsArray = GetPixelsArray();
 	auto ConversionFuncs = GetRemoteArray( gConversionFuncs );
 	auto* ConversionFunc = GetArrayBridge(ConversionFuncs).Find( std::make_tuple( OldFormat, Format ) );
 	if ( ConversionFunc )
 	{
-		if ( ConversionFunc->mFunction( PixelsArray, GetMeta(), Format ) )
-			return true;
+		ConversionFunc->mFunction( PixelsArray, GetMeta(), Format );
+		return;
 	}
 	
-	//	report missing, but desired conversions
-	std::Debug << "No soypixel conversion from " << OldFormat << " to " << Format << std::endl;
 
 	if ( GetFormat() == SoyPixelsFormat::KinectDepth && Format == SoyPixelsFormat::Greyscale )
-		return ConvertFormat_KinectDepthToGreyscale( PixelsArray, GetMeta(), Format );
+	{
+		ConvertFormat_KinectDepthToGreyscale( PixelsArray, GetMeta(), Format );
+		return;
+	}
 
 	if ( GetFormat() == SoyPixelsFormat::KinectDepth && Format == SoyPixelsFormat::GreyscaleAlpha )
-		return ConvertFormat_KinectDepthToGreyscale( PixelsArray, GetMeta(), Format );
-
+	{
+		ConvertFormat_KinectDepthToGreyscale( PixelsArray, GetMeta(), Format );
+		return;
+	}
 
 	//	see if we can use of simple channel-count change
 	bool UseOfPixels = false;
@@ -1214,10 +1249,11 @@ bool SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 	//UseOfPixels |= ( GetFormat() == SoyPixelsFormat::BGRA && Format == SoyPixelsFormat::BGR );
 	UseOfPixels |= ( GetFormat() == SoyPixelsFormat::RGBA && Format == SoyPixelsFormat::Greyscale );
 	UseOfPixels |= ( GetFormat() == SoyPixelsFormat::RGB && Format == SoyPixelsFormat::Greyscale );
-
-	if ( !UseOfPixels )
-		return false;
-	return false;
+	
+	//	report missing, but desired conversions
+	std::stringstream Error;
+	Error << "No soypixel conversion from " << OldFormat << " to " << Format;
+	throw Soy::AssertException(Error.str());
 }
 
 #if defined(SOY_OPENCL)
@@ -1467,9 +1503,8 @@ bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
 		}
 		
 		//	attempt conversion
-		if ( !OtherFormat.SetFormat( NewFormat ) )
-			return false;
-
+		OtherFormat.SetFormat( NewFormat );
+		
 		return OtherFormat.GetPng( PngData );
 	}
 

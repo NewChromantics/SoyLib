@@ -305,8 +305,8 @@ public:
 	vec2x<size_t>	GetXy(size_t PixelIndex) const;
 	size_t			GetIndex(size_t x,size_t y,size_t ChannelOffset=0) const;	//	throws if OOB
 
-	bool			SetFormat(SoyPixelsFormat::Type Format);
-	bool			SetChannels(uint8 Channels);
+	void			SetFormat(SoyPixelsFormat::Type Format);
+	void			SetChannels(uint8 Channels);
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
 	bool			SetRawSoyPixels(const ArrayBridge<char>&& RawData)	{	return SetRawSoyPixels( RawData );	}
 
