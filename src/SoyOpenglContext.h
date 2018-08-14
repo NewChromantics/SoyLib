@@ -71,7 +71,7 @@ public:
 	void			Init();
     bool            IsInitialised() const   {   return mVersion != Soy::TVersion();  }
 	void			Iteration()			{	Flush(*this);	}
-	virtual bool	Lock() override;
+	virtual void	Lock() override;
 	virtual void	Unlock() override;
 	virtual bool	IsLocked(std::thread::id Thread) override;
 	virtual std::shared_ptr<Opengl::TContext>	CreateSharedContext()	{	return nullptr;	}
@@ -100,6 +100,7 @@ public:
 	std::string		mDeviceName;
 	
 private:
+	std::mutex			mLockLock;		//	we have our own now, the mLockedThread means we can tell if we have the lock. We should NOT be recursive, as we need locks to balance
 	std::thread::id		mLockedThread;	//	needed in the context as it gets locked in other places than the job queue
 };
 

@@ -177,23 +177,27 @@ bool Opengl::TContext::IsLocked(std::thread::id Thread)
 		return mLockedThread == Thread;
 }
 
-bool Opengl::TContext::Lock()
+void Opengl::TContext::Lock()
 {
+	mLockLock.lock();
 	if ( mLockedThread != std::thread::id() )
 	{
-		throw Soy::AssertException("context already locked");
+		if ( mLockedThread == std::this_thread::get_id() )
+			throw Soy::AssertException("context already locked to this thread");
+		else
+			throw Soy::AssertException("context already locked to other thread");
 	}
 	
 	mLockedThread = std::this_thread::get_id();
-	return true;
 }
 
 void Opengl::TContext::Unlock()
 {
 	auto ThisThread = std::this_thread::get_id();
-	Soy::Assert( mLockedThread != std::thread::id(), "context not locked to wrong thread" );
-	Soy::Assert( mLockedThread == ThisThread, "context not unlocked from wrong thread" );
+	Soy::Assert( mLockedThread != std::thread::id(), "context not locked to any thread" );
+	Soy::Assert( mLockedThread == ThisThread, "context [not] unlocked from wrong thread" );
 	mLockedThread = std::thread::id();
+	mLockLock.unlock();
 }
 
 

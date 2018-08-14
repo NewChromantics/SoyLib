@@ -215,7 +215,7 @@ public:
 	std::shared_ptr<TBuffer>		CreateBuffer();
 	std::shared_ptr<TBufferImage>	CreateBufferImage();
 
-	virtual bool	Lock() override;
+	virtual void	Lock() override;
 	virtual void	Unlock() override;
 	virtual bool	IsLocked(std::thread::id Thread) override;
 	

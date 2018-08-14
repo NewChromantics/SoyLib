@@ -567,14 +567,13 @@ bool Opencl::TContext::IsLocked(std::thread::id Thread)
 		return mLockedThread == Thread;
 }
 
-bool Opencl::TContext::Lock()
+void Opencl::TContext::Lock()
 {
 	//	need to set thread for cl_queue?
 
 	//	same as Opengl::TContext::Lock()
 	Soy::Assert( mLockedThread == std::thread::id(), "context already locked" );
 	mLockedThread = std::this_thread::get_id();
-	return true;
 }
 
 void Opencl::TContext::Unlock()

@@ -97,8 +97,8 @@ public:
 class PopWorker::TContext
 {
 public:
-	virtual bool	Lock()=0;
-	virtual void	Unlock()=0;
+	virtual void	Lock()=0;
+	virtual void	Unlock()=0;	//	maybe should mark this as nothrow
 };
 
 
@@ -409,7 +409,7 @@ public:
 	virtual bool		CanSleep() override		{	return !PopWorker::TJobQueue::HasJobs();	}	//	break out of conditional with this
 	
 	//	context
-	virtual bool		Lock() override			{	return true;	}
+	virtual void		Lock() override			{	}
 	virtual void		Unlock() override		{}
 };
 

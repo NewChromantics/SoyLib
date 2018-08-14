@@ -123,9 +123,14 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 		if ( !Job )
 			break;
 		
-		//	lock the context
-		if ( !Context.Lock() )
+		//	lock the context, if it fails, put the job back in the queue
+		try
 		{
+			Context.Lock();
+		}
+		catch(std::exception& e)
+		{
+			std::Debug << "Failed to lock context, putting job back in the queue; " << e.what() << std::endl;
 			mJobLock.lock();
 			mJobs.insert( mJobs.begin(), Job );
 			mJobLock.unlock();
@@ -280,7 +285,6 @@ void SoyThread::Start()
 		//	gr: even if we're not catching exceptions, java NEEDS us to cleanup the threads or the OS will abort us
 		try
 		{
-			
 			while ( This->mIsRunning )
 			{
 				This->Thread();
