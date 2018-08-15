@@ -360,7 +360,6 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
 	{
-	case Invalid:		return 0;
 	case Greyscale:		return 1;
 	case Luma_Ntsc:		return 1;
 	case Luma_Smptec:	return 1;
@@ -389,8 +388,9 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case Float2:	return 2;
 	case Float3:	return 3;
 	case Float4:	return 4;
-	
-			
+
+	//	throw if we try and get a channel count of zero
+	case Invalid:
 	default:
 		break;
 	}
@@ -1690,6 +1690,8 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 {
 	auto& Pixels = GetPixelsArray();
 	auto Channels = GetChannels();
+	//	we'll get stuck in loops if stride is zero
+	Channels = std::max<uint8_t>( Channels, 1 );
 	
 	//	simply add/remove rows
 	if ( Height > GetHeight() )
