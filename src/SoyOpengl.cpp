@@ -2354,6 +2354,19 @@ const std::initializer_list<GLenum> Opengl16BitFormats =
 #endif
 };
 
+const std::initializer_list<GLenum> OpenglFloat1Formats =
+{
+	GL_R32F,
+};
+
+const std::initializer_list<GLenum> OpenglFloat2Formats =
+{
+	GL_RG32F,
+};
+
+
+
+
 const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 {
 	static TPixelFormatMapping _PixelFormatMap[] =
@@ -2402,10 +2415,12 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::BGR,			{ GL_RGB	} ),
 #endif
 
-		TPixelFormatMapping( SoyPixelsFormat::Float1,		Opengl8BitFormats ),
-		TPixelFormatMapping( SoyPixelsFormat::Float2,		Opengl16BitFormats ),
+		
+		TPixelFormatMapping( SoyPixelsFormat::Float1,		OpenglFloat1Formats ),
+		TPixelFormatMapping( SoyPixelsFormat::Float2,		OpenglFloat2Formats ),
 		TPixelFormatMapping( SoyPixelsFormat::Float3,		{ GL_RGB	} ),
 		TPixelFormatMapping( SoyPixelsFormat::Float4,		{ GL_RGBA	} ),
+		
 	};
 	static Array<TPixelFormatMapping> PixelFormatMap( _PixelFormatMap );
 	return PixelFormatMap;
