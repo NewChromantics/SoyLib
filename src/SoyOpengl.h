@@ -456,7 +456,7 @@ public:
 	void		Bind();
 	void		Unbind();
 	
-	void			ReadPixels();
+	void			ReadPixels(GLenum PixelType=GL_UNSIGNED_BYTE);
 	const uint8*	LockBuffer();
 	void			UnlockBuffer();
 	size_t			GetDataSize();
