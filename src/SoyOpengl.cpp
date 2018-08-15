@@ -981,6 +981,8 @@ const uint8* Opengl::TPbo::LockBuffer()
 	//	gr: come back to this... when needed, I think it's supported
 	const uint8* Buffer = nullptr;
 #else
+	Bind();
+	//glMapNamedBuffer would be nicer;
 	auto* Buffer = glMapBuffer( GL_PIXEL_PACK_BUFFER, GL_READ_ONLY );
 #endif
 
@@ -995,6 +997,7 @@ void Opengl::TPbo::UnlockBuffer()
 #else
 	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
 	Opengl_IsOkay();
+	Unbind();
 #endif
 }
 
