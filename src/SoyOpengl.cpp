@@ -957,7 +957,7 @@ void Opengl::TPbo::Unbind()
 #endif
 }
 
-void Opengl::TPbo::ReadPixels()
+void Opengl::TPbo::ReadPixels(GLenum PixelType)
 {
 	GLint x = 0;
 	GLint y = 0;
@@ -969,7 +969,7 @@ void Opengl::TPbo::ReadPixels()
 	
 	Bind();
 
-	glReadPixels( x, y, size_cast<GLsizei>(mMeta.GetWidth()), size_cast<GLsizei>(mMeta.GetHeight()), FboFormats[ChannelCount], GL_UNSIGNED_BYTE, nullptr );
+	glReadPixels( x, y, size_cast<GLsizei>(mMeta.GetWidth()), size_cast<GLsizei>(mMeta.GetHeight()), FboFormats[ChannelCount], PixelType, nullptr );
 	Opengl_IsOkay();
 	
 	Unbind();
