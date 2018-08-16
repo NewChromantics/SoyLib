@@ -105,6 +105,8 @@ public:
 class PopWorker::TJobQueue
 {
 public:
+	virtual ~TJobQueue();
+	
 	bool			IsLockedToThisThread() 					{	return IsLocked(std::this_thread::get_id());	}
 	virtual bool	IsLocked(std::thread::id Thread)		{	return false;	}	//	is this THREAD exclusively locked
 	bool			IsLockedToAnyThread()					{	return IsLocked( std::thread::id() );	}

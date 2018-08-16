@@ -96,6 +96,22 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 }
 
 
+PopWorker::TJobQueue::~TJobQueue()
+{
+	//	to try and reduce crashes, hold the lock here as we destruct
+	if ( mJobLock.try_lock() )
+	{
+		mJobLock.unlock();
+	}
+	else
+	{
+		std::Debug << "Warning: job queue is locked, still processing? Locking to avoid crash" << std::endl;
+		mJobLock.lock();
+		mJobLock.unlock();
+	}
+}
+
+
 
 void PopWorker::TJobQueue::Flush(TContext& Context)
 {
