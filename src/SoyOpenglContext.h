@@ -76,6 +76,7 @@ public:
 	virtual bool	IsLocked(std::thread::id Thread) override;
 	virtual std::shared_ptr<Opengl::TContext>	CreateSharedContext()	{	return nullptr;	}
 	bool			HasMultithreadAccess() const	{	return false;	}
+	virtual void	WaitForThreadToFinish()	{};
 
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
