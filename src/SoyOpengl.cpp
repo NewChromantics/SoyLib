@@ -94,8 +94,8 @@ std::shared_ptr<SoyPixelsImpl> Opengl::GetClientStorage(TTexture& Texture)
 		//	can store it on the texture, if we own the texture
 		if ( Texture.mAutoRelease )
 		{
-			if ( !Texture.mClientBuffer )
-				Texture.mClientBuffer.reset( new SoyPixels );
+			//if ( !Texture.mClientBuffer )
+			//	Texture.mClientBuffer.reset( new SoyPixels );
 			return Texture.mClientBuffer;
 		}
 	}
