@@ -390,12 +390,13 @@ public:
 	}
 
 	SoyPixelsMeta		GetInternalMeta(GLenum& Type) const;	//	read meta from opengl
+	void				RefreshMeta();							//	re-read meta from opengl (if changed externally since construction)
 
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 	size_t				GetWidth() const	{	return mMeta.GetWidth();	}
 	size_t				GetHeight() const	{	return mMeta.GetHeight();	}
 	SoyPixelsFormat::Type	GetFormat() const	{	return mMeta.GetFormat();	}
-
+	
 	bool				Bind() const;
 	void				Unbind() const;
 	bool				IsValid(bool InvasiveTest=true) const;	//	only use InvasiveTest on opengl threads

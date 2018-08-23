@@ -1606,6 +1606,20 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 	}
 }
 
+
+void Opengl::TTexture::RefreshMeta()
+{
+	GLenum Type = 0;
+	auto NewMeta = GetInternalMeta(Type);
+	if ( !NewMeta.IsValid() )
+	{
+		std::Debug << "Opengl::TTexture meta not refreshed as internal meta invalid" << std::endl;
+		return;
+	}
+
+	this->mMeta = NewMeta;
+}
+
 SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType) const
 {
 #if defined(OPENGL_ES)
@@ -2364,6 +2378,11 @@ const std::initializer_list<GLenum> OpenglFloat2Formats =
 	GL_RG32F,
 };
 
+const std::initializer_list<GLenum> OpenglFloat4Formats =
+{
+	GL_RGBA32F,	//		0x8814
+};
+
 
 
 
@@ -2419,7 +2438,7 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::Float1,		OpenglFloat1Formats ),
 		TPixelFormatMapping( SoyPixelsFormat::Float2,		OpenglFloat2Formats ),
 		TPixelFormatMapping( SoyPixelsFormat::Float3,		{ GL_RGB	} ),
-		TPixelFormatMapping( SoyPixelsFormat::Float4,		{ GL_RGBA	} ),
+		TPixelFormatMapping( SoyPixelsFormat::Float4,		OpenglFloat4Formats ),
 		
 	};
 	static Array<TPixelFormatMapping> PixelFormatMap( _PixelFormatMap );
