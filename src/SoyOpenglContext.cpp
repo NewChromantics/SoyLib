@@ -179,7 +179,20 @@ bool Opengl::TContext::IsLocked(std::thread::id Thread)
 
 void Opengl::TContext::Lock()
 {
-	mLockLock.lock();
+	//	gr: we don't allow recursive locks to ensure the balance is exactly correct
+	if ( !mLockLock.try_lock() )
+	{
+		//	check if we're already locked to this thread
+		auto ThisThread = std::this_thread::get_id();
+		auto LockedToThisThread = (mLockedThread == ThisThread);
+		if ( LockedToThisThread )
+			throw Soy::AssertException("Opengl::Context trying to lock to thread it's already locked to");
+	
+		//	must just be waiting for another thread, wait on a lock
+		mLockLock.lock();
+	}
+	//	else now locked
+	
 	if ( mLockedThread != std::thread::id() )
 	{
 		if ( mLockedThread == std::this_thread::get_id() )
