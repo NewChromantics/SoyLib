@@ -1617,7 +1617,11 @@ void Opengl::TTexture::RefreshMeta()
 		return;
 	}
 
-	this->mMeta = NewMeta;
+	if ( this->mMeta != NewMeta )
+	{
+		std::Debug << "Opengl::TTexture meta changed from " << this->mMeta << " " << NewMeta << std::endl;
+		this->mMeta = NewMeta;
+	}
 }
 
 SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType) const
