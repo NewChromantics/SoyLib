@@ -5,8 +5,8 @@
 
 //gr: this is for the pass through encoder, maybe to avoid this dependancy I can move the pass throughs to their own files...
 #if defined(ENABLE_OPENGL)
-#include "SoyOpenGl.h"
-#include "SoyOpenGlContext.h"
+#include "SoyOpengl.h"
+#include "SoyOpenglContext.h"
 #endif
 
 #if defined(ENABLE_DIRECTX)

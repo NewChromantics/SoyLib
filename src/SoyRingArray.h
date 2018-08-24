@@ -1,7 +1,7 @@
 #pragma once
 
-#include "array.hpp"
-#include "heaparray.hpp"
+#include "Array.hpp"
+#include "HeapArray.hpp"
 #include "RemoteArray.h"
 
 //	gr: adapt this to

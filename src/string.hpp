@@ -31,7 +31,7 @@
 #include <limits>
 #include "SoyTypes.h"
 #include "chartype.hpp"
-#include "array.hpp"
+#include "Array.hpp"
 //#include "heaparray.hpp"
 #include "bufferarray.hpp"
 #include "SoyMath.h"

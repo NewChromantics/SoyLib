@@ -1,8 +1,8 @@
 #include "SoyRuntimeLibrary.h"
-#include "heaparray.hpp"
+#include "HeapArray.hpp"
 #include "SoyTypes.h"
 #include "SoyDebug.h"
-#include "SoyFileSystem.h"
+#include "SoyFilesystem.h"
 
 
 #if defined(TARGET_OSX)

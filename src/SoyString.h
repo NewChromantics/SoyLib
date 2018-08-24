@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
-#include "memheap.hpp"
+#include "MemHeap.hpp"
 #include "SoyAssert.h"
 #include "SoyMath.h"	//	for vec <-> string funcs
 

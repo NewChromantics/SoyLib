@@ -2,7 +2,7 @@
 
 
 #include "SoyTypes.h"
-#include "array.hpp"
+#include "Array.hpp"
 #include "bufferarray.hpp"
 #include <map>
 #include <queue>

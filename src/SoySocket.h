@@ -3,7 +3,7 @@
 #include "SoyTypes.h"
 #include "SoyRef.h"
 #include "SoyEvent.h"
-#include "array.hpp"
+#include "Array.hpp"
 
 
 #if defined(TARGET_WINDOWS)

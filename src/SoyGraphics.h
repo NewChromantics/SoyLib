@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SoyUniform.h"
-#include "heaparray.hpp"
+#include "HeapArray.hpp"
 
 //	better name maybe?
 namespace SoyGraphics
