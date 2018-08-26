@@ -3,6 +3,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 
 #if defined(TARGET_OSX)
+#include <AppKit/AppKit.h>
 #include <AppKit/NSWorkspace.h>
 #endif
 
@@ -152,35 +153,60 @@ NSURL* Platform::GetUrl(const std::string& Filename)
 		//	try as url
 		Url = [[NSURL alloc]initWithString:UrlString];
 		
-		/*	gr: throw this error IF we KNOW it's a file we're trying to reach and not an url.
-		 check for ANY scheme?
-		 std::stringstream Error;
-		 Error << "Failed to reach file from url: " << mParams.mFilename << "; " << Soy::NSErrorToString(err);
-		 throw Soy::AssertException( Error.str() );
-		 */
+		//	gr: throw this error IF we KNOW it's a file we're trying to reach and not an url.
+		//		check for ANY scheme?
+		std::stringstream Error;
+		Error << "Failed to reach file from url: " << Filename << "; " << Soy::NSErrorToString(err);
+		throw Soy::AssertException( Error.str() );
 	}
 	
 	return Url;
 }
 
-bool Platform::ShowFileExplorer(const std::string& Path)
+void Platform::ShowFileExplorer(const std::string& Path)
 {
 #if defined(TARGET_OSX)
 	auto PathUrl = GetUrl( Path );
+	//	gr: this should have already thrown
 	if ( !PathUrl )
-		return false;
+		throw Soy::AssertException("Failed to get url");
 	
 	NSArray* FileURLs = [NSArray arrayWithObjects:PathUrl,nil];
 	[[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:FileURLs];
 
-	return true;
 #else
 	//	maybe this should popup the "share file" thing in ios
-	return false;
+	throw Soy::AssertException("Platform::ShowFileExplorer not implemented");
 #endif
 }
 
+void Platform::ShellExecute(const std::string& Path)
+{
+	//	https://gist.github.com/piaoapiao/4103404
+	//	https://stackoverflow.com/questions/17497561/opening-web-url-with-nsbutton-mac-os
+	auto* Url = GetUrl(Path);
+	[[NSWorkspace sharedWorkspace] openURL:Url];
 
+	/* ios
+	auto *application = [NSApplication sharedApplication];
+	[application openURL:Url];
+	 */
+}
+
+void Platform::ShellOpenUrl(const std::string& UrlString)
+{
+	//	https://gist.github.com/piaoapiao/4103404
+	//	https://stackoverflow.com/questions/17497561/opening-web-url-with-nsbutton-mac-os
+	NSString* UrlStringN = Soy::StringToNSString( UrlString );
+	auto* Url = [[NSURL alloc]initWithString:UrlStringN];
+	[[NSWorkspace sharedWorkspace] openURL:Url];
+	
+	
+	/* ios
+	 auto *application = [NSApplication sharedApplication];
+	 [application openURL:Url];
+	 */
+}
 
 std::string Platform::GetAppResourcesDirectory()
 {
