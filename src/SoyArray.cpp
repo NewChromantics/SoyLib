@@ -1,6 +1,6 @@
 #include "SoyArray.h"
 #include "Array.hpp"
-#include "bufferarray.hpp"
+#include "BufferArray.hpp"
 #include "HeapArray.hpp"
 #include "RemoteArray.h"
 

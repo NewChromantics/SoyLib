@@ -3,7 +3,7 @@
 
 #include "SoyTypes.h"
 #include "Array.hpp"
-#include "bufferarray.hpp"
+#include "BufferArray.hpp"
 #include <map>
 #include <queue>
 #include <limits>

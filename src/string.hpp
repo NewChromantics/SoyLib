@@ -32,8 +32,8 @@
 #include "SoyTypes.h"
 #include "chartype.hpp"
 #include "Array.hpp"
-//#include "heaparray.hpp"
-#include "bufferarray.hpp"
+//#include "HeapArray.hpp"
+#include "BufferArray.hpp"
 #include "SoyMath.h"
 
 

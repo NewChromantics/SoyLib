@@ -1,5 +1,5 @@
 #include "SoyJson.h"
-#include "heaparray.hpp"
+#include "HeapArray.hpp"
 #include "SoyDebug.h"
 
 void Json::UnitTest()

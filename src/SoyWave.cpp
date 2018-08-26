@@ -1,6 +1,6 @@
 #include "SoyWave.h"
-#include "array.hpp"
-#include "heaparray.hpp"
+#include "Array.hpp"
+#include "HeapArray.hpp"
 
 
 

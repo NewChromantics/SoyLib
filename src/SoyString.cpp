@@ -1,9 +1,9 @@
 #include "SoyString.h"
 #include <regex>
 #include <sstream>
-#include "array.hpp"
-#include "bufferarray.hpp"
-#include "heaparray.hpp"
+#include "Array.hpp"
+#include "BufferArray.hpp"
+#include "HeapArray.hpp"
 #include "SoyDebug.h"
 #include <regex>
 #include "RemoteArray.h"

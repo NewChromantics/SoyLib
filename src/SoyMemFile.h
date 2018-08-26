@@ -1,6 +1,6 @@
 #pragma once
 
-#include "array.hpp"
+#include "Array.hpp"
 #include "HeapArray.hpp"
 #include "SoyRef.h"
 #include "SoyThread.h"

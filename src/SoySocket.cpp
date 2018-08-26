@@ -1,7 +1,7 @@
 #include "SoySocket.h"
 #include "SoyDebug.h"
 #include <regex>
-#include "heaparray.hpp"
+#include "HeapArray.hpp"
 
 
 #if defined(TARGET_PS4)

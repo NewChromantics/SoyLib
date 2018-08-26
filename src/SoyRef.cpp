@@ -1,5 +1,5 @@
 #include "SoyRef.h"
-#include "bufferarray.hpp"
+#include "BufferArray.hpp"
 
 namespace Private
 {

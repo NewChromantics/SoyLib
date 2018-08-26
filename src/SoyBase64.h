@@ -1,6 +1,6 @@
 #pragma once
 
-#include "array.hpp"
+#include "Array.hpp"
 
 namespace Base64
 {
