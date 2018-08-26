@@ -57,7 +57,9 @@ namespace Platform
 	std::string	GetAppResourcesDirectory();
 #endif
 
-	bool	ShowFileExplorer(const std::string& Path);
+	void		ShowFileExplorer(const std::string& Path);
+	void		ShellExecute(const std::string& Path);
+	void		ShellOpenUrl(const std::string& Url);
 }
 
 namespace Soy
