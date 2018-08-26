@@ -533,35 +533,54 @@ SoyRef SoySocket::AllocConnectionRef()
 	return Ref;
 }
 
-bool SoySocket::Bind(uint16 Port,SoySockAddr& outSockAddr)
+void SoySocket::Bind(uint16 Port,SoySockAddr& outSockAddr)
 {
 	outSockAddr = SoySockAddr( INADDR_ANY, Port );
 	
-	if ( ::bind( mSocket, outSockAddr.GetSockAddr(), outSockAddr.GetSockAddrLength() ) == SOCKET_ERROR )
+	if ( ::bind( mSocket, outSockAddr.GetSockAddr(), outSockAddr.GetSockAddrLength() ) != SOCKERROR_SUCCESS )
 	{
 		int Error = Soy::Winsock::GetError();
-		Soy::Winsock::HasError( Soy::StreamToString(std::stringstream() << "Bind to " << Port), true, Error);
+		std::stringstream ErrorStr;
+		ErrorStr << "Failed to bind to " << Port;
+		Soy::Winsock::HasError("", true, Error, &ErrorStr);
 #if defined(TARGET_POSIX)
 		if ( Error == EACCES )
-			std::Debug << "Access denied binding to port " << Port << " only root user on OSX can have a port < 1024" << std::endl;
+			ErrorStr << "Access denied binding to port " << Port << " only root user on OSX can have a port < 1024";
 #endif
 		Close();
-		return false;
+		throw Soy::AssertException(ErrorStr.str());
 	}
 	
+	//	find our socket (to get our port)
+	if ( Port == PORT_ANY )
+	{
+		sockaddr SockAddr;
+		socklen_t SockAddrLen = sizeof(SockAddr);
+		auto Error = ::getsockname( mSocket, &SockAddr, &SockAddrLen );
+		if ( Error != SOCKERROR_SUCCESS )
+		{
+			Error = Soy::Winsock::GetError();
+			std::stringstream ErrorStr;
+			ErrorStr << "Bind to " << Port << " getsockname()";
+			Soy::Winsock::HasError("", true, Error, &ErrorStr );
+			//throw Soy::AssertException(ErrorStr.str());
+			std::Debug << ErrorStr.str() << std::endl;
+		}
+		else
+		{
+			//	save new address with corrected port
+			SoySockAddr ResolvedAddr( SockAddr, SockAddrLen );
+			std::Debug << "Resolved " << outSockAddr << " to " << ResolvedAddr << std::endl;
+			outSockAddr = ResolvedAddr;
+		}
+	}
 	
-	return true;
 }
 
 void SoySocket::ListenTcp(int Port)
 {
 	SoySockAddr SockAddr;
-	if (!Bind(Port, SockAddr))
-	{
-		std::stringstream Error;
-		Error << "Failed to bind to port " << Port;
-		throw Soy::AssertException(Error.str());
-	}
+	Bind(Port, SockAddr);
 
 	auto MaxConnections = SOMAXCONN;
 	if ( ::listen(mSocket, MaxConnections) == SOCKET_ERROR)
@@ -588,13 +607,8 @@ void SoySocket::ListenTcp(int Port)
 
 void SoySocket::ListenUdp(int Port)
 {
-	if (!Bind(Port, mSocketAddr))
-	{
-		std::stringstream Error;
-		Error << "Failed to bind to port " << Port;
-		throw Soy::AssertException(Error.str());
-	}
-
+	Bind(Port, mSocketAddr);
+	
 	//	udp just binds
 	std::Debug << "Socket UDP bound on " << mSocketAddr << std::endl;
 	
@@ -911,7 +925,7 @@ void SoySocket::GetSocketAddresses(std::function<void(std::string& Name,SoySockA
 	}
 	
 	//	override port with our port
-	auto Port = 0;
+	auto Port = PORT_ANY;
 	try
 	{
 		Port = mSocketAddr.GetPort();
@@ -931,7 +945,8 @@ void SoySocket::GetSocketAddresses(std::function<void(std::string& Name,SoySockA
 		{
 			socklen_t AddrLen = Interface.ifa_addr->sa_len;
 			SoySockAddr Addr( *Interface.ifa_addr, AddrLen );
-			Addr.SetPort( Port );
+			if ( Port != PORT_ANY )
+				Addr.SetPort( Port );
 			
 			std::string InterfaceName( Interface.ifa_name );
 			EnumAdress( InterfaceName, Addr );

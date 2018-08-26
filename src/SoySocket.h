@@ -167,7 +167,7 @@ protected:
 	
 private:
 	SoyRef		OnConnection(SoySocketConnection Connection);
-	bool		Bind(uint16 Port,SoySockAddr& outSockAddr);
+	void		Bind(uint16 Port,SoySockAddr& outSockAddr);
 
 public:
 	std::function<void(SoyRef)>			mOnConnect;
