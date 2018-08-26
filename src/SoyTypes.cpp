@@ -1,5 +1,5 @@
 #include "SoyTypes.h"
-#include "heaparray.hpp"
+#include "HeapArray.hpp"
 #include <algorithm>		//	std::transform
 #include "SoyString.h"
 #include "SoyDebug.h"

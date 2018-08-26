@@ -1,7 +1,7 @@
 #pragma once
 
 #include <sstream>
-#include "array.hpp"
+#include "Array.hpp"
 
 
 namespace Json

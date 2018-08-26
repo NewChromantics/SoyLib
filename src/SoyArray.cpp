@@ -1,7 +1,7 @@
 #include "SoyArray.h"
-#include "array.hpp"
+#include "Array.hpp"
 #include "bufferarray.hpp"
-#include "heaparray.hpp"
+#include "HeapArray.hpp"
 #include "RemoteArray.h"
 
 std::string	SoyArray::OnCheckBoundsError(size_t Index,size_t Size,const std::string& Typename)
