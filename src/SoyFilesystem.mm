@@ -163,6 +163,20 @@ NSURL* Platform::GetUrl(const std::string& Filename)
 	return Url;
 }
 
+
+bool Platform::FileExists(const std::string& Filename)
+{
+	NSString* UrlString = Soy::StringToNSString( Filename );
+	NSError *err;
+	
+	//	try as file which we can test for immediate fail
+	NSURL* Url = [[NSURL alloc]initFileURLWithPath:UrlString];
+	if ([Url checkResourceIsReachableAndReturnError:&err] == NO)
+		return false;
+	
+	return true;
+}
+
 void Platform::ShowFileExplorer(const std::string& Path)
 {
 #if defined(TARGET_OSX)

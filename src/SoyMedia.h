@@ -778,7 +778,7 @@ protected:
 	virtual bool					OnSeek()					{	return false;	}	//	reposition extractors whereever possible. return true to invoke a data flush (ie. if you moved the extractor)
 	virtual bool					CanSeekBackwards()			{	return false;	}	//	by default, don't allow this, until it's implemented for that extractor
 
-private:
+protected:
 	virtual bool					Iteration() override;
 
 public:

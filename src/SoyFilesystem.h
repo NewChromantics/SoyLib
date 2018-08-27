@@ -60,6 +60,8 @@ namespace Platform
 	void		ShowFileExplorer(const std::string& Path);
 	void		ShellExecute(const std::string& Path);
 	void		ShellOpenUrl(const std::string& Url);
+	
+	bool		FileExists(const std::string& Path);
 }
 
 namespace Soy
