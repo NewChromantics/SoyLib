@@ -22,6 +22,12 @@
 #endif
 
 
+#if defined(TARGET_WINDOWS)
+#define NO_ERROR	S_OK	//	zero, but for clarity
+#else
+#define NO_ERROR	0
+#endif
+
 #if defined(TARGET_PS4)
 Soy::TVersion Platform::GetSdkVersion()
 {
@@ -173,9 +179,9 @@ int Platform::GetLastError(bool FlushError)
 void Platform::FlushLastError()
 {
 #if defined(TARGET_WINDOWS)
-	::SetLastError(0);
+	::SetLastError(NO_ERROR);
 #else
-	errno = 0;
+	errno = NO_ERROR;
 #endif
 }
 
@@ -192,7 +198,7 @@ std::string Platform::GetErrorString(int Error)
 {
 	//	gr: UWA has no LocalFree so need to redo FormatMessage
 #if defined(HOLOLENS_SUPPORT)
-	if ( Error == 0 )
+	if ( Error == NO_ERROR )
 		return std::string();
 
 	std::stringstream ErrorStr;
@@ -236,7 +242,7 @@ std::string Platform::GetErrorString(int Error)
 	Soy::StringTrimRight(result, GetArrayBridge(LineFeeds));
 	return result;
 #else
-	if ( Error == 0 )
+	if ( Error == NO_ERROR )
 		return std::string();
 
 	return strerror(Error);
@@ -347,47 +353,25 @@ void Soy::SizeAssert_TooSmall(sint64 Value,sint64 Min,const std::string& SmallTy
 }
 
 #if defined(TARGET_WINDOWS)
-bool Platform::IsOkay(HRESULT Error,const std::string& Context,bool ThrowException)
+void Platform::IsOkay(HRESULT Error,const std::string& Context)
 {
-	if ( Error == S_OK )
-		return true;
-
-	std::stringstream ErrorStr;
-	ErrorStr << "Platform error in " << Context << ": " << GetErrorString(Error);
-	
-	if ( !ThrowException )
-	{
-		std::Debug << ErrorStr.str() << std::endl;
-		return false;
-	}
-	
-	return Soy::Assert( Error == S_OK, ErrorStr.str() );
+	IsOkay( static_cast<int>(Error), Context );
 }
 #endif
 
 
-#if defined(TARGET_WINDOWS)
-bool Platform::IsOkay(int Error,const std::string& Context,bool ThrowException)
+void Platform::IsOkay(int Error,const std::string& Context)
 {
-	if ( Error == S_OK )
-		return true;
+	if ( Error == NO_ERROR )
+		return;
 
 	std::stringstream ErrorStr;
 	ErrorStr << "Platform error in " << Context << ": " << GetErrorString(Error);
 
-	if ( !ThrowException )
-	{
-		std::Debug << ErrorStr.str() << std::endl;
-		return false;
-	}
-
-	return Soy::Assert( Error == S_OK, ErrorStr.str() );
+	throw Soy::AssertException(ErrorStr.str());
 }
-#endif
 
-#if defined(TARGET_WINDOWS)
-bool Platform::IsOkay(const std::string& Context,bool ThrowException)
+void Platform::IsOkay(const std::string& Context)
 {
-	return IsOkay( GetLastError(), Context, ThrowException );
+	IsOkay( GetLastError(), Context );
 }
-#endif
