@@ -8,7 +8,13 @@
 #include "SoyAssert.h"
 #include "SoyMath.h"	//	for vec <-> string funcs
 
-
+/*
+//	CFStringRef definition
+//	don't like the extra dependency, but then CFString->String should be in this file :/
+#if defined(TARGET_OSX)||defined(TARGET_IOS)
+#include "CoreFoundation/CoreFoundation.h"
+#endif
+*/
 //	foraward declarations
 template<typename TYPE>
 class ArrayBridge;
@@ -168,6 +174,7 @@ namespace Soy
 	std::string	NSDictionaryToString(CFDictionaryRef Dictionary);
 };
 #endif
+
 
 
 class Soy::TPushPopStreamSettings

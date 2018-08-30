@@ -1,6 +1,17 @@
 #include "SoyString.h"
 #import <Foundation/Foundation.h>
 #include "HeapArray.hpp"
+#include "SoyCfString.h"
+
+
+std::string Soy::GetString(CFStringRef CfString)
+{
+	//	https://stackoverflow.com/questions/28860033/convert-from-cfurlref-or-cfstringref-to-stdstring
+	auto* NsString = const_cast<NSString*>(reinterpret_cast<const NSString*>(CfString));
+	return NSStringToString(NsString);
+}
+
+
 
 std::string Soy::NSStringToString(NSString* String)
 {
