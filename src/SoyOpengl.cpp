@@ -1619,7 +1619,7 @@ void Opengl::TTexture::RefreshMeta()
 
 	if ( this->mMeta != NewMeta )
 	{
-		std::Debug << "Opengl::TTexture meta changed from " << this->mMeta << " " << NewMeta << std::endl;
+		//std::Debug << "Opengl::TTexture meta changed from " << this->mMeta << " " << NewMeta << std::endl;
 		this->mMeta = NewMeta;
 	}
 }
