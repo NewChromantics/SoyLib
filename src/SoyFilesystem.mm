@@ -147,6 +147,9 @@ NSURL* Platform::GetUrl(const std::string& Filename)
 	
 	//	try as file which we can test for immediate fail
 	NSURL* Url = [[NSURL alloc]initFileURLWithPath:UrlString];
+	//	resolve ../ ./ etc
+	Url = [Url standardizedURL];
+	
 	if ([Url checkResourceIsReachableAndReturnError:&err] == NO)
 	{
 		//	FILE is not reachable.
