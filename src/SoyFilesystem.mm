@@ -1,6 +1,7 @@
 #include "SoyFilesystem.h"
 #include "SoyAvf.h"
 #include <CoreFoundation/CoreFoundation.h>
+#include "SoyString.h"
 
 #if defined(TARGET_OSX)
 #include <AppKit/AppKit.h>
@@ -247,5 +248,15 @@ std::string Platform::GetAppResourcesDirectory()
 		CFRelease(url);
 		throw;
 	}
+}
+
+std::string Platform::GetComputerName()
+{
+	//	https://stackoverflow.com/questions/4063129/get-my-macs-computer-name
+	//	this is blocking, so... might be good to promise() this on startup? and cache it? block when called...
+	//	localizedName: Jonathan's MacBook
+	//	name: "Jonathans-Macbook", or "jonathans-macbook.local"
+ 	auto* Name =  [[NSHost currentHost] localizedName];
+	return Soy::NSStringToString(Name);
 }
 

@@ -62,6 +62,9 @@ namespace Platform
 	void		ShellOpenUrl(const std::string& Url);
 	
 	bool		FileExists(const std::string& Path);
+	
+	//	maybe not file system? generic platform stuff...
+	std::string	GetComputerName();
 }
 
 namespace Soy
