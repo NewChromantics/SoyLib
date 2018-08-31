@@ -73,6 +73,7 @@ namespace SoyPixelsFormat
 		ChromaUV_88,		//	16 bit interleaved plane
 		ChromaU_8,			//	single plane
 		ChromaV_8,			//	single plane
+		ChromaUV_44,		//	8 bit interleaved plane
 		
 
 		//	https://github.com/ofTheo/ofxKinect/blob/ebb9075bcb5ab2543220b4dec598fd73cec40904/libs/libfreenect/src/cameras.c

@@ -196,19 +196,23 @@ SoyPixelsFormat::Type SoyPixelsFormat::ChangeYuvColourRange(Type Format,Type Yuv
 		case Yuv_8_88_Full:
 		case Yuv_8_8_8_Full:
 		case YYuv_8888_Full:
+		case Yuv_844_Full:
 			return GetYuvFull( Format );
 
 		case Luma_Ntsc:
 		case Yuv_8_88_Ntsc:
 		case Yuv_8_8_8_Ntsc:
 		case YYuv_8888_Ntsc:
+		case Yuv_844_Ntsc:
 			return GetYuvNtsc( Format );
 
 		case Luma_Smptec:
 		case Yuv_8_88_Smptec:
 		case Yuv_8_8_8_Smptec:
 		case YYuv_8888_Smptec:
+		case Yuv_844_Smptec:
 			return GetYuvSmptec( Format );
+
 
 		default:
 			break;
@@ -375,10 +379,14 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
 	case ChromaUV_8_8:	return 1;
 	case ChromaUV_88:	return 2;
+	case ChromaUV_44:	return 1;
 	case ChromaU_8:		return 1;
 	case ChromaV_8:		return 1;
 
 	//	yuv 844 is interlaced luma & chroma, so kinda have 2 channels (helps with a lot of things when it aligns even though we have technically 3 channels)
+	case Yuv_844_Full:
+	case Yuv_844_Ntsc:
+	case Yuv_844_Smptec:
 	case YYuv_8888_Full:
 	case YYuv_8888_Ntsc:
 	case YYuv_8888_Smptec:
@@ -426,8 +434,12 @@ bool SoyPixelsFormat::IsFloatChannel(SoyPixelsFormat::Type Format)
 		case FreenectDepthmm:
 		case ChromaUV_8_8:
 		case ChromaUV_88:
+		case ChromaUV_44:
 		case ChromaU_8:
 		case ChromaV_8:
+		case Yuv_844_Full:
+		case Yuv_844_Ntsc:
+		case Yuv_844_Smptec:
 		case YYuv_8888_Full:
 		case YYuv_8888_Ntsc:
 		case YYuv_8888_Smptec:
@@ -621,6 +633,7 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::Luma_Smptec,			"Luma_Smptec"	},
 	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
 	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
+	{ SoyPixelsFormat::ChromaUV_44,			"ChromaUV_44"	},
 	{ SoyPixelsFormat::ChromaU_8,			"ChromaU_8"	},
 	{ SoyPixelsFormat::ChromaV_8,			"ChromaV_8"	},
 	{ SoyPixelsFormat::Palettised_RGB_8,	"Palettised_RGB_8"	},
@@ -2122,9 +2135,6 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaV_8 ) );
 			break;
 
-			//	gr: this doesn't split as it's on the same plane!
-			/*
-
 		case SoyPixelsFormat::Yuv_844_Full:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
@@ -2139,8 +2149,7 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
-			*/
-			
+		
 		case SoyPixelsFormat::Palettised_RGB_8:
 		{
 			Soy::Assert( Data!=nullptr, "Cannot split format of Palettised_8_8 without data");
