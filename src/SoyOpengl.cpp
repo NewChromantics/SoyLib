@@ -286,7 +286,7 @@ void Opengl::SetUniform(const TUniform& Uniform,const float3x3& Value)
 	GLsizei ArraySize = 1;
 	static GLboolean Transpose = false;
 	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
-	glUniformMatrix3fv( Uniform.mIndex, ArraySize, Transpose, Value.m );
+	glUniformMatrix3fv( static_cast<GLint>(Uniform.mIndex), ArraySize, Transpose, Value.m );
 	Opengl_IsOkay();
 }
 
@@ -295,7 +295,7 @@ void Opengl::SetUniform(const TUniform& Uniform,const vec4f& Value)
 {
 	GLsizei ArraySize = 1;
 	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
-	glUniform4fv( Uniform.mIndex, ArraySize, &Value.x );
+	glUniform4fv( static_cast<GLint>(Uniform.mIndex), ArraySize, &Value.x );
 	Opengl_IsOkay();
 }
 
@@ -304,7 +304,7 @@ void Opengl::SetUniform(const TUniform& Uniform,const vec3f& Value)
 {
 	GLsizei ArraySize = 1;
 	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
-	glUniform3fv( Uniform.mIndex, ArraySize, &Value.x );
+	glUniform3fv( static_cast<GLint>(Uniform.mIndex), ArraySize, &Value.x );
 	Opengl_IsOkay();
 }
 
@@ -313,7 +313,7 @@ void Opengl::SetUniform(const TUniform& Uniform,const vec2f& Value)
 {
 	GLsizei ArraySize = 1;
 	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
-	glUniform2fv( Uniform.mIndex, ArraySize, &Value.x );
+	glUniform2fv( static_cast<GLint>(Uniform.mIndex), ArraySize, &Value.x );
 	Opengl_IsOkay();
 }
 
@@ -322,7 +322,7 @@ void Opengl::SetUniform(const TUniform& Uniform,const float& Value)
 {
 	GLsizei ArraySize = 1;
 	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
-	glUniform1fv( Uniform.mIndex, ArraySize, &Value );
+	glUniform1fv( static_cast<GLint>(Uniform.mIndex), ArraySize, &Value );
 	Opengl_IsOkay();
 }
 
@@ -331,7 +331,7 @@ void Opengl::SetUniform(const TUniform& Uniform,const int& Value)
 {
 	GLsizei ArraySize = 1;
 	Soy::Assert( ArraySize == Uniform.mArraySize, "Uniform array size mis match" );
-	glUniform1iv( Uniform.mIndex, ArraySize, &Value );
+	glUniform1iv( static_cast<GLint>(Uniform.mIndex), ArraySize, &Value );
 	Opengl_IsOkay();
 }
 
@@ -2162,8 +2162,8 @@ void Opengl::TGeometry::EnableAttribs(const SoyGraphics::TGeometryVertex& Descri
 	for ( int at=0;	at<mElements.GetSize();	at++ )
 	{
 		auto& Element = mElements[at];
-		auto AttribIndex = Element.mIndex;
-		
+		auto AttribIndex = static_cast<GLint>(Element.mIndex);
+
 		if ( Enable )
 			glEnableVertexAttribArray( AttribIndex );
 		else
@@ -2212,7 +2212,7 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 		GLboolean Normalised = Element.mNormalised;
 		
 		void* ElementPointer = (void*)ElementOffset;
-		auto AttribIndex = Element.mIndex;
+		auto AttribIndex = static_cast<GLuint>(Element.mIndex);
 
 		//std::Debug << "Pushing attrib " << AttribIndex << ", arraysize " << Element.mArraySize << ", stride " << Stride << std::endl;
 		glEnableVertexAttribArray( AttribIndex );

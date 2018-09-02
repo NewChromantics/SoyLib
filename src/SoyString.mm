@@ -1,7 +1,7 @@
 #include "SoyString.h"
 #import <Foundation/Foundation.h>
 #include "HeapArray.hpp"
-#include "SoyCfString.h"
+#include "SoyCFString.h"
 
 
 std::string Soy::GetString(CFStringRef CfString)
