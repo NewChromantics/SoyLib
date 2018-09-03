@@ -2435,7 +2435,12 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth10bit,	Opengl16BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth11bit,	Opengl16BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::FreenectDepthmm,		Opengl16BitFormats ),
-
+/*
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Full,		Opengl16BitFormats ),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Ntsc,		Opengl16BitFormats ),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Smptec,	Opengl16BitFormats ),
+*/		
+		
 #if defined(GL_BGRA)
 		//	BGRA is not a valid internal format
 		TPixelFormatMapping( SoyPixelsFormat::BGRA,			{ GL_BGRA	}, { GL_RGBA	} ),

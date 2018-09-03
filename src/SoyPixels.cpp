@@ -486,6 +486,10 @@ const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyP
 		Map[Yuv_8_8_8_Ntsc].PushBackArray( { Luma_Ntsc, ChromaUV_8_8 } );
 		Map[Yuv_8_8_8_Smptec].PushBackArray( { Luma_Smptec, ChromaUV_8_8 } );
 
+		Map[Yuv_844_Full].PushBackArray( { Luma_Full, ChromaUV_44 } );
+		Map[Yuv_844_Ntsc].PushBackArray( { Luma_Ntsc, ChromaUV_44 } );
+		Map[Yuv_844_Smptec].PushBackArray( { Luma_Smptec, ChromaUV_44 } );
+
 		Map[ChromaUV_8_8].PushBackArray( { ChromaU_8, ChromaV_8 } );
 	}
 
