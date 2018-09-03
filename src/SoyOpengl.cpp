@@ -766,11 +766,11 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	GLint TextureInternalFormat = -1;
 	
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_WIDTH, &TextureWidth);
-	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv(GL_TEXTURE_WIDTH)" );
+	Opengl::IsOkay( "TTexture::TTexture() glGetTexLevelParameteriv(GL_TEXTURE_WIDTH)" );
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_HEIGHT, &TextureHeight);
-	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv(GL_TEXTURE_HEIGHT)" );
+	Opengl::IsOkay( "TTexture::TTexture() glGetTexLevelParameteriv(GL_TEXTURE_HEIGHT)" );
 	glGetTexLevelParameteriv (mType, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &TextureInternalFormat);
-	Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv(GL_TEXTURE_INTERNAL_FORMAT)" );
+	Opengl::IsOkay( "TTexture::TTexture() glGetTexLevelParameteriv(GL_TEXTURE_INTERNAL_FORMAT)" );
 	
 	Soy::Assert( TextureWidth==Meta.GetWidth(), "Texture width doesn't match initialisation");
 	Soy::Assert( TextureHeight==Meta.GetHeight(), "Texture height doesn't match initialisation");
@@ -2121,10 +2121,17 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 	else
 	{
 		glProgramUniformXv( ProgramName, UniformIndex, ArraySize, pFloats );
-	
-		std::stringstream Error;
-		Error << "SetUniform( " << Uniform << ")";
-		Opengl::IsOkay( Error.str() );
+		try
+		{
+			Opengl::IsOkay("SetUniform");
+		}
+		catch(std::exception& e)
+		{
+			//	expensive!
+			std::stringstream Error;
+			Error << "SetUniform( " << Uniform << ")" << e.what();
+			throw Soy::AssertException( Error.str() );
+		}
 	}
 }
 
@@ -2160,9 +2167,16 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,const TTex
 		auto UniformIndexInt = size_cast<GLint>( Uniform.mIndex );
 		glProgramUniform1i( mProgram.mName, UniformIndexInt, TextureIndex );
 		
-		std::stringstream Error;
-		Error << "glProgramUniform1i( " << mProgram.mName << ", " << UniformIndexInt << ", " << TextureIndex << "; " << Uniform << " )";
-		Opengl::IsOkay( Error.str() );
+		try
+		{
+			Opengl::IsOkay(__func__);
+		}
+		catch(std::exception& e)
+		{
+			std::stringstream Error;
+			Error << "glProgramUniform1i( " << mProgram.mName << ", " << UniformIndexInt << ", " << TextureIndex << "; " << Uniform << " ) " << e.what();
+			throw Soy::AssertException(Error.str());
+		}
 	};
 	TShaderState::BindTexture( BindIndex, Texture, SetUniformIndex );
 }
@@ -2198,12 +2212,12 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 	
 	//	fill vertex array
 	Opengl::GenVertexArrays( 1, &mVertexArrayObject );
-	Opengl::IsOkay( std::string(__func__) + " glGenVertexArrays" );
+	Opengl::IsOkay( "TGeometry::TGeometry glGenVertexArrays" );
 	
 	glGenBuffers( 1, &mVertexBuffer );
 	if ( GenerateIndexes )
 		glGenBuffers( 1, &mIndexBuffer );
-	Opengl::IsOkay( std::string(__func__) + " glGenBuffers" );
+	Opengl::IsOkay( "TGeometry::TGeometry  glGenBuffers" );
 
 	Bind();
 	glBindBuffer( GL_ARRAY_BUFFER, mVertexBuffer );
