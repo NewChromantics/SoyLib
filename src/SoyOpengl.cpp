@@ -2138,6 +2138,17 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,bool Bool)
 	Opengl::IsOkay("SetUniform(bool)");
 }
 
+
+void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,int32_t Integer)
+{
+	auto UniformIndex = size_cast<GLint>( Uniform.mIndex );
+	auto IntValue = size_cast<GLint>(Integer);
+	
+	glProgramUniform1i( mProgram.mName, UniformIndex, IntValue );
+	Opengl::IsOkay("SetUniform(int32_t)");
+}
+
+
 void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,const TTexture& Texture,size_t BindIndex)
 {
 	if ( Uniform.mType != SoyGraphics::TElementType::Texture2D )

@@ -251,6 +251,7 @@ public:
 	void			SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Floats);
 	void			SetUniform(const SoyGraphics::TUniform& Uniform,const TTexture& Texture,size_t BindIndex);
 	void			SetUniform(const SoyGraphics::TUniform& Uniform,bool Bool);
+	void			SetUniform(const SoyGraphics::TUniform& Uniform,int32_t Integer);
 
 public:
 	TAsset			mProgram;
