@@ -459,8 +459,13 @@ public:
 	//	allocate without construction. for new/delete operators
 	void*	AllocRaw(const size_t Size)
 	{
-		auto* pAlloc = RealAlloc<uint8>( Size );
+		auto* pAlloc = RealAlloc<uint8_t>( Size );
 		return pAlloc;
+	}
+	
+	void	FreeRaw(void* Data,size_t Size)
+	{
+		RealFree( reinterpret_cast<uint8_t*>(Data), Size );
 	}
 	
 	//	alloc with 1 argument to constructor
