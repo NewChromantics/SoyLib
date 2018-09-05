@@ -328,7 +328,7 @@ bool Soy::Winsock::HasError(const std::string& ErrorContext,bool BlockIsError,in
 	std::Debug << "Winsock error (" << Error << "): " << ErrorString << ". " << ErrorContext << std::endl;
 	
 	if ( ErrorStream )
-		*ErrorStream << ErrorString;
+		*ErrorStream << "Winsock error (" << Error << "): " << ErrorString << ". " << ErrorContext;
 
 	return true;
 }
@@ -1074,7 +1074,7 @@ void SoySocketConnection::Send(const ArrayBridge<char>&& Data,bool IsUdp)
 			if ( FailCount > FailMax )
 			{
 				std::stringstream Error;
-				Error << "Socket send() failed too many (" << FailCount << ") times";
+				Error << "Socket send(" << *this << ") failed too many (" << FailCount << ") times";
 				throw Soy::AssertException( Error.str() );
 			}
 			continue;
@@ -1082,11 +1082,14 @@ void SoySocketConnection::Send(const ArrayBridge<char>&& Data,bool IsUdp)
 		//	error
 		if ( Result == SOCKET_ERROR )
 		{
+			//	catch error in case any std stuff losees it
+			auto Error = Soy::Winsock::GetError();
+			
 			std::stringstream SocketError;
-			if ( Soy::Winsock::HasError("send",false,Soy::Winsock::GetError(),&SocketError) )
-				throw Soy::AssertException( SocketError.str() );
-
-			continue;
+			SocketError << "Send(" << *this << ")";
+			if ( !Soy::Winsock::HasError("",false,Error,&SocketError) )
+				SocketError << "Missing error(" << Error << ") but socket error, so failing anyway";
+			throw Soy::AssertException( SocketError.str() );
 		}
 		
 		auto DataToRemove = size_cast<size_t>( Result );
