@@ -36,6 +36,6 @@ public:
 	std::function<void(const TMousePos&)>			mOnMouseMove;
 	std::function<void(const TMousePos&)>			mOnMouseUp;
 	std::function<bool(ArrayBridge<std::string>&)>	mOnTryDragDrop;
-	
+	std::function<void(ArrayBridge<std::string>&)>	mOnDragDrop;
 };
 
