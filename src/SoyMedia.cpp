@@ -422,13 +422,13 @@ TMediaExtractor::~TMediaExtractor()
 	WaitToFinish();
 }
 
-std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::AllocStreamBuffer(size_t StreamIndex)
+std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::AllocStreamBuffer(size_t StreamIndex,size_t MaxBufferSize)
 {
 	auto& Buffer = mStreamBuffers[StreamIndex];
 	
 	if ( !Buffer )
 	{
-		Buffer.reset( new TMediaPacketBuffer );
+		Buffer.reset( new TMediaPacketBuffer(MaxBufferSize) );
 		
 		auto OnPacketExtracted = [StreamIndex,this](std::shared_ptr<TMediaPacket>& Packet)
 		{
