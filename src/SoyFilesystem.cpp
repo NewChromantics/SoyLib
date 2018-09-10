@@ -537,8 +537,9 @@ bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(con
 bool Soy::ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream)
 {
 	//	dunno how much to read
-	if ( !Soy::Assert( !Data.IsEmpty(), "Soy::ReadStreamChunk no data length specified, resorting to 1byte" ) )
-		Data.SetSize(1);
+	if ( Data.IsEmpty() )
+		throw Soy::AssertException("Soy::ReadStreamChunk no data length specified, resorting to 1byte" );
+
 	if ( Data.IsEmpty() )
 		return false;
 	
@@ -549,7 +550,7 @@ bool Soy::ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream)
 	Stream.read( Data.GetArray(), Data.GetDataSize() );
 	
 	if ( Stream.fail() && !Stream.eof() )
-		return false;
+		throw Soy::AssertException("Reading stream failed (not eof)");
 	
 	auto BytesRead = Stream.gcount();
 	Data.SetSize( BytesRead );
@@ -557,28 +558,14 @@ bool Soy::ReadStreamChunk(ArrayBridge<char>& Data,std::istream& Stream)
 	return true;
 }
 
-bool Soy::ReadStream(ArrayBridge<char>&& Data,std::istream& Stream,std::ostream& Error)
+
+void Soy::ReadStream(ArrayBridge<char>&& Data,std::istream& Stream)
 {
-	BufferArray<char,5*1024> Buffer;
-	while ( !Stream.eof() )
-	{
-		//	read a chunk
-		Buffer.SetSize( Buffer.MaxSize() );
-		auto BufferBridge = GetArrayBridge( Buffer );
-		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
-		{
-			Error << "Error reading stream";
-			return false;
-		}
-		
-		Data.PushBackArray( Buffer );
-	}
-	
-	return true;
+	ReadStream(Data,Stream);
 }
 
 
-bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::ostream& Error)
+void Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream)
 {
 	//	gr: todo: re-use function above, just need to send lambda or something for PushBackArary
 	BufferArray<char,5*1024> Buffer;
@@ -588,15 +575,27 @@ bool Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream,std::ostream& 
 		Buffer.SetSize( Buffer.MaxSize() );
 		auto BufferBridge = GetArrayBridge( Buffer );
 		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
-		{
-			Error << "Error reading stream";
-			return false;
-		}
+			break;
 		
 		Data.PushBackArray( Buffer );
 	}
-	
-	return true;
+}
+
+
+void Soy::ReadStream(ArrayBridge<uint8_t>& Data,std::istream& Stream)
+{
+	//	gr: todo: re-use function above, just need to send lambda or something for PushBackArary
+	BufferArray<char,5*1024> Buffer;
+	while ( !Stream.eof() )
+	{
+		//	read a chunk
+		Buffer.SetSize( Buffer.MaxSize() );
+		auto BufferBridge = GetArrayBridge( Buffer );
+		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
+			break;
+		
+		Data.PushBackArray( Buffer );
+	}
 }
 
 void Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename)
@@ -612,14 +611,42 @@ void Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename)
 	}
 	
 	//	read block by block
-	std::stringstream Error;
-	bool Result = ReadStream( Data, Stream, Error );
-	Stream.close();
-	
-	if ( !Result )
-		throw Soy::AssertException( Error.str() );
+	try
+	{
+		ReadStream( Data, Stream);
+		Stream.close();
+	}
+	catch(...)
+	{
+		Stream.close();
+		throw;
+	}
 }
 
+void Soy::FileToArray(ArrayBridge<uint8_t>& Data,std::string Filename)
+{
+	//	gr: would be nice to have an array! MemFileArray maybe, if it can be cross paltform...
+	std::ifstream Stream( Filename, std::ios::binary|std::ios::in );
+	
+	if ( !Stream.is_open() )
+	{
+		std::stringstream Error;
+		Error << "Failed to open " << Filename << " (" << ::Platform::GetLastErrorString() << ")";
+		throw Soy::AssertException(Error.str());
+	}
+	
+	//	read block by block
+	try
+	{
+		ReadStream( Data, Stream );
+		Stream.close();
+	}
+	catch(...)
+	{
+		Stream.close();
+		throw;
+	}
+}
 
 
 void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename)
@@ -693,6 +720,17 @@ void Soy::FileToString(std::string Filename,std::string& String)
 	 File.close();
 	 return Success;
 	 */
+}
+
+
+void Soy::FileToString(std::string Filename,std::ostream& String)
+{
+	//	gr: err surely a better way
+	Array<char> StringData;
+	auto StringDataBridge = GetArrayBridge( StringData );
+	LoadBinaryFile( StringDataBridge, Filename );
+	
+	Soy::ArrayToString( StringDataBridge, String );
 }
 
 void Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines)

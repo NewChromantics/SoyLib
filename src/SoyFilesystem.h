@@ -102,13 +102,17 @@ namespace Soy
 	//	gr: move file things to their own files!
 	void		FileToArray(ArrayBridge<char>& Data,std::string Filename);
 	inline void	FileToArray(ArrayBridge<char>&& Data,std::string Filename)		{	FileToArray( Data, Filename );	}
+	void		FileToArray(ArrayBridge<uint8_t>& Data,std::string Filename);
+	inline void	FileToArray(ArrayBridge<uint8_t>&& Data,std::string Filename)		{	FileToArray( Data, Filename );	}
 	void		ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename);
 	inline void	LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename)	{	FileToArray( Data, Filename );	}
-	bool		ReadStream(ArrayBridge<char>& Data, std::istream& Stream, std::ostream& Error);
-	bool		ReadStream(ArrayBridge<char>&& Data, std::istream& Stream, std::ostream& Error);
+	void		ReadStream(ArrayBridge<uint8_t>& Data, std::istream& Stream);
+	void		ReadStream(ArrayBridge<char>& Data, std::istream& Stream);
+	void		ReadStream(ArrayBridge<char>&& Data, std::istream& Stream);
 	bool		ReadStreamChunk( ArrayBridge<char>& Data, std::istream& Stream );
 	inline bool	ReadStreamChunk( ArrayBridge<char>&& Data, std::istream& Stream )	{	return ReadStreamChunk( Data, Stream );		}
 	void		StringToFile(std::string Filename,std::string String,bool Append=false);
+	void		FileToString(std::string Filename,std::ostream& String);
 	void		FileToString(std::string Filename,std::string& String);
 	void		FileToStringLines(std::string Filename,ArrayBridge<std::string>& StringLines);
 	inline void	FileToStringLines(std::string Filename,ArrayBridge<std::string>&& StringLines)	{	return FileToStringLines( Filename, StringLines );	}
