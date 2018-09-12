@@ -1039,7 +1039,7 @@ SoyRef SoySocketConnection::Recieve(ArrayBridge<char>& Buffer,SoySocket* Parent)
 }
 
 
-void SoySocketConnection::Send(const ArrayBridge<char>&& Data,bool IsUdp)
+void SoySocketConnection::Send(const ArrayBridge<char>& Data,bool IsUdp)
 {
 	//	gr: this code suggests, it HAS happened? or could happen.
 	static int FailMax = 10;
@@ -1056,15 +1056,28 @@ void SoySocketConnection::Send(const ArrayBridge<char>&& Data,bool IsUdp)
 		//	cast away const so we can get an array we'll use readonly (don't really have a const FixedArray type)
 		//	this is a tiny bit expensive, but stack alloc and safe!
 		auto& MutableData = *const_cast<ArrayBridge<char>*>( &Data );
+		/*
+		auto* SendStart = MutableData.GetArray() + BytesWritten;
+		size_t SendLength = MutableData.GetDataSize() - BytesWritten;
+		//FixedRemoteArray<char> SendArray( SendStart, SendLength );
+		Array<char> SendArray;
+		for ( int i=0;	i<SendLength;	i++ )
+			SendArray.PushBack(SendStart[i]);
+		*/
 		auto SendArray = MutableData.GetSubArray( BytesWritten );
 		
-		if ( IsUdp )
 		{
-			Result = ::sendto( mSocket, SendArray.GetArray(), size_cast<socket_data_size_t>(SendArray.GetDataSize()), Flags, mAddr.GetSockAddr(), mAddr.GetSockAddrLength() );
-		}
-		else
-		{
-			Result = ::send( mSocket, SendArray.GetArray(), size_cast<socket_data_size_t>(SendArray.GetDataSize()), Flags );
+			auto DataSize = size_cast<socket_data_size_t>(SendArray.GetDataSize());
+			auto* DataArray = SendArray.GetArray();
+			
+			if ( IsUdp )
+			{
+				Result = ::sendto( mSocket, DataArray, DataSize, Flags, mAddr.GetSockAddr(), mAddr.GetSockAddrLength() );
+			}
+			else
+			{
+				Result = ::send( mSocket, DataArray, DataSize, Flags );
+			}
 		}
 		
 		//	gr; not sure when this might happen, but don't get stuck in a loop

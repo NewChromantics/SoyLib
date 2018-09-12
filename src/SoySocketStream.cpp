@@ -78,6 +78,7 @@ TSocketWriteThread::~TSocketWriteThread()
 void TSocketWriteThread::Write(TStreamBuffer& Buffer,const std::function<bool()>& Block)
 {
 	//	keep writing until buffer is empty
+	Array<char> SendBuffer;
 	while ( !Buffer.IsEmpty() && Block() )
 	{
 		SoySocketConnection	ClientSocket = mSocket->GetConnection( mConnectionRef );
@@ -88,9 +89,10 @@ void TSocketWriteThread::Write(TStreamBuffer& Buffer,const std::function<bool()>
 		}
 		
 		//	1mb was crashing on stack on write . limited stack size setting?
+		//	gr: switched to allocator outside, because this has caused problems again, despite being in scope still...
 #define PopMaxSize	(500 * 1024 * 1)
 		size_t PopSize = std::min<size_t>( PopMaxSize, Buffer.GetBufferedSize() );
-		BufferArray<char,PopMaxSize> SendBuffer;
+		SendBuffer.Clear(false);
 		if ( !Buffer.Pop( PopSize, GetArrayBridge(SendBuffer) ) )
 		{
 			std::Debug << "Buffer data has gone missing. Trying again" << std::endl;
@@ -100,7 +102,8 @@ void TSocketWriteThread::Write(TStreamBuffer& Buffer,const std::function<bool()>
 		//	write to socket
 		try
 		{
-			ClientSocket.Send( GetArrayBridge(SendBuffer), mSocket->IsUdp() );
+			auto SendBufferBridge = GetArrayBridge(SendBuffer);
+			ClientSocket.Send( SendBufferBridge, mSocket->IsUdp() );
 		}
 		catch (std::exception& e)
 		{
