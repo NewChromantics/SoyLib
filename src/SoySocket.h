@@ -106,7 +106,8 @@ public:
 	bool		Recieve(ArrayBridge<char>&& Buffer);
 	SoyRef		Recieve(ArrayBridge<char>&& Buffer,SoySocket& Parent);
 
-	void		Send(const ArrayBridge<char>&& Buffer,bool IsUdp);		//	throws on error. keeps writing until all sent
+	void		Send(const ArrayBridge<char>& Buffer,bool IsUdp);		//	throws on error. keeps writing until all sent
+	void		Send(const ArrayBridge<char>&& Buffer,bool IsUdp)	{	Send(Buffer,IsUdp);	}
 
 private:
 	SoyRef		Recieve(ArrayBridge<char>& Buffer,SoySocket* Parent);

@@ -411,9 +411,12 @@ public:
 	FixedRemoteArray<TYPE>	GetSubArray(size_t ByteOffset,size_t OutputElements)
 	{
 		//	verify this combination is possible
-		Soy::Assert( ByteOffset < this->GetDataSize(), "Subarray start out of bounds" );
+		auto ThisDataSize = this->GetDataSize();
+		if ( ByteOffset >= ThisDataSize )
+			throw Soy::AssertException("Subarray start out of bounds");
 		size_t ElementLast = ByteOffset + (OutputElements * sizeof(TYPE)) - 1;
-		Soy::Assert( ElementLast < this->GetDataSize(), "Subarray end out of bounds" );
+		if ( ElementLast >= ThisDataSize )
+			throw Soy::AssertException("Subarray end out of bounds");
 		
 		auto* Start = reinterpret_cast<uint8*>( this->GetArray() ) + ByteOffset;
 		return FixedRemoteArray<TYPE>( reinterpret_cast<TYPE*>( Start ), OutputElements );

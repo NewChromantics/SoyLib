@@ -533,18 +533,18 @@ public:
 		return mHeap ? *mHeap : GetDefaultHeap();	
 	}
 
-	bool			SetHeap(prmem::Heap& Heap)
+	void			SetHeap(prmem::Heap& Heap)
 	{
-		if ( !Soy::Assert( (&Heap)!=nullptr, "Tried to set to null heap" ) )
-			return false;
+		if ( (&Heap)==nullptr )
+			throw Soy::AssertException("Tried to set to null heap on array");
 		
 		//	if heap isn't valid yet (eg. if this has been allocated before the global heap), 
 		//	throw error, but address should be okay, so in these bad cases.. we MIGHT get away with it.
 		//	gr: need a better method, this is virtual again, so more likely to throw an exception (invalid vtable)
-		if ( !Soy::Assert( Heap.IsValid(), "Invalid heap" ) )
+		if ( !Heap.IsValid() )
 		{
-			std::Debug << "Array<" << Soy::GetTypeName<T>() << "> assigned non-valid heap. Array constructed before heap?" << std::endl;
-			return false;
+			//std::Debug << "Array<" << Soy::GetTypeName<T>() << "> assigned non-valid heap. Array constructed before heap?" << std::endl;
+			throw Soy::AssertException("Invalid heap" );
 		}
 
 		//	if heap changes and we have allocated data we should re-allocate the data...
@@ -552,11 +552,10 @@ public:
 
 		//	currently we don't support re-allocating to another heap. 
 		//	It's quite trivial, but usually indicates an unexpected situation so leaving it for now
-		if ( !Soy::Assert( !ReAlloc, "Currently don't support re-allocating to a new heap") )
-			return false;
-			
+		if ( ReAlloc )
+			throw Soy::AssertException("Currently don't support re-allocating to a new heap");
+
 		mHeap = &Heap;
-		return true;
 	}
 	
 	//	copy data to a Buffer[BUFFERSIZE] c-array. (lovely template syntax! :)
