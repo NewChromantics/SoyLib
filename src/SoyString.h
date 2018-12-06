@@ -85,10 +85,10 @@ namespace Soy
 	bool		StringReplace(ArrayBridge<std::string>&& str,const std::string& from,const std::string& to);
 
 	std::string	ArrayToString(const ArrayBridge<char>& Array,size_t Limit=0);
-	void		ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String,size_t Limit=0);
+	void		ArrayToString(const ArrayBridge<char>& Array,std::ostream& String,size_t Limit=0);
 	std::string	ArrayToString(const ArrayBridge<uint8>& Array,size_t Limit=0);
-	void		ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String,size_t Limit=0);
-	inline void	ArrayToString(const ArrayBridge<uint8>&& Array,std::stringstream& String,size_t Limit=0)	{	ArrayToString( Array, String, Limit );	}
+	void		ArrayToString(const ArrayBridge<uint8>& Array,std::ostream& String,size_t Limit=0);
+	inline void	ArrayToString(const ArrayBridge<uint8>&& Array,std::ostream& String,size_t Limit=0)	{	ArrayToString( Array, String, Limit );	}
 	
 	void		StringToArray(std::string String,ArrayBridge<char>& Array);
 	inline void	StringToArray(std::string String,ArrayBridge<char>&& Array)	{	StringToArray( String, Array );	}

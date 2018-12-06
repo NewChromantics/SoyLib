@@ -429,85 +429,109 @@ bool TStreamReader::Iteration()
 		return KeepAlive;
 	}
 	
-	if ( !IsWorking() )
-		return true;
-	
-	//	alloc protocol instance to process
-	if ( !mCurrentProtocol )
-		mCurrentProtocol = AllocProtocol();
+	//	gr: with websocket, we may recieve a string of messages from the socket.
+	///		but because the recv is blocking, we might process say 100/1000 bytes for a packet
+	//		but won't process next message (protocol) until we recv again
+	//		so flush through the read buffer until a protocol stops (needing data, disconnects etc)
+	while ( !mReadBuffer->IsEmpty() )
+	{
+		auto ProcessNextProtocol = [&]
+		{
+			//	alloc protocol instance to process
+			if ( !mCurrentProtocol )
+				mCurrentProtocol = AllocProtocol();
 
-	//	in case it's been released capture a local copy
-	auto CurrentProtocol = mCurrentProtocol;
-	if ( !CurrentProtocol )
-	{
-		std::Debug << "TStreamReader(" << Soy::GetTypeName(*this) << ") didn't allocate protocol." << std::endl;
-		return true;
-	}
-	
-	//	process protocol
-	//	gr: abort has been replaced with exceptions
-	auto DecodeResult = TProtocolState::Invalid;
-	try
-	{
-		DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
-	}
-	catch(std::exception& e)
-	{
-		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol) << "::Decode threw exception (" << e.what() << ") reverting to " << DecodeResult << std::endl;
-		CurrentProtocol.reset();
-		DecodeResult = TProtocolState::Disconnect;
-		OnError( e.what() );
-	}
-	catch(...)
-	{
-		std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol)  << "::Decode threw unknown exception reverting to " << DecodeResult << std::endl;
-		CurrentProtocol.reset();
-		DecodeResult = TProtocolState::Disconnect;
-		OnError("Unknown exception");
-	}
-	
-	switch ( DecodeResult )
-	{
-			//	waiting for more data, just let thread re-iterate
-		case TProtocolState::Waiting:
-			if ( KeepAlive )
-				return true;
-
-			//	waiting for data, but eof... forcing disconnect (fall through)
-			std::Debug << "TStreamReader protocol " << Soy::GetTypeName(*CurrentProtocol) << " waiting for data, but EOF, so disconnecting" << std::endl;
-			break;
+			//	in case it's been released capture a local copy
+			auto CurrentProtocol = mCurrentProtocol;
+			if ( !CurrentProtocol )
+			{
+				std::stringstream Error;
+				Error << "TStreamReader(" << Soy::GetTypeName(*this) << ") didn't allocate protocol." << std::endl;
+				throw Soy::AssertException(Error.str());
+			}
 			
-			//	fall through
-		case TProtocolState::Disconnect:
-		case TProtocolState::Finished:
-			break;
+			//	process protocol
+			//	gr: abort has been replaced with exceptions
+			auto DecodeResult = TProtocolState::Invalid;
+			try
+			{
+				DecodeResult = CurrentProtocol->Decode( *mReadBuffer );
+			}
+			catch(std::exception& e)
+			{
+				std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol) << "::Decode threw exception (" << e.what() << ") reverting to " << DecodeResult << std::endl;
+				CurrentProtocol.reset();
+				DecodeResult = TProtocolState::Disconnect;
+				OnError( e.what() );
+			}
+			catch(...)
+			{
+				std::Debug << "Protocol " << Soy::GetTypeName(*CurrentProtocol)  << "::Decode threw unknown exception reverting to " << DecodeResult << std::endl;
+				CurrentProtocol.reset();
+				DecodeResult = TProtocolState::Disconnect;
+				OnError("Unknown exception");
+			}
 			
-			//	release current and re-iterate
-		default:
-			std::Debug << "Unhandled TProtocolState: " << DecodeResult << " ignoring." << std::endl;
-		case TProtocolState::Ignore:
-			mCurrentProtocol.reset();
-			return true;
-	}
-	
-	//	notify (with shared ptr so data can be cheaply saved)
-	if ( CurrentProtocol )
-		mOnDataRecieved( CurrentProtocol );
-	
-	//	dealloc for next
-	mCurrentProtocol.reset();
+			switch ( DecodeResult )
+			{
+					//	waiting for more data, just let thread re-iterate
+				case TProtocolState::Waiting:
+					if ( KeepAlive )
+						return TProtocolState::Waiting;
 
-	if ( DecodeResult == TProtocolState::Disconnect )
-	{
-		//	protocol has told us to clean up, so disconnect/cleanup the reader in case EOF it was triggered by protocol, not reader
-		Shutdown();
+					//	waiting for data, but eof... forcing disconnect (fall through)
+					std::Debug << "TStreamReader protocol " << Soy::GetTypeName(*CurrentProtocol) << " waiting for data, but EOF, so disconnecting" << std::endl;
+					DecodeResult = TProtocolState::Disconnect;
+					break;
+					
+					//	fall through
+				case TProtocolState::Disconnect:
+				case TProtocolState::Finished:
+					break;
+					
+					//	release current and re-iterate
+				default:
+					std::Debug << "Unhandled TProtocolState: " << DecodeResult << " ignoring." << std::endl;
+				case TProtocolState::Ignore:
+					mCurrentProtocol.reset();
+					return TProtocolState::Ignore;
+			}
+			
+			//	notify (with shared ptr so data can be cheaply saved)
+			if ( CurrentProtocol )
+				mOnDataRecieved( CurrentProtocol );
 		
-		//	end thread naturally... assume whatever owns the reader will detect when it finishes?
-		//	maybe we'll want an event?
-		//	or a generic worker event OnWorkerFinished
-		return false;
+			//	dealloc for next
+			mCurrentProtocol.reset();
+			return DecodeResult;
+		};
+		
+		//	thread stopped
+		if ( !IsWorking() )
+			return true;
+		
+		//	try and process next packet/protocol
+		auto DecodeResult = ProcessNextProtocol();
+		if ( DecodeResult == TProtocolState::Disconnect )
+		{
+			//	protocol has told us to clean up, so disconnect/cleanup the reader in case EOF it was triggered by protocol, not reader
+			Shutdown();
+				
+			//	end thread naturally... assume whatever owns the reader will detect when it finishes?
+			//	maybe we'll want an event?
+			//	or a generic worker event OnWorkerFinished
+			return false;
+		}
+		
+		//	waiting for more data
+		if ( DecodeResult == TProtocolState::Waiting )
+			return true;
+	
+		//	loop and try and process another packet
+		continue;
 	}
-	//	don't abort thread until we've used up all the data
+	
+	//	out of data, try and read more
 	return true;
 }
 

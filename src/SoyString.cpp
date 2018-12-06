@@ -172,7 +172,7 @@ std::string Soy::ArrayToString(const ArrayBridge<uint8>& Array,size_t Limit)
 }
 
 
-void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String,size_t Limit)
+void Soy::ArrayToString(const ArrayBridge<char>& Array,std::ostream& String,size_t Limit)
 {
 	if ( Limit == 0 )
 		Limit = Array.GetSize();
@@ -183,10 +183,11 @@ void Soy::ArrayToString(const ArrayBridge<char>& Array,std::stringstream& String
 	String.write( Array.GetArray(), Array.GetSize() );
 }
 
-void Soy::ArrayToString(const ArrayBridge<uint8>& Array,std::stringstream& String,size_t Limit)
+void Soy::ArrayToString(const ArrayBridge<uint8>& Array,std::ostream& String,size_t Limit)
 {
 	if ( Limit == 0 )
 		Limit = Array.GetSize();
+	//	should this be >?
 	if ( Limit < Array.GetSize() )
 		Limit = Array.GetSize();
 	
