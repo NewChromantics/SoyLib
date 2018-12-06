@@ -1,7 +1,7 @@
 #include "SoyOpenCl.h"
 //#include "SoyApp.h"
-#include <SoyDebug.h>
-#include <SoyString.h>
+#include "SoyDebug.h"
+#include "SoyString.h"
 #include "SoyOpenglContext.h"
 
 

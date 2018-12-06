@@ -1,6 +1,6 @@
 #include "SoyAvf.h"
-#include <SoyH264.h>
-#include <SoyFileSystem.h>
+#include "SoyH264.h"
+#include "SoyFilesystem.h"
 
 #include <CoreMedia/CMBase.h>
 #include <VideoToolbox/VTBase.h>

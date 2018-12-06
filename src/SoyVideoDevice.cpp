@@ -1,6 +1,6 @@
 #include "SoyVideoDevice.h"
-#include <SoyString.h>
-#include <SortArray.h>
+#include "SoyString.h"
+#include "SortArray.h"
 
 bool TVideoDeviceMeta::operator==(const std::string& Serial) const
 {

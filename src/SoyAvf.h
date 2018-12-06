@@ -1,8 +1,8 @@
 #pragma once
 
 
-#include <SoyMedia.h>
-#include <SoyH264.h>
+#include "SoyMedia.h"
+#include "SoyH264.h"
 
 namespace Avf
 {

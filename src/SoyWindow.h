@@ -1,8 +1,8 @@
 #pragma once
 
-#include <SoyEvent.h>
-#include <SoyMath.h>
-#include <array.hpp>
+#include "SoyEvent.h"
+#include "SoyMath.h"
+#include "Array.hpp"
 
 //	gr: this might want expanding later for multiple screens, mouse button number etc
 typedef vec2f TMousePos;

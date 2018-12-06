@@ -1,11 +1,11 @@
 #pragma once
 
-#include <Array.hpp>
-#include <HeapArray.hpp>
-#include <SoyEvent.h>
-#include <SoyPixels.h>
-#include <SoyTime.h>
-#include <SoyMemFile.h>
+#include "Array.hpp"
+#include "HeapArray.hpp"
+#include "SoyEvent.h"
+#include "SoyPixels.h"
+#include "SoyTime.h"
+#include "SoyMemFile.h"
 
 
 class TVideoDeviceMeta
