@@ -1,13 +1,13 @@
 #include "SoyWebSocket.h"
 #include <regex>
-#include <SoyDebug.h>
+#include "SoyDebug.h"
 #include <string>
-#include <SoyString.h>
-#include <smallsha1/sha1.h>
-#include <SoyApp.h>
-#include <SoyEnum.h>
-#include <SoyBase64.h>
-#include <SoyStream.h>
+#include "SoyString.h"
+#include "sha1.h"	//	soy/smallsha1/
+#include "SoyApp.h"
+#include "SoyEnum.h"
+#include "SoyBase64.h"
+#include "SoyStream.h"
 
 
 

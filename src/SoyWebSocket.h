@@ -1,7 +1,7 @@
 #pragma once
 
-#include <SoyProtocol.h>
-#include <SoyHttp.h>
+#include "SoyProtocol.h"
+#include "SoyHttp.h"
 
 
 namespace WebSocket
