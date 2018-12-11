@@ -32,10 +32,14 @@ namespace Soy
 class SoyWindow
 {
 public:
+	//	todo: change these coordinates to pixels and client can normalise with GetScreenRect
 	std::function<void(const TMousePos&)>			mOnMouseDown;
 	std::function<void(const TMousePos&)>			mOnMouseMove;
 	std::function<void(const TMousePos&)>			mOnMouseUp;
 	std::function<bool(ArrayBridge<std::string>&)>	mOnTryDragDrop;
 	std::function<void(ArrayBridge<std::string>&)>	mOnDragDrop;
+	
+	virtual Soy::Rectx<int32_t>		GetScreenRect()=0;		//	get pixel size on screen
+
 };
 
