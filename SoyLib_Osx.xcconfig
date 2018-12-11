@@ -27,7 +27,7 @@ CLANG_CXX_LANGUAGE_STANDARD = c++0x
 CLANG_CXX_LIBRARY = libc++
 //	std::async is 10.8 up
 //	v8 6.6 needs 10.9 (or at least the dtools build builds for it)
-MACOSX_DEPLOYMENT_TARGET = 10.9
+MACOSX_DEPLOYMENT_TARGET = 10.10
 
 
 //	universal build by default. 32bit required for unity plugins
