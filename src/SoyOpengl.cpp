@@ -1359,7 +1359,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 	
 	//	we CANNOT go from big to small, only small to big, so to avoid corrupted textures, lets shrink
 	SoyPixels Resized;
-	static bool AllowClipResize = true;
+	static bool AllowClipResize = false;
 	if ( AllowClipResize )
 	{
 		auto PixelsWidth = UsePixels->GetWidth();
@@ -1520,6 +1520,8 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 
 	//	gr: this is still crashing from overread!
 	
+	if ( !IsSameDimensions )
+		SubImage = false;
 	
 	//	try subimage
 	//	gr: if we find glTexImage2D faster add && !IsSameDimensions
@@ -1563,12 +1565,20 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 	//	final try
 	{
 		int Border = 0;
+		bool ResizeTexture = true;
+		
 		
 		//	if texture doesnt fit we'll get GL_INVALID_VALUE
 		//	if frame is bigger than texture, it will mangle (bad stride)
 		//	if pixels is smaller, we'll just get the sub-image drawn
 		auto Width = std::min( TextureWidth, size_cast<GLsizei>(FinalPixels.GetWidth()) );
 		auto Height = std::min( TextureHeight, size_cast<GLsizei>(FinalPixels.GetHeight()) );
+		
+		if ( ResizeTexture )
+		{
+			Width = size_cast<GLsizei>(FinalPixels.GetWidth());
+			Height = size_cast<GLsizei>(FinalPixels.GetHeight());
+		}
 		
 		const ArrayInterface<uint8>& PixelsArray = FinalPixels.GetPixelsArray();
 		auto* PixelsArrayData = PixelsArray.GetArray();
