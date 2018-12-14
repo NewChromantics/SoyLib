@@ -143,7 +143,7 @@ namespace SoyPixelsFormat
 	int				GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format);
 	bool			GetIsFrontToBackDepth(SoyPixelsFormat::Type Format);
 	size_t			GetHeaderSize(SoyPixelsFormat::Type Format);
-	void			GetHeaderPalettised(ArrayBridge<uint8>&& Data,size_t& PaletteSize,size_t& TransparentIndex);
+	void			GetHeaderPalettised(const ArrayBridge<uint8>&& Data,size_t& PaletteSize,size_t& TransparentIndex);
 
 	//	merge index & palette into Paletteised_8_8
 	void			MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPixelsImpl& IndexedImage,const SoyPixelsImpl& Palette,uint8 TransparentIndex);
@@ -226,8 +226,8 @@ public:
 	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
 	uint8_t			GetPixelDataSize() const		{	return GetChannels() * GetBytesPerChannel();	}
 	size_t			GetRowDataSize() const			{	return GetPixelDataSize() * GetWidth();	}
-	void			GetPlanes(ArrayBridge<SoyPixelsMeta>&& PlaneFormats,ArrayInterface<uint8>* Data=nullptr) const;	//	extract multiple plane formats where applicable (returns self if one plane)
-	void			SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,ArrayInterface<uint8>* Data=nullptr) const;	//	get all the plane split info, asserts if data doesn't align
+	void			GetPlanes(ArrayBridge<SoyPixelsMeta>&& PlaneFormats,const ArrayInterface<uint8>* Data=nullptr) const;	//	extract multiple plane formats where applicable (returns self if one plane)
+	void			SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,const ArrayInterface<uint8>* Data=nullptr) const;	//	get all the plane split info, asserts if data doesn't align
 
 	//	unsafe funcs. (note: they WERE unsafe...)
 	void			DumbSetFormat(SoyPixelsFormat::Type Format)	{	mFormat = Format;	}
@@ -317,7 +317,7 @@ public:
 	void			Flip();
 
 	//	split these pixels into multiple pixels if there are multiple planes
-	void			SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes);
+	void			SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes) const;
 	
 	inline bool		operator==(const SoyPixelsImpl& that) const		{	return this == &that;	}
 	inline bool		operator==(const SoyPixelsMeta& Meta) const		{	return GetMeta() == Meta;	}

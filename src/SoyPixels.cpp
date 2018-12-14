@@ -591,7 +591,7 @@ size_t SoyPixelsFormat::GetHeaderSize(SoyPixelsFormat::Type Format)
 	}
 }
 
-void SoyPixelsFormat::GetHeaderPalettised(ArrayBridge<uint8>&& Data,size_t& PaletteSize,size_t& TransparentIndex)
+void SoyPixelsFormat::GetHeaderPalettised(const ArrayBridge<uint8>&& Data,size_t& PaletteSize,size_t& TransparentIndex)
 {
 	//	gr: note no distinction between the paletised formats here
 	auto HeaderSize = GetHeaderSize( SoyPixelsFormat::Palettised_RGB_8 );
@@ -1754,7 +1754,7 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	}
 }
 
-void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,ArrayInterface<uint8>* Data) const
+void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,const ArrayInterface<uint8>* Data) const
 {
 	//	get the mid-formats
 	auto& ThisMeta = *this;
@@ -1800,7 +1800,7 @@ void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size
 	}
 }
 
-void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes)
+void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes) const
 {
 	//	get the plane layouts
 	auto& ThisMeta = GetMeta();
@@ -1818,7 +1818,9 @@ void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Pl
 		auto PlaneMeta = std::get<2>( PlaneOffsetSizeAndMeta );
 		auto* PlaneData = ThisArray.GetArray() + PlaneDataOffset;
 
-		std::shared_ptr<SoyPixelsRemote> Pixels(new SoyPixelsRemote( PlaneData, PlaneDataSize, PlaneMeta ) );
+		//	lets allow const use of this func. But SoyPixelsRemote may need a non-mutable version?
+		auto* PlaneDataMutable = const_cast<uint8_t*>(PlaneData);
+		std::shared_ptr<SoyPixelsRemote> Pixels(new SoyPixelsRemote( PlaneDataMutable, PlaneDataSize, PlaneMeta ) );
 		Planes.PushBack(Pixels);
 	}
 }
@@ -2097,7 +2099,7 @@ size_t SoyPixelsMeta::GetDataSize() const
 	return TotalDataSize;
 }
 
-void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,ArrayInterface<uint8>* Data) const
+void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInterface<uint8>* Data) const
 {
 	switch ( GetFormat() )
 	{
