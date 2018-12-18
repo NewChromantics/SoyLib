@@ -10,10 +10,10 @@ namespace SoyMouseButton
 {
 	enum Type
 	{
-		None,
-		Left,
-		Right,
-		Middle,
+		None = -1,
+		Left = 0,
+		Right = 1,
+		Middle = 2,
 	};
 }
 
