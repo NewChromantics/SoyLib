@@ -631,6 +631,10 @@ class TMediaExtractorParams
 {
 public:
 	//	copy but override the filename (common use)
+	TMediaExtractorParams(const std::string& Filename) :
+		mFilename	( Filename )
+	{
+	}
 	TMediaExtractorParams(const std::string& Filename,const TMediaExtractorParams& OtherParams) :
 		TMediaExtractorParams	( OtherParams )
 	{
@@ -639,35 +643,7 @@ public:
 	TMediaExtractorParams(const std::string& Filename,const std::string& ThreadName,std::function<void(const SoyTime,size_t)> OnFrameExtracted,std::function<void(TPixelBuffer&,const TMediaExtractorParams&)> OnPrePushFrame) :
 		mFilename						( Filename ),
 		mOnFrameExtracted				( OnFrameExtracted ),
-		mDiscardOldFrames				( true ),
-		mForceNonPlanarOutput			( false ),
-		mForceYuvColourFormat			( SoyPixelsFormat::Invalid ),
-		mDebugIntraFrameRect			( false ),
-		mDebugIntraFrameTransparency	( false ),
-		mExtractAudioStreams			( true ),
-		mOnlyExtractKeyframes			( false ),
-		mResetInternalTimestamp			( false ),
-		mAudioSampleRate				( 0 ),
-		mAudioChannelCount				( 0 ),
-		mApplyHeightPadding				( true ),
-		mApplyWidthPadding				( true ),
-		mWindowIncludeBorders			( true ),
-		mLiveUseClockTime				( false ),
-		mWin7Emulation					( false ),
-		mVerboseDebug					( false ),
-		mOnPrePushFrame					( OnPrePushFrame ),
-		mExtractDepthStreams			( true ),
-		mExtractSkeletonStreams			( false ),
-		mExtractVideoStreams			( true ),
-		mExtractAlpha					( true ),
-		mSplitAudioChannelsIntoStreams	( false ),
-		mDecoderUseHardwareBuffer		( true ),
-		mSplitVideoPlanesIntoStreams	( false ),
-		mAllowPushRejection				( true ),
-		mEnableDecoderThreading			( true ),
-		mPeekBeforeDefferedCopy			( true ),
-		mCopyBuffersInExtraction		( false ),
-		mExtractorPreDecodeSkip			( false )
+		mOnPrePushFrame					( OnPrePushFrame )
 	{
 	}
 	
@@ -679,48 +655,50 @@ public:
 	SoyTime						mReadAheadMs;
 
 	SoyTime						mInitialTime;
-	size_t						mAudioSampleRate;			//	try and extract at this rate
-	size_t						mAudioChannelCount;			//	.. with this many channels
-	bool						mExtractAudioStreams;
-	bool						mExtractVideoStreams;
-	bool						mExtractDepthStreams;		//	for kinect
-	bool						mExtractSkeletonStreams;	//	for kinect
-	bool						mExtractAlpha;				//	for bink
-	bool						mOnlyExtractKeyframes;
-	bool						mResetInternalTimestamp;
-	bool						mApplyHeightPadding;		//	for windows where we need height padding sometimes, can turn off with this
-	bool						mApplyWidthPadding;			//	for windows where we need height padding sometimes, can turn off with this
-	bool						mWindowIncludeBorders;
-	bool						mWin7Emulation;				//	for mediafoundation, expose some bugs
+	size_t						mAudioSampleRate = 0;			//	try and extract at this rate
+	size_t						mAudioChannelCount = 0;			//	.. with this many channels
+	bool						mExtractAudioStreams = true;
+	bool						mExtractVideoStreams = true;
+	bool						mExtractDepthStreams = true;		//	for kinect
+	bool						mExtractSkeletonStreams = false;	//	for kinect
+	bool						mExtractAlpha = true;				//	for bink
+	bool						mOnlyExtractKeyframes = false;
+	bool						mResetInternalTimestamp = false;
+	bool						mApplyHeightPadding = true;		//	for windows where we need height padding sometimes, can turn off with this
+	bool						mApplyWidthPadding = true; 			//	for windows where we need height padding sometimes, can turn off with this
+	bool						mWindowIncludeBorders = true;
+	bool						mWin7Emulation = false;				//	for mediafoundation, expose some bugs
 
-	bool						mSplitAudioChannelsIntoStreams;	//	if we're splitting audio streams, some extractors need to not reduce to output
+	bool						mSplitAudioChannelsIntoStreams = false;	//	if we're splitting audio streams, some extractors need to not reduce to output
 
 	//	some extractors have some decoder-themed params
-	bool						mDiscardOldFrames;
+	bool						mDiscardOldFrames = true;
 	
 	//	for gifs
-	bool						mDebugIntraFrameRect;
-	bool						mDebugIntraFrameTransparency;
+	bool						mDebugIntraFrameRect = false;
+	bool						mDebugIntraFrameTransparency = false;
 
 	//	for streams (webcams etc) use Real time (clock) rather than SeekTime
 	//	real time works, but when app is paused, threads continue but player time doesnt and it falls behind
-	bool						mLiveUseClockTime;		
+	bool						mLiveUseClockTime = false;		
 
-	bool						mVerboseDebug;				//	print lots of debug, or only serious stuff
-	bool						mDecoderUseHardwareBuffer;
+	bool						mVerboseDebug = false;				//	print lots of debug, or only serious stuff
+	bool						mDecoderUseHardwareBuffer = true;
 	
 	//	make these work together, maybe remove the merge totally (though still useful to debug shaders)
-	bool						mSplitVideoPlanesIntoStreams;	
-	bool						mForceNonPlanarOutput;		//	for some extractors which have pixelly settings
+	bool						mSplitVideoPlanesIntoStreams = false;	
+	bool						mForceNonPlanarOutput = false;		//	for some extractors which have pixelly settings
 
-	SoyPixelsFormat::Type		mForceYuvColourFormat;
+	SoyPixelsFormat::Type		mForceYuvColourFormat = SoyPixelsFormat::Invalid;
 
-	bool						mAllowPushRejection;		//	push skip
-	bool						mEnableDecoderThreading;	//	for bink; enable threaded decoding
-	bool						mCopyBuffersInExtraction;
-	bool						mExtractorPreDecodeSkip;
+	bool						mAllowPushRejection = true;		//	push skip
+	bool						mEnableDecoderThreading = true;	//	for bink; enable threaded decoding
+	bool						mCopyBuffersInExtraction = false;
+	bool						mExtractorPreDecodeSkip = false;
 
-	bool						mPeekBeforeDefferedCopy;	//	gr: copied only for warning output for bink
+	bool						mPeekBeforeDefferedCopy = true;	//	gr: copied only for warning output for bink
+
+	bool						mAllowReseek = true;		//	gr: appeared from MFCapture... 
 };
 
 
