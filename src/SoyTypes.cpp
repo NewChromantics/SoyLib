@@ -50,6 +50,8 @@ bool Platform::Init()
 std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeToData)
 {
 #if defined(UNICODE)
+	return std::string();
+	/*
 
 	//	convert to widestring buffer
 	std::wstring Filenamew( Filename.begin(), Filename.end() ); 
@@ -63,6 +65,7 @@ std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeTo
 
 	//	convert abck to ansi
 	return std::string( Filenamew.begin(), Filenamew.end() );
+	*/
 #else
 	//	copy contents to buffer
 	BufferString<256> Buffer = Filename.c_str();
