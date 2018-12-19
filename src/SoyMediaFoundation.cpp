@@ -1,5 +1,7 @@
 #include "SoyMediaFoundation.h"
+#if defined(ENABLE_DIRECTX)
 #include <SoyDirectx.h>
+#endif
 #include <SoyMedia.h>
 
 #include <Mferror.h>
@@ -20,12 +22,9 @@ DEFINE_MEDIATYPE_GUID_CUSTOM( MFVideoFormat_VIDS,      FCC('vids') );
 DEFINE_MEDIATYPE_GUID_CUSTOM( MFAudioFormat_AUDS,      FCC('auds') );
 
 
-bool MediaFoundation::IsOkay(HRESULT Error,const std::string& Context,bool ThrowException,bool Verbose)
+void MediaFoundation::IsOkay(HRESULT Error,const std::string& Context)
 {
-	if ( !Verbose )
-		return (Error == S_OK);
-
-	return Platform::IsOkay( Error, Context, ThrowException );
+	Platform::IsOkay( Error, Context );
 }
 
 
@@ -256,13 +255,20 @@ void MediaFoundation::Shutdown()
 MediaFoundation::TContext::TContext()
 {
 	auto Result = MFStartup( MF_VERSION, MFSTARTUP_FULL );
-	Directx::IsOkay(Result, "MFStartup");
+	Platform::IsOkay(Result, "MFStartup");
 }
 
 MediaFoundation::TContext::~TContext()
 {
 	auto Result = MFShutdown();
-	Directx::IsOkay(Result, "MFShutdown", false );
+	try
+	{
+		Platform::IsOkay(Result, "MFShutdown");
+	}
+	catch ( std::exception& e )
+	{
+		std::Debug << e.what() << std::endl;
+	}
 }
 
 
@@ -498,23 +504,23 @@ std::ostream& operator<<(std::ostream& os, REFGUID guid)
 
 
 
-AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(GUID MajorFormat,GUID MinorFormat)
+Soy::AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(GUID MajorFormat,GUID MinorFormat)
 {
-	AutoReleasePtr<IMFMediaType> Type;
+	Soy::AutoReleasePtr<IMFMediaType> Type;
 	auto Result = MFCreateMediaType( &Type.mObject );
-	Directx::IsOkay( Result, "MFCreateMediaType" );
+	Platform::IsOkay( Result, "MFCreateMediaType" );
 
 	Result = Type->SetGUID( MF_MT_MAJOR_TYPE, MajorFormat );
-	Directx::IsOkay( Result, "MFCreateMediaType->SetGuid(MF_MT_MAJOR_TYPE)" );
+	Platform::IsOkay( Result, "MFCreateMediaType->SetGuid(MF_MT_MAJOR_TYPE)" );
 
 	Result = Type->SetGUID( MF_MT_SUBTYPE, MinorFormat );
-	Directx::IsOkay( Result, "MFCreateMediaType->SetGuid(MF_MT_SUBTYPE)" );
+	Platform::IsOkay( Result, "MFCreateMediaType->SetGuid(MF_MT_SUBTYPE)" );
 
 	return Type;
 }
 
 
-AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyMediaFormat::Type Format)
+Soy::AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyMediaFormat::Type Format)
 {
 	auto Table = GetRemoteArray( PlatformFormatMap );
 	auto* Meta = GetArrayBridge(Table).Find( Format );
@@ -530,7 +536,7 @@ AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyMediaFormat::
 }
 
 
-AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyMediaFormat::Type Format,size_t Width,size_t Height)
+Soy::AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyMediaFormat::Type Format,size_t Width,size_t Height)
 {
 	auto MediaFormat = GetPlatformFormat( Format );
 	
@@ -545,21 +551,21 @@ AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyMediaFormat::
 	return MediaFormat;
 }
 
-AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyPixelsFormat::Type Format)
+Soy::AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(SoyPixelsFormat::Type Format)
 {
 	auto MediaFormat = SoyMediaFormat::FromPixelFormat( Format );
 	return GetPlatformFormat( MediaFormat );
 }
 
 
-AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packet)
+Soy::AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packet)
 {
 #if defined(WINDOWS7_SUPPORT)
 #pragma message("win7 happy build")
 	throw Soy::AssertException("Not supported in win7 build");
 #else
 #pragma message("This binary will not load on windows 7")
-	AutoReleasePtr<IMFMediaBuffer> pBuffer;
+	Soy::AutoReleasePtr<IMFMediaBuffer> pBuffer;
 
 	//	make this true, and flip read in shader
 	static bool BottomUp = true;
@@ -620,7 +626,7 @@ AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packe
 		WritePixelsToBuffer( Pixels );
 	}
 
-	AutoReleasePtr<IMFSample> pSample;
+	Soy::AutoReleasePtr<IMFSample> pSample;
 	Result = MFCreateSample( &pSample.mObject );
 	MediaFoundation::IsOkay( Result, "MFCreateSample" );
 	pSample.Retain();
@@ -633,7 +639,7 @@ AutoReleasePtr<IMFSample> MediaFoundation::CreatePixelBuffer(TMediaPacket& Packe
 }
 
 
-AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(TMediaEncoderParams Params,size_t Width,size_t Height)
+Soy::AutoReleasePtr<IMFMediaType> MediaFoundation::GetPlatformFormat(TMediaEncoderParams Params,size_t Width,size_t Height)
 {
 	auto MfFormat = MediaFoundation::GetPlatformFormat( Params.mCodec, Width, Height );
 	
