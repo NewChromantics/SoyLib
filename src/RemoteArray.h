@@ -450,6 +450,12 @@ inline RemoteArray<TYPE>	GetRemoteArray(const TYPE* Buffer,const size_t BufferSi
 	return RemoteArray<TYPE>( Buffer, BufferSize, BufferCounter );
 }
 
+template <typename TYPE>
+inline RemoteArray<TYPE>	GetRemoteArray(TYPE* Buffer,const size_t BufferSize,size_t& BufferCounter)
+{
+	return RemoteArray<TYPE>( Buffer, BufferSize, BufferCounter );
+}
+
 template <typename TYPE,size_t BUFFERSIZE>
 inline FixedRemoteArray<TYPE>	GetRemoteArray(TYPE (& Buffer)[BUFFERSIZE])
 {
