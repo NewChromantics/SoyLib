@@ -22,9 +22,9 @@
 #endif
 
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS) && !defined(NO_ERROR)
 #define NO_ERROR	S_OK	//	zero, but for clarity
-#else
+#elif !defined(NO_ERROR)
 #define NO_ERROR	0
 #endif
 
