@@ -2183,6 +2183,10 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Greyscale ) );
 			break;
 		}
+
+		case SoyPixelsFormat::Invalid:
+			//	invalid format now returns NO planes instead of including self.
+			return;
 			
 		default:
 			Planes.PushBack( *this );
