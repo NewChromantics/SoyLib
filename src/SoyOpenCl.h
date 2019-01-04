@@ -446,6 +446,7 @@ public:
 	virtual bool	SetUniform(const char* Name,const vec2f& v) override;
 	virtual bool	SetUniform(const char* Name,const vec3f& v) override;
 	virtual bool	SetUniform(const char* Name,const vec4f& v) override;
+	virtual bool	SetUniform(const char* Name,const ArrayBridge<float>&& v);
 	virtual bool	SetUniform(const char* Name,const Opengl::TTextureAndContext& v) override
 	{
 		return SetUniform( Name, v, OpenclBufferReadWrite::ReadWrite );

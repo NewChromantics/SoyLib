@@ -1407,6 +1407,20 @@ bool Opencl::TKernelState::SetUniform(const char* Name,const float& Value)
 	return Result;
 }
 
+
+bool Opencl::TKernelState::SetUniform(const char* Name,const ArrayBridge<float>&& Values)
+{
+	//	determine size we want...
+	//	gr: temp for what I need it for
+	cl_float16 Value16;
+	for ( auto i=0;	i<Values.GetSize();	i++)
+		Value16.s[i] = Values[i];
+
+	bool Result = SetKernelArg( *this, Name, Value16 );
+	OnAssignedUniform( Name, Result );
+	return Result;
+}
+
 bool Opencl::TKernelState::SetUniform(const char* Name,const vec2f& Value)
 {
 	auto Value2 = Soy::VectorToCl( Value );
