@@ -21,6 +21,7 @@ namespace Soy
 	
 #if defined(__OBJC__)
 	std::string		NSErrorToString(NSException* e);
+	std::string		NSErrorToString(NSError* e);
 #endif
 };
 
@@ -34,6 +35,12 @@ public:
 	}
 #if defined(__OBJC__)
 	AssertException(NSException* e) :
+		mError	( Soy::NSErrorToString(e) )
+	{
+	}
+#endif
+#if defined(__OBJC__)
+	AssertException(NSError* e) :
 		mError	( Soy::NSErrorToString(e) )
 	{
 	}
