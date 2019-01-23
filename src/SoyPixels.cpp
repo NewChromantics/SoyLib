@@ -2,7 +2,6 @@
 #include "SoyDebug.h"
 #include "SoyTime.h"
 #include <functional>
-#include "SoyPng.h"
 #include "RemoteArray.h"
 #include "SoyMath.h"
 #include "SoyStream.h"
@@ -1491,112 +1490,6 @@ bool SoyPixelsImpl::SetRawSoyPixels(const ArrayBridge<char>& RawData)
 	return true;
 }
 
-
-
-bool SoyPixelsImpl::GetPng(ArrayBridge<char>& PngData) const
-{
-	//	remove need for Png. Isn't this deprecated anyway
-#if defined(TARGET_PS4)
-	return false;
-#else
-	//	if non-supported PNG colour format, then convert to one that is
-	auto PngColourType = TPng::GetColourType( GetFormat() );
-	if ( PngColourType == TPng::TColour::Invalid )
-	{
-		//	do conversion here
-		SoyPixels OtherFormat;
-		OtherFormat.Copy( *this );
-		auto NewFormat = SoyPixelsFormat::RGB;
-		
-		//	gr: this conversion should be done in soypixels, with a list of compatible output formats
-		switch ( GetFormat() )
-		{
-			//case SoyPixelsFormat::KinectDepth:	NewFormat = SoyPixelsFormat::Greyscale;	break;
-			case SoyPixelsFormat::BGRA:			NewFormat = SoyPixelsFormat::RGBA;	break;
-			default:break;
-		}
-
-		//	new format MUST be compatible or we'll get stuck in a loop
-		if ( TPng::GetColourType( NewFormat ) == TPng::TColour::Invalid )
-		{
-			assert( false );
-			return false;
-		}
-		
-		//	attempt conversion
-		OtherFormat.SetFormat( NewFormat );
-		
-		return OtherFormat.GetPng( PngData );
-	}
-
-	//	http://stackoverflow.com/questions/7942635/write-png-quickly
-
-	//\211 P N G \r \n \032 \n (89 50 4E 47 0D 0A 1A 0A
-	//uint8 Magic[] = { 137, 80, 78, 71, 13, 10, 26, 10 };
-	BufferArray<char,8> Magic;
-	TPng::GetMagic( GetArrayBridge(Magic) );
-	char IHDR[] = { 73, 72, 68, 82 };	//'I', 'H', 'D', 'R'
-	const char IEND[] = { 73, 69, 78, 68 }; //("IEND")
-	const char IDAT[] = { 73, 68, 65, 84 };// ("IDAT")
-
-	//	write header chunk
-	uint32 Width = size_cast<uint32>(GetWidth());
-	uint32 Height = size_cast<uint32>(GetHeight());
-	uint8 BitDepth = GetBitDepth();
-	uint8 ColourType = PngColourType;
-	assert( PngColourType != TPng::TColour::Invalid );
-	uint8 Compression = TPng::TCompression::DEFLATE;
-	uint8 Filter = TPng::TFilter::None;
-	uint8 Interlace = TPng::TInterlace::None;
-	Array<char> Header;
-	Header.PushBackArray( IHDR );
-	Header.PushBackReinterpretReverse( Width );
-	Header.PushBackReinterpretReverse( Height );
-	Header.PushBack( BitDepth );
-	Header.PushBack( ColourType );
-	Header.PushBack( Compression );
-	Header.PushBack( Filter );
-	Header.PushBack( Interlace );
-
-	//	write data chunks
-	Array<char> PixelData;
-	PixelData.PushBackArray( IDAT );
-	if ( !TPng::GetPngData( PixelData, *this, static_cast<TPng::TCompression::Type>(Compression) ) )
-		return false;
-
-	//	write Tail chunks
-	Array<char> Tail;
-	Tail.PushBackArray( IEND );
-
-	//	put it all together!
-	PngData.Reserve( Header.GetDataSize() + 12 );
-	PngData.Reserve( PixelData.GetDataSize() + 12 );
-	PngData.Reserve( Tail.GetDataSize() + 12 );
-
-	uint32 HeaderLength = size_cast<uint32>( Header.GetDataSize() - sizeofarray(IHDR) );
-	assert( HeaderLength == 13 );
-	uint32 HeaderCrc = Soy::GetCrc32( GetArrayBridge(Header) );
-	PngData.PushBackArray( Magic );
-	PngData.PushBackReinterpretReverse( HeaderLength );
-	PngData.PushBackArray( Header );
-	PngData.PushBackReinterpretReverse( HeaderCrc );
-
-	uint32 PixelDataLength = size_cast<uint32>( PixelData.GetDataSize() - sizeofarray(IDAT) );
-	uint32 PixelDataCrc = Soy::GetCrc32( GetArrayBridge(PixelData) );
-	PngData.PushBackReinterpretReverse( PixelDataLength );
-	PngData.PushBackArray( PixelData );
-	PngData.PushBackReinterpretReverse( PixelDataCrc );
-
-	uint32 TailLength = size_cast<uint32>( Tail.GetDataSize() - sizeofarray(IEND) );
-	uint32 TailCrc = Soy::GetCrc32( GetArrayBridge(Tail) );
-	assert( TailCrc == 0xAE426082 );
-	PngData.PushBackReinterpretReverse( TailLength );
-	PngData.PushBackArray( Tail );
-	PngData.PushBackReinterpretReverse( TailCrc );
-	
-	return true;
-#endif
-}
 
 
 

@@ -75,6 +75,10 @@ namespace TPng
 	bool		ReadHeader(SoyPixelsImpl& Pixels,THeader& Header,ArrayBridge<char>& Data,std::stringstream& Error);
 	bool		ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char>& Data,std::stringstream& Error);
 	bool		ReadTail(SoyPixelsImpl& Pixels,ArrayBridge<char>& Data,std::stringstream& Error);
+
+	//	moved from soypixels
+	bool		GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData);
+
 };
 std::ostream& operator<< (std::ostream &out,const TPng::TColour::Type &in);
 std::ostream& operator<< (std::ostream &out,const TPng::TFilterNone_ScanlineFilter::Type &in);
