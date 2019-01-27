@@ -1513,13 +1513,19 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 	//	if there's a crash below, (reading out of bounds) may be beause opengl is expecting padding of 2/4/8
 	//	our pixels are not padded!
 	//	make sure no padding is applied so glGetTexImage & glReadPixels doesn't override tail memory
-	glPixelStorei(GL_PACK_ROW_LENGTH,0);	//	gr: not sure this had any effect, but implemented anyway
+	//glPixelStorei(GL_PACK_ROW_LENGTH, FinalPixels.GetWidth() );	//	gr: not sure this had any effect, but implemented anyway
+	glPixelStorei(GL_PACK_ROW_LENGTH, 0 );	//	gr: not sure this had any effect, but implemented anyway
 	Opengl::IsOkay("glPixelStorei(GL_PACK_ROW_LENGTH,0)");
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
 	Opengl::IsOkay("glPixelStorei(GL_PACK_ALIGNMENT,1)");
 
-	//	gr: this is still crashing from overread!
-	
+	//	this was failing to upload 50x50 images correctly.
+	//	todo: fix the unpack alignment so it's more efficient when widths are aligned
+	//	I thought the packing was the problem, but it's the unpacking (reading of data provided?)
+	//	https://stackoverflow.com/a/11264136/355753
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+	//	gr: this is still crashing from overread!	
 	if ( !IsSameDimensions )
 		SubImage = false;
 	
