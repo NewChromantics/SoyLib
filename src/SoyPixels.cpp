@@ -1596,6 +1596,37 @@ void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour)
 }
 
 
+
+
+void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
+{
+	auto& Pixels = GetPixelsArray();
+	auto Channels = GetChannels();
+	//	we'll get stuck in loops if stride is zero
+	Channels = std::max<uint8_t>( Channels, 1 );
+	
+	//	remove top rows
+	{
+		auto RowBytes = Channels * GetWidth();
+		for ( size_t y=0;	y<Top;	y++ )
+			Pixels.RemoveBlock( 0, RowBytes );
+		GetMeta().DumbSetHeight( GetHeight()-Top );
+	}
+
+	//	remove start of rows
+	if ( Left > 0 )
+	{
+		//	working backwards makes it easy & fast
+		auto Stride = Channels * GetWidth();
+		auto RemoveBytes = Channels * Left;
+		for ( ssize_t p=Pixels.GetDataSize()-Stride;	p>=0;	p-=Stride )
+			Pixels.RemoveBlock( p, RemoveBytes );
+		GetMeta().DumbSetWidth( GetWidth() - Left );
+	}
+	
+	//ResizeClip( Width, Height );
+}
+
 void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 {
 	auto& Pixels = GetPixelsArray();
