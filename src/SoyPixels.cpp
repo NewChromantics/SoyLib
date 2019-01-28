@@ -1624,7 +1624,7 @@ void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 		GetMeta().DumbSetWidth( GetWidth() - Left );
 	}
 	
-	//ResizeClip( Width, Height );
+	ResizeClip( Width, Height );
 }
 
 void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
