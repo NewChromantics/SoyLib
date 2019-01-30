@@ -1607,15 +1607,17 @@ void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 	
 	//	remove top rows
 	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::RemoveTop",5);
 		auto RowBytes = Channels * GetWidth();
-		for ( size_t y=0;	y<Top;	y++ )
-			Pixels.RemoveBlock( 0, RowBytes );
+		auto TotalRowBytes = RowBytes * Top;
+		Pixels.RemoveBlock( 0, TotalRowBytes );
 		GetMeta().DumbSetHeight( GetHeight()-Top );
 	}
 
 	//	remove start of rows
 	if ( Left > 0 )
 	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::RemoveLeft",5);
 		//	working backwards makes it easy & fast
 		auto Stride = Channels * GetWidth();
 		auto RemoveBytes = Channels * Left;
@@ -1637,6 +1639,7 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	//	simply add/remove rows
 	if ( Height > GetHeight() )
 	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::AddRows",5);
 		auto RowBytes = Channels * GetWidth();
 		RowBytes *= Height - GetHeight();
 		Pixels.PushBlock( RowBytes );
@@ -1644,6 +1647,7 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	}
 	else if ( Height < GetHeight() )
 	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::RemoveRows",5);
 		auto RowBytes = Channels * GetWidth();
 		RowBytes *= GetHeight() - Height;
 		Pixels.SetSize( Pixels.GetDataSize() - RowBytes );
@@ -1654,6 +1658,7 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	if ( Width > GetWidth() )
 	{//	todo: prealloc!
 		//	working backwards makes it easy & fast
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::AddColumns",5);
 		auto Stride = Channels * GetWidth();
 		auto ColBytes = Channels * (Width - GetWidth());
 		for ( ssize_t p=Pixels.GetDataSize();	p>=0;	p-=Stride )
@@ -1662,6 +1667,7 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	}
 	else if ( Width < GetWidth() )
 	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::RemoveColumns",5);
 		//	working backwards makes it easy & fast
 		auto Stride = Channels * GetWidth();
 		auto ColBytes = Channels * (GetWidth() - Width);
