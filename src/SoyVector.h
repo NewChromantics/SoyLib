@@ -383,6 +383,9 @@ public:
 	TYPE	Bottom() const		{	return y+h;	}
 	TYPE	GetWidth() const	{	return w;	}
 	TYPE	GetHeight() const	{	return h;	}
+	TYPE	GetCenterX() const	{	return x + (w/2.0f);	}
+	TYPE	GetCenterY() const	{	return y + (h/2.0f);	}
+	vec2x<TYPE>	GetCenter() const	{	return vec2x<TYPE>( GetCenterX(), GetCenterY() );	}
 	vec4x<TYPE>	GetVec4() const	{	return vec4x<TYPE>(x,y,w,h);	}
 	void	ScaleTo(const Rectx& Parent);		//	assume this is normalised
 	void	Normalise(const Rectx& Parent);		//	make this the normalised
@@ -405,6 +408,11 @@ class Soy::Boundsx
 {
 public:
 	Boundsx()
+	{
+	}
+	Boundsx(TYPE Minx,TYPE MinY,TYPE MaxX,TYPE MaxY) :
+		min	( Minx, MinY ),
+		max	( MaxX, MaxY )
 	{
 	}
 	Boundsx(const TYPE& _min,const TYPE& _max) :
