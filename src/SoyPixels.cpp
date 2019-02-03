@@ -1613,7 +1613,41 @@ void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 		Pixels.RemoveBlock( 0, TotalRowBytes );
 		GetMeta().DumbSetHeight( GetHeight()-Top );
 	}
+	
+	//	remove bottom rows (before removing columns, ResizeClip just won't do anything)
+	if ( Height < GetHeight() )
+	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::RemoveRows (early)",5);
+		auto RowBytes = Channels * GetWidth();
+		RowBytes *= GetHeight() - Height;
+		Pixels.SetSize( Pixels.GetDataSize() - RowBytes );
+		GetMeta().DumbSetHeight( Height );
+	}
 
+	//	gr: faster to write new rows if we're clipping
+	if ( Left > 0 || Width < GetWidth() )
+	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::Realign rows",5);
+		auto OldWidth = GetWidth();
+		auto NewWidth = Width;
+		
+		for ( auto y=0;	y<GetHeight();	y++ )
+		{
+			auto OldX = Left;
+			auto NewX = 0;
+			auto OldIndex = (OldX + (y * OldWidth) ) * Channels;
+			auto NewIndex = (NewX + (y * NewWidth) ) * Channels;
+			auto CopyBytes = Width * Channels;
+			Pixels.MoveBlock( OldIndex, NewIndex, CopyBytes );
+		}
+		auto NewSize = Channels * Width * Height;
+		Pixels.SetSize( NewSize );
+		
+		//	don't do it again
+		Left = 0;
+		GetMeta().DumbSetWidth( Width );
+	}
+	
 	//	remove start of rows
 	if ( Left > 0 )
 	{
