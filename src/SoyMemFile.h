@@ -139,6 +139,11 @@ public:
 		return mData + index;
 	}
 
+	virtual void		MoveBlock(size_t OldIndex,size_t NewIndex,size_t Count) override
+	{
+		throw Soy::AssertException("todo MoveBlock");
+	}
+	
 	virtual void		RemoveBlock(size_t index,size_t count) override
 	{
 		T*& mData = reinterpret_cast<T*&>(mMap);

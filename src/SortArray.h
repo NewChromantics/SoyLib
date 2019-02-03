@@ -59,6 +59,7 @@ public:
 	virtual TYPE*		GetArray() override						{	return mArray.GetArray();	}
 	virtual void		Reserve(size_t size,bool clear=false) override	{	return mArray.Reserve(size,clear);	}
 	virtual void		RemoveBlock(size_t index,size_t count) override	{	return mArray.RemoveBlock(index,count);	}
+	virtual void		MoveBlock(size_t OldIndex,size_t NewIndex,size_t Count) override	{	return mArray.MoveBlock( OldIndex, NewIndex, Count );	}
 	virtual void		Clear(bool Dealloc) override			{	return mArray.Clear(Dealloc);	}
 	virtual size_t		MaxSize() const override				{	return mArray.MaxSize();	}
 	
@@ -265,6 +266,7 @@ public:
 	virtual TYPE*		GetArray() override						{	return mArray.GetArray();	}
 	virtual void		Reserve(size_t size,bool clear=false) override	{	return mArray.Reserve(size,clear);	}
 	virtual void		RemoveBlock(size_t index,size_t count) override	{	return mArray.RemoveBlock(index,count);	}
+	virtual void		MoveBlock(size_t OldIndex,size_t NewIndex,size_t Count) override	{	return mArray.MoveBlock( OldIndex, NewIndex, Count );	}
 	virtual void		Clear(bool Dealloc) override			{	return mArray.Clear(Dealloc);	}
 	virtual size_t		MaxSize() const override				{	return mArray.MaxSize();	}
 	

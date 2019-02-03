@@ -62,6 +62,7 @@ public:
 	virtual void		Reserve(size_t size,bool clear=false)=0;
 	virtual T*			InsertBlock(size_t index,size_t count)=0;
 	virtual void		RemoveBlock(size_t index,size_t count)=0;
+	virtual void		MoveBlock(size_t OldIndex,size_t NewIndex,size_t Count)=0;
 	virtual void		Clear(bool Dealloc=true)=0;
 	virtual size_t		MaxSize() const=0;
 
@@ -349,6 +350,7 @@ public:
 	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true)=0;
 	virtual void		Reserve(size_t size,bool clear=false)=0;
 	virtual void		RemoveBlock(size_t index,size_t count)=0;
+	virtual void		MoveBlock(size_t OldIndex,size_t NewIndex,size_t Count)=0;
 	virtual T*			InsertBlock(size_t index,size_t count)=0;
 	virtual void		Clear(bool Dealloc=true)=0;
 
@@ -459,6 +461,7 @@ public:
 	virtual T&			PushBack(const T& item) override			{	auto& Tail = PushBack();	Tail = item;	return Tail;	}
 	virtual T&			PushBack() override							{	auto* Tail = PushBlock(1);	return *Tail;	}
 	virtual void		RemoveBlock(size_t index,size_t count) override	{	mArray.RemoveBlock(index,count);	}
+	virtual void		MoveBlock(size_t OldIndex,size_t NewIndex,size_t Count) override	{	mArray.MoveBlock( OldIndex, NewIndex, Count );	}
 	virtual T*			InsertBlock(size_t index,size_t count) override	{	return mArray.InsertBlock(index,count);	}
 	virtual void		Clear(bool Dealloc) override				{	return mArray.Clear(Dealloc);	}
 	virtual size_t		MaxSize() const override					{	return mArray.MaxSize();	}
@@ -510,6 +513,7 @@ public:
 	virtual T&			PushBack(const T& item) override				{	std::lock_guard<std::recursive_mutex> Lock(mLock);	auto& Tail = PushBack();	Tail = item;	return Tail;	}
 	virtual T&			PushBack() override								{	std::lock_guard<std::recursive_mutex> Lock(mLock);	auto* Tail = PushBlock(1);	return *Tail;	}
 	virtual void		RemoveBlock(size_t index,size_t count) override	{	std::lock_guard<std::recursive_mutex> Lock(mLock);	mArray.RemoveBlock(index,count);	}
+	virtual void		MoveBlock(size_t OldIndex,size_t NewIndex,size_t Count) override	{	std::lock_guard<std::recursive_mutex> Lock(mLock);	mArray.MoveBlock( OldIndex, NewIndex, Count );	}
 	virtual T*			InsertBlock(size_t index,size_t count) override	{	std::lock_guard<std::recursive_mutex> Lock(mLock);	return mArray.InsertBlock(index,count);	}
 	virtual void		Clear(bool Dealloc) override					{	std::lock_guard<std::recursive_mutex> Lock(mLock);	return mArray.Clear(Dealloc);	}
 	virtual size_t		MaxSize() const override						{	return mArray.MaxSize();	}
