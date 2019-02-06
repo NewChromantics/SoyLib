@@ -1600,6 +1600,9 @@ void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour)
 
 void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 {
+	if ( Width == 0 || Height == 0 )
+		throw Soy::AssertException("Cannot size image to 0 width or height");
+	
 	auto& Pixels = GetPixelsArray();
 	auto Channels = GetChannels();
 	//	we'll get stuck in loops if stride is zero
@@ -1665,6 +1668,9 @@ void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 
 void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 {
+	if ( Width == 0 || Height == 0 )
+		throw Soy::AssertException("Cannot size image to 0 width or height");
+
 	auto& Pixels = GetPixelsArray();
 	auto Channels = GetChannels();
 	//	we'll get stuck in loops if stride is zero
@@ -1694,6 +1700,8 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 		//	working backwards makes it easy & fast
 		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::AddColumns",5);
 		auto Stride = Channels * GetWidth();
+		Stride = std::max<size_t>( Stride, Channels*1 );
+		
 		auto ColBytes = Channels * (Width - GetWidth());
 		for ( ssize_t p=Pixels.GetDataSize();	p>=0;	p-=Stride )
 			Pixels.InsertBlock( p, ColBytes );
