@@ -860,7 +860,7 @@ bool Avf::IsKeyframe(CMSampleBufferRef SampleBuffer,bool DefaultValue)
 
 void PixelReleaseCallback(void *releaseRefCon, const void *baseAddress)
 {
-	std::Debug << __func__ << std::endl;
+	//std::Debug << __func__ << std::endl;
 
 	//	this page says we need to release
 	//	http://codefromabove.com/2015/01/av-foundation-saving-a-sequence-of-raw-rgb-frames-to-a-movie/
