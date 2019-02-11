@@ -864,8 +864,11 @@ void PixelReleaseCallback(void *releaseRefCon, const void *baseAddress)
 
 	//	this page says we need to release
 	//	http://codefromabove.com/2015/01/av-foundation-saving-a-sequence-of-raw-rgb-frames-to-a-movie/
-	CFDataRef bufferData = (CFDataRef)releaseRefCon;
-	CFRelease(bufferData);
+	if ( releaseRefCon != nullptr )
+	{
+		CFDataRef bufferData = (CFDataRef)releaseRefCon;
+		CFRelease(bufferData);
+	}
 }
 
 
