@@ -1907,6 +1907,8 @@ void SoyPixelsImpl::Flip()
 	if ( !IsValid() )
 		return;
 	
+	Soy::TScopeTimerPrint Timer("SoyPixelsImpl::Flip", 5);
+	
 	//	buffer a line so we don't need to realloc for the temp line
 	auto LineSize = GetWidth() * GetChannels();
 	Array<char> TempLine( size_cast<size_t>(LineSize) );
