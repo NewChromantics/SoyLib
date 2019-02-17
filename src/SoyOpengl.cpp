@@ -1004,6 +1004,7 @@ void Opengl::TPbo::UnlockBuffer()
 void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat,bool Flip) const
 {
 	Soy::Assert( IsValid(), "Trying to read from invalid texture" );
+	Soy::TScopeTimerPrint Timer("Opengl::TTexture::Read", 5);
 	
 	Bind();
 	
