@@ -571,10 +571,10 @@ std::string Soy::StringPopUntil(std::string& Haystack,std::function<bool(char)> 
 	{
 		if ( IsDelim(Haystack[0]) )
 		{
-			if ( !KeepDelim )
-				Haystack.erase( Haystack.begin() );
 			if ( PopDelim )
 				Pop << Haystack[0];
+			else if ( !KeepDelim )
+				Haystack.erase( Haystack.begin() );
 			break;
 		}
 		
