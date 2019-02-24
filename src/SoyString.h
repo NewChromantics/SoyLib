@@ -79,7 +79,9 @@ namespace Soy
 
 	std::string	StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim=false,bool PopDelim=false);
 	std::string	StringPopUntil(std::string& Haystack,std::function<bool(char)> IsDelim,bool KeepDelim=false,bool PopDelim=false);
-	
+	std::string	StringPopRight(std::string& Haystack,char Delim,bool KeepDelim=false,bool PopDelim=false);
+	std::string	StringPopRight(std::string& Haystack,std::function<bool(char)> IsDelim,bool KeepDelim=false,bool PopDelim=false);
+
 	bool		StringReplace(std::string& str,const std::string& from,const std::string& to);
 	bool		StringReplace(ArrayBridge<std::string>& str,const std::string& from,const std::string& to);
 	bool		StringReplace(ArrayBridge<std::string>&& str,const std::string& from,const std::string& to);

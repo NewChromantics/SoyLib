@@ -586,6 +586,37 @@ std::string Soy::StringPopUntil(std::string& Haystack,std::function<bool(char)> 
 	return Pop.str();
 }
 
+std::string Soy::StringPopRight(std::string& Haystack,std::function<bool(char)> IsDelim,bool KeepDelim,bool PopDelim)
+{
+	Array<char> Popped;
+	auto Push = [&](char c)
+	{
+		auto& NewChar = *Popped.InsertBlock(0,1);
+		NewChar = c;
+	};
+	
+	while ( Haystack.length() > 0 )
+	{
+		auto LastIndex = Haystack.length()-1;
+		
+		if ( IsDelim(Haystack[LastIndex]) )
+		{
+			if ( PopDelim )
+				Push( Haystack[LastIndex] );
+			else if ( !KeepDelim )
+				Haystack.erase( LastIndex );
+			break;
+		}
+		
+		Push( Haystack[LastIndex] );
+		
+		Haystack.erase( LastIndex );
+	}
+	
+	Popped.PushBack('\0');
+	
+	return std::string( Popped.GetArray() );
+}
 
 
 std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim,bool PopDelim)
@@ -596,6 +627,17 @@ std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim,
 		return Char == Delim;
 	};
 	return StringPopUntil( Haystack, IsDelim, KeepDelim, PopDelim );
+}
+
+
+std::string Soy::StringPopRight(std::string& Haystack,char Delim,bool KeepDelim,bool PopDelim)
+{
+	//	gr: make this faster! dont use a lambda!
+	auto IsDelim = [Delim](char Char)
+	{
+		return Char == Delim;
+	};
+	return StringPopRight( Haystack, IsDelim, KeepDelim, PopDelim );
 }
 
 std::string Soy::ByteToHex(uint8 Byte)
