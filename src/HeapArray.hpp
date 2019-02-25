@@ -409,9 +409,11 @@ public:
 				src++;
 			}
 			
-			for ( size_t i=0;	i<ShiftCount;	i++ )
+			for ( size_t i=NewIndex+ShiftCount;	i<GetSize();	i++ )
 			{
-				auto Index = moffset+i;
+				auto Index = i;
+				if ( Index >= mmaxsize )
+					throw Soy::AssertException("Releasing out of bounds");
 				Release( mdata[Index] );
 			}
 		}
