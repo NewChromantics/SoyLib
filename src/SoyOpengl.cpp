@@ -675,7 +675,7 @@ size_t Opengl::TFbo::GetAlphaBits() const
 #endif
 }
 
-Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
+Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 	mAutoRelease	( true ),
 	mType			( Type )
 {
@@ -700,8 +700,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	Opengl::IsOkay("glGenTextures");
 	Soy::Assert( mTexture.IsValid(), "Failed to allocate texture" );
 	
-	if ( !Bind() )
-		throw Soy::AssertException("failed to bind after texture allocation");
+	Bind(TextureSlot);
 	Opengl::IsOkay("glGenTextures");
 	
 	//	set mip-map levels to 0..0
@@ -780,8 +779,6 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type) :
 	//std::Debug << "new texture format "  << Opengl::GetEnumString(TextureInternalFormat) << std::endl;
 #endif
 	
-	Unbind();
-	
 	//	default to linear
 	SetFilter(true);
 	
@@ -831,23 +828,51 @@ void Opengl::TTexture::Delete()
 	mWriteSync.reset();
 }
 
-bool Opengl::TTexture::Bind() const
+void Opengl::TTexture::Bind(size_t& TextureSlot) const
 {
 	Opengl::IsOkay("Texture bind flush",false);
+	
+	const GLenum _TexturesBindings[] =
+	{
+		GL_TEXTURE0, GL_TEXTURE1, GL_TEXTURE2, GL_TEXTURE3, GL_TEXTURE4, GL_TEXTURE5, GL_TEXTURE6, GL_TEXTURE7, GL_TEXTURE8, GL_TEXTURE9,
+		GL_TEXTURE10, GL_TEXTURE11, GL_TEXTURE12, GL_TEXTURE13, GL_TEXTURE14, GL_TEXTURE15, GL_TEXTURE16, GL_TEXTURE17, GL_TEXTURE18, GL_TEXTURE19,
+		GL_TEXTURE20, GL_TEXTURE21, GL_TEXTURE22, GL_TEXTURE23, GL_TEXTURE24, GL_TEXTURE25, GL_TEXTURE26, GL_TEXTURE27, GL_TEXTURE28, GL_TEXTURE29,
+	};
+	auto TextureBindings = GetRemoteArray( _TexturesBindings );
+	TextureSlot %= TextureBindings.GetSize();
+
 	Soy::Assert( mTexture.IsValid(), "Trying to bind invalid texture" );
+
+	//std::Debug << "glActiveTexture(" << TextureSlot << ")" << std::endl;
+	glActiveTexture( TextureBindings[TextureSlot] );
+	Opengl::IsOkay("Opengl::TTexture::Bind() glActiveTexture");
+	
 	glBindTexture( mType, mTexture.mName );
-	return Opengl_IsOkay();
+	Opengl::IsOkay("TShaderState::BindTexture glBindTexture");
 }
 
 void Opengl::TTexture::Unbind() const
 {
+	//	check if texture slot/active texture has changed?
 	glBindTexture( mType, GL_ASSET_INVALID );
 	Opengl_IsOkay();
 }
 
+void Opengl::TTexture::CheckIsBound() const
+{
+	GLint CurrentBound;
+	glGetIntegerv( GL_TEXTURE_BINDING_2D, &CurrentBound );
+	Opengl::IsOkay("glGetIntegerv( GL_TEXTURE_BINDING_2D);");
+	if ( CurrentBound == mTexture.mName )
+		return;
+	
+	throw Soy::AssertException("Texture is not bound");
+}
+
 void Opengl::TTexture::SetRepeat(bool Repeat)
 {
-	Bind();
+	CheckIsBound();
+	
 #if defined(GL_TEXTURE_RECTANGLE)
 	//	gr: on OSX, using a non-2D/Cubemap texture gives invalid enum
 	//	this doesn't work, but doesn't give an error
@@ -859,17 +884,16 @@ void Opengl::TTexture::SetRepeat(bool Repeat)
 	glTexParameteri( Type, GL_TEXTURE_WRAP_S, Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 	glTexParameteri( Type, GL_TEXTURE_WRAP_T, Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 	Opengl_IsOkay();
-	Unbind();
 }
 
 void Opengl::TTexture::SetFilter(bool Linear)
 {
-	Bind();
+	CheckIsBound();
+
 	auto Type = mType;
 	glTexParameteri( Type, GL_TEXTURE_MIN_FILTER, Linear ? GL_LINEAR : GL_NEAREST );
 	glTexParameteri( Type, GL_TEXTURE_MAG_FILTER, Linear ? GL_LINEAR : GL_NEAREST );
 	Opengl_IsOkay();
-	Unbind();
 }
 
 void Opengl::TTexture::GenerateMipMaps()
@@ -882,9 +906,8 @@ void Opengl::TTexture::GenerateMipMaps()
 		return;
 #endif
 	
-	if ( !Bind() )
-		return;
-	
+	CheckIsBound();
+
 	//	gr: this can be slow, highlight it
 	Soy::TScopeTimerPrint Timer("glGenerateMipmap",2);
 	
@@ -892,7 +915,6 @@ void Opengl::TTexture::GenerateMipMaps()
 	std::stringstream Error;
 	Error << "Texture(" << Opengl::GetEnumString(mType) << " " << mMeta << ")::GenerateMipMaps";
 	Opengl::IsOkay( Error.str(), false );
-	Unbind();
 }
 
 
@@ -1005,8 +1027,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 {
 	Soy::Assert( IsValid(), "Trying to read from invalid texture" );
 	Soy::TScopeTimerPrint Timer("Opengl::TTexture::Read", 5);
-	
-	Bind();
+	CheckIsBound();
 	
 	if ( !Pixels.IsValid() )
 	{
@@ -1228,7 +1249,6 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 		std::Debug.UnlockStream( DebugStream );
 	}
 	
-	Unbind();
 	Opengl_IsOkay();
 	
 	//	textures are stored upside down so flip here. (maybe store as transform meta data?)
@@ -1326,9 +1346,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 	Soy::TScopeTimerPrint WholeTimer( WholeFunctionContext.str().c_str(), 30 );
 
 	Soy::Assert( IsValid(), "Trying to upload to invalid texture ");
-	
-	Bind();
-	Opengl::IsOkay( std::string(__func__) + " Bind()" );
+	CheckIsBound();
 
 	int MipLevel = 0;
 	
@@ -1676,8 +1694,7 @@ SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType) const
 			continue;
 	
 		Opengl::TTexture TempTexture( mTexture.mName, mMeta, Type );
-		if ( !TempTexture.Bind() )
-			continue;
+		CheckIsBound();
 		
 		GLint MipLevel = 0;
 		GLint Width = 0;
@@ -1687,10 +1704,9 @@ SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType) const
 		glGetTexLevelParameteriv( Type, MipLevel, GL_TEXTURE_HEIGHT, &Height);
 		glGetTexLevelParameteriv( Type, MipLevel, GL_TEXTURE_INTERNAL_FORMAT, &Format );
 		
-		TempTexture.Unbind();
-		
 		if ( !Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()", false ) )
 			continue;
+		
 		
 		//	we probably won't get an opengl error, but the values won't be good. We can assume it's not that type
 		//	tested on osx
@@ -1733,6 +1749,9 @@ Opengl::TShaderState::TShaderState(const Opengl::TShader& Shader) :
 
 Opengl::TShaderState::~TShaderState()
 {
+	//	do we need to unbind textres?
+	//	glActiveTexture should be done properly now via Bind()
+	/*
 	//	unbind textures
 	TTexture NullTexture;
 	while ( mTextureBindCount > 0 )
@@ -1742,9 +1761,10 @@ Opengl::TShaderState::~TShaderState()
 		mTextureBindCount--;
 	}
 	
+	std::Debug << "glActiveTexture(" << 0 << ")" << std::endl;
 	glActiveTexture( GL_TEXTURE0 );
 	Opengl::IsOkay("~TShaderState glActiveTexture( GL_TEXTURE0 )");
-
+*/
 	
 	//	unbind shader
 	glUseProgram(0);
@@ -1825,21 +1845,7 @@ bool Opengl::TShaderState::SetUniform(const char* Name,const TTexture& Texture)
 
 void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,std::function<void(GLuint)> SetUniform)
 {
-	const GLenum _TexturesBindings[] =
-	{
-		GL_TEXTURE0, GL_TEXTURE1, GL_TEXTURE2, GL_TEXTURE3, GL_TEXTURE4, GL_TEXTURE5, GL_TEXTURE6, GL_TEXTURE7, GL_TEXTURE8, GL_TEXTURE9,
-		GL_TEXTURE10, GL_TEXTURE11, GL_TEXTURE12, GL_TEXTURE13, GL_TEXTURE14, GL_TEXTURE15, GL_TEXTURE16, GL_TEXTURE17, GL_TEXTURE18, GL_TEXTURE19,
-		GL_TEXTURE20, GL_TEXTURE21, GL_TEXTURE22, GL_TEXTURE23, GL_TEXTURE24, GL_TEXTURE25, GL_TEXTURE26, GL_TEXTURE27, GL_TEXTURE28, GL_TEXTURE29,
-	};
-	auto TextureBindings = GetRemoteArray( _TexturesBindings );
-	
-	Opengl::IsOkay("TShaderState::BindTexture flush");
-	
-	glActiveTexture( TextureBindings[TextureIndex] );
-	Opengl::IsOkay("TShaderState::BindTexture glActiveTexture");
-	
-	glBindTexture( Texture.mType, Texture.mTexture.mName );
-	Opengl::IsOkay("TShaderState::BindTexture glBindTexture");
+	Texture.Bind( TextureIndex );
 
 	if ( SetUniform != nullptr )
 	{
@@ -1849,32 +1855,6 @@ void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,std:
 	}
 }
 
-/*
- 
- void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,size_t UniformIndex)
- {
-	const GLenum _TexturesBindings[] =
-	{
- GL_TEXTURE0, GL_TEXTURE1, GL_TEXTURE2, GL_TEXTURE3, GL_TEXTURE4, GL_TEXTURE5, GL_TEXTURE6, GL_TEXTURE7, GL_TEXTURE8, GL_TEXTURE9,
- GL_TEXTURE10, GL_TEXTURE11, GL_TEXTURE12, GL_TEXTURE13, GL_TEXTURE14, GL_TEXTURE15, GL_TEXTURE16, GL_TEXTURE17, GL_TEXTURE18, GL_TEXTURE19,
- GL_TEXTURE20, GL_TEXTURE21, GL_TEXTURE22, GL_TEXTURE23, GL_TEXTURE24, GL_TEXTURE25, GL_TEXTURE26, GL_TEXTURE27, GL_TEXTURE28, GL_TEXTURE29,
-	};
-	auto TextureBindings = GetRemoteArray( _TexturesBindings );
-	
-	Opengl::IsOkay("TShaderState::BindTexture flush");
- 
-	glActiveTexture( TextureBindings[TextureIndex] );
-	Opengl::IsOkay("TShaderState::BindTexture glActiveTexture");
- 
-	glBindTexture( Texture.mType, Texture.mTexture.mName );
-	Opengl::IsOkay("TShaderState::BindTexture glBindTexture");
- 
-	auto TextureIndexInt = size_cast<GLint>(TextureIndex);
-	auto UniformIndexInt = size_cast<GLint>(UniformIndex);
-	glUniform1i( UniformIndexInt, TextureIndexInt );
-	Opengl::IsOkay("TShaderState::BindTexture glUniform1i",false);
- }
-*/
 void Opengl::TShaderState::BindTexture(size_t TextureIndex,TTexture Texture,size_t UniformIndex)
 {
 	auto SetUniformIndex = [&](GLuint TextureIndex)
@@ -2359,6 +2339,7 @@ void Opengl::TGeometry::Draw()
 	}
 	else
 	{
+		Opengl::IsOkay("pre glDrawElements");
 		glDrawElements( GL_TRIANGLES, mIndexCount, mIndexType, nullptr );
 		Opengl::IsOkay("glDrawElements");
 	}

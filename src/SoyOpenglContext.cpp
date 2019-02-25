@@ -616,57 +616,11 @@ void Opengl::TRenderTarget::SetViewportNormalised(Soy::Rectf Viewport)
 }
 
 
-Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context,Opengl::TTexture ExistingTexture) :
-	TRenderTarget		( Meta.mName ),
+Opengl::TRenderTargetFbo::TRenderTargetFbo(const std::string& Name,Opengl::TTexture ExistingTexture) :
+	TRenderTarget		( Name ),
 	mTexture			( ExistingTexture ),
 	mGenerateMipMaps	( true )
 {
-	auto CreateFbo = [this,Meta]()
-	{
-		Opengl_IsOkay();
-
-		//	create texture
-		if ( !mTexture.IsValid() )
-		{
-			SoyPixelsMeta TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
-			mTexture = TTexture( TextureMeta, GL_TEXTURE_2D );
-			/*
-			 glGenTextures(1, &mTexture.mTexture.mName );
-			 //	set mip-map levels to 0..0
-			 mTexture.Bind();
-			 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-			 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-
-			 Opengl_IsOkay();
-			 */
-		}
-		
-		mFbo.reset( new TFbo( mTexture ) );
-	};
-	
-	std::Debug << "Deffering FBO rendertarget creation to " << ExistingTexture.mMeta << std::endl;
-	Context.PushJob( CreateFbo );
-}
-
-Opengl::TRenderTargetFbo::TRenderTargetFbo(Opengl::TTexture ExistingTexture) :
-	TRenderTargetFbo	( TFboMeta("Texture",ExistingTexture.GetWidth(),ExistingTexture.GetHeight()), ExistingTexture )
-{
-}
-
-Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture ExistingTexture) :
-	TRenderTarget		( Meta.mName ),
-	mTexture			( ExistingTexture ),
-	mGenerateMipMaps	( true )
-{
-	Opengl_IsOkay();
-		
-	//	create texture
-	if ( !mTexture.IsValid() )
-	{
-		SoyPixelsMeta TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
-		mTexture = TTexture( TextureMeta, GL_TEXTURE_2D );
-	}
-
 	mFbo.reset( new TFbo( mTexture ) );
 }
 

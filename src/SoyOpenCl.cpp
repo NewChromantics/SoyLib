@@ -1315,9 +1315,10 @@ void Opencl::TBufferImage::Read(Opengl::TTextureAndContext& TextureAndContext,Op
 	auto& Context = TextureAndContext.mContext;
 	if ( !Texture.IsValid(false) )
 	{
-		auto CreateTexture = [&Texture,this]
+		auto CreateTexture = [&Texture,&Context,this]
 		{
-			Texture = std::move( Opengl::TTexture( mMeta, GL_TEXTURE_2D ) );
+			auto TextureSlot = Context.mCurrentTextureSlot++;
+			Texture = std::move( Opengl::TTexture( mMeta, GL_TEXTURE_2D, TextureSlot ) );
 		};
 		Soy::TSemaphore Semaphore;
 		Context.PushJob( CreateTexture, Semaphore );
