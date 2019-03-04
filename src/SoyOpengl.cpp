@@ -2021,9 +2021,9 @@ Opengl::TShader::TShader(const std::string& vertexSrc,const std::string& fragmen
 
 Opengl::TShaderState Opengl::TShader::Bind()
 {
-	Opengl_IsOkay();
+	Opengl_IsOkayFlush();
 	glUseProgram( mProgram.mName );
-	Opengl_IsOkay();
+	Opengl::IsOkay("Opengl::TShader::Bind");
 
 	//	gr: this is doing a copy constructor I think. fix this and add NonCopyable to TShaderState
 	return TShaderState( *this );
