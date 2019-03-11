@@ -1231,6 +1231,23 @@ void SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 		throw Soy::AssertException(Error.str());
 	}
 
+	//	allow these to be the same!
+	auto IsGrey = [](SoyPixelsFormat::Type Format)
+	{
+		switch(Format)
+		{
+			case SoyPixelsFormat::Luma_Full:
+			case SoyPixelsFormat::Luma_Ntsc:
+			case SoyPixelsFormat::Luma_Smptec:
+			//case SoyPixelsFormat::Greyscale:
+				return true;
+			default:
+				return false;
+		}
+	};
+	if ( IsGrey(OldFormat) && IsGrey(Format) )
+		return;
+	
 	if ( OldFormat == Format )
 		return;
 	if ( !IsValid() )
