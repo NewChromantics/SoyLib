@@ -960,6 +960,11 @@ static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 		case SoyPixelsFormat::BGRA:
 		default:
 */
+	
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_OneComponent8,	SoyPixelsFormat::Luma_Full ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_OneComponent8,	SoyPixelsFormat::Luma_Ntsc ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_OneComponent8,	SoyPixelsFormat::Luma_Smptec ),
+	
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_24RGB,	SoyPixelsFormat::RGB ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_24BGR,	SoyPixelsFormat::BGR ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_32BGRA,	SoyPixelsFormat::BGRA ),

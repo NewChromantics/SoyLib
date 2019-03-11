@@ -1246,8 +1246,10 @@ void SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 		}
 	};
 	if ( IsGrey(OldFormat) && IsGrey(Format) )
+	{
+		this->GetMeta().DumbSetFormat(Format);
 		return;
-	
+	}
 	if ( OldFormat == Format )
 		return;
 	if ( !IsValid() )
