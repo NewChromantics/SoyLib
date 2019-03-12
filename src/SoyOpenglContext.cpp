@@ -521,6 +521,8 @@ void Opengl::TContext::BindGenerateMipMapExtension()
 
 bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TContext* pContext)
 {
+	static bool DebugSupport = false;
+
 	//	first parse of extensions
 	if ( SupportedExtensions.empty() && pContext )
 	{
@@ -563,12 +565,15 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		}
 
 		//	list other extensions (do this first to aid debugging)
-		std::stringstream UnhandledExtensionsStr;
-		UnhandledExtensionsStr << "Unhandled extensions(x" << UnhandledExtensions.GetSize() << ") ";
-		for ( int i=0;	i<UnhandledExtensions.GetSize();	i++ )
-			UnhandledExtensionsStr << UnhandledExtensions[i] << " ";
-		std::Debug << UnhandledExtensionsStr.str() << std::endl;
-
+		if ( DebugSupport )
+		{
+			std::stringstream UnhandledExtensionsStr;
+			UnhandledExtensionsStr << "Unhandled extensions(x" << UnhandledExtensions.GetSize() << ") ";
+			for ( int i=0;	i<UnhandledExtensions.GetSize();	i++ )
+				UnhandledExtensionsStr << UnhandledExtensions[i] << " ";
+			std::Debug << UnhandledExtensionsStr.str() << std::endl;
+		}
+		
 		//	check explicitly supported extensions
 		auto& Impl = Opengl::ImplicitExtensions;
 		for ( auto it=Impl.begin();	it!=Impl.end();	it++ )
@@ -578,7 +583,8 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 			if ( pContext->mVersion < Version )
 				continue;
 			
-			std::Debug << "Implicitly supporting " << Extension << " (>= version " << Version << ")" << std::endl;
+			if ( DebugSupport )
+				std::Debug << "Implicitly supporting " << Extension << " (>= version " << Version << ")" << std::endl;
 			SupportedExtensions[Extension] = true;
 		}
 		
