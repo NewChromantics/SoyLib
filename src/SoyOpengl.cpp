@@ -2615,8 +2615,11 @@ Opengl::TSync::TSync(bool Create) :
 	if ( Create )
 #if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	{
-		mSyncObject = Opengl::FenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
-		Opengl::IsOkay("glFenceSync");
+		if ( Opengl::FenceSync )
+		{
+			mSyncObject = Opengl::FenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+			Opengl::IsOkay("glFenceSync");
+		}
 	}
 #else
 	{
