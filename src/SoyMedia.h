@@ -563,7 +563,7 @@ public:
 	//	todo: options here so we can get the next packet we need
 	//		where we skip over all frames until the prev-to-Time keyframe
 	//std::shared_ptr<TMediaPacket>	PopPacket(SoyTime Time);
-	std::shared_ptr<TMediaPacket>	PopPacket();
+	std::shared_ptr<TMediaPacket>	PopPacket(bool LatestOnly);
 	void							UnPopPacket(std::shared_ptr<TMediaPacket> Packet);		//	gr: force a packet back into the buffer at the start; todo; enforce a decoder timestamp and just use push(but with a forced re-insertion)
 	void							PushPacket(std::shared_ptr<TMediaPacket> Packet,std::function<bool()> Block);
 	bool							HasPackets() const		{	return !mPackets.IsEmpty();	}
