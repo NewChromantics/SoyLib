@@ -1025,6 +1025,37 @@ bool ConvertFormat_GreyscaleToRgb(ArrayInterface<uint8>& PixelsArray,SoyPixelsMe
 	return true;
 }
 
+void ConvertFormat_TwoChannelToFour(ArrayInterface<uint8>& PixelsArray,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+{
+	auto& TwoMeta = Meta;
+	auto w = TwoMeta.GetWidth();
+	auto h = TwoMeta.GetHeight();
+	SoyPixelsMeta FourMeta( w, h, NewFormat );
+	auto PixelCount = size_cast<int>(w*h);
+	auto TwoStride = TwoMeta.GetPixelDataSize();
+	auto FourStride = FourMeta.GetPixelDataSize();
+	PixelsArray.SetSize( FourMeta.GetDataSize() );
+	
+	if ( TwoStride != 2 )
+		throw Soy::AssertException("ConvertFormat_TwoChannelToFour: Expected source stride of 2 bytes");
+	if ( FourStride != 4 )
+		throw Soy::AssertException("ConvertFormat_TwoChannelToFour: Expected destination stride of 4 bytes");
+	
+	auto* Pixels = PixelsArray.GetArray();
+	
+	//	fill backwards and we won't overwrite anything
+	for ( int p=PixelCount-1;	p>=0;	p-- )
+	{
+		uint8_t* OldPos = &Pixels[p*TwoStride];
+		uint8_t* NewPos = &Pixels[p*FourStride];
+		NewPos[0] = OldPos[0];
+		NewPos[1] = OldPos[1];
+		NewPos[2] = 0;
+		NewPos[3] = 255;
+	}
+	
+	Meta = FourMeta;
+}
 
 void ConvertFormat_GreyscaleToRgba(ArrayInterface<uint8>& PixelsArray,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
@@ -1218,6 +1249,7 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::RGBA, ConvertFormat_RgbToRgba ),
 	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::RGB, ConvertFormat_GreyscaleToRgb ),
 	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::RGBA, ConvertFormat_GreyscaleToRgba ),
+	TConvertFunc( SoyPixelsFormat::ChromaUV_88, SoyPixelsFormat::RGBA, ConvertFormat_TwoChannelToFour ),
 };
 
 
