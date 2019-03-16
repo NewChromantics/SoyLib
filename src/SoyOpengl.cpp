@@ -991,7 +991,12 @@ void Opengl::TPbo::ReadPixels(GLenum PixelType)
 	
 	Bind();
 
-	glReadPixels( x, y, size_cast<GLsizei>(mMeta.GetWidth()), size_cast<GLsizei>(mMeta.GetHeight()), FboFormats[ChannelCount], PixelType, nullptr );
+	auto ColourFormat = FboFormats[ChannelCount];
+	auto ReadFormat = PixelType;
+	
+	auto w = size_cast<GLsizei>(mMeta.GetWidth());
+	auto h = size_cast<GLsizei>(mMeta.GetHeight());
+	glReadPixels( x, y, w, h, ColourFormat, ReadFormat, nullptr );
 	Opengl_IsOkay();
 	
 	Unbind();
@@ -1085,7 +1090,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 
 	
 	//	try to use PBO's
-	static bool Default_UsePbo = false;
+	static bool Default_UsePbo = true;
 	static bool Default_UseFbo = true;
 
 	bool UsePbo = Default_UsePbo;
@@ -1095,7 +1100,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 	{
 		TFbo FrameBuffer( *this );
 		FrameBuffer.Bind();
-		TPbo PixelBuffer( mMeta );
+		TPbo PixelBuffer( Pixels.GetMeta() );
 		PixelBuffer.ReadPixels();
 		auto* pData = PixelBuffer.LockBuffer();
 		auto DataSize = std::min( PixelBuffer.GetDataSize(), Pixels.GetPixelsArray().GetDataSize() );
@@ -1198,7 +1203,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 
 		static bool UseImplReadFormat = false;
 		if ( UseImplReadFormat && implReadFormat != 0 )
-			ColourFormat =implReadFormat;
+			ColourFormat = implReadFormat;
 		
 		static bool UseImplReadType = false;
 		if ( UseImplReadType && implReadType != 0 )
