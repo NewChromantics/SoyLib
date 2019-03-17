@@ -27,15 +27,22 @@ namespace SoyCursor
 	};
 }
 
-namespace Soy
+namespace Platform
 {
-	namespace Platform
-	{
-		void	PushCursor(SoyCursor::Type Cursor);
-		void	PopCursor();
-	}
+	void	PushCursor(SoyCursor::Type Cursor);
+	void	PopCursor();
+	
+	class TScreenMeta;
+	void	EnumScreens(std::function<void(TScreenMeta&)> EnumScreen);
 }
 
+
+class Platform::TScreenMeta
+{
+public:
+	std::string			mName;	//	unique identifier
+	Soy::Rectx<int32_t>	mRect;	//	position relative to "main screen"
+};
 
 
 class SoyWindow
@@ -51,4 +58,5 @@ public:
 	virtual Soy::Rectx<int32_t>		GetScreenRect()=0;		//	get pixel size on screen
 
 };
+
 
