@@ -565,25 +565,42 @@ void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 
 std::string Soy::StringPopUntil(std::string& Haystack,std::function<bool(char)> IsDelim,bool KeepDelim,bool PopDelim)
 {
-	std::stringstream Pop;
-	
-	while ( !Haystack.empty() )
+	//	search for delin
+	auto DelimPos = -1;
+	for ( auto i=0;	i<Haystack.size();	i++ )
 	{
-		if ( IsDelim(Haystack[0]) )
-		{
-			if ( PopDelim )
-				Pop << Haystack[0];
-			else if ( !KeepDelim )
-				Haystack.erase( Haystack.begin() );
-			break;
-		}
-		
-		Pop << Haystack[0];
-		
-		Haystack.erase( Haystack.begin() );
+		//	this is probably a bit of a bottleneck, provide something that can get inlined
+		if ( !IsDelim(Haystack[i] ) )
+			continue;
+		DelimPos = i;
+		break;
 	}
 	
-	return Pop.str();
+	if ( DelimPos == -1 )
+	{
+		auto Copy = Haystack;
+		Haystack.clear();
+		return Copy;
+	}
+	
+	if ( PopDelim )
+	{
+		auto Popped = Haystack.substr( 0, DelimPos+1 );
+		Haystack.erase( 0, DelimPos+1 );
+		return Popped;
+	}
+	else if ( !KeepDelim )
+	{
+		auto Popped = Haystack.substr( 0, DelimPos );
+		Haystack.erase( 0, DelimPos+1 );
+		return Popped;
+	}
+	else //	leave delim in haystack
+	{
+		auto Popped = Haystack.substr( 0, DelimPos );
+		Haystack.erase( 0, DelimPos );
+		return Popped;
+	}
 }
 
 std::string Soy::StringPopRight(std::string& Haystack,std::function<bool(char)> IsDelim,bool KeepDelim,bool PopDelim)
