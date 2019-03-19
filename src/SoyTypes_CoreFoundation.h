@@ -8,6 +8,9 @@
 
 #include <stdint.h>
 
+//	for NSArray_ForEach; move that to another header if this inclusion is a problem
+#include <functional>
+
 #define TARGET_POSIX
 
 #if defined(TARGET_IOS)
@@ -29,6 +32,22 @@
 
 //	unused variable
 #define __unused	__attribute__((unused))
+
+
+namespace Platform
+{
+#if defined(__OBJC__)
+	//	iterate through an nsarray of a distinct type
+	//	NSArray_ForEach<NSString*>(...)
+	template<typename NSTYPE>
+	void NSArray_ForEach(NSArray<NSTYPE>* Array,std::function<void(NSTYPE)> Enum);
+#endif
+}
+
+
+
+
+
 
 //	smart pointer for core foundation instances
 //	gr: note, TYPE for CF types is already a pointer, hence no *'s on types
@@ -183,4 +202,17 @@ public:
 };
 
 
+
+#if defined(__OBJC__)
+template<typename NSTYPE>
+inline void Platform::NSArray_ForEach(NSArray<NSTYPE>* Array,std::function<void(NSTYPE)> Enum)
+{
+	auto Size = [Array count];
+	for ( auto i=0;	i<Size;	i++ )
+	{
+		auto Element = [Array objectAtIndex:i];
+		Enum( Element );
+	}
+}
+#endif
 

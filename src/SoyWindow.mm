@@ -25,17 +25,6 @@ void Platform::PopCursor()
 }
 
 
-template<typename NSTYPE>
-void NSArray_ForEach(NSArray<NSTYPE>* Array,std::function<void(NSTYPE)> Enum)
-{
-	auto Size = [Array count];
-	for ( auto i=0;	i<Size;	i++ )
-	{
-		auto Element = [Array objectAtIndex:i];
-		Enum( Element );
-	}
-}
-
 void Platform::EnumScreens(std::function<void(TScreenMeta&)> EnumScreen)
 {
 	auto* Screens = [NSScreen screens];
@@ -62,5 +51,5 @@ void Platform::EnumScreens(std::function<void(TScreenMeta&)> EnumScreen)
 		
 		EnumScreen( ScreenMeta );
 	};
-	NSArray_ForEach<NSScreen*>( Screens, OnNsScreen );
+	Platform::NSArray_ForEach<NSScreen*>( Screens, OnNsScreen );
 }
