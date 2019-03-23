@@ -2143,7 +2143,7 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,bool Bool)
 {
 	auto UniformIndex = size_cast<GLint>( Uniform.mIndex );
-	auto BoolValue = size_cast<GLint>(Bool);
+	auto BoolValue = static_cast<GLint>(Bool);
 	
 	glProgramUniform1i( mProgram.mName, UniformIndex, BoolValue );
 	Opengl::IsOkay("SetUniform(bool)");

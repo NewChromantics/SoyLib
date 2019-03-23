@@ -198,10 +198,19 @@ bool SoySockAddr::operator==(const SoySockAddr& That) const
 	auto& ThisAddr = mAddr;
 	auto& ThatAddr = That.mAddr;
 	
-	if ( ThisAddr.ss_len != ThatAddr.ss_len )
+#if defined(TARGET_WINDOWS)
+	Soy::AssertException("Test this!");
+	//	gr: need to check this
+	auto ThisLength = this->GetSockAddrLength();
+	auto ThatLength = That.GetSockAddrLength();
+#else
+	auto ThisLength = ThisAddr.ss_len;
+	auto ThatLength = ThatAddr.ss_len;
+#endif	
+	if ( ThisLength != ThatLength )
 		return false;
-	
-	auto Compare = memcmp( &ThisAddr, &ThatAddr, ThisAddr.ss_len);
+
+	auto Compare = memcmp( &ThisAddr, &ThatAddr, ThisLength );
 	return Compare == 0;
 }
 
@@ -268,9 +277,9 @@ void Soy::Winsock::Init()
 	auto Error = WSAStartup(wVersionRequested, &wsaData);
 	if ( Error != 0 )
 	{
-		std::StringStream Error;
+		std::stringstream Error;
 		Error << "Failed to initialise Winsock. " << ::Platform::GetLastErrorString();
-		throw Soy::AssertException(Error.str())
+		throw Soy::AssertException(Error.str());
 	}
 #endif
 }
@@ -916,6 +925,10 @@ void SoySocket::GetSocketAddresses(std::function<void(std::string& Name,SoySockA
 	
 	auto FamilyFilter = this->mSocketAddr.mAddr.ss_family;
 
+#if defined(TARGET_WINDOWS)
+	//GetAdaptersAddresses();
+	throw Soy::AssertException("Todo: GetAdaptersAddresses()");
+#else
 	struct ifaddrs* Interfaces = nullptr;
 	auto Success = getifaddrs( &Interfaces );
 	if ( Success != 0 )
@@ -958,6 +971,7 @@ void SoySocket::GetSocketAddresses(std::function<void(std::string& Name,SoySockA
 	}
 
 	freeifaddrs(Interfaces);
+#endif
 }
 
 bool SoySocketConnection::Recieve(ArrayBridge<char>&& Buffer)
