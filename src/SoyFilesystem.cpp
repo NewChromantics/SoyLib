@@ -439,19 +439,22 @@ void Platform::CreateDirectory(const std::string& Path)
 
 
 #if defined(TARGET_WINDOWS)
-bool Platform::ShowFileExplorer(const std::string& Path)
+void Platform::ShowFileExplorer(const std::string& Path)
 {
 #if defined(HOLOLENS_SUPPORT)
-	return false;
+	//	unsupported
 #else
 	auto PathList = ILCreateFromPath( Path.c_str() );
 	if ( !PathList )
-		return false;
+	{
+		std::stringstream Error;
+		Error << "ILCreateFromPath(" << Path << ") failed, may not exist";
+		throw Soy::AssertException(Error.str());
+	}
 
 	auto Result = SHOpenFolderAndSelectItems( PathList, 0, 0, 0 );
-	bool ReturnResult = Platform::IsOkay( Result, "SHOpenFolderAndSelectItems", false );
 	ILFree( PathList );
-	return ReturnResult;
+	Platform::IsOkay( Result, "SHOpenFolderAndSelectItems");
 #endif
 }
 #endif
@@ -673,7 +676,7 @@ void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename
 
 void Soy::StringToFile(std::string Filename,std::string String,bool Append)
 {
-	auto Flags = std::ios::out;
+	auto Flags = Append ? (std::ios::app|std::ios::out) :  std::ios::out;
 	if ( Append )
 		Flags |= std::ios::app;
 	
