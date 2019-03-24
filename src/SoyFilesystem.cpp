@@ -745,4 +745,16 @@ void Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& Strin
 	Soy::SplitStringLines( StringLines, FileContents );
 }
 
+#if defined(TARGET_WINDOWS)
+std::string Platform::GetAppResourcesDirectory()
+{
+	return ExePath;
+}
+#endif
 
+#if defined(TARGET_WINDOWS)
+std::string Platform::GetComputerName()
+{
+	throw Soy::AssertException("Todo: GetComputerName()");
+}
+#endif

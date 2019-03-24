@@ -53,9 +53,8 @@ namespace Platform
 
 	
 	//	gr: this is the resources dir inside .app on osx
-#if defined(TARGET_OSX)
+	//	on windows it's just exe path
 	std::string	GetAppResourcesDirectory();
-#endif
 
 	void		ShowFileExplorer(const std::string& Path);
 	void		ShellExecute(const std::string& Path);
