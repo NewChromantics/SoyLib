@@ -3,7 +3,7 @@
 #include "SoyDebug.h"
 #include <string>
 #include "SoyString.h"
-#include "smallsha1\sha1.h"
+#include "smallsha1/sha1.h"
 #include "SoyApp.h"
 #include "SoyEnum.h"
 #include "SoyBase64.h"
