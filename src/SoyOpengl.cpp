@@ -1033,7 +1033,7 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 	Soy::Assert( IsValid(), "Trying to read from invalid texture" );
 	std::stringstream TimerName;
 	TimerName << "Opengl::TTexture::Read " << Pixels.GetMeta();
-	Soy::TScopeTimerPrint Timer( TimerName.str().c_str(), 5);
+	Soy::TScopeTimerPrint Timer( TimerName.str().c_str(), 30);
 	CheckIsBound();
 	
 	if ( !Pixels.IsValid() )
