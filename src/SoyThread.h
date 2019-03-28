@@ -14,6 +14,15 @@ namespace Soy
 	class Mutex_Profiled;
 }
 
+namespace Platform
+{
+	//	gr: this is in the platform namespace as we should use some
+	//	platform specific runloops, deffered executors etc than the default stl::async call
+	//	or our own timer pool or something
+	void	ExecuteDelayed(std::chrono::milliseconds Delay,std::function<void()> Lambda);
+	void	ExecuteDelayed(std::chrono::high_resolution_clock::time_point FutureTime,std::function<void()> Lambda);
+}
+
 //	gr: big flaw with this class... if you create, then wait. It'll never complete. Need an "assigned" flag
 class Soy::TSemaphore
 {

@@ -1,5 +1,6 @@
 #include "SoyThread.h"
 #include "SoyDebug.h"
+#include <future>
 
 #if defined(PLATFORM_OSX)
 #include <pthread.h>
@@ -701,5 +702,31 @@ prmem::Heap& SoyThread::GetHeap(std::thread::native_handle_type Thread)
 	std::shared_ptr<prmem::Heap> NewHeap( new prmem::Heap( true, true, HeapName.str().c_str() ) );
 	Heaps[Thread] = NewHeap;
 	return *NewHeap;
+}
+
+
+void Platform::ExecuteDelayed(std::chrono::milliseconds Delay,std::function<void()> Lambda)
+{
+	auto Thread = [=]()
+	{
+		std::this_thread::sleep_for( Delay );
+		Lambda();
+	};
+	
+	// Use async to launch a function (lambda) in parallel
+	std::async( std::launch::async, Thread );
+}
+
+
+void Platform::ExecuteDelayed(std::chrono::high_resolution_clock::time_point FutureTime,std::function<void()> Lambda)
+{
+	auto Thread = [=]()
+	{
+		std::this_thread::sleep_until( FutureTime );
+		Lambda();
+	};
+	
+	// Use async to launch a function (lambda) in parallel
+	std::async( std::launch::async, Thread );
 }
 
