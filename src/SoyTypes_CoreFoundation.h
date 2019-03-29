@@ -56,6 +56,8 @@ template<typename TYPE>
 class CFPtr : public NonCopyable
 {
 public:
+	//	DoRetain is really only for when a function call auto retains for you
+	//	we assume the contents of CFPtr are retained generally, otherwise we're holding an unsafe pointer
 	explicit CFPtr(TYPE Object,bool DoRetain) :
 	mObject	( nullptr )
 	{
@@ -70,14 +72,14 @@ public:
 		}
 	}
 	CFPtr() :
-	mObject	( nullptr )
+		mObject	( nullptr )
 	{
 	}
-	//template<typename THAT>
-	explicit CFPtr(const CFPtr<TYPE>& That) :
-	CFPtr	( nullptr )
+	
+	CFPtr(const CFPtr& That) :
+		mObject	( nullptr )
 	{
-		Retain( static_cast<TYPE>(That.mObject) );
+		Retain( That.mObject );
 	}
 	
 	~CFPtr()
@@ -110,15 +112,12 @@ public:
 			CFRelease(mObject);
 		mObject = nullptr;
 	}
-	
-	/*
-	 template<typename THAT>
-	 ObjcPtr&	operator=(const ObjcPtr<THAT>& That)
-	 {
-		Retain( static_cast<THAT*>(That.mObject) );
+
+	CFPtr&	operator=(const CFPtr& That)
+	{
+		Retain( That.mObject );
 		return *this;
-	 }
-	 */
+	}
 	
 	int			GetRetainCount() const
 	{
