@@ -17,6 +17,12 @@ namespace SoyMouseButton
 	};
 }
 
+//	we'll make this more sophisticated later
+namespace SoyKeyButton
+{
+	typedef char Type;
+}
+
 namespace SoyCursor
 {
 	enum Type
@@ -52,6 +58,8 @@ public:
 	std::function<void(const TMousePos&,SoyMouseButton::Type)>	mOnMouseDown;
 	std::function<void(const TMousePos&,SoyMouseButton::Type)>	mOnMouseMove;
 	std::function<void(const TMousePos&,SoyMouseButton::Type)>	mOnMouseUp;
+	std::function<void(SoyKeyButton::Type)>	mOnKeyDown;
+	std::function<void(SoyKeyButton::Type)>	mOnKeyUp;
 	std::function<bool(ArrayBridge<std::string>&)>	mOnTryDragDrop;
 	std::function<void(ArrayBridge<std::string>&)>	mOnDragDrop;
 	
