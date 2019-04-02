@@ -64,7 +64,7 @@ public:
 	std::function<void(ArrayBridge<std::string>&)>	mOnDragDrop;
 	
 	virtual Soy::Rectx<int32_t>		GetScreenRect()=0;		//	get pixel size on screen
-
+	virtual void					ToggleFullscreen()=0;
 };
 
 
