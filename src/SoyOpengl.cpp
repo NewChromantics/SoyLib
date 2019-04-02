@@ -1564,7 +1564,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 		
 		auto Width = std::min( TextureWidth, size_cast<GLsizei>(FinalPixels.GetWidth()) );
 		auto Height = std::min( TextureHeight, size_cast<GLsizei>(FinalPixels.GetHeight()) );
-		
+
 		const ArrayInterface<uint8>& PixelsArray = FinalPixels.GetPixelsArray();
 		auto* PixelsArrayData = PixelsArray.GetArray();
 		
@@ -2454,11 +2454,11 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth10bit,	Opengl16BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth11bit,	Opengl16BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::FreenectDepthmm,		Opengl16BitFormats ),
-/*
+
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Full,		Opengl16BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Ntsc,		Opengl16BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Smptec,	Opengl16BitFormats ),
-*/		
+		
 		
 #if defined(GL_BGRA)
 		//	BGRA is not a valid internal format
