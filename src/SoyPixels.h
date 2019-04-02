@@ -65,6 +65,9 @@ namespace SoyPixelsFormat
 		
 		//	https://stackoverflow.com/a/22793325/355753
 		//	4:2:2, apple call this yuvs
+		//	watch out for 2uvy where luma and chroma are backwards to normal!
+		//	these are vertically interlaced. need to fix this in the plane splitting code
+		Uvy_844_Full,
 		Yuv_844_Full,
 		Yuv_844_Ntsc,
 		Yuv_844_Smptec,

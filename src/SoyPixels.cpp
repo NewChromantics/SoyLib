@@ -107,6 +107,9 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetYuvFull(SoyPixelsFormat::Type Format)
 		case Yuv_844_Smptec:
 			return Yuv_844_Full;
 
+		case Uvy_844_Full:
+			return Uvy_844_Full;
+			
 		default:
 			break;
 	}
@@ -383,6 +386,7 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case ChromaV_8:		return 1;
 
 	//	yuv 844 is interlaced luma & chroma, so kinda have 2 channels (helps with a lot of things when it aligns even though we have technically 3 channels)
+	case Uvy_844_Full:
 	case Yuv_844_Full:
 	case Yuv_844_Ntsc:
 	case Yuv_844_Smptec:
@@ -436,6 +440,7 @@ bool SoyPixelsFormat::IsFloatChannel(SoyPixelsFormat::Type Format)
 		case ChromaUV_44:
 		case ChromaU_8:
 		case ChromaV_8:
+		case Uvy_844_Full:
 		case Yuv_844_Full:
 		case Yuv_844_Ntsc:
 		case Yuv_844_Smptec:
@@ -628,6 +633,7 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::YYuv_8888_Full,		"YYuv_8888_Full"	},
 	{ SoyPixelsFormat::YYuv_8888_Ntsc,		"YYuv_8888_Ntsc"	},
 	{ SoyPixelsFormat::YYuv_8888_Smptec,	"YYuv_8888_Smptec"	},
+	{ SoyPixelsFormat::Uvy_844_Full,		"Uvy_844_Full"	},
 	{ SoyPixelsFormat::Yuv_844_Full,		"Yuv_844_Full"	},
 	{ SoyPixelsFormat::Yuv_844_Ntsc,		"Yuv_844_Ntsc"	},
 	{ SoyPixelsFormat::Yuv_844_Smptec,		"Yuv_844_Smptec"	},
@@ -2166,6 +2172,12 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 		case SoyPixelsFormat::ChromaUV_8_8:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaU_8 ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaV_8 ) );
+			break;
+
+		//	need to handle these horizontally interlaced formats better
+		case SoyPixelsFormat::Uvy_844_Full:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
 			break;
 
 		case SoyPixelsFormat::Yuv_844_Full:
