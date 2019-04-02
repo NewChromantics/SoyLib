@@ -977,11 +977,11 @@ static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,	SoyPixelsFormat::Yuv_8_88_Full ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,	SoyPixelsFormat::Yuv_8_88_Ntsc ),
-/*
+
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Yuv_844_Full ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::Yuv_844_Full ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::Yuv_844_Ntsc ),
-*/
+
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8Planar,	SoyPixelsFormat::YYuv_8888_Ntsc ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8PlanarFullRange,	SoyPixelsFormat::YYuv_8888_Full ),
 	
@@ -1051,7 +1051,8 @@ SoyPixelsFormat::Type Avf::GetPixelFormat(OSType Format)
 	
 	if ( !Meta )
 	{
-		std::Debug << "Unknown Avf CV pixel format " << Format << std::endl;
+		std::Debug << "Unknown Avf CV pixel format (" << Soy::FourCCToString(Format) << " 0x" << std::hex << Format << std::endl;
+		
 		return SoyPixelsFormat::Invalid;
 	}
 	return Meta->mSoyFormat;
