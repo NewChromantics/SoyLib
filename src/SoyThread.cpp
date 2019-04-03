@@ -112,31 +112,53 @@ PopWorker::TJobQueue::~TJobQueue()
 	}
 }
 
+std::shared_ptr<PopWorker::TJob> PopWorker::TJobQueue::PopNextJob(TContext& Context)
+{
+	std::lock_guard<std::recursive_mutex> Lock(mJobLock);
 
+	//	find next ready job
+	for ( auto i=0;	i<mJobs.size();	i++ )
+	{
+		auto pJob = mJobs[i];
+
+		//	unexpected null job
+		if ( !pJob )
+		{
+			std::Debug << "Found null job in queue" << std::endl;
+			auto it = mJobs.begin()+i;
+			mJobs.erase( it );
+			return nullptr;
+		}
+		
+		//	not ready, skip
+		if ( !pJob->IsReady() )
+			continue;
+		
+		//	send this back
+		auto it = mJobs.begin()+i;
+		mJobs.erase( it );
+		return pJob;
+	}
+	
+	//	nothing in queue ready to go
+	return nullptr;
+}
 
 void PopWorker::TJobQueue::Flush(TContext& Context)
 {
 	bool FlushError = true;
 	
-	ofScopeTimerWarning LockTimer("Waiting for job lock",5,false);
+	//ofScopeTimerWarning LockTimer("Waiting for job lock",5,false);
 	while ( true )
 	{
-		LockTimer.Start(true);
-		//	pop task
-		mJobLock.lock();
-		std::shared_ptr<TJob> Job;
-		auto NextJob = mJobs.begin();
-		if ( NextJob != mJobs.end() )
-		{
-			Job = *NextJob;
-			mJobs.erase( NextJob );
-		}
-		//bool MoreJobs = !mJobs.empty();
-		mJobLock.unlock();
-		LockTimer.Stop(false);
+		//LockTimer.Start(true);
+		auto Job = PopNextJob(Context);
+		/*LockTimer.Stop(false);
 		if ( LockTimer.Report() )
+		{
 			std::Debug << "Job queue has " << mJobs.size() << std::endl;
-		
+		}
+		*/
 		if ( !Job )
 			break;
 		
@@ -148,6 +170,7 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 		catch(std::exception& e)
 		{
 			std::Debug << "Failed to lock context, putting job back in the queue; " << e.what() << std::endl;
+			//	gr: maybe have an unpop
 			mJobLock.lock();
 			mJobs.insert( mJobs.begin(), Job );
 			mJobLock.unlock();

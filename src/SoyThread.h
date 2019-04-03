@@ -79,6 +79,7 @@ public:
 	}
 
 	virtual void			Run()=0;		//	throws on error, otherwise assuming success
+	virtual bool			IsReady()		{	return true;	}	//	allow defer of a job
 	
 	Soy::TSemaphore*		mSemaphore;
 	bool					mCatchExceptions;
@@ -133,7 +134,8 @@ public:
 	
 protected:
 	virtual void	PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore);
-	
+	std::shared_ptr<TJob>	PopNextJob(TContext& Context);
+
 private:
 	void			RunJob(std::shared_ptr<TJob>& Job);
 
