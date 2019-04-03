@@ -33,6 +33,10 @@ public:
 		mError	( Message )
 	{
 	}
+	AssertException(const char* Message) :
+		mErrorConst	( Message )
+	{
+	}
 #if defined(__OBJC__)
 	AssertException(NSException* e) :
 		mError	( Soy::NSErrorToString(e) )
@@ -46,9 +50,10 @@ public:
 	}
 #endif
 	
-	virtual const char* what() const __noexcept	{	return mError.c_str();	}
+	virtual const char* what() const __noexcept	{	return mErrorConst ? mErrorConst : mError.c_str();	}
 
 public:
+	const char*			mErrorConst = nullptr;
 	std::string			mError;
 };
 
