@@ -548,7 +548,9 @@ bool Soy::StringTrimRight(std::string& String,char TrimChar)
 
 void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 {
-	Soy::Assert( Buffer!=nullptr, "Soy::StringToBuffer Buffer expected" );
+	//Soy::Assert( Buffer!=nullptr, "Soy::StringToBuffer Buffer expected" );
+	if ( Buffer == nullptr )
+		throw Soy::AssertException("Soy::StringToBuffer Buffer expected");
 	if ( BufferSize == 0 )
 		return;
 	
@@ -559,7 +561,7 @@ void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 			break;
 		Buffer[Len] = Source[Len];
 	}
-	Soy::Assert( Len < BufferSize, "StringToBuffer Len OOB");
+	//Soy::Assert( Len < BufferSize, "StringToBuffer Len OOB");
 	Buffer[std::min<ssize_t>(Len,BufferSize-1)] = '\0';
 }
 
