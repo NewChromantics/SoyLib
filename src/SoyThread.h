@@ -79,7 +79,7 @@ public:
 	}
 
 	virtual void			Run()=0;		//	throws on error, otherwise assuming success
-	virtual bool			IsReady()		{	return true;	}	//	allow defer of a job
+	virtual size_t			GetRunDelay()	{	return 0;	}	//	allow defer of a job
 	
 	Soy::TSemaphore*		mSemaphore;
 	bool					mCatchExceptions;
@@ -121,7 +121,9 @@ public:
 	virtual bool	IsLocked(std::thread::id Thread)		{	return false;	}	//	is this THREAD exclusively locked
 	bool			IsLockedToAnyThread()					{	return IsLocked( std::thread::id() );	}
 
-	void			Flush(TContext& Context);
+	void			Flush(TContext& Context)				{	Flush(Context,[](std::chrono::milliseconds){} );	}
+	void			Flush(TContext& Context,std::function<void(std::chrono::milliseconds)> Sleep);
+	
 	size_t			GetJobCount() const						{	return mJobs.size();	}
 	bool			HasJobs() const							{	return !mJobs.empty();	}
 	void			PushJob(std::function<void()> Lambda);
@@ -134,7 +136,7 @@ public:
 	
 protected:
 	virtual void	PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore);
-	std::shared_ptr<TJob>	PopNextJob(TContext& Context);
+	std::shared_ptr<TJob>	PopNextJob(TContext& Context,size_t& BiggestDelayMs);
 
 private:
 	void			RunJob(std::shared_ptr<TJob>& Job);
@@ -314,7 +316,11 @@ public:
 	bool				IsWorking() const	{	return mWorking;	}
 	
 	virtual bool		Iteration()=0;	//	return false to stop thread
-
+	virtual bool		Iteration(std::function<void(std::chrono::milliseconds)> Sleep)
+	{
+		return Iteration();
+	}
+	
 	virtual void		Wake();
 	template<typename TYPE>
 	SoyListenerId		WakeOnEvent(SoyEvent<TYPE>& Event)
@@ -418,7 +424,8 @@ public:
 	}
 	
 	//	thread
-	virtual bool		Iteration() override	{	PopWorker::TJobQueue::Flush(*this);	return true;	}
+	virtual bool		Iteration() override;
+	virtual bool		Iteration(std::function<void(std::chrono::milliseconds)> Sleep) override;
 	virtual bool		CanSleep() override		{	return !PopWorker::TJobQueue::HasJobs();	}	//	break out of conditional with this
 	
 	//	context

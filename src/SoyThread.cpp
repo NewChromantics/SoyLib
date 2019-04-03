@@ -112,7 +112,7 @@ PopWorker::TJobQueue::~TJobQueue()
 	}
 }
 
-std::shared_ptr<PopWorker::TJob> PopWorker::TJobQueue::PopNextJob(TContext& Context)
+std::shared_ptr<PopWorker::TJob> PopWorker::TJobQueue::PopNextJob(TContext& Context,size_t& BiggestDelay)
 {
 	std::lock_guard<std::recursive_mutex> Lock(mJobLock);
 
@@ -131,8 +131,12 @@ std::shared_ptr<PopWorker::TJob> PopWorker::TJobQueue::PopNextJob(TContext& Cont
 		}
 		
 		//	not ready, skip
-		if ( !pJob->IsReady() )
+		auto DelayMs = pJob->GetRunDelay();
+		if ( DelayMs > 0 )
+		{
+			BiggestDelay = std::max( BiggestDelay, DelayMs );
 			continue;
+		}
 		
 		//	send this back
 		auto it = mJobs.begin()+i;
@@ -144,15 +148,17 @@ std::shared_ptr<PopWorker::TJob> PopWorker::TJobQueue::PopNextJob(TContext& Cont
 	return nullptr;
 }
 
-void PopWorker::TJobQueue::Flush(TContext& Context)
+void PopWorker::TJobQueue::Flush(TContext& Context,std::function<void(std::chrono::milliseconds)> Sleep)
 {
 	bool FlushError = true;
+	
+	size_t BiggestDelayMs = 0;
 	
 	//ofScopeTimerWarning LockTimer("Waiting for job lock",5,false);
 	while ( true )
 	{
 		//LockTimer.Start(true);
-		auto Job = PopNextJob(Context);
+		auto Job = PopNextJob(Context,BiggestDelayMs);
 		/*LockTimer.Stop(false);
 		if ( LockTimer.Report() )
 		{
@@ -186,6 +192,12 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 		
 		RunJob( Job );
 		Context.Unlock();
+	}
+	
+	if ( BiggestDelayMs > 0 )
+	{
+		BiggestDelayMs /= 2;
+		Sleep( std::chrono::milliseconds(BiggestDelayMs) );
 	}
 }
 
@@ -621,7 +633,9 @@ void SoyWorker::Loop()
 	//	first call
 	if ( mOnStart )
 		mOnStart();
+
 	auto SleepDuration = GetSleepDuration();
+	auto RuntimeSleep = 0;
 
 	while ( IsWorking() )
 	{
@@ -649,7 +663,12 @@ void SoyWorker::Loop()
 		Java::FlushThreadLocals();
 #endif
 		
-		if ( !Iteration() )
+		auto RuntimeSleep = [&](std::chrono::milliseconds Ms)
+		{
+			mWaitConditional.wait_for( Lock, Ms );
+		};
+		
+		if ( !Iteration( RuntimeSleep ) )
 			break;
 	}
 	
@@ -753,3 +772,15 @@ void Platform::ExecuteDelayed(std::chrono::high_resolution_clock::time_point Fut
 	std::async( std::launch::async, Thread );
 }
 
+
+
+bool SoyWorkerJobThread::Iteration()
+{
+	throw Soy::AssertException("Should be calling iteration with sleep");
+}
+
+bool SoyWorkerJobThread::Iteration(std::function<void(std::chrono::milliseconds)> Sleep)
+{
+	PopWorker::TJobQueue::Flush( *this, Sleep );
+	return true;
+}
