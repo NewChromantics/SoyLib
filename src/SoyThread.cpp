@@ -635,7 +635,6 @@ void SoyWorker::Loop()
 		mOnStart();
 
 	auto SleepDuration = GetSleepDuration();
-	auto RuntimeSleep = 0;
 
 	while ( IsWorking() )
 	{
