@@ -133,7 +133,7 @@ namespace Soy
 {
 	//	speed up large array usage with non-complex types (structs, floats, etc) by overriding this template function (or use the macro)
 	template<typename TYPE>
-	inline bool IsComplexType()	
+	inline constexpr bool IsComplexType()	
 	{
 		//	default complex for classes
 		return true;	
@@ -141,7 +141,7 @@ namespace Soy
 
 	//	speed up allocations of large arrays of non-complex types by skipping construction& destruction (placement new, means data is always uninitialised)
 	template<typename TYPE>
-	inline bool DoConstructType()	
+	inline constexpr bool DoConstructType()
 	{
 		//	by default we want to construct classes, structs etc. 
 		//	Only types with no constructor we don't want constructed for speed reallys
@@ -149,7 +149,7 @@ namespace Soy
 	}
 
 	template<typename A,typename B>
-	inline bool DoComplexCopy()
+	inline constexpr bool DoComplexCopy()
 	{
 		if ( std::is_same<A,B>::value )
 			return IsComplexType<A>();
