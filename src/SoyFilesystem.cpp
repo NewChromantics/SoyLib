@@ -478,12 +478,21 @@ std::string	Platform::GetDllPath()
 
 bool Platform::IsFullPath(const std::string& Path)
 {
-	auto FullPath = GetFullPathFromFilename(Path);
-	
-	if ( Path != FullPath )
-		return false;
+	try
+	{
+		//	expecting this to throw if not a valid filename
+		auto FullPath = GetFullPathFromFilename(Path);
 
-	return true;
+		if ( Path != FullPath )
+			return false;
+		return true;
+	}
+	catch ( std::exception& e )
+	{
+		//	assume an OS error
+		//	gr: should make a specialised exception type here
+		return false;
+	}
 }
 
 std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
@@ -752,6 +761,7 @@ void Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& Strin
 #if defined(TARGET_WINDOWS)
 std::string Platform::GetAppResourcesDirectory()
 {
+	//	gr: this needs fixing
 	return ExePath;
 }
 #endif
