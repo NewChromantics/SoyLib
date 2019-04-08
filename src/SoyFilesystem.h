@@ -12,6 +12,11 @@
 @protocol NSURL;
 #endif
 
+//	bloody windows macros
+#if defined(TARGET_WINDOWS)
+#undef GetComputerName
+#endif
+
 
 namespace SoyPathType
 {
