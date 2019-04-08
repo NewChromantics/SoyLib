@@ -478,8 +478,12 @@ std::string	Platform::GetDllPath()
 
 bool Platform::IsFullPath(const std::string& Path)
 {
-	//	todo!
-	return false;
+	auto FullPath = GetFullPathFromFilename(Path);
+	
+	if ( Path != FullPath )
+		return false;
+
+	return true;
 }
 
 std::string	Platform::GetFullPathFromFilename(const std::string& Filename)

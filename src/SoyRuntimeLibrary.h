@@ -42,6 +42,7 @@ public:
 	
 	void		Close();
 	void*		GetSymbol(const char* Name);
+	void		AddSearchPath(const std::string& Path);	//	add a path to the OS search path to aid loading dependent libraries
 
 	//	assign & cast function ptr to a symbol
 	template<typename FUNCTYPE>

@@ -152,6 +152,10 @@ Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(vo
 	//	todo: warn that / doesn't work in paths, only \ 
 	Soy::StringReplace( Filename, "/", "\\" );
 
+	//	gr: add search directories for dependents
+	AddSearchPath(Filename);
+	AddSearchPath(::Platform::GetDllPath());
+
 	Array<std::string> SearchPaths;
 
 	if ( ::Platform::IsFullPath(Filename) )
@@ -202,6 +206,26 @@ Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(vo
 	throw Soy::AssertException("Soy::TRuntimeLibrary not implemented");
 #endif
 }
+
+void Soy::TRuntimeLibrary::AddSearchPath(const std::string& Path)
+{
+	if ( Path.length() == 0 )
+	{
+		std::Debug << "Skipped adding empty directory to DLL search path" << std::endl;
+		return;
+	}
+
+	auto Directory = ::Platform::GetDirectoryFromFilename(Path);
+	
+	//	this is called Set, but ADDS to the paths
+	if ( SetDllDirectoryA(Directory.c_str()) )
+		return;
+
+	auto PlatformError = ::Platform::GetLastErrorString();
+
+	std::Debug << "Failed to add " << Directory << " to the DLL search path, error: " << PlatformError << std::endl;
+}
+
 
 void Soy::TRuntimeLibrary::Close()
 {
