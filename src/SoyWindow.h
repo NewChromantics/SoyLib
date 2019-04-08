@@ -47,7 +47,10 @@ class Platform::TScreenMeta
 {
 public:
 	std::string			mName;	//	unique identifier
-	Soy::Rectx<int32_t>	mRect;	//	position relative to "main screen"
+	//	position relative to "main screen" 
+	//	gr^^ verify this for windows
+	Soy::Rectx<int32_t>	mFullRect;	//	whole resolution
+	Soy::Rectx<int32_t>	mWorkRect;	//	window-space-resolution (ie. no toolbars, menu bars etc)
 };
 
 
