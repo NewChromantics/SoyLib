@@ -257,6 +257,13 @@ bool Soy::StringSplitByString(std::function<bool(const std::string&)> Callback,c
 }
 
 
+bool Soy::StringSplitByString(std::function<bool(const std::string&)> Callback,const std::string& String,char Delim,bool IncludeEmpty)
+{
+	std::string DelimStr(&Delim, 1);
+	return StringSplitByString(Callback, String, DelimStr, IncludeEmpty);
+}
+
+
 void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
 {
 	auto PushBack = [&Parts](const std::string& Part,const char& Delim)
