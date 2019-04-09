@@ -95,6 +95,9 @@ Opengl::TContext::TContext()
 
 void Opengl::TContext::Init()
 {
+	//	gr: context should be bound
+	Soy::TScopeCall ScopedLock( std::bind(&TContext::Lock, this), std::bind(&TContext::Unlock, this) );
+
 	//	windows needs Glew to initialise all it's extension stuff
 //	#define glewInit() glewContextInit(glewGetContext())
 //#define glewIsSupported(x) glewContextIsSupported(glewGetContext(), x)
