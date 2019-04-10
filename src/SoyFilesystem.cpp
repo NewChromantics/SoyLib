@@ -483,7 +483,10 @@ bool Platform::IsFullPath(const std::string& Path)
 		//	expecting this to throw if not a valid filename
 		auto FullPath = GetFullPathFromFilename(Path);
 
-		if ( Path != FullPath )
+		//	gr: OSX will correct by adding / to end of the dir
+		//	lets allow if Path is matching the start, but maybe we can do something better
+		bool CaseSensitive = true;
+		if ( !Soy::StringBeginsWith( FullPath, Path, CaseSensitive ) )
 			return false;
 		return true;
 	}
@@ -495,9 +498,10 @@ bool Platform::IsFullPath(const std::string& Path)
 	}
 }
 
+#if defined(TARGET_WINDOWS)
 std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 {
-#if defined(TARGET_WINDOWS) && !defined(HOLOLENS_SUPPORT)
+#if !defined(HOLOLENS_SUPPORT)
 	char PathBuffer[MAX_PATH];
 	char* FilenameStart = nullptr;	//	pointer to inside buffer
 	auto PathBufferLength = GetFullPathNameA( Filename.c_str(), sizeof(PathBuffer), PathBuffer, &FilenameStart );
@@ -525,6 +529,7 @@ std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 	throw Soy::AssertException("GetFullPathFromFilename not implemented");
 #endif
 }
+#endif
 
 std::string	Platform::GetDirectoryFromFilename(const std::string& Filename,bool IncludeTrailingSlash)
 {
