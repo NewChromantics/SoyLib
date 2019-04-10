@@ -209,6 +209,7 @@ Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(vo
 
 void Soy::TRuntimeLibrary::AddSearchPath(const std::string& Path)
 {
+#if defined(TARGET_WINDOWS)
 	if ( Path.length() == 0 )
 	{
 		std::Debug << "Skipped adding empty directory to DLL search path" << std::endl;
@@ -222,8 +223,8 @@ void Soy::TRuntimeLibrary::AddSearchPath(const std::string& Path)
 		return;
 
 	auto PlatformError = ::Platform::GetLastErrorString();
-
 	std::Debug << "Failed to add " << Directory << " to the DLL search path, error: " << PlatformError << std::endl;
+#endif
 }
 
 

@@ -34,12 +34,17 @@ void Platform::EnumScreens(std::function<void(TScreenMeta&)> EnumScreen)
 		TScreenMeta ScreenMeta;
 		
 		//	visible is without title bar, so we return the display size
-		//NSRect RectVisible = Screen.visibleFrame;
-		NSRect Rect = Screen.frame;
-		ScreenMeta.mRect.x = Rect.origin.x;
-		ScreenMeta.mRect.y = Rect.origin.y;
-		ScreenMeta.mRect.w = Rect.size.width;
-		ScreenMeta.mRect.h = Rect.size.height;
+		NSRect VisibleRect = Screen.visibleFrame;
+		NSRect FullRect = Screen.frame;
+		ScreenMeta.mFullRect.x = FullRect.origin.x;
+		ScreenMeta.mFullRect.y = FullRect.origin.y;
+		ScreenMeta.mFullRect.w = FullRect.size.width;
+		ScreenMeta.mFullRect.h = FullRect.size.height;
+		
+		ScreenMeta.mWorkRect.x = VisibleRect.origin.x;
+		ScreenMeta.mWorkRect.y = VisibleRect.origin.y;
+		ScreenMeta.mWorkRect.w = VisibleRect.size.width;
+		ScreenMeta.mWorkRect.h = VisibleRect.size.height;
 
 		//	get unique identifier
 		//	https://stackoverflow.com/a/16164331/355753
