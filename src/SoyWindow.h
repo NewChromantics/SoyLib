@@ -68,6 +68,7 @@ public:
 	
 	virtual Soy::Rectx<int32_t>		GetScreenRect()=0;		//	get pixel size on screen
 	virtual void					SetFullscreen(bool Fullscreen)=0;
+	virtual bool					IsFullscreen()=0;
 };
 
 
