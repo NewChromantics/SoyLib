@@ -22,11 +22,18 @@ in_addr_t inet_addr(const char*)
 #include <signal.h>
 #include <ifaddrs.h>	//	getifaddrs
 
+#elif defined(TARGET_WINDOWS)
+
+#include <signal.h>
+#include <iphlpapi.h>
+#pragma comment(lib, "IPHLPAPI.lib")
+
 #else
 
 #include <signal.h>
 
 #endif
+
 
 
 #define PORT_ANY	0
@@ -83,10 +90,11 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 #endif
 
 	//	gr: on windows, accepting unity WWW connection was 16 bytes...
+	//	on windows, the address from probing addaptors is 128
 	if ( AddrLen != ExpectedLength )
 	{
 		std::stringstream err;
-		err << "sockaddr length (" << ExpectedLength << ") doesn't match specification " << AddrLen;
+		err << "sockaddr length (" << ExpectedLength << ") doesn't match incoming address " << AddrLen << " (Using smallest)";
 #if defined(TARGET_WINDOWS)
 		std::Debug << err.str() << std::endl;
 #else
@@ -101,6 +109,8 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 		throw Soy::AssertException( err.str() );
 	}
 
+	//	safety first!
+	AddrLen = std::min<socklen_t>( sizeof(mAddr), AddrLen);
 	memcpy( &mAddr, &Addr, AddrLen );
 }
 
@@ -919,24 +929,13 @@ void SoySocket::EnumConnections(std::function<void(SoyRef,SoySocketConnection)> 
 }
 
 
+
 void SoySocket::GetSocketAddresses(std::function<void(std::string& Name,SoySockAddr&)> EnumAdress) const
 {
 	//	https://stackoverflow.com/questions/4139405/how-can-i-get-to-know-the-ip-address-for-interfaces-in-c
 	
 	auto FamilyFilter = this->mSocketAddr.mAddr.ss_family;
 
-#if defined(TARGET_WINDOWS)
-	//GetAdaptersAddresses();
-	throw Soy::AssertException("Todo: GetAdaptersAddresses()");
-#else
-	struct ifaddrs* Interfaces = nullptr;
-	auto Success = getifaddrs( &Interfaces );
-	if ( Success != 0 )
-	{
-		Soy::Winsock::HasError("getifaddrs()");
-		return;
-	}
-	
 	//	override port with our port
 	auto Port = PORT_ANY;
 	try
@@ -947,6 +946,81 @@ void SoySocket::GetSocketAddresses(std::function<void(std::string& Name,SoySockA
 	{
 		std::Debug << e.what() << std::endl;
 	}
+
+#if defined(TARGET_WINDOWS)
+	//	ERROR_ADDRESS_NOT_ASSOCIATED
+	//	ERROR_BUFFER_OVERFLOW
+	//	ERROR_INVALID_PARAMETER
+	//	ERROR_NOT_ENOUGH_MEMORY
+	//	ERROR_NO_DATA
+	//	example from https://docs.microsoft.com/en-us/windows/desktop/api/iphlpapi/nf-iphlpapi-getadaptersaddresses
+#define WORKING_BUFFER_SIZE 15000
+
+	//	work out data size we need
+	ULONG BufferSize = 0;
+	auto Family = FamilyFilter;
+	ULONG Flags = GAA_FLAG_INCLUDE_PREFIX;	//	see GAA_FLAG_SKIP_UNICAST etc
+	void* Reserved = nullptr;
+	while(true)
+	{
+		Array<uint8_t> Buffer( size_cast<size_t>(BufferSize) );
+		auto* pAddresses = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(Buffer.GetArray());
+		auto Result = GetAdaptersAddresses(Family, Flags, Reserved, pAddresses, &BufferSize);
+		//	buffersize now okay
+		if ( Result == S_OK )
+			break;
+		//	try again with new size
+		if ( Result == ERROR_BUFFER_OVERFLOW )
+			continue;
+		Platform::IsOkay( static_cast<int>(Result),"GetAdaptersAddresses");
+		throw Soy::AssertException("Failed to get Adaptor addresses buffer size");
+	}
+	
+	//	now grab data and iterate
+	Array<uint8_t> AddressesBuffer( size_cast<size_t>(BufferSize) );
+	auto* pAdaptorAddresses = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(AddressesBuffer.GetArray());
+	auto Result = GetAdaptersAddresses(Family, Flags, Reserved, pAdaptorAddresses, &BufferSize);
+	Platform::IsOkay( static_cast<int>(Result),"GetAdaptersAddresses");
+
+	while ( pAdaptorAddresses )
+	{
+		auto& Adaptor = *pAdaptorAddresses;
+
+		//	{XXXXX} guid
+		auto AdaptorName = std::string(Adaptor.AdapterName);
+		//	"Intel xyz ethernet adaptor"
+		auto Description = Soy::WStringToString(Adaptor.Description);
+		//	"Ethernet"
+		auto FriendlyName = Soy::WStringToString(Adaptor.FriendlyName);
+	
+		//	gr: ip/sockaddr is the UnicastAddr (which is a link list, hence "first")
+		//	https://social.msdn.microsoft.com/Forums/windows/en-US/3b6a92ac-93d3-4f59-a914-340c1ba41cff/how-to-retrieve-ip-addresses-of-the-network-cards-with-getadaptersaddresses?forum=windowssdk
+		auto* UnicastAddr = Adaptor.FirstUnicastAddress;
+		while ( UnicastAddr )
+		{
+			auto& AddrMeta = *UnicastAddr;
+			auto& SockAddr = *AddrMeta.Address.lpSockaddr;
+			auto SockAddrLen = AddrMeta.Address.iSockaddrLength;
+			SoySockAddr Addr(SockAddr, SockAddrLen);
+			if ( Port != PORT_ANY )
+				Addr.SetPort(Port);
+
+			EnumAdress(Description, Addr);
+
+			UnicastAddr = UnicastAddr->Next;
+		}
+		pAdaptorAddresses = pAdaptorAddresses->Next;
+	}
+
+#else
+	struct ifaddrs* Interfaces = nullptr;
+	auto Success = getifaddrs( &Interfaces );
+	if ( Success != 0 )
+	{
+		Soy::Winsock::HasError("getifaddrs()");
+		return;
+	}
+	
 	
 	for ( auto* ifa = Interfaces; ifa; ifa = ifa->ifa_next)
 	{
