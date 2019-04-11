@@ -395,6 +395,9 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case YYuv_8888_Smptec:
 		return 2;
 
+	case uyvy:
+		return 2;
+
 	case Float1:	return 1;
 	case Float2:	return 2;
 	case Float3:	return 3;
@@ -447,6 +450,7 @@ bool SoyPixelsFormat::IsFloatChannel(SoyPixelsFormat::Type Format)
 		case YYuv_8888_Full:
 		case YYuv_8888_Ntsc:
 		case YYuv_8888_Smptec:
+		case uyvy:
 			return false;
 			
 		default:
@@ -624,6 +628,7 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::FreenectDepth10bit,	"FreenectDepth10bit"	},
 	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},
 	{ SoyPixelsFormat::FreenectDepthmm,		"FreenectDepthmm"	},
+	{ SoyPixelsFormat::uyvy,				"uyvy"	},
 	{ SoyPixelsFormat::Yuv_8_88_Full,		"Yuv_8_88_Full"	},
 	{ SoyPixelsFormat::Yuv_8_88_Ntsc,		"Yuv_8_88_Ntsc"	},
 	{ SoyPixelsFormat::Yuv_8_88_Smptec,		"Yuv_8_88_Smptec"	},
