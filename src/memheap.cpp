@@ -410,7 +410,15 @@ namespace prmem
             auto Items = GetArrayBridge( mItems );
             HeapDebugBase::DumpToOutput( OwnerHeap, Items );
         }
-
+		virtual void	EnumAllocations(std::function<void(const prmem::HeapDebugItem&)> Enum) const override
+		{
+			//	bad! casting away const, but so we can lock
+			auto& Mutex = *const_cast<HeapDebug*>(this);
+			std::lock_guard<std::mutex> Lock(Mutex);
+			for ( auto i=0;	i<mItems.GetSize();	i++ )
+				Enum( mItems[i] );
+		}
+	
 	protected:
 		Heap					mHeap;	//	heap to contain our data to keep it away from the heaps we're debugging!
 		Array<HeapDebugItem>	mItems;
