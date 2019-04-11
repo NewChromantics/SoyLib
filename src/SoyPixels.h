@@ -52,6 +52,10 @@ namespace SoyPixelsFormat
 		Yuv_8_88_Full,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
 		Yuv_8_88_Ntsc,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
 		Yuv_8_88_Smptec,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
+		
+		//	this format has a flaw in that the data is striped, (splits correctly)
+		//	but the data is WxH + WxH/2 + WxH/2 so data is 1.5x components so we can't make a buffer size correctly for opengl etc
+		//	figure out a way to express virtual w/h, data w/h, non integer components and data size
 		Yuv_8_8_8_Full,		//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
 		Yuv_8_8_8_Ntsc,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
 		Yuv_8_8_8_Smptec,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
