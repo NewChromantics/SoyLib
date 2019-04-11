@@ -136,7 +136,7 @@ public:
 	
 protected:
 	virtual void	PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore);
-	std::shared_ptr<TJob>	PopNextJob(TContext& Context,size_t& BiggestDelayMs);
+	std::shared_ptr<TJob>	PopNextJob(TContext& Context,size_t& SmallestDelayMs);
 
 private:
 	void			RunJob(std::shared_ptr<TJob>& Job);

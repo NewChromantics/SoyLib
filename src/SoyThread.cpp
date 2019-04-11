@@ -112,7 +112,7 @@ PopWorker::TJobQueue::~TJobQueue()
 	}
 }
 
-std::shared_ptr<PopWorker::TJob> PopWorker::TJobQueue::PopNextJob(TContext& Context,size_t& BiggestDelay)
+std::shared_ptr<PopWorker::TJob> PopWorker::TJobQueue::PopNextJob(TContext& Context,size_t& SmallestDelay)
 {
 	std::lock_guard<std::recursive_mutex> Lock(mJobLock);
 
@@ -134,7 +134,7 @@ std::shared_ptr<PopWorker::TJob> PopWorker::TJobQueue::PopNextJob(TContext& Cont
 		auto DelayMs = pJob->GetRunDelay();
 		if ( DelayMs > 0 )
 		{
-			BiggestDelay = std::max( BiggestDelay, DelayMs );
+			SmallestDelay = std::min( SmallestDelay, DelayMs );
 			continue;
 		}
 		
@@ -152,13 +152,14 @@ void PopWorker::TJobQueue::Flush(TContext& Context,std::function<void(std::chron
 {
 	bool FlushError = true;
 	
-	size_t BiggestDelayMs = 0;
+	//	get the smallest delay > 0ms
+	size_t SmallestDelayMs = 0;
 	
 	//ofScopeTimerWarning LockTimer("Waiting for job lock",5,false);
 	while ( true )
 	{
 		//LockTimer.Start(true);
-		auto Job = PopNextJob(Context,BiggestDelayMs);
+		auto Job = PopNextJob(Context,SmallestDelayMs);
 		/*LockTimer.Stop(false);
 		if ( LockTimer.Report() )
 		{
@@ -194,10 +195,12 @@ void PopWorker::TJobQueue::Flush(TContext& Context,std::function<void(std::chron
 		Context.Unlock();
 	}
 	
-	if ( BiggestDelayMs > 0 )
+	if ( SmallestDelayMs > 0 )
 	{
-		BiggestDelayMs /= 2;
-		Sleep( std::chrono::milliseconds(BiggestDelayMs) );
+		//	half the time, as we assume there will be a delay until we get around to it again
+		//	we could assume the loop takes say, 4ms and just remove 4ms from it
+		SmallestDelayMs /= 2;
+		Sleep( std::chrono::milliseconds(SmallestDelayMs) );
 	}
 }
 
