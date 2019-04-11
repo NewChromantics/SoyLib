@@ -380,19 +380,24 @@ public:
 
 	}
 
-	void RemoveBlock(size_t index,size_t count)
+	//	moves data inside the array, but doesn't change the size (overrides old data!)
+	void MoveBlock(size_t OldIndex,size_t NewIndex,size_t Count)
 	{
 		//	do nothing if nothing to remove
-		if ( count == 0 )
+		if ( Count == 0 )
 			return;
+
+		//	todo: check for overlap
 		
-		if ( index + count > GetSize() )
-			throw Soy::AssertException("RemoveBlock out of bounds >GetSize");
+		if ( OldIndex + Count > GetSize() )
+			throw Soy::AssertException("MoveBlock out of bounds (OldIndex)");
+		if ( NewIndex + Count > GetSize() )
+			throw Soy::AssertException("MoveBlock out of bounds (NewIndex)");
 
-		T* dest = mdata + index;
-		T* src = mdata + index + count;
+		T* dest = mdata + NewIndex;
+		T* src = mdata + OldIndex;
 
-		auto ShiftCount = size_cast<ssize_t>( GetSize() ) - ( index + count );
+		auto ShiftCount = Count;
 		
 		if ( Soy::DoComplexCopy<T,T>() )
 		{				
@@ -403,10 +408,12 @@ public:
 				dest++;
 				src++;
 			}
-			moffset -= count;
-			for ( size_t i=0;	i<count;	i++ )
+			
+			for ( size_t i=NewIndex+ShiftCount;	i<GetSize();	i++ )
 			{
-				auto Index = moffset+i;
+				auto Index = i;
+				if ( Index >= mmaxsize )
+					throw Soy::AssertException("Releasing out of bounds");
 				Release( mdata[Index] );
 			}
 		}
@@ -414,8 +421,23 @@ public:
 		{
 			if ( ShiftCount > 0 )
 				memmove( dest, src, ShiftCount * sizeof(T) );
-			moffset -= count;
-		}			
+		}
+	}
+	
+	void RemoveBlock(size_t index,size_t count)
+	{
+		//	move the tail data
+		//	eg.
+		//	data = 0-20
+		//	abcdefghijklmnopqrst
+		//	remove 2 x8
+		//	ab|cdefghij|klmnopqrst
+		//	move (2+8)->2 x20-(2+8)
+		//	abcdefghij[klmnopqrst]
+		//	ab[klmnopqrst]xxxxxxxx
+		auto NewTailSize = GetSize() - (index+count);
+		MoveBlock( index+count, index, NewTailSize );
+		moffset -= count;
 	}
 
 	void SetIndex(size_t index)

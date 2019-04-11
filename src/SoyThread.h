@@ -14,6 +14,15 @@ namespace Soy
 	class Mutex_Profiled;
 }
 
+namespace Platform
+{
+	//	gr: this is in the platform namespace as we should use some
+	//	platform specific runloops, deffered executors etc than the default stl::async call
+	//	or our own timer pool or something
+	void	ExecuteDelayed(std::chrono::milliseconds Delay,std::function<void()> Lambda);
+	void	ExecuteDelayed(std::chrono::high_resolution_clock::time_point FutureTime,std::function<void()> Lambda);
+}
+
 //	gr: big flaw with this class... if you create, then wait. It'll never complete. Need an "assigned" flag
 class Soy::TSemaphore
 {
@@ -70,6 +79,7 @@ public:
 	}
 
 	virtual void			Run()=0;		//	throws on error, otherwise assuming success
+	virtual size_t			GetRunDelay()	{	return 0;	}	//	allow defer of a job
 	
 	Soy::TSemaphore*		mSemaphore;
 	bool					mCatchExceptions;
@@ -111,7 +121,9 @@ public:
 	virtual bool	IsLocked(std::thread::id Thread)		{	return false;	}	//	is this THREAD exclusively locked
 	bool			IsLockedToAnyThread()					{	return IsLocked( std::thread::id() );	}
 
-	void			Flush(TContext& Context);
+	void			Flush(TContext& Context)				{	Flush(Context,[](std::chrono::milliseconds){} );	}
+	void			Flush(TContext& Context,std::function<void(std::chrono::milliseconds)> Sleep);
+	
 	size_t			GetJobCount() const						{	return mJobs.size();	}
 	bool			HasJobs() const							{	return !mJobs.empty();	}
 	void			PushJob(std::function<void()> Lambda);
@@ -124,7 +136,8 @@ public:
 	
 protected:
 	virtual void	PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore);
-	
+	std::shared_ptr<TJob>	PopNextJob(TContext& Context,size_t& SmallestDelayMs);
+
 private:
 	void			RunJob(std::shared_ptr<TJob>& Job);
 
@@ -303,7 +316,11 @@ public:
 	bool				IsWorking() const	{	return mWorking;	}
 	
 	virtual bool		Iteration()=0;	//	return false to stop thread
-
+	virtual bool		Iteration(std::function<void(std::chrono::milliseconds)> Sleep)
+	{
+		return Iteration();
+	}
+	
 	virtual void		Wake();
 	template<typename TYPE>
 	SoyListenerId		WakeOnEvent(SoyEvent<TYPE>& Event)
@@ -407,7 +424,8 @@ public:
 	}
 	
 	//	thread
-	virtual bool		Iteration() override	{	PopWorker::TJobQueue::Flush(*this);	return true;	}
+	virtual bool		Iteration() override;
+	virtual bool		Iteration(std::function<void(std::chrono::milliseconds)> Sleep) override;
 	virtual bool		CanSleep() override		{	return !PopWorker::TJobQueue::HasJobs();	}	//	break out of conditional with this
 	
 	//	context

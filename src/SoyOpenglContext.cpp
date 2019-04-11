@@ -95,6 +95,9 @@ Opengl::TContext::TContext()
 
 void Opengl::TContext::Init()
 {
+	if ( !this->IsLockedToThisThread() )
+		throw Soy::AssertException("When initialising opengl context, it should be locked on this thread");
+
 	//	windows needs Glew to initialise all it's extension stuff
 //	#define glewInit() glewContextInit(glewGetContext())
 //#define glewIsSupported(x) glewContextIsSupported(glewGetContext(), x)
@@ -521,6 +524,8 @@ void Opengl::TContext::BindGenerateMipMapExtension()
 
 bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TContext* pContext)
 {
+	static bool DebugSupport = false;
+
 	//	first parse of extensions
 	if ( SupportedExtensions.empty() && pContext )
 	{
@@ -563,12 +568,15 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		}
 
 		//	list other extensions (do this first to aid debugging)
-		std::stringstream UnhandledExtensionsStr;
-		UnhandledExtensionsStr << "Unhandled extensions(x" << UnhandledExtensions.GetSize() << ") ";
-		for ( int i=0;	i<UnhandledExtensions.GetSize();	i++ )
-			UnhandledExtensionsStr << UnhandledExtensions[i] << " ";
-		std::Debug << UnhandledExtensionsStr.str() << std::endl;
-
+		if ( DebugSupport )
+		{
+			std::stringstream UnhandledExtensionsStr;
+			UnhandledExtensionsStr << "Unhandled extensions(x" << UnhandledExtensions.GetSize() << ") ";
+			for ( int i=0;	i<UnhandledExtensions.GetSize();	i++ )
+				UnhandledExtensionsStr << UnhandledExtensions[i] << " ";
+			std::Debug << UnhandledExtensionsStr.str() << std::endl;
+		}
+		
 		//	check explicitly supported extensions
 		auto& Impl = Opengl::ImplicitExtensions;
 		for ( auto it=Impl.begin();	it!=Impl.end();	it++ )
@@ -578,7 +586,8 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 			if ( pContext->mVersion < Version )
 				continue;
 			
-			std::Debug << "Implicitly supporting " << Extension << " (>= version " << Version << ")" << std::endl;
+			if ( DebugSupport )
+				std::Debug << "Implicitly supporting " << Extension << " (>= version " << Version << ")" << std::endl;
 			SupportedExtensions[Extension] = true;
 		}
 		
@@ -616,57 +625,11 @@ void Opengl::TRenderTarget::SetViewportNormalised(Soy::Rectf Viewport)
 }
 
 
-Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context,Opengl::TTexture ExistingTexture) :
-	TRenderTarget		( Meta.mName ),
+Opengl::TRenderTargetFbo::TRenderTargetFbo(const std::string& Name,Opengl::TTexture ExistingTexture) :
+	TRenderTarget		( Name ),
 	mTexture			( ExistingTexture ),
 	mGenerateMipMaps	( true )
 {
-	auto CreateFbo = [this,Meta]()
-	{
-		Opengl_IsOkay();
-
-		//	create texture
-		if ( !mTexture.IsValid() )
-		{
-			SoyPixelsMeta TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
-			mTexture = TTexture( TextureMeta, GL_TEXTURE_2D );
-			/*
-			 glGenTextures(1, &mTexture.mTexture.mName );
-			 //	set mip-map levels to 0..0
-			 mTexture.Bind();
-			 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-			 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-
-			 Opengl_IsOkay();
-			 */
-		}
-		
-		mFbo.reset( new TFbo( mTexture ) );
-	};
-	
-	std::Debug << "Deffering FBO rendertarget creation to " << ExistingTexture.mMeta << std::endl;
-	Context.PushJob( CreateFbo );
-}
-
-Opengl::TRenderTargetFbo::TRenderTargetFbo(Opengl::TTexture ExistingTexture) :
-	TRenderTargetFbo	( TFboMeta("Texture",ExistingTexture.GetWidth(),ExistingTexture.GetHeight()), ExistingTexture )
-{
-}
-
-Opengl::TRenderTargetFbo::TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture ExistingTexture) :
-	TRenderTarget		( Meta.mName ),
-	mTexture			( ExistingTexture ),
-	mGenerateMipMaps	( true )
-{
-	Opengl_IsOkay();
-		
-	//	create texture
-	if ( !mTexture.IsValid() )
-	{
-		SoyPixelsMeta TextureMeta( size_cast<int>(Meta.mSize.x), size_cast<int>(Meta.mSize.y), SoyPixelsFormat::RGBA );
-		mTexture = TTexture( TextureMeta, GL_TEXTURE_2D );
-	}
-
 	mFbo.reset( new TFbo( mTexture ) );
 }
 

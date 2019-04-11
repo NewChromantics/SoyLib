@@ -369,10 +369,11 @@ public:
 	template<typename T>
 	void			OnAlloc(const T* Object,size_t Elements)
 	{
-		auto TypeName = Soy::GetTypeName<T>();
+		auto& TypeName = Soy::GetTypeName<T>();
 		OnAlloc( Object, TypeName, Elements, sizeof(T) );
 	}
 	virtual void	OnFree(const void* Object)=0;
+	virtual void	EnumAllocations(std::function<void(const prmem::HeapDebugItem&)> Enum)const =0;
 	virtual void	DumpToOutput(const prmem::HeapInfo& OwnerHeap)const =0;	//	debug-print out all our allocations and their age
 
 protected:

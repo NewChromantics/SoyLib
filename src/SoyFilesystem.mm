@@ -198,6 +198,41 @@ void Platform::ShowFileExplorer(const std::string& Path)
 #endif
 }
 
+
+std::string Platform::GetFullPathFromFilename(const std::string& Filename)
+{
+	NSString* UrlString = Soy::StringToNSString( Filename );
+	NSError *err;
+	
+	//	try as file which we can test for immediate fail
+	NSURL* Url = [[NSURL alloc]initFileURLWithPath:UrlString];
+	//	resolve ../ ./ etc
+	Url = [Url standardizedURL];
+
+	if ( !Url.fileURL )
+	{
+		std::stringstream Error;
+		Error << Filename << " is not a file url (file not found)";
+		throw Soy::AssertException( Error.str() );
+	}
+
+	if ([Url checkResourceIsReachableAndReturnError:&err] == YES)
+	{
+		//	get the absolute path
+		//	but this includes the scheme, we need to remove it
+		auto Scheme = Soy::NSStringToString( Url.scheme );
+		Scheme += "://";
+		auto AbsolutePath = Soy::NSStringToString(Url.absoluteString);
+		Soy::StringTrimLeft( AbsolutePath, Scheme, true );
+		return AbsolutePath;
+	}
+
+	std::stringstream Error;
+	Error << "Unreachable file url: " << Filename << "; " << Soy::NSErrorToString(err);
+	throw Soy::AssertException( Error.str() );
+}
+
+
 void Platform::ShellExecute(const std::string& Path)
 {
 	//	https://gist.github.com/piaoapiao/4103404

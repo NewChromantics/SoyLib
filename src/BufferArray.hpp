@@ -5,6 +5,7 @@
 #include <cstddef>
 #include "SoyTypes.h"	//	gr: not sure why I have to include this, when it's included earlier in Soy.hpp...
 #include "SoyArray.h"
+#include "SoyAssert.h"
 
 
 template <typename T,size_t mmaxsize>
@@ -296,6 +297,12 @@ public:
 
 		return mdata + index;
 
+	}
+	
+	//	this should be in generic array code
+	void MoveBlock(size_t OldIndex,size_t NewIndex,size_t Count)
+	{
+		throw Soy::AssertException("Todo: bufferarray MoveBlock");
 	}
 
 	void RemoveBlock(size_t index, size_t count)

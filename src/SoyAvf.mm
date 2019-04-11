@@ -860,12 +860,15 @@ bool Avf::IsKeyframe(CMSampleBufferRef SampleBuffer,bool DefaultValue)
 
 void PixelReleaseCallback(void *releaseRefCon, const void *baseAddress)
 {
-	std::Debug << __func__ << std::endl;
+	//std::Debug << __func__ << std::endl;
 
 	//	this page says we need to release
 	//	http://codefromabove.com/2015/01/av-foundation-saving-a-sequence-of-raw-rgb-frames-to-a-movie/
-	CFDataRef bufferData = (CFDataRef)releaseRefCon;
-	CFRelease(bufferData);
+	if ( releaseRefCon != nullptr )
+	{
+		CFDataRef bufferData = (CFDataRef)releaseRefCon;
+		CFRelease(bufferData);
+	}
 }
 
 
@@ -884,7 +887,7 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 	//		REALLY ideally we can go from texture to CVPixelBuffer
 	if ( Image.GetFormat() == SoyPixelsFormat::RGBA && PixelFormatType == kCVPixelFormatType_32RGBA )
 	{
-		std::Debug << "CVPixelBufferCreateWithBytes will fail with RGBA, forcing BGRA" << std::endl;
+		//std::Debug << "CVPixelBufferCreateWithBytes will fail with RGBA, forcing BGRA" << std::endl;
 		PixelFormatType = kCVPixelFormatType_32BGRA;
 	}
 #endif
@@ -957,6 +960,11 @@ static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 		case SoyPixelsFormat::BGRA:
 		default:
 */
+	
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_OneComponent8,	SoyPixelsFormat::Luma_Full ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_OneComponent8,	SoyPixelsFormat::Luma_Ntsc ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_OneComponent8,	SoyPixelsFormat::Luma_Smptec ),
+	
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_24RGB,	SoyPixelsFormat::RGB ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_24BGR,	SoyPixelsFormat::BGR ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_32BGRA,	SoyPixelsFormat::BGRA ),
@@ -969,11 +977,15 @@ static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,	SoyPixelsFormat::Yuv_8_88_Full ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,	SoyPixelsFormat::Yuv_8_88_Ntsc ),
-/*
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Yuv_844_Full ),
+
+	//	gr: this is CHROMA|YUV! not YUV, this is why the fourcc is 2vuy
+	//		kCVPixelFormatType_422YpCbCr8     = '2vuy',     /* Component Y'CbCr 8-bit 4:2:2, ordered Cb Y'0 Cr Y'1 */
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Uvy_844_Full ),
+
+	//	todo: check these
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::Yuv_844_Full ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::Yuv_844_Ntsc ),
-*/
+
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8Planar,	SoyPixelsFormat::YYuv_8888_Ntsc ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8PlanarFullRange,	SoyPixelsFormat::YYuv_8888_Full ),
 	
@@ -1043,7 +1055,8 @@ SoyPixelsFormat::Type Avf::GetPixelFormat(OSType Format)
 	
 	if ( !Meta )
 	{
-		std::Debug << "Unknown Avf CV pixel format " << Format << std::endl;
+		std::Debug << "Unknown Avf CV pixel format (" << Soy::FourCCToString(Format) << " 0x" << std::hex << Format << std::endl;
+		
 		return SoyPixelsFormat::Invalid;
 	}
 	return Meta->mSoyFormat;

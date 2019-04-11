@@ -257,6 +257,13 @@ bool Soy::StringSplitByString(std::function<bool(const std::string&)> Callback,c
 }
 
 
+bool Soy::StringSplitByString(std::function<bool(const std::string&)> Callback,const std::string& String,char Delim,bool IncludeEmpty)
+{
+	std::string DelimStr(&Delim, 1);
+	return StringSplitByString(Callback, String, DelimStr, IncludeEmpty);
+}
+
+
 void Soy::StringSplitByMatches(ArrayBridge<std::string>& Parts,const std::string& String,const std::string& MatchingChars,bool IncludeEmpty)
 {
 	auto PushBack = [&Parts](const std::string& Part,const char& Delim)
@@ -548,7 +555,9 @@ bool Soy::StringTrimRight(std::string& String,char TrimChar)
 
 void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 {
-	Soy::Assert( Buffer!=nullptr, "Soy::StringToBuffer Buffer expected" );
+	//Soy::Assert( Buffer!=nullptr, "Soy::StringToBuffer Buffer expected" );
+	if ( Buffer == nullptr )
+		throw Soy::AssertException("Soy::StringToBuffer Buffer expected");
 	if ( BufferSize == 0 )
 		return;
 	
@@ -559,33 +568,81 @@ void Soy::StringToBuffer(const char* Source,char* Buffer,size_t BufferSize)
 			break;
 		Buffer[Len] = Source[Len];
 	}
-	Soy::Assert( Len < BufferSize, "StringToBuffer Len OOB");
+	//Soy::Assert( Len < BufferSize, "StringToBuffer Len OOB");
 	Buffer[std::min<ssize_t>(Len,BufferSize-1)] = '\0';
 }
 
 std::string Soy::StringPopUntil(std::string& Haystack,std::function<bool(char)> IsDelim,bool KeepDelim,bool PopDelim)
 {
-	std::stringstream Pop;
-	
-	while ( !Haystack.empty() )
+	//	search for delin
+	auto DelimPos = -1;
+	for ( auto i=0;	i<Haystack.size();	i++ )
 	{
-		if ( IsDelim(Haystack[0]) )
+		//	this is probably a bit of a bottleneck, provide something that can get inlined
+		if ( !IsDelim(Haystack[i] ) )
+			continue;
+		DelimPos = i;
+		break;
+	}
+	
+	if ( DelimPos == -1 )
+	{
+		auto Copy = Haystack;
+		Haystack.clear();
+		return Copy;
+	}
+	
+	if ( PopDelim )
+	{
+		auto Popped = Haystack.substr( 0, DelimPos+1 );
+		Haystack.erase( 0, DelimPos+1 );
+		return Popped;
+	}
+	else if ( !KeepDelim )
+	{
+		auto Popped = Haystack.substr( 0, DelimPos );
+		Haystack.erase( 0, DelimPos+1 );
+		return Popped;
+	}
+	else //	leave delim in haystack
+	{
+		auto Popped = Haystack.substr( 0, DelimPos );
+		Haystack.erase( 0, DelimPos );
+		return Popped;
+	}
+}
+
+std::string Soy::StringPopRight(std::string& Haystack,std::function<bool(char)> IsDelim,bool KeepDelim,bool PopDelim)
+{
+	Array<char> Popped;
+	auto Push = [&](char c)
+	{
+		auto& NewChar = *Popped.InsertBlock(0,1);
+		NewChar = c;
+	};
+	
+	while ( Haystack.length() > 0 )
+	{
+		auto LastIndex = Haystack.length()-1;
+		
+		if ( IsDelim(Haystack[LastIndex]) )
 		{
-			if ( !KeepDelim )
-				Haystack.erase( Haystack.begin() );
 			if ( PopDelim )
-				Pop << Haystack[0];
+				Push( Haystack[LastIndex] );
+			else if ( !KeepDelim )
+				Haystack.erase( LastIndex );
 			break;
 		}
 		
-		Pop << Haystack[0];
+		Push( Haystack[LastIndex] );
 		
-		Haystack.erase( Haystack.begin() );
+		Haystack.erase( LastIndex );
 	}
 	
-	return Pop.str();
+	Popped.PushBack('\0');
+	
+	return std::string( Popped.GetArray() );
 }
-
 
 
 std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim,bool PopDelim)
@@ -596,6 +653,17 @@ std::string Soy::StringPopUntil(std::string& Haystack,char Delim,bool KeepDelim,
 		return Char == Delim;
 	};
 	return StringPopUntil( Haystack, IsDelim, KeepDelim, PopDelim );
+}
+
+
+std::string Soy::StringPopRight(std::string& Haystack,char Delim,bool KeepDelim,bool PopDelim)
+{
+	//	gr: make this faster! dont use a lambda!
+	auto IsDelim = [Delim](char Char)
+	{
+		return Char == Delim;
+	};
+	return StringPopRight( Haystack, IsDelim, KeepDelim, PopDelim );
 }
 
 std::string Soy::ByteToHex(uint8 Byte)

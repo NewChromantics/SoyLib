@@ -383,9 +383,13 @@ public:
 	TYPE	Bottom() const		{	return y+h;	}
 	TYPE	GetWidth() const	{	return w;	}
 	TYPE	GetHeight() const	{	return h;	}
+	TYPE	GetCenterX() const	{	return x + (w/2.0f);	}
+	TYPE	GetCenterY() const	{	return y + (h/2.0f);	}
+	vec2x<TYPE>	GetCenter() const	{	return vec2x<TYPE>( GetCenterX(), GetCenterY() );	}
 	vec4x<TYPE>	GetVec4() const	{	return vec4x<TYPE>(x,y,w,h);	}
 	void	ScaleTo(const Rectx& Parent);		//	assume this is normalised
 	void	Normalise(const Rectx& Parent);		//	make this the normalised
+	void	Accumulate(TYPE x,TYPE y);
 	
 	bool	operator==(const Rectx& that) const	{	return (x==that.x) && (y==that.y) && (w==that.w) && (h==that.h);	}
 	bool	operator!=(const Rectx& that) const	{	return !(*this == that);	}
@@ -405,6 +409,11 @@ class Soy::Boundsx
 {
 public:
 	Boundsx()
+	{
+	}
+	Boundsx(TYPE Minx,TYPE MinY,TYPE MaxX,TYPE MaxY) :
+		min	( Minx, MinY ),
+		max	( MaxX, MaxY )
 	{
 	}
 	Boundsx(const TYPE& _min,const TYPE& _max) :
@@ -543,3 +552,34 @@ inline void Soy::Rectx<TYPE>::Normalise(const Rectx& Parent)
 	auto h = b-t;
 	Child = Soy::Rectf( l, t, w, h );
 }
+
+
+template<typename TYPE>
+inline void Soy::Rectx<TYPE>::Accumulate(TYPE Newx,TYPE Newy)
+{
+	{
+		auto r = x + w;
+		if ( Newx < x )
+		{
+			w = r - Newx;
+			x = Newx;
+		}
+		else if ( Newx > r )
+		{
+			w = Newx - x;
+		}
+	}
+	{
+		auto b = y + h;
+		if ( Newy < y )
+		{
+			h = b - Newy;
+			y = Newy;
+		}
+		else if ( Newy > b )
+		{
+			h = Newy - y;
+		}
+	}
+}
+

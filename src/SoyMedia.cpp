@@ -139,7 +139,7 @@ bool TMediaDecoder::Iteration()
 		Soy::Assert( mInput!=nullptr, "Input missing");
 		
 		//	pop next packet
-		auto Packet = mInput->PopPacket();
+		auto Packet = mInput->PopPacket(false);
 		if ( Packet )
 		{
 			//std::Debug << "Encoder Processing packet " << Packet->mTimecode << "(pts) " << Packet->mDecodeTimecode << "(dts)" << std::endl;
@@ -243,7 +243,7 @@ TMediaPacketBuffer::~TMediaPacketBuffer()
 	mPackets.Clear();
 }
 
-std::shared_ptr<TMediaPacket> TMediaPacketBuffer::PopPacket()
+std::shared_ptr<TMediaPacket> TMediaPacketBuffer::PopPacket(bool Latest)
 {
 	if ( mPackets.IsEmpty() )
 		return nullptr;
@@ -256,6 +256,13 @@ std::shared_ptr<TMediaPacket> TMediaPacketBuffer::PopPacket()
 	
 	//if ( mPackets[0]->mTimecode > Time )
 	//	return nullptr;
+	
+	if ( Latest )
+	{
+		auto Last = mPackets.GetBack();
+		mPackets.Clear();
+		return Last;
+	}
 	
 	return mPackets.PopAt(0);
 }
@@ -863,7 +870,7 @@ bool TMediaMuxer::Iteration()
 	if ( !mInput )
 		return true;
 	
-	auto Packet = mInput->PopPacket();
+	auto Packet = mInput->PopPacket(false);
 	if ( !Packet )
 		return true;
 	

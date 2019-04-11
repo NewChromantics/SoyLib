@@ -107,6 +107,9 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetYuvFull(SoyPixelsFormat::Type Format)
 		case Yuv_844_Smptec:
 			return Yuv_844_Full;
 
+		case Uvy_844_Full:
+			return Uvy_844_Full;
+			
 		default:
 			break;
 	}
@@ -383,6 +386,7 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case ChromaV_8:		return 1;
 
 	//	yuv 844 is interlaced luma & chroma, so kinda have 2 channels (helps with a lot of things when it aligns even though we have technically 3 channels)
+	case Uvy_844_Full:
 	case Yuv_844_Full:
 	case Yuv_844_Ntsc:
 	case Yuv_844_Smptec:
@@ -436,6 +440,7 @@ bool SoyPixelsFormat::IsFloatChannel(SoyPixelsFormat::Type Format)
 		case ChromaUV_44:
 		case ChromaU_8:
 		case ChromaV_8:
+		case Uvy_844_Full:
 		case Yuv_844_Full:
 		case Yuv_844_Ntsc:
 		case Yuv_844_Smptec:
@@ -628,6 +633,7 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::YYuv_8888_Full,		"YYuv_8888_Full"	},
 	{ SoyPixelsFormat::YYuv_8888_Ntsc,		"YYuv_8888_Ntsc"	},
 	{ SoyPixelsFormat::YYuv_8888_Smptec,	"YYuv_8888_Smptec"	},
+	{ SoyPixelsFormat::Uvy_844_Full,		"Uvy_844_Full"	},
 	{ SoyPixelsFormat::Yuv_844_Full,		"Yuv_844_Full"	},
 	{ SoyPixelsFormat::Yuv_844_Ntsc,		"Yuv_844_Ntsc"	},
 	{ SoyPixelsFormat::Yuv_844_Smptec,		"Yuv_844_Smptec"	},
@@ -1025,6 +1031,37 @@ bool ConvertFormat_GreyscaleToRgb(ArrayInterface<uint8>& PixelsArray,SoyPixelsMe
 	return true;
 }
 
+void ConvertFormat_TwoChannelToFour(ArrayInterface<uint8>& PixelsArray,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+{
+	auto& TwoMeta = Meta;
+	auto w = TwoMeta.GetWidth();
+	auto h = TwoMeta.GetHeight();
+	SoyPixelsMeta FourMeta( w, h, NewFormat );
+	auto PixelCount = size_cast<int>(w*h);
+	auto TwoStride = TwoMeta.GetPixelDataSize();
+	auto FourStride = FourMeta.GetPixelDataSize();
+	PixelsArray.SetSize( FourMeta.GetDataSize() );
+	
+	if ( TwoStride != 2 )
+		throw Soy::AssertException("ConvertFormat_TwoChannelToFour: Expected source stride of 2 bytes");
+	if ( FourStride != 4 )
+		throw Soy::AssertException("ConvertFormat_TwoChannelToFour: Expected destination stride of 4 bytes");
+	
+	auto* Pixels = PixelsArray.GetArray();
+	
+	//	fill backwards and we won't overwrite anything
+	for ( int p=PixelCount-1;	p>=0;	p-- )
+	{
+		uint8_t* OldPos = &Pixels[p*TwoStride];
+		uint8_t* NewPos = &Pixels[p*FourStride];
+		NewPos[0] = OldPos[0];
+		NewPos[1] = OldPos[1];
+		NewPos[2] = 0;
+		NewPos[3] = 255;
+	}
+	
+	Meta = FourMeta;
+}
 
 void ConvertFormat_GreyscaleToRgba(ArrayInterface<uint8>& PixelsArray,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
@@ -1218,6 +1255,7 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::RGBA, ConvertFormat_RgbToRgba ),
 	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::RGB, ConvertFormat_GreyscaleToRgb ),
 	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::RGBA, ConvertFormat_GreyscaleToRgba ),
+	TConvertFunc( SoyPixelsFormat::ChromaUV_88, SoyPixelsFormat::RGBA, ConvertFormat_TwoChannelToFour ),
 };
 
 
@@ -1231,6 +1269,25 @@ void SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 		throw Soy::AssertException(Error.str());
 	}
 
+	//	allow these to be the same!
+	auto IsGrey = [](SoyPixelsFormat::Type Format)
+	{
+		switch(Format)
+		{
+			case SoyPixelsFormat::Luma_Full:
+			case SoyPixelsFormat::Luma_Ntsc:
+			case SoyPixelsFormat::Luma_Smptec:
+			//case SoyPixelsFormat::Greyscale:
+				return true;
+			default:
+				return false;
+		}
+	};
+	if ( IsGrey(OldFormat) && IsGrey(Format) )
+	{
+		this->GetMeta().DumbSetFormat(Format);
+		return;
+	}
 	if ( OldFormat == Format )
 		return;
 	if ( !IsValid() )
@@ -1596,8 +1653,81 @@ void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour)
 }
 
 
+
+
+void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
+{
+	if ( Width == 0 || Height == 0 )
+		throw Soy::AssertException("Cannot size image to 0 width or height");
+	
+	auto& Pixels = GetPixelsArray();
+	auto Channels = GetChannels();
+	//	we'll get stuck in loops if stride is zero
+	Channels = std::max<uint8_t>( Channels, 1 );
+	
+	//	remove top rows
+	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::RemoveTop",5);
+		auto RowBytes = Channels * GetWidth();
+		auto TotalRowBytes = RowBytes * Top;
+		Pixels.RemoveBlock( 0, TotalRowBytes );
+		GetMeta().DumbSetHeight( GetHeight()-Top );
+	}
+	
+	//	remove bottom rows (before removing columns, ResizeClip just won't do anything)
+	if ( Height < GetHeight() )
+	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::RemoveRows (early)",5);
+		auto RowBytes = Channels * GetWidth();
+		RowBytes *= GetHeight() - Height;
+		Pixels.SetSize( Pixels.GetDataSize() - RowBytes );
+		GetMeta().DumbSetHeight( Height );
+	}
+
+	//	gr: faster to write new rows if we're clipping
+	if ( Left > 0 || Width < GetWidth() )
+	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::Realign rows",5);
+		auto OldWidth = GetWidth();
+		auto NewWidth = Width;
+		
+		for ( auto y=0;	y<GetHeight();	y++ )
+		{
+			auto OldX = Left;
+			auto NewX = 0;
+			auto OldIndex = (OldX + (y * OldWidth) ) * Channels;
+			auto NewIndex = (NewX + (y * NewWidth) ) * Channels;
+			auto CopyBytes = Width * Channels;
+			Pixels.MoveBlock( OldIndex, NewIndex, CopyBytes );
+		}
+		auto NewSize = Channels * Width * Height;
+		Pixels.SetSize( NewSize );
+		
+		//	don't do it again
+		Left = 0;
+		GetMeta().DumbSetWidth( Width );
+	}
+	
+	//	remove start of rows
+	if ( Left > 0 )
+	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::RemoveLeft",5);
+		//	working backwards makes it easy & fast
+		auto Stride = Channels * GetWidth();
+		auto RemoveBytes = Channels * Left;
+		for ( ssize_t p=Pixels.GetDataSize()-Stride;	p>=0;	p-=Stride )
+			Pixels.RemoveBlock( p, RemoveBytes );
+		GetMeta().DumbSetWidth( GetWidth() - Left );
+	}
+	
+	ResizeClip( Width, Height );
+}
+
 void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 {
+	if ( Width == 0 || Height == 0 )
+		throw Soy::AssertException("Cannot size image to 0 width or height");
+
 	auto& Pixels = GetPixelsArray();
 	auto Channels = GetChannels();
 	//	we'll get stuck in loops if stride is zero
@@ -1606,6 +1736,7 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	//	simply add/remove rows
 	if ( Height > GetHeight() )
 	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::AddRows",5);
 		auto RowBytes = Channels * GetWidth();
 		RowBytes *= Height - GetHeight();
 		Pixels.PushBlock( RowBytes );
@@ -1613,6 +1744,7 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	}
 	else if ( Height < GetHeight() )
 	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::RemoveRows",5);
 		auto RowBytes = Channels * GetWidth();
 		RowBytes *= GetHeight() - Height;
 		Pixels.SetSize( Pixels.GetDataSize() - RowBytes );
@@ -1623,7 +1755,10 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	if ( Width > GetWidth() )
 	{//	todo: prealloc!
 		//	working backwards makes it easy & fast
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::AddColumns",5);
 		auto Stride = Channels * GetWidth();
+		Stride = std::max<size_t>( Stride, Channels*1 );
+		
 		auto ColBytes = Channels * (Width - GetWidth());
 		for ( ssize_t p=Pixels.GetDataSize();	p>=0;	p-=Stride )
 			Pixels.InsertBlock( p, ColBytes );
@@ -1631,6 +1766,7 @@ void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 	}
 	else if ( Width < GetWidth() )
 	{
+		Soy::TScopeTimerPrint Timer("SoyPixels::Clip::RemoveColumns",5);
 		//	working backwards makes it easy & fast
 		auto Stride = Channels * GetWidth();
 		auto ColBytes = Channels * (GetWidth() - Width);
@@ -1827,6 +1963,8 @@ void SoyPixelsImpl::Flip()
 {
 	if ( !IsValid() )
 		return;
+	
+	Soy::TScopeTimerPrint Timer("SoyPixelsImpl::Flip", 5);
 	
 	//	buffer a line so we don't need to realloc for the temp line
 	auto LineSize = GetWidth() * GetChannels();
@@ -2036,19 +2174,25 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaV_8 ) );
 			break;
 
+		//	need to handle these horizontally interlaced formats better
+		case SoyPixelsFormat::Uvy_844_Full:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
+			break;
+
 		case SoyPixelsFormat::Yuv_844_Full:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
 			
 		case SoyPixelsFormat::Yuv_844_Ntsc:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Ntsc ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
 			
 		case SoyPixelsFormat::Yuv_844_Smptec:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
 		
 		case SoyPixelsFormat::Palettised_RGB_8:

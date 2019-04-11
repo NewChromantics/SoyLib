@@ -439,19 +439,22 @@ void Platform::CreateDirectory(const std::string& Path)
 
 
 #if defined(TARGET_WINDOWS)
-bool Platform::ShowFileExplorer(const std::string& Path)
+void Platform::ShowFileExplorer(const std::string& Path)
 {
 #if defined(HOLOLENS_SUPPORT)
-	return false;
+	//	unsupported
 #else
 	auto PathList = ILCreateFromPath( Path.c_str() );
 	if ( !PathList )
-		return false;
+	{
+		std::stringstream Error;
+		Error << "ILCreateFromPath(" << Path << ") failed, may not exist";
+		throw Soy::AssertException(Error.str());
+	}
 
 	auto Result = SHOpenFolderAndSelectItems( PathList, 0, 0, 0 );
-	bool ReturnResult = Platform::IsOkay( Result, "SHOpenFolderAndSelectItems", false );
 	ILFree( PathList );
-	return ReturnResult;
+	Platform::IsOkay( Result, "SHOpenFolderAndSelectItems");
 #endif
 }
 #endif
@@ -475,13 +478,30 @@ std::string	Platform::GetDllPath()
 
 bool Platform::IsFullPath(const std::string& Path)
 {
-	//	todo!
-	return false;
+	try
+	{
+		//	expecting this to throw if not a valid filename
+		auto FullPath = GetFullPathFromFilename(Path);
+
+		//	gr: OSX will correct by adding / to end of the dir
+		//	lets allow if Path is matching the start, but maybe we can do something better
+		bool CaseSensitive = true;
+		if ( !Soy::StringBeginsWith( FullPath, Path, CaseSensitive ) )
+			return false;
+		return true;
+	}
+	catch ( std::exception& e )
+	{
+		//	assume an OS error
+		//	gr: should make a specialised exception type here
+		return false;
+	}
 }
 
+#if defined(TARGET_WINDOWS)
 std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 {
-#if defined(TARGET_WINDOWS) && !defined(HOLOLENS_SUPPORT)
+#if !defined(HOLOLENS_SUPPORT)
 	char PathBuffer[MAX_PATH];
 	char* FilenameStart = nullptr;	//	pointer to inside buffer
 	auto PathBufferLength = GetFullPathNameA( Filename.c_str(), sizeof(PathBuffer), PathBuffer, &FilenameStart );
@@ -509,6 +529,7 @@ std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 	throw Soy::AssertException("GetFullPathFromFilename not implemented");
 #endif
 }
+#endif
 
 std::string	Platform::GetDirectoryFromFilename(const std::string& Filename,bool IncludeTrailingSlash)
 {
@@ -673,7 +694,7 @@ void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename
 
 void Soy::StringToFile(std::string Filename,std::string String,bool Append)
 {
-	auto Flags = std::ios::out;
+	auto Flags = Append ? (std::ios::app|std::ios::out) :  std::ios::out;
 	if ( Append )
 		Flags |= std::ios::app;
 	
@@ -742,4 +763,17 @@ void Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& Strin
 	Soy::SplitStringLines( StringLines, FileContents );
 }
 
+#if defined(TARGET_WINDOWS)
+std::string Platform::GetAppResourcesDirectory()
+{
+	//	gr: this needs fixing
+	return ExePath;
+}
+#endif
 
+#if defined(TARGET_WINDOWS)
+std::string Platform::GetComputerName()
+{
+	throw Soy::AssertException("Todo: GetComputerName()");
+}
+#endif

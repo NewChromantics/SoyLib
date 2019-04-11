@@ -8,6 +8,9 @@
 
 #include <stdint.h>
 
+//	for NSArray_ForEach; move that to another header if this inclusion is a problem
+#include <functional>
+
 #define TARGET_POSIX
 
 #if defined(TARGET_IOS)
@@ -30,6 +33,22 @@
 //	unused variable
 #define __unused	__attribute__((unused))
 
+
+namespace Platform
+{
+#if defined(__OBJC__)
+	//	iterate through an nsarray of a distinct type
+	//	NSArray_ForEach<NSString*>(...)
+	template<typename NSTYPE>
+	void NSArray_ForEach(NSArray<NSTYPE>* Array,std::function<void(NSTYPE)> Enum);
+#endif
+}
+
+
+
+
+
+
 //	smart pointer for core foundation instances
 //	gr: note, TYPE for CF types is already a pointer, hence no *'s on types
 //	gr: warning! TYPE here passes around without proper type checks!
@@ -37,6 +56,8 @@ template<typename TYPE>
 class CFPtr : public NonCopyable
 {
 public:
+	//	DoRetain is really only for when a function call auto retains for you
+	//	we assume the contents of CFPtr are retained generally, otherwise we're holding an unsafe pointer
 	explicit CFPtr(TYPE Object,bool DoRetain) :
 	mObject	( nullptr )
 	{
@@ -51,14 +72,14 @@ public:
 		}
 	}
 	CFPtr() :
-	mObject	( nullptr )
+		mObject	( nullptr )
 	{
 	}
-	//template<typename THAT>
-	explicit CFPtr(const CFPtr<TYPE>& That) :
-	CFPtr	( nullptr )
+	
+	CFPtr(const CFPtr& That) :
+		mObject	( nullptr )
 	{
-		Retain( static_cast<TYPE>(That.mObject) );
+		Retain( That.mObject );
 	}
 	
 	~CFPtr()
@@ -91,15 +112,12 @@ public:
 			CFRelease(mObject);
 		mObject = nullptr;
 	}
-	
-	/*
-	 template<typename THAT>
-	 ObjcPtr&	operator=(const ObjcPtr<THAT>& That)
-	 {
-		Retain( static_cast<THAT*>(That.mObject) );
+
+	CFPtr&	operator=(const CFPtr& That)
+	{
+		Retain( That.mObject );
 		return *this;
-	 }
-	 */
+	}
 	
 	int			GetRetainCount() const
 	{
@@ -183,4 +201,17 @@ public:
 };
 
 
+
+#if defined(__OBJC__)
+template<typename NSTYPE>
+inline void Platform::NSArray_ForEach(NSArray<NSTYPE>* Array,std::function<void(NSTYPE)> Enum)
+{
+	auto Size = [Array count];
+	for ( auto i=0;	i<Size;	i++ )
+	{
+		auto Element = [Array objectAtIndex:i];
+		Enum( Element );
+	}
+}
+#endif
 

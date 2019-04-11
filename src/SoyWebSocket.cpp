@@ -3,7 +3,7 @@
 #include "SoyDebug.h"
 #include <string>
 #include "SoyString.h"
-#include "sha1.h"	//	soy/smallsha1/
+#include "smallsha1/sha1.h"
 #include "SoyApp.h"
 #include "SoyEnum.h"
 #include "SoyBase64.h"
@@ -279,13 +279,13 @@ WebSocket::THandshakeResponseProtocol::THandshakeResponseProtocol(const THandsha
 
 std::map<WebSocket::TOpCode::Type,std::string> WebSocket::TOpCode::EnumMap =
 {
-	{ TOpCode::Invalid,					"invalid" },
-	{ TOpCode::ContinuationFrame,		"ContinuationFrame" },
-	{ TOpCode::TextFrame,				"TextFrame" },
-	{ TOpCode::BinaryFrame,				"BinaryFrame" },
-	{ TOpCode::ConnectionCloseFrame,	"ConnectionCloseFrame" },
-	{ TOpCode::PingFrame,				"PingFrame" },
-	{ TOpCode::PongFrame,				"PongFrame" },
+	{ WebSocket::TOpCode::Invalid,				"invalid" },
+	{ WebSocket::TOpCode::ContinuationFrame,	"ContinuationFrame" },
+	{ WebSocket::TOpCode::TextFrame,			"TextFrame" },
+	{ WebSocket::TOpCode::BinaryFrame,			"BinaryFrame" },
+	{ WebSocket::TOpCode::ConnectionCloseFrame,	"ConnectionCloseFrame" },
+	{ WebSocket::TOpCode::PingFrame,			"PingFrame" },
+	{ WebSocket::TOpCode::PongFrame,			"PongFrame" },
 };
 
 

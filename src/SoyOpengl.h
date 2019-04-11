@@ -323,7 +323,7 @@ public:
 	{
 		*this = Reference;
 	}
-	explicit TTexture(SoyPixelsMeta Meta,GLenum Type);	//	alloc
+	explicit TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot);	//	alloc
 	
 	//	reference from external
 	TTexture(void* TexturePtr,const SoyPixelsMeta& Meta,GLenum Type) :
@@ -398,7 +398,9 @@ public:
 	size_t				GetHeight() const	{	return mMeta.GetHeight();	}
 	SoyPixelsFormat::Type	GetFormat() const	{	return mMeta.GetFormat();	}
 	
-	bool				Bind() const;
+	void				CheckIsBound() const;		//	throws if not
+	void				Bind(size_t& TextureSlot) const;	//	changes TextureSlot to the actual slot used
+	//std::function<void()>	Bind();					//	auto bind returns an unbind() function to call. Could use a scoped objcet
 	void				Unbind() const;
 	bool				IsValid(bool InvasiveTest=true) const;	//	only use InvasiveTest on opengl threads
 	void				Delete();

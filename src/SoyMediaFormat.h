@@ -34,6 +34,7 @@ namespace SoyMediaFormat
 		YYuv_8888_Full = SoyPixelsFormat::YYuv_8888_Full,
 		YYuv_8888_Ntsc = SoyPixelsFormat::YYuv_8888_Ntsc,
 		YYuv_8888_Smptec = SoyPixelsFormat::YYuv_8888_Smptec,
+		Uvy_844_Full = SoyPixelsFormat::Uvy_844_Full,
 		Yuv_844_Ntsc = SoyPixelsFormat::Yuv_844_Ntsc,
 		Yuv_844_Full = SoyPixelsFormat::Yuv_844_Full,
 		Yuv_844_Smptec = SoyPixelsFormat::Yuv_844_Smptec,

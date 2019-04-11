@@ -1,5 +1,6 @@
 #include "SoyThread.h"
 #include "SoyDebug.h"
+#include <future>
 
 #if defined(PLATFORM_OSX)
 #include <pthread.h>
@@ -111,31 +112,60 @@ PopWorker::TJobQueue::~TJobQueue()
 	}
 }
 
+std::shared_ptr<PopWorker::TJob> PopWorker::TJobQueue::PopNextJob(TContext& Context,size_t& SmallestDelay)
+{
+	std::lock_guard<std::recursive_mutex> Lock(mJobLock);
 
+	//	find next ready job
+	for ( auto i=0;	i<mJobs.size();	i++ )
+	{
+		auto pJob = mJobs[i];
 
-void PopWorker::TJobQueue::Flush(TContext& Context)
+		//	unexpected null job
+		if ( !pJob )
+		{
+			std::Debug << "Found null job in queue" << std::endl;
+			auto it = mJobs.begin()+i;
+			mJobs.erase( it );
+			return nullptr;
+		}
+		
+		//	not ready, skip
+		auto DelayMs = pJob->GetRunDelay();
+		if ( DelayMs > 0 )
+		{
+			SmallestDelay = std::min( SmallestDelay, DelayMs );
+			continue;
+		}
+		
+		//	send this back
+		auto it = mJobs.begin()+i;
+		mJobs.erase( it );
+		return pJob;
+	}
+	
+	//	nothing in queue ready to go
+	return nullptr;
+}
+
+void PopWorker::TJobQueue::Flush(TContext& Context,std::function<void(std::chrono::milliseconds)> Sleep)
 {
 	bool FlushError = true;
 	
-	ofScopeTimerWarning LockTimer("Waiting for job lock",5,false);
+	//	get the smallest delay > 0ms
+	size_t SmallestDelayMs = 0;
+	
+	//ofScopeTimerWarning LockTimer("Waiting for job lock",5,false);
 	while ( true )
 	{
-		LockTimer.Start(true);
-		//	pop task
-		mJobLock.lock();
-		std::shared_ptr<TJob> Job;
-		auto NextJob = mJobs.begin();
-		if ( NextJob != mJobs.end() )
-		{
-			Job = *NextJob;
-			mJobs.erase( NextJob );
-		}
-		//bool MoreJobs = !mJobs.empty();
-		mJobLock.unlock();
-		LockTimer.Stop(false);
+		//LockTimer.Start(true);
+		auto Job = PopNextJob(Context,SmallestDelayMs);
+		/*LockTimer.Stop(false);
 		if ( LockTimer.Report() )
+		{
 			std::Debug << "Job queue has " << mJobs.size() << std::endl;
-		
+		}
+		*/
 		if ( !Job )
 			break;
 		
@@ -147,6 +177,7 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 		catch(std::exception& e)
 		{
 			std::Debug << "Failed to lock context, putting job back in the queue; " << e.what() << std::endl;
+			//	gr: maybe have an unpop
 			mJobLock.lock();
 			mJobs.insert( mJobs.begin(), Job );
 			mJobLock.unlock();
@@ -162,6 +193,14 @@ void PopWorker::TJobQueue::Flush(TContext& Context)
 		
 		RunJob( Job );
 		Context.Unlock();
+	}
+	
+	if ( SmallestDelayMs > 0 )
+	{
+		//	half the time, as we assume there will be a delay until we get around to it again
+		//	we could assume the loop takes say, 4ms and just remove 4ms from it
+		SmallestDelayMs /= 2;
+		Sleep( std::chrono::milliseconds(SmallestDelayMs) );
 	}
 }
 
@@ -597,6 +636,7 @@ void SoyWorker::Loop()
 	//	first call
 	if ( mOnStart )
 		mOnStart();
+
 	auto SleepDuration = GetSleepDuration();
 
 	while ( IsWorking() )
@@ -625,7 +665,12 @@ void SoyWorker::Loop()
 		Java::FlushThreadLocals();
 #endif
 		
-		if ( !Iteration() )
+		auto RuntimeSleep = [&](std::chrono::milliseconds Ms)
+		{
+			mWaitConditional.wait_for( Lock, Ms );
+		};
+		
+		if ( !Iteration( RuntimeSleep ) )
 			break;
 	}
 	
@@ -703,3 +748,41 @@ prmem::Heap& SoyThread::GetHeap(std::thread::native_handle_type Thread)
 	return *NewHeap;
 }
 
+
+void Platform::ExecuteDelayed(std::chrono::milliseconds Delay,std::function<void()> Lambda)
+{
+	auto Thread = [=]()
+	{
+		std::this_thread::sleep_for( Delay );
+		Lambda();
+	};
+	
+	// Use async to launch a function (lambda) in parallel
+	std::async( std::launch::async, Thread );
+}
+
+
+void Platform::ExecuteDelayed(std::chrono::high_resolution_clock::time_point FutureTime,std::function<void()> Lambda)
+{
+	auto Thread = [=]()
+	{
+		std::this_thread::sleep_until( FutureTime );
+		Lambda();
+	};
+	
+	// Use async to launch a function (lambda) in parallel
+	std::async( std::launch::async, Thread );
+}
+
+
+
+bool SoyWorkerJobThread::Iteration()
+{
+	throw Soy::AssertException("Should be calling iteration with sleep");
+}
+
+bool SoyWorkerJobThread::Iteration(std::function<void(std::chrono::milliseconds)> Sleep)
+{
+	PopWorker::TJobQueue::Flush( *this, Sleep );
+	return true;
+}

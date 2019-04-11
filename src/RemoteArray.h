@@ -74,6 +74,7 @@ public:
 	T*			PushBlock(size_t count)					{	throw Soy::AssertException("Cannot pushback on fixed remote array");	}
 	T*			InsertBlock(size_t Index,size_t Count)	{	throw Soy::AssertException("Cannot insert on fixed remote array");	}
 	bool		RemoveBlock(size_t Index,size_t Count)	{	throw Soy::AssertException("Cannot delete on fixed remote array");	}
+	bool		MoveBlock(size_t OldIndex,size_t NewIndex,size_t Count)	{	throw Soy::AssertException("Todo: Moveblock on Fixed remote array");	}
 	void		Clear(bool Dealloc)						{	}
 	
 	void		Reserve(size_t Size,bool Clear)
@@ -336,6 +337,11 @@ public:
 		return mdata + index;
 	}
 
+	void MoveBlock(size_t OldIndex,size_t NewIndex,size_t count)
+	{
+		throw Soy::AssertException("Todo: Moveblock");
+	}
+	
 	void RemoveBlock(size_t index,size_t count)
 	{
 		//	do nothing if nothing to remove

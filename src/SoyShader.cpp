@@ -114,7 +114,7 @@ void UpgradeShader(ArrayBridge<std::string>& Shader,Soy::TVersion Version)
 		std::string Profile;
 		
 #if !defined(ENABLE_OPENGL)
-		Profile = "Not supported";
+		Profile = "Opengl not supported";
 #elif defined(OPENGL_ES)
 		//	don't specificy a profile for 1.0 (es2)
 		Profile = "es";

@@ -69,7 +69,7 @@ public:
 	virtual ~TContext()				{}
 
 	void			Init();
-    bool            IsInitialised() const   {   return mVersion != Soy::TVersion();  }
+	bool			IsInitialised() const	{ return mVersion != Soy::TVersion();	 }
 	void			Iteration()			{	Flush(*this);	}
 	virtual void	Lock() override;
 	virtual void	Unlock() override;
@@ -99,6 +99,8 @@ public:
 	Soy::TVersion	mVersion;
 	Soy::TVersion	mShaderVersion;	//	max version supported
 	std::string		mDeviceName;
+	
+	size_t			mCurrentTextureSlot = 0;	//	this is a little high level, but is at at Context level
 	
 private:
 	std::mutex			mLockLock;		//	we have our own now, the mLockedThread means we can tell if we have the lock. We should NOT be recursive, as we need locks to balance
@@ -130,9 +132,7 @@ class Opengl::TRenderTargetFbo : public Opengl::TRenderTarget
 {
 public:
 	//	provide context for non-immediate construction
-	TRenderTargetFbo(TFboMeta Meta,Opengl::TContext& Context,Opengl::TTexture ExistingTexture=Opengl::TTexture());
-	TRenderTargetFbo(TFboMeta Meta,Opengl::TTexture ExistingTexture=Opengl::TTexture());
-	explicit TRenderTargetFbo(Opengl::TTexture ExistingTexture);
+	TRenderTargetFbo(const std::string& Name,TTexture ExistingTexture);
 	~TRenderTargetFbo()
 	{
 		mFbo.reset();
