@@ -51,10 +51,11 @@ namespace Platform
 #endif
 	
 #if defined(TARGET_WINDOWS)
-	void		SetDllPath(const std::string& Path);
-	std::string	GetDllPath();
+	void				SetExePath(const std::string& Path);
+	inline void			SetDllPath(const std::string& Path) { SetExePath(Path); }
+	std::string			GetExePath();
+	inline std::string	GetDllPath() { return GetExePath(); }
 #endif
-	extern std::string	ExePath;
 
 	
 	//	gr: this is the resources dir inside .app on osx

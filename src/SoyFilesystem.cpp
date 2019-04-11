@@ -29,9 +29,6 @@ namespace Platform
 	void	EnumNsDirectory(const std::string& Directory,std::function<void(const std::string&)> OnFileFound,bool Recursive);
 #endif
 
-#if defined(TARGET_WINDOWS)
-	std::string		gDllPath;
-#endif
 	std::string		ExePath;
 }
 
@@ -463,16 +460,16 @@ void Platform::ShowFileExplorer(const std::string& Path)
 
 
 #if defined(TARGET_WINDOWS)
-void Platform::SetDllPath(const std::string& Path)
+void Platform::SetExePath(const std::string& Path)
 {
-	gDllPath = Path;
+	ExePath = Path;
 }
 #endif
 
 #if defined(TARGET_WINDOWS)
-std::string	Platform::GetDllPath()
+std::string	Platform::GetExePath()
 {
-	return GetDirectoryFromFilename( gDllPath );
+	return GetDirectoryFromFilename( ExePath );
 }
 #endif
 
@@ -766,14 +763,18 @@ void Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& Strin
 #if defined(TARGET_WINDOWS)
 std::string Platform::GetAppResourcesDirectory()
 {
-	//	gr: this needs fixing
-	return ExePath;
+	return Platform::GetDllPath();
 }
 #endif
 
 #if defined(TARGET_WINDOWS)
 std::string Platform::GetComputerName()
 {
-	throw Soy::AssertException("Todo: GetComputerName()");
+	char Buffer[MAX_PATH];
+	DWORD Length = sizeofarray(Buffer);
+	if ( !GetComputerNameA(Buffer,&Length) )
+		Platform::ThrowLastError("GetComputerNameA");
+	std::string Name(Buffer);
+	return Name;
 }
 #endif
