@@ -375,3 +375,11 @@ void Platform::IsOkay(const std::string& Context)
 {
 	IsOkay( GetLastError(), Context );
 }
+
+void Platform::ThrowLastError(const std::string& Context)
+{
+	auto LastError = GetLastError();
+	std::stringstream Error;
+	Error << Context << " Error: " << LastError;
+	throw Soy::AssertException(Error.str());
+}

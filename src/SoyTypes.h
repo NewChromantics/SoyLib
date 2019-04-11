@@ -334,6 +334,7 @@ namespace Platform
 #endif
 	void				IsOkay(int Error,const std::string& Context);
 	void				IsOkay(const std::string& Context);	//	checks last error
+	void				ThrowLastError(const std::string& Context);	//	throws an exception with the last error (even if there is none)
 };
 
 
