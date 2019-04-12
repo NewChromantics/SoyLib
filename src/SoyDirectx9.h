@@ -35,8 +35,8 @@ namespace Directx9
 	class TTextureSamplingParams;
 
 
-	inline std::string		GetEnumString(HRESULT Error)												{	return Platform::GetErrorString( Error );	}
-	inline bool				IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true)	{	return Platform::IsOkay( Error, Context, ThrowException );	}
+	inline std::string		GetEnumString(HRESULT Error)						{	return Platform::GetErrorString( Error );	}
+	inline bool				IsOkay(HRESULT Error,const std::string& Context)	{	return Platform::IsOkay( Error, Context );	}
 	SoyMediaFormat::Type	GetFormat(D3DFORMAT Format);
 	SoyPixelsFormat::Type	GetPixelFormat(D3DFORMAT Format);
 	D3DFORMAT				GetFormat(SoyPixelsFormat::Type Format);

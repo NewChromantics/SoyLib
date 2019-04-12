@@ -38,9 +38,9 @@ namespace Directx
 
 
 	inline std::string		GetEnumString(HRESULT Error)												{	return Platform::GetErrorString( Error );	}
-	bool					IsOkay(HRESULT Error,const char* Context,bool ThrowException=true);
-	inline bool				IsOkay(HRESULT Error,const std::string& Context,bool ThrowException=true)	{	return Platform::IsOkay( Error, Context, ThrowException );	}
-	bool					IsOkay(HRESULT Error,const std::function<void(std::stringstream&)>& Context,bool ThrowException=true);
+	void					IsOkay(HRESULT Error,const char* Context);
+	inline void				IsOkay(HRESULT Error,const std::string& Context)							{	Platform::IsOkay( Error, Context );	}
+	void					IsOkay(HRESULT Error,const std::function<void(std::stringstream&)>& Context);
 	SoyMediaFormat::Type	GetFormat(DXGI_FORMAT Format,bool Windows8Plus);
 	SoyPixelsFormat::Type	GetPixelFormat(DXGI_FORMAT Format,bool Windows8Plus=true);
 	DXGI_FORMAT				GetFormat(SoyPixelsFormat::Type Format,bool Windows8Plus);
