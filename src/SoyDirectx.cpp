@@ -23,23 +23,20 @@ std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap
 
 
 //	skip std::string alloc, move to platform!
-bool Directx::IsOkay(HRESULT Error,const char* Context,bool ThrowException)			
+void Directx::IsOkay(HRESULT Error,const char* Context)			
 {
-	if ( Error == S_OK )
-		return true;
-
-	return Platform::IsOkay( Error, Context, ThrowException );
+	Platform::IsOkay( Error, Context );
 }
 
 //	skip lots of string stuff, move to platform!
-bool Directx::IsOkay(HRESULT Error,const std::function<void(std::stringstream&)>& Context,bool ThrowException)
+void Directx::IsOkay(HRESULT Error,const std::function<void(std::stringstream&)>& Context)
 {
 	if ( Error == S_OK )
-		return true;
+		return;
 	
 	std::stringstream ContextStr;
 	Context( ContextStr );
-	return IsOkay( Error, ContextStr.str(), ThrowException );
+	return IsOkay( Error, ContextStr.str() );
 }
 
 
@@ -282,8 +279,7 @@ std::ostream& operator<<(std::ostream &out,const Directx::TTextureMeta& in)
 
 
 Directx::TContext::TContext(ID3D11Device& Device) :
-	mDevice			( &Device ),
-	mLockCount		( 0 )
+	mDevice			( &Device )
 {
 	//	gr: lets... let this happen. Let it fail when we actually need a shader
 	try
@@ -298,9 +294,7 @@ Directx::TContext::TContext(ID3D11Device& Device) :
 
 ID3D11DeviceContext& Directx::TContext::LockGetContext()
 {
-	if ( !Lock() )
-		throw Soy::AssertException("Failed to lock context");
-
+	Lock();
 	return *mLockedContext.mObject;
 }
 
@@ -308,27 +302,27 @@ ID3D11Device& Directx::TContext::LockGetDevice()
 {
 	Soy::Assert( mDevice!=nullptr, "Device expected" );
 
-	if ( !Lock() )
-		throw Soy::AssertException("Failed to lock context");
+	Lock();
 
 	return *mDevice;
 }
 
-bool Directx::TContext::Lock()
+void Directx::TContext::Lock()
 {
 	if ( mLockedContext )
 	{
 		mLockCount++;
-		return true;
+		return;
 	}
 
 	mDevice->GetImmediateContext( &mLockedContext.mObject );
-	if ( !Soy::Assert( mLockedContext!=nullptr, "Failed to get immediate context" ) )
-		return false;
-	Soy::Assert( mLockCount == 0, "Lock count is not zero");
-	mLockCount++;
+	if ( mLockedContext == nullptr )
+		throw Soy::AssertException("Failed to get immediate context");
+	
+	if ( mLockCount != 0 )
+		throw Soy::AssertException("Lock count is not zero");
 
-	return true;
+	mLockCount++;
 }
 
 void Directx::TContext::Unlock()
@@ -1033,7 +1027,7 @@ void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Text
 {
 	//	allocate sampler
 	{
-		std::shared_ptr<AutoReleasePtr<ID3D11SamplerState>> pSampler( new AutoReleasePtr<ID3D11SamplerState> );
+		std::shared_ptr<Soy::AutoReleasePtr<ID3D11SamplerState>> pSampler( new Soy::AutoReleasePtr<ID3D11SamplerState> );
 		auto& Sampler = pSampler->mObject;
 		auto& TextureParams = Texture.mSamplingParams;
 
@@ -1061,7 +1055,7 @@ void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Text
 
 	//	create resource view (resource->shader binding)
 	{
-		std::shared_ptr<AutoReleasePtr<ID3D11ShaderResourceView>> pResourceView( new AutoReleasePtr<ID3D11ShaderResourceView> );
+		std::shared_ptr<Soy::AutoReleasePtr<ID3D11ShaderResourceView>> pResourceView( new Soy::AutoReleasePtr<ID3D11ShaderResourceView> );
 		auto& ResourceView = *pResourceView;
 
 		ID3D11Resource* Resource = Texture.mTexture.mObject;

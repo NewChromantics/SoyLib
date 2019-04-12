@@ -7,6 +7,7 @@
 
 #include "SoyOpengl.h"	//	re-using opengl's vertex description atm
 #include "SoyMediaFormat.h"
+#include "SoyAutoReleasePtr.h"
 
 
 template<typename TYPE>
@@ -67,7 +68,7 @@ class Directx::TContext : public PopWorker::TJobQueue, public PopWorker::TContex
 public:
 	TContext(ID3D11Device& Device);
 
-	virtual bool	Lock() override;
+	virtual void	Lock() override;
 	virtual void	Unlock() override;
 
 	void			Iteration()			{	Flush(*this);	}
@@ -78,8 +79,8 @@ public:
 	DirectxCompiler::TCompiler&	GetCompiler();
 
 public:
-	AutoReleasePtr<ID3D11DeviceContext>			mLockedContext;
-	size_t										mLockCount;		//	for recursive locking
+	Soy::AutoReleasePtr<ID3D11DeviceContext>	mLockedContext;
+	size_t										mLockCount = 0;		//	for recursive locking
 	ID3D11Device*								mDevice;
 	std::shared_ptr<DirectxCompiler::TCompiler>	mCompiler;
 };
@@ -190,10 +191,10 @@ private:
 	TLockedTextureData	LockTextureData(TContext& Context,bool WriteAccess);
 	
 public:
-	TTextureSamplingParams			mSamplingParams;
-	SoyPixelsMeta					mMeta;			//	cache
-	AutoReleasePtr<ID3D11Texture2D>	mTexture;
-	DXGI_FORMAT						mFormat;		//	dx format
+	TTextureSamplingParams					mSamplingParams;
+	SoyPixelsMeta							mMeta;			//	cache
+	Soy::AutoReleasePtr<ID3D11Texture2D>	mTexture;
+	DXGI_FORMAT								mFormat;		//	dx format
 };
 namespace Directx
 {
@@ -219,12 +220,12 @@ public:
 	bool			operator!=(const TTexture& Texture) const		{	return !(*this == Texture);	}
 
 private:
-	AutoReleasePtr<ID3D11ShaderResourceView>	mShaderResourceView;
-	AutoReleasePtr<ID3D11RenderTargetView>		mRenderTargetView;
-	TTexture									mTexture;
+	Soy::AutoReleasePtr<ID3D11ShaderResourceView>	mShaderResourceView;
+	Soy::AutoReleasePtr<ID3D11RenderTargetView>		mRenderTargetView;
+	TTexture										mTexture;
 
-	AutoReleasePtr<ID3D11RenderTargetView>		mRestoreRenderTarget;
-	AutoReleasePtr<ID3D11DepthStencilView>		mRestoreStencilTarget;
+	Soy::AutoReleasePtr<ID3D11RenderTargetView>		mRestoreRenderTarget;
+	Soy::AutoReleasePtr<ID3D11DepthStencilView>		mRestoreStencilTarget;
 };
 
 
@@ -237,11 +238,11 @@ public:
 	void	Draw(TContext& Context);
 
 public:
-	SoyGraphics::TGeometryVertex	mVertexDescription;	//	for attrib binding info
-	AutoReleasePtr<ID3D11Buffer>	mVertexBuffer;
-	AutoReleasePtr<ID3D11Buffer>	mIndexBuffer;
-	size_t							mIndexCount;
-	DXGI_FORMAT						mIndexFormat;
+	SoyGraphics::TGeometryVertex		mVertexDescription;	//	for attrib binding info
+	Soy::AutoReleasePtr<ID3D11Buffer>	mVertexBuffer;
+	Soy::AutoReleasePtr<ID3D11Buffer>	mIndexBuffer;
+	size_t								mIndexCount;
+	DXGI_FORMAT							mIndexFormat;
 };
 
 
@@ -291,8 +292,8 @@ public:
 	const TShader&		mShader;
 	size_t				mTextureBindCount;
 	
-	Array<std::shared_ptr<AutoReleasePtr<ID3D11SamplerState>>>			mSamplers;
-	Array<std::shared_ptr<AutoReleasePtr<ID3D11ShaderResourceView>>>	mResources;	//	textures
+	Array<std::shared_ptr<Soy::AutoReleasePtr<ID3D11SamplerState>>>			mSamplers;
+	Array<std::shared_ptr<Soy::AutoReleasePtr<ID3D11ShaderResourceView>>>	mResources;	//	textures
 };
 
 
@@ -328,11 +329,11 @@ private:
 public:
 	TContext*							mBoundContext;	//	this binding should be moved to TShaderState
 
-	Array<Soy::TUniform>				mVertexShaderUniforms;
-	Array<Soy::TUniform>				mPixelShaderUniforms;
-	AutoReleasePtr<ID3D11VertexShader>	mVertexShader;
-	AutoReleasePtr<ID3D11PixelShader>	mPixelShader;
-	AutoReleasePtr<ID3D11InputLayout>	mLayout;	//	maybe for geometry?
+	Array<Soy::TUniform>					mVertexShaderUniforms;
+	Array<Soy::TUniform>					mPixelShaderUniforms;
+	Soy::AutoReleasePtr<ID3D11VertexShader>	mVertexShader;
+	Soy::AutoReleasePtr<ID3D11PixelShader>	mPixelShader;
+	Soy::AutoReleasePtr<ID3D11InputLayout>	mLayout;	//	maybe for geometry?
 };
 
 

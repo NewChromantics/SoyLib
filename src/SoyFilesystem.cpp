@@ -459,6 +459,34 @@ void Platform::ShowFileExplorer(const std::string& Path)
 
 
 
+
+#if defined(TARGET_WINDOWS)
+void Platform::SetExePath()
+{
+	//	auto init path
+	char Buffer[MAX_PATH] = { 0 };
+	auto Length = GetModuleFileNameA( NULL, Buffer, MAX_PATH );
+	Length = std::min<size_t>( Length, sizeof(Buffer)-1 );
+	Buffer[Length] = '\0';
+	SetExePath(Buffer);
+
+	/*
+	std::string Path;
+
+	char PathBuffer[MAX_PATH];
+	auto PathBufferLength = GetModuleFileNameA( Module, PathBuffer, sizeof(PathBuffer) );
+	if ( Platform::IsOkay( "GetModuleFileName in DLLMain", false ) )
+	{
+		//	just in case 
+		PathBufferLength = std::min<size_t>( PathBufferLength, sizeof(PathBuffer)-1 );
+		PathBuffer[PathBufferLength] = '\0';
+		Path = PathBuffer;
+	}
+	*/
+}
+#endif
+
+
 #if defined(TARGET_WINDOWS)
 void Platform::SetExePath(const std::string& Path)
 {

@@ -53,6 +53,8 @@ namespace Platform
 #if defined(TARGET_WINDOWS)
 	void				SetExePath(const std::string& Path);
 	inline void			SetDllPath(const std::string& Path) { SetExePath(Path); }
+	void				SetExePath();
+	inline void			SetDllPath() { SetExePath(); }
 	std::string			GetExePath();
 	inline std::string	GetDllPath() { return GetExePath(); }
 #endif
