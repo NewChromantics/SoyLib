@@ -182,11 +182,14 @@ public:
 	TTextureMode::Type	GetMode() const;
 	SoyPixelsMeta		GetMeta() const		{	return mMeta;	}
 	DXGI_FORMAT			GetDirectxFormat() const	{	return mFormat;	}
+	ID3D11ShaderResourceView&	GetResourceView(ID3D11Device& Device);	//	allocate a shader resource view if there isn't one
+	ID3D11ShaderResourceView&	GetResourceView();
 
 	bool				operator==(const TTextureMeta& Meta) const	{	return mMeta == Meta.mMeta && GetMode() == Meta.mMode;	}
 	bool				operator==(const TTexture& that) const	{	return mTexture.mObject == that.mTexture.mObject;	}
 	bool				operator!=(const TTexture& that) const	{	return !(*this == that);	}
 
+	
 private:
 	TLockedTextureData	LockTextureData(TContext& Context,bool WriteAccess);
 	
@@ -195,6 +198,8 @@ public:
 	SoyPixelsMeta							mMeta;			//	cache
 	Soy::AutoReleasePtr<ID3D11Texture2D>	mTexture;
 	DXGI_FORMAT								mFormat;		//	dx format
+
+	std::shared_ptr<Soy::AutoReleasePtr<ID3D11ShaderResourceView>>	mResourceView;
 };
 namespace Directx
 {

@@ -672,6 +672,58 @@ void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool
 	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true,false,false) );
 }
 
+ID3D11ShaderResourceView& Directx::TTexture::GetResourceView()
+{
+	if ( !mResourceView )
+		throw Soy::AssertException("Existing ResourceView not allocated");
+
+	return *mResourceView->mObject;
+}
+
+ID3D11ShaderResourceView& Directx::TTexture::GetResourceView(ID3D11Device& Device)
+{	
+	if ( mResourceView )
+		return *mResourceView->mObject;
+
+	auto& Texture = *this;
+
+	mResourceView.reset( new Soy::AutoReleasePtr<ID3D11ShaderResourceView> );
+	auto& ResourceView = *mResourceView;
+
+	ID3D11Resource* Resource = Texture.mTexture.mObject;
+
+	//	below will fail if bind flags doesn't have D3D11_BIND_SHADER_RESOURCE
+	auto Mode = Texture.GetMode();
+
+	//	no description means it uses original params
+	const D3D11_SHADER_RESOURCE_VIEW_DESC* ResourceDesc = nullptr;
+	D3D11_SHADER_RESOURCE_VIEW_DESC TempResourceDesc;
+
+	//	if internal type is typeless, and there is no raw-view setting, we need to set the format
+	if ( Directx::FormatIsTypeless(Texture.GetDirectxFormat()) )
+	{
+		D3D11_TEXTURE2D_DESC SrcDesc;
+		Texture.mTexture.mObject->GetDesc( &SrcDesc );
+		bool AllowsRawView = bool_cast(SrcDesc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS);
+		if ( !AllowsRawView )
+		{
+			UINT MostDetailedMip;
+			UINT MipLevels;
+			TempResourceDesc.Texture2D.MipLevels = SrcDesc.MipLevels;
+			TempResourceDesc.Texture2D.MostDetailedMip = 0;
+			//	gr: what goes here?
+			TempResourceDesc.Format = DXGI_FORMAT_R8G8B8A8_UINT;
+			TempResourceDesc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
+			ResourceDesc = &TempResourceDesc;
+		}
+	}
+
+	auto Result = Device.CreateShaderResourceView( Resource, ResourceDesc, &ResourceView.mObject );
+	Directx::IsOkay( Result, "Createing resource view");
+	
+	return *mResourceView->mObject;
+}
+
 Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 	mTexture		( Texture )
 {
@@ -1025,6 +1077,8 @@ bool Directx::TShaderState::SetUniform(const char* Name,const SoyPixelsImpl& Tex
 
 void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Texture)
 {
+	auto& Device = GetDevice();
+
 	//	allocate sampler
 	{
 		std::shared_ptr<Soy::AutoReleasePtr<ID3D11SamplerState>> pSampler( new Soy::AutoReleasePtr<ID3D11SamplerState> );
@@ -1047,7 +1101,6 @@ void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Text
 		samplerDesc.MaxLOD = TextureParams.mMaxLod == -1 ? D3D11_FLOAT32_MAX : TextureParams.mMaxLod;
 
 		// Create the texture sampler state.
-		auto& Device = GetDevice();
 		auto Result = Device.CreateSamplerState( &samplerDesc, &Sampler );
 		Directx::IsOkay( Result, "Creating sampler" );
 		mSamplers.PushBack( pSampler );
@@ -1055,41 +1108,10 @@ void Directx::TShaderState::BindTexture(size_t TextureIndex,const TTexture& Text
 
 	//	create resource view (resource->shader binding)
 	{
-		std::shared_ptr<Soy::AutoReleasePtr<ID3D11ShaderResourceView>> pResourceView( new Soy::AutoReleasePtr<ID3D11ShaderResourceView> );
-		auto& ResourceView = *pResourceView;
-
-		ID3D11Resource* Resource = Texture.mTexture.mObject;
-
-		//	below will fail if bind flags doesn't have D3D11_BIND_SHADER_RESOURCE
-		auto Mode = Texture.GetMode();
-
-		//	no description means it uses original params
-		const D3D11_SHADER_RESOURCE_VIEW_DESC* ResourceDesc = nullptr;
-		D3D11_SHADER_RESOURCE_VIEW_DESC TempResourceDesc;
-
-		//	if internal type is typeless, and there is no raw-view setting, we need to set the format
-		if ( Directx::FormatIsTypeless(Texture.GetDirectxFormat()) )
-		{
-			D3D11_TEXTURE2D_DESC SrcDesc;
-			Texture.mTexture.mObject->GetDesc( &SrcDesc );
-			bool AllowsRawView = bool_cast(SrcDesc.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS);
-			if ( !AllowsRawView )
-			{
-				UINT MostDetailedMip;
-				UINT MipLevels;
-				TempResourceDesc.Texture2D.MipLevels = SrcDesc.MipLevels;
-				TempResourceDesc.Texture2D.MostDetailedMip = 0;
-				//	gr: what goes here?
-				TempResourceDesc.Format = DXGI_FORMAT_R8G8B8A8_UINT;
-				TempResourceDesc.ViewDimension = D3D_SRV_DIMENSION_TEXTURE2D;
-				ResourceDesc = &TempResourceDesc;
-			}
-		}
-
-		auto& Device = GetDevice();
-		auto Result = Device.CreateShaderResourceView( Resource, ResourceDesc, &ResourceView.mObject );
-		Directx::IsOkay( Result, "Createing resource view");
-		mResources.PushBack( pResourceView );
+		//	hack!
+		auto& TextureMutable = const_cast<TTexture&>(Texture);
+		auto& Resource = TextureMutable.GetResourceView(Device);
+		mResources.PushBack( Texture.mResourceView );
 	}
 }
 
