@@ -380,6 +380,8 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 		Desc.Format = GetFormat( Meta.GetFormat(), IsWindows8  );
 		Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		if ( Desc.MipLevels != 1 )
+			throw Soy::AssertException("D3D11_USAGE_DYNAMIC textures must have only 1 miplevel");
 	}
 	else if ( Mode == TTextureMode::ReadOnly )
 	{
