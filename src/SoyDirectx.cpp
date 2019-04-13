@@ -514,12 +514,10 @@ void Directx::TTexture::Write(const TTexture& Source,TContext& ContextDx)
 }
 
 
-Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& ContextDx,bool WriteAccess)
+Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& ContextDx,bool WriteAccess,bool CanDiscardOldData,bool Blocking)
 {
 	Soy::Assert( IsValid(), "Writing to invalid texture" );
 	auto& Context = ContextDx.LockGetContext();
-
-	bool Blocking = true;
 
 	//	update our dynamic texture
 	try
@@ -568,19 +566,29 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 			{
 				MapFlags = 0x0;
 
-				if ( WriteAccess )
+				if ( WriteAccess && CanDiscardOldData )
+				{
 					MapMode = D3D11_MAP_WRITE_DISCARD;
+				}
+				else if ( WriteAccess )
+				{
+					MapMode = D3D11_MAP_WRITE;
+				}
 				else
+				{
 					MapMode = D3D11_MAP_READ;
+				}
 			}
 			else
 			{
 				MapFlags = !Blocking ? D3D11_MAP_FLAG_DO_NOT_WAIT : 0x0;
-				if ( WriteAccess )
+				if ( WriteAccess && CanDiscardOldData )
 				{
-					//	gr: for immediate context, we ALSO want write_discard
-					//MapMode = D3D11_MAP_WRITE;
 					MapMode = D3D11_MAP_WRITE_DISCARD;
+				}
+				else if ( WriteAccess )
+				{
+					throw Soy::AssertException("Cannot map without discarding in immediate directx context");
 				}
 				else
 				{
@@ -633,12 +641,117 @@ Directx::TLockedTextureData Directx::TTexture::LockTextureData(TContext& Context
 
 void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& ContextDx)
 {
-	auto Lock = LockTextureData( ContextDx, true );
+	auto Lock = LockTextureData( ContextDx, true, true, true );
 
 	//	copy row by row to handle misalignment
 	SoyPixelsRemote DestPixels( reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat() );
 
 	DestPixels.Copy( SourcePixels, TSoyPixelsCopyParams(true,true,true,false,false) );
+}
+
+void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& ContextDx,size_t RowFirst,size_t RowCount)
+{
+	auto WriteWithSubResource = [&]()
+	{
+		//UpdateSubresource
+		auto& Context = ContextDx.LockGetContext();
+		try
+		{
+			D3D11_TEXTURE2D_DESC SrcDesc;
+			mTexture->GetDesc(&SrcDesc);
+
+			//	https://docs.microsoft.com/en-us/windows/desktop/api/d3d11/nf-d3d11-id3d11devicecontext-updatesubresource
+			//	UpdateSubresource fails for a few reasons but there is no error return
+			//the resource is created with immutable or dynamic usage.
+			if ( SrcDesc.Usage == D3D11_USAGE_DYNAMIC )
+				throw Soy::AssertException("Cannot UpdateSubresource on dynamic texture");
+			if ( SrcDesc.Usage == D3D11_USAGE_IMMUTABLE )
+				throw Soy::AssertException("Cannot UpdateSubresource on immutable texture");
+			//the resource is created with multisampling capability (see DXGI_SAMPLE_DESC).
+
+
+			D3D11_MAPPED_SUBRESOURCE resource;
+			ZeroMemory( &resource, sizeof(resource) );
+			int SubResource = 0;
+			auto ContextType = Context.GetType();
+			bool IsDefferedContext = ( ContextType == D3D11_DEVICE_CONTEXT_DEFERRED );
+
+			auto& SourceArray = SourcePixels.GetPixelsArray();
+
+			D3D11_BOX DestRect;
+			DestRect.front = 0;
+			DestRect.back = 1;
+			DestRect.left = 0;
+			DestRect.right = SourcePixels.GetWidth();
+			DestRect.top = RowFirst;
+			DestRect.bottom = RowFirst + RowCount;
+			UINT SourceRowPitch = SourcePixels.GetMeta().GetRowDataSize();
+			UINT SourceDestPitch = 0;
+			auto* SourceData = SourceArray.GetArray();
+
+			//	no error reporting!
+			Context.UpdateSubresource(mTexture.mObject, SubResource, &DestRect, SourceData, SourceRowPitch, SourceDestPitch);
+			
+			ContextDx.Unlock();
+		}
+		catch ( ... )
+		{
+			ContextDx.Unlock();
+			throw;
+		}
+	};
+
+	auto WriteWithPartialMap = [&]()
+	{
+		//	gr: in an immediate context, we cannot map without discarding
+		//	gr: we also have to block in an immediate context it seems
+		static bool Blocking = true;
+		static bool CanDiscard = false;
+		auto Lock = LockTextureData(ContextDx, true, CanDiscard, Blocking);
+
+		//	copy row by row to handle misalignment
+		SoyPixelsRemote DestPixels(reinterpret_cast<uint8*>(Lock.mData), Lock.GetPaddedWidth(), Lock.mMeta.GetHeight(), Lock.mSize, Lock.mMeta.GetFormat());
+
+		//	should use arrays?
+		auto& SourceArray = SourcePixels.GetPixelsArray();
+		auto& DestArray = DestPixels.GetPixelsArray();
+		auto SourceDataSize = SourceArray.GetDataSize();
+		auto DestDataSize = DestArray.GetDataSize();
+		if ( SourceDataSize != DestDataSize )
+		{
+			std::stringstream Error;
+			Error << __func__ << " cannot do offset pixel write as pixels are different sizes; Source=" << SourceDataSize << " vs Dest=" << DestDataSize;
+			throw Soy::AssertException(Error.str());
+		}
+
+		auto WriteOffset = RowFirst * SourcePixels.GetRowPitchBytes();
+		auto WriteLength = RowCount * SourcePixels.GetRowPitchBytes();
+
+		//	trying to write out of bounds
+		if ( WriteOffset + WriteLength > SourceArray.GetDataSize() )
+		{
+			std::stringstream Error;
+			Error << __func__ << " trying to write( " << WriteOffset << " , " << WriteLength << ") out of bounds (pixel size=" << DestDataSize << ")";
+			throw Soy::AssertException(Error.str());
+		}
+
+		auto* This00 = &DestPixels.GetPixelPtr(0, 0, 0);
+		auto* That00 = &SourcePixels.GetPixelPtr(0, 0, 0);
+
+		This00 += WriteOffset;
+		That00 += WriteOffset;
+		memcpy(This00, That00, WriteLength);
+	};
+
+
+	try
+	{
+		WriteWithPartialMap();
+	}
+	catch(std::exception& e)
+	{
+		WriteWithSubResource();
+	}
 }
 
 
@@ -664,7 +777,7 @@ void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool
 		return;
 	}
 
-	auto Lock = LockTextureData( ContextDx, false );
+	auto Lock = LockTextureData( ContextDx, false, true, true );
 
 	DestPixels.Init( Lock.mMeta );
 

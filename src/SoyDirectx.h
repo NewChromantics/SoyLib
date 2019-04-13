@@ -172,6 +172,7 @@ public:
 	bool				IsValid() const		{	return mTexture;	}
 	void				Write(const TTexture& Source,TContext& Context);
 	void				Write(const SoyPixelsImpl& Source,TContext& Context);
+	void				Write(const SoyPixelsImpl& Source,TContext& Context,size_t RowFirst,size_t RowCount);
 
 	//	with directx, we can't always read from a texture, but if you give a pool, we can copy to a temp one and read from that
 	void				Read(SoyPixelsImpl& Pixels, TContext& Context)								{	Read(Pixels, Context, nullptr );	}
@@ -191,7 +192,7 @@ public:
 
 	
 private:
-	TLockedTextureData	LockTextureData(TContext& Context,bool WriteAccess);
+	TLockedTextureData	LockTextureData(TContext& Context,bool WriteAccess,bool CanDiscardOldData,bool Blocking);
 	
 public:
 	TTextureSamplingParams					mSamplingParams;
