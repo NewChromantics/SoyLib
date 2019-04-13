@@ -687,7 +687,10 @@ void Directx::TTexture::Write(const SoyPixelsImpl& SourcePixels,TContext& Contex
 			DestRect.bottom = RowFirst + RowCount;
 			UINT SourceRowPitch = SourcePixels.GetMeta().GetRowDataSize();
 			UINT SourceDestPitch = 0;
-			auto* SourceData = SourceArray.GetArray();
+
+			//	source data needs to be offset (docs aren't clear, but clear in testing)
+			auto ReadOffset = RowFirst * SourcePixels.GetRowPitchBytes();
+			auto* SourceData = SourceArray.GetArray() + ReadOffset;
 
 			//	no error reporting!
 			Context.UpdateSubresource(mTexture.mObject, SubResource, &DestRect, SourceData, SourceRowPitch, SourceDestPitch);
