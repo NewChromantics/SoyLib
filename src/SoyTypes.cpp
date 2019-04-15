@@ -380,6 +380,6 @@ void Platform::ThrowLastError(const std::string& Context)
 {
 	auto LastError = GetLastError();
 	std::stringstream Error;
-	Error << Context << " Error: " << LastError;
+	Error << Context << " Error: " << GetErrorString(LastError);
 	throw Soy::AssertException(Error.str());
 }
