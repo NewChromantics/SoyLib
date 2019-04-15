@@ -18,18 +18,36 @@ bool GetUrlKeyBool(NSURL* Path,NSString* Key)
 {
 	NSNumber* KeyValue = nil;
 	NSError* Error = nil;
-	[Path getResourceValue:&KeyValue forKey:Key error:&Error];
-	
-	if ( !KeyValue )
+	if ( ![Path getResourceValue:&KeyValue forKey:Key error:&Error] )
 	{
 		std::stringstream Error;
 		Error << "Key not found " << Soy::NSStringToString(Key);
 		throw Soy::AssertException( Error.str() );
 	}
 
+	//	gr; this can be nil...
+	//if ( !KeyValue )
+
 	auto Value = [KeyValue boolValue];
 	return Value;
 }
+
+
+std::string GetUrlKeyString(NSURL* Path,NSString* Key)
+{
+	NSString* KeyValue = nil;
+	NSError* Error = nil;
+	if ( ![Path getResourceValue:&KeyValue forKey:Key error:&Error] )
+	{
+		std::stringstream Error;
+		Error << "Key not found " << Soy::NSStringToString(Key);
+		throw Soy::AssertException( Error.str() );
+	}
+
+	auto ValueString = Soy::NSStringToString(KeyValue);
+	return ValueString;
+}
+
 
 std::string UrlGetFilename(NSURL* Path)
 {
@@ -37,7 +55,9 @@ std::string UrlGetFilename(NSURL* Path)
 	auto AbsolutePath = Soy::NSStringToString( AbsolutePathNs );
 
 	//	gr: this is just to make it pretty and remove the protocol really...
+	//	gr: somewhere else, I explicitly remove the protocol, instead of a hardcoded string...
 	Soy::StringTrimLeft( AbsolutePath, "file://localhost", true );
+	Soy::StringTrimLeft( AbsolutePath, "file://", true );
 
 	return AbsolutePath;
 	/*
@@ -51,25 +71,42 @@ std::string UrlGetFilename(NSURL* Path)
 
 SoyPathType::Type GetPathType(NSURL* Path)
 {
-	try
+	auto GetUrlKeyBool_Safe = [&](NSURLResourceKey Key)
 	{
-		if ( GetUrlKeyBool( Path, NSURLIsDirectoryKey ) )
-			return SoyPathType::Directory;
-	}
-	catch(...)
-	{
-	}
+		try
+		{
+			auto Value = GetUrlKeyBool( Path, Key );
+			return Value;
+		}
+		catch(...)
+		{
+			return false;
+		}
+	};
 	
+	if ( GetUrlKeyBool_Safe(NSURLIsDirectoryKey) )
+		return SoyPathType::Directory;
 	
-	try
+	if ( GetUrlKeyBool_Safe(NSURLIsRegularFileKey) )
+		return SoyPathType::File;
+	
+	//	gr: can't find a key test for our serial ones...
 	{
-		if ( GetUrlKeyBool( Path, NSURLIsRegularFileKey ) )
-			return SoyPathType::File;
-	}
-	catch(...)
-	{
+		auto ResourceType = GetUrlKeyString( Path, NSURLFileResourceTypeKey );
+		if ( ResourceType == "NSURLFileResourceTypeCharacterSpecial" )
+			return SoyPathType::Special;
 	}
 
+	try
+	{
+		auto ResourceType = GetUrlKeyString( Path, NSURLFileResourceTypeKey );
+		std::Debug << "Unhandled file type " << ResourceType << " for " << Soy::NSStringToString(Path.absoluteString) << std::endl;
+	}
+	catch(std::exception& e)
+	{
+		//
+	}
+	
 	return SoyPathType::Unknown;
 }
 

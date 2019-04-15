@@ -25,6 +25,7 @@ namespace SoyPathType
 		Unknown,
 		File,
 		Directory,
+		Special,	//	on OSX, this includes devices like /dev/tty.xxx or /dev/console. Maybe we can specialise this as Pipe or Stream
 	};
 };
 
