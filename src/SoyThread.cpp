@@ -134,6 +134,8 @@ std::shared_ptr<PopWorker::TJob> PopWorker::TJobQueue::PopNextJob(TContext& Cont
 		auto DelayMs = pJob->GetRunDelay();
 		if ( DelayMs > 0 )
 		{
+			if ( SmallestDelay == 0 )
+				SmallestDelay = DelayMs;
 			SmallestDelay = std::min( SmallestDelay, DelayMs );
 			continue;
 		}
