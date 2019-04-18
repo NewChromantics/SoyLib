@@ -1055,7 +1055,7 @@ SoyPixelsFormat::Type Avf::GetPixelFormat(OSType Format)
 	
 	if ( !Meta )
 	{
-		std::Debug << "Unknown Avf CV pixel format (" << Soy::FourCCToString(Format) << " 0x" << std::hex << Format << std::endl;
+		std::Debug << "Unknown Avf CV pixel format (" << Soy::FourCCToString(Format) << " 0x" << std::hex << Format << ")" << std::dec << std::endl;
 		
 		return SoyPixelsFormat::Invalid;
 	}

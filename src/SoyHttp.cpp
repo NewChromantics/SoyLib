@@ -431,7 +431,7 @@ void Http::TChunkedProtocol::Encode(TStreamBuffer& Output)
 		LineFeed.PushBack('\r');
 		LineFeed.PushBack('\n');
 		std::stringstream ChunkPrefix;
-		ChunkPrefix << std::hex << EatSize;
+		ChunkPrefix << std::hex << EatSize << std::dec;
 		Output.Push( ChunkPrefix.str() );
 		Output.Push( GetArrayBridge(LineFeed) );
 		Output.Push( GetArrayBridge(ChunkData) );

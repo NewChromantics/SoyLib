@@ -2106,11 +2106,11 @@ void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream,b
 	auto Stride = ComponentCount * Meta.GetWidth();
 	auto* Pixels = GetPixelsArray().GetArray();
 	
+	if ( Hex )
+		Stream << std::hex;
 	for ( int p=0;	p<Meta.GetDataSize();	p++ )
 	{
 		int PixelValue = (int)Pixels[p];
-		if ( Hex )
-			Stream << std::hex;
 		Stream << PixelValue;
 		if ( PixelSuffix )
 			Stream << PixelSuffix;
@@ -2118,6 +2118,7 @@ void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream,b
 		if ( p % Stride == 0 )
 			Stream << std::endl;
 	}
+	Stream << std::dec;
 	Stream << std::endl;
 }
 
