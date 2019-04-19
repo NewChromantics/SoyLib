@@ -78,7 +78,7 @@ TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMedi
 	Soy::Assert( mInput!=nullptr, "Expected input");
 	Soy::Assert( mPixelOutput!=nullptr, "Expected output target");
 	//	wake when new packets arrive
-	mOnNewPacketListener = WakeOnEvent( mInput->mOnNewPacket );
+	WakeOnEvent( mInput->mOnNewPacket );
 }
 
 
@@ -90,7 +90,7 @@ TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMedi
 	Soy::Assert( mInput!=nullptr, "Expected input");
 	Soy::Assert( mAudioOutput!=nullptr, "Expected output target");
 	//	wake when new packets arrive
-	mOnNewPacketListener = WakeOnEvent( mInput->mOnNewPacket );
+	WakeOnEvent( mInput->mOnNewPacket );
 }
 
 
@@ -102,18 +102,14 @@ TMediaDecoder::TMediaDecoder(const std::string& ThreadName,std::shared_ptr<TMedi
 	Soy::Assert( mInput!=nullptr, "Expected input");
 	Soy::Assert( mTextOutput!=nullptr, "Expected output target");
 	//	wake when new packets arrive
-	auto OnNewPacket = [this](std::shared_ptr<TMediaPacket>& Packet)
-	{
-		this->Wake();
-	};
-	mOnNewPacketListener = mInput->mOnNewPacket.AddListener(OnNewPacket);
+	WakeOnEvent( mInput->mOnNewPacket );
 }
 
 TMediaDecoder::~TMediaDecoder()
 {
 	if ( mInput )
 	{
-		mInput->mOnNewPacket.RemoveListener( mOnNewPacketListener );
+		mInput->mOnNewPacket = nullptr;
 	}
 	WaitToFinish();
 }
@@ -216,12 +212,14 @@ void TMediaDecoder::OnDecodeFrameSubmitted(const SoyTime& Time)
 {
 	if ( mPixelOutput )
 	{
-		mPixelOutput->mOnFrameDecodeSubmission.OnTriggered( Time );
+		if ( mPixelOutput->mOnFrameDecodeSubmission )
+			mPixelOutput->mOnFrameDecodeSubmission( Time );
 	}
 
 	if ( mAudioOutput )
 	{
-		mAudioOutput->mOnFrameDecodeSubmission.OnTriggered( Time );
+		if ( mAudioOutput->mOnFrameDecodeSubmission )
+			mAudioOutput->mOnFrameDecodeSubmission( Time );
 	}
 }
 
@@ -333,7 +331,8 @@ void TMediaPacketBuffer::PushPacket(std::shared_ptr<TMediaPacket> Packet,std::fu
 		
 		//std::Debug << "Pushed intput packet to buffer " << *Packet << std::endl;
 	}
-	mOnNewPacket.OnTriggered( Packet );
+	if ( mOnNewPacket )
+		mOnNewPacket( Packet );
 }
 
 void TMediaPacketBuffer::CorrectIncomingPacketTimecode(TMediaPacket& Packet)
@@ -437,7 +436,7 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::AllocStreamBuffer(size_t St
 	{
 		Buffer.reset( new TMediaPacketBuffer(MaxBufferSize) );
 		
-		auto OnPacketExtracted = [StreamIndex,this](std::shared_ptr<TMediaPacket>& Packet)
+		auto OnPacketExtracted = [StreamIndex,this](std::shared_ptr<TMediaPacket> Packet)
 		{
 			if ( !mOnPacketExtracted )
 				return;
@@ -445,7 +444,7 @@ std::shared_ptr<TMediaPacketBuffer> TMediaExtractor::AllocStreamBuffer(size_t St
 			mOnPacketExtracted( Packet->mTimecode, Packet->mMeta.mStreamIndex );
 		};
 		
-		Buffer->mOnNewPacket.AddListener( OnPacketExtracted );
+		Buffer->mOnNewPacket = OnPacketExtracted;
 	}
 	
 	return Buffer;
@@ -611,11 +610,6 @@ void TMediaExtractor::ReadPacketsUntil(SoyTime Time,std::function<bool()> While)
 	}
 }
 
-void TMediaExtractor::GetMeta(TJsonWriter& Json)
-{
-	Json.Push("CanSeekBackwards", CanSeekBackwards() );
-}
-
 
 TStreamMeta TMediaExtractor::GetStream(size_t Index)
 {
@@ -690,7 +684,8 @@ void TMediaExtractor::OnSkippedExtractedPacket(const SoyTime& Timecode)
 
 void TMediaExtractor::OnStreamsChanged(const ArrayBridge<TStreamMeta>&& Streams)
 {
-	mOnStreamsChanged.OnTriggered( Streams );
+	if ( mOnStreamsChanged )
+		mOnStreamsChanged( Streams );
 }
 
 void TMediaExtractor::OnStreamsChanged()
@@ -826,11 +821,6 @@ void TMediaEncoder::PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::functio
 	mOutput->PushPacket( Packet, Block );
 }
 
-void TMediaEncoder::GetMeta(TJsonWriter& Json)
-{
-	if ( mOutput )
-		Json.Push("EncoderPendingOutputFrames", mOutput->GetPacketCount() );
-}
 
 
 TMediaMuxer::TMediaMuxer(std::shared_ptr<TStreamWriter> Output,std::shared_ptr<TMediaPacketBuffer>& Input,const std::string& ThreadName) :
@@ -841,7 +831,7 @@ TMediaMuxer::TMediaMuxer(std::shared_ptr<TStreamWriter> Output,std::shared_ptr<T
 {
 	//Soy::Assert( mOutput!=nullptr, "TMpeg2TsMuxer output missing");
 	Soy::Assert( mInput!=nullptr, "TMpeg2TsMuxer input missing");
-	mOnPacketListener = WakeOnEvent( mInput->mOnNewPacket );
+	WakeOnEvent( mInput->mOnNewPacket );
 	
 	Start();
 }
@@ -959,23 +949,6 @@ void TMediaMuxer::SetStreams(const ArrayBridge<TStreamMeta>&& Streams)
 	
 	mStreams.Copy( Streams );
 	SetupStreams( GetArrayBridge(mStreams) );
-}
-
-void TMediaMuxer::GetMeta(TJsonWriter& Json)
-{
-	auto InputQueueSize = mInput ? mInput->GetPacketCount() : -1;
-	auto DefferedQueueSize = mDefferedPackets.GetSize();
-
-	Json.Push("MuxerInputQueueCount", InputQueueSize);
-	Json.Push("MuxerDefferedQueueCount", DefferedQueueSize);
-}
-
-
-
-void TMediaBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
-{
-	Json.Push( Prefix + "RealFirstTimestamp", mFirstTimestamp.mTime );
-	Json.Push( Prefix + "HadEndOfFilePacket", mHasEof );
 }
 
 
@@ -1346,7 +1319,8 @@ void TAudioBufferManager::PushAudioBuffer(TAudioBufferBlock& AudioData)
 			mFormat.mFrequency = AudioData.mFrequency;
 
 		//	gr;  maybe consider changing this to allow rejection of data
-		mOnAudioBlockPushed.OnTriggered( AudioData );
+		if ( mOnAudioBlockPushed )
+			mOnAudioBlockPushed( AudioData );
 
 		AudioData.SetChannels( mFormat.mChannels );
 		AudioData.SetFrequencey( mFormat.mFrequency );
@@ -1359,7 +1333,8 @@ void TAudioBufferManager::PushAudioBuffer(TAudioBufferBlock& AudioData)
 		std::lock_guard<std::mutex> Lock( mBlocksLock );
 		mBlocks.PushBack( AudioData );
 	}
-	mOnFramePushed.OnTriggered( AudioData.mStartTime );
+	if ( mOnFramePushed )
+		mOnFramePushed( AudioData.mStartTime );
 }
 
 
@@ -1615,26 +1590,6 @@ void TAudioBufferManager::ReleaseFramesBefore(SoyTime FlushTime,bool ClipOldData
 }
 
 
-void TAudioBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
-{
-	Json.Push( Prefix + "Type", "Audio" );
-	TMediaBufferManager::GetMeta( Prefix, Json );
-	
-	BufferArray<uint64,10> NextTimecodes;
-	{
-		std::lock_guard<std::mutex> Lock( mBlocksLock );
-		for ( int i=0;	i<mBlocks.GetSize() && !NextTimecodes.IsFull();	i++ )
-		{
-			auto& Block = mBlocks[i];
-			NextTimecodes.PushBack( Block.GetStartTime().mTime );
-		}
-	}
-	
-	Json.Push( (Prefix + "NextFrameTime").c_str(), GetArrayBridge(NextTimecodes) );
-}
-
-
-
 void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 {
 	{
@@ -1666,7 +1621,9 @@ void TTextBufferManager::PushBuffer(std::shared_ptr<TMediaPacket> Buffer)
 		
 		mBlocks.PushBack( Buffer );
 	}
-	mOnFramePushed.OnTriggered( Buffer->mTimecode );
+	
+	if ( mOnFramePushed )
+		mOnFramePushed( Buffer->mTimecode );
 }
 
 SoyTime TTextBufferManager::PopBuffer(std::stringstream& Output,SoyTime Time,bool SkipOldText)
@@ -1763,26 +1720,6 @@ void TTextBufferManager::ReleaseFramesAfter(SoyTime FlushTime)
 
 		break;
 	}
-}
-
-void TTextBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
-{
-	Json.Push( Prefix + "Type", "Text" );
-	TMediaBufferManager::GetMeta( Prefix, Json );
-	
-	BufferArray<uint64,10> NextTimecodes;
-	{
-		std::lock_guard<std::mutex> Lock( mBlocksLock );
-		for ( int i=0;	i<mBlocks.GetSize() && !NextTimecodes.IsFull();	i++ )
-		{
-			auto& Block = mBlocks[i];
-			if ( !Block )
-				continue;
-			NextTimecodes.PushBack( Block->GetStartTime().mTime );
-		}
-	}
-	
-	Json.Push( (Prefix + "NextFrameTime").c_str(), GetArrayBridge(NextTimecodes) );
 }
 
 
@@ -1893,7 +1830,8 @@ bool TMediaPassThroughDecoder::ProcessPixelPacket(const TMediaPacket& Packet)
 
 		auto& Output = GetPixelBufferManager();
 		Output.CorrectDecodedFrameTimestamp( Frame.mTimestamp );
-		Output.mOnFrameDecoded.OnTriggered( Frame.mTimestamp );
+		if ( Output.mOnFrameDecoded )
+			Output.mOnFrameDecoded( Frame.mTimestamp );
 
 		if ( !Output.PrePushBuffer( Frame.mTimestamp ) )
 			return true;
@@ -1911,7 +1849,8 @@ bool TMediaPassThroughDecoder::ProcessPixelPacket(const TMediaPacket& Packet)
 		
 		auto& Output = GetPixelBufferManager();
 		Output.CorrectDecodedFrameTimestamp( Frame.mTimestamp );
-		Output.mOnFrameDecoded.OnTriggered( Frame.mTimestamp );
+		if ( Output.mOnFrameDecoded )
+			Output.mOnFrameDecoded( Frame.mTimestamp );
 		
 		if ( !Output.PrePushBuffer( Frame.mTimestamp ) )
 			return true;
@@ -1949,7 +1888,8 @@ bool TMediaPassThroughDecoder::ProcessAudioPacket(const TMediaPacket& Packet)
 
 	auto& Output = GetAudioBufferManager();
 	Output.CorrectDecodedFrameTimestamp( Timestamp );
-	Output.mOnFrameDecoded.OnTriggered( Timestamp );
+	if ( Output.mOnFrameDecoded )
+		Output.mOnFrameDecoded( Timestamp );
 
 	TAudioBufferBlock AudioBlock;
 	AudioBlock.mChannels = Meta.mChannelCount;
@@ -1965,7 +1905,8 @@ bool TMediaPassThroughDecoder::ProcessAudioPacket(const TMediaPacket& Packet)
 	{
 		auto Data16 = CastArray<sint16>( GetArrayBridge(BufferArray) );
 		Wave::ConvertSamples( GetArrayBridge(Data16), GetArrayBridge(AudioBlock.mData) );
-		Output.mOnFrameDecoded.OnTriggered( Timestamp );
+		if ( Output.mOnFrameDecoded )
+			Output.mOnFrameDecoded( Timestamp );
 		Output.PushAudioBuffer( AudioBlock );
 		return true;
 	}
@@ -1973,7 +1914,8 @@ bool TMediaPassThroughDecoder::ProcessAudioPacket(const TMediaPacket& Packet)
 	{
 		auto Data8 = CastArray<sint8>( GetArrayBridge(BufferArray) );
 		Wave::ConvertSamples( GetArrayBridge(Data8), GetArrayBridge(AudioBlock.mData) );
-		Output.mOnFrameDecoded.OnTriggered( Timestamp );
+		if ( Output.mOnFrameDecoded )
+			Output.mOnFrameDecoded( Timestamp );
 		Output.PushAudioBuffer( AudioBlock );
 		return true;
 	}
@@ -1981,13 +1923,15 @@ bool TMediaPassThroughDecoder::ProcessAudioPacket(const TMediaPacket& Packet)
 	{
 		auto Dataf = CastArray<float>( GetArrayBridge(BufferArray) );
 		Wave::ConvertSamples( GetArrayBridge(Dataf), GetArrayBridge(AudioBlock.mData) );
-		Output.mOnFrameDecoded.OnTriggered( Timestamp );
+		if ( Output.mOnFrameDecoded )
+			Output.mOnFrameDecoded( Timestamp );
 		Output.PushAudioBuffer( AudioBlock );
 		return true;
 	}
 	else
 	{
-		Output.mOnFrameDecodeFailed.OnTriggered( Timestamp );
+		if ( Output.mOnFrameDecodeFailed )
+			Output.mOnFrameDecodeFailed( Timestamp );
 		std::stringstream Error;
 		Error << __func__ << " cannot handle " << Meta.mCodec;
 		throw Soy::AssertException( Error.str() );
@@ -1998,7 +1942,8 @@ bool TMediaPassThroughDecoder::ProcessTextPacket(std::shared_ptr<TMediaPacket>& 
 {
 	auto& Output = *mTextOutput;
 	Output.CorrectDecodedFrameTimestamp( Packet->mTimecode );
-	Output.mOnFrameDecoded.OnTriggered( Packet->mTimecode );
+	if ( Output.mOnFrameDecoded )
+		Output.mOnFrameDecoded( Packet->mTimecode );
 	
 	Output.PushBuffer( Packet );
 	return true;
@@ -2022,26 +1967,6 @@ TDumbPixelBuffer::TDumbPixelBuffer(const SoyPixelsImpl& Pixels,const float3x3& T
 	mTransform	( Transform )
 {
 	mPixels.Copy( Pixels );
-}
-
-
-void TPixelBufferManager::GetMeta(const std::string& Prefix,TJsonWriter& Json)
-{
-	Json.Push( Prefix + "Type", "Pixel" );
-	TMediaBufferManager::GetMeta( Prefix, Json );
-	
-	
-	BufferArray<uint64,10> NextTimecodes;
-	{
-		std::lock_guard<std::mutex> Lock( mFrameLock );
-		for ( int i=0;	i<mFrames.size() && !NextTimecodes.IsFull();	i++ )
-		{
-			auto& Frame = mFrames[i];
-			NextTimecodes.PushBack( Frame.mTimestamp.mTime );
-		}
-	}
-	
-	Json.Push( (Prefix + "NextFrameTime").c_str(), GetArrayBridge(NextTimecodes) );
 }
 
 
@@ -2185,7 +2110,8 @@ std::shared_ptr<TPixelBuffer> TPixelBufferManager::PopPixelBuffer(SoyTime& Times
 	//	gr: make sure this doesn't cause a deadlock as the mFrameLock is now released AFTER this
 	//	must have skipped a frame, report it
 	if ( !FramesSkipped.IsEmpty() )
-		mOnFramePopSkipped.OnTriggered( GetArrayBridge(FramesSkipped) );
+		if ( mOnFramePopSkipped )
+			mOnFramePopSkipped( GetArrayBridge(FramesSkipped) );
 	
 	return LastPixelBuffer;
 }
@@ -2208,7 +2134,8 @@ bool TPixelBufferManager::PrePushBuffer(SoyTime Timestamp)
 		return true;
 	
 	//	frame already in the past, skip
-	mOnFramePushSkipped.OnTriggered( Timestamp );
+	if ( mOnFramePushSkipped )
+		mOnFramePushSkipped( Timestamp );
 	return false;
 }
 
@@ -2243,12 +2170,14 @@ bool TPixelBufferManager::PushPixelBuffer(TPixelBufferFrame& PixelBuffer,std::fu
 		std::sort( mFrames.begin(), mFrames.end(), ComparePixelBuffers );
 		mFrameLock.unlock();
 		
-		mOnFramePushed.OnTriggered( PixelBuffer.mTimestamp );
+		if ( mOnFramePushed )
+			mOnFramePushed( PixelBuffer.mTimestamp );
 		return true;
 	}
 	while ( Block() );
 	
-	mOnFramePushFailed.OnTriggered( PixelBuffer.mTimestamp );
+	if ( mOnFramePushFailed )
+		mOnFramePushFailed( PixelBuffer.mTimestamp );
 	
 	return false;
 }
@@ -2479,6 +2408,6 @@ TAudioSplitChannelDecoder::TAudioSplitChannelDecoder(const std::string& ThreadNa
 		mAudioOutput->PushAudioBuffer( ChannelBlock );
 	};
 
-	mRealOutputAudioBuffer->mOnAudioBlockPushed.AddListener( OnRealBlock );
+	mRealOutputAudioBuffer->mOnAudioBlockPushed = OnRealBlock;
 }
 

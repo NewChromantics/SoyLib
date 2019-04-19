@@ -221,7 +221,7 @@ std::string Opengl::GetEnumString(GLenum Type)
 	};
 #undef CASE_ENUM_STRING
 	std::stringstream Unknown;
-	Unknown << "Unknown GL enum 0x" << std::hex << Type;
+	Unknown << "Unknown GL enum 0x" << std::hex << Type << std::dec;
 	return Unknown.str();
 }
 

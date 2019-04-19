@@ -8,7 +8,6 @@
 class TStreamWriter;
 class TStreamBuffer;
 class TMediaPacket;
-class TJsonWriter;
 
 template<typename TYPE>
 class TPool;
@@ -198,13 +197,6 @@ std::ostream& operator<<(std::ostream& out,const TStreamMeta& in);
 class TPixelBuffer
 {
 public:
-	TPixelBuffer() :
-		mOverrideTransformShaderOpengl		( nullptr ),
-		mOverrideTransformShaderDirectx		( nullptr ),
-		mOverrideTransformShaderMetal		( nullptr )
-	{
-	}
-	
 	//	different paths return arrays now - shader/fbo blit is pretty generic now so move it out of pixel buffer
 	//	generic array, handle that internally (each implementation tends to have it's own lock info anyway)
 	//	for future devices (metal, dx), expand these
@@ -220,9 +212,9 @@ public:
 	virtual void		Unlock()=0;
 
 public:
-	const char*			mOverrideTransformShaderOpengl;
-	const char*			mOverrideTransformShaderDirectx;
-	const char*			mOverrideTransformShaderMetal;
+	const char*			mOverrideTransformShaderOpengl = nullptr;
+	const char*			mOverrideTransformShaderDirectx = nullptr;
+	const char*			mOverrideTransformShaderMetal = nullptr;
 };
 
 
@@ -332,7 +324,6 @@ public:
 		
 	}
 	
-	virtual void				GetMeta(const std::string& Prefix,TJsonWriter& Json);
 	virtual void				SetPlayerTime(const SoyTime& Time);			//	maybe turn this into a func to PULL the time rather than maintain it in here...
 	virtual void				CorrectDecodedFrameTimestamp(SoyTime& Timestamp);	//	adjust timestamp if neccessary
 	virtual void				CorrectRequestedFrameTimestamp(SoyTime& Timestamp);
@@ -349,14 +340,14 @@ protected:
 	size_t						GetMinBufferSize() const;
 
 public:
-	SoyEvent<const SoyTime>				mOnFramePushed;	//	decoded and pushed into buffer
-	SoyEvent<const SoyTime>				mOnFramePushSkipped;
-	SoyEvent<const SoyTime>				mOnFramePushFailed;		//	triggered if the buffer is full and we didn't block when pushing
-	SoyEvent<const ArrayBridge<SoyTime>>	mOnFramePopSkipped;
-	SoyEvent<const SoyTime>				mOnFrameDecodeSubmission;
-	SoyEvent<const SoyTime>				mOnFrameDecoded;
-	SoyEvent<const SoyTime>				mOnFrameExtracted;			//	extracted, but not decoded yet
-	SoyEvent<const SoyTime>				mOnFrameDecodeFailed;
+	std::function<void(SoyTime)>				mOnFramePushed;	//	decoded and pushed into buffer
+	std::function<void(SoyTime)>				mOnFramePushSkipped;
+	std::function<void(SoyTime)>				mOnFramePushFailed;		//	triggered if the buffer is full and we didn't block when pushing
+	std::function<void(const ArrayBridge<SoyTime>&&)>	mOnFramePopSkipped;
+	std::function<void(SoyTime)>				mOnFrameDecodeSubmission;
+	std::function<void(SoyTime)>				mOnFrameDecoded;
+	std::function<void(SoyTime)>				mOnFrameExtracted;			//	extracted, but not decoded yet
+	std::function<void(SoyTime)>				mOnFrameDecodeFailed;
 
 protected:
 	TPixelBufferParams				mParams;
@@ -381,7 +372,6 @@ public:
 	{
 	}
 	
-	virtual void		GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
 
 	//	gr: most of these will move to base
 	SoyTime				GetNextPixelBufferTime(bool Safe=true);
@@ -451,8 +441,6 @@ public:
 		mFormat.mFrequency = Params.mAudioSampleRate;
 	}
 	
-	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
-
 	void			PushAudioBuffer(TAudioBufferBlock& AudioData);
 	bool			GetAudioBuffer(TAudioBufferBlock& FinalOutputBlock,bool VerboseDebug,bool PadOutputTail,bool ClipOutputFront,bool ClipOutputBack,bool CullBuffer);	//	returns false if NO data, pads with zeros if not all there
 	void			PopNextAudioData(ArrayBridge<float>&& Data,bool PadData);
@@ -468,7 +456,7 @@ public:
 	size_t			GetFrequency() const		{	return mFormat.mFrequency;	}
 
 public:
-	SoyEvent<TAudioBufferBlock&>	mOnAudioBlockPushed;
+	std::function<void(TAudioBufferBlock&)>	mOnAudioBlockPushed;
 
 private:
 	//	this is a cached format for when we want to get the meta, but don't have any blocks,
@@ -489,8 +477,6 @@ public:
 	{
 	}
 	
-	virtual void	GetMeta(const std::string& Prefix,TJsonWriter& Json) override;
-
 	void			GetBuffer(std::stringstream& Output,SoyTime& StartTime,SoyTime& EndTime);
 
 	void			PushBuffer(std::shared_ptr<TMediaPacket> Buffer);
@@ -577,7 +563,7 @@ protected:
 	void							CorrectIncomingPacketTimecode(TMediaPacket& Packet);
 
 public:
-	SoyEvent<std::shared_ptr<TMediaPacket>>	mOnNewPacket;
+	std::function<void(std::shared_ptr<TMediaPacket>)>	mOnNewPacket;
 	
 private:
 	//	make this a ring buffer of objects
@@ -603,8 +589,6 @@ public:
 	void					SetStreams(const ArrayBridge<TStreamMeta>&& Streams);
 	virtual void			Finish()=0;
 
-	void					GetMeta(TJsonWriter& Json);
-
 protected:
 	virtual void			SetupStreams(const ArrayBridge<TStreamMeta>&& Streams)=0;
 	virtual void			ProcessPacket(std::shared_ptr<TMediaPacket> Packet,TStreamWriter& Output)=0;
@@ -621,9 +605,6 @@ public:
 	Array<TStreamMeta>						mStreams;		//	streams, once setup, fixed
 	
 	Array<std::shared_ptr<TMediaPacket>>	mDefferedPackets;	//	when auto-calculating streams we buffer up some packets
-
-private:
-	SoyListenerId							mOnPacketListener;
 };
 
 
@@ -713,8 +694,6 @@ public:
 	void							Seek(SoyTime Time,const std::function<void(SoyTime)>& FlushFrames);				//	keep calling this, controls the packet read-ahead
 	virtual void					FlushFrames(SoyTime FlushTime);
 	
-	virtual void					GetMeta(TJsonWriter& Json);
-
 	virtual void					GetStreams(ArrayBridge<TStreamMeta>&& Streams)=0;
 	TStreamMeta						GetStream(size_t Index);
 	TStreamMeta						GetVideoStream(size_t Index);
@@ -760,7 +739,7 @@ protected:
 	virtual bool					Iteration() override;
 
 public:
-	SoyEvent<const ArrayBridge<TStreamMeta>>		mOnStreamsChanged;
+	std::function<void(const ArrayBridge<TStreamMeta>&)>		mOnStreamsChanged;
 	SoyTime											mExtractAheadMs;
 
 	TMediaExtractorParams			mParams;
@@ -832,8 +811,6 @@ protected:
 	std::shared_ptr<TTextBufferManager>		mTextOutput;
 	std::stringstream						mFatalError;
 	
-private:
-	SoyListenerId							mOnNewPacketListener;
 };
 
 
@@ -878,7 +855,6 @@ public:
 	virtual void					Write(const Opengl::TTexture& Image,SoyTime Timecode,Opengl::TContext& Context)=0;
 	virtual void					Write(const Directx::TTexture& Image,SoyTime Timecode,Directx::TContext& Context)=0;
 	virtual void					Write(std::shared_ptr<SoyPixelsImpl> Image,SoyTime Timecode)=0;
-	virtual void					GetMeta(TJsonWriter& Json);
 
 	size_t							GetPendingOutputCount() const	{	return mOutput ? mOutput->GetPacketCount() : 0;	}
 	virtual size_t					GetPendingEncodeCount() const	{	return 0;	}
@@ -887,7 +863,7 @@ protected:
 	void							PushFrame(std::shared_ptr<TMediaPacket>& Packet,std::function<bool(void)> Block);
 
 public:
-	SoyEvent<SoyTime>					mOnFramePushSkipped;
+	std::function<void(SoyTime)>	mOnFramePushSkipped;
 
 protected:
 	std::shared_ptr<TMediaPacketBuffer>	mOutput;

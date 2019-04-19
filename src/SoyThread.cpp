@@ -33,21 +33,6 @@ namespace Soy
 	}
 }
 
-SoyEvent<SoyThread>& SoyThread::GetOnThreadFinish()
-{
-	static SoyEvent<SoyThread>* Event;
-	if ( !Event )
-		Event = new SoyEvent<SoyThread>();
-	return *Event;
-}
-
-SoyEvent<SoyThread>& SoyThread::GetOnThreadStart()
-{
-	static SoyEvent<SoyThread>* Event;
-	if ( !Event )
-		Event = new SoyEvent<SoyThread>();
-	return *Event;
-}
 
 void Soy::TSemaphore::OnCompleted()
 {
@@ -134,6 +119,8 @@ std::shared_ptr<PopWorker::TJob> PopWorker::TJobQueue::PopNextJob(TContext& Cont
 		auto DelayMs = pJob->GetRunDelay();
 		if ( DelayMs > 0 )
 		{
+			if ( SmallestDelay == 0 )
+				SmallestDelay = DelayMs;
 			SmallestDelay = std::min( SmallestDelay, DelayMs );
 			continue;
 		}
@@ -281,27 +268,10 @@ SoyThread::SoyThread(const std::string& ThreadName) :
 	mThreadName	( ThreadName ),
 	mIsRunning	( false )
 {
-	//	POSIX needs to name threads IN the thread. so do that for everyone by default
-	auto NameThread = [this](SoyThread& Thread)
-	{
-	//	Soy::Assert( std::this_thread::id == Thread.get_id(), "Shouldn't call this outside of thread" );
-		if ( !mThreadName.empty() )
-			SetThreadName( mThreadName );
-	};
-
-	mNameThreadListener = GetOnThreadStart().AddListener( NameThread );
-	
-	auto CleanupHeapWrapper = [this](SoyThread&)
-	{
-		CleanupHeap();
-	};
-	mHeapThreadListener = GetOnThreadFinish().AddListener( CleanupHeapWrapper );
 }
 
 SoyThread::~SoyThread()
 {
-	GetOnThreadStart().RemoveListener( mNameThreadListener );
-	GetOnThreadFinish().RemoveListener( mHeapThreadListener );
 }
 
 
@@ -335,7 +305,8 @@ void SoyThread::Start()
 		auto* This = reinterpret_cast<SoyThread*>(pThis);
 		This->mIsRunning = true;
 
-		SoyThread::GetOnThreadStart().OnTriggered(*This);
+		//	POSIX needs to name threads IN the thread. so do that for everyone by default
+		This->OnThreadStart();
 		
 		//	gr: even if we're not catching exceptions, java NEEDS us to cleanup the threads or the OS will abort us
 		try
@@ -346,16 +317,17 @@ void SoyThread::Start()
 				if ( This == nullptr )
 					throw Soy::AssertException("How did this get null");
 			}
-			SoyThread::GetOnThreadFinish().OnTriggered(*This);
+			
+			This->OnThreadFinish();
 		}
 		catch(std::exception& e)
 		{
-			SoyThread::GetOnThreadFinish().OnTriggered(*This);
+			This->OnThreadFinish();
 			throw;
 		}
 		catch(...)
 		{
-			SoyThread::GetOnThreadFinish().OnTriggered(*This);
+			This->OnThreadFinish();
 			throw;
 		}
 		
@@ -469,6 +441,17 @@ std::string SoyThread::GetCurrentThreadName()
 #endif
 }
 
+void SoyThread::OnThreadStart()
+{
+	//	Soy::Assert( std::this_thread::id == Thread.get_id(), "Shouldn't call this outside of thread" );
+	if ( !mThreadName.empty() )
+		SetThreadName( mThreadName );
+}
+
+void SoyThread::OnThreadFinish()
+{
+	CleanupHeap();
+}
 
 void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handle_type ThreadId)
 {

@@ -87,7 +87,8 @@ void OnFileChanged(
 		//const FSEventStreamEventFlags& EventFlags( eventFlags[e] );
 		//const FSEventStreamEventId EventIds( eventIds[e] );
 		
-		FileWatch.mOnChanged.OnTriggered( Filename );
+		if ( FileWatch.mOnChanged )
+			FileWatch.mOnChanged( Filename );
 	}
 }
 #endif
@@ -105,7 +106,7 @@ Soy::TFileWatch::TFileWatch(const std::string& Filename)
 	{
 		std::Debug << Filename << " changed" << std::endl;
 	};
-	mOnChanged.AddListener( DebugOnChanged );
+	mOnChanged = DebugOnChanged;
 	
 #if defined(TARGET_OSX)
 	
@@ -460,9 +461,9 @@ void Platform::ShowFileExplorer(const std::string& Path)
 
 
 
-#if defined(TARGET_WINDOWS)
 void Platform::SetExePath()
 {
+#if defined(TARGET_WINDOWS)
 	//	auto init path
 	char Buffer[MAX_PATH] = { 0 };
 	auto Length = GetModuleFileNameA( NULL, Buffer, MAX_PATH );
@@ -483,23 +484,24 @@ void Platform::SetExePath()
 		Path = PathBuffer;
 	}
 	*/
-}
+#else
+	throw Soy::AssertException("Auto SetExePath only on windows");
 #endif
+}
 
 
-#if defined(TARGET_WINDOWS)
 void Platform::SetExePath(const std::string& Path)
 {
+	//	gr: should we disallow this on windows and force the auto method
+	//		to get it from hmodule?
 	ExePath = Path;
 }
-#endif
 
-#if defined(TARGET_WINDOWS)
 std::string	Platform::GetExePath()
 {
 	return GetDirectoryFromFilename( ExePath );
 }
-#endif
+
 
 bool Platform::IsFullPath(const std::string& Path)
 {

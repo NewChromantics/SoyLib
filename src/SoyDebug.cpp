@@ -169,10 +169,10 @@ void std::DebugStreamBuf::flush()
 			Platform::DebugPrint( BufferStr );
 		}
 		
-		if ( mOnFlush.HasListeners() )
+		if ( mOnFlush )
 		{
 			std::string BufferStr(Buffer.c_str());
-			mOnFlush.OnTriggered(BufferStr);
+			mOnFlush(BufferStr);
 		}
 		
 		Buffer.erase();	// erase message buffer

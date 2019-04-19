@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SoyEvent.h"
+
 #include "SoyTime.h"
 #include "scope_ptr.h"
 
@@ -25,6 +25,7 @@ namespace SoyPathType
 		Unknown,
 		File,
 		Directory,
+		Special,	//	on OSX, this includes devices like /dev/tty.xxx or /dev/console. Maybe we can specialise this as Pipe or Stream
 	};
 };
 
@@ -50,14 +51,12 @@ namespace Platform
 	NSURL*	GetUrl(const std::string& Filename);
 #endif
 	
-#if defined(TARGET_WINDOWS)
 	void				SetExePath(const std::string& Path);
 	inline void			SetDllPath(const std::string& Path) { SetExePath(Path); }
 	void				SetExePath();
 	inline void			SetDllPath() { SetExePath(); }
 	std::string			GetExePath();
 	inline std::string	GetDllPath() { return GetExePath(); }
-#endif
 
 	
 	//	gr: this is the resources dir inside .app on osx
@@ -95,7 +94,7 @@ public:
 	TFileWatch(const std::string& Filename);
 	~TFileWatch();
 	
-	SoyEvent<const std::string>	mOnChanged;
+	std::function<void(const std::string&)>	mOnChanged;
 	
 #if defined(TARGET_OSX)
 	CFPtr<CFStringRef>			mPathString;

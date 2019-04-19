@@ -121,7 +121,8 @@ void TVideoDevice::UnlockNewFrame(SoyTime Timecode)
 	if ( !mFirstFrameTime.IsValid() )
 		mFirstFrameTime = mLastFrameTime;
 	
-	mOnNewFrame.OnTriggered( *this );
+	if ( mOnNewFrame )
+		mOnNewFrame( *this );
 }
 
 

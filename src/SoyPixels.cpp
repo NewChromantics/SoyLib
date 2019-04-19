@@ -2106,11 +2106,11 @@ void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream,b
 	auto Stride = ComponentCount * Meta.GetWidth();
 	auto* Pixels = GetPixelsArray().GetArray();
 	
+	if ( Hex )
+		Stream << std::hex;
 	for ( int p=0;	p<Meta.GetDataSize();	p++ )
 	{
 		int PixelValue = (int)Pixels[p];
-		if ( Hex )
-			Stream << std::hex;
 		Stream << PixelValue;
 		if ( PixelSuffix )
 			Stream << PixelSuffix;
@@ -2118,6 +2118,7 @@ void SoyPixelsImpl::PrintPixels(const std::string& Prefix,std::ostream& Stream,b
 		if ( p % Stride == 0 )
 			Stream << std::endl;
 	}
+	Stream << std::dec;
 	Stream << std::endl;
 }
 
@@ -2179,6 +2180,8 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaV_8 ) );
 			break;
 
+		//	gr: these are interlaced, so don't split
+		/*
 		//	need to handle these horizontally interlaced formats better
 		case SoyPixelsFormat::Uvy_844_Full:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
@@ -2199,7 +2202,7 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
-		
+		*/
 		case SoyPixelsFormat::Palettised_RGB_8:
 		{
 			Soy::Assert( Data!=nullptr, "Cannot split format of Palettised_8_8 without data");

@@ -244,7 +244,7 @@ namespace Unity
 	extern int					GetPluginEventId();
 	extern bool					IsDebugPluginEventEnabled();
 	
-	SoyEvent<bool>&				GetOnDeviceShutdown();
+	std::function<void(bool)>&	GetOnDeviceShutdown();
 	
 	//	gr: this is a bit more generic than unity, so might move it later
 	const std::string&			GetBundleIdentifier();

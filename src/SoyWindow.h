@@ -1,6 +1,5 @@
 #pragma once
 
-#include "SoyEvent.h"
 #include "SoyMath.h"
 #include "Array.hpp"
 
