@@ -2,8 +2,8 @@
 
 #include "SoyTypes.h"
 #include "SoyRef.h"
-#include "SoyEvent.h"
 #include "Array.hpp"
+#include <map>
 
 
 #if defined(TARGET_WINDOWS)
