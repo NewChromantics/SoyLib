@@ -7,7 +7,11 @@
 std::string Soy::GetString(CFStringRef CfString)
 {
 	//	https://stackoverflow.com/questions/28860033/convert-from-cfurlref-or-cfstringref-to-stdstring
-	auto* NsString = const_cast<NSString*>(reinterpret_cast<const NSString*>(CfString));
+	//	https://stackoverflow.com/questions/17227348/nsstring-to-cfstringref-and-cfstringref-to-nsstring-in-arc
+	//auto* NsString = const_cast<NSString*>(reinterpret_cast<const NSString*>(CfString));
+	//	gr: have to use this in arc mode only?
+	auto* NsString = (__bridge NSString*)(CfString);
+	
 	return NSStringToString(NsString);
 }
 

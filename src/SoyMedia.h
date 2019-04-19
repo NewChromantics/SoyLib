@@ -198,13 +198,6 @@ std::ostream& operator<<(std::ostream& out,const TStreamMeta& in);
 class TPixelBuffer
 {
 public:
-	TPixelBuffer() :
-		mOverrideTransformShaderOpengl		( nullptr ),
-		mOverrideTransformShaderDirectx		( nullptr ),
-		mOverrideTransformShaderMetal		( nullptr )
-	{
-	}
-	
 	//	different paths return arrays now - shader/fbo blit is pretty generic now so move it out of pixel buffer
 	//	generic array, handle that internally (each implementation tends to have it's own lock info anyway)
 	//	for future devices (metal, dx), expand these
@@ -220,9 +213,9 @@ public:
 	virtual void		Unlock()=0;
 
 public:
-	const char*			mOverrideTransformShaderOpengl;
-	const char*			mOverrideTransformShaderDirectx;
-	const char*			mOverrideTransformShaderMetal;
+	const char*			mOverrideTransformShaderOpengl = nullptr;
+	const char*			mOverrideTransformShaderDirectx = nullptr;
+	const char*			mOverrideTransformShaderMetal = nullptr;
 };
 
 
