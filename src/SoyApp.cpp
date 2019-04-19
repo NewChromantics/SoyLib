@@ -7,7 +7,7 @@ std::function<void(bool)> gOnConsoleStop;
 #if defined(TARGET_WINDOWS)
 BOOL WINAPI Soy::Platform::TConsoleApp::ConsoleHandler(DWORD dwType)
 {
-	bool Dummy;
+	bool Dummy=false;
 	switch(dwType) 
 	{
 		case CTRL_CLOSE_EVENT:
