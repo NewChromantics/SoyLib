@@ -4,7 +4,6 @@
 #include "SoyTime.h"
 #include <map>
 #include <thread>
-#include "SoyEvent.h"
 #include "SoyScope.h"
 #include "SoyString.h"
 
@@ -78,7 +77,7 @@ namespace std
 	public:
 		bool			mEnableStdOut;
 		//	gr: need to defer creation of this event(contains mutex) for PS4 until first use (NOT global!)
-		SoyEvent<const std::string>	mOnFlush;		//	catch debug output
+		std::function<void(const std::string&)>	mOnFlush;		//	catch debug output
 	};
 
 	class DebugStream : public std::ostream
@@ -89,7 +88,7 @@ namespace std
 		{
 		}
 
-		SoyEvent<const std::string>&		GetOnFlushEvent()	{	return mBuffer.mOnFlush;	}
+		std::function<void(const std::string&)>&	GetOnFlushEvent()	{	return mBuffer.mOnFlush;	}
 		
 		//	toggle std output for this std debug stream
 		void			EnableStdOut(bool Enable)	{	mBuffer.mEnableStdOut = Enable;	}
@@ -184,7 +183,7 @@ namespace std
 			return *this;
 		}
 		
-		SoyEvent<const std::string>&		GetOnFlushEvent()	
+		std::function<void(const std::string&)>&		GetOnFlushEvent()
 		{	
 		#if defined(SOYDEBUG_ENABLE)			
 			return mStream.GetOnFlushEvent();
@@ -226,7 +225,7 @@ namespace std
 		std::vector<std::shared_ptr<Soy::TPushPopStreamSettings>>	mPushPopSettings;
 	#else
 		//	gr: need to defer creation of this event(contains mutex) for PS4 until first use (NOT global!)
-		SoyEvent<const std::string>	mDummyFlushEvent;
+		std::function<void(const std::string)>	mDummyFlushEvent;
 	#endif
 	};
 };

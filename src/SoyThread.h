@@ -1,7 +1,6 @@
 #pragma once
 
 #include "SoyTypes.h"
-#include "SoyEvent.h"
 #include <condition_variable>
 #include "MemHeap.hpp"
 #include "HeapArray.hpp"
@@ -223,8 +222,9 @@ class SoyThread
 {
 public:
 	//	global thread events for platform hooks
-	static SoyEvent<SoyThread>&	GetOnThreadFinish();	//	call whilst in thread
-	static SoyEvent<SoyThread>&	GetOnThreadStart();	//	call whilst in thread
+	//	gr: this is a bit hacky, the main ones are now members, restore this if needed (JNI on android!)
+	//static std::function<void(SoyThread&)>&	GetOnThreadFinish();	//	call whilst in thread
+	//static std::function<void(SoyThread&)>&	GetOnThreadStart();		//	call whilst in thread
 
 public:
 	SoyThread(const std::string& ThreadName);
@@ -248,6 +248,9 @@ public:
 protected:
 	virtual void			Thread()=0;				//	wrapped in an IsRunning() loop
 	bool					HasThread() const		{	return mThread.get_id() != std::thread::id();	}
+	//	these are called ON thread
+	virtual void			OnThreadStart();
+	virtual void			OnThreadFinish();
 
 private:
 	static void				SetThreadName(const std::string& Name,std::thread::native_handle_type ThreadHandle);
@@ -286,8 +289,6 @@ private:
 	std::string			mThreadName;
 	volatile bool		mIsRunning;
 	std::thread			mThread;
-	SoyListenerId		mNameThreadListener;
-	SoyListenerId		mHeapThreadListener;
 };
 
 
@@ -323,22 +324,10 @@ public:
 	
 	virtual void		Wake();
 	template<typename TYPE>
-	SoyListenerId		WakeOnEvent(SoyEvent<TYPE>& Event)
+	void				WakeOnEvent(std::function<void(TYPE)>& Event)
 	{
 		//	gr: maybe we can have some global that goes "this is no longer valid"
-		auto HandlerFunc = [this](TYPE& Param)
-		{
-			this->Wake();
-		};
-
-		//	gr: can't really add a listener and then unsubscribe here... what if the event dies...
-		return Event.AddListener( HandlerFunc );
-	}
-	template<typename TYPE>
-	SoyListenerId		WakeOnEvent(std::function<void(TYPE)>& Event)
-	{
-		//	gr: maybe we can have some global that goes "this is no longer valid"
-		auto HandlerFunc = [this](TYPE& Param)
+		auto HandlerFunc = [this](TYPE Param)
 		{
 			this->Wake();
 		};
@@ -346,8 +335,6 @@ public:
 		if ( Event != nullptr )
 			throw Soy::AssertException("Switching to std::function means we currently limit to 1 listener for event");
 		Event = HandlerFunc;
-		auto Listener = SoyListenerId::Alloc();
-		return Listener;
 	}
 	void				SetWakeMode(SoyWorkerWaitMode::Type WakeMode)	{	mWaitMode = WakeMode;	Wake();	}
 	SoyWorkerWaitMode::Type	GetWakeMode() const	{	return mWaitMode;	}
@@ -600,7 +587,7 @@ public:
 public:
 	Array<TYPE>			mJobs;
 	std::mutex			mJobLock;
-	SoyEvent<size_t>	mOnQueueAdded;
+	std::function<void(size_t)>	mOnQueueAdded;
 };
 
 template<class TYPE>
@@ -622,7 +609,8 @@ inline bool TLockQueue<TYPE>::Push(const TYPE& Job)
 		mJobs.PushBack( Job );
 		JobCount = mJobs.GetSize();
 	}
-	mOnQueueAdded.OnTriggered(JobCount);
+	if ( mOnQueueAdded )
+		mOnQueueAdded(JobCount);
 	return true;
 }
 

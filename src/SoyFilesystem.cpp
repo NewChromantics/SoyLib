@@ -87,7 +87,8 @@ void OnFileChanged(
 		//const FSEventStreamEventFlags& EventFlags( eventFlags[e] );
 		//const FSEventStreamEventId EventIds( eventIds[e] );
 		
-		FileWatch.mOnChanged.OnTriggered( Filename );
+		if ( FileWatch.mOnChanged )
+			FileWatch.mOnChanged( Filename );
 	}
 }
 #endif
@@ -105,7 +106,7 @@ Soy::TFileWatch::TFileWatch(const std::string& Filename)
 	{
 		std::Debug << Filename << " changed" << std::endl;
 	};
-	mOnChanged.AddListener( DebugOnChanged );
+	mOnChanged = DebugOnChanged;
 	
 #if defined(TARGET_OSX)
 	

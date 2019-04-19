@@ -1,7 +1,6 @@
 #pragma once
 
 
-#include "SoyEvent.h"
 #include "SoyArray.h"
 #include "HeapArray.hpp"
 #include "SoyThread.h"
@@ -63,7 +62,7 @@ protected:
 	void		OnDataPushed(bool EofPushed);
 	
 public:
-	SoyEvent<bool>	mOnDataPushed;		//	bool now represents EofPushed
+	std::function<void(bool)>	mOnDataPushed;		//	bool now represents EofPushed
 	bool			mEof;
 	
 private:
@@ -135,13 +134,13 @@ public:
 protected:
 	size_t									GetQueueSize() const				{	return mQueue.GetSize();	}
 	virtual void							Write(TStreamBuffer& Buffer,const std::function<bool()>& Block)=0;	//	write next chunk, as much as possible (but keep checking block)
-	void									OnError(const std::string& Error)	{	mOnStreamError.OnTriggered( Error );	}
+	void									OnError(const std::string& Error)	{	if ( mOnStreamError )	mOnStreamError( Error );	}
 	void									OnWriteBytes(size_t Bytes)			{	mBytesWritten += Bytes;	}
 
 public:
-	SoyEvent<bool>							mOnShutdown;			//	param is true if success (eg. file finished)
-	SoyEvent<const std::string>				mOnStreamError;			//	fatal write or encode error
-	SoyEvent<std::shared_ptr<Soy::TWriteProtocol>>	mOnDataRecieved;
+	std::function<void(bool)>									mOnShutdown;			//	param is true if success (eg. file finished)
+	std::function<void(const std::string&)>						mOnStreamError;			//	fatal write or encode error
+	std::function<void(std::shared_ptr<Soy::TWriteProtocol>)>	mOnDataRecieved;
 	
 protected:
 	std::shared_ptr<Soy::TWriteProtocol>	mCurrentProtocol;

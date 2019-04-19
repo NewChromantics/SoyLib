@@ -10,6 +10,11 @@ namespace Avf
 	SoyMediaFormat::Type			SoyMediaFormat_FromFourcc(uint32 Fourcc,size_t H264LengthSize);
 	void							GetFileExtensions(ArrayBridge<std::string>&& Extensions);
 
+	std::string						GetCVReturnString(CVReturn Error);
+	std::string						GetCodec(CMFormatDescriptionRef FormatDescription);
+	std::string						GetExtensions(CMFormatDescriptionRef FormatDescription);
+	
+
 #if defined(__OBJC__)
 	std::shared_ptr<TMediaPacket>	GetH264Packet(CMSampleBufferRef SampleBuffer,size_t StreamIndex);
 	std::shared_ptr<TMediaPacket>	GetFormatDescriptionPacket(CMSampleBufferRef SampleBuffer,size_t ParamIndex,SoyMediaFormat::Type Format,size_t StreamIndex);

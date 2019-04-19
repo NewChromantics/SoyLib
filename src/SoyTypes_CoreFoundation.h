@@ -13,7 +13,7 @@
 
 #define TARGET_POSIX
 
-#if defined(TARGET_IOS)
+#if defined(TARGET_IOS) || defined(TARGET_OSX)
 #if __has_feature(objc_arc)
 #define ARC_ENABLED
 #endif
