@@ -350,9 +350,8 @@ DirectxCompiler::TCompiler& Directx::TContext::GetCompiler()
 #endif
 }
 
-Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode)
+Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode,bool EnableMips)
 {
-	static bool AutoMipMap = false;
 	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
 
 	Soy::Assert( Meta.IsValid(), "Cannot create texture with invalid meta");
@@ -362,7 +361,7 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 	memset(&Desc, 0, sizeof(Desc));
 	Desc.Width = Meta.GetWidth();
 	Desc.Height = Meta.GetHeight();
-	Desc.MipLevels = AutoMipMap ? 0 : 1;
+	Desc.MipLevels = EnableMips ? 0 : 1;
 	Desc.ArraySize = 1;
 	Desc.SampleDesc.Count = 1;
 	Desc.SampleDesc.Quality = 0;
@@ -401,6 +400,10 @@ Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode:
 	{
 		throw Soy::AssertException("Dont know this texture mode");
 	}
+
+	//	gr: only apply to formats that this works on
+	if ( EnableMips )
+		Desc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
 	ID3D11Texture2D* pTexture = nullptr;
 	auto& Context = ContextDx.LockGetContext();
@@ -766,10 +769,11 @@ void Directx::TTexture::Read(SoyPixelsImpl& DestPixels,TContext& ContextDx,TPool
 	{
 		auto& TexturePool = *pTexturePool;
 		auto Meta = TTextureMeta(this->GetMeta(), TTextureMode::ReadOnly);
-
+		
 		auto Alloc = [this,&ContextDx]()
 		{
-			return std::make_shared<TTexture>(this->GetMeta(), ContextDx, TTextureMode::ReadOnly);
+			bool EnableMips = false;
+			return std::make_shared<TTexture>(this->GetMeta(), ContextDx, TTextureMode::ReadOnly, EnableMips );
 		};
 
 		auto& TempTexture = TexturePool.Alloc(Meta, Alloc);
