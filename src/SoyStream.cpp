@@ -261,7 +261,8 @@ void TStreamBuffer::PushEof()
 
 void TStreamBuffer::OnDataPushed(bool EofPushed)
 {
-	mOnDataPushed.OnTriggered( EofPushed );
+	if ( mOnDataPushed )
+		mOnDataPushed( EofPushed );
 }
 
 
@@ -695,7 +696,8 @@ TFileStreamWriter::~TFileStreamWriter()
 	mFile.close();
 	
 	bool Success = true;
-	mOnShutdown.OnTriggered(Success);
+	if ( mOnShutdown )
+		mOnShutdown(Success);
 }
 
 void TFileStreamWriter::Write(TStreamBuffer& Data,const std::function<bool()>& Block)

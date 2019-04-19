@@ -2,7 +2,6 @@
 
 #include "Array.hpp"
 #include "HeapArray.hpp"
-#include "SoyEvent.h"
 #include "SoyPixels.h"
 #include "SoyTime.h"
 #include "SoyMemFile.h"
@@ -195,7 +194,7 @@ protected:
 	void						UnlockNewFrame(SoyTime Timecode);
 	
 public:
-	SoyEvent<TVideoDevice>		mOnNewFrame;
+	std::function<void(TVideoDevice&)>	mOnNewFrame;
 	
 private:
 	//	gr: video frame can cope without a lock,(no realloc) but the string will probably crash
