@@ -33,6 +33,10 @@ public:
 		mError	( Message )
 	{
 	}
+	AssertException(const std::stringstream& Message) :
+		mError	( Message.str() )
+	{
+	}
 	AssertException(const char* Message) :
 		mErrorConst	( Message )
 	{

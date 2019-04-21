@@ -88,7 +88,8 @@ void Avf::GetFormatDescriptionData(ArrayBridge<uint8>&& Data,CMFormatDescription
 		nal_size_field_bytes = 4;
 	 */
 	
-	Soy::Assert( ParamIndex < ParamCount, "SPS missing");
+	if ( ParamIndex >= ParamCount )
+		throw Soy::AssertException("SPS missing");
 	
 	const uint8_t* ParamsData = nullptr;;
 	size_t ParamsSize = 0;
@@ -315,8 +316,8 @@ CMFormatDescriptionRef Avf::GetFormatDescription(const TStreamMeta& Stream)
 	{
 		auto& Sps = Stream.mSps;
 		auto& Pps = Stream.mPps;
-		Soy::Assert( !Sps.IsEmpty(), "H264 encoder requires SPS beforehand" );
-		Soy::Assert( !Pps.IsEmpty(), "H264 encoder requires PPS beforehand" );
+		if ( Sps.IsEmpty() )	throw Soy::AssertException("H264 encoder requires SPS beforehand" );
+		if ( Pps.IsEmpty() )	throw Soy::AssertException("H264 encoder requires PPS beforehand" );
 		
 		BufferArray<const uint8_t*,2> Params;
 		BufferArray<size_t,2> ParamSizes;
@@ -588,7 +589,8 @@ Avf::TAsset::TAsset(const std::string& Filename)
 void Avf::TAsset::LoadTracks()
 {
 	AVAsset* Asset = mAsset.mObject;
-	Soy::Assert( Asset, "Asset expected" );
+	if ( !Asset )
+		throw Soy::AssertException("Asset expected");
 	
 	Soy::TSemaphore LoadTracksSemaphore;
 	__block Soy::TSemaphore& Semaphore = LoadTracksSemaphore;
@@ -917,7 +919,8 @@ public:
 		mName				( EnumName ),
 		mSoyFormat			( SoyFormat )
 	{
-		Soy::Assert( IsValid(), "Expected valid enum - or invalid enum is bad" );
+		if ( !IsValid() )
+			throw Soy::AssertException("Expected valid enum - or invalid enum is bad" );
 	}
 	TCvVideoTypeMeta() :
 		mPlatformFormat		( CV_VIDEO_INVALID_ENUM ),

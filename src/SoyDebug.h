@@ -120,15 +120,15 @@ namespace std
 		{
 			#if defined(SOYDEBUG_ENABLE)
 			{
-				#if defined(SOYDEBUG_NO_THROW)
-					if ( &Stream != &mStream )
-					{
-						Platform::DebugPrint("Wrong locked stream");
-						return;
-					}
-				#else
-					Soy::Assert( &Stream == &mStream, "Wrong stream" );
-				#endif
+				if ( &Stream != &mStream )
+				{
+#if defined(SOYDEBUG_NO_THROW)
+					Platform::DebugPrint("Wrong locked stream");
+					return;
+#else
+					throw Soy::AssertException("Wrong stream" );
+#endif
+				}
 				mStreamLock.unlock();
 			}
 			#else

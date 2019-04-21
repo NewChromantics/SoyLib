@@ -80,7 +80,8 @@ public:
 	void		Reserve(size_t Size,bool Clear)
 	{
 		//	should we warn here for different size?
-		Soy::Assert( Size != GetSize(), "Reserving different-size FixedRemoteArray" );
+		if ( Size != GetSize() )
+			throw Soy::AssertException("Reserving different-size FixedRemoteArray");
 	}
 	
 	

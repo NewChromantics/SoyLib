@@ -67,23 +67,18 @@ public:
 	
 	virtual TYPE*		PushBlock(size_t count) override
 	{
-		//	can't push blocks in sort arrays!
-		Soy::Assert(false, "Cannot allocate in sort array");
-		return nullptr;
+		throw Soy::AssertException("Cannot allocate in sort array");
 	}
 	virtual bool		SetSize(size_t size,bool preserve=true,bool AllowLess=true) override
 	{
 		if ( size <= GetSize() && AllowLess && preserve )
 			return mArray.SetSize( size, preserve, AllowLess );
 		//	can't push blocks in sort arrays!
-		Soy::Assert(false, "Cannot allocate in sort array");
-		return false;
+		throw Soy::AssertException("Cannot allocate in sort array");
 	}
 	virtual TYPE*			InsertBlock(size_t index,size_t Count) override
 	{
-		//	can't push blocks in sort arrays!
-		Soy::Assert(false, "Cannot push blocks in sort array");
-		return nullptr;
+		throw Soy::AssertException("Cannot allocate in sort array");
 	}
 	
 	template<typename MATCHTYPE>
@@ -144,7 +139,9 @@ public:
 			i--;	//	i is now at i-1
 			Changed = true;
 		}
-		Soy::Assert( IsSorted(), "Array is unsorted after sort()" );
+		if ( !IsSorted() )
+			throw Soy::AssertException("Array is unsorted after sort()");
+
 		return Changed;
 	}
 	
@@ -343,7 +340,8 @@ public:
 			i--;	//	i is now at i-1
 			Changed = true;
 		}
-		Soy::Assert( IsSorted(), "Array is unsorted after sort()" );
+		if ( !IsSorted() )
+			throw Soy::AssertException("Array is unsorted after sort()");
 		return Changed;
 	}
 

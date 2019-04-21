@@ -37,7 +37,8 @@ std::ostream& operator<< (std::ostream &out,const TVideoDeviceMeta &in)
 SoyPixelsImpl& TVideoFrameImpl::GetPixels()
 {
 	auto Pixels = GetPixelsShared();
-	Soy::Assert( Pixels != nullptr, "Pixels expected");
+	if ( Pixels == nullptr )
+		throw Soy::AssertException("Pixels expected");
 	return *Pixels;
 }
 

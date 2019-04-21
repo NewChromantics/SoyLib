@@ -112,7 +112,7 @@ namespace H264
 
 	size_t		GetNaluLengthSize(SoyMediaFormat::Type Format);
 	void		RemoveHeader(SoyMediaFormat::Type Format,ArrayBridge<uint8>&& Data,bool KeepNaluByte);
-	ssize_t		FindNaluStartIndex(ArrayBridge<uint8>&& Data,size_t& NaluSize,size_t& HeaderSize);
+	size_t		FindNaluStartIndex(ArrayBridge<uint8>&& Data,size_t& NaluSize,size_t& HeaderSize);
 
 	bool		IsNalu(const ArrayBridge<uint8>& Data,size_t& NaluSize,size_t& HeaderSize);
 	inline bool	IsNalu(const ArrayBridge<uint8>&& Data,size_t& NaluSize,size_t& HeaderSize)	{	return IsNalu( Data, NaluSize, HeaderSize );	}

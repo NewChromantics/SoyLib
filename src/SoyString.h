@@ -252,9 +252,14 @@ inline std::string Soy::StringJoin(const ArrayBridge<TYPE>& Elements,const std::
 		Stream << (Element);
 		
 		//	look out for bad pushes
-		if ( !Soy::Assert( !Stream.bad(), std::stringstream() << "string << with " << Soy::GetTypeName<TYPE>() << " error'd" ) )
+		if ( Stream.bad() )
+		{
+			std::stringstream Error;
+			Error << "string << with " << Soy::GetTypeName<TYPE>() << " error'd";
+			throw Soy::AssertException(Error);
 			break;
-
+		}
+		
 		if ( i != Elements.GetSize()-1 )
 			Stream << Glue;
 	}

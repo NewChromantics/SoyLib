@@ -702,7 +702,8 @@ void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename
 	::Platform::CreateDirectory(Filename);
 	
 	std::ofstream File( Filename, std::ios::out );
-	Soy::Assert( File.is_open(), std::string("Failed to open ")+Filename );
+	if ( !File.is_open() )
+		throw Soy::AssertException( std::string("Failed to open ")+Filename );
 	
 	if ( !Data.IsEmpty() )
 		File.write( Data.GetArray(), Data.GetDataSize() );
