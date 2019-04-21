@@ -36,7 +36,10 @@ namespace Platform
 	void	DebugPrint(const std::string& String);
 }
 
-
+namespace Soy
+{
+	prmem::Heap&	GetDebugStreamHeap();
+}
 
 
 namespace std

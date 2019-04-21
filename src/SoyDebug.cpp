@@ -96,14 +96,16 @@ void Platform::DebugPrint(const std::string& Message)
 }
 #endif
 
-#if defined(USE_HEAP_STRING)
 //	singleton so the heap is created AFTER the heap register
-prmem::Heap& GetDebugStreamHeap()
+prmem::Heap& Soy::GetDebugStreamHeap()
 {
+#if defined(USE_HEAP_STRING)
 	static prmem::Heap DebugStreamHeap(true, true,"Debug stream heap");
 	return DebugStreamHeap;
-}
+#else
+	throw Soy::AssertException("Not using debug stream heap");
 #endif
+}
 
 
 std::DebugBufferString& std::DebugStreamBuf::GetBuffer()
@@ -112,7 +114,7 @@ std::DebugBufferString& std::DebugStreamBuf::GetBuffer()
 	{
 #if defined(USE_HEAP_STRING)
 		//auto& Heap = SoyThread::GetHeap( SoyThread::GetCurrentThreadNativeHandle() );
-		auto& Heap = GetDebugStreamHeap();
+		auto& Heap = Soy::GetDebugStreamHeap();
 		ThreadBuffer = Heap.Alloc<Soy::HeapString>( Heap.GetStlAllocator() );
 		
 		/*	gr: how is this supposed to work? dealloc when any thread closes??
