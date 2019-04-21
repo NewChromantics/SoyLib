@@ -21,6 +21,8 @@ namespace SoyGraphics
 namespace Opengl
 {
 	std::pair<GLenum,GLint>	GetType(SoyGraphics::TElementType::Type Type);
+	
+	extern ssize_t	gTextureAllocationCount;
 }
 
 
@@ -699,6 +701,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 	glGenTextures( 1, &mTexture.mName );
 	Opengl::IsOkay("glGenTextures");
 	Soy::Assert( mTexture.IsValid(), "Failed to allocate texture" );
+	gTextureAllocationCount += 1;
 	
 	Bind(TextureSlot);
 	Opengl::IsOkay("glGenTextures");
@@ -822,6 +825,7 @@ void Opengl::TTexture::Delete()
 	if ( mTexture.mName != GL_ASSET_INVALID )
 	{
 		glDeleteTextures( 1, &mTexture.mName );
+		gTextureAllocationCount -= 1;
 		mTexture.mName = GL_ASSET_INVALID;
 	}
 	

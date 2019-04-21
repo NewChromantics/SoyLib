@@ -81,6 +81,7 @@ public:
 	bool			IsSupported(OpenglExtensions::Type Extension)	{	return IsSupported(Extension,this);	}
 	static bool		IsSupported(OpenglExtensions::Type Extension,TContext* Context);
 	
+	static ssize_t	GetTextureAllocationCount();	//	this is currently a global count, but that'll get fixed.
 
 #if defined(TARGET_OSX)
 	virtual CGLContextObj	GetPlatformContext()	{	return nullptr;	}
