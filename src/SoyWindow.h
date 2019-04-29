@@ -64,10 +64,12 @@ public:
 	std::function<void(SoyKeyButton::Type)>	mOnKeyUp;
 	std::function<bool(ArrayBridge<std::string>&)>	mOnTryDragDrop;
 	std::function<void(ArrayBridge<std::string>&)>	mOnDragDrop;
-	
+	std::function<void()>			mOnClosed;
+
 	virtual Soy::Rectx<int32_t>		GetScreenRect()=0;		//	get pixel size on screen
 	virtual void					SetFullscreen(bool Fullscreen)=0;
 	virtual bool					IsFullscreen()=0;
+	virtual void					OnClosed();
 };
 
 
