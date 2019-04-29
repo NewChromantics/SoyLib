@@ -224,6 +224,11 @@ void PopWorker::TJobQueue::RunJob(std::shared_ptr<TJob>& Job)
 	}
 }
 
+void PopWorker::TJobQueue::QueueDeleteAll()
+{
+	std::lock_guard<std::recursive_mutex> Lock(mJobLock);
+	mJobs.clear();
+}
 
 void PopWorker::TJobQueue::PushJob(std::function<void()> Function)
 {

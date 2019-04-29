@@ -132,6 +132,9 @@ public:
 	
 	template<typename TYPE>
 	void			QueueDelete(std::shared_ptr<TYPE>& Object);
+
+	//	only for forced cleanup
+	void			QueueDeleteAll();
 	
 protected:
 	virtual void	PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore);
