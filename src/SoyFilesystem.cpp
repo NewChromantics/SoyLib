@@ -502,6 +502,10 @@ std::string	Platform::GetExePath()
 	return GetDirectoryFromFilename( ExePath );
 }
 
+bool Platform::FileExists(const std::string& Path)
+{
+	return ::PathFileExistsA(Path.c_str());
+}
 
 bool Platform::IsFullPath(const std::string& Path)
 {
