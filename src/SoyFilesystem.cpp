@@ -17,6 +17,7 @@
 
 #if defined(TARGET_WINDOWS)
 #include <Shlobj.h>
+#include <Shlwapi.h>
 #endif
 
 #include <sstream>
