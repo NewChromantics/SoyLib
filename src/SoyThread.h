@@ -419,8 +419,18 @@ public:
 	virtual bool		CanSleep() override		{	return !PopWorker::TJobQueue::HasJobs();	}	//	break out of conditional with this
 	
 	//	context
-	virtual void		Lock() override			{	}
-	virtual void		Unlock() override		{}
+	virtual bool		IsLocked(std::thread::id Thread)		{	return Thread == mLockedThread;	}
+	virtual void		Lock() override		
+	{
+		mLockedThread = std::this_thread::get_id();	
+	}
+	virtual void		Unlock() override 
+	{
+		mLockedThread = std::thread::id();
+	}
+
+	std::thread::id		mLockedThread;
+
 };
 
 /*
