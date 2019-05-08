@@ -407,8 +407,8 @@ protected:
 class SoyWorkerJobThread : public SoyWorkerThread, public PopWorker::TJobQueue, public PopWorker::TContext
 {
 public:
-	SoyWorkerJobThread(const std::string& Name) :
-		SoyWorkerThread	( Name, SoyWorkerWaitMode::Wake )
+	SoyWorkerJobThread(const std::string& Name,SoyWorkerWaitMode::Type WaitMode=SoyWorkerWaitMode::Wake) :
+		SoyWorkerThread	( Name, WaitMode )
 	{
 		WakeOnEvent( PopWorker::TJobQueue::mOnJobPushed );
 	}
