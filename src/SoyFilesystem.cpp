@@ -503,10 +503,12 @@ std::string	Platform::GetExePath()
 	return GetDirectoryFromFilename( ExePath );
 }
 
+#if defined(TARGET_WINDOWS)
 bool Platform::FileExists(const std::string& Path)
 {
 	return ::PathFileExistsA(Path.c_str());
 }
+#endif
 
 bool Platform::IsFullPath(const std::string& Path)
 {
