@@ -27,7 +27,8 @@
 #define __deprecated		__attribute__((deprecated))
 
 #if defined(TARGET_IOS)
-#define __thread				//	thread local not supported on IOS devices. todo: make a TLS class!
+//	https://github.com/ericniebler/range-v3/issues/407
+#define __thread	static_assert(false,"Check __thread support on IOS. Supported from IOS7 up? https://github.com/ericniebler/range-v3/issues/407")			//	thread local not supported on IOS devices. todo: make a TLS class!
 #endif
 
 //	unused variable
