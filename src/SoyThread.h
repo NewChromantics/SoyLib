@@ -89,8 +89,8 @@ public:
 class PopWorker::TJob_Function : public TJob
 {
 public:
-	TJob_Function(std::function<void()> Function) :
-	mFunction	( Function )
+	TJob_Function(std::function<void()>& Function) :
+		mFunction	( Function )
 	{
 	}
 	
