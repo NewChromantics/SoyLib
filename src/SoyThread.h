@@ -89,8 +89,8 @@ public:
 class PopWorker::TJob_Function : public TJob
 {
 public:
-	TJob_Function(std::function<void()> Function) :
-	mFunction	( Function )
+	TJob_Function(std::function<void()>& Function) :
+		mFunction	( Function )
 	{
 	}
 	
@@ -407,8 +407,8 @@ protected:
 class SoyWorkerJobThread : public SoyWorkerThread, public PopWorker::TJobQueue, public PopWorker::TContext
 {
 public:
-	SoyWorkerJobThread(const std::string& Name) :
-		SoyWorkerThread	( Name, SoyWorkerWaitMode::Wake )
+	SoyWorkerJobThread(const std::string& Name,SoyWorkerWaitMode::Type WaitMode=SoyWorkerWaitMode::Wake) :
+		SoyWorkerThread	( Name, WaitMode )
 	{
 		WakeOnEvent( PopWorker::TJobQueue::mOnJobPushed );
 	}
@@ -419,8 +419,18 @@ public:
 	virtual bool		CanSleep() override		{	return !PopWorker::TJobQueue::HasJobs();	}	//	break out of conditional with this
 	
 	//	context
-	virtual void		Lock() override			{	}
-	virtual void		Unlock() override		{}
+	virtual bool		IsLocked(std::thread::id Thread)		{	return Thread == mLockedThread;	}
+	virtual void		Lock() override		
+	{
+		mLockedThread = std::this_thread::get_id();	
+	}
+	virtual void		Unlock() override 
+	{
+		mLockedThread = std::thread::id();
+	}
+
+	std::thread::id		mLockedThread;
+
 };
 
 /*
