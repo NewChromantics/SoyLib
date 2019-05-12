@@ -64,10 +64,11 @@ public:
 
 private:
 #if defined(TARGET_OSX)
-	void*		mHandle;
+	void*		mHandle = nullptr;
 #elif defined(TARGET_WINDOWS)
-	HMODULE		mHandle;
+	HMODULE		mHandle = nullptr;
 #endif
+public:
 	std::string	mLibraryName;	//	filename for debugging
 };
 
