@@ -4,7 +4,7 @@
 
 
 
-bool Soy::Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertException )
+bool Soy::Assert(bool Condition, std::ostream& ErrorMessage )
 {
 	__thread static std::ostream* LastErrorMessage = nullptr;
 	__thread static Soy::TErrorMessageFunc ErrorFunc = nullptr;
@@ -22,7 +22,7 @@ bool Soy::Assert(bool Condition, std::ostream& ErrorMessage ) throw( AssertExcep
 }
 
 
-void Soy::Private::Assert_Impl(TErrorMessageFunc ErrorMessageFunc) throw(AssertException)
+void Soy::Private::Assert_Impl(TErrorMessageFunc ErrorMessageFunc)
 {
 	std::string ErrorMessage = ErrorMessageFunc();
 	
