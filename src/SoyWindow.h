@@ -72,4 +72,14 @@ public:
 	virtual void					OnClosed();
 };
 
+class SoySlider
+{
+public:
+	//	gr: windows has a limit of DWORDs so we'll limit to 16bit for now
+	//		OSX uses doubles
+	std::function<void(uint16_t&)>	mOnValueChanged;
+	
+	virtual void					SetMinMax(uint16_t Min,uint16_t Max)=0;
+	virtual void					SetValue(uint16_t Value)=0;
+};
 
