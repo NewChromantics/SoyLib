@@ -16,3 +16,13 @@ void SoySlider::OnChanged()
 	auto Value = GetValue();
 	mOnValueChanged( Value );
 }
+
+
+void SoyTextBox::OnChanged()
+{
+	if ( !mOnValueChanged )
+		return;
+	
+	auto Value = GetValue();
+	mOnValueChanged( Value );
+}

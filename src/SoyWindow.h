@@ -84,7 +84,6 @@ public:
 	virtual void					SetValue(uint16_t Value)=0;
 	virtual uint16_t				GetValue()=0;
 	
-	//	helper
 	virtual void					OnChanged();	//	helper to do GetValue and call the callback
 
 	//	gr: windows has a limit of DWORDs so we'll limit to 16bit for now
@@ -92,4 +91,29 @@ public:
 	std::function<void(uint16_t&)>	mOnValueChanged;	//	reference so caller can change value in the callback
 
 };
+
+
+class SoyTextBox
+{
+public:
+	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
+	
+	virtual void					SetValue(const std::string& Value)=0;
+	virtual std::string				GetValue()=0;
+	
+	virtual void					OnChanged();	//	helper to do GetValue and call the callback
+	
+	std::function<void(const std::string&)>	mOnValueChanged;
+};
+
+
+class SoyLabel
+{
+public:
+	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
+	
+	virtual void					SetValue(const std::string& Value)=0;
+	virtual std::string				GetValue()=0;
+};
+
 
