@@ -89,7 +89,7 @@ public:
 
 	//	gr: windows has a limit of DWORDs so we'll limit to 16bit for now
 	//		OSX uses doubles
-	std::function<void(uint16_t&)>	mOnValueChanged;
+	std::function<void(uint16_t&)>	mOnValueChanged;	//	reference so caller can change value in the callback
 
 };
 
