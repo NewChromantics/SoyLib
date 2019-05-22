@@ -8,3 +8,11 @@ void SoyWindow::OnClosed()
 	}
 }
 
+void SoySlider::OnChanged()
+{
+	if ( !mOnValueChanged )
+		return;
+	
+	auto Value = GetValue();
+	mOnValueChanged( Value );
+}
