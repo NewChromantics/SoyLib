@@ -26,9 +26,13 @@ namespace Soy
 };
 
 
+//	helper which inserts the function name
+#define Soy_AssertException(Message)	Soy::AssertException( __PRETTY_FUNCTION__, (Message) )
+
 class Soy::AssertException : public std::exception
 {
 public:
+	//	2 param version for easy  AssertException(__PRETTY_FUNCTION__,"Message")
 	AssertException(const std::string& Message) :
 		mError	( Message )
 	{
@@ -37,8 +41,16 @@ public:
 		mError	( Message.str() )
 	{
 	}
+	AssertException(const char* Function,const std::stringstream& Message) :
+		mError	( std::string(Function) + std::string(" ") + Message.str() )
+	{
+	}
 	AssertException(const char* Message) :
 		mErrorConst	( Message )
+	{
+	}
+	AssertException(const char* Function,const char* Message) :
+		mError	( std::string(Function) + std::string(" ") + std::string(Message) )
 	{
 	}
 #if defined(__OBJC__)
