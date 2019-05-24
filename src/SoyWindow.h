@@ -56,6 +56,14 @@ public:
 class SoyWindow
 {
 public:
+	virtual Soy::Rectx<int32_t>		GetScreenRect()=0;		//	get pixel size on screen
+	//virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
+
+	virtual void					SetFullscreen(bool Fullscreen)=0;
+	virtual bool					IsFullscreen()=0;
+	virtual void					OnClosed();
+
+public:
 	//	todo: change these coordinates to pixels and client can normalise with GetScreenRect
 	std::function<void(const TMousePos&,SoyMouseButton::Type)>	mOnMouseDown;
 	std::function<void(const TMousePos&,SoyMouseButton::Type)>	mOnMouseMove;
@@ -65,11 +73,47 @@ public:
 	std::function<bool(ArrayBridge<std::string>&)>	mOnTryDragDrop;
 	std::function<void(ArrayBridge<std::string>&)>	mOnDragDrop;
 	std::function<void()>			mOnClosed;
+};
 
-	virtual Soy::Rectx<int32_t>		GetScreenRect()=0;		//	get pixel size on screen
-	virtual void					SetFullscreen(bool Fullscreen)=0;
-	virtual bool					IsFullscreen()=0;
-	virtual void					OnClosed();
+class SoySlider
+{
+public:
+	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
+	
+	virtual void					SetMinMax(uint16_t Min,uint16_t Max)=0;
+	virtual void					SetValue(uint16_t Value)=0;
+	virtual uint16_t				GetValue()=0;
+	
+	virtual void					OnChanged();	//	helper to do GetValue and call the callback
+
+	//	gr: windows has a limit of DWORDs so we'll limit to 16bit for now
+	//		OSX uses doubles
+	std::function<void(uint16_t&)>	mOnValueChanged;	//	reference so caller can change value in the callback
+
+};
+
+
+class SoyTextBox
+{
+public:
+	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
+	
+	virtual void					SetValue(const std::string& Value)=0;
+	virtual std::string				GetValue()=0;
+	
+	virtual void					OnChanged();	//	helper to do GetValue and call the callback
+	
+	std::function<void(const std::string&)>	mOnValueChanged;
+};
+
+
+class SoyLabel
+{
+public:
+	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
+	
+	virtual void					SetValue(const std::string& Value)=0;
+	virtual std::string				GetValue()=0;
 };
 
 
