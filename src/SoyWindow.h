@@ -117,3 +117,16 @@ public:
 };
 
 
+class SoyTickBox
+{
+public:
+	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
+	
+	virtual void					SetValue(bool Value)=0;
+	virtual bool					GetValue()=0;
+	
+	virtual void					OnChanged();	//	helper to do GetValue and call the callback
+	
+	std::function<void(bool&)>		mOnValueChanged;	//	reference so caller can change value in the callback
+};
+
