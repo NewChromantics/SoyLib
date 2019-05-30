@@ -2434,8 +2434,9 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::RGB,			{GL_RGB} ),
 #endif
 		
+		//	gr: for openvr/steamvr, we're prioritising GL_RGBA8 over GL_RGBA
 #if defined(GL_RGBA8)
-		TPixelFormatMapping( SoyPixelsFormat::RGBA,			{GL_RGBA, GL_RGBA8} ),
+		TPixelFormatMapping( SoyPixelsFormat::RGBA,			{GL_RGBA8,GL_RGBA} ),
 #else
 		TPixelFormatMapping( SoyPixelsFormat::RGBA,			{GL_RGBA} ),
 #endif
