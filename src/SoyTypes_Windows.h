@@ -35,6 +35,9 @@
 #include <direct.h>
 #pragma comment(lib,"winmm.lib")
 
+//	get rid of some annoying windows macros
+#undef CreateWindow
+
 
 #define __func__		__FUNCTION__
 #define __PRETTY_FUNCTION__		__FUNCTION__
