@@ -29,7 +29,7 @@ namespace SoyPixelsFormat
 		BGR,
 
 		//	non integer-based channel counts
-		KinectDepth,		//	16 bit, so "two channels". 13 bits of depth, 3 bits of user-index
+		KinectDepth,		//	16 bit. 13 bits of depth, 3 bits of user-index
 		FreenectDepth10bit,	//	16 bit
 		FreenectDepth11bit,	//	16 bit
 		FreenectDepthmm,	//	16 bit
@@ -131,13 +131,12 @@ namespace SoyPixelsFormat
 		Nv12			= Yuv_8_88_Full,
 		I420			= Yuv_8_8_8_Full,
 		
-		
 		Count=99,
 	};
 
 	//	gr: consider changing this to either Type, Bytes per channel or bits per channel to handle 16 bit better
 	bool			IsFloatChannel(Type Format);
-	inline uint8_t	GetBytesPerChannel(Type Format)		{	return IsFloatChannel(Format) ? 4 : 1;	}
+	uint8_t			GetBytesPerChannel(Type Format);
 	
 	size_t			GetChannelCount(Type Format);
 	Type			GetFormatFromChannelCount(size_t ChannelCount);
@@ -410,6 +409,7 @@ public:
 		mMeta			( mMutableMeta )
 	{
 		*this = that;
+		CheckDataSize();
 	}
 	explicit SoyPixelsRemote(uint8* Array, size_t Width, size_t Height, size_t DataSize, SoyPixelsFormat::Type Format) :
 		mArray			(Array, DataSize),
@@ -417,6 +417,7 @@ public:
 		mMeta			( mMutableMeta ),
 		mArrayBridge	(mArray)
 	{
+		CheckDataSize();
 	}
 	explicit SoyPixelsRemote(uint8* Array, size_t DataSize,const SoyPixelsMeta& Meta) :
 		mArray			(Array, DataSize),
@@ -424,6 +425,7 @@ public:
 		mMeta			(mMutableMeta),
 		mArrayBridge	(mArray)
 	{
+		CheckDataSize();
 	}
 	//	const cast so we can USE the pointer, but constructor makes it clear the array/source won't be modified correctly
 	explicit SoyPixelsRemote(const SoyPixelsImpl& Pixels) :
@@ -432,6 +434,7 @@ public:
 		mMeta			( mMutableMeta ),
 		mMutableMeta	( Pixels.GetMeta() )
 	{
+		CheckDataSize();
 	}
 	/*	this array use won't modify the array properly, jsut the data & meta
 	 explicit SoyPixelsRemote(ArrayBridge<uint8>&& Pixels,const SoyPixelsMeta& Meta) :
@@ -447,6 +450,7 @@ public:
 		mMutableMeta	( Meta ),
 		mMeta			( mMutableMeta )
 	{
+		CheckDataSize();
 	}
 
 	SoyPixelsRemote&	operator=(const SoyPixelsRemote& that)
@@ -461,6 +465,9 @@ public:
 	virtual ArrayInterface<uint8>&		GetPixelsArray() override			{	return mArrayBridge;	}
 	virtual const ArrayInterface<uint8>&	GetPixelsArray() const override	{	return mArrayBridge;	}
 	
+protected:
+	void					CheckDataSize();
+
 public:
 	TARRAY					mArray;
 	ArrayBridgeDef<TARRAY>	mArrayBridge;

@@ -375,13 +375,16 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case RGBA:			return 4;
 	case BGRA:			return 4;
 	case ARGB:			return 4;
-	case KinectDepth:	return 2;	//	only 1 channel, but 16 bit
-	case FreenectDepth11bit:	return 2;	//	only 1 channel, but 16 bit
-	case FreenectDepth10bit:	return 2;	//	only 1 channel, but 16 bit
-	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
+	
+		//	16 bit, but 1 channel
+	case KinectDepth:	return 1;
+	case FreenectDepth11bit:	return 1;
+	case FreenectDepth10bit:	return 21;	
+	case FreenectDepthmm:	return 1;
+
 	case ChromaUV_8_8:	return 1;
 	case ChromaUV_88:	return 2;
-	case ChromaUV_44:	return 1;
+	case ChromaUV_44:	return 1;	//	actually 2 channels, but not supporting nibbles
 	case ChromaU_8:		return 1;
 	case ChromaV_8:		return 1;
 
@@ -460,6 +463,28 @@ bool SoyPixelsFormat::IsFloatChannel(SoyPixelsFormat::Type Format)
 	std::stringstream Error;
 	Error << __func__ << " not implemented for " << Format;
 	throw Soy::AssertException( Error.str() );
+}
+
+
+uint8_t SoyPixelsFormat::GetBytesPerChannel(SoyPixelsFormat::Type Format)
+{
+	switch (Format)
+	{
+	case Float1:
+	case Float2:
+	case Float3:
+	case Float4:
+		return sizeof(float);
+
+	case KinectDepth:
+	case FreenectDepth11bit:
+	case FreenectDepth10bit:
+	case FreenectDepthmm:
+		return sizeof(uint16_t);
+
+	default:
+		return sizeof(uint8_t);
+	}
 }
 
 
@@ -1836,7 +1861,7 @@ void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size
 
 	//	build error as we go in case we assert mid-way
 	std::stringstream Error;
-	Error << "Split pixel planes (" << ThisMeta << " -> " << Soy::StringJoin( GetArrayBridge(Formats), "," ) << ") but data hasn't aligned after split; ";
+	Error << "Split pixel planes (" << ThisMeta << " x" << PixelDataSize << " bytes -> " << Soy::StringJoin( GetArrayBridge(Formats), "," ) << ") but data hasn't aligned after split; ";
 
 	size_t DataOffset = SoyPixelsFormat::GetHeaderSize( ThisMeta.GetFormat() );
 	for ( int p=0;	p<Formats.GetSize();	p++ )
@@ -1850,7 +1875,8 @@ void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size
 
 		Error << "#" << p << "/" << Formats.GetSize() << " " << PlaneMeta << " = " << PlaneDataSize << " bytes; ";
 		//	check for overflow
-		Soy::Assert( DataOffset <= PixelDataSize, Error.str() );
+		if (DataOffset > PixelDataSize )
+			throw Soy_AssertException( Error );
 
 		PlaneOffsetSizeAndMetas.PushBack(PlaneOffsetSizeAndMeta);
 	}
@@ -2278,3 +2304,14 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 	};
 }
 
+void SoyPixelsRemote::CheckDataSize()
+{
+	auto DataSize = this->mArray.GetDataSize();
+	auto ExpectedSize = this->GetMeta().GetDataSize();
+	if (DataSize == ExpectedSize)
+		return;
+
+	std::stringstream Error;
+	Error << "SoyPixelsRemote meta size(" << ExpectedSize << ") different to data size (" << DataSize << ")";
+	throw Soy::AssertException(Error);
+}
