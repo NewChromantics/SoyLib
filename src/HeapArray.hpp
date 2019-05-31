@@ -437,7 +437,20 @@ public:
 		//	ab[klmnopqrst]xxxxxxxx
 		auto NewTailSize = GetSize() - (index+count);
 		MoveBlock( index+count, index, NewTailSize );
-		moffset -= count;
+
+		//	gr: when removing the tail[s], MoveBlock was no longer releasing complex types!
+		if (Soy::DoComplexCopy<T, T>())
+		{
+			for (int i = 0; i < count; i++)
+			{
+				Release(mdata[moffset - 1]);
+				moffset--;
+			}
+		}
+		else
+		{
+			moffset -= count;
+		}
 	}
 
 	void SetIndex(size_t index)
