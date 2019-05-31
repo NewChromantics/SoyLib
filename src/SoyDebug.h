@@ -109,6 +109,9 @@ namespace std
 		explicit DebugStreamThreadSafeWrapper()
 		{
 		}
+		~DebugStreamThreadSafeWrapper()
+		{
+		}
 		
 		DebugStream&	LockStream()
 		{
