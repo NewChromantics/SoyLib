@@ -26,3 +26,13 @@ void SoyTextBox::OnChanged()
 	auto Value = GetValue();
 	mOnValueChanged( Value );
 }
+
+
+void SoyTickBox::OnChanged()
+{
+	if ( !mOnValueChanged )
+		return;
+	
+	auto Value = GetValue();
+	mOnValueChanged( Value );
+}
