@@ -122,9 +122,13 @@ class SoyTickBox
 public:
 	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
 	
+	//	todo: all platforms have half-checked, so turn this into a state
 	virtual void					SetValue(bool Value)=0;
 	virtual bool					GetValue()=0;
-	
+
+	//	all platforms have a label!
+	virtual void					SetLabel(const std::string& Label)=0;
+
 	virtual void					OnChanged();	//	helper to do GetValue and call the callback
 	
 	std::function<void(bool&)>		mOnValueChanged;	//	reference so caller can change value in the callback
