@@ -20,6 +20,17 @@ namespace Soy
 };
 
 
+#if defined(TARGET_WINDOWS)
+namespace Platform
+{
+	//	gr: make a class for generic file handles as we use it for serial ports too.
+	bool	ParentConsoleTried = false;
+	HANDLE	ParentConsoleFileHandle = INVALID_HANDLE_VALUE;
+	void	WriteToParentConsole(const std::string& String);
+}
+#endif
+
+
 std::DebugStreamThreadSafeWrapper	std::Debug;
 
 //	gr: although cout is threadsafe, it doesnt synchornise the output
@@ -135,6 +146,47 @@ std::DebugBufferString& std::DebugStreamBuf::GetBuffer()
 }
 
 
+#if defined(TARGET_WINDOWS)
+void Platform::WriteToParentConsole(const std::string& String)
+{
+	//	if we don't have a handle, try and create one
+	if (ParentConsoleFileHandle == INVALID_HANDLE_VALUE)
+	{
+		//	already tried and failed
+		if (ParentConsoleTried)
+			return;
+
+		ParentConsoleTried = true;
+		try
+		{
+			//	need to try and attach to the parent console (ie, cmd.exe)
+			//	this fails if launched from explorer, visual studio etc
+			//	without this, CONOUT$, CONIN$ etc won't open
+			if (!AttachConsole(ATTACH_PARENT_PROCESS))
+				Platform::ThrowLastError("AttachConsole(ATTACH_PARENT_PROCESS)");
+
+			ParentConsoleFileHandle = ::CreateFileA("CONOUT$", GENERIC_WRITE, FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
+			if (ParentConsoleFileHandle == INVALID_HANDLE_VALUE)
+				Platform::ThrowLastError("Couldn't open console handle CONOUT$");
+		}
+		catch (std::exception& e)
+		{
+			//	tried and failed
+			std::cerr << e.what() << std::endl;
+			return;
+		}
+	}
+
+	auto* Buffer = String.c_str();
+	auto BufferSize = String.length();
+	DWORD Written = 0;
+	if (!WriteFile(ParentConsoleFileHandle, Buffer, BufferSize, &Written, nullptr))
+	{
+		//	failed to write, should report this!
+	}
+}
+#endif
+
 
 void std::DebugStreamBuf::flush()
 {
@@ -145,11 +197,15 @@ void std::DebugStreamBuf::flush()
 		//	gr: change these to be OS/main defined callbacks in OnFlush
 		bool PlatformDebugPrint = true;
 		bool PlatformStdout = mEnableStdOut;
+		auto& PlatformOutputBuffer = std::cout;
 	
+		std::string BufferStr(Buffer.c_str());
+
 #if defined(TARGET_WINDOWS)
 
 		//	if there's a debugger attached output to that, otherwise to-screen
-		PlatformStdout &= !Platform::IsDebuggerAttached();
+		//PlatformStdout &= !Platform::IsDebuggerAttached();
+		PlatformStdout = true;
 		PlatformDebugPrint = Platform::IsDebuggerAttached();
 
 #elif defined(TARGET_OSX)
@@ -161,22 +217,25 @@ void std::DebugStreamBuf::flush()
 		if ( PlatformStdout )
 		{
 			std::lock_guard<std::mutex> lock(CoutLock);
-			std::cout << Buffer.c_str();
-			std::cout << std::flush;
+			PlatformOutputBuffer << BufferStr;
+			PlatformOutputBuffer << std::flush;
 		}
 		
 		if ( PlatformDebugPrint )
 		{
-			std::string BufferStr(Buffer.c_str());
 			Platform::DebugPrint( BufferStr );
 		}
 		
 		if ( mOnFlush )
 		{
-			std::string BufferStr(Buffer.c_str());
 			mOnFlush(BufferStr);
 		}
 		
+		//	on windows, try and write to parent console window
+#if defined(TARGET_WINDOWS)
+		Platform::WriteToParentConsole(BufferStr);
+#endif
+
 		Buffer.erase();	// erase message buffer
 	}
 }
@@ -190,7 +249,7 @@ int std::DebugStreamBuf::overflow(int c)
 		flush();
 
 	//	gr: what is -1? std::eof?
-    return c == -1 ? -1 : ' ';
+	return c == -1 ? -1 : ' ';
 }
 
 
