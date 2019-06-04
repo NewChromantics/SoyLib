@@ -591,12 +591,18 @@ void WebSocket::TMessageHeader::Encode(TStreamBuffer& Buffer,ArrayBridge<uint8_t
 
 void WebSocket::TMessageProtocol::Encode(TStreamBuffer& Buffer)
 {
-	TMessageHeader Header(TOpCode::TextFrame);
-	
-	Array<uint8_t> MessageData;
-	Soy::StringToArray( mMessage, GetArrayBridge(MessageData) );
-	
-	Header.Encode( Buffer, GetArrayBridge(MessageData) );
+	TMessageHeader Header(mIsTextMessage ? TOpCode::TextFrame : TOpCode::BinaryFrame);
+
+	if (mIsTextMessage)
+	{
+		Array<uint8_t> MessageData;
+		Soy::StringToArray(mTextMessage, GetArrayBridge(MessageData));
+		Header.Encode(Buffer, GetArrayBridge(MessageData));
+	}
+	else
+	{
+		Header.Encode(Buffer, GetArrayBridge(mBinaryMessage));
+	}
 }
 	
 

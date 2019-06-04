@@ -169,17 +169,28 @@ class WebSocket::TMessageProtocol : public Soy::TWriteProtocol
 {
 public:
 	TMessageProtocol(THandshakeMeta& Handshake,const std::string& Message) :
-		mHandshake	( Handshake ),
-		mMessage	( Message )
+		mHandshake		( Handshake ),
+		mTextMessage	( Message ),
+		mIsTextMessage	( true )
+	{
+	}
+	TMessageProtocol(THandshakeMeta& Handshake,const ArrayBridge<uint8_t>& Message) :
+		mHandshake		(Handshake),
+		mBinaryMessage	(Message),
+		mIsTextMessage	( false )
 	{
 	}
 
 protected:
-	virtual void					Encode(TStreamBuffer& Buffer) override;
+	virtual void		Encode(TStreamBuffer& Buffer) override;
 	
 public:
 	THandshakeMeta&		mHandshake;
-	std::string			mMessage;
+
+	//	todo: maybe need to allow zero binary message... and zero length string.
+	bool				mIsTextMessage = false;
+	std::string			mTextMessage;
+	Array<uint8_t>		mBinaryMessage;
 };
 
 
