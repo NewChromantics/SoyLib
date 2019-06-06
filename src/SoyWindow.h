@@ -61,6 +61,7 @@ public:
 
 	virtual void					SetFullscreen(bool Fullscreen)=0;
 	virtual bool					IsFullscreen()=0;
+	virtual void					EnableScrollBars(bool Horz,bool Vert)=0;
 	virtual void					OnClosed();
 
 public:
