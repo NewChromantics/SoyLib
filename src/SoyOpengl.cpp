@@ -2468,7 +2468,8 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Full,		Opengl16BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Ntsc,		Opengl16BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Smptec,		Opengl16BitFormats ),
-		
+		TPixelFormatMapping(SoyPixelsFormat::uyvy,					Opengl16BitFormats ),
+
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Full,		Opengl8BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Ntsc,		Opengl8BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Smptec,		Opengl8BitFormats ),
