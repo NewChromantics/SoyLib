@@ -69,7 +69,7 @@ namespace TPng
 	TColour::Type			GetColourType(SoyPixelsFormat::Type Format);
 	SoyPixelsFormat::Type	GetPixelFormatType(TColour::Type Format);
 	
-	bool		GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression);
+	void		GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression);
 	bool		GetDeflateData(Array<char>& ChunkData,const ArrayBridge<uint8>& PixelBlock,bool LastBlock,int WindowSize);
 	
 	bool		ReadHeader(SoyPixelsImpl& Pixels,THeader& Header,ArrayBridge<char>& Data,std::stringstream& Error);
@@ -77,7 +77,7 @@ namespace TPng
 	bool		ReadTail(SoyPixelsImpl& Pixels,ArrayBridge<char>& Data,std::stringstream& Error);
 
 	//	moved from soypixels
-	bool		GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData);
+	void		GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData);
 
 };
 std::ostream& operator<< (std::ostream &out,const TPng::TColour::Type &in);

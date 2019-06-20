@@ -285,7 +285,7 @@ bool TPng::ReadTail(SoyPixelsImpl& Pixels,ArrayBridge<char>& Data,std::stringstr
 }
 
 
-bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression)
+void TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression)
 {
 	if ( Compression == TCompression::DEFLATE )
 	{
@@ -314,15 +314,15 @@ bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 		auto* DefData = PngData.PushBlock(DefAllocated);
 		auto DecompressedSize = size_cast<mz_ulong>(FilteredPixels.GetDataSize());
 		auto Result = mz_compress2( reinterpret_cast<Byte*>(DefData), &DefUsed, FilteredPixels.GetArray(), DecompressedSize, CompressionLevel );
-		if ( !Soy::Assert( Result == MZ_OK, "mz compression failed" ) )
-			return false;
-		if ( !Soy::Assert( DefUsed <= DefAllocated, "miniz compressed reported that it used more memory than we had allocated" ) )
-			return false;
+		if ( Result != MZ_OK )
+			throw Soy_AssertException("mz compression failed");
+	
+		if ( DefUsed > DefAllocated )
+			throw Soy_AssertException("miniz compressed reported that it used more memory than we had allocated" );
+	
 		//	trim data
 		auto Overflow = DefAllocated - size_cast<int>(DefUsed);
 		PngData.SetSize( PngData.GetSize() - Overflow );
-		return true;
-
 		/*
 
 
@@ -394,8 +394,7 @@ bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 	}
 	else
 	{
-		//	unsupported
-		return false;
+		throw Soy_AssertException("Currently only supporting Deflate in png");
 	}
 }
 
@@ -436,11 +435,11 @@ bool TPng::GetDeflateData(Array<char>& DeflateData,const ArrayBridge<uint8>& Pix
 
 
 
-bool TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
+void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 {
 	//	remove need for Png. Isn't this deprecated anyway
 #if defined(TARGET_PS4)
-	return false;
+	throw Soy::Soy_AssertException("Not supported on PS4");
 #else
 	//	if non-supported PNG colour format, then convert to one that is
 	auto PngColourType = TPng::GetColourType( Pixels.GetFormat() );
@@ -462,14 +461,14 @@ bool TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 		//	new format MUST be compatible or we'll get stuck in a loop
 		if ( TPng::GetColourType( NewFormat ) == TPng::TColour::Invalid )
 		{
-			assert( false );
-			return false;
+			throw Soy_AssertException("Converted to format that we can't process");
 		}
 		
 		//	attempt conversion
 		OtherFormat.SetFormat( NewFormat );
 		
-		return GetPng( OtherFormat, PngData );
+		GetPng( OtherFormat, PngData );
+		return;
 	}
 	
 	//	http://stackoverflow.com/questions/7942635/write-png-quickly
@@ -504,8 +503,7 @@ bool TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 	//	write data chunks
 	Array<char> PixelData;
 	PixelData.PushBackArray( IDAT );
-	if ( !TPng::GetPngData( PixelData, Pixels, static_cast<TPng::TCompression::Type>(Compression) ) )
-		return false;
+	TPng::GetPngData( PixelData, Pixels, static_cast<TPng::TCompression::Type>(Compression) );
 	
 	//	write Tail chunks
 	Array<char> Tail;
@@ -517,7 +515,9 @@ bool TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 	PngData.Reserve( Tail.GetDataSize() + 12 );
 	
 	uint32 HeaderLength = size_cast<uint32>( Header.GetDataSize() - sizeofarray(IHDR) );
-	assert( HeaderLength == 13 );
+	if ( HeaderLength != 13 )
+		throw Soy_AssertException("HeaderLength not 13");
+	
 	uint32 HeaderCrc = Soy::GetCrc32( GetArrayBridge(Header) );
 	PngData.PushBackArray( Magic );
 	PngData.PushBackReinterpretReverse( HeaderLength );
@@ -532,11 +532,11 @@ bool TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 	
 	uint32 TailLength = size_cast<uint32>( Tail.GetDataSize() - sizeofarray(IEND) );
 	uint32 TailCrc = Soy::GetCrc32( GetArrayBridge(Tail) );
-	assert( TailCrc == 0xAE426082 );
+	if ( TailCrc != 0xAE426082 )
+		throw Soy_AssertException("Tail CRC not 0xAE426082");
+
 	PngData.PushBackReinterpretReverse( TailLength );
 	PngData.PushBackArray( Tail );
 	PngData.PushBackReinterpretReverse( TailCrc );
-	
-	return true;
 #endif
 }
