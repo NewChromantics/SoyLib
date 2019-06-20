@@ -77,8 +77,12 @@ namespace TPng
 	bool		ReadTail(SoyPixelsImpl& Pixels,ArrayBridge<char>& Data,std::stringstream& Error);
 
 	//	moved from soypixels
-	void		GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData);
-
+	//	todo: fix type from char
+	void		GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,ArrayBridge<uint8_t>* Exif=nullptr);
+	inline void	GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,ArrayBridge<uint8_t>&& Exif)
+	{
+		GetPng( Pixels, PngData, &Exif );		
+	}
 };
 std::ostream& operator<< (std::ostream &out,const TPng::TColour::Type &in);
 std::ostream& operator<< (std::ostream &out,const TPng::TFilterNone_ScanlineFilter::Type &in);

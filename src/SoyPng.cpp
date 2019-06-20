@@ -435,7 +435,7 @@ bool TPng::GetDeflateData(Array<char>& DeflateData,const ArrayBridge<uint8>& Pix
 
 
 
-void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
+void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,ArrayBridge<uint8_t>* Exif)
 {
 	//	remove need for Png. Isn't this deprecated anyway
 #if defined(TARGET_PS4)
@@ -480,6 +480,8 @@ void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 	char IHDR[] = { 73, 72, 68, 82 };	//'I', 'H', 'D', 'R'
 	const char IEND[] = { 73, 69, 78, 68 }; //("IEND")
 	const char IDAT[] = { 73, 68, 65, 84 };// ("IDAT")
+	//	http://ftp-osl.osuosl.org/pub/libpng/documents/pngext-1.5.0.html#C.eXIf
+	const char EXIF[] = { 101, 88, 73, 102 };// ("eXIf")
 	
 	//	write header chunk
 	uint32 Width = size_cast<uint32>(Pixels.GetWidth());
@@ -500,6 +502,14 @@ void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 	Header.PushBack( Filter );
 	Header.PushBack( Interlace );
 	
+	//	make exif data
+	Array<char> ExifData;
+	if ( Exif )
+	{
+		ExifData.PushBackArray( EXIF );
+		ExifData.PushBackArray( *Exif );
+	}
+	
 	//	write data chunks
 	Array<char> PixelData;
 	PixelData.PushBackArray( IDAT );
@@ -511,6 +521,8 @@ void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 	
 	//	put it all together!
 	PngData.Reserve( Header.GetDataSize() + 12 );
+	if ( !ExifData.IsEmpty() )
+		PngData.Reserve( ExifData.GetDataSize() + 12 );
 	PngData.Reserve( PixelData.GetDataSize() + 12 );
 	PngData.Reserve( Tail.GetDataSize() + 12 );
 	
@@ -523,6 +535,16 @@ void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 	PngData.PushBackReinterpretReverse( HeaderLength );
 	PngData.PushBackArray( Header );
 	PngData.PushBackReinterpretReverse( HeaderCrc );
+	
+	//	exif can go between header and end, but not inbetween idats
+	if ( !ExifData.IsEmpty() )
+	{
+		uint32 ExifDataLength = size_cast<uint32>( ExifData.GetDataSize() - sizeofarray(EXIF) );
+		uint32 ExifDataCrc = Soy::GetCrc32( GetArrayBridge(ExifData) );
+		PngData.PushBackReinterpretReverse( ExifDataLength );
+		PngData.PushBackArray( ExifData );
+		PngData.PushBackReinterpretReverse( ExifDataCrc );
+	}
 	
 	uint32 PixelDataLength = size_cast<uint32>( PixelData.GetDataSize() - sizeofarray(IDAT) );
 	uint32 PixelDataCrc = Soy::GetCrc32( GetArrayBridge(PixelData) );
