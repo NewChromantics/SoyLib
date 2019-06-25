@@ -324,6 +324,7 @@ Soy::TVersion::TVersion(std::string VersionStr,const std::string& Prefix) :
 size_t Soy::TVersion::GetHundred() const
 {
 	//	gr: throw if the minor is going to overflow
+	//	gr: I forget what version this was checking against, but it probbaly shouldn't have been here
 	if ( mMinor >= 100 )
 	{
 		std::stringstream Error;
@@ -333,6 +334,16 @@ size_t Soy::TVersion::GetHundred() const
 	return (mMajor * 100) + mMinor;
 }
 
+
+size_t Soy::TVersion::GetMillion() const
+{
+	auto Million = 0;
+	Million += mMajor * 100 * 100;
+	Million += mMinor * 100;
+	Million += mPatch;
+
+	return Million;
+}
 
 
 

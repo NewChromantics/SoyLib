@@ -343,31 +343,29 @@ namespace Platform
 class Soy::TVersion
 {
 public:
-	TVersion() :
-		mMajor	( 0 ),
-		mMinor	( 0 )
-	{
-	}
-	TVersion(size_t Major,size_t Minor) :
+	TVersion(size_t Major=0,size_t Minor=0,size_t Patch=0) :
 		mMajor	( Major ),
-		mMinor	( Minor )
+		mMinor	( Minor ),
+		mPatch	( Patch )
 	{
 	}
 	explicit TVersion(std::string VersionStr,const std::string& Prefix="");
 	
 	//	gr: throw if the minor is going to overflow
 	size_t	GetHundred() const;
+	size_t	GetMillion() const;	//	int representation xxx.xxx.xxx
 	
-	bool	operator<(const TVersion& that) const	{	return GetHundred() < that.GetHundred();	}
-	bool	operator<=(const TVersion& that) const	{	return GetHundred() <= that.GetHundred();	}
-	bool	operator>(const TVersion& that) const	{	return GetHundred() > that.GetHundred();	}
-	bool	operator>=(const TVersion& that) const	{	return GetHundred() >= that.GetHundred();	}
-	bool	operator==(const TVersion& that) const	{	return GetHundred() == that.GetHundred();	}
-	bool	operator!=(const TVersion& that) const	{	return GetHundred() != that.GetHundred();	}
+	bool	operator<(const TVersion& that) const	{	return GetMillion() < that.GetMillion();	}
+	bool	operator<=(const TVersion& that) const	{	return GetMillion() <= that.GetMillion();	}
+	bool	operator>(const TVersion& that) const	{	return GetMillion() > that.GetMillion();	}
+	bool	operator>=(const TVersion& that) const	{	return GetMillion() >= that.GetMillion();	}
+	bool	operator==(const TVersion& that) const	{	return GetMillion() == that.GetMillion();	}
+	bool	operator!=(const TVersion& that) const	{	return GetMillion() != that.GetMillion();	}
 	
 public:
-	size_t	mMajor;
-	size_t	mMinor;
+	size_t	mMajor = 0;
+	size_t	mMinor = 0;
+	size_t	mPatch = 0;
 };
 
 namespace Soy
