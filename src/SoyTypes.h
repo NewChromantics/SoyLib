@@ -297,6 +297,48 @@ private:
 };
 
 
+class Soy::TVersion
+{
+public:
+	TVersion(size_t Major=0,size_t Minor=0,size_t Patch=0) :
+	mMajor	( Major ),
+	mMinor	( Minor ),
+	mPatch	( Patch )
+	{
+	}
+	explicit TVersion(std::string VersionStr,const std::string& Prefix="");
+	
+	//	gr: throw if the minor is going to overflow
+	size_t	GetHundred() const;
+	size_t	GetMillion() const;	//	int representation xxx.xxx.xxx
+	
+	bool	operator<(const TVersion& that) const	{	return GetMillion() < that.GetMillion();	}
+	bool	operator<=(const TVersion& that) const	{	return GetMillion() <= that.GetMillion();	}
+	bool	operator>(const TVersion& that) const	{	return GetMillion() > that.GetMillion();	}
+	bool	operator>=(const TVersion& that) const	{	return GetMillion() >= that.GetMillion();	}
+	bool	operator==(const TVersion& that) const	{	return GetMillion() == that.GetMillion();	}
+	bool	operator!=(const TVersion& that) const	{	return GetMillion() != that.GetMillion();	}
+	
+public:
+	size_t	mMajor = 0;
+	size_t	mMinor = 0;
+	size_t	mPatch = 0;
+};
+
+namespace Soy
+{
+	inline std::ostream& operator<<(std::ostream &out,const Soy::TVersion& in)
+	{
+		//	gr: this may want to include patch, but maybe some things depend on it?
+		out << in.mMajor << '.' << in.mMinor << '.' << in.mPatch;
+		return out;
+	}
+}
+
+
+
+
+
 namespace Soy
 {
 	namespace Private
@@ -335,47 +377,11 @@ namespace Platform
 	void				IsOkay(int Error,const std::string& Context);
 	void				IsOkay(const std::string& Context);	//	checks last error
 	void				ThrowLastError(const std::string& Context);	//	throws an exception with the last error (even if there is none)
+
+	//	gr: is this the right place? I put it with OS errors
+	Soy::TVersion		GetOsVersion();
 };
 
-
-
-
-class Soy::TVersion
-{
-public:
-	TVersion(size_t Major=0,size_t Minor=0,size_t Patch=0) :
-		mMajor	( Major ),
-		mMinor	( Minor ),
-		mPatch	( Patch )
-	{
-	}
-	explicit TVersion(std::string VersionStr,const std::string& Prefix="");
-	
-	//	gr: throw if the minor is going to overflow
-	size_t	GetHundred() const;
-	size_t	GetMillion() const;	//	int representation xxx.xxx.xxx
-	
-	bool	operator<(const TVersion& that) const	{	return GetMillion() < that.GetMillion();	}
-	bool	operator<=(const TVersion& that) const	{	return GetMillion() <= that.GetMillion();	}
-	bool	operator>(const TVersion& that) const	{	return GetMillion() > that.GetMillion();	}
-	bool	operator>=(const TVersion& that) const	{	return GetMillion() >= that.GetMillion();	}
-	bool	operator==(const TVersion& that) const	{	return GetMillion() == that.GetMillion();	}
-	bool	operator!=(const TVersion& that) const	{	return GetMillion() != that.GetMillion();	}
-	
-public:
-	size_t	mMajor = 0;
-	size_t	mMinor = 0;
-	size_t	mPatch = 0;
-};
-
-namespace Soy
-{
-inline std::ostream& operator<<(std::ostream &out,const Soy::TVersion& in)
-{
-	out << in.mMajor << '.' << in.mMinor;
-	return out;
-}
-}
 
 
 

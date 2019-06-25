@@ -138,20 +138,17 @@ public:
 class Opengl::TAsset
 {
 public:
-	TAsset() :
-	mName	( GL_ASSET_INVALID )
-	{
-	}
+	TAsset()	{}
 	explicit TAsset(GLuint Name) :
-	mName	( Name )
+		mName	( Name )
 	{
 	}
 	
-	bool	IsValid() const		{	return mName != GL_ASSET_INVALID;	}
+	bool	IsValid() const							{	return mName != GL_ASSET_INVALID;	}
 	bool	operator==(const TAsset& Asset) const	{	return mName == Asset.mName;	}
 	bool	operator!=(const TAsset& Asset) const	{	return mName != Asset.mName;	}
 	
-	GLuint	mName;
+	GLuint	mName = GL_ASSET_INVALID;
 };
 
 
