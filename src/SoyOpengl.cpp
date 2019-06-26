@@ -115,8 +115,13 @@ std::shared_ptr<SoyPixelsImpl> Opengl::GetClientStorage(TTexture& Texture)
 }
 
 
-template<> GLenum Opengl::GetTypeEnum<uint16>()		{	return GL_UNSIGNED_SHORT;	}
+template<> GLenum Opengl::GetTypeEnum<uint16_t>()	{	return GL_UNSIGNED_SHORT;	}
 template<> GLenum Opengl::GetTypeEnum<GLshort>()	{	return GL_UNSIGNED_SHORT;	}
+//template<> GLenum Opengl::GetTypeEnum<GLushort>()	{	return GL_UNSIGNED_SHORT;	}
+
+template<> GLenum Opengl::GetTypeEnum<uint32_t>()	{	return GL_UNSIGNED_INT;	}
+//template<> GLenum Opengl::GetTypeEnum<GLuint>()		{	return GL_UNSIGNED_INT;	}
+template<> GLenum Opengl::GetTypeEnum<GLint>()		{	return GL_UNSIGNED_INT;	}
 
 std::string Opengl::GetEnumString(GLenum Type)
 {
@@ -2205,7 +2210,7 @@ void Opengl::TGeometry::EnableAttribs(const SoyGraphics::TGeometryVertex& Descri
 	}
 }
 
-Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex) :
+Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<uint32_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex) :
 	mVertexBuffer( GL_ASSET_INVALID ),
 	mIndexBuffer( GL_ASSET_INVALID ),
 	mVertexArrayObject( GL_ASSET_INVALID ),
@@ -2266,13 +2271,11 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 	if ( GenerateIndexes )
 	{
 		//	push indexes as glshorts
-		Array<GLshort> Indexes16;
-		for ( int i=0;	i<Indexes.GetSize();	i++ )
-			Indexes16.PushBack( size_cast<GLshort>(Indexes[i]) );
 		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
-		glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes16.GetDataSize(), Indexes16.GetArray(), GL_STATIC_DRAW );
-		mIndexCount = size_cast<GLsizei>( Indexes16.GetSize() );
-		mIndexType = Opengl::GetTypeEnum<GLshort>();
+		glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes.GetDataSize(), Indexes.GetArray(), GL_STATIC_DRAW );
+		mIndexCount = size_cast<GLsizei>( Indexes.GetSize() );
+		//mIndexType = Opengl::GetTypeEnum<Indexes::TYPE>();
+		mIndexType = Opengl::GetTypeEnum<uint32_t>();
 		Opengl_IsOkay();
 	}
 	

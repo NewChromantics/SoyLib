@@ -263,7 +263,7 @@ public:
 class Opengl::TGeometry
 {
 public:
-	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex);
+	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<uint32_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex);
 	~TGeometry();
 
 	void	Draw();
