@@ -1399,12 +1399,6 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 	std::stringstream WholeFunctionContext;
 	WholeFunctionContext << __func__ << " (" << SourcePixels.GetMeta() << "->" << this->GetMeta() << ")";
 	Soy::TScopeTimerPrint WholeTimer( WholeFunctionContext.str().c_str(), 30 );
-
-	auto* AsFloat = reinterpret_cast<const float*>(SourcePixels.GetPixelsArray().GetArray());
-	for ( auto i=0;	i<10;	i++ )
-	{
-		std::Debug << "float[" << i << "] " << AsFloat[i] << std::endl;
-	}
 	
 	Soy::Assert( IsValid(), "Trying to upload to invalid texture ");
 	CheckIsBound();
