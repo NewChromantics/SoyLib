@@ -225,10 +225,23 @@ std::string Opengl::GetEnumString(GLenum Type)
 			CASE_ENUM_STRING( GL_SAMPLER_2D_RECT );
 #endif
 
+#if defined(GL_R32F)
+			CASE_ENUM_STRING( GL_R32F );
+#endif
+#if defined(GL_RG32F)
+			CASE_ENUM_STRING( GL_RG32F );
+#endif
+#if defined(GL_RGB32F)
+			CASE_ENUM_STRING( GL_RGB32F );
+#endif
+#if defined(GL_RGBA32F)
+			CASE_ENUM_STRING( GL_RGBA32F );
+#endif
+
 	};
 #undef CASE_ENUM_STRING
 	std::stringstream Unknown;
-	Unknown << "Unknown GL enum 0x" << std::hex << Type << std::dec;
+	Unknown << "<GLenum 0x" << std::hex << Type << std::dec << ">";
 	return Unknown.str();
 }
 
@@ -682,6 +695,26 @@ size_t Opengl::TFbo::GetAlphaBits() const
 #endif
 }
 
+GLenum GetGlPixelStorageFormat(SoyPixelsFormat::Type Format)
+{
+	if ( SoyPixelsFormat::IsFloatChannel(Format) )
+		return GL_FLOAT;
+	
+	auto ComponentSize = SoyPixelsFormat::GetBytesPerChannel(Format);
+	switch ( ComponentSize )
+	{
+		case 1:	return GL_UNSIGNED_BYTE;
+		case 2:	return GL_UNSIGNED_SHORT;
+		case 4:	return GL_INT;
+			
+		default:	break;
+	}
+	
+	std::stringstream Error;
+	Error << "Unhandled format (" << Format << ") component size " << ComponentSize;
+	throw Soy_AssertException(Error);
+}
+
 Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 	mAutoRelease	( true ),
 	mType			( Type )
@@ -713,7 +746,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 	
 	//	set mip-map levels to 0..0
 	GLint MipLevel = 0;
-	GLenum GlPixelsStorage = GL_UNSIGNED_BYTE;
+	GLenum GlPixelsStorage = GetGlPixelStorageFormat(Meta.GetFormat());
 	GLint Border = 0;
 	
 	//	disable other mip map levels
@@ -757,12 +790,18 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 				}
 				catch( std::exception& e)
 				{
+					std::Debug << e.what() << std::endl;
 				}
 			}
 		}
-		std::stringstream Error;
-		Error << "Failed to create texture with " << Meta;
-		Soy::Assert( Created, Error.str() );
+		
+		if ( !Created )
+		{
+			std::stringstream Error;
+			Error << "Failed to create texture with " << Meta;
+			throw Soy::AssertException(Error);
+		}
+		
 	}
 	
 	//	verify params
@@ -1361,6 +1400,12 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 	WholeFunctionContext << __func__ << " (" << SourcePixels.GetMeta() << "->" << this->GetMeta() << ")";
 	Soy::TScopeTimerPrint WholeTimer( WholeFunctionContext.str().c_str(), 30 );
 
+	auto* AsFloat = reinterpret_cast<const float*>(SourcePixels.GetPixelsArray().GetArray());
+	for ( auto i=0;	i<10;	i++ )
+	{
+		std::Debug << "float[" << i << "] " << AsFloat[i] << std::endl;
+	}
+	
 	Soy::Assert( IsValid(), "Trying to upload to invalid texture ");
 	CheckIsBound();
 
@@ -1467,7 +1512,8 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 	
 	
 	auto& FinalPixels = *UsePixels;
-	GLenum FinalPixelsStorage = GL_UNSIGNED_BYTE;
+	GLenum FinalPixelsStorage = GetGlPixelStorageFormat( SourcePixels.GetFormat() );
+														
 	//	pixel data format
 	BufferArray<GLenum,10> FinalPixelsFormats;
 	Opengl::GetUploadPixelFormats( GetArrayBridge(FinalPixelsFormats), *this, FinalPixels.GetFormat(), Params.mAllowOpenglConversion );
@@ -2409,20 +2455,6 @@ const std::initializer_list<GLenum> Opengl16BitFormats =
 #endif
 };
 
-const std::initializer_list<GLenum> OpenglFloat1Formats =
-{
-	GL_R32F,
-};
-
-const std::initializer_list<GLenum> OpenglFloat2Formats =
-{
-	GL_RG32F,
-};
-
-const std::initializer_list<GLenum> OpenglFloat4Formats =
-{
-	GL_RGBA32F,	//		0x8814
-};
 
 
 
@@ -2490,12 +2522,11 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 #else
 		TPixelFormatMapping( SoyPixelsFormat::BGR,			{ GL_RGB	} ),
 #endif
-
 		
-		TPixelFormatMapping( SoyPixelsFormat::Float1,		OpenglFloat1Formats ),
-		TPixelFormatMapping( SoyPixelsFormat::Float2,		OpenglFloat2Formats ),
-		TPixelFormatMapping( SoyPixelsFormat::Float3,		{ GL_RGB	} ),
-		TPixelFormatMapping( SoyPixelsFormat::Float4,		OpenglFloat4Formats ),
+		TPixelFormatMapping( SoyPixelsFormat::Float1,		{GL_RED},	{GL_R32F} ),
+		TPixelFormatMapping( SoyPixelsFormat::Float2,		{GL_RG},	{GL_RG32F} ),
+		TPixelFormatMapping( SoyPixelsFormat::Float3,		{GL_RGB},	{GL_RGB32F}	),
+		TPixelFormatMapping( SoyPixelsFormat::Float4,		{GL_RGBA},	{GL_RGBA32F} ),
 		
 	};
 	static Array<TPixelFormatMapping> PixelFormatMap( _PixelFormatMap );
@@ -2568,9 +2599,14 @@ SoyPixelsFormat::Type Opengl::GetDownloadPixelFormat(GLenum Format)
 	{
 		auto& FormatMap = FormatMaps[i];
 		
+		//	gr: should we ONLY be checking this (which may be empty)
+		if ( FormatMap.mOpenglInternalFormats.Find(Format) )
+			return FormatMap.mPixelFormat;
+
 		if ( FormatMap.mOpenglFormats.Find(Format) )
 			return FormatMap.mPixelFormat;
 	}
+	
 
 	std::Debug << "Failed to convert glpixelformat " << GetEnumString(Format) << " to soy pixel format" << std::endl;
 	return SoyPixelsFormat::Invalid;
