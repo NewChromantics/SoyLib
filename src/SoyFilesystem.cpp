@@ -623,11 +623,16 @@ void Soy::ReadStream(ArrayBridge<char>&& Data,std::istream& Stream)
 void Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream)
 {
 	//	gr: todo: re-use function above, just need to send lambda or something for PushBackArary
-	BufferArray<char,5*1024> Buffer;
+
+	//	gr: bigger buffer for much faster reading
+	const int MaxBufferSize = 2*1024*1024;
+	BufferArray<char,MaxBufferSize> Buffer;
+	//Array<char> Buffer(MaxBufferSize);
+
 	while ( !Stream.eof() )
 	{
 		//	read a chunk
-		Buffer.SetSize( Buffer.MaxSize() );
+		Buffer.SetSize( MaxBufferSize );
 		auto BufferBridge = GetArrayBridge( Buffer );
 		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
 			break;
