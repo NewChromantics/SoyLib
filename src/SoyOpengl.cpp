@@ -719,6 +719,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 	mAutoRelease	( true ),
 	mType			( Type )
 {
+	static bool DebugContruction = false;
 	Opengl_IsOkayFlush();
 
 	Soy::Assert( Meta.IsValid(), "Cannot setup texture with invalid meta" );
@@ -773,7 +774,11 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 		 Error << "glTexImage2D texture construction " << Meta << " InternalPixelFormat=" << GetEnumString(InternalPixelFormat) << " PixelsFormat=" << GetEnumString(PixelsFormat) << ", GlPixelsStorage=" << GetEnumString(GlPixelsStorage);
 		 Opengl::IsOkay( Error.str() );
 		 */
+		int FailedTrys = 0;
 		bool Created = false;
+		GLenum SuccessfullInternalPixelFormat = 0;
+		GLenum SuccessfullExternalPixelFormat = 0;
+		
 		for ( int e=0;	!Created && e<ExternalPixelsFormats.GetSize();	e++ )
 		{
 			for ( int i=0;	!Created && i<InternalPixelFormats.GetSize();	i++ )
@@ -784,13 +789,18 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 					auto ExternalPixelFormat = ExternalPixelsFormats[e];
 					glTexImage2D( mType, MipLevel, InternalPixelFormat, size_cast<GLsizei>(Meta.GetWidth()), size_cast<GLsizei>(Meta.GetHeight()), Border, ExternalPixelFormat, GlPixelsStorage, nullptr );
 					std::stringstream Error;
-					Error << "glTexImage2D texture construction " << Meta << " InternalPixelFormat=" << GetEnumString(InternalPixelFormat) << " PixelsFormat=" << GetEnumString(ExternalPixelFormat) << ", GlPixelsStorage=" << GetEnumString(GlPixelsStorage);
+					Error << "glTexImage2D texture construction " << Meta << " InternalPixelFormat=" << GetEnumString(InternalPixelFormat) << " ExternalPixelFormat=" << GetEnumString(ExternalPixelFormat) << ", GlPixelsStorage=" << GetEnumString(GlPixelsStorage);
 					Opengl::IsOkay( Error.str() );
+					
 					Created = true;
+					SuccessfullInternalPixelFormat = InternalPixelFormat;
+					SuccessfullExternalPixelFormat = ExternalPixelFormat;
 				}
 				catch( std::exception& e)
 				{
-					std::Debug << e.what() << std::endl;
+					FailedTrys++;
+					if ( DebugContruction )
+						std::Debug << e.what() << std::endl;
 				}
 			}
 		}
@@ -802,6 +812,15 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 			throw Soy::AssertException(Error);
 		}
 		
+		//	if it did succeed, but some failed first, report them for debugging
+		if ( DebugContruction )//&& FailedTrys > 0 )
+		{
+			std::Debug << "Successfull glTexImage2D texture construction " << Meta;
+			std::Debug << " InternalPixelFormat=" << GetEnumString(SuccessfullInternalPixelFormat);
+			std::Debug << " ExternalPixelFormat=" << GetEnumString(SuccessfullExternalPixelFormat);
+			std::Debug << " GlPixelsStorage=" << GetEnumString(GlPixelsStorage);
+			std::Debug << std::endl;
+		}
 	}
 	
 	//	verify params
