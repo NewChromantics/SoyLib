@@ -1,5 +1,5 @@
 #include "SoyMediaFormat.h"
-
+#include "SoyFourcc.h"
 
 //	android sdk define
 #define MIMETYPE_AUDIO_RAW	"audio/raw"
@@ -403,7 +403,8 @@ void SoyMediaFormat::GetFormatMetas(ArrayBridge<const SoyMediaFormatMeta*>&& Met
 {
 	auto& Metas = GetFormatMap();
 	
-	auto FourccSwapped = Soy::SwapEndian( Fourcc );
+	auto FourccSwapped = Fourcc;
+	Soy::EndianSwap( FourccSwapped );
 	
 	for ( int m=0;	m<Metas.GetSize();	m++ )
 	{
@@ -413,8 +414,7 @@ void SoyMediaFormat::GetFormatMetas(ArrayBridge<const SoyMediaFormatMeta*>&& Met
 			if ( !Meta.mFourccs.Find( FourccSwapped ) )
 				continue;
 			else
-				std::Debug << "Warning: Detected reversed fourcc.(" << Soy::FourCCToString(FourccSwapped) << ") todo: Fix endianness at source." << std::endl;
-			
+				std::Debug << "Warning: Detected reversed fourcc.(" << Soy::TFourcc(FourccSwapped) << ") todo: Fix endianness at source." << std::endl;
 		}
 	
 		//	match size
@@ -517,13 +517,13 @@ SoyMediaFormat::Type SoyMediaFormat::FromFourcc(uint32 Fourcc,size_t H264LengthS
 	
 	if ( Metas.IsEmpty() )
 	{
-		std::Debug << "Unknown fourcc type: " << Soy::FourCCToString(Fourcc) << " (" << H264LengthSize << ")" << std::endl;
+		std::Debug << "Unknown fourcc type: " << Soy::TFourcc(Fourcc) << " (" << H264LengthSize << ")" << std::endl;
 		return SoyMediaFormat::Invalid;
 	}
 
 	//	multiple found
 	if ( Metas.GetSize() > 1 )
-		std::Debug << "Warning found multiple metas for fourcc " << Soy::FourCCToString(Fourcc) << " returning first" << std::endl;
+		std::Debug << "Warning found multiple metas for fourcc " << Soy::TFourcc(Fourcc) << " returning first" << std::endl;
 
 	return Metas[0]->mFormat;
 

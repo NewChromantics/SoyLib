@@ -6,6 +6,8 @@
 namespace Soy
 {
 	class TFourcc;
+	
+	std::ostream& operator<<(std::ostream &out,const Soy::TFourcc& in);
 }
 
 
@@ -29,8 +31,5 @@ public:
 		uint32_t	mFourcc32;
 	};
 };
-
-std::ostream& operator<<(std::ostream &out,const Soy::TFourcc& in);
-
 
 

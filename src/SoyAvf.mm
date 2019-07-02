@@ -1,6 +1,7 @@
 #include "SoyAvf.h"
 #include "SoyH264.h"
 #include "SoyFilesystem.h"
+#include "SoyFourcc.h"
 
 #include <CoreMedia/CMBase.h>
 #include <VideoToolbox/VTBase.h>
@@ -255,7 +256,8 @@ std::string Avf::GetString(OSStatus Status)
 	return Error.str();
 	
 	//	could be fourcc?
-	return Soy::FourCCToString( CFSwapInt32HostToBig(Status) );
+	Soy::TFourcc Fourcc( CFSwapInt32HostToBig(Status) );
+	return Fourcc.GetString();
 	/*
 	 //	example with specific bundles...
 	 NSBundle *bundle = [NSBundle bundleWithIdentifier:@"com.apple.security"];
@@ -401,10 +403,13 @@ SoyMediaFormat::Type Avf::SoyMediaFormat_FromFourcc(uint32 Fourcc,size_t H264Len
 		return SoyMediaFormat::FromPixelFormat( AvfPixelFormat );
 	
 	//	double check for swapped endianness
-	AvfPixelFormat = Avf::GetPixelFormat( Soy::SwapEndian(Fourcc) );
+	auto FourccSwap = Fourcc;
+	Soy::EndianSwap(FourccSwap);
+	AvfPixelFormat = Avf::GetPixelFormat( FourccSwap );
 	if ( AvfPixelFormat != SoyPixelsFormat::Invalid )
 	{
-		std::Debug << "Warning, detected avf pixel format with reversed fourcc " << Soy::FourCCToString( Soy::SwapEndian(Fourcc) ) << std::endl;
+		Soy::TFourcc Reversed(FourccSwap);
+		std::Debug << "Warning, detected avf pixel format with reversed fourcc " << Reversed.GetString() << std::endl;
 		return SoyMediaFormat::FromPixelFormat( AvfPixelFormat );
 	}
 	
@@ -897,8 +902,9 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 	CVPixelBufferRef PixelBuffer = nullptr;
 	auto Result = CVPixelBufferCreateWithBytes( PixelBufferAllocator, Image.GetWidth(), Image.GetHeight(), PixelFormatType, Pixels, BytesPerRow, PixelReleaseCallback, ReleaseContext, PixelBufferAttributes, &PixelBuffer );
 	
+	Soy::TFourcc Fourcc(PixelFormatType);
 	std::stringstream Error;
-	Error << "CVPixelBufferCreateWithBytes " << Image.GetMeta() << "(" << Soy::FourCCToString(PixelFormatType) << ")";
+	Error << "CVPixelBufferCreateWithBytes " << Image.GetMeta() << "(" << Fourcc << ")";
 	Avf::IsOkay( Result, Error.str() );
 
 	return PixelBuffer;
@@ -1034,8 +1040,9 @@ std::string Avf::GetPixelFormatString(OSType Format)
 	
 	if ( !Meta )
 	{
+		Soy::TFourcc Fourcc(Format);
 		std::stringstream Output;
-		Output << "Unknown format " << Soy::FourCCToString( Format );
+		Output << "Unknown format " << Fourcc;
 		return Output.str();
 	}
 
@@ -1060,7 +1067,8 @@ SoyPixelsFormat::Type Avf::GetPixelFormat(OSType Format)
 	
 	if ( !Meta )
 	{
-		std::Debug << "Unknown Avf CV pixel format (" << Soy::FourCCToString(Format) << " 0x" << std::hex << Format << ")" << std::dec << std::endl;
+		Soy::TFourcc Fourcc(Format);
+		std::Debug << "Unknown Avf CV pixel format (" << Fourcc << " 0x" << std::hex << Format << ")" << std::dec << std::endl;
 		
 		return SoyPixelsFormat::Invalid;
 	}
