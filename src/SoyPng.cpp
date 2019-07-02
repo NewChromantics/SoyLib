@@ -3,7 +3,12 @@
 #include "SoyDebug.h"
 #include "SoyPng.h"
 #include "RemoteArray.h"
+#include "SoyFourcc.h"
 
+const Soy::TFourcc TPng::IHDR("IHDR");
+const Soy::TFourcc TPng::IEND("IEND");
+const Soy::TFourcc TPng::IDAT("IDAT");
+	
 
 
 TPng::TColour::Type TPng::GetColourType(SoyPixelsFormat::Type Format)
@@ -87,6 +92,19 @@ bool TPng::CheckMagic(TArrayReader& ArrayReader)
 	
 	return true;
 }
+
+void TPng::CheckMagic(const ArrayBridge<uint8_t>& PngData)
+{
+	BufferArray<char,8> Magic;
+	GetMagic( GetArrayBridge(Magic) );
+	
+	auto Diff = memcmp( PngData.GetArray(), Magic.GetArray(), Magic.GetDataSize() );
+	if ( Diff == 0 )
+		return;
+	
+	throw Soy::AssertException("Png magic header mismatch");
+}
+
 
 bool TPng::THeader::IsValid() const
 {
@@ -561,4 +579,41 @@ void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,ArrayBr
 	PngData.PushBackArray( Tail );
 	PngData.PushBackReinterpretReverse( TailCrc );
 #endif
+}
+
+
+void TPng::EnumChunks(const ArrayBridge<uint8_t>&& PngData,std::function<void(Soy::TFourcc&,uint32_t,ArrayBridge<uint8_t>&&)> EnumBlock)
+{
+	//	skip magic
+	auto DataPosition = 0;
+	
+	CheckMagic(PngData);
+	DataPosition += 8;
+
+	while ( DataPosition < PngData.GetSize() )
+	{
+		//	pop fourcc
+		auto* LengthPtr = &PngData[DataPosition+0];
+		auto* FourccPtr = &PngData[DataPosition+4];
+		auto* DataPtr = &PngData[DataPosition+4+4];
+		Soy::TFourcc Fourcc( FourccPtr );
+		
+		auto Length = *reinterpret_cast<const uint32_t*>( LengthPtr );
+		Soy::EndianSwap(Length);
+		if ( DataPosition+Length > PngData.GetSize() )
+		{
+			std::stringstream Error;
+			Error << "Png chunk (" << Fourcc << ") length (x" << Length << ") too large for data (x" << PngData.GetSize() << ")";
+			throw Soy::AssertException( Error );
+		}
+		
+		auto* CrcPtr = &PngData[DataPosition+4+4+Length];
+		auto Crc = *reinterpret_cast<const uint32_t*>( CrcPtr );
+		Soy::EndianSwap(Crc);
+		
+		auto Data = GetRemoteArray( DataPtr, Length );
+		EnumBlock( Fourcc, Crc, GetArrayBridge(Data) );
+		
+		DataPosition = DataPosition+4+4+Length+4;
+	}
 }

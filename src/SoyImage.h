@@ -12,8 +12,7 @@ class TStreamBuffer;
 //	stb interfaces which haven't yet had any specific Soy stuff yet
 namespace Png
 {
-	void		Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer);
-	void		Read(SoyPixelsImpl& Pixels,const ArrayBridge<char>& Buffer);
+	void		Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,std::function<void(const std::string& Section,const ArrayBridge<uint8_t>& MetaData)> OnMeta=nullptr);
 	static const char*	FileExtensions[] = {".png"};
 }
 
