@@ -626,8 +626,7 @@ void Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream)
 
 	//	gr: bigger buffer for much faster reading
 	const int MaxBufferSize = 2*1024*1024;
-	BufferArray<char,MaxBufferSize> Buffer;
-	//Array<char> Buffer(MaxBufferSize);
+	Array<char> Buffer(MaxBufferSize);
 
 	while ( !Stream.eof() )
 	{
