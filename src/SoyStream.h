@@ -57,6 +57,7 @@ public:
 	bool		Peek(ArrayBridge<char>&& Data)			{	return Peek( Data );	}
 	bool		Peek(ArrayBridge<uint8>&& Data);		//	copy first X bytes without modifying. fails if this many bytes don't exist
 	bool		PeekBack(ArrayBridge<char>&& Data);	//	copy last X bytes without modifying. fails if this many bytes don't exist
+	ArrayBridgeDef<Array<char>>	PeekArray();		//	get an UNSAFE array bridge to the data
 	
 protected:
 	void		OnDataPushed(bool EofPushed);

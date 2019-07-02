@@ -299,6 +299,11 @@ bool TStreamBuffer::UnPop(const std::string& String)
 	return UnPop( DataBridge );
 }
 
+ArrayBridgeDef<Array<char>> TStreamBuffer::PeekArray()
+{
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
+	return GetArrayBridge(mData);	
+}
 
 bool TStreamBuffer::Peek(ArrayBridge<char>& Data)
 {
@@ -307,7 +312,7 @@ bool TStreamBuffer::Peek(ArrayBridge<char>& Data)
 	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	if ( mData.GetSize() < Data.GetSize() )
-	return false;
+		return false;
 	
 	auto DataHead = GetRemoteArray( mData.GetArray(), Data.GetSize() );
 	Data.Copy( DataHead );
