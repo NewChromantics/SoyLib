@@ -2,6 +2,7 @@
 
 #include <iosfwd>
 #include <stdint.h>
+#include <string>	//	windows doesn't forward declare string? :/
 
 namespace Soy
 {
