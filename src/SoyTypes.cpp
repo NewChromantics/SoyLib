@@ -9,6 +9,12 @@
 #include "SoyFilesystem.h"
 
 #if defined(TARGET_WINDOWS)
+#include <winver.h>
+//#pragma comment(lib, "Mincore.lib")
+#pragma comment(lib, "version.lib")
+#endif
+
+#if defined(TARGET_WINDOWS)
 #include <Shlwapi.h>
 #pragma comment(lib, "Shlwapi.lib")
 #endif
@@ -394,3 +400,47 @@ void Platform::ThrowLastError(const std::string& Context)
 	Error << Context << " Error: " << GetErrorString(LastError);
 	throw Soy::AssertException(Error.str());
 }
+
+
+
+#if defined(TARGET_WINDOWS)
+Soy::TVersion GetFileVersion(const std::string& Filename)
+{
+	auto FilenameW = Soy::StringToWString(Filename);
+	DWORD dummy;
+	const auto BufferSize = ::GetFileVersionInfoSizeExW(FILE_VER_GET_NEUTRAL, FilenameW.c_str(), &dummy);
+	if (BufferSize == 0)
+		Platform::ThrowLastError(Filename);
+
+	Array<WCHAR> Buffer;
+	Buffer.SetSize(BufferSize);
+	if (!::GetFileVersionInfoExW(FILE_VER_GET_NEUTRAL, FilenameW.c_str(), dummy, Buffer.GetSize(), Buffer.GetArray()))
+		Platform::ThrowLastError(Filename);
+
+	void* DataPointer = nullptr;
+	UINT size = 0;
+	::VerQueryValueW(Buffer.GetArray(), L"\\", &DataPointer, &size);
+
+	if (size > sizeof(VS_FIXEDFILEINFO))
+		throw Soy::AssertException("FileVersionInfo size > VS_FIXEDFILEINFO");
+
+	if (!DataPointer)
+		throw Soy::AssertException("FileVersionInfo data pointer null");
+
+	auto pFixed = static_cast<const VS_FIXEDFILEINFO *>(DataPointer);
+	auto Major = HIWORD(pFixed->dwFileVersionMS);
+	auto Minor = LOWORD(pFixed->dwFileVersionMS);
+	auto Build = HIWORD(pFixed->dwFileVersionLS);
+	auto Patch = LOWORD(pFixed->dwFileVersionLS);
+	return Soy::TVersion(Major, Minor, Build);
+}
+#endif
+
+#if defined(TARGET_WINDOWS)
+Soy::TVersion Platform::GetOsVersion()
+{
+	//	https://stackoverflow.com/a/47583450
+	//	get version from a dll
+	return GetFileVersion("kernel32.dll");
+}
+#endif
