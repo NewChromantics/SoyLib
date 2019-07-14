@@ -244,7 +244,9 @@ public:
 		return Uniform ? *Uniform : SoyGraphics::TUniform();
 	}
 	
-	void			SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Floats);
+	void			SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Values);
+	void			SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<int32_t>&& Values);
+	void			SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<uint32_t>&& Values);
 	void			SetUniform(const SoyGraphics::TUniform& Uniform,const TTexture& Texture,size_t BindIndex);
 	void			SetUniform(const SoyGraphics::TUniform& Uniform,bool Bool);
 	void			SetUniform(const SoyGraphics::TUniform& Uniform,int32_t Integer);

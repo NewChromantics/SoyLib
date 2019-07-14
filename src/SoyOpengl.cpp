@@ -252,7 +252,14 @@ SoyGraphics::TElementType::Type SoyGraphics::GetType(GLenum Type)
 	switch ( Type )
 	{
 		case GL_INVALID_ENUM:	return SoyGraphics::TElementType::Invalid;
-		case GL_INT:			return SoyGraphics::TElementType::Int32;
+		case GL_INT:			return SoyGraphics::TElementType::Int;
+		case GL_INT_VEC2:		return SoyGraphics::TElementType::Int2;
+		case GL_INT_VEC3:		return SoyGraphics::TElementType::Int3;
+		case GL_INT_VEC4:		return SoyGraphics::TElementType::Int4;
+		case GL_UNSIGNED_INT:			return SoyGraphics::TElementType::Uint;
+		case GL_UNSIGNED_INT_VEC2:		return SoyGraphics::TElementType::Uint2;
+		case GL_UNSIGNED_INT_VEC3:		return SoyGraphics::TElementType::Uint3;
+		case GL_UNSIGNED_INT_VEC4:		return SoyGraphics::TElementType::Uint4;
 		case GL_FLOAT:			return SoyGraphics::TElementType::Float;
 		case GL_FLOAT_VEC2:		return SoyGraphics::TElementType::Float2;
 		case GL_FLOAT_VEC3:		return SoyGraphics::TElementType::Float3;
@@ -279,7 +286,14 @@ std::pair<GLenum,GLint> Opengl::GetType(SoyGraphics::TElementType::Type Type)
 	switch ( Type )
 	{
 		case SoyGraphics::TElementType::Invalid:	return std::make_pair( GL_INVALID_ENUM, 0 );
-		case SoyGraphics::TElementType::Int32:		return std::make_pair( GL_INT, 1 );
+		case SoyGraphics::TElementType::Int:		return std::make_pair( GL_INT, 1 );
+		case SoyGraphics::TElementType::Int2:		return std::make_pair( GL_INT, 2 );
+		case SoyGraphics::TElementType::Int3:		return std::make_pair( GL_INT, 3 );
+		case SoyGraphics::TElementType::Int4:		return std::make_pair( GL_INT, 4 );
+		case SoyGraphics::TElementType::Uint:		return std::make_pair( GL_UNSIGNED_INT, 1 );
+		case SoyGraphics::TElementType::Uint2:		return std::make_pair( GL_UNSIGNED_INT, 2 );
+		case SoyGraphics::TElementType::Uint3:		return std::make_pair( GL_UNSIGNED_INT, 3 );
+		case SoyGraphics::TElementType::Uint4:		return std::make_pair( GL_UNSIGNED_INT, 4 );
 		case SoyGraphics::TElementType::Float:		return std::make_pair( GL_FLOAT, 1 );
 		case SoyGraphics::TElementType::Float2:		return std::make_pair( GL_FLOAT, 2 );
 		case SoyGraphics::TElementType::Float3:		return std::make_pair( GL_FLOAT, 3 );
@@ -2124,8 +2138,14 @@ Opengl::TShader::~TShader()
 }
 
 
+template<typename TYPE>
+std::function<void(GLuint,GLint,GLsizei,const TYPE*)> GetglProgramUniformXv(SoyGraphics::TElementType::Type ElementType)
+{
+	static_assert( sizeof(TYPE) == -1, "this MUST be specialised" );
+}
 
-std::function<void(GLuint,GLint,GLsizei,const GLfloat *)> GetglProgramUniformXv(SoyGraphics::TElementType::Type ElementType)
+template<>
+std::function<void(GLuint,GLint,GLsizei,const float*)> GetglProgramUniformXv<float>(SoyGraphics::TElementType::Type ElementType)
 {
 	auto glProgramUniform4x4fv = [](GLuint program,GLint location,GLsizei count,const GLfloat * value)
 	{
@@ -2149,25 +2169,60 @@ std::function<void(GLuint,GLint,GLsizei,const GLfloat *)> GetglProgramUniformXv(
 }
 
 
-void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Floats)
+template<>
+std::function<void(GLuint,GLint,GLsizei,const int32_t*)> GetglProgramUniformXv<int32_t>(SoyGraphics::TElementType::Type ElementType)
+{
+	switch ( ElementType )
+	{
+		case SoyGraphics::TElementType::Int:		return glProgramUniform1iv;
+		case SoyGraphics::TElementType::Int2:		return glProgramUniform2iv;
+		case SoyGraphics::TElementType::Int3:		return glProgramUniform3iv;
+		case SoyGraphics::TElementType::Int4:		return glProgramUniform4iv;
+		default:break;
+	}
+	
+	std::stringstream Error;
+	Error << "Don't know which glUniformXv to use for  " << ElementType;
+	throw Soy::AssertException(Error.str());
+}
+
+template<>
+std::function<void(GLuint,GLint,GLsizei,const uint32_t*)> GetglProgramUniformXv<uint32_t>(SoyGraphics::TElementType::Type ElementType)
+{
+	switch ( ElementType )
+	{
+		case SoyGraphics::TElementType::Uint:		return glProgramUniform1uiv;
+		case SoyGraphics::TElementType::Uint2:		return glProgramUniform2uiv;
+		case SoyGraphics::TElementType::Uint3:		return glProgramUniform3uiv;
+		case SoyGraphics::TElementType::Uint4:		return glProgramUniform4uiv;
+		default:break;
+	}
+	
+	std::stringstream Error;
+	Error << "Don't know which glUniformXv to use for  " << ElementType;
+	throw Soy::AssertException(Error.str());
+}
+
+template<typename TYPE>
+void SetUniform_Array(Opengl::TShader& This,const SoyGraphics::TUniform& Uniform,ArrayBridge<TYPE>& Floats)
 {
 	//	work out how many floats we're expecting
-	auto FloatCount = Uniform.GetFloatCount();
+	auto FloatCount = Uniform.GetElementCount();
 	if ( Floats.GetSize() != FloatCount )
 	{
 		std::stringstream Error;
 		Error << __func__ << " expected " << FloatCount << " floats but got " << Floats.GetSize();
 		throw Soy::AssertException(Error.str());
 	}
-
+	
 	Opengl_IsOkayFlush();
-
+	
 	auto UniformIndex = size_cast<GLint>( Uniform.mIndex );
 	auto ArraySize = size_cast<GLsizei>(Uniform.GetArraySize());
 	auto pFloats = Floats.GetArray();
-	auto glProgramUniformXv = GetglProgramUniformXv( Uniform.mType );
-	auto ProgramName = mProgram.mName;
-
+	auto glProgramUniformXv = GetglProgramUniformXv<TYPE>( Uniform.mType );
+	auto ProgramName = This.mProgram.mName;
+	
 	//	for debugging, we can set individually elements
 	static bool SetManually = false;
 	if ( SetManually && ArraySize > 1 )
@@ -2181,10 +2236,10 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 			
 			std::Debug << UniformName.str() << " at uniform location " << Location << " (orig: " << UniformIndex << ")" << std::endl;
 			
-			auto ElementFloatCount = Uniform.GetElementFloatCount();
+			auto ElementFloatCount = Uniform.GetElementVectorSize();
 			auto* FloatsX = &pFloats[ i * ElementFloatCount ];
 			glProgramUniformXv( ProgramName, Location, 1, FloatsX );
-
+			
 			std::stringstream Error;
 			Error << "SetUniform( Array[" << i << ", location: " << Location << ": " << Uniform << ")";
 			Opengl::IsOkay( Error.str() );
@@ -2206,6 +2261,22 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 		}
 	}
 }
+
+void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Floats)
+{
+	SetUniform_Array<float>( *this, Uniform, Floats );
+}
+
+void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<int32_t>&& Floats)
+{
+	SetUniform_Array<int32_t>( *this, Uniform, Floats );
+}
+
+void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<uint32_t>&& Floats)
+{
+	SetUniform_Array<uint32_t>( *this, Uniform, Floats );
+}
+
 
 
 void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,bool Bool)
