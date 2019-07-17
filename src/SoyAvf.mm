@@ -1094,3 +1094,21 @@ std::string Avf::GetPixelFormatString(id Format)
 	auto FormatInt = [Format integerValue];
 	return GetPixelFormatString( static_cast<OSType>(FormatInt) );
 }
+
+
+
+vec2x<uint32_t> Avf::GetSize(CVImageBufferRef Image)
+{
+	auto Size = CVImageBufferGetDisplaySize( Image );
+	
+	//	todo: check non integer sizes
+	if ( Size.width < 0 )
+		throw Soy::AssertException("Not expecting negative width for image");
+	
+	if ( Size.height < 0 )
+		throw Soy::AssertException("Not expecting negative width for image");
+	
+	return vec2x<uint32_t>( Size.width, Size.height );
+}
+
+
