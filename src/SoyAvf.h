@@ -1,6 +1,7 @@
 #pragma once
 
-
+#include <CoreMedia/CoreMedia.h>
+#include <CoreVideo/CoreVideo.h>
 #include "SoyMedia.h"
 #include "SoyH264.h"
 
