@@ -879,44 +879,6 @@ std::string Soy::WStringToString(const std::wstring& w)
 	return s;
 }
 
-std::string Soy::FourCCToString(uint32 Fourcc)
-{
-	char CodecStrBuffer[5] = {0,0,0,0,0};
-	static_assert( sizeof(Fourcc) <= sizeof(CodecStrBuffer), "Bad buffer sizes" );
-	memcpy( CodecStrBuffer, &Fourcc, sizeof(Fourcc) );
-
-	auto IsFourccChar = [](char x)
-	{
-		if ( x >='A' && x <= 'Z' )	return true;
-		if ( x >='a' && x <= 'z' )	return true;
-		if ( x >='0' && x <= '9' )	return true;
-		if ( x >=' ' )	return true;
-		return false;
-	};
-
-	//	check for invalid Fourcc's (ie, integer) and render as hex instead
-	if ( !IsFourccChar(CodecStrBuffer[0]) || 
-		!IsFourccChar(CodecStrBuffer[1]) || 
-		!IsFourccChar(CodecStrBuffer[2]) ||
-		!IsFourccChar(CodecStrBuffer[3]) )
-	{
-		std::stringstream Error;
-		Error << "Fourcc{0x";
-		Soy::ByteToHex( CodecStrBuffer[0], Error );
-		Soy::ByteToHex( CodecStrBuffer[1], Error );
-		Soy::ByteToHex( CodecStrBuffer[2], Error );
-		Soy::ByteToHex( CodecStrBuffer[3], Error );
-		//	draw as integer too
-		Error << "/" << Fourcc;
-		//	and as reversed
-		Error << "/" << Soy::SwapEndian(Fourcc);
-		Error << "}";
-		return Error.str();
-	}
-	
-	return std::string( CodecStrBuffer );
-}
-
 
 void Soy::SplitHostnameAndPort(std::string& Hostname,uint16& Port,const std::string& Address)
 {

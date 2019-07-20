@@ -355,6 +355,7 @@ public:
 	SoyTime							mAllocTick;		//	time of allocation (ofGetElapsedTimeMillis())
 	BufferArray<uint64,CallStackSize>	mCallStack;		//	each is an address in the process' symbol data
 };
+//	for alloc speed, this struct does not construct
 DECLARE_NONCOMPLEX_NO_CONSTRUCT_TYPE( prmem::HeapDebugItem );
 
 

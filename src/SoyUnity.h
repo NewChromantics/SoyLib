@@ -1,29 +1,7 @@
 #pragma once
 
-/*
-#if defined(ENABLE_OPENGL)
-#include "SoyOpenglContext.h"
-#endif
 
-#if defined(ENABLE_CUDA)
-#include <SoyCuda.h>
-#endif
-
-#if defined(ENABLE_DIRECTX)
-#include <SoyDirectx.h>
-#endif
-
-#if defined(ENABLE_METAL)
-#include <SoyMetal.h>
-#endif
-
-#if defined(ENABLE_GNM)
-#include <SoyGnm.h>
-#endif
-*/
 #include "SoyPixels.h"
-//#include <string>
-//#include "SoyEnum.h"
 
 
 //	forward declartions for non-supported platforms
@@ -114,9 +92,9 @@ namespace Unity
 #elif defined(TARGET_OSX) || defined(TARGET_WINDOWS)
 	typedef float	Float;
 #endif
-	typedef uint32			uint;
-	typedef uint32			boolean;
-	typedef sint32			sint;
+	typedef uint32_t		uint;
+	typedef uint32_t		boolean;
+	typedef int32_t			sint;
 	typedef void*			NativeTexturePtr;
 	
 	
@@ -244,16 +222,17 @@ namespace Unity
 	extern int					GetPluginEventId();
 	extern bool					IsDebugPluginEventEnabled();
 	
-	SoyEvent<bool>&				GetOnDeviceShutdown();
+	std::function<void()>&		GetOnDeviceShutdown();
 	
 	//	gr: this is a bit more generic than unity, so might move it later
 	const std::string&			GetBundleIdentifier();
-	
+	/*
 	//	debug string management for c# interfaces
 	const char*					PopDebugString();
 	void						ReleaseDebugString(const char* String);
 	void						ReleaseDebugStringAll();
 	void						EnableDebugStrings(bool Enable);		//	enable logging at a low level
+	*/
 };
 
 

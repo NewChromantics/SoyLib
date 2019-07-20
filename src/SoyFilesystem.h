@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SoyEvent.h"
+
 #include "SoyTime.h"
 #include "scope_ptr.h"
 
@@ -94,7 +94,7 @@ public:
 	TFileWatch(const std::string& Filename);
 	~TFileWatch();
 	
-	SoyEvent<const std::string>	mOnChanged;
+	std::function<void(const std::string&)>	mOnChanged;
 	
 #if defined(TARGET_OSX)
 	CFPtr<CFStringRef>			mPathString;

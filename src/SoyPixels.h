@@ -29,7 +29,7 @@ namespace SoyPixelsFormat
 		BGR,
 
 		//	non integer-based channel counts
-		KinectDepth,		//	16 bit, so "two channels". 13 bits of depth, 3 bits of user-index
+		KinectDepth,		//	16 bit. 13 bits of depth, 3 bits of user-index
 		FreenectDepth10bit,	//	16 bit
 		FreenectDepth11bit,	//	16 bit
 		FreenectDepthmm,	//	16 bit
@@ -131,13 +131,12 @@ namespace SoyPixelsFormat
 		Nv12			= Yuv_8_88_Full,
 		I420			= Yuv_8_8_8_Full,
 		
-		
 		Count=99,
 	};
 
 	//	gr: consider changing this to either Type, Bytes per channel or bits per channel to handle 16 bit better
 	bool			IsFloatChannel(Type Format);
-	inline uint8_t	GetBytesPerChannel(Type Format)		{	return IsFloatChannel(Format) ? 4 : 1;	}
+	uint8_t			GetBytesPerChannel(Type Format);
 	
 	size_t			GetChannelCount(Type Format);
 	Type			GetFormatFromChannelCount(size_t ChannelCount);
@@ -150,10 +149,10 @@ namespace SoyPixelsFormat
 	int				GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format);
 	bool			GetIsFrontToBackDepth(SoyPixelsFormat::Type Format);
 	size_t			GetHeaderSize(SoyPixelsFormat::Type Format);
-	void			GetHeaderPalettised(const ArrayBridge<uint8>&& Data,size_t& PaletteSize,size_t& TransparentIndex);
+	void			GetHeaderPalettised(const ArrayBridge<uint8_t>&& Data,size_t& PaletteSize,size_t& TransparentIndex);
 
 	//	merge index & palette into Paletteised_8_8
-	void			MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPixelsImpl& IndexedImage,const SoyPixelsImpl& Palette,uint8 TransparentIndex);
+	void			MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPixelsImpl& IndexedImage,const SoyPixelsImpl& Palette,uint8_t TransparentIndex);
 
 	//	get alternatives of formats
 	Type			GetYuvFull(Type Format);
@@ -221,10 +220,10 @@ public:
 	
 	bool			IsValid() const					{	return (mWidth>0) && (mHeight>0) && SoyPixelsFormat::IsValid(mFormat);	}
 	bool			IsValidDimensions() const		{	return (mWidth>0) && (mHeight>0);	}
-	uint8			GetBitDepth() const				{	return 8;	}
+	uint8_t			GetBitDepth() const				{	return 8;	}
 	
 	//	gr: deprecate this! shouldn't ever use it raw
-	uint8			GetChannels() const				{	return size_cast<uint8>(SoyPixelsFormat::GetChannelCount(mFormat));	}
+	uint8_t			GetChannels() const				{	return size_cast<uint8_t>(SoyPixelsFormat::GetChannelCount(mFormat));	}
 	uint8_t			GetBytesPerChannel() const		{	return SoyPixelsFormat::GetBytesPerChannel(mFormat);	}
 	bool			IsFloatChannel() const			{	return SoyPixelsFormat::IsFloatChannel(mFormat);	}
 	size_t			GetWidth() const				{	return mWidth;	}
@@ -233,7 +232,7 @@ public:
 	SoyPixelsFormat::Type	GetFormat() const		{	return mFormat;	}
 	uint8_t			GetPixelDataSize() const		{	return GetChannels() * GetBytesPerChannel();	}
 	size_t			GetRowDataSize() const			{	return GetPixelDataSize() * GetWidth();	}
-	void			GetPlanes(ArrayBridge<SoyPixelsMeta>&& PlaneFormats,const ArrayInterface<uint8>* Data=nullptr) const;	//	extract multiple plane formats where applicable (returns self if one plane)
+	void			GetPlanes(ArrayBridge<SoyPixelsMeta>&& PlaneFormats,const ArrayInterface<uint8_t>* Data=nullptr) const;	//	extract multiple plane formats where applicable (returns self if one plane)
 	void			SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size_t,size_t,SoyPixelsMeta>>&& PlaneOffsetSizeAndMetas,const ArrayInterface<uint8>* Data=nullptr) const;	//	get all the plane split info, asserts if data doesn't align
 
 	//	unsafe funcs. (note: they WERE unsafe...)
@@ -283,36 +282,36 @@ public:
 	virtual void	Copy(const SoyPixelsImpl& that,const TSoyPixelsCopyParams& Params=TSoyPixelsCopyParams());
 	
 	bool			IsValid() const					{	return GetMeta().IsValid();	}
-	uint8			GetBitDepth() const				{	return GetMeta().GetBitDepth();	}
-	uint8			GetChannels() const				{	return size_cast<uint8>( GetMeta().GetChannels() );	}
+	uint8_t			GetBitDepth() const				{	return GetMeta().GetBitDepth();	}
+	uint8_t			GetChannels() const				{	return size_cast<uint8_t>( GetMeta().GetChannels() );	}
 	size_t			GetWidth() const				{	return GetMeta().GetWidth();	}
 	size_t			GetHeight() const				{	return GetMeta().GetHeight();	}
-	size_t			GetRowPitchBytes() const		{	return sizeof(uint8) * GetChannels() * GetWidth();	}
+	size_t			GetRowPitchBytes() const		{	return sizeof(uint8_t) * GetChannels() * GetWidth();	}
 	SoyPixelsFormat::Type	GetFormat() const		{	return GetMeta().GetFormat();	}
 	void			PrintPixels(const std::string& Prefix,std::ostream& Stream,bool Hex,const char* PixelSuffix) const;
 
 	bool			GetRawSoyPixels(ArrayBridge<char>& RawData) const;
 	bool			GetRawSoyPixels(ArrayBridge<char>&& RawData) const	{	return GetRawSoyPixels( RawData );	}
 
-	uint8&			GetPixelPtr(size_t x,size_t y,size_t ChannelOffset);		//	throws if OOB
-	const uint8&	GetPixelPtr(size_t x,size_t y,size_t ChannelOffset) const;	//	throws if OOB
-	uint8			GetPixel(size_t x,size_t y,size_t Channel) const;
-	vec2x<uint8>	GetPixel2(size_t x,size_t y) const;
-	vec3x<uint8>	GetPixel3(size_t x,size_t y) const;
-	vec4x<uint8>	GetPixel4(size_t x,size_t y) const;
+	uint8_t&			GetPixelPtr(size_t x,size_t y,size_t ChannelOffset);		//	throws if OOB
+	const uint8_t&	GetPixelPtr(size_t x,size_t y,size_t ChannelOffset) const;	//	throws if OOB
+	uint8_t			GetPixel(size_t x,size_t y,size_t Channel) const;
+	vec2x<uint8_t>	GetPixel2(size_t x,size_t y) const;
+	vec3x<uint8_t>	GetPixel3(size_t x,size_t y) const;
+	vec4x<uint8_t>	GetPixel4(size_t x,size_t y) const;
 	
-	void			SetPixel(size_t x,size_t y,size_t Channel,uint8 Component);
-	void			SetPixel(size_t x,size_t y,const vec2x<uint8>& Colour);
-	void			SetPixel(size_t x,size_t y,const vec3x<uint8>& Colour);
-	void			SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour);
-	void			SetPixels(const ArrayBridge<uint8>& Components);
+	void			SetPixel(size_t x,size_t y,size_t Channel,uint8_t Component);
+	void			SetPixel(size_t x,size_t y,const vec2x<uint8_t>& Colour);
+	void			SetPixel(size_t x,size_t y,const vec3x<uint8_t>& Colour);
+	void			SetPixel(size_t x,size_t y,const vec4x<uint8_t>& Colour);
+	void			SetPixels(const ArrayBridge<uint8_t>& Components);
 							 
 	vec2f			GetUv(size_t PixelIndex) const;
 	vec2x<size_t>	GetXy(size_t PixelIndex) const;
 	size_t			GetIndex(size_t x,size_t y,size_t ChannelOffset=0) const;	//	throws if OOB
 
 	void			SetFormat(SoyPixelsFormat::Type Format);
-	void			SetChannels(uint8 Channels);
+	void			SetChannels(uint8_t Channels);
 	bool			SetRawSoyPixels(const ArrayBridge<char>& RawData);
 	bool			SetRawSoyPixels(const ArrayBridge<char>&& RawData)	{	return SetRawSoyPixels( RawData );	}
 
@@ -330,8 +329,8 @@ public:
 	
 	virtual SoyPixelsMeta&					GetMeta()=0;
 	virtual const SoyPixelsMeta&			GetMeta() const=0;
-	virtual ArrayInterface<uint8>&			GetPixelsArray()=0;
-	virtual const ArrayInterface<uint8>&	GetPixelsArray() const=0;
+	virtual ArrayInterface<uint8_t>&			GetPixelsArray()=0;
+	virtual const ArrayInterface<uint8_t>&	GetPixelsArray() const=0;
 };
 
 template<class TARRAY>
@@ -347,8 +346,8 @@ public:
 
 	virtual SoyPixelsMeta&				GetMeta() override					{	return mMeta;	}
 	virtual const SoyPixelsMeta&		GetMeta() const override			{	return mMeta;	}
-	virtual ArrayInterface<uint8>&		GetPixelsArray() override			{	return mArrayBridge;	}
-	virtual const ArrayInterface<uint8>&	GetPixelsArray() const override	{	return mArrayBridge;	}
+	virtual ArrayInterface<uint8_t>&		GetPixelsArray() override			{	return mArrayBridge;	}
+	virtual const ArrayInterface<uint8_t>&	GetPixelsArray() const override	{	return mArrayBridge;	}
 
 public:
 	ArrayBridgeDef<TARRAY>	mArrayBridge;
@@ -357,7 +356,7 @@ public:
 };
 
 
-class SoyPixels : public SoyPixelsDef<Array<uint8>>
+class SoyPixels : public SoyPixelsDef<Array<uint8_t>>
 {
 public:
 	static prmem::Heap&				GetDefaultHeap();
@@ -365,18 +364,18 @@ public:
 public:
 	SoyPixels(const SoyPixelsImpl& that,prmem::Heap& Heap=GetDefaultHeap()) :
 		mArray						( Heap ),
-		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
+		SoyPixelsDef<Array<uint8_t>>	( mArray, mMeta )
 	{
 		Copy( that );
 	}
 	SoyPixels(prmem::Heap& Heap=GetDefaultHeap()) :
 		mArray						( Heap ),
-		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
+		SoyPixelsDef<Array<uint8_t>>	( mArray, mMeta )
 	{
 	}
 	SoyPixels(const SoyPixelsMeta& Meta,prmem::Heap& Heap=GetDefaultHeap()) :
 		mArray						( Heap ),
-		SoyPixelsDef<Array<uint8>>	( mArray, mMeta )
+		SoyPixelsDef<Array<uint8_t>>	( mArray, mMeta )
 	{
 		Init( Meta );
 	}
@@ -385,7 +384,7 @@ public:
 
 public:
 	SoyPixelsMeta	mMeta;
-	Array<uint8>	mArray;
+	Array<uint8_t>	mArray;
 };
 DECLARE_TYPE_NAME( SoyPixels );
 
@@ -395,7 +394,7 @@ DECLARE_TYPE_NAME( SoyPixels );
 class SoyPixelsRemote : public SoyPixelsImpl
 {
 public:
-	typedef FixedRemoteArray<uint8> TARRAY;
+	typedef FixedRemoteArray<uint8_t> TARRAY;
 public:
 	SoyPixelsRemote() :
 		mArray			( nullptr, 0 ),
@@ -410,43 +409,48 @@ public:
 		mMeta			( mMutableMeta )
 	{
 		*this = that;
+		CheckDataSize();
 	}
-	explicit SoyPixelsRemote(uint8* Array, size_t Width, size_t Height, size_t DataSize, SoyPixelsFormat::Type Format) :
+	explicit SoyPixelsRemote(uint8_t* Array, size_t Width, size_t Height, size_t DataSize, SoyPixelsFormat::Type Format) :
 		mArray			(Array, DataSize),
 		mMutableMeta	(Width, Height, Format),
 		mMeta			( mMutableMeta ),
 		mArrayBridge	(mArray)
 	{
+		CheckDataSize();
 	}
-	explicit SoyPixelsRemote(uint8* Array, size_t DataSize,const SoyPixelsMeta& Meta) :
+	explicit SoyPixelsRemote(uint8_t* Array, size_t DataSize,const SoyPixelsMeta& Meta) :
 		mArray			(Array, DataSize),
 		mMutableMeta	( Meta ),
 		mMeta			(mMutableMeta),
 		mArrayBridge	(mArray)
 	{
+		CheckDataSize();
 	}
 	//	const cast so we can USE the pointer, but constructor makes it clear the array/source won't be modified correctly
 	explicit SoyPixelsRemote(const SoyPixelsImpl& Pixels) :
-		mArray			( const_cast<uint8*>(Pixels.GetPixelsArray().GetArray()), Pixels.GetPixelsArray().GetDataSize() ),
+		mArray			( const_cast<uint8_t*>(Pixels.GetPixelsArray().GetArray()), Pixels.GetPixelsArray().GetDataSize() ),
 		mArrayBridge	( mArray ),
 		mMeta			( mMutableMeta ),
 		mMutableMeta	( Pixels.GetMeta() )
 	{
+		CheckDataSize();
 	}
 	/*	this array use won't modify the array properly, jsut the data & meta
-	 explicit SoyPixelsRemote(ArrayBridge<uint8>&& Pixels,const SoyPixelsMeta& Meta) :
+	 explicit SoyPixelsRemote(ArrayBridge<uint8_t>&& Pixels,const SoyPixelsMeta& Meta) :
 		mArray			( Pixels.GetArray(), Pixels.GetDataSize() ),
 		mArrayBridge	( mArray ),
 		mMeta			( Meta )
 	 {
 	 }
 	 */
-	explicit SoyPixelsRemote(const ArrayBridge<uint8>&& Pixels,const SoyPixelsMeta& Meta) :
-		mArray			( const_cast<uint8*>(Pixels.GetArray()), Pixels.GetDataSize() ),
+	explicit SoyPixelsRemote(const ArrayBridge<uint8_t>&& Pixels,const SoyPixelsMeta& Meta) :
+		mArray			( const_cast<uint8_t*>(Pixels.GetArray()), Pixels.GetDataSize() ),
 		mArrayBridge	( mArray ),
 		mMutableMeta	( Meta ),
 		mMeta			( mMutableMeta )
 	{
+		CheckDataSize();
 	}
 
 	SoyPixelsRemote&	operator=(const SoyPixelsRemote& that)
@@ -458,9 +462,12 @@ public:
 	
 	virtual SoyPixelsMeta&				GetMeta() override					{	return mMeta;	}
 	virtual const SoyPixelsMeta&		GetMeta() const override			{	return mMeta;	}
-	virtual ArrayInterface<uint8>&		GetPixelsArray() override			{	return mArrayBridge;	}
-	virtual const ArrayInterface<uint8>&	GetPixelsArray() const override	{	return mArrayBridge;	}
+	virtual ArrayInterface<uint8_t>&		GetPixelsArray() override			{	return mArrayBridge;	}
+	virtual const ArrayInterface<uint8_t>&	GetPixelsArray() const override	{	return mArrayBridge;	}
 	
+protected:
+	void					CheckDataSize();
+
 public:
 	TARRAY					mArray;
 	ArrayBridgeDef<TARRAY>	mArrayBridge;
@@ -486,8 +493,8 @@ public:
 	
 	virtual SoyPixelsMeta&					GetMeta() override				{	return mMeta;	}
 	virtual const SoyPixelsMeta&			GetMeta() const override		{	return mMeta;	}
-	virtual ArrayInterface<uint8>&			GetPixelsArray() override		{	return mArrayBridge;	}
-	virtual const ArrayInterface<uint8>&	GetPixelsArray() const override	{	return mArrayBridge;	}
+	virtual ArrayInterface<uint8_t>&			GetPixelsArray() override		{	return mArrayBridge;	}
+	virtual const ArrayInterface<uint8_t>&	GetPixelsArray() const override	{	return mArrayBridge;	}
 	
 public:
 	ArrayBridgeDef<TARRAY>	mArrayBridge;

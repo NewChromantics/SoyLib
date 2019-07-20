@@ -26,6 +26,8 @@ namespace Opengl
 	//	static method is slow, cache on a context!
 	std::map<OpenglExtensions::Type,bool>			SupportedExtensions;
 	extern std::map<OpenglExtensions::Type,Soy::TVersion>	ImplicitExtensions;
+	
+	ssize_t	gTextureAllocationCount=0;
 };
 
 
@@ -604,6 +606,11 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 	}
 	
 	return SupportedExtensions[Extension];
+}
+
+ssize_t Opengl::TContext::GetTextureAllocationCount()
+{
+	return Opengl::gTextureAllocationCount;
 }
 
 

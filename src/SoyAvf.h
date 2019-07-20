@@ -1,6 +1,7 @@
 #pragma once
 
-
+#include <CoreMedia/CoreMedia.h>
+#include <CoreVideo/CoreVideo.h>
 #include "SoyMedia.h"
 #include "SoyH264.h"
 
@@ -9,6 +10,11 @@ namespace Avf
 	class TAsset;
 	SoyMediaFormat::Type			SoyMediaFormat_FromFourcc(uint32 Fourcc,size_t H264LengthSize);
 	void							GetFileExtensions(ArrayBridge<std::string>&& Extensions);
+
+	std::string						GetCVReturnString(CVReturn Error);
+	std::string						GetCodec(CMFormatDescriptionRef FormatDescription);
+	std::string						GetExtensions(CMFormatDescriptionRef FormatDescription);
+	
 
 #if defined(__OBJC__)
 	std::shared_ptr<TMediaPacket>	GetH264Packet(CMSampleBufferRef SampleBuffer,size_t StreamIndex);
@@ -38,6 +44,8 @@ namespace Avf
 	SoyPixelsFormat::Type			GetPixelFormat(NSNumber* Format);
 
 #endif
+
+	vec2x<uint32_t>					GetSize(CVImageBufferRef Image);
 }
 
 

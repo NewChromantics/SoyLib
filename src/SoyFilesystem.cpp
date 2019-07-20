@@ -17,6 +17,7 @@
 
 #if defined(TARGET_WINDOWS)
 #include <Shlobj.h>
+#include <Shlwapi.h>
 #endif
 
 #include <sstream>
@@ -87,7 +88,8 @@ void OnFileChanged(
 		//const FSEventStreamEventFlags& EventFlags( eventFlags[e] );
 		//const FSEventStreamEventId EventIds( eventIds[e] );
 		
-		FileWatch.mOnChanged.OnTriggered( Filename );
+		if ( FileWatch.mOnChanged )
+			FileWatch.mOnChanged( Filename );
 	}
 }
 #endif
@@ -105,7 +107,7 @@ Soy::TFileWatch::TFileWatch(const std::string& Filename)
 	{
 		std::Debug << Filename << " changed" << std::endl;
 	};
-	mOnChanged.AddListener( DebugOnChanged );
+	mOnChanged = DebugOnChanged;
 	
 #if defined(TARGET_OSX)
 	
@@ -501,6 +503,12 @@ std::string	Platform::GetExePath()
 	return GetDirectoryFromFilename( ExePath );
 }
 
+#if defined(TARGET_WINDOWS)
+bool Platform::FileExists(const std::string& Path)
+{
+	return ::PathFileExistsA(Path.c_str());
+}
+#endif
 
 bool Platform::IsFullPath(const std::string& Path)
 {
@@ -615,11 +623,15 @@ void Soy::ReadStream(ArrayBridge<char>&& Data,std::istream& Stream)
 void Soy::ReadStream(ArrayBridge<char>& Data,std::istream& Stream)
 {
 	//	gr: todo: re-use function above, just need to send lambda or something for PushBackArary
-	BufferArray<char,5*1024> Buffer;
+
+	//	gr: bigger buffer for much faster reading
+	const int MaxBufferSize = 2*1024*1024;
+	Array<char> Buffer(MaxBufferSize);
+
 	while ( !Stream.eof() )
 	{
 		//	read a chunk
-		Buffer.SetSize( Buffer.MaxSize() );
+		Buffer.SetSize( MaxBufferSize );
 		auto BufferBridge = GetArrayBridge( Buffer );
 		if ( !Soy::ReadStreamChunk( BufferBridge, Stream ) )
 			break;
@@ -701,7 +713,8 @@ void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename
 	::Platform::CreateDirectory(Filename);
 	
 	std::ofstream File( Filename, std::ios::out );
-	Soy::Assert( File.is_open(), std::string("Failed to open ")+Filename );
+	if ( !File.is_open() )
+		throw Soy::AssertException( std::string("Failed to open ")+Filename );
 	
 	if ( !Data.IsEmpty() )
 		File.write( Data.GetArray(), Data.GetDataSize() );

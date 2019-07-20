@@ -1,6 +1,7 @@
 #include "SoyAvf.h"
 #include "SoyH264.h"
 #include "SoyFilesystem.h"
+#include "SoyFourcc.h"
 
 #include <CoreMedia/CMBase.h>
 #include <VideoToolbox/VTBase.h>
@@ -88,7 +89,8 @@ void Avf::GetFormatDescriptionData(ArrayBridge<uint8>&& Data,CMFormatDescription
 		nal_size_field_bytes = 4;
 	 */
 	
-	Soy::Assert( ParamIndex < ParamCount, "SPS missing");
+	if ( ParamIndex >= ParamCount )
+		throw Soy::AssertException("SPS missing");
 	
 	const uint8_t* ParamsData = nullptr;;
 	size_t ParamsSize = 0;
@@ -254,7 +256,8 @@ std::string Avf::GetString(OSStatus Status)
 	return Error.str();
 	
 	//	could be fourcc?
-	return Soy::FourCCToString( CFSwapInt32HostToBig(Status) );
+	Soy::TFourcc Fourcc( CFSwapInt32HostToBig(Status) );
+	return Fourcc.GetString();
 	/*
 	 //	example with specific bundles...
 	 NSBundle *bundle = [NSBundle bundleWithIdentifier:@"com.apple.security"];
@@ -315,8 +318,8 @@ CMFormatDescriptionRef Avf::GetFormatDescription(const TStreamMeta& Stream)
 	{
 		auto& Sps = Stream.mSps;
 		auto& Pps = Stream.mPps;
-		Soy::Assert( !Sps.IsEmpty(), "H264 encoder requires SPS beforehand" );
-		Soy::Assert( !Pps.IsEmpty(), "H264 encoder requires PPS beforehand" );
+		if ( Sps.IsEmpty() )	throw Soy::AssertException("H264 encoder requires SPS beforehand" );
+		if ( Pps.IsEmpty() )	throw Soy::AssertException("H264 encoder requires PPS beforehand" );
 		
 		BufferArray<const uint8_t*,2> Params;
 		BufferArray<size_t,2> ParamSizes;
@@ -400,10 +403,13 @@ SoyMediaFormat::Type Avf::SoyMediaFormat_FromFourcc(uint32 Fourcc,size_t H264Len
 		return SoyMediaFormat::FromPixelFormat( AvfPixelFormat );
 	
 	//	double check for swapped endianness
-	AvfPixelFormat = Avf::GetPixelFormat( Soy::SwapEndian(Fourcc) );
+	auto FourccSwap = Fourcc;
+	Soy::EndianSwap(FourccSwap);
+	AvfPixelFormat = Avf::GetPixelFormat( FourccSwap );
 	if ( AvfPixelFormat != SoyPixelsFormat::Invalid )
 	{
-		std::Debug << "Warning, detected avf pixel format with reversed fourcc " << Soy::FourCCToString( Soy::SwapEndian(Fourcc) ) << std::endl;
+		Soy::TFourcc Reversed(FourccSwap);
+		std::Debug << "Warning, detected avf pixel format with reversed fourcc " << Reversed.GetString() << std::endl;
 		return SoyMediaFormat::FromPixelFormat( AvfPixelFormat );
 	}
 	
@@ -588,7 +594,8 @@ Avf::TAsset::TAsset(const std::string& Filename)
 void Avf::TAsset::LoadTracks()
 {
 	AVAsset* Asset = mAsset.mObject;
-	Soy::Assert( Asset, "Asset expected" );
+	if ( !Asset )
+		throw Soy::AssertException("Asset expected");
 	
 	Soy::TSemaphore LoadTracksSemaphore;
 	__block Soy::TSemaphore& Semaphore = LoadTracksSemaphore;
@@ -895,8 +902,9 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 	CVPixelBufferRef PixelBuffer = nullptr;
 	auto Result = CVPixelBufferCreateWithBytes( PixelBufferAllocator, Image.GetWidth(), Image.GetHeight(), PixelFormatType, Pixels, BytesPerRow, PixelReleaseCallback, ReleaseContext, PixelBufferAttributes, &PixelBuffer );
 	
+	Soy::TFourcc Fourcc(PixelFormatType);
 	std::stringstream Error;
-	Error << "CVPixelBufferCreateWithBytes " << Image.GetMeta() << "(" << Soy::FourCCToString(PixelFormatType) << ")";
+	Error << "CVPixelBufferCreateWithBytes " << Image.GetMeta() << "(" << Fourcc << ")";
 	Avf::IsOkay( Result, Error.str() );
 
 	return PixelBuffer;
@@ -917,7 +925,8 @@ public:
 		mName				( EnumName ),
 		mSoyFormat			( SoyFormat )
 	{
-		Soy::Assert( IsValid(), "Expected valid enum - or invalid enum is bad" );
+		if ( !IsValid() )
+			throw Soy::AssertException("Expected valid enum - or invalid enum is bad" );
 	}
 	TCvVideoTypeMeta() :
 		mPlatformFormat		( CV_VIDEO_INVALID_ENUM ),
@@ -1016,8 +1025,10 @@ static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr10,	SoyPixelsFormat::Invalid ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_444YpCbCr10,	SoyPixelsFormat::Invalid ),
 	
-	
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr_4A_8BiPlanar,	SoyPixelsFormat::Invalid ),
+
+	//	the logitech C22 has this format, which apparently might be a kind of motion jpeg
+	CV_VIDEO_TYPE_META( 'dmb1',	SoyPixelsFormat::Invalid ),
 };
 
 
@@ -1029,8 +1040,9 @@ std::string Avf::GetPixelFormatString(OSType Format)
 	
 	if ( !Meta )
 	{
+		Soy::TFourcc Fourcc(Format);
 		std::stringstream Output;
-		Output << "Unknown format " << Soy::FourCCToString( Format );
+		Output << "Unknown format " << Fourcc;
 		return Output.str();
 	}
 
@@ -1055,7 +1067,8 @@ SoyPixelsFormat::Type Avf::GetPixelFormat(OSType Format)
 	
 	if ( !Meta )
 	{
-		std::Debug << "Unknown Avf CV pixel format (" << Soy::FourCCToString(Format) << " 0x" << std::hex << Format << ")" << std::dec << std::endl;
+		Soy::TFourcc Fourcc(Format);
+		std::Debug << "Unknown Avf CV pixel format (" << Fourcc << " 0x" << std::hex << Format << ")" << std::dec << std::endl;
 		
 		return SoyPixelsFormat::Invalid;
 	}
@@ -1081,3 +1094,21 @@ std::string Avf::GetPixelFormatString(id Format)
 	auto FormatInt = [Format integerValue];
 	return GetPixelFormatString( static_cast<OSType>(FormatInt) );
 }
+
+
+
+vec2x<uint32_t> Avf::GetSize(CVImageBufferRef Image)
+{
+	auto Size = CVImageBufferGetDisplaySize( Image );
+	
+	//	todo: check non integer sizes
+	if ( Size.width < 0 )
+		throw Soy::AssertException("Not expecting negative width for image");
+	
+	if ( Size.height < 0 )
+		throw Soy::AssertException("Not expecting negative width for image");
+	
+	return vec2x<uint32_t>( Size.width, Size.height );
+}
+
+

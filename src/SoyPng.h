@@ -3,9 +3,18 @@
 
 class SoyPixelsImpl;
 
+namespace Soy
+{
+	class TFourcc;
+}
+
 
 namespace TPng
 {
+	extern const Soy::TFourcc	IHDR;
+	extern const Soy::TFourcc	IEND;
+	extern const Soy::TFourcc	IDAT;
+
 	namespace TColour {	enum Type
 		{
 			Invalid			= -1,	//	unsupported (do not write to PNG!)
@@ -65,11 +74,12 @@ namespace TPng
 	void		GetMagic(ArrayBridge<char>&& Magic);
 	bool		CheckMagic(TArrayReader& ArrayReader);
 	bool		CheckMagic(ArrayBridge<char>&& PngData);
+	void		CheckMagic(const ArrayBridge<uint8_t>& PngData);
 
 	TColour::Type			GetColourType(SoyPixelsFormat::Type Format);
 	SoyPixelsFormat::Type	GetPixelFormatType(TColour::Type Format);
 	
-	bool		GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression);
+	void		GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression);
 	bool		GetDeflateData(Array<char>& ChunkData,const ArrayBridge<uint8>& PixelBlock,bool LastBlock,int WindowSize);
 	
 	bool		ReadHeader(SoyPixelsImpl& Pixels,THeader& Header,ArrayBridge<char>& Data,std::stringstream& Error);
@@ -77,10 +87,15 @@ namespace TPng
 	bool		ReadTail(SoyPixelsImpl& Pixels,ArrayBridge<char>& Data,std::stringstream& Error);
 
 	//	moved from soypixels
-	bool		GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData);
-
+	//	todo: fix type from char
+	void		GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,ArrayBridge<uint8_t>* Exif=nullptr);
+	inline void	GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,ArrayBridge<uint8_t>&& Exif)
+	{
+		GetPng( Pixels, PngData, &Exif );		
+	}
+	
+	void		EnumChunks(const ArrayBridge<uint8_t>&& PngData,std::function<void(Soy::TFourcc&,uint32_t,ArrayBridge<uint8_t>&&)> EnumChunk);
 };
 std::ostream& operator<< (std::ostream &out,const TPng::TColour::Type &in);
 std::ostream& operator<< (std::ostream &out,const TPng::TFilterNone_ScanlineFilter::Type &in);
-
 

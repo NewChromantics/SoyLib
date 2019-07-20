@@ -1,19 +1,20 @@
 #include "SoyApp.h"
 
 
-SoyEvent<bool> gOnConsoleStop;
+std::function<void(bool)> gOnConsoleStop;
 
 
 #if defined(TARGET_WINDOWS)
 BOOL WINAPI Soy::Platform::TConsoleApp::ConsoleHandler(DWORD dwType)
 {
-	bool Dummy;
+	bool Dummy=false;
 	switch(dwType) 
 	{
 		case CTRL_CLOSE_EVENT:
 		case CTRL_LOGOFF_EVENT:
 		case CTRL_SHUTDOWN_EVENT:
-			gOnConsoleStop.OnTriggered(Dummy);
+			if ( gOnConsoleStop )
+				gOnConsoleStop(Dummy);
 
 			//Returning would make the process exit immediately!
 			//We just make the handler sleep until the main thread exits,
@@ -39,11 +40,11 @@ void Soy::Platform::TConsoleApp::WaitForExit()
 	SetConsoleCtrlHandler( ConsoleHandler, true );
 #endif
 	auto& Worker = mWorker;
-	auto OnConsoleStop = [&Worker](bool&)
+	auto OnConsoleStop = [&Worker](bool)
 	{
 		Worker.Stop();
 	};
-	gOnConsoleStop.AddListener( OnConsoleStop );
+	gOnConsoleStop = OnConsoleStop;
 	
 	//	runs until something tells it to exit
 	mWorker.Start();

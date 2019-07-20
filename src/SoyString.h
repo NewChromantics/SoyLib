@@ -148,8 +148,6 @@ namespace Soy
 	template<typename TYPE>
 	inline bool		StringParseVecNx(const std::string& String,ArrayBridge<TYPE>&& Vector);
 
-	std::string		FourCCToString(uint32 Fourcc);	//	on IOS, don't forget CFSwapInt32BigToHost()
-	
 	std::string		DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes=-1);
 	void			DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,int MaxBytes=-1);
 	inline void		DataToHexString(std::ostream& String,const ArrayBridge<uint8>&& Data,int MaxBytes=-1)	{	DataToHexString( String, Data, MaxBytes );	}
@@ -252,9 +250,14 @@ inline std::string Soy::StringJoin(const ArrayBridge<TYPE>& Elements,const std::
 		Stream << (Element);
 		
 		//	look out for bad pushes
-		if ( !Soy::Assert( !Stream.bad(), std::stringstream() << "string << with " << Soy::GetTypeName<TYPE>() << " error'd" ) )
+		if ( Stream.bad() )
+		{
+			std::stringstream Error;
+			Error << "string << with " << Soy::GetTypeName<TYPE>() << " error'd";
+			throw Soy::AssertException(Error);
 			break;
-
+		}
+		
 		if ( i != Elements.GetSize()-1 )
 			Stream << Glue;
 	}

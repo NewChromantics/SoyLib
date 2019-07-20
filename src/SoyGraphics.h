@@ -15,7 +15,14 @@ namespace SoyGraphics
 		enum Type
 		{
 			Invalid,
-			Int32,
+			Int,
+			Int2,
+			Int3,
+			Int4,
+			Uint,
+			Uint2,
+			Uint3,
+			Uint4,
 			Float,
 			Float2,
 			Float3,
@@ -27,7 +34,9 @@ namespace SoyGraphics
 		};
 
 		size_t		GetDataSize(Type t);
-		size_t		GetFloatCount(Type t);	//	throws if not a float type
+		size_t		GetVectorSize(Type t);
+		bool		IsInt(Type t);
+		bool		IsUint(Type t);
 		bool		IsFloat(Type t);
 		bool		IsImage(Type t);
 	}
@@ -57,13 +66,13 @@ public:
 	template<typename TYPE>
 	void				SetType(const TYPE& t)	{	SetType<TYPE>();	}
 
-	bool				IsValid() const	{	return mType != TElementType::Invalid;	}
+	bool				IsValid() const						{	return mType != TElementType::Invalid;	}
 
 	size_t				GetElementDataSize() const			{	return TElementType::GetDataSize(mType);	}
 	size_t				GetDataSize() const					{	return GetElementDataSize() * GetArraySize();	}
 	size_t				GetArraySize() const				{	return std::max<size_t>( 1, mArraySize );	}
-	size_t				GetFloatCount() const				{	return TElementType::GetFloatCount(mType) * GetArraySize(); }
-	size_t				GetElementFloatCount() const		{	return TElementType::GetFloatCount(mType); }
+	size_t				GetElementCount() const				{	return TElementType::GetVectorSize(mType) * GetArraySize(); }
+	size_t				GetElementVectorSize() const		{	return TElementType::GetVectorSize(mType); }
 	bool				operator==(const char* Name) const	{	return mName == Name;	}
 
 public:
@@ -78,6 +87,12 @@ namespace SoyGraphics
 {
 	std::ostream& operator<<(std::ostream &out,const SoyGraphics::TUniform& in);
 }
+
+template<>
+inline void SoyGraphics::TUniform::SetType<int32_t>()	{	mType = TElementType::Int;	}
+
+template<>
+inline void SoyGraphics::TUniform::SetType<uint32_t>()	{	mType = TElementType::Uint;	}
 
 template<>
 inline void SoyGraphics::TUniform::SetType<float>()	{	mType = TElementType::Float;	}

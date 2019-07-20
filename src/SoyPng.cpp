@@ -3,7 +3,12 @@
 #include "SoyDebug.h"
 #include "SoyPng.h"
 #include "RemoteArray.h"
+#include "SoyFourcc.h"
 
+const Soy::TFourcc TPng::IHDR("IHDR");
+const Soy::TFourcc TPng::IEND("IEND");
+const Soy::TFourcc TPng::IDAT("IDAT");
+	
 
 
 TPng::TColour::Type TPng::GetColourType(SoyPixelsFormat::Type Format)
@@ -87,6 +92,19 @@ bool TPng::CheckMagic(TArrayReader& ArrayReader)
 	
 	return true;
 }
+
+void TPng::CheckMagic(const ArrayBridge<uint8_t>& PngData)
+{
+	BufferArray<char,8> Magic;
+	GetMagic( GetArrayBridge(Magic) );
+	
+	auto Diff = memcmp( PngData.GetArray(), Magic.GetArray(), Magic.GetDataSize() );
+	if ( Diff == 0 )
+		return;
+	
+	throw Soy::AssertException("Png magic header mismatch");
+}
+
 
 bool TPng::THeader::IsValid() const
 {
@@ -285,7 +303,7 @@ bool TPng::ReadTail(SoyPixelsImpl& Pixels,ArrayBridge<char>& Data,std::stringstr
 }
 
 
-bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression)
+void TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression)
 {
 	if ( Compression == TCompression::DEFLATE )
 	{
@@ -314,15 +332,15 @@ bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 		auto* DefData = PngData.PushBlock(DefAllocated);
 		auto DecompressedSize = size_cast<mz_ulong>(FilteredPixels.GetDataSize());
 		auto Result = mz_compress2( reinterpret_cast<Byte*>(DefData), &DefUsed, FilteredPixels.GetArray(), DecompressedSize, CompressionLevel );
-		if ( !Soy::Assert( Result == MZ_OK, "mz compression failed" ) )
-			return false;
-		if ( !Soy::Assert( DefUsed <= DefAllocated, "miniz compressed reported that it used more memory than we had allocated" ) )
-			return false;
+		if ( Result != MZ_OK )
+			throw Soy_AssertException("mz compression failed");
+	
+		if ( DefUsed > DefAllocated )
+			throw Soy_AssertException("miniz compressed reported that it used more memory than we had allocated" );
+	
 		//	trim data
 		auto Overflow = DefAllocated - size_cast<int>(DefUsed);
 		PngData.SetSize( PngData.GetSize() - Overflow );
-		return true;
-
 		/*
 
 
@@ -394,8 +412,7 @@ bool TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 	}
 	else
 	{
-		//	unsupported
-		return false;
+		throw Soy_AssertException("Currently only supporting Deflate in png");
 	}
 }
 
@@ -436,11 +453,11 @@ bool TPng::GetDeflateData(Array<char>& DeflateData,const ArrayBridge<uint8>& Pix
 
 
 
-bool TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
+void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,ArrayBridge<uint8_t>* Exif)
 {
 	//	remove need for Png. Isn't this deprecated anyway
 #if defined(TARGET_PS4)
-	return false;
+	throw Soy::Soy_AssertException("Not supported on PS4");
 #else
 	//	if non-supported PNG colour format, then convert to one that is
 	auto PngColourType = TPng::GetColourType( Pixels.GetFormat() );
@@ -462,14 +479,14 @@ bool TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 		//	new format MUST be compatible or we'll get stuck in a loop
 		if ( TPng::GetColourType( NewFormat ) == TPng::TColour::Invalid )
 		{
-			assert( false );
-			return false;
+			throw Soy_AssertException("Converted to format that we can't process");
 		}
 		
 		//	attempt conversion
 		OtherFormat.SetFormat( NewFormat );
 		
-		return GetPng( OtherFormat, PngData );
+		GetPng( OtherFormat, PngData );
+		return;
 	}
 	
 	//	http://stackoverflow.com/questions/7942635/write-png-quickly
@@ -481,6 +498,8 @@ bool TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 	char IHDR[] = { 73, 72, 68, 82 };	//'I', 'H', 'D', 'R'
 	const char IEND[] = { 73, 69, 78, 68 }; //("IEND")
 	const char IDAT[] = { 73, 68, 65, 84 };// ("IDAT")
+	//	http://ftp-osl.osuosl.org/pub/libpng/documents/pngext-1.5.0.html#C.eXIf
+	const char EXIF[] = { 101, 88, 73, 102 };// ("eXIf")
 	
 	//	write header chunk
 	uint32 Width = size_cast<uint32>(Pixels.GetWidth());
@@ -501,11 +520,18 @@ bool TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 	Header.PushBack( Filter );
 	Header.PushBack( Interlace );
 	
+	//	make exif data
+	Array<char> ExifData;
+	if ( Exif )
+	{
+		ExifData.PushBackArray( EXIF );
+		ExifData.PushBackArray( *Exif );
+	}
+	
 	//	write data chunks
 	Array<char> PixelData;
 	PixelData.PushBackArray( IDAT );
-	if ( !TPng::GetPngData( PixelData, Pixels, static_cast<TPng::TCompression::Type>(Compression) ) )
-		return false;
+	TPng::GetPngData( PixelData, Pixels, static_cast<TPng::TCompression::Type>(Compression) );
 	
 	//	write Tail chunks
 	Array<char> Tail;
@@ -513,16 +539,30 @@ bool TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 	
 	//	put it all together!
 	PngData.Reserve( Header.GetDataSize() + 12 );
+	if ( !ExifData.IsEmpty() )
+		PngData.Reserve( ExifData.GetDataSize() + 12 );
 	PngData.Reserve( PixelData.GetDataSize() + 12 );
 	PngData.Reserve( Tail.GetDataSize() + 12 );
 	
 	uint32 HeaderLength = size_cast<uint32>( Header.GetDataSize() - sizeofarray(IHDR) );
-	assert( HeaderLength == 13 );
+	if ( HeaderLength != 13 )
+		throw Soy_AssertException("HeaderLength not 13");
+	
 	uint32 HeaderCrc = Soy::GetCrc32( GetArrayBridge(Header) );
 	PngData.PushBackArray( Magic );
 	PngData.PushBackReinterpretReverse( HeaderLength );
 	PngData.PushBackArray( Header );
 	PngData.PushBackReinterpretReverse( HeaderCrc );
+	
+	//	exif can go between header and end, but not inbetween idats
+	if ( !ExifData.IsEmpty() )
+	{
+		uint32 ExifDataLength = size_cast<uint32>( ExifData.GetDataSize() - sizeofarray(EXIF) );
+		uint32 ExifDataCrc = Soy::GetCrc32( GetArrayBridge(ExifData) );
+		PngData.PushBackReinterpretReverse( ExifDataLength );
+		PngData.PushBackArray( ExifData );
+		PngData.PushBackReinterpretReverse( ExifDataCrc );
+	}
 	
 	uint32 PixelDataLength = size_cast<uint32>( PixelData.GetDataSize() - sizeofarray(IDAT) );
 	uint32 PixelDataCrc = Soy::GetCrc32( GetArrayBridge(PixelData) );
@@ -532,11 +572,48 @@ bool TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData)
 	
 	uint32 TailLength = size_cast<uint32>( Tail.GetDataSize() - sizeofarray(IEND) );
 	uint32 TailCrc = Soy::GetCrc32( GetArrayBridge(Tail) );
-	assert( TailCrc == 0xAE426082 );
+	if ( TailCrc != 0xAE426082 )
+		throw Soy_AssertException("Tail CRC not 0xAE426082");
+
 	PngData.PushBackReinterpretReverse( TailLength );
 	PngData.PushBackArray( Tail );
 	PngData.PushBackReinterpretReverse( TailCrc );
-	
-	return true;
 #endif
+}
+
+
+void TPng::EnumChunks(const ArrayBridge<uint8_t>&& PngData,std::function<void(Soy::TFourcc&,uint32_t,ArrayBridge<uint8_t>&&)> EnumBlock)
+{
+	//	skip magic
+	auto DataPosition = 0;
+	
+	CheckMagic(PngData);
+	DataPosition += 8;
+
+	while ( DataPosition < PngData.GetSize() )
+	{
+		//	pop fourcc
+		auto* LengthPtr = &PngData[DataPosition+0];
+		auto* FourccPtr = &PngData[DataPosition+4];
+		auto* DataPtr = &PngData[DataPosition+4+4];
+		Soy::TFourcc Fourcc( FourccPtr );
+		
+		auto Length = *reinterpret_cast<const uint32_t*>( LengthPtr );
+		Soy::EndianSwap(Length);
+		if ( DataPosition+Length > PngData.GetSize() )
+		{
+			std::stringstream Error;
+			Error << "Png chunk (" << Fourcc << ") length (x" << Length << ") too large for data (x" << PngData.GetSize() << ")";
+			throw Soy::AssertException( Error );
+		}
+		
+		auto* CrcPtr = &PngData[DataPosition+4+4+Length];
+		auto Crc = *reinterpret_cast<const uint32_t*>( CrcPtr );
+		Soy::EndianSwap(Crc);
+		
+		auto Data = GetRemoteArray( DataPtr, Length );
+		EnumBlock( Fourcc, Crc, GetArrayBridge(Data) );
+		
+		DataPosition = DataPosition+4+4+Length+4;
+	}
 }

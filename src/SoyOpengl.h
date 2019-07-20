@@ -1,6 +1,5 @@
 #pragma once
 
-#include "SoyEvent.h"
 #include "SoyMath.h"
 #include "SoyPixels.h"
 #include "SoyGraphics.h"
@@ -139,20 +138,17 @@ public:
 class Opengl::TAsset
 {
 public:
-	TAsset() :
-	mName	( GL_ASSET_INVALID )
-	{
-	}
+	TAsset()	{}
 	explicit TAsset(GLuint Name) :
-	mName	( Name )
+		mName	( Name )
 	{
 	}
 	
-	bool	IsValid() const		{	return mName != GL_ASSET_INVALID;	}
+	bool	IsValid() const							{	return mName != GL_ASSET_INVALID;	}
 	bool	operator==(const TAsset& Asset) const	{	return mName == Asset.mName;	}
 	bool	operator!=(const TAsset& Asset) const	{	return mName != Asset.mName;	}
 	
-	GLuint	mName;
+	GLuint	mName = GL_ASSET_INVALID;
 };
 
 
@@ -248,7 +244,9 @@ public:
 		return Uniform ? *Uniform : SoyGraphics::TUniform();
 	}
 	
-	void			SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Floats);
+	void			SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Values);
+	void			SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<int32_t>&& Values);
+	void			SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<uint32_t>&& Values);
 	void			SetUniform(const SoyGraphics::TUniform& Uniform,const TTexture& Texture,size_t BindIndex);
 	void			SetUniform(const SoyGraphics::TUniform& Uniform,bool Bool);
 	void			SetUniform(const SoyGraphics::TUniform& Uniform,int32_t Integer);
@@ -267,7 +265,7 @@ public:
 class Opengl::TGeometry
 {
 public:
-	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex);
+	TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<uint32_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex);
 	~TGeometry();
 
 	void	Draw();

@@ -375,13 +375,16 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case RGBA:			return 4;
 	case BGRA:			return 4;
 	case ARGB:			return 4;
-	case KinectDepth:	return 2;	//	only 1 channel, but 16 bit
-	case FreenectDepth11bit:	return 2;	//	only 1 channel, but 16 bit
-	case FreenectDepth10bit:	return 2;	//	only 1 channel, but 16 bit
-	case FreenectDepthmm:	return 2;	//	only 1 channel, but 16 bit
+	
+		//	16 bit, but 1 channel
+	case KinectDepth:	return 1;
+	case FreenectDepth11bit:	return 1;
+	case FreenectDepth10bit:	return 21;	
+	case FreenectDepthmm:	return 1;
+
 	case ChromaUV_8_8:	return 1;
 	case ChromaUV_88:	return 2;
-	case ChromaUV_44:	return 1;
+	case ChromaUV_44:	return 1;	//	actually 2 channels, but not supporting nibbles
 	case ChromaU_8:		return 1;
 	case ChromaV_8:		return 1;
 
@@ -460,6 +463,28 @@ bool SoyPixelsFormat::IsFloatChannel(SoyPixelsFormat::Type Format)
 	std::stringstream Error;
 	Error << __func__ << " not implemented for " << Format;
 	throw Soy::AssertException( Error.str() );
+}
+
+
+uint8_t SoyPixelsFormat::GetBytesPerChannel(SoyPixelsFormat::Type Format)
+{
+	switch (Format)
+	{
+	case Float1:
+	case Float2:
+	case Float3:
+	case Float4:
+		return sizeof(float);
+
+	case KinectDepth:
+	case FreenectDepth11bit:
+	case FreenectDepth10bit:
+	case FreenectDepthmm:
+		return sizeof(uint16_t);
+
+	default:
+		return sizeof(uint8_t);
+	}
 }
 
 
@@ -1036,6 +1061,134 @@ bool ConvertFormat_GreyscaleToRgb(ArrayInterface<uint8>& PixelsArray,SoyPixelsMe
 	return true;
 }
 
+
+void ConvertFormat_Greyscale_To_Yuv_8_8_8(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
+{
+	//	we just need to ADD another pair of planes, so luma plane stays the same
+	SoyPixelsMeta YuvMeta(Meta.GetWidth(), Meta.GetHeight(), NewFormat);
+
+	//	split the planes and then write the new data to them
+	PixelsArray.SetSize(YuvMeta.GetDataSize());
+	SoyPixelsRemote YuvPixels(PixelsArray.GetArray(), YuvMeta.GetWidth(), YuvMeta.GetHeight(), YuvMeta.GetDataSize(), YuvMeta.GetFormat());
+	BufferArray<std::shared_ptr<SoyPixelsImpl>, 3> Planes;
+	YuvPixels.SplitPlanes(GetArrayBridge(Planes));
+
+	/*
+	//	write luma
+	auto& Luma = *Planes[0];
+	auto& LumaArray = Luma.GetPixelsArray();
+	for (auto i = 0; i < LumaArray.GetDataSize(); i++)
+	{
+		auto rgbi = i * GreyscaleStride;
+		auto r = GreyscalePixels[rgbi + 0];
+		//auto g = RgbPixels[rgbi + 1];
+		//auto b = RgbPixels[rgbi + 2];
+		//auto Grey = (r + g + b) / 3;
+		LumaArray[i] = r;
+	}
+	*/
+
+	//	write chromas
+	auto& ChromaU = *Planes[1];
+	auto& ChromaUArray_Array = ChromaU.GetPixelsArray();
+	auto* ChromaUArray = ChromaU.GetPixelsArray().GetArray();
+	auto& ChromaV = *Planes[2];
+	auto* ChromaVArray = ChromaV.GetPixelsArray().GetArray();
+	for (auto i = 0; i < ChromaUArray_Array.GetDataSize(); i++)
+	{
+		uint8_t u = 128;
+		uint8_t v = 128;
+		ChromaUArray[i] = u;
+		ChromaVArray[i] = v;
+	}
+
+	Meta = YuvMeta;
+}
+
+void ConvertFormat_RGB_To_Yuv_8_8_8(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
+{
+	SoyPixelsMeta YuvMeta(Meta.GetWidth(), Meta.GetHeight(), NewFormat);
+
+	//	copy rgb
+	Array<uint8_t> RgbPixels;
+	RgbPixels.Copy(PixelsArray);
+	auto RgbStride = 3;
+
+	//	split the planes and then write the new data to them
+	PixelsArray.SetSize(YuvMeta.GetDataSize());
+	SoyPixelsRemote YuvPixels(PixelsArray.GetArray(), YuvMeta.GetWidth(), YuvMeta.GetHeight(), YuvMeta.GetDataSize(), YuvMeta.GetFormat());
+	BufferArray<std::shared_ptr<SoyPixelsImpl>, 3> Planes;
+	YuvPixels.SplitPlanes(GetArrayBridge(Planes));
+
+	//	write luma
+	auto& Luma = *Planes[0];
+	auto& LumaArray = Luma.GetPixelsArray();
+	for (auto i = 0; i < LumaArray.GetDataSize(); i++)
+	{
+		auto rgbi = i * RgbStride;
+		auto r = RgbPixels[rgbi + 0];
+		auto g = RgbPixels[rgbi + 1];
+		auto b = RgbPixels[rgbi + 2];
+		auto Grey = (r + g + b) / 3;
+		LumaArray[i] = Grey;
+	}
+
+	//	write chromas
+	auto& ChromaU = *Planes[1];
+	auto& ChromaUArray = ChromaU.GetPixelsArray();
+	auto& ChromaV = *Planes[2];
+	auto& ChromaVArray = ChromaV.GetPixelsArray();
+	for (auto i = 0; i < ChromaUArray.GetDataSize(); i++)
+	{
+		uint8_t u = 128;
+		uint8_t v = 128;
+		ChromaUArray[i] = u;
+		ChromaVArray[i] = v;
+	}
+
+	Meta = YuvMeta;
+}
+
+
+
+void ConvertFormat_Uvy844_To_Luma(ArrayInterface<uint8>& PixelsArray,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+{
+	auto& YuvMeta = Meta;
+	auto w = YuvMeta.GetWidth();
+	auto h = YuvMeta.GetHeight();
+	SoyPixelsMeta LumaMeta( w, h, NewFormat );
+	auto PixelCount = size_cast<int>(w*h);
+	/*
+	auto YuvStride = YuvMeta.GetPixelDataSize();
+	auto LumaStride = LumaMeta.GetPixelDataSize();
+	PixelsArray.SetSize( LumaMeta.GetDataSize() );
+	
+	*/
+	auto YuvStride = 2;
+	auto LumaStride = 1;
+	auto* Pixels = PixelsArray.GetArray();
+	
+	//	when shrinking, we go forward through the array
+	for ( int p=0;	p<PixelCount;	p++ )
+	{
+		uint8_t* OldPos = &Pixels[p*YuvStride];
+		uint8_t* NewPos = &Pixels[p*LumaStride];
+		
+		//	invert
+		//auto Luma = 255 - OldPos[1];
+		auto Luma = OldPos[1];
+		
+		//	threshold
+		//Luma = (Luma < 100) ? 0 : 255;
+
+		NewPos[0] = Luma;
+	}
+	
+	PixelsArray.SetSize( LumaMeta.GetDataSize() );
+
+	Meta = LumaMeta;
+}
+
 void ConvertFormat_TwoChannelToFour(ArrayInterface<uint8>& PixelsArray,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	auto& TwoMeta = Meta;
@@ -1260,7 +1413,12 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::RGBA, ConvertFormat_RgbToRgba ),
 	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::RGB, ConvertFormat_GreyscaleToRgb ),
 	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::RGBA, ConvertFormat_GreyscaleToRgba ),
+	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_8_8_Full, ConvertFormat_Greyscale_To_Yuv_8_8_8),
+	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_8_8_Ntsc, ConvertFormat_Greyscale_To_Yuv_8_8_8),
+	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_8_8_Smptec, ConvertFormat_Greyscale_To_Yuv_8_8_8),
 	TConvertFunc( SoyPixelsFormat::ChromaUV_88, SoyPixelsFormat::RGBA, ConvertFormat_TwoChannelToFour ),
+	TConvertFunc( SoyPixelsFormat::Uvy_844_Full, SoyPixelsFormat::Greyscale, ConvertFormat_Uvy844_To_Luma),
+	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::Yuv_8_8_8_Ntsc, ConvertFormat_RGB_To_Yuv_8_8_8),
 };
 
 
@@ -1797,7 +1955,7 @@ void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size
 
 	//	build error as we go in case we assert mid-way
 	std::stringstream Error;
-	Error << "Split pixel planes (" << ThisMeta << " -> " << Soy::StringJoin( GetArrayBridge(Formats), "," ) << ") but data hasn't aligned after split; ";
+	Error << "Split pixel planes (" << ThisMeta << " x" << PixelDataSize << " bytes -> " << Soy::StringJoin( GetArrayBridge(Formats), "," ) << ") but data hasn't aligned after split; ";
 
 	size_t DataOffset = SoyPixelsFormat::GetHeaderSize( ThisMeta.GetFormat() );
 	for ( int p=0;	p<Formats.GetSize();	p++ )
@@ -1811,7 +1969,8 @@ void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size
 
 		Error << "#" << p << "/" << Formats.GetSize() << " " << PlaneMeta << " = " << PlaneDataSize << " bytes; ";
 		//	check for overflow
-		Soy::Assert( DataOffset <= PixelDataSize, Error.str() );
+		if (DataOffset > PixelDataSize )
+			throw Soy_AssertException( Error );
 
 		PlaneOffsetSizeAndMetas.PushBack(PlaneOffsetSizeAndMeta);
 	}
@@ -2166,13 +2325,15 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 		case SoyPixelsFormat::Yuv_8_8_8_Ntsc:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Ntsc ) );
 			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
+			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaU_8));
+			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaV_8));
 			break;
 			
 		case SoyPixelsFormat::Yuv_8_8_8_Smptec:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
 			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
+			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaU_8));
+			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaV_8));
 			break;
 			
 		case SoyPixelsFormat::ChromaUV_8_8:
@@ -2180,6 +2341,8 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaV_8 ) );
 			break;
 
+		//	gr: these are interlaced, so don't split
+		/*
 		//	need to handle these horizontally interlaced formats better
 		case SoyPixelsFormat::Uvy_844_Full:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
@@ -2200,7 +2363,7 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			break;
-		
+		*/
 		case SoyPixelsFormat::Palettised_RGB_8:
 		{
 			Soy::Assert( Data!=nullptr, "Cannot split format of Palettised_8_8 without data");
@@ -2237,3 +2400,14 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 	};
 }
 
+void SoyPixelsRemote::CheckDataSize()
+{
+	auto DataSize = this->mArray.GetDataSize();
+	auto ExpectedSize = this->GetMeta().GetDataSize();
+	if (DataSize == ExpectedSize)
+		return;
+
+	std::stringstream Error;
+	Error << "SoyPixelsRemote meta size(" << ExpectedSize << ") different to data size (" << DataSize << ")";
+	throw Soy::AssertException(Error);
+}

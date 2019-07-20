@@ -22,9 +22,11 @@ LIBRARY_SEARCH_PATHS = $(LIBRARY_SEARCH_PATHS_BASE)
 //GCC_C_LANGUAGE_STANDARD = c11
 
 
-//	c++11
-CLANG_CXX_LANGUAGE_STANDARD = c++0x
+//	gr: about time we switched to 14
+//CLANG_CXX_LANGUAGE_STANDARD = c++0x	//	c++11
+CLANG_CXX_LANGUAGE_STANDARD = c++14
 CLANG_CXX_LIBRARY = libc++
+
 //	std::async is 10.8 up
 //	v8 6.6 needs 10.9 (or at least the dtools build builds for it)
 MACOSX_DEPLOYMENT_TARGET = 10.10

@@ -261,7 +261,8 @@ void TStreamBuffer::PushEof()
 
 void TStreamBuffer::OnDataPushed(bool EofPushed)
 {
-	mOnDataPushed.OnTriggered( EofPushed );
+	if ( mOnDataPushed )
+		mOnDataPushed( EofPushed );
 }
 
 
@@ -298,6 +299,11 @@ bool TStreamBuffer::UnPop(const std::string& String)
 	return UnPop( DataBridge );
 }
 
+ArrayBridgeDef<Array<char>> TStreamBuffer::PeekArray()
+{
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
+	return GetArrayBridge(mData);	
+}
 
 bool TStreamBuffer::Peek(ArrayBridge<char>& Data)
 {
@@ -306,7 +312,7 @@ bool TStreamBuffer::Peek(ArrayBridge<char>& Data)
 	std::lock_guard<std::recursive_mutex>	Lock( mLock );
 	
 	if ( mData.GetSize() < Data.GetSize() )
-	return false;
+		return false;
 	
 	auto DataHead = GetRemoteArray( mData.GetArray(), Data.GetSize() );
 	Data.Copy( DataHead );
@@ -695,7 +701,8 @@ TFileStreamWriter::~TFileStreamWriter()
 	mFile.close();
 	
 	bool Success = true;
-	mOnShutdown.OnTriggered(Success);
+	if ( mOnShutdown )
+		mOnShutdown(Success);
 }
 
 void TFileStreamWriter::Write(TStreamBuffer& Data,const std::function<bool()>& Block)

@@ -1,5 +1,7 @@
 #include "SoyImage.h"
 #include "SoyStream.h"
+#include "SoyPng.h"
+#include "SoyFourcc.h"
 
 
 #define USE_STB
@@ -23,9 +25,11 @@
 
 namespace Stb
 {
+	class TContext;
+	
 	typedef std::function<stbi_uc*(stbi__context* s,int* x,int* y,int* comp,int req_comp)> TReadFunction;
 	void	Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,TReadFunction ReadFunction);
-	void	Read(SoyPixelsImpl& Pixels,const ArrayBridge<char>& Buffer,TReadFunction ReadFunction);
+	void	Read(SoyPixelsImpl& Pixels,TContext& Context,TReadFunction ReadFunction);
 }
 
 
@@ -39,11 +43,11 @@ public:
 
 
 
-class StbContext
+class Stb::TContext
 {
 public:
-	StbContext(TStreamBuffer& Buffer,bool PopData);
-	~StbContext();
+	TContext(TStreamBuffer& Buffer,bool PopData);
+	~TContext();
 	
 	std::string		GetError();
 	void			Flush();		//	when finished, flush data so on destruction we won't unpop it
@@ -62,7 +66,7 @@ public:
 
 
 
-StbContext::StbContext(TStreamBuffer& Buffer,bool PopData) :
+Stb::TContext::TContext(TStreamBuffer& Buffer,bool PopData) :
 	mPopData	( PopData ),
 	mBuffer		( Buffer )
 {
@@ -127,21 +131,21 @@ StbContext::StbContext(TStreamBuffer& Buffer,bool PopData) :
 #endif
 }
 
-StbContext::~StbContext()
+Stb::TContext::~TContext()
 {
 	//	if we reach here and there's popped data, we have probably error'd and need to restore the data back to the buffer
 	//	use Flush() on success
 	mBuffer.UnPop( GetArrayBridge(mPoppedData) );
 }
 
-void StbContext::Flush()
+void Stb::TContext::Flush()
 {
 	if ( mPopData )
 		mPoppedData.Clear();
 }
 
 
-std::string StbContext::GetError()
+std::string Stb::TContext::GetError()
 {
 	//	gr: as this is not thread safe, it could come out mangled :( maybe add a lock around error popping before read (maybe have to lock around the whole thing)
 	auto* StbError = stbi_failure_reason();
@@ -154,7 +158,12 @@ std::string StbContext::GetError()
 
 void Stb::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,TReadFunction ReadFunction)
 {
-	StbContext Context( Buffer, true );
+	TContext Context( Buffer, true );
+	Read( Pixels, Context, ReadFunction );
+}
+
+void Stb::Read(SoyPixelsImpl& Pixels,Stb::TContext& Context,TReadFunction ReadFunction)
+{
 	int Width = 0;
 	int Height = 0;
 	int Channels = 0;
@@ -175,54 +184,40 @@ void Stb::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,TReadFunction ReadFun
 	
 	//	success, don't let context unpop data
 	Context.Flush();
-
 }
 
 
-
-void Stb::Read(SoyPixelsImpl& Pixels,const ArrayBridge<char>& ArrayBuffer,TReadFunction ReadFunction)
+void Png::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer,std::function<void(const std::string& Section,const ArrayBridge<uint8_t>& MetaData)> OnMeta)
 {
-#if defined(USE_STB)
-	const stbi_uc* Buffer = reinterpret_cast<const stbi_uc*>( ArrayBuffer.GetArray() );
-	auto BufferSize = size_cast<int>( ArrayBuffer.GetDataSize() );
-	int Width = 0;
-	int Height = 0;
-	int Channels = 0;
-	int RequestedChannels = 4;
-	auto* DecodedPixels = stbi_load_from_memory( Buffer, BufferSize, &Width, &Height, &Channels, RequestedChannels );
-	if ( !DecodedPixels )
 	{
-		//	gr: as this is not thread safe, it could come out mangled :( maybe add a lock around error popping before read (maybe have to lock around the whole thing)
-		auto* StbError = stbi_failure_reason();
-		if ( !StbError )
-			StbError = "Unknown error";
-		std::stringstream Error;
-		Error << "Failed to read image pixels; " << StbError;
-		
-		throw Soy::AssertException( Error.str() );
+		//	don't delete the data, we want to extract meta!
+		Stb::TContext Context( Buffer, false );
+		//	this loads the pixels, but doesnt seem easy to extract chunks
+		Stb::Read( Pixels, Context, stbi__png_load );
 	}
 	
-	//	convert output into pixels
-	//	gr: have to assume size
-	auto Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
-	SoyPixelsMeta Meta( Width, Height, Format );
-	SoyPixelsRemote OutputPixels( DecodedPixels, Meta.GetDataSize(), Meta );
-	Pixels.Copy( OutputPixels );
-#else
-	throw Soy::AssertException("No STB support, no image reading");
-#endif
+	//	don't need meta
+	//	gr: do we need to unpop data?
+	if ( !OnMeta )
+		return;
+	
+	auto DataChar = Buffer.PeekArray();
+	auto Data8 = DataChar.GetSubArray<uint8_t>( 0, DataChar.GetDataSize() );
+	
+	//	walk over png sections
+	auto EnumBlock = [&](Soy::TFourcc Fourcc,uint32_t Crc,ArrayBridge<uint8_t>&& BlockData)
+	{
+		//	standard expected PNG blocks
+		if ( Fourcc == TPng::IHDR )	return;
+		if ( Fourcc == TPng::IEND )	return;
+		if ( Fourcc == TPng::IDAT )	return;
+		
+		auto FourccString = Fourcc.GetString();
+		OnMeta( FourccString, BlockData );
+	};
+	TPng::EnumChunks( GetArrayBridge(Data8), EnumBlock );
 }
 
-
-void Png::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer)
-{
-	Stb::Read( Pixels, Buffer, stbi__png_load );
-}
-
-void Png::Read(SoyPixelsImpl& Pixels,const ArrayBridge<char>& Buffer)
-{
-	Stb::Read( Pixels, Buffer, stbi__png_load );
-}
 
 /*static */int stbi__process_marker(stbi__jpeg *z, int m);
 
@@ -351,7 +346,7 @@ static int stbi__decode_jpeg_header_with_meta(stbi__jpeg *z, int scan,std::funct
 
 void Jpeg::ReadMeta(Jpeg::TMeta& Meta,TStreamBuffer& Buffer)
 {
-	StbContext Context( Buffer, false );
+	Stb::TContext Context( Buffer, false );
 	
 	auto HandleAppMarker = [&](ArrayBridge<uint8>&& AppData)
 	{

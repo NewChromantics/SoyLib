@@ -23,7 +23,14 @@ std::ostream& operator<<(std::ostream &out,const SoyGraphics::TElementType::Type
 		case SoyGraphics::TElementType::Type::Float4:	out << "Float4";	break;
 		case SoyGraphics::TElementType::Type::Float3x3:	out << "Float3x3";	break;
 		case SoyGraphics::TElementType::Type::Float4x4:	out << "Float4x4";	break;
-		case SoyGraphics::TElementType::Type::Int32:	out << "Int32";	break;
+		case SoyGraphics::TElementType::Type::Int:		out << "Int";	break;
+		case SoyGraphics::TElementType::Type::Int2:		out << "Int2";	break;
+		case SoyGraphics::TElementType::Type::Int3:		out << "Int3";	break;
+		case SoyGraphics::TElementType::Type::Int4:		out << "Int4";	break;
+		case SoyGraphics::TElementType::Type::Uint:		out << "Uint";	break;
+		case SoyGraphics::TElementType::Type::Uint2:	out << "Uint2";	break;
+		case SoyGraphics::TElementType::Type::Uint3:	out << "Uint3";	break;
+		case SoyGraphics::TElementType::Type::Uint4:	out << "Uint4";	break;
 		case SoyGraphics::TElementType::Type::Texture2D:	out << "Texture2D";	break;
 		case SoyGraphics::TElementType::Type::Bool:		out << "Bool";	break;
 
@@ -86,11 +93,24 @@ size_t SoyGraphics::TElementType::GetDataSize(Type t)
 {
 	switch (t)
 	{
-		case Int32:			return sizeof(uint32_t);
-		case Float:			return sizeof(float);
-		case Float2:		return sizeof(vec2f);
-		case Float3:		return sizeof(vec3f);
-		case Float4:		return sizeof(vec4f);
+		case Int:
+		case Int2:
+		case Int3:
+		case Int4:
+			return sizeof(int32_t) * GetVectorSize(t);
+		
+		case Uint:
+		case Uint2:
+		case Uint3:
+		case Uint4:
+			return sizeof(uint32_t) * GetVectorSize(t);
+		
+		case Float:
+		case Float2:
+		case Float3:
+		case Float4:
+			return sizeof(float) * GetVectorSize(t);
+		
 		case Float3x3:		return sizeof(float3x3);
 		case Float4x4:		return sizeof(float4x4);
 
@@ -103,14 +123,30 @@ size_t SoyGraphics::TElementType::GetDataSize(Type t)
 }
 
 
-size_t SoyGraphics::TElementType::GetFloatCount(Type t)
+size_t SoyGraphics::TElementType::GetVectorSize(Type t)
 {
 	switch (t)
 	{
-		case Float:			return 1;
-		case Float2:		return 2;
-		case Float3:		return 3;
-		case Float4:		return 4;
+		case Int:
+		case Uint:
+		case Float:
+			return 1;
+		
+		case Int2:
+		case Uint2:
+		case Float2:
+			return 2;
+		
+		case Int3:
+		case Uint3:
+		case Float3:
+			return 3;
+		
+		case Int4:
+		case Uint4:
+		case Float4:
+			return 4;
+		
 		case Float3x3:		return 3*3;
 		case Float4x4:		return 4*4;
 			
@@ -118,7 +154,7 @@ size_t SoyGraphics::TElementType::GetFloatCount(Type t)
 	}
 	
 	std::stringstream Error;
-	Error << __func__ << " not float type " << t;
+	Error << __func__ << " unhandled type " << t;
 	throw Soy::AssertException( Error.str() );
 }
 
@@ -138,6 +174,37 @@ bool SoyGraphics::TElementType::IsFloat(Type t)
 			return false;
 	}
 }
+
+bool SoyGraphics::TElementType::IsInt(Type t)
+{
+	switch (t)
+	{
+		case Int:
+		case Int2:
+		case Int3:
+		case Int4:
+		return true;
+		
+		default:
+		return false;
+	}
+}
+
+bool SoyGraphics::TElementType::IsUint(Type t)
+{
+	switch (t)
+	{
+		case Uint:
+		case Uint2:
+		case Uint3:
+		case Uint4:
+		return true;
+		
+		default:
+		return false;
+	}
+}
+
 
 
 bool SoyGraphics::TElementType::IsImage(Type t)

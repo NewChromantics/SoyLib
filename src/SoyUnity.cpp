@@ -80,22 +80,6 @@ namespace Unity
 {
 	static int		gRenderEventTimerMs = 8;
 
-	
-	//	attach to std::debug
-	SoyListenerId	DebugListener;
-	void			PushDebugString(const std::string& Message);
-	
-	//	actual storage of debug strings
-	static size_t	DefaultDebugStringExportLimit = 1000;
-	std::shared_ptr<TExportManager<std::string,char>>	gDebugStringManager;
-	TExportManager<std::string,char>&	GetDebugStringManager();
-	
-	//	c/# interface of strings we've exported and pending to be read by c/#
-	std::mutex							gDebugExportedStringsLock;
-	Array<const char*>					gDebugExportedStrings;
-	bool								gDebugExportedStringsEnabled = true;
-	
-
 	std::shared_ptr<Opengl::TContext>	OpenglContext;
 	std::shared_ptr<Directx::TContext>	DirectxContext;
 	std::shared_ptr<Directx9::TContext>	Directx9Context;
@@ -116,12 +100,10 @@ namespace Unity
 #endif
 }
 
-SoyEvent<bool>& Unity::GetOnDeviceShutdown()
+std::function<void()>& Unity::GetOnDeviceShutdown()
 {
-	static SoyEvent<bool>* Event = nullptr;
-	if ( !Event )
-		Event = new SoyEvent<bool>();
-	return *Event;
+	static std::function<void()> Event;
+	return Event;
 }
 
 
@@ -482,7 +464,7 @@ __export void UnitySetGraphicsDevice(void* device,Unity::sint deviceType,Unity::
 	}
 }
 
-
+//	gr: this is deprecated now, and instead unity lets you explicitly call a function.
 //	gr: check this is okay with multiple plugins linking, which was the original reason for a unique function name...
 #if defined(TARGET_IOS)
 __export void UnityRenderEvent_Ios(Unity::sint eventID)
@@ -519,6 +501,7 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 	if (!Platform::Init())
 		throw Soy::AssertException("Soy Failed to init platform");
 
+	/*
 	if ( !DebugListener.IsValid() )
 	{
 		auto& Event = std::Debug.GetOnFlushEvent();
@@ -530,6 +513,7 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 		
 		DebugListener = Event.AddListener( PushDebug );
 	}
+	*/
 	
 	//	ios needs to manually register callbacks
 	//	http://gamedev.stackexchange.com/questions/100485/how-do-i-get-gl-issuerenderevent-to-work-on-ios-with-unity-5
@@ -642,11 +626,10 @@ void Unity::Init(UnityDevice::Type Device,void* DevicePtr)
 
 void Unity::Shutdown(UnityDevice::Type Device)
 {
-	std::Debug.GetOnFlushEvent().RemoveListener( DebugListener );
+	//std::Debug.GetOnFlushEvent().RemoveListener( DebugListener );
 
 	{
-		bool Dummy;
-		GetOnDeviceShutdown().OnTriggered(Dummy);
+		GetOnDeviceShutdown();
 	}
 	
 	//	free all contexts
@@ -658,75 +641,6 @@ void Unity::Shutdown(UnityDevice::Type Device)
 	CudaContext.reset();
 	GnmContext.reset();
 }
-
-void Unity::EnableDebugStrings(bool Enable)
-{
-	gDebugExportedStringsEnabled = Enable;
-}
-
-TExportManager<std::string,char>& Unity::GetDebugStringManager()
-{
-	if ( !gDebugStringManager )
-		gDebugStringManager.reset( new TExportManager<std::string,char>(DefaultDebugStringExportLimit) );
-	
-	return *gDebugStringManager;
-}
-
-
-
-void Unity::PushDebugString(const std::string& Message)
-{
-	if ( Message.empty() )
-		return;
-	
-	if ( !gDebugExportedStringsEnabled )
-		return;
-
-	//	we now immediately export the string and keep a list of strings for c/# interface to work through
-	try
-	{
-		auto& Manager = GetDebugStringManager();
-		auto* LockedString = Manager.Lock( Message );
-		if ( !LockedString )
-			return;
-		std::lock_guard<std::mutex> Lock( gDebugExportedStringsLock );
-		gDebugExportedStrings.PushBack( LockedString );
-	}
-	catch(std::exception& e)
-	{
-		int x;
-		//	recursion?
-		//std::Debug << __func__ << " caught exception: " << e.what() << std::endl;
-	}
-}
-
-const char* Unity::PopDebugString()
-{
-	std::lock_guard<std::mutex> Lock( gDebugExportedStringsLock );
-	if ( gDebugExportedStrings.IsEmpty() )
-		return nullptr;
-	auto* PoppedString = gDebugExportedStrings.PopAt(0);
-	return PoppedString;
-}
-
-void Unity::ReleaseDebugString(const char* ExportedString)
-{
-	auto& Manager = GetDebugStringManager();
-	Manager.Unlock( ExportedString );
-}
-
-void Unity::ReleaseDebugStringAll()
-{
-	{
-		std::lock_guard<std::mutex> Lock( gDebugExportedStringsLock );
-		gDebugExportedStrings.Clear();
-	}
-	
-	auto& Manager = GetDebugStringManager();
-	Manager.UnlockAll();
-}
-
-
 
 
 template<typename INTERFACETYPE>

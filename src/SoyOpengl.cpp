@@ -21,6 +21,8 @@ namespace SoyGraphics
 namespace Opengl
 {
 	std::pair<GLenum,GLint>	GetType(SoyGraphics::TElementType::Type Type);
+	
+	extern ssize_t	gTextureAllocationCount;
 }
 
 
@@ -113,8 +115,13 @@ std::shared_ptr<SoyPixelsImpl> Opengl::GetClientStorage(TTexture& Texture)
 }
 
 
-template<> GLenum Opengl::GetTypeEnum<uint16>()		{	return GL_UNSIGNED_SHORT;	}
+template<> GLenum Opengl::GetTypeEnum<uint16_t>()	{	return GL_UNSIGNED_SHORT;	}
 template<> GLenum Opengl::GetTypeEnum<GLshort>()	{	return GL_UNSIGNED_SHORT;	}
+//template<> GLenum Opengl::GetTypeEnum<GLushort>()	{	return GL_UNSIGNED_SHORT;	}
+
+template<> GLenum Opengl::GetTypeEnum<uint32_t>()	{	return GL_UNSIGNED_INT;	}
+//template<> GLenum Opengl::GetTypeEnum<GLuint>()		{	return GL_UNSIGNED_INT;	}
+template<> GLenum Opengl::GetTypeEnum<GLint>()		{	return GL_UNSIGNED_INT;	}
 
 std::string Opengl::GetEnumString(GLenum Type)
 {
@@ -218,10 +225,23 @@ std::string Opengl::GetEnumString(GLenum Type)
 			CASE_ENUM_STRING( GL_SAMPLER_2D_RECT );
 #endif
 
+#if defined(GL_R32F)
+			CASE_ENUM_STRING( GL_R32F );
+#endif
+#if defined(GL_RG32F)
+			CASE_ENUM_STRING( GL_RG32F );
+#endif
+#if defined(GL_RGB32F)
+			CASE_ENUM_STRING( GL_RGB32F );
+#endif
+#if defined(GL_RGBA32F)
+			CASE_ENUM_STRING( GL_RGBA32F );
+#endif
+
 	};
 #undef CASE_ENUM_STRING
 	std::stringstream Unknown;
-	Unknown << "Unknown GL enum 0x" << std::hex << Type << std::dec;
+	Unknown << "<GLenum 0x" << std::hex << Type << std::dec << ">";
 	return Unknown.str();
 }
 
@@ -232,7 +252,14 @@ SoyGraphics::TElementType::Type SoyGraphics::GetType(GLenum Type)
 	switch ( Type )
 	{
 		case GL_INVALID_ENUM:	return SoyGraphics::TElementType::Invalid;
-		case GL_INT:			return SoyGraphics::TElementType::Int32;
+		case GL_INT:			return SoyGraphics::TElementType::Int;
+		case GL_INT_VEC2:		return SoyGraphics::TElementType::Int2;
+		case GL_INT_VEC3:		return SoyGraphics::TElementType::Int3;
+		case GL_INT_VEC4:		return SoyGraphics::TElementType::Int4;
+		case GL_UNSIGNED_INT:			return SoyGraphics::TElementType::Uint;
+		case GL_UNSIGNED_INT_VEC2:		return SoyGraphics::TElementType::Uint2;
+		case GL_UNSIGNED_INT_VEC3:		return SoyGraphics::TElementType::Uint3;
+		case GL_UNSIGNED_INT_VEC4:		return SoyGraphics::TElementType::Uint4;
 		case GL_FLOAT:			return SoyGraphics::TElementType::Float;
 		case GL_FLOAT_VEC2:		return SoyGraphics::TElementType::Float2;
 		case GL_FLOAT_VEC3:		return SoyGraphics::TElementType::Float3;
@@ -259,7 +286,14 @@ std::pair<GLenum,GLint> Opengl::GetType(SoyGraphics::TElementType::Type Type)
 	switch ( Type )
 	{
 		case SoyGraphics::TElementType::Invalid:	return std::make_pair( GL_INVALID_ENUM, 0 );
-		case SoyGraphics::TElementType::Int32:		return std::make_pair( GL_INT, 1 );
+		case SoyGraphics::TElementType::Int:		return std::make_pair( GL_INT, 1 );
+		case SoyGraphics::TElementType::Int2:		return std::make_pair( GL_INT, 2 );
+		case SoyGraphics::TElementType::Int3:		return std::make_pair( GL_INT, 3 );
+		case SoyGraphics::TElementType::Int4:		return std::make_pair( GL_INT, 4 );
+		case SoyGraphics::TElementType::Uint:		return std::make_pair( GL_UNSIGNED_INT, 1 );
+		case SoyGraphics::TElementType::Uint2:		return std::make_pair( GL_UNSIGNED_INT, 2 );
+		case SoyGraphics::TElementType::Uint3:		return std::make_pair( GL_UNSIGNED_INT, 3 );
+		case SoyGraphics::TElementType::Uint4:		return std::make_pair( GL_UNSIGNED_INT, 4 );
 		case SoyGraphics::TElementType::Float:		return std::make_pair( GL_FLOAT, 1 );
 		case SoyGraphics::TElementType::Float2:		return std::make_pair( GL_FLOAT, 2 );
 		case SoyGraphics::TElementType::Float3:		return std::make_pair( GL_FLOAT, 3 );
@@ -675,10 +709,31 @@ size_t Opengl::TFbo::GetAlphaBits() const
 #endif
 }
 
+GLenum GetGlPixelStorageFormat(SoyPixelsFormat::Type Format)
+{
+	if ( SoyPixelsFormat::IsFloatChannel(Format) )
+		return GL_FLOAT;
+	
+	auto ComponentSize = SoyPixelsFormat::GetBytesPerChannel(Format);
+	switch ( ComponentSize )
+	{
+		case 1:	return GL_UNSIGNED_BYTE;
+		case 2:	return GL_UNSIGNED_SHORT;
+		case 4:	return GL_INT;
+			
+		default:	break;
+	}
+	
+	std::stringstream Error;
+	Error << "Unhandled format (" << Format << ") component size " << ComponentSize;
+	throw Soy_AssertException(Error);
+}
+
 Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 	mAutoRelease	( true ),
 	mType			( Type )
 {
+	static bool DebugContruction = false;
 	Opengl_IsOkayFlush();
 
 	Soy::Assert( Meta.IsValid(), "Cannot setup texture with invalid meta" );
@@ -699,13 +754,14 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 	glGenTextures( 1, &mTexture.mName );
 	Opengl::IsOkay("glGenTextures");
 	Soy::Assert( mTexture.IsValid(), "Failed to allocate texture" );
+	gTextureAllocationCount += 1;
 	
 	Bind(TextureSlot);
 	Opengl::IsOkay("glGenTextures");
 	
 	//	set mip-map levels to 0..0
 	GLint MipLevel = 0;
-	GLenum GlPixelsStorage = GL_UNSIGNED_BYTE;
+	GLenum GlPixelsStorage = GetGlPixelStorageFormat(Meta.GetFormat());
 	GLint Border = 0;
 	
 	//	disable other mip map levels
@@ -732,7 +788,11 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 		 Error << "glTexImage2D texture construction " << Meta << " InternalPixelFormat=" << GetEnumString(InternalPixelFormat) << " PixelsFormat=" << GetEnumString(PixelsFormat) << ", GlPixelsStorage=" << GetEnumString(GlPixelsStorage);
 		 Opengl::IsOkay( Error.str() );
 		 */
+		int FailedTrys = 0;
 		bool Created = false;
+		GLenum SuccessfullInternalPixelFormat = 0;
+		GLenum SuccessfullExternalPixelFormat = 0;
+		
 		for ( int e=0;	!Created && e<ExternalPixelsFormats.GetSize();	e++ )
 		{
 			for ( int i=0;	!Created && i<InternalPixelFormats.GetSize();	i++ )
@@ -743,18 +803,38 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 					auto ExternalPixelFormat = ExternalPixelsFormats[e];
 					glTexImage2D( mType, MipLevel, InternalPixelFormat, size_cast<GLsizei>(Meta.GetWidth()), size_cast<GLsizei>(Meta.GetHeight()), Border, ExternalPixelFormat, GlPixelsStorage, nullptr );
 					std::stringstream Error;
-					Error << "glTexImage2D texture construction " << Meta << " InternalPixelFormat=" << GetEnumString(InternalPixelFormat) << " PixelsFormat=" << GetEnumString(ExternalPixelFormat) << ", GlPixelsStorage=" << GetEnumString(GlPixelsStorage);
+					Error << "glTexImage2D texture construction " << Meta << " InternalPixelFormat=" << GetEnumString(InternalPixelFormat) << " ExternalPixelFormat=" << GetEnumString(ExternalPixelFormat) << ", GlPixelsStorage=" << GetEnumString(GlPixelsStorage);
 					Opengl::IsOkay( Error.str() );
+					
 					Created = true;
+					SuccessfullInternalPixelFormat = InternalPixelFormat;
+					SuccessfullExternalPixelFormat = ExternalPixelFormat;
 				}
 				catch( std::exception& e)
 				{
+					FailedTrys++;
+					if ( DebugContruction )
+						std::Debug << e.what() << std::endl;
 				}
 			}
 		}
-		std::stringstream Error;
-		Error << "Failed to create texture with " << Meta;
-		Soy::Assert( Created, Error.str() );
+		
+		if ( !Created )
+		{
+			std::stringstream Error;
+			Error << "Failed to create texture with " << Meta;
+			throw Soy::AssertException(Error);
+		}
+		
+		//	if it did succeed, but some failed first, report them for debugging
+		if ( DebugContruction )//&& FailedTrys > 0 )
+		{
+			std::Debug << "Successfull glTexImage2D texture construction " << Meta;
+			std::Debug << " InternalPixelFormat=" << GetEnumString(SuccessfullInternalPixelFormat);
+			std::Debug << " ExternalPixelFormat=" << GetEnumString(SuccessfullExternalPixelFormat);
+			std::Debug << " GlPixelsStorage=" << GetEnumString(GlPixelsStorage);
+			std::Debug << std::endl;
+		}
 	}
 	
 	//	verify params
@@ -822,6 +902,7 @@ void Opengl::TTexture::Delete()
 	if ( mTexture.mName != GL_ASSET_INVALID )
 	{
 		glDeleteTextures( 1, &mTexture.mName );
+		gTextureAllocationCount -= 1;
 		mTexture.mName = GL_ASSET_INVALID;
 	}
 	
@@ -1351,7 +1432,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 	std::stringstream WholeFunctionContext;
 	WholeFunctionContext << __func__ << " (" << SourcePixels.GetMeta() << "->" << this->GetMeta() << ")";
 	Soy::TScopeTimerPrint WholeTimer( WholeFunctionContext.str().c_str(), 30 );
-
+	
 	Soy::Assert( IsValid(), "Trying to upload to invalid texture ");
 	CheckIsBound();
 
@@ -1458,7 +1539,8 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 	
 	
 	auto& FinalPixels = *UsePixels;
-	GLenum FinalPixelsStorage = GL_UNSIGNED_BYTE;
+	GLenum FinalPixelsStorage = GetGlPixelStorageFormat( SourcePixels.GetFormat() );
+														
 	//	pixel data format
 	BufferArray<GLenum,10> FinalPixelsFormats;
 	Opengl::GetUploadPixelFormats( GetArrayBridge(FinalPixelsFormats), *this, FinalPixels.GetFormat(), Params.mAllowOpenglConversion );
@@ -2056,8 +2138,14 @@ Opengl::TShader::~TShader()
 }
 
 
+template<typename TYPE>
+std::function<void(GLuint,GLint,GLsizei,const TYPE*)> GetglProgramUniformXv(SoyGraphics::TElementType::Type ElementType)
+{
+	static_assert( sizeof(TYPE) == -1, "this MUST be specialised" );
+}
 
-std::function<void(GLuint,GLint,GLsizei,const GLfloat *)> GetglProgramUniformXv(SoyGraphics::TElementType::Type ElementType)
+template<>
+std::function<void(GLuint,GLint,GLsizei,const float*)> GetglProgramUniformXv<float>(SoyGraphics::TElementType::Type ElementType)
 {
 	auto glProgramUniform4x4fv = [](GLuint program,GLint location,GLsizei count,const GLfloat * value)
 	{
@@ -2081,25 +2169,60 @@ std::function<void(GLuint,GLint,GLsizei,const GLfloat *)> GetglProgramUniformXv(
 }
 
 
-void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Floats)
+template<>
+std::function<void(GLuint,GLint,GLsizei,const int32_t*)> GetglProgramUniformXv<int32_t>(SoyGraphics::TElementType::Type ElementType)
+{
+	switch ( ElementType )
+	{
+		case SoyGraphics::TElementType::Int:		return glProgramUniform1iv;
+		case SoyGraphics::TElementType::Int2:		return glProgramUniform2iv;
+		case SoyGraphics::TElementType::Int3:		return glProgramUniform3iv;
+		case SoyGraphics::TElementType::Int4:		return glProgramUniform4iv;
+		default:break;
+	}
+	
+	std::stringstream Error;
+	Error << "Don't know which glUniformXv to use for  " << ElementType;
+	throw Soy::AssertException(Error.str());
+}
+
+template<>
+std::function<void(GLuint,GLint,GLsizei,const uint32_t*)> GetglProgramUniformXv<uint32_t>(SoyGraphics::TElementType::Type ElementType)
+{
+	switch ( ElementType )
+	{
+		case SoyGraphics::TElementType::Uint:		return glProgramUniform1uiv;
+		case SoyGraphics::TElementType::Uint2:		return glProgramUniform2uiv;
+		case SoyGraphics::TElementType::Uint3:		return glProgramUniform3uiv;
+		case SoyGraphics::TElementType::Uint4:		return glProgramUniform4uiv;
+		default:break;
+	}
+	
+	std::stringstream Error;
+	Error << "Don't know which glUniformXv to use for  " << ElementType;
+	throw Soy::AssertException(Error.str());
+}
+
+template<typename TYPE>
+void SetUniform_Array(Opengl::TShader& This,const SoyGraphics::TUniform& Uniform,ArrayBridge<TYPE>& Floats)
 {
 	//	work out how many floats we're expecting
-	auto FloatCount = Uniform.GetFloatCount();
+	auto FloatCount = Uniform.GetElementCount();
 	if ( Floats.GetSize() != FloatCount )
 	{
 		std::stringstream Error;
 		Error << __func__ << " expected " << FloatCount << " floats but got " << Floats.GetSize();
 		throw Soy::AssertException(Error.str());
 	}
-
+	
 	Opengl_IsOkayFlush();
-
+	
 	auto UniformIndex = size_cast<GLint>( Uniform.mIndex );
 	auto ArraySize = size_cast<GLsizei>(Uniform.GetArraySize());
 	auto pFloats = Floats.GetArray();
-	auto glProgramUniformXv = GetglProgramUniformXv( Uniform.mType );
-	auto ProgramName = mProgram.mName;
-
+	auto glProgramUniformXv = GetglProgramUniformXv<TYPE>( Uniform.mType );
+	auto ProgramName = This.mProgram.mName;
+	
 	//	for debugging, we can set individually elements
 	static bool SetManually = false;
 	if ( SetManually && ArraySize > 1 )
@@ -2113,10 +2236,10 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 			
 			std::Debug << UniformName.str() << " at uniform location " << Location << " (orig: " << UniformIndex << ")" << std::endl;
 			
-			auto ElementFloatCount = Uniform.GetElementFloatCount();
+			auto ElementFloatCount = Uniform.GetElementVectorSize();
 			auto* FloatsX = &pFloats[ i * ElementFloatCount ];
 			glProgramUniformXv( ProgramName, Location, 1, FloatsX );
-
+			
 			std::stringstream Error;
 			Error << "SetUniform( Array[" << i << ", location: " << Location << ": " << Uniform << ")";
 			Opengl::IsOkay( Error.str() );
@@ -2138,6 +2261,22 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridg
 		}
 	}
 }
+
+void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<float>&& Floats)
+{
+	SetUniform_Array<float>( *this, Uniform, Floats );
+}
+
+void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<int32_t>&& Floats)
+{
+	SetUniform_Array<int32_t>( *this, Uniform, Floats );
+}
+
+void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,ArrayBridge<uint32_t>&& Floats)
+{
+	SetUniform_Array<uint32_t>( *this, Uniform, Floats );
+}
+
 
 
 void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,bool Bool)
@@ -2201,7 +2340,7 @@ void Opengl::TGeometry::EnableAttribs(const SoyGraphics::TGeometryVertex& Descri
 	}
 }
 
-Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<size_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex) :
+Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<uint32_t>&& Indexes,const SoyGraphics::TGeometryVertex& Vertex) :
 	mVertexBuffer( GL_ASSET_INVALID ),
 	mIndexBuffer( GL_ASSET_INVALID ),
 	mVertexArrayObject( GL_ASSET_INVALID ),
@@ -2262,13 +2401,11 @@ Opengl::TGeometry::TGeometry(const ArrayBridge<uint8>&& Data,const ArrayBridge<s
 	if ( GenerateIndexes )
 	{
 		//	push indexes as glshorts
-		Array<GLshort> Indexes16;
-		for ( int i=0;	i<Indexes.GetSize();	i++ )
-			Indexes16.PushBack( size_cast<GLshort>(Indexes[i]) );
 		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer );
-		glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes16.GetDataSize(), Indexes16.GetArray(), GL_STATIC_DRAW );
-		mIndexCount = size_cast<GLsizei>( Indexes16.GetSize() );
-		mIndexType = Opengl::GetTypeEnum<GLshort>();
+		glBufferData( GL_ELEMENT_ARRAY_BUFFER, Indexes.GetDataSize(), Indexes.GetArray(), GL_STATIC_DRAW );
+		mIndexCount = size_cast<GLsizei>( Indexes.GetSize() );
+		//mIndexType = Opengl::GetTypeEnum<Indexes::TYPE>();
+		mIndexType = Opengl::GetTypeEnum<uint32_t>();
 		Opengl_IsOkay();
 	}
 	
@@ -2402,20 +2539,6 @@ const std::initializer_list<GLenum> Opengl16BitFormats =
 #endif
 };
 
-const std::initializer_list<GLenum> OpenglFloat1Formats =
-{
-	GL_R32F,
-};
-
-const std::initializer_list<GLenum> OpenglFloat2Formats =
-{
-	GL_RG32F,
-};
-
-const std::initializer_list<GLenum> OpenglFloat4Formats =
-{
-	GL_RGBA32F,	//		0x8814
-};
 
 
 
@@ -2430,8 +2553,9 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping( SoyPixelsFormat::RGB,			{GL_RGB} ),
 #endif
 		
+		//	gr: for openvr/steamvr, we're prioritising GL_RGBA8 over GL_RGBA
 #if defined(GL_RGBA8)
-		TPixelFormatMapping( SoyPixelsFormat::RGBA,			{GL_RGBA, GL_RGBA8} ),
+		TPixelFormatMapping( SoyPixelsFormat::RGBA,			{GL_RGBA8,GL_RGBA} ),
 #else
 		TPixelFormatMapping( SoyPixelsFormat::RGBA,			{GL_RGBA} ),
 #endif
@@ -2463,7 +2587,8 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Full,		Opengl16BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Ntsc,		Opengl16BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Smptec,		Opengl16BitFormats ),
-		
+		TPixelFormatMapping(SoyPixelsFormat::uyvy,					Opengl16BitFormats ),
+
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Full,		Opengl8BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Ntsc,		Opengl8BitFormats ),
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Smptec,		Opengl8BitFormats ),
@@ -2481,12 +2606,11 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 #else
 		TPixelFormatMapping( SoyPixelsFormat::BGR,			{ GL_RGB	} ),
 #endif
-
 		
-		TPixelFormatMapping( SoyPixelsFormat::Float1,		OpenglFloat1Formats ),
-		TPixelFormatMapping( SoyPixelsFormat::Float2,		OpenglFloat2Formats ),
-		TPixelFormatMapping( SoyPixelsFormat::Float3,		{ GL_RGB	} ),
-		TPixelFormatMapping( SoyPixelsFormat::Float4,		OpenglFloat4Formats ),
+		TPixelFormatMapping( SoyPixelsFormat::Float1,		{GL_RED},	{GL_R32F} ),
+		TPixelFormatMapping( SoyPixelsFormat::Float2,		{GL_RG},	{GL_RG32F} ),
+		TPixelFormatMapping( SoyPixelsFormat::Float3,		{GL_RGB},	{GL_RGB32F}	),
+		TPixelFormatMapping( SoyPixelsFormat::Float4,		{GL_RGBA},	{GL_RGBA32F} ),
 		
 	};
 	static Array<TPixelFormatMapping> PixelFormatMap( _PixelFormatMap );
@@ -2559,9 +2683,14 @@ SoyPixelsFormat::Type Opengl::GetDownloadPixelFormat(GLenum Format)
 	{
 		auto& FormatMap = FormatMaps[i];
 		
+		//	gr: should we ONLY be checking this (which may be empty)
+		if ( FormatMap.mOpenglInternalFormats.Find(Format) )
+			return FormatMap.mPixelFormat;
+
 		if ( FormatMap.mOpenglFormats.Find(Format) )
 			return FormatMap.mPixelFormat;
 	}
+	
 
 	std::Debug << "Failed to convert glpixelformat " << GetEnumString(Format) << " to soy pixel format" << std::endl;
 	return SoyPixelsFormat::Invalid;

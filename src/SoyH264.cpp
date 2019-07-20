@@ -123,9 +123,12 @@ void ReformatDeliminator(ArrayBridge<uint8>& Data,
 		if ( ChunkLength == 0 )
 			break;
 		{
-			std::stringstream Error;
-			Error << "Extracted NALU length of " << ChunkLength << "/" << Data.GetDataSize();
-			Soy::Assert( ChunkLength <= Data.GetDataSize(), Error.str() );
+			if ( ChunkLength > Data.GetDataSize() )
+			{
+				std::stringstream Error;
+				Error << "Extracted NALU length of " << ChunkLength << "/" << Data.GetDataSize();
+				throw Soy::AssertException(Error);
+			}
 		}
 		
 		InsertChunk( ChunkLength, Data, Position );
@@ -274,7 +277,7 @@ void H264::ConvertToEs(SoyMediaFormat::Type& Format,ArrayBridge<uint8>&& Data)
 }
 
 
-ssize_t H264::FindNaluStartIndex(ArrayBridge<uint8>&& Data,size_t& NaluSize,size_t& HeaderSize)
+size_t H264::FindNaluStartIndex(ArrayBridge<uint8>&& Data,size_t& NaluSize,size_t& HeaderSize)
 {
 	//	look for start of nalu
 	for ( ssize_t i=0;	i<Data.GetSize();	i++ )
@@ -286,15 +289,17 @@ ssize_t H264::FindNaluStartIndex(ArrayBridge<uint8>&& Data,size_t& NaluSize,size
 		
 		return i;
 	}
-	return -1;
+	throw Soy::AssertException("Failed to find NALU start");
 }
 
 
 void H264::ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type NewFormat,ArrayBridge<uint8>& Data)
 {
 	//	verify header
-	Soy::Assert( Data.GetDataSize() > 5, "Missing H264 packet header" );
-	Soy::Assert( SoyMediaFormat::IsH264(DataFormat), "Expecting a kind of H264 format input" );
+	if ( Data.GetDataSize() <= 5 )
+		throw Soy::AssertException("Missing H264 packet header");
+	if ( !SoyMediaFormat::IsH264(DataFormat) )
+		throw Soy::AssertException("Expecting a kind of H264 format input" );
 	
 	//	find real format of data
 	ResolveH264Format( DataFormat, Data );
@@ -358,11 +363,13 @@ void H264::ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type
 	auto ExtractChunk_Avcc = [DataFormat](ArrayBridge<uint8>& Data,size_t Position)
 	{
 		auto LengthSize = GetNaluLengthSize( DataFormat );
-		Soy::Assert( LengthSize != 0, "Unhandled H264 type");
+		if ( LengthSize == 0 )
+			throw Soy::AssertException("Unhandled H264 type");
 		
 		if (Position == Data.GetDataSize() )
 			return (size_t)0;
-		Soy::Assert( Position < Data.GetDataSize(), "H264 ExtractChunkDelin position gone out of bounds" );
+		if ( Position >= Data.GetDataSize() )
+			throw Soy::AssertException("H264 ExtractChunkDelin position gone out of bounds" );
 		
 		size_t ChunkLength = 0;
 		
@@ -405,8 +412,8 @@ void H264::ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type
 		
 		size_t RealHeaderSize = 0;
 		auto Start = H264::FindNaluStartIndex( GetArrayBridge(StartData), NaluSize, RealHeaderSize );
-		Soy::Assert( Start >= 0, "Failed to find NALU header in annex b packet");
-		Soy::Assert( NaluSize != 0, "Failed to find NALU header size in annex b packet");
+		if ( NaluSize == 0 )
+			throw Soy::AssertException("Failed to find NALU header size in annex b packet");
 		
 		//	recalc data start
 		static bool EatNaluByte = true;
@@ -416,7 +423,8 @@ void H264::ConvertToFormat(SoyMediaFormat::Type& DataFormat,SoyMediaFormat::Type
 		size_t EndNaluSize = 0;
 		size_t EndHeaderSize = 0;
 		auto EndOffset = Start + _SearchOffset;
-		Soy::Assert( EndOffset <= Data.GetDataSize(), "search nalu end is too far forward" );
+		if ( EndOffset > Data.GetDataSize() )
+			throw Soy::AssertException("search nalu end is too far forward" );
 		auto EndData = GetRemoteArray( Data.GetArray()+EndOffset, Data.GetDataSize()-EndOffset );
 		auto End = FindNaluStartIndex( GetArrayBridge(EndData), EndNaluSize, EndHeaderSize );
 		if ( End < 0 )

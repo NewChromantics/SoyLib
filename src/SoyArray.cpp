@@ -4,6 +4,16 @@
 #include "HeapArray.hpp"
 #include "RemoteArray.h"
 
+
+
+Soy::ArrayBoundsException::ArrayBoundsException(int Index, size_t MaxSize, const char* Context, const char* PrettyFunction)
+{
+	std::stringstream Error;
+	Error << "Array bounds error [" << Index << "/" << MaxSize << "]: " << Context << " in " << PrettyFunction;
+	mError = Error.str();
+}
+
+
 std::string	SoyArray::OnCheckBoundsError(size_t Index,size_t Size,const std::string& Typename)
 {
 	std::stringstream Error;

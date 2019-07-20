@@ -80,7 +80,8 @@ public:
 	void		Reserve(size_t Size,bool Clear)
 	{
 		//	should we warn here for different size?
-		Soy::Assert( Size != GetSize(), "Reserving different-size FixedRemoteArray" );
+		if ( Size != GetSize() )
+			throw Soy::AssertException("Reserving different-size FixedRemoteArray");
 	}
 	
 	
@@ -106,7 +107,8 @@ public:
 		mmaxsize	( BUFFERSIZE )
 	{
 		//	can't really handle stuff that isn't setup
-		assert( moffset <= mmaxsize );
+		if (moffset > mmaxsize)
+			throw Soy::ArrayBoundsException(moffset, mmaxsize, "RemoteArray initial offset", __PRETTY_FUNCTION__);
 	}
 	template <size_t BUFFERSIZE>
 	RemoteArray(const T (& Buffer)[BUFFERSIZE],const size_t& BufferCounter) :
@@ -115,7 +117,8 @@ public:
 		mmaxsize	( BUFFERSIZE )
 	{
 		//	can't really handle stuff that isn't setup
-		assert( moffset <= mmaxsize );
+		if (moffset > mmaxsize)
+			throw Soy::ArrayBoundsException(moffset, mmaxsize, "RemoteArray initial offset", __PRETTY_FUNCTION__);
 	}
 	explicit RemoteArray(T* Buffer,const size_t BufferSize,size_t& BufferCounter) :
 		moffset		( BufferCounter ),
@@ -123,7 +126,8 @@ public:
 		mmaxsize	( BufferSize )
 	{
 		//	can't really handle stuff that isn't setup
-		assert( moffset <= mmaxsize );
+		if (moffset > mmaxsize)
+			throw Soy::ArrayBoundsException(moffset, mmaxsize, "RemoteArray initial offset", __PRETTY_FUNCTION__);
 	}
 	explicit RemoteArray(const T* Buffer,const size_t BufferSize,const size_t& BufferCounter) :
 		moffset		( const_cast<size_t&>(BufferCounter) ),
@@ -131,7 +135,8 @@ public:
 		mmaxsize	( BufferSize )
 	{
 		//	can't really handle stuff that isn't setup
-		assert( moffset <= mmaxsize );
+		if (moffset > mmaxsize)
+			throw Soy::ArrayBoundsException(moffset, mmaxsize, "RemoteArray initial offset", __PRETTY_FUNCTION__);
 	}
 
 
@@ -155,13 +160,15 @@ public:
 
 	T& operator [] (size_t index)
 	{
-		assert( index >= 0 && index < moffset );
+		if (index < 0 || index >= moffset )
+			throw Soy::ArrayBoundsException(index, moffset, "RemoteArray[]", __PRETTY_FUNCTION__);
 		return mdata[index];
 	}
 
 	const T& operator [] (size_t index) const
 	{
-		assert( index >= 0 && index < moffset );
+		if (index < 0 || index >= moffset)
+			throw Soy::ArrayBoundsException(index, moffset, "RemoteArray[]", __PRETTY_FUNCTION__);
 		return mdata[index];
 	}
 
@@ -182,7 +189,9 @@ public:
 		//	limit size
 		//	gr: assert, safely alloc, and return error. Maybe shouldn't "safely alloc"
 		//	gr: assert over limit, don't silently fail
-		assert( size <= mmaxsize );
+		if (size > mmaxsize )
+			throw Soy::ArrayBoundsException(size, mmaxsize, "SetSize bigger than maximum", __PRETTY_FUNCTION__);
+
 		if ( size > mmaxsize )
 		{
 			size = mmaxsize;
@@ -224,11 +233,8 @@ public:
 
 		//	fail if we try and "allocate" too much
 		if ( endoff > mmaxsize )
-		{
-			assert( endoff <= mmaxsize );
-			return nullptr;
-		}
-			
+			throw Soy::ArrayBoundsException(endoff, mmaxsize, "Allocation overflow", __PRETTY_FUNCTION__);
+
 		moffset = endoff;
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
 		if ( Soy::IsComplexType<TYPE>() )
@@ -252,10 +258,7 @@ public:
 	{
 		//	out of space
 		if ( moffset >= mmaxsize )
-		{
-			assert( moffset < mmaxsize );
-			return mdata[ moffset-1 ];
-		}
+			throw Soy::ArrayBoundsException(moffset, mmaxsize, "PushBack overflow", __PRETTY_FUNCTION__);
 
 		auto& ref = mdata[moffset++];
 		ref = item;
@@ -265,11 +268,8 @@ public:
 	T& PushBack()
 	{
 		//	out of space
-		if ( moffset >= mmaxsize )
-		{
-			assert( moffset < mmaxsize );
-			return mdata[ moffset-1 ];
-		}
+		if (moffset >= MaxSize())
+			throw Soy::ArrayBoundsException(*this, moffset, MaxSize(), "PushBack overflow", __PRETTY_FUNCTION__);
 
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
 		auto& ref = mdata[moffset++];
@@ -292,7 +292,7 @@ public:
 
 	T& PopBack()
 	{
-		assert( GetSize() > 0 );
+		SoyArray_CheckBounds(moffset, *this);
 		return mdata[--moffset];
 	}
 
@@ -310,7 +310,6 @@ public:
 	T* InsertBlock(size_t index,size_t count)
 	{
 		//	do nothing if nothing to add
-		assert( count >= 0 );
 		if ( count == 0 )
 			return IsEmpty() ? NULL : (mdata + index);
 
@@ -342,18 +341,20 @@ public:
 		throw Soy::AssertException("Todo: Moveblock");
 	}
 	
-	void RemoveBlock(size_t index,size_t count)
+	void RemoveBlock(size_t Index,size_t Count)
 	{
 		//	do nothing if nothing to remove
-		assert( count >= 0 );
-		if ( count == 0 )
+		if ( Count == 0 )
 			return;
 
 		//	assert if we're trying to remove item[s] from outside the array to avoid memory corruptiopn
-		assert( index >= 0 && index < GetSize() && (index+count-1) < GetSize() );
+		if (Index < 0)
+			throw Soy::ArrayBoundsException(Index, MaxSize(), "RemoveBlock out of bounds", __PRETTY_FUNCTION__);
+		if (Index >= GetSize() || (Index + Count - 1) >= GetSize())
+			throw Soy::ArrayBoundsException(Index, MaxSize(), "RemoveBlock past end of bounds", __PRETTY_FUNCTION__);
 
-		T* dest = mdata + index;
-		T* src = mdata + index + count;
+		T* dest = mdata + Index;
+		T* src = mdata + Index + Count;
 		ssize_t left = ((mdata+moffset) - src);
 
 		if ( Soy::DoComplexCopy<T,T>() )
@@ -366,7 +367,7 @@ public:
 		{
 			if ( left > 0 )
 				memmove( dest, src, left * sizeof(T) );
-			moffset -= count;
+			moffset -= Count;
 		}			
 	}
 

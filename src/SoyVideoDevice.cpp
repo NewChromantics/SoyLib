@@ -37,7 +37,8 @@ std::ostream& operator<< (std::ostream &out,const TVideoDeviceMeta &in)
 SoyPixelsImpl& TVideoFrameImpl::GetPixels()
 {
 	auto Pixels = GetPixelsShared();
-	Soy::Assert( Pixels != nullptr, "Pixels expected");
+	if ( Pixels == nullptr )
+		throw Soy::AssertException("Pixels expected");
 	return *Pixels;
 }
 
@@ -121,7 +122,8 @@ void TVideoDevice::UnlockNewFrame(SoyTime Timecode)
 	if ( !mFirstFrameTime.IsValid() )
 		mFirstFrameTime = mLastFrameTime;
 	
-	mOnNewFrame.OnTriggered( *this );
+	if ( mOnNewFrame )
+		mOnNewFrame( *this );
 }
 
 

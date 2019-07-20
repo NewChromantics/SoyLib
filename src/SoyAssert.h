@@ -26,15 +26,31 @@ namespace Soy
 };
 
 
+//	helper which inserts the function name
+#define Soy_AssertException(Message)	Soy::AssertException( __PRETTY_FUNCTION__, (Message) )
+
 class Soy::AssertException : public std::exception
 {
 public:
+	//	2 param version for easy  AssertException(__PRETTY_FUNCTION__,"Message")
 	AssertException(const std::string& Message) :
 		mError	( Message )
 	{
 	}
+	AssertException(const std::stringstream& Message) :
+		mError	( Message.str() )
+	{
+	}
+	AssertException(const char* Function,const std::stringstream& Message) :
+		mError	( std::string(Function) + std::string(" ") + Message.str() )
+	{
+	}
 	AssertException(const char* Message) :
 		mErrorConst	( Message )
+	{
+	}
+	AssertException(const char* Function,const char* Message) :
+		mError	( std::string(Function) + std::string(" ") + std::string(Message) )
 	{
 	}
 #if defined(__OBJC__)
@@ -65,13 +81,13 @@ namespace Soy
 
 	namespace Private
 	{
-		void		Assert_Impl(TErrorMessageFunc ErrorMessageFunc) throw(AssertException);
+		void		Assert_Impl(TErrorMessageFunc ErrorMessageFunc);
 	};
 	
 	//	replace asserts with exception. If condition fails false is returned to save code
 
 	//	allow? inline by having the condition here and branching and doing the other stuff on failure
-	inline bool		Assert_Impl(bool Condition,TErrorMessageFunc ErrorMessageFunc) throw(AssertException)
+	inline bool		Assert_Impl(bool Condition,TErrorMessageFunc ErrorMessageFunc)
 	{
 		if ( Condition )
 			return true;
@@ -79,7 +95,7 @@ namespace Soy
 		return false;
 	}
 	
-	inline bool	Assert(bool Condition,std::function<std::string()>&& ErrorMessageFunc) throw(AssertException)
+	inline bool	Assert(bool Condition,std::function<std::string()>&& ErrorMessageFunc)
 	{
 		__thread static std::function<std::string()>* LastFunc = nullptr;
 		__thread static TErrorMessageFunc ErrorFunc = nullptr;
@@ -95,7 +111,7 @@ namespace Soy
 	}
 	
 	//	helpful wrappers for common string types
-	inline bool	Assert(bool Condition,const std::string& ErrorMessage) throw(AssertException)
+	inline bool	Assert(bool Condition,const std::string& ErrorMessage)
 	{
 		__thread static const std::string* LastErrorMessage = nullptr;
 		__thread static TErrorMessageFunc ErrorFunc = nullptr;
@@ -110,7 +126,7 @@ namespace Soy
 		return Assert_Impl( Condition, ErrorFunc );
 	}
 	
-	inline bool	Assert(bool Condition, std::stringstream&& ErrorMessage ) throw( AssertException )
+	inline bool	Assert(bool Condition, std::stringstream&& ErrorMessage )
 	{
 		__thread static std::stringstream* LastErrorMessage = nullptr;
 		__thread static TErrorMessageFunc ErrorFunc = nullptr;
@@ -125,8 +141,8 @@ namespace Soy
 		return Assert_Impl( Condition, ErrorFunc );
 	}
 	
-	bool	Assert(bool Condition, std::ostream& ErrorMessage) throw(AssertException);
-	inline bool	Assert(bool Condition, std::stringstream& ErrorMessage) throw(AssertException)
+	bool	Assert(bool Condition, std::ostream& ErrorMessage);
+	inline bool	Assert(bool Condition, std::stringstream& ErrorMessage)
 	{
 		__thread static std::stringstream* LastErrorMessage = nullptr;
 		__thread static TErrorMessageFunc ErrorFunc = nullptr;
@@ -142,7 +158,7 @@ namespace Soy
 	}
 	
 	//	const char* version to avoid unncessary allocation to std::string
-	inline bool	Assert(bool Condition,const char* ErrorMessage) throw(AssertException)
+	inline bool	Assert(bool Condition,const char* ErrorMessage)
 	{
 		//	lambdas with capture are expensive to construct and destruct
 		__thread static const char* LastErrorMessage = nullptr;

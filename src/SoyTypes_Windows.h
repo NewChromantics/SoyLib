@@ -35,8 +35,12 @@
 #include <direct.h>
 #pragma comment(lib,"winmm.lib")
 
+//	get rid of some annoying windows macros
+#undef CreateWindow
+
 
 #define __func__		__FUNCTION__
+#define __PRETTY_FUNCTION__		__FUNCTION__
 #define __thread		__declspec( thread )
 // Attribute to make function be exported from a plugin
 #define __export		extern "C" __declspec(dllexport)
@@ -60,13 +64,4 @@ typedef signed __int64		int64;
 typedef unsigned __int64	uint64;
 */
 typedef SSIZE_T				ssize_t;
-
-
-
-
-//	todo properly! stub for now (and use TVersion)
-namespace Platform
-{
-	inline size_t	GetWindowsVersion()	{	return 8;	}
-}
 

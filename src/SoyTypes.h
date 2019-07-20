@@ -73,23 +73,7 @@ class ArrayInterface;
 
 namespace Soy
 {
-	//	http://stackoverflow.com/a/4956493/355753
-	template <typename T>
-	inline T SwapEndian(T u)
-	{
-		union
-		{
-			T		u;
-			uint8	u8[sizeof(T)];
-		} source, dest;
-		
-		source.u = u;
-		
-		for (size_t k = 0; k < sizeof(T); k++)
-			dest.u8[k] = source.u8[sizeof(T) - k - 1];
-		
-		return dest.u;
-	}
+	void		EndianSwap(uint32_t& Value);
 }
 
 namespace Soy
@@ -297,6 +281,48 @@ private:
 };
 
 
+class Soy::TVersion
+{
+public:
+	TVersion(size_t Major=0,size_t Minor=0,size_t Patch=0) :
+	mMajor	( Major ),
+	mMinor	( Minor ),
+	mPatch	( Patch )
+	{
+	}
+	explicit TVersion(std::string VersionStr,const std::string& Prefix="");
+	
+	//	gr: throw if the minor is going to overflow
+	size_t	GetHundred() const;
+	size_t	GetMillion() const;	//	int representation xxx.xxx.xxx
+	
+	bool	operator<(const TVersion& that) const	{	return GetMillion() < that.GetMillion();	}
+	bool	operator<=(const TVersion& that) const	{	return GetMillion() <= that.GetMillion();	}
+	bool	operator>(const TVersion& that) const	{	return GetMillion() > that.GetMillion();	}
+	bool	operator>=(const TVersion& that) const	{	return GetMillion() >= that.GetMillion();	}
+	bool	operator==(const TVersion& that) const	{	return GetMillion() == that.GetMillion();	}
+	bool	operator!=(const TVersion& that) const	{	return GetMillion() != that.GetMillion();	}
+	
+public:
+	size_t	mMajor = 0;
+	size_t	mMinor = 0;
+	size_t	mPatch = 0;
+};
+
+namespace Soy
+{
+	inline std::ostream& operator<<(std::ostream &out,const Soy::TVersion& in)
+	{
+		//	gr: this may want to include patch, but maybe some things depend on it?
+		out << in.mMajor << '.' << in.mMinor << '.' << in.mPatch;
+		return out;
+	}
+}
+
+
+
+
+
 namespace Soy
 {
 	namespace Private
@@ -335,49 +361,21 @@ namespace Platform
 	void				IsOkay(int Error,const std::string& Context);
 	void				IsOkay(const std::string& Context);	//	checks last error
 	void				ThrowLastError(const std::string& Context);	//	throws an exception with the last error (even if there is none)
+
+	//	gr: is this the right place? I put it with OS errors
+	Soy::TVersion		GetOsVersion();
 };
 
 
 
 
-class Soy::TVersion
+inline void Soy::EndianSwap(uint32_t& Value)
 {
-public:
-	TVersion() :
-		mMajor	( 0 ),
-		mMinor	( 0 )
-	{
-	}
-	TVersion(size_t Major,size_t Minor) :
-		mMajor	( Major ),
-		mMinor	( Minor )
-	{
-	}
-	explicit TVersion(std::string VersionStr,const std::string& Prefix="");
-	
-	//	gr: throw if the minor is going to overflow
-	size_t	GetHundred() const;
-	
-	bool	operator<(const TVersion& that) const	{	return GetHundred() < that.GetHundred();	}
-	bool	operator<=(const TVersion& that) const	{	return GetHundred() <= that.GetHundred();	}
-	bool	operator>(const TVersion& that) const	{	return GetHundred() > that.GetHundred();	}
-	bool	operator>=(const TVersion& that) const	{	return GetHundred() >= that.GetHundred();	}
-	bool	operator==(const TVersion& that) const	{	return GetHundred() == that.GetHundred();	}
-	bool	operator!=(const TVersion& that) const	{	return GetHundred() != that.GetHundred();	}
-	
-public:
-	size_t	mMajor;
-	size_t	mMinor;
-};
-
-namespace Soy
-{
-inline std::ostream& operator<<(std::ostream &out,const Soy::TVersion& in)
-{
-	out << in.mMajor << '.' << in.mMinor;
-	return out;
+	//	https://stackoverflow.com/a/48793665/355753
+#if defined(TARGET_WINDOWS)
+	Value = _byteswap_ulong(Value);
+#else
+	//	gcc
+	Value = __builtin_bswap32(Value);
+#endif
 }
-}
-
-
-
