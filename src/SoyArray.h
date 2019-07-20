@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <SoyTypes.h>
+#include "SoyTypes.h"
 
 namespace Soy
 {
