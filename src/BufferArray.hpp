@@ -304,8 +304,6 @@ public:
 			return;
 
 		//	assert if we're trying to remove item[s] from outside the array to avoid memory corruptiopn
-		if (Index < 0 )
-			throw Soy::ArrayBoundsException( Index, MaxSize(), "RemoveBlock out of bounds", __PRETTY_FUNCTION__);
 		if(Index >= GetSize() || (Index + Count - 1) >= GetSize() )
 			throw Soy::ArrayBoundsException( Index, MaxSize(), "RemoveBlock past end of bounds", __PRETTY_FUNCTION__);
 

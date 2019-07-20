@@ -27,6 +27,7 @@ class Soy::ArrayBoundsException : public std::exception
 public:
 	//	2 param version for easy  AssertException(__PRETTY_FUNCTION__,"Message")
 	ArrayBoundsException(int Index, size_t MaxSize, const char* Context, const char* PrettyFunction);
+	ArrayBoundsException(size_t Index, size_t MaxSize, const char* Context, const char* PrettyFunction);
 
 	__noexcept_prefix virtual const char* what() const __noexcept { return mError.c_str(); }
 
