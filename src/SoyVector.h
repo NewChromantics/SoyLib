@@ -117,7 +117,9 @@ public:
 	SWIZZLE3(y,y,y);
 	SWIZZLE3(z,z,z);
 	SWIZZLE3(x,y,z);
-	
+
+	FixedRemoteArray<TYPE>		GetArray() const 	{	return FixedRemoteArray<TYPE>( const_cast<TYPE*>(&x), 3);	}
+
 	const TYPE&	operator[](size_t i) const
 	{
 		const TYPE* Elements[] = { &x,&y,&z };
@@ -170,7 +172,7 @@ public:
 	SWIZZLE3(z,z,z);
 	SWIZZLE3(x,y,z);
 	
-	FixedRemoteArray<TYPE>		GetArray() 	{	return FixedRemoteArray<TYPE>(&x, 4);	}
+	FixedRemoteArray<TYPE>		GetArray() const 	{	return FixedRemoteArray<TYPE>(&x, 4);	}
 
 
 	const TYPE&	operator[](size_t i) const
