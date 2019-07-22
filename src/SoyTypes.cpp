@@ -20,6 +20,10 @@
 #endif
 
 #if defined(TARGET_ANDROID)
+//#define ENABLE_JAVA
+#endif
+
+#if defined(TARGET_ANDROID) && defined(ENABLE_JAVA)
 #include "SoyJava.h"
 #endif
 
@@ -48,7 +52,7 @@ Soy::TVersion Platform::GetSdkVersion()
 
 bool Platform::Init()
 {
-#if defined(TARGET_ANDROID)
+#if defined(TARGET_ANDROID) && defined(ENABLE_JAVA)
 	if ( !Java::HasVm() )
 		return false;
 #endif

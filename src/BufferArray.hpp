@@ -1,7 +1,6 @@
 #pragma once
 
 
-#include <cassert>
 #include <cstddef>
 #include "SoyTypes.h"	//	gr: not sure why I have to include this, when it's included earlier in Soy.hpp...
 #include "SoyArray.h"
@@ -120,7 +119,9 @@ public:
 		//	limit size
 		//	gr: assert, safely alloc, and return error. Maybe shouldn't "safely alloc"
 		//	gr: assert over limit, don't silently fail
-		assert( size <= mmaxsize );
+		if (size > mmaxsize)
+			throw Soy::ArrayBoundsException( size, mmaxsize, "SetSize>Max", __PRETTY_FUNCTION__);
+
 		if ( size > mmaxsize )
 		{
 			size = mmaxsize;
@@ -165,10 +166,7 @@ public:
 
 		//	fail if we try and "allocate" too much
 		if ( endoff > mmaxsize )
-		{
-			assert( endoff <= mmaxsize );
-			return nullptr;
-		}
+			throw Soy::ArrayBoundsException( endoff, mmaxsize, "Allocation overflow", __PRETTY_FUNCTION__);
 		
 		moffset = endoff;
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
@@ -193,10 +191,7 @@ public:
 	{
 		//	out of space
 		if ( moffset >= mmaxsize )
-		{
-			assert( moffset < mmaxsize );
-			return mdata[ moffset-1 ];
-		}
+			throw Soy::ArrayBoundsException( moffset, mmaxsize, "PushBack overflow", __PRETTY_FUNCTION__);
 
 		auto& ref = mdata[moffset++];
 		ref = item;
@@ -207,11 +202,8 @@ public:
 	{
 		//	out of space
 		if ( moffset >= MaxSize() )
-		{
-			assert( moffset < MaxSize() );
-			return mdata[ moffset-1 ];
-		}
-
+			throw Soy::ArrayBoundsException(*this, moffset, MaxSize(), "PushBack overflow", __PRETTY_FUNCTION__);
+	
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
 		auto& ref = mdata[moffset++];
 		ref = T();
@@ -305,17 +297,18 @@ public:
 		throw Soy::AssertException("Todo: bufferarray MoveBlock");
 	}
 
-	void RemoveBlock(size_t index, size_t count)
+	void RemoveBlock(size_t Index, size_t Count)
 	{
 		//	do nothing if nothing to remove
-		if ( count == 0 )
+		if (Count == 0 )
 			return;
 
 		//	assert if we're trying to remove item[s] from outside the array to avoid memory corruptiopn
-		assert( index >= 0 && index < GetSize() && (index+count-1) < GetSize() );
+		if(Index >= GetSize() || (Index + Count - 1) >= GetSize() )
+			throw Soy::ArrayBoundsException( Index, MaxSize(), "RemoveBlock past end of bounds", __PRETTY_FUNCTION__);
 
-		T* dest = mdata + index;
-		T* src = mdata + index + count;
+		T* dest = mdata + Index;
+		T* src = mdata + Index + Count;
 		ssize_t left = static_cast<int>((mdata+moffset) - src);
 
 		if ( Soy::DoComplexCopy<T,T>() )
@@ -328,7 +321,7 @@ public:
 		{
 			if ( left > 0 )
 				memmove( dest, src, left * sizeof(T) );
-			moffset -= count;
+			moffset -= Count;
 		}			
 	}
 

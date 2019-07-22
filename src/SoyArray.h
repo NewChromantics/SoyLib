@@ -1,6 +1,12 @@
 #pragma once
 
 #include <string>
+#include "SoyTypes.h"
+
+namespace Soy
+{
+	class ArrayBoundsException;
+}
 
 namespace SoyArray
 {
@@ -12,6 +18,21 @@ namespace SoyArray
 	bool		CheckBounds(size_t Index,const ARRAY& This);
 #endif
 	std::string	OnCheckBoundsError(size_t Index,size_t Size,const std::string& Typename);
+};
+
+
+
+class Soy::ArrayBoundsException : public std::exception
+{
+public:
+	//	2 param version for easy  AssertException(__PRETTY_FUNCTION__,"Message")
+	ArrayBoundsException(int Index, size_t MaxSize, const char* Context, const char* PrettyFunction);
+	ArrayBoundsException(size_t Index, size_t MaxSize, const char* Context, const char* PrettyFunction);
+
+	__noexcept_prefix virtual const char* what() const __noexcept { return mError.c_str(); }
+
+public:
+	std::string			mError;
 };
 
 

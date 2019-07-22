@@ -2235,7 +2235,7 @@ void SoyPixelsImpl::Copy(const SoyPixelsImpl& That,const TSoyPixelsCopyParams& P
 		}
 
 		//	copy row by row
-		auto CopyWidth = std::min( ThisWidth, ThatWidth );
+		//auto CopyWidth = std::min( ThisWidth, ThatWidth );
 		auto CopyHeight = std::min( ThisHeight, ThatHeight );
 		
 		auto ThisStride = ThisChannels * ThisWidth;
