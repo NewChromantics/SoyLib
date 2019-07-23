@@ -147,6 +147,6 @@ class Gui::TColourPicker
 {
 public:
 	std::function<void(vec3x<uint8_t>&)>	mOnValueChanged;
-	std::function<void(vec3x<uint8_t>)>		mOnDialogClosed;
+	std::function<void()>					mOnDialogClosed;
 };
 
