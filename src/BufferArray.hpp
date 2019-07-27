@@ -202,7 +202,7 @@ public:
 	{
 		//	out of space
 		if ( moffset >= MaxSize() )
-			throw Soy::ArrayBoundsException(*this, moffset, MaxSize(), "PushBack overflow", __PRETTY_FUNCTION__);
+			throw Soy::ArrayBoundsException( moffset, MaxSize(), "PushBack overflow", __PRETTY_FUNCTION__);
 	
 		//	we need to re-initialise an element in the buffer array as the memory (eg. a string) could still have old contents
 		auto& ref = mdata[moffset++];
