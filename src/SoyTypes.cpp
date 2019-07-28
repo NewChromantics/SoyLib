@@ -32,6 +32,11 @@
 #endif
 
 
+#if defined(TARGET_LUMIN)
+#include <ml_api.h>
+#endif
+
+
 #if defined(TARGET_WINDOWS) && !defined(NO_ERROR)
 #define NO_ERROR	S_OK	//	zero, but for clarity
 #elif !defined(NO_ERROR)
@@ -448,3 +453,14 @@ Soy::TVersion Platform::GetOsVersion()
 	return GetFileVersion("kernel32.dll");
 }
 #endif
+
+
+#if defined(TARGET_LUMIN)
+Soy::TVersion Platform::GetOsVersion()
+{
+	//	see MLGetVersion()
+	//	there's also a 4th; MLSDK_VERSION_BUILD_ID
+	return Soy::TVersion( MLSDK_VERSION_MAJOR, MLSDK_VERSION_MINOR, MLSDK_VERSION_REVISION );
+}
+#endif
+
