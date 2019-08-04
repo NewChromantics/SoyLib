@@ -10,7 +10,7 @@
 #include "SoyTime.h"
 
 
-#if defined(TARGET_ANDROID)||defined(TARGET_IOS)||defined(TARGET_PS4)
+#if defined(TARGET_ANDROID)||defined(TARGET_IOS)||defined(TARGET_PS4)||defined(TARGET_LUMIN)
 #include <memory>
 #define STD_ALLOC
 #endif

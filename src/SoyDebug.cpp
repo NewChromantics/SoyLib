@@ -13,11 +13,9 @@
 #include <android/log.h>
 #endif
 
-
-namespace Soy
-{
-	std::string		DebugContext = "Pop";	//	where applicable on platforms a context/tag for debug prints
-};
+#if defined(TARGET_LUMIN)
+#include <ml_logging.h>
+#endif
 
 
 #if defined(TARGET_WINDOWS)
@@ -88,7 +86,7 @@ __thread std::DebugBufferString* ThreadBuffer = nullptr;	//	thread_local not sup
 #if defined(TARGET_ANDROID)
 void Platform::DebugPrint(const std::string& Message)
 {
-	__android_log_print( ANDROID_LOG_INFO, Soy::DebugContext.c_str(), "pop: %s", Message.c_str() );
+	__android_log_print( ANDROID_LOG_INFO, Platform::LogIdentifer, "pop: %s", Message.c_str() );
 }
 #endif
 
@@ -104,6 +102,13 @@ void Platform::DebugPrint(const std::string& Message)
 void Platform::DebugPrint(const std::string& Message)
 {
 	printf( "PopPs4: %s\n", Message.c_str() );
+}
+#endif
+
+#if defined(TARGET_LUMIN)
+void Platform::DebugPrint(const std::string& Message)
+{
+	ML_LOG_TAG( Info, Platform::LogIdentifer, "%s", Message.c_str() );
 }
 #endif
 
