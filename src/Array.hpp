@@ -1,9 +1,3 @@
-/*
-	Twilight Prophecy SDK
-	A multi-platform development system for virtual reality and multimedia.
-
-	Copyright (C) 1997-2003 Twilight 3D Finland Oy Ltd.
-*/
 #pragma once
 
 #include <mutex>

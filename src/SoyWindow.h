@@ -13,6 +13,8 @@ namespace SoyMouseButton
 		Left = 0,
 		Right = 1,
 		Middle = 2,
+		Back = 3,
+		Forward = 4,
 	};
 }
 
@@ -133,5 +135,20 @@ public:
 	virtual void					OnChanged();	//	helper to do GetValue and call the callback
 	
 	std::function<void(bool&)>		mOnValueChanged;	//	reference so caller can change value in the callback
+};
+
+
+namespace Gui
+{
+	class TColourPicker;
+}
+
+//	colour pickers are temporary dialogs on windows & osx, but can have consistent callbacks
+//	windows' default colour picker has no alpha, so we're not supporting it atm
+class Gui::TColourPicker
+{
+public:
+	std::function<void(vec3x<uint8_t>&)>	mOnValueChanged;
+	std::function<void()>					mOnDialogClosed;
 };
 

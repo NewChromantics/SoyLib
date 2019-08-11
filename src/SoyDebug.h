@@ -34,6 +34,10 @@ namespace Platform
 	bool	DebugBreak();
 	bool	IsDebuggerAttached();
 	void	DebugPrint(const std::string& String);
+	
+#if defined(TARGET_LUMIN) || defined(TARGET_ANDROID)
+	extern const char*	LogIdentifer;	//	define this in your app
+#endif
 }
 
 namespace Soy

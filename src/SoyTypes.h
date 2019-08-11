@@ -32,6 +32,8 @@ struct NonCopyable {
 #include "SoyTypes_Windows.h"
 #elif defined(TARGET_PS4)
 #include "SoyTypes_Ps4.h"
+#elif defined(TARGET_LUMIN)
+#include "SoyTypes_Lumin.h"
 #else
 #error no TARGET_XXX defined
 #endif
