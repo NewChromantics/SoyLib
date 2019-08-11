@@ -502,7 +502,7 @@ bool prmem::HeapInfo::Debug_Validate(const void* Object) const
 	if ( !IsValid() )	
 		return true;
 
-#if defined(WINHEAP_ALLOC)
+#if defined(WINHEAP_ALLOC) && !defined(TARGET_UWP)
 	//	if we have debug info, catch the corruption and print out all our allocs
 	const prmem::HeapDebugBase* pDebug = GetDebug();
 	if ( pDebug )

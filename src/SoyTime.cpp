@@ -41,7 +41,9 @@ std::string SoyTime::ToString() const
 
 SoyTime SoyTime::Now()
 {
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_UWP)
+	auto MilliSecs = GetTickCount();
+#elif defined(TARGET_WINDOWS)
 	auto MilliSecs = timeGetTime();
 #elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)||defined(TARGET_PS4)
 	struct timeval now;

@@ -13,7 +13,9 @@ struct NonCopyable {
 	#error Compiler now defines TARGET_WINDOWS
 #endif
 #if defined(_MSC_VER) && !defined(TARGET_PS4)
-	#if defined(_WIN64)
+	#if defined(TARGET_UWP)
+		#define TARGET_WINDOWS	TARGET_UWP
+	#elif defined(_WIN64)
 		#define TARGET_WINDOWS 64
 	#else
 		#define TARGET_WINDOWS 32
@@ -98,19 +100,6 @@ namespace std
 #if defined(__cpp_rtti) || defined(GCC_ENABLE_CPP_RTTI) || __has_feature(cxx_rtti)
 #define ENABLE_RTTI
 #endif
-
-
-
-
-class ofFilePath
-{
-public:
-	static std::string		getFileName(const std::string& Filename,bool bRelativeToData=true);
-};
-
-
-
-inline std::string ofToDataPath(const std::string& LocalPath,bool FullPath=false)	{	return LocalPath;	}
 
 
 namespace Soy
