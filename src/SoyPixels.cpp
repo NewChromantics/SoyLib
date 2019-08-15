@@ -1254,7 +1254,7 @@ void ConvertFormat_GreyscaleToRgba(ArrayInterface<uint8>& PixelsArray,SoyPixelsM
 }
 
 
-bool ConvertFormat_RGBAToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
+bool ConvertFormat_RGBAToGreyscale(ArrayInterface<uint8>& PixelsArray,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	auto Height = Meta.GetHeight();
 	auto PixelCount = Meta.GetWidth() * Height;
@@ -1264,8 +1264,11 @@ bool ConvertFormat_RGBAToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& 
 	//	todo: store alpha in loop
 	assert( GreyscaleChannels == 1 );
 
+	uint8_t* Pixels = PixelsArray.GetArray();
+	
 	for ( int p=0;	p<PixelCount;	p++ )
 	{
+		//	todo: ignore alpha if present
 		float Intensity = 0.f;
 		int ReadChannels = 3;
 		for ( int c=0;	c<ReadChannels;	c++ )
@@ -1273,11 +1276,12 @@ bool ConvertFormat_RGBAToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& 
 		Intensity /= ReadChannels;
 		
 		uint8& Greyscale = Pixels[ p * GreyscaleChannels ];
-		Greyscale = std::clamped<int>( static_cast<int>(Intensity), 0, 255 );
+		//Greyscale = std::clamped<int>( static_cast<int>(Intensity), 0, 255 );
+		Greyscale = static_cast<int>(Intensity);
 	}
 
 	//	half the pixels & change format
-	Pixels.SetSize( PixelCount * GreyscaleChannels );
+	PixelsArray.SetSize( PixelCount * GreyscaleChannels );
 	Meta.DumbSetFormat( NewFormat );
 	assert( Meta.IsValid() );
 	assert( Meta.GetHeight() == Height );
