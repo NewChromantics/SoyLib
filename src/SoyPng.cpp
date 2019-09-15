@@ -302,8 +302,21 @@ bool TPng::ReadTail(SoyPixelsImpl& Pixels,ArrayBridge<char>& Data,std::stringstr
 	return true;
 }
 
+int GetMinizCompressionLevel(float Levelf)
+{
+	//	0-10
+	auto Level = static_cast<int>( Levelf * MZ_UBER_COMPRESSION );
+	if ( Level < MZ_NO_COMPRESSION || Level > MZ_UBER_COMPRESSION )
+	{
+		std::stringstream Error;
+		Error << "Png compression level " << Levelf << "/" << Level << " out of mini-z range(0-1)";
+		throw Soy::AssertException(Error);
+	}
 
-void TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression)
+	return Level;
+}
+
+void TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression,float CompressionLevel)
 {
 	if ( Compression == TCompression::DEFLATE )
 	{
@@ -322,16 +335,16 @@ void TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 		}
 
 		//	use miniz to compress with deflate
-		auto CompressionLevel = MZ_NO_COMPRESSION;
+		auto CompressionLevelEnum = GetMinizCompressionLevel( CompressionLevel );
 		std::stringstream Debug_TimerName;
-		Debug_TimerName << "Deflate compression; " << Soy::FormatSizeBytes(FilteredPixels.GetDataSize()) << ". Compression level: " << CompressionLevel;
+		Debug_TimerName << "Deflate compression; " << Soy::FormatSizeBytes(FilteredPixels.GetDataSize()) << ". Compression level: " << CompressionLevelEnum;
 		ofScopeTimerWarning DeflateCompressTimer( Debug_TimerName.str().c_str(), 3 );
 	
 		auto DefAllocated = static_cast<mz_ulong>( 1.2f * FilteredPixels.GetDataSize() );
 		mz_ulong DefUsed = DefAllocated;
 		auto* DefData = PngData.PushBlock(DefAllocated);
 		auto DecompressedSize = size_cast<mz_ulong>(FilteredPixels.GetDataSize());
-		auto Result = mz_compress2( reinterpret_cast<Byte*>(DefData), &DefUsed, FilteredPixels.GetArray(), DecompressedSize, CompressionLevel );
+		auto Result = mz_compress2( reinterpret_cast<Byte*>(DefData), &DefUsed, FilteredPixels.GetArray(), DecompressedSize, CompressionLevelEnum );
 		if ( Result != MZ_OK )
 			throw Soy_AssertException("mz compression failed");
 	
@@ -453,7 +466,7 @@ bool TPng::GetDeflateData(Array<char>& DeflateData,const ArrayBridge<uint8>& Pix
 
 
 
-void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,ArrayBridge<uint8_t>* Exif)
+void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,float CompressionLevel,ArrayBridge<uint8_t>* Exif)
 {
 	//	remove need for Png. Isn't this deprecated anyway
 #if defined(TARGET_PS4)
@@ -485,7 +498,7 @@ void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,ArrayBr
 		//	attempt conversion
 		OtherFormat.SetFormat( NewFormat );
 		
-		GetPng( OtherFormat, PngData );
+		GetPng( OtherFormat, PngData, CompressionLevel );
 		return;
 	}
 	
@@ -531,7 +544,7 @@ void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,ArrayBr
 	//	write data chunks
 	Array<char> PixelData;
 	PixelData.PushBackArray( IDAT );
-	TPng::GetPngData( PixelData, Pixels, static_cast<TPng::TCompression::Type>(Compression) );
+	TPng::GetPngData( PixelData, Pixels, static_cast<TPng::TCompression::Type>(Compression), CompressionLevel );
 	
 	//	write Tail chunks
 	Array<char> Tail;
