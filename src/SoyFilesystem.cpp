@@ -71,7 +71,7 @@ auto StreamRelease = [](FSEventStreamRef& Stream)
 
 
 #if defined(TARGET_OSX)
-void OnFileChanged(
+static void OnFileChanged(
     ConstFSEventStreamRef streamRef,
     void *clientCallBackInfo,
     size_t numEvents,
@@ -79,7 +79,7 @@ void OnFileChanged(
     const FSEventStreamEventFlags eventFlags[],
     const FSEventStreamEventId eventIds[])
 {
-	auto& FileWatch = *reinterpret_cast<Soy::TFileWatch*>( clientCallBackInfo );
+	auto& FileWatch = *reinterpret_cast<Platform::TFileMonitor*>( clientCallBackInfo );
 	char **paths = reinterpret_cast<char **>(eventPaths);
 	
 	for ( int e=0;	e<numEvents;	e++ )
@@ -89,13 +89,13 @@ void OnFileChanged(
 		//const FSEventStreamEventId EventIds( eventIds[e] );
 		
 		if ( FileWatch.mOnChanged )
-			FileWatch.mOnChanged( Filename );
+			FileWatch.mOnChanged();
 	}
 }
 #endif
 
 
-Soy::TFileWatch::TFileWatch(const std::string& Filename)
+Platform::TFileMonitor::TFileMonitor(const std::string& Filename)
 
 #if defined(TARGET_OSX)
 :
@@ -103,7 +103,7 @@ Soy::TFileWatch::TFileWatch(const std::string& Filename)
 #endif
 {
 	//	debug callback
-	auto DebugOnChanged = [](const std::string& Filename)
+	auto DebugOnChanged = [=]()
 	{
 		std::Debug << Filename << " changed" << std::endl;
 	};
@@ -136,7 +136,7 @@ Soy::TFileWatch::TFileWatch(const std::string& Filename)
 }
 
 
-Soy::TFileWatch::~TFileWatch()
+Platform::TFileMonitor::~TFileMonitor()
 {
 }
 

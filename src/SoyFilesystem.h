@@ -37,6 +37,8 @@ class ArrayBridge;
 
 namespace Platform
 {
+	class TFileMonitor;
+	
 	void		EnumFiles(std::string Directory,std::function<void(const std::string&)> OnFileFound);	//	end with ** to recurse
 	bool		EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound);
 	void		GetSystemFileExtensions(ArrayBridge<std::string>&& Extensions);
@@ -76,25 +78,18 @@ namespace Platform
 namespace Soy
 {
 	SoyTime		GetFileTimestamp(const std::string& Filename);
-	
-	class TFileWatch;
-};
-
-
-namespace Soy
-{
-	class TFileWatch;
 };
 
 
 
-class Soy::TFileWatch
+
+class Platform::TFileMonitor
 {
 public:
-	TFileWatch(const std::string& Filename);
-	~TFileWatch();
+	TFileMonitor(const std::string& Filename);
+	~TFileMonitor();
 	
-	std::function<void(const std::string&)>	mOnChanged;
+	std::function<void()>		mOnChanged;
 	
 #if defined(TARGET_OSX)
 	CFPtr<CFStringRef>			mPathString;
