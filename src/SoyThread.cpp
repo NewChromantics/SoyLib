@@ -2,9 +2,6 @@
 #include "SoyDebug.h"
 #include <future>
 
-#if defined(PLATFORM_OSX)
-#include <pthread.h>
-#endif
 
 #if defined(TARGET_PS4)
 #include <pthread.h>
