@@ -24,8 +24,7 @@
 namespace Opengl
 {
 	//	static method is slow, cache on a context!
-	std::map<OpenglExtensions::Type,bool>			SupportedExtensions;
-	extern std::map<OpenglExtensions::Type,Soy::TVersion>	ImplicitExtensions;
+	std::map<OpenglExtensions::Type,bool>	SupportedExtensions;
 	
 	ssize_t	gTextureAllocationCount=0;
 };
@@ -47,20 +46,28 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 	{	OpenglExtensions::ImageExternal,		"GL_OES_EGL_image_external"	},
 	{	OpenglExtensions::ImageExternalSS3,		"GL_OES_EGL_image_external_essl3"	},
 	{	OpenglExtensions::GenerateMipMap,		"GenerateMipMap"	},
+	{	OpenglExtensions::Sync,					"Sync"	},
 };
 
-std::map<OpenglExtensions::Type,Soy::TVersion> Opengl::ImplicitExtensions =
+namespace Opengl
 {
-	{	OpenglExtensions::VertexArrayObjects,	Soy::TVersion(3,0)	},
+	void		EnumImplicitExtensions(std::function<void(OpenglExtensions::Type,Soy::TVersion)> Enum);
+}
+
+void Opengl::EnumImplicitExtensions(std::function<void(OpenglExtensions::Type,Soy::TVersion)> Enum)
+{
+	Enum( OpenglExtensions::VertexArrayObjects, Soy::TVersion(3,0) );
+
 	//	gr: check this is right for ES
 #if defined(OPENGL_CORE)
-	{	OpenglExtensions::DrawBuffers,			Soy::TVersion(2,0)	},
+	Enum( OpenglExtensions::DrawBuffers, Soy::TVersion(2,0) );
 #elif defined(OPENGL_ES)
-	{	OpenglExtensions::DrawBuffers,			Soy::TVersion(3,0)	},
+	Enum( OpenglExtensions::DrawBuffers, Soy::TVersion(3,0) );
 #endif
-	{	OpenglExtensions::FrameBuffers,			Soy::TVersion(3,0)	},
-	{	OpenglExtensions::GenerateMipMap,		Soy::TVersion(1,0)	},
-};
+
+	Enum( OpenglExtensions::FrameBuffers, Soy::TVersion(3,0) );
+	Enum( OpenglExtensions::GenerateMipMap, Soy::TVersion(1,0) );
+}
 
 
 
@@ -227,7 +234,7 @@ bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,co
 	if ( ExtensionType == OpenglExtensions::Invalid )
 	{
 		UnhandledExtensions.PushBack( ExtensionName );
-		return true;
+		return false;
 	}
 	
 	//	set support in the map
@@ -372,7 +379,17 @@ void BindExtension(bool& Supported,bool ImplicitSupport,std::function<void(bool)
 void Opengl::TContext::BindExtension(OpenglExtensions::Type Extension,std::function<void(bool)> BindFunctions,std::function<void(void)> BindUnsupportedFunctions)
 {
 	bool IsSupported = SupportedExtensions.find(Extension) != SupportedExtensions.end();
-	bool ImplicitSupport = mVersion >= ImplicitExtensions[Extension];
+	
+	bool ImplicitSupport = false;
+	auto EnumImplicit = [&](OpenglExtensions::Type ImplExtension,Soy::TVersion ImplVersion)
+	{
+		if ( ImplExtension != Extension )
+			return;
+		if ( mVersion < ImplVersion )
+			return;
+		ImplicitSupport = true;
+	};
+	EnumImplicitExtensions( EnumImplicit );
 
 	//	if we have the extension, or implicit support, we expect it to be supported...
 	SupportedExtensions[Extension] = IsSupported || ImplicitSupport;
@@ -526,7 +543,7 @@ void Opengl::TContext::BindGenerateMipMapExtension()
 
 bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TContext* pContext)
 {
-	static bool DebugSupport = false;
+	static bool DebugSupport = true;
 
 	//	first parse of extensions
 	if ( SupportedExtensions.empty() && pContext )
@@ -580,18 +597,18 @@ bool Opengl::TContext::IsSupported(OpenglExtensions::Type Extension,Opengl::TCon
 		}
 		
 		//	check explicitly supported extensions
-		auto& Impl = Opengl::ImplicitExtensions;
-		for ( auto it=Impl.begin();	it!=Impl.end();	it++ )
+		auto EnumImplicit = [&](OpenglExtensions::Type ImplExtension,Soy::TVersion ImplVersion)
 		{
-			auto& Version = it->second;
-			auto& Extension = it->first;
-			if ( pContext->mVersion < Version )
-				continue;
+			if ( pContext->mVersion < ImplVersion )
+				return;
 			
 			if ( DebugSupport )
-				std::Debug << "Implicitly supporting " << Extension << " (>= version " << Version << ")" << std::endl;
+				std::Debug << "Implicitly supporting " << ImplExtension << " (>= version " << ImplVersion << ")" << std::endl;
+
 			SupportedExtensions[Extension] = true;
-		}
+		};
+		EnumImplicitExtensions( EnumImplicit );
+	
 		
 		//	setup extensions
 		pContext->BindVertexArrayObjectsExtension();
