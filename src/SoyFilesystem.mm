@@ -8,6 +8,10 @@
 #include <AppKit/NSWorkspace.h>
 #endif
 
+#if defined(TARGET_IOS)
+#include <UIKit/UIKit.h>
+#endif
+
 
 namespace Platform
 {
@@ -331,11 +335,16 @@ std::string Platform::GetAppResourcesDirectory()
 
 std::string Platform::GetComputerName()
 {
+#if defined(TARGET_OSX)
 	//	https://stackoverflow.com/questions/4063129/get-my-macs-computer-name
 	//	this is blocking, so... might be good to promise() this on startup? and cache it? block when called...
 	//	localizedName: Jonathan's MacBook
 	//	name: "Jonathans-Macbook", or "jonathans-macbook.local"
- 	auto* Name =  [[NSHost currentHost] localizedName];
+	auto* Name = [[NSHost currentHost] localizedName];
 	return Soy::NSStringToString(Name);
+#elif defined(TARGET_IOS)
+	auto* Name = [[UIDevice currentDevice] name];
+	return Soy::NSStringToString(Name);
+#endif
 }
 

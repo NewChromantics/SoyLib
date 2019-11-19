@@ -5,6 +5,29 @@
 #include <regex>
 
 
+#if defined(TARGET_IOS)
+#define glProgramUniformMatrix4fv	glProgramUniformMatrix4fvEXT
+
+#define glProgramUniform1fv			glProgramUniform1fvEXT
+#define glProgramUniform2fv			glProgramUniform2fvEXT
+#define glProgramUniform3fv			glProgramUniform3fvEXT
+#define glProgramUniform4fv			glProgramUniform4fvEXT
+
+#define glProgramUniform1iv			glProgramUniform1ivEXT
+#define glProgramUniform2iv			glProgramUniform2ivEXT
+#define glProgramUniform3iv			glProgramUniform3ivEXT
+#define glProgramUniform4iv			glProgramUniform4ivEXT
+
+#define glProgramUniform1uiv		glProgramUniform1uivEXT
+#define glProgramUniform2uiv		glProgramUniform2uivEXT
+#define glProgramUniform3uiv		glProgramUniform3uivEXT
+#define glProgramUniform4uiv		glProgramUniform4uivEXT
+
+#define glProgramUniform1i			glProgramUniform1iEXT
+
+
+#endif
+
 typedef SoyGraphics::TUniform TUniform;
 
 std::ostream& operator<<(std::ostream& out,const Opengl::TTextureMeta& MetaAndType)
@@ -2143,6 +2166,7 @@ std::function<void(GLuint,GLint,GLsizei,const TYPE*)> GetglProgramUniformXv(SoyG
 {
 	static_assert( sizeof(TYPE) == -1, "this MUST be specialised" );
 }
+
 
 template<>
 std::function<void(GLuint,GLint,GLsizei,const float*)> GetglProgramUniformXv<float>(SoyGraphics::TElementType::Type ElementType)

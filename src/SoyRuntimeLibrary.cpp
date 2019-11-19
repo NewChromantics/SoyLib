@@ -252,7 +252,9 @@ void Soy::TRuntimeLibrary::Close()
 
 void* Soy::TRuntimeLibrary::GetSymbol(const char* Name)
 {
-#if defined(TARGET_OSX)||defined(TARGET_IOS)
+#if defined(TARGET_IOS)
+	throw Soy::AssertException("No Runtime library support on ios");
+#elif defined(TARGET_OSX)
 	Soy::Assert( mHandle!=nullptr, mLibraryName + " library not loaded");
 	return dlsym( mHandle, Name );
 #else
