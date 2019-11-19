@@ -2082,8 +2082,9 @@ void SoyPixelsImpl::ResizeFastSample(size_t NewWidth, size_t NewHeight)
 	
 	auto& New = *this;
 	auto NewChannelCount = GetChannels();
-	//	resize buffer
-	ResizeClip( NewWidth, NewHeight );
+	
+	//	dumb resize buffer
+	Init( NewWidth, NewHeight, GetFormat() );
 	
 	auto OldHeight = Old.GetHeight();
 	auto OldWidth = Old.GetWidth();
