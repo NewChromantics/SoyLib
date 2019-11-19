@@ -9,11 +9,13 @@
 #include <limits>
 #include "SoyTime.h"
 
-
-#if defined(TARGET_ANDROID)||defined(TARGET_IOS)||defined(TARGET_PS4)||defined(TARGET_LUMIN)
+//	gr: something in xcode has suddenly started causing
+//		zone allocs to not free correctly (missing from zone) with address sanitising on
+#if defined(TARGET_ANDROID)||defined(TARGET_IOS)||defined(TARGET_PS4)||defined(TARGET_LUMIN) //|| defined(TARGET_OSX)
 #include <memory>
 #define STD_ALLOC
 #endif
+
 
 #if defined(HOLOLENS_SUPPORT)
 #define STD_ALLOC
@@ -630,8 +632,13 @@ protected:
 	{
 	#if defined(ZONE_ALLOC)
 		//	gr: avoid abort. find out if this is expensive
-		if ( malloc_zone_from_ptr(Object) != mHandle )
+		auto ObjectZoneHandle = malloc_zone_from_ptr(Object);
+		if ( !ObjectZoneHandle )
 			return false;
+		//	wrong heap!
+		//if ( ObjectZoneHandle != mHandle )
+		//	return false;
+		
 	#endif
 		return true;
 	}
@@ -643,7 +650,8 @@ protected:
 		if ( !HeapFree( mHandle, 0, Object ) )
 			return false;
 	#elif defined(ZONE_ALLOC)
-		malloc_zone_free( mHandle, Object );
+		auto ObjectZoneHandle = malloc_zone_from_ptr(Object);
+		malloc_zone_free( ObjectZoneHandle, Object );
 	#elif defined(STD_ALLOC)
 		mAllocator.deallocate( reinterpret_cast<char*>(Object), Size );
 	#endif
