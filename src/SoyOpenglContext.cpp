@@ -451,11 +451,15 @@ void Opengl::TContext::BindSyncExtension()
 
 	auto BindUnsupportedFunctions = []
 	{
+		//	gr: for sync, we leave the funcs null.
+		//		(this is our current approach for TSync, but doesn't match others... bad!)
+		/*
 		//	gr: set error/throw function wrappers
 		SetUnsupportedFunction(FenceSync, "glFenceSync", GLsync() );
 		SetUnsupportedFunction(DeleteSync, "glDeleteSync" );
 		SetUnsupportedFunction(IsSync, "glIsSync", GLboolean() );
 		SetUnsupportedFunction(ClientWaitSync, "glClientWaitSync", GLenum() );
+		*/
 	};
 
 	BindExtension( OpenglExtensions::Sync, BindFunctions, BindUnsupportedFunctions );
