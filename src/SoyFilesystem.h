@@ -90,7 +90,7 @@ public:
 	~TFileMonitor();
 	
 	std::function<void()>		mOnChanged;
-	
+
 #if defined(TARGET_OSX)
 	CFPtr<CFStringRef>			mPathString;
 	scope_ptr<FSEventStreamRef>	mStream;

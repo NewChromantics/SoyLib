@@ -75,8 +75,8 @@ std::string Soy::GetCurrentWorkingDir()
 
 #if defined(TARGET_WINDOWS)
 	while ( !_getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
-#elif defined(TARGET_PS4)
-	throw Soy::AssertException("PS4 doesn't support current working dir");
+#elif defined(TARGET_PS4)||defined(TARGET_IOS)
+	throw Soy::AssertException("Platform doesn't support current working dir");
 	while(false)
 #else
 	while ( !getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
@@ -252,7 +252,7 @@ void Soy::TRuntimeLibrary::Close()
 
 void* Soy::TRuntimeLibrary::GetSymbol(const char* Name)
 {
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX)||defined(TARGET_IOS)
 	Soy::Assert( mHandle!=nullptr, mLibraryName + " library not loaded");
 	return dlsym( mHandle, Name );
 #else
