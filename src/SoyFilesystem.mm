@@ -272,30 +272,34 @@ std::string Platform::GetFullPathFromFilename(const std::string& Filename)
 
 void Platform::ShellExecute(const std::string& Path)
 {
+#if defined(TARGET_OSX)
 	//	https://gist.github.com/piaoapiao/4103404
 	//	https://stackoverflow.com/questions/17497561/opening-web-url-with-nsbutton-mac-os
 	auto* Url = GetUrl(Path);
 	[[NSWorkspace sharedWorkspace] openURL:Url];
-
-	/* ios
-	auto *application = [NSApplication sharedApplication];
-	[application openURL:Url];
-	 */
+#elif defined(TARGET_IOS)
+	ShellOpenUrl(Path);
+#else
+#error Missing target
+#endif
 }
 
 void Platform::ShellOpenUrl(const std::string& UrlString)
 {
-	//	https://gist.github.com/piaoapiao/4103404
-	//	https://stackoverflow.com/questions/17497561/opening-web-url-with-nsbutton-mac-os
 	NSString* UrlStringN = Soy::StringToNSString( UrlString );
 	auto* Url = [[NSURL alloc]initWithString:UrlStringN];
+#if defined(TARGET_OSX)
+	//	https://gist.github.com/piaoapiao/4103404
+	//	https://stackoverflow.com/questions/17497561/opening-web-url-with-nsbutton-mac-os
 	[[NSWorkspace sharedWorkspace] openURL:Url];
-	
-	
-	/* ios
-	 auto *application = [NSApplication sharedApplication];
-	 [application openURL:Url];
-	 */
+#elif defined(TARGET_IOS)
+	Soy_AssertTodo();
+	//	https://developer.apple.com/documentation/uikit/uiapplicationdelegate/1623112-application?language=objc
+	//auto *application = [UIApplication sharedApplication];
+	//[application openURL:Url];
+#else
+	#error Missing target
+#endif
 }
 
 std::string Platform::GetAppResourcesDirectory()
