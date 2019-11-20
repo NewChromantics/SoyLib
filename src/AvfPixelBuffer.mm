@@ -1,11 +1,15 @@
 #import "AvfPixelBuffer.h"
 #include "SoyOpengl.h"
 #include "SoyAvf.h"
+#include "SoyFourcc.h"
 
 #if defined(ENABLE_METAL)
 #include <SoyMetal.h>
 #endif
 
+#if defined(TARGET_IOS)
+#import <CoreGraphics/CoreGraphics.h>
+#endif
 
 std::string Avf::GetExtensions(CMFormatDescriptionRef FormatDescription)
 {
@@ -199,7 +203,7 @@ std::string Avf::GetCodec(CMFormatDescriptionRef FormatDescription)
 	// Get the codec and correct endianness
 	auto FourCC = CMFormatDescriptionGetMediaSubType( FormatDescription );
 	CMVideoCodecType FormatCodec = CFSwapInt32BigToHost( FourCC );
-	std::string CodecStr = Soy::FourCCToString( FormatCodec );
+	std::string CodecStr = Soy::TFourcc( FormatCodec ).GetString();
 	
 	//	for H264 (AVC1) get extended codec info
 	if ( CodecStr == "avc1" )
@@ -336,7 +340,7 @@ Opengl::TTexture ExtractPlaneTexture(AvfTextureCache& TextureCache,CVImageBuffer
 	{
 		auto BytesPerRow = CVPixelBufferGetBytesPerRowOfPlane( ImageBuffer, PlaneIndex );
 		Opengl::IsOkay("Failed to CVOpenGLTextureCacheCreateTextureFromImage",false);
-		std::Debug << "Failed to create texture from image " << Platform::GetCVReturnString(Result) << " bytes per row: " << BytesPerRow << "plane #" << PlaneIndex << " as " << Format << std::endl;
+		std::Debug << "Failed to create texture from image " << Avf::GetCVReturnString(Result) << " bytes per row: " << BytesPerRow << "plane #" << PlaneIndex << " as " << Format << std::endl;
 		return Opengl::TTexture();
 	}
 	
@@ -971,8 +975,7 @@ void AvfTextureCache::AllocOpengl()
 	CFAllocatorRef Allocator = kCFAllocatorDefault;
 	
 #if defined(TARGET_IOS)
-	
-	auto Context = UnityGetMainScreenContextGLES();
+	auto Context = [EAGLContext currentContext];
 	CVOpenGLESTextureCacheRef Cache;
 	auto Result = CVOpenGLESTextureCacheCreate ( Allocator, nullptr, Context, nullptr, &Cache );
 	
