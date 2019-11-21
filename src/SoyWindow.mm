@@ -1,7 +1,10 @@
 #include "SoyWindow.h"
+
+#if defined(TARGET_OSX)
 #import <Cocoa/Cocoa.h>
+#endif
 
-
+#if defined(TARGET_OSX)
 NSCursor* CursorToNSCursor(SoyCursor::Type Cursor)
 {
 	switch ( Cursor )
@@ -12,21 +15,26 @@ NSCursor* CursorToNSCursor(SoyCursor::Type Cursor)
 		case SoyCursor::Busy:	return [NSCursor openHandCursor];
 	}
 }
+#endif
 
+#if defined(TARGET_OSX)
 void Platform::PushCursor(SoyCursor::Type Cursor)
 {
 	auto CursorNs = CursorToNSCursor( Cursor );
 	[CursorNs push];
 }
+#endif
 
+#if defined(TARGET_OSX)
 void Platform::PopCursor()
 {
 	[NSCursor pop];
 }
-
+#endif
 
 void Platform::EnumScreens(std::function<void(TScreenMeta&)> EnumScreen)
 {
+#if defined(TARGET_OSX)
 	auto* Screens = [NSScreen screens];
 	
 	auto OnNsScreen = [&](NSScreen* Screen)
@@ -57,4 +65,5 @@ void Platform::EnumScreens(std::function<void(TScreenMeta&)> EnumScreen)
 		EnumScreen( ScreenMeta );
 	};
 	Platform::NSArray_ForEach<NSScreen*>( Screens, OnNsScreen );
+#endif
 }
