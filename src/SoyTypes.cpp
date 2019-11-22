@@ -277,7 +277,8 @@ std::string Soy::DemangleTypeName(const char* name)
 
 Soy::TVersion::TVersion(std::string VersionStr,const std::string& Prefix) :
 	mMajor	( 0 ),
-	mMinor	( 0 )
+	mMinor	( 0 ),
+	mPatch	( 0 )
 {
 	//	strip off prefix's
 	if ( Soy::StringBeginsWith(VersionStr,Prefix, false ) )
@@ -287,10 +288,11 @@ Soy::TVersion::TVersion(std::string VersionStr,const std::string& Prefix) :
 	auto PushVersions = [&PartCounter,this](const std::string& PartStr,const char& Delim)
 	{
 		//	got all we need
-		if ( PartCounter >= 2 )
+		if ( PartCounter >= 3 )
 			return false;
 		
-		auto& PartInt = (PartCounter==0) ? mMajor : mMinor;
+		size_t* PartInts[] = { &mMajor, &mMinor, &mPatch };
+		auto& PartInt = *PartInts[PartCounter];
 		Soy::StringToType( PartInt, PartStr );
 		
 		PartCounter++;
@@ -303,23 +305,42 @@ Soy::TVersion::TVersion(std::string VersionStr,const std::string& Prefix) :
 
 size_t Soy::TVersion::GetHundred() const
 {
+	auto MajorMult = 100;
+	
 	//	gr: throw if the minor is going to overflow
 	//	gr: I forget what version this was checking against, but it probbaly shouldn't have been here
-	if ( mMinor >= 100 )
+	if ( mMinor >= MajorMult )
 	{
 		std::stringstream Error;
 		Error << "Cannot convert version " << mMajor << "." << mMinor << " to hundreds";
 		throw Error.str();
 	}
-	return (mMajor * 100) + mMinor;
+	
+	return (mMajor * MajorMult) + mMinor;
 }
 
 
 size_t Soy::TVersion::GetMillion() const
 {
+	auto MajorMult = 100;
+	auto MinorMult = 100;
+
+	if ( mMinor >= MajorMult )
+	{
+		std::stringstream Error;
+		Error << "Cannot convert version " << mMajor << "." << mMinor << "." << mPatch << " to millions";
+		throw Error.str();
+	}
+	if ( mPatch >= MinorMult )
+	{
+		std::stringstream Error;
+		Error << "Cannot convert version " << mMajor << "." << mMinor << "." << mPatch << " to millions";
+		throw Error.str();
+	}
+
 	auto Million = 0;
-	Million += mMajor * 100 * 100;
-	Million += mMinor * 100;
+	Million += mMajor * MajorMult * MinorMult;
+	Million += mMinor * MinorMult;
 	Million += mPatch;
 
 	return Million;

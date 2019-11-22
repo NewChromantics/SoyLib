@@ -8,6 +8,10 @@
 #include <AppKit/NSWorkspace.h>
 #endif
 
+#if defined(TARGET_IOS)
+#include <UIKit/UIKit.h>
+#endif
+
 
 namespace Platform
 {
@@ -272,30 +276,34 @@ std::string Platform::GetFullPathFromFilename(const std::string& Filename)
 
 void Platform::ShellExecute(const std::string& Path)
 {
+#if defined(TARGET_OSX)
 	//	https://gist.github.com/piaoapiao/4103404
 	//	https://stackoverflow.com/questions/17497561/opening-web-url-with-nsbutton-mac-os
 	auto* Url = GetUrl(Path);
 	[[NSWorkspace sharedWorkspace] openURL:Url];
-
-	/* ios
-	auto *application = [NSApplication sharedApplication];
-	[application openURL:Url];
-	 */
+#elif defined(TARGET_IOS)
+	ShellOpenUrl(Path);
+#else
+#error Missing target
+#endif
 }
 
 void Platform::ShellOpenUrl(const std::string& UrlString)
 {
-	//	https://gist.github.com/piaoapiao/4103404
-	//	https://stackoverflow.com/questions/17497561/opening-web-url-with-nsbutton-mac-os
 	NSString* UrlStringN = Soy::StringToNSString( UrlString );
 	auto* Url = [[NSURL alloc]initWithString:UrlStringN];
+#if defined(TARGET_OSX)
+	//	https://gist.github.com/piaoapiao/4103404
+	//	https://stackoverflow.com/questions/17497561/opening-web-url-with-nsbutton-mac-os
 	[[NSWorkspace sharedWorkspace] openURL:Url];
-	
-	
-	/* ios
-	 auto *application = [NSApplication sharedApplication];
-	 [application openURL:Url];
-	 */
+#elif defined(TARGET_IOS)
+	Soy_AssertTodo();
+	//	https://developer.apple.com/documentation/uikit/uiapplicationdelegate/1623112-application?language=objc
+	//auto *application = [UIApplication sharedApplication];
+	//[application openURL:Url];
+#else
+	#error Missing target
+#endif
 }
 
 std::string Platform::GetAppResourcesDirectory()
@@ -327,11 +335,17 @@ std::string Platform::GetAppResourcesDirectory()
 
 std::string Platform::GetComputerName()
 {
+#if defined(TARGET_OSX)
 	//	https://stackoverflow.com/questions/4063129/get-my-macs-computer-name
 	//	this is blocking, so... might be good to promise() this on startup? and cache it? block when called...
 	//	localizedName: Jonathan's MacBook
 	//	name: "Jonathans-Macbook", or "jonathans-macbook.local"
- 	auto* Name =  [[NSHost currentHost] localizedName];
+	auto* Name = [[NSHost currentHost] localizedName];
 	return Soy::NSStringToString(Name);
+#elif defined(TARGET_IOS)
+	//	needs UIKit
+	auto* Name = [[UIDevice currentDevice] name];
+	return Soy::NSStringToString(Name);
+#endif
 }
 

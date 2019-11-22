@@ -28,7 +28,11 @@
 
 #if defined(TARGET_IOS)
 //	https://github.com/ericniebler/range-v3/issues/407
-#define __thread	static_assert(false,"Check __thread support on IOS. Supported from IOS7 up? https://github.com/ericniebler/range-v3/issues/407")			//	thread local not supported on IOS devices. todo: make a TLS class!
+//#define __thread	static_assert(false,"Check __thread support on IOS. Supported from IOS7 up? https://github.com/ericniebler/range-v3/issues/407")			//	thread local not supported on IOS devices. todo: make a TLS class!
+#endif
+
+#if defined(TARGET_IOS) && defined(TARGET_OSX)
+#error IOS and OSX targets defined
 #endif
 
 //	unused variable

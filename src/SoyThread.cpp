@@ -2,9 +2,6 @@
 #include "SoyDebug.h"
 #include <future>
 
-#if defined(PLATFORM_OSX)
-#include <pthread.h>
-#endif
 
 #if defined(TARGET_PS4)
 #include <pthread.h>
@@ -383,7 +380,7 @@ std::thread::native_handle_type SoyThread::GetCurrentThreadNativeHandle()
 {
 #if defined(TARGET_WINDOWS)
 	return ::GetCurrentThread();
-#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
+#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)||defined(TARGET_LUMIN)
 	return ::pthread_self();
 #elif defined(TARGET_PS4)
 	ScePthread Handle = scePthreadSelf();

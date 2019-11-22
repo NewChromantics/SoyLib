@@ -308,13 +308,19 @@ Improvement summary
 	* When constructing very large strings (eg. html/xml output) build it up with smaller bufferstrings rather than continually building one giant String to reduce allocations)
 */
 #include "SoyTypes.h"
-
+#include "MemHeap.hpp"
 
 //#define USE_GLOBAL_ALLOC		//	override global new/delete so we can track STL allocations
 //#define USE_GLOBAL_STD_ALLOC	//	for debug, use STD malloc in the global alloc override
 
 #if defined(TARGET_OSX)
+
+//#error This combination seems to cause recursion (std alloc just calls new, which we've overloaded)
+#if !defined(STD_ALLOC)
+//#if !__has_feature(address_sanitizer)
 #define USE_GLOBAL_ALLOC
+#endif
+
 //#define USE_GLOBAL_STD_ALLOC
 #endif
 
@@ -344,12 +350,12 @@ Improvement summary
 #include "SoyDebug.h"
 #include "SoyString.h"
 
+
 #if defined(TARGET_OSX)
 #include <malloc/malloc.h>
 #include <mach/mach.h>
 #include <mach/task.h>
 #endif
-
 
 
 namespace prmem
@@ -443,14 +449,12 @@ std::ostream& operator<<(std::ostream &out,SoyMem::THeapMeta& in)
 }
 
 
-
-
 //	overload global new & delete so we can track STL allocations
 //	on windows we cannot use the CRT debug funcs as the hooks are not present in release builds
 //	http://stackoverflow.com/a/8186116
 //	http://en.cppreference.com/w/cpp/memory/new/operator_new
 #if defined(USE_GLOBAL_ALLOC)
-void* operator new(std::size_t sz) 
+void* operator new(std::size_t sz)
 {
 #if defined(USE_GLOBAL_STD_ALLOC)
 	return std::malloc( sz );
