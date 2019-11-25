@@ -370,3 +370,28 @@ inline void Soy::EndianSwap(uint32_t& Value)
 	Value = __builtin_bswap32(Value);
 #endif
 }
+
+
+//	c++17 functions for pre-c++17 compilers.
+//	standard c++17 definition from https://stackoverflow.com/a/38456243/355753
+#if __cplusplus != 201703L
+namespace std
+{
+	//	implementation of c++17's std::size() to get safe C-array size
+	template<typename T,size_t CARRAYSIZE>
+	static int size(const T(&CArray)[CARRAYSIZE])
+	{
+		return CARRAYSIZE;
+	}
+	
+	//	https://en.cppreference.com/w/cpp/algorithm/clamp c++17
+	template<class T>
+	const T& clamp( const T& v, const T& lo, const T& hi )
+	{
+		//assert( !(hi < lo) );
+		return (v < lo) ? lo : (hi < v) ? hi : v;
+	}
+}
+#endif
+
+
