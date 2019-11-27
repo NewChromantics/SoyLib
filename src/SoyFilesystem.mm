@@ -343,6 +343,7 @@ std::string Platform::GetComputerName()
 	auto* Name = [[NSHost currentHost] localizedName];
 	return Soy::NSStringToString(Name);
 #elif defined(TARGET_IOS)
+	//	needs UIKit
 	auto* Name = [[UIDevice currentDevice] name];
 	return Soy::NSStringToString(Name);
 #endif

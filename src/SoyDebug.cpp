@@ -18,7 +18,7 @@
 #endif
 
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&& !defined(TARGET_UWP)
 namespace Platform
 {
 	//	gr: make a class for generic file handles as we use it for serial ports too.
@@ -151,7 +151,7 @@ std::DebugBufferString& std::DebugStreamBuf::GetBuffer()
 }
 
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS) && !defined(TARGET_UWP)
 void Platform::WriteToParentConsole(const std::string& String)
 {
 	//	if we don't have a handle, try and create one
@@ -237,7 +237,7 @@ void std::DebugStreamBuf::flush()
 		}
 		
 		//	on windows, try and write to parent console window
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 		Platform::WriteToParentConsole(BufferStr);
 #endif
 

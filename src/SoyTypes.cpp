@@ -66,41 +66,6 @@ bool Platform::Init()
 }
 
 
-std::string ofFilePath::getFileName(const std::string& Filename,bool bRelativeToData)
-{
-#if defined(UNICODE)
-
-	//	convert to widestring buffer
-	std::wstring Filenamew( Filename.begin(), Filename.end() ); 
-	BufferArray<wchar_t,MAX_PATH> Buffer;
-	for ( int i=0;	i<static_cast<int>(Filename.size());	i++ )
-		Buffer.PushBack( Filenamew[i] );
-
-	//	alter buffer
-	::PathStripPath( Buffer.GetArray() );
-	Filenamew = Buffer.GetArray();
-
-	//	convert abck to ansi
-	return std::string( Filenamew.begin(), Filenamew.end() );
-#else
-	//	copy contents to buffer
-	BufferString<256> Buffer = Filename.c_str();
-
-#if defined(TARGET_WINDOWS)
-	//	modify buffer (will alter and move terminator)
-	if ( !Buffer.IsEmpty() )
-		::PathStripPath( static_cast<char*>(Buffer) );
-#endif
-    
-	//	new null-terminated string
-	return std::string( Buffer.GetArray().GetArray() );
-#endif
-}
-
-
-
-
-
 uint32 Soy::Private::GetCrc32(const char* Data,size_t DataSize)
 {
 	TCrc32 Crc;
@@ -433,7 +398,7 @@ void Platform::ThrowLastError(const std::string& Context)
 
 
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS) && !defined(TARGET_UWP)
 Soy::TVersion GetFileVersion(const std::string& Filename)
 {
 	auto FilenameW = Soy::StringToWString(Filename);
@@ -466,7 +431,7 @@ Soy::TVersion GetFileVersion(const std::string& Filename)
 }
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS) && !defined(TARGET_UWP)
 Soy::TVersion Platform::GetOsVersion()
 {
 	//	https://stackoverflow.com/a/47583450

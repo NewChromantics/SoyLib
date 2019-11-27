@@ -13,7 +13,9 @@ struct NonCopyable {
 	#error Compiler now defines TARGET_WINDOWS
 #endif
 #if defined(_MSC_VER) && !defined(TARGET_PS4)
-	#if defined(_WIN64)
+	#if defined(TARGET_UWP)
+		#define TARGET_WINDOWS	TARGET_UWP
+	#elif defined(_WIN64)
 		#define TARGET_WINDOWS 64
 	#else
 		#define TARGET_WINDOWS 32
@@ -100,19 +102,6 @@ namespace std
 #if defined(__cpp_rtti) || defined(GCC_ENABLE_CPP_RTTI) || __has_feature(cxx_rtti)
 #define ENABLE_RTTI
 #endif
-
-
-
-
-class ofFilePath
-{
-public:
-	static std::string		getFileName(const std::string& Filename,bool bRelativeToData=true);
-};
-
-
-
-inline std::string ofToDataPath(const std::string& LocalPath,bool FullPath=false)	{	return LocalPath;	}
 
 
 namespace Soy
@@ -383,3 +372,28 @@ inline void Soy::EndianSwap(uint32_t& Value)
 	Value = __builtin_bswap32(Value);
 #endif
 }
+
+
+//	c++17 functions for pre-c++17 compilers.
+//	standard c++17 definition from https://stackoverflow.com/a/38456243/355753
+#if __cplusplus != 201703L
+namespace std
+{
+	//	implementation of c++17's std::size() to get safe C-array size
+	template<typename T,size_t CARRAYSIZE>
+	static int size(const T(&CArray)[CARRAYSIZE])
+	{
+		return CARRAYSIZE;
+	}
+	
+	//	https://en.cppreference.com/w/cpp/algorithm/clamp c++17
+	template<class T>
+	const T& clamp( const T& v, const T& lo, const T& hi )
+	{
+		//assert( !(hi < lo) );
+		return (v < lo) ? lo : (hi < v) ? hi : v;
+	}
+}
+#endif
+
+
