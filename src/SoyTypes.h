@@ -306,6 +306,8 @@ public:
 	bool	operator!=(const TVersion& that) const	{	return GetMillion() != that.GetMillion();	}
 	
 public:
+	static const size_t	MinorMax = 100;	//	
+	static const size_t	PatchMax = 100000;	//	this is large because windows is say 10.0.16832
 	size_t	mMajor = 0;
 	size_t	mMinor = 0;
 	size_t	mPatch = 0;
