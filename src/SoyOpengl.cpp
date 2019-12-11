@@ -1760,8 +1760,10 @@ void Opengl::TTexture::RefreshMeta()
 	auto NewMeta = GetInternalMeta(Type);
 	if ( !NewMeta.IsValid() )
 	{
-		std::Debug << "Opengl::TTexture meta not refreshed as internal meta invalid" << std::endl;
-		return;
+		//std::Debug << "Opengl::TTexture meta not refreshed as internal meta invalid " << NewMeta << std::endl;
+		//	BAD!
+		NewMeta.DumbSetFormat(SoyPixelsFormat::RGBA);
+		//return;
 	}
 
 	if ( this->mMeta != NewMeta )
@@ -2731,7 +2733,7 @@ SoyPixelsFormat::Type Opengl::GetDownloadPixelFormat(GLenum Format)
 	}
 	
 
-	std::Debug << "Failed to convert glpixelformat " << GetEnumString(Format) << " to soy pixel format" << std::endl;
+	//std::Debug << "Failed to convert glpixelformat " << GetEnumString(Format) << " to soy pixel format" << std::endl;
 	return SoyPixelsFormat::Invalid;
 }
 
