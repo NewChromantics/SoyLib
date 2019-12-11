@@ -1818,13 +1818,28 @@ SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType) const
 		
 		if ( !Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()", false ) )
 			continue;
-		
-		
+
+		if (Format == 0)
+		{
+			GLint Components = 0;
+			glGetTexLevelParameteriv(Type, MipLevel, GL_TEXTURE_COMPONENTS, &Components);
+			if (Opengl::IsOkay("glGetTexLevelParameteriv(GL_TEXTURE_COMPONENTS)", false))
+			{
+				if (Components!=0)
+					std::Debug << "Invalid format, but components = " << Components << std::endl;
+			}
+		}
+
+
 		//	we probably won't get an opengl error, but the values won't be good. We can assume it's not that type
 		//	tested on osx
-		if ( Width==0 || Height==0 || Format==0 )
+		if ( Width==0 || Height==0 )
 			continue;
 		
+		//	gr: openvr shared texture has format=0 & components=0
+		//if (Format == 0)
+		//	continue;
+
 		if ( Type != mType )
 			std::Debug << "Determined that texture is " << GetEnumString(Type) << " not " << GetEnumString(mType) << std::endl;
 		
