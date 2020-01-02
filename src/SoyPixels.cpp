@@ -2113,6 +2113,7 @@ vec2x<size_t> SoyPixelsImpl::GetXy(size_t PixelIndex) const
 
 void SoyPixelsImpl::ResizeFastSample(size_t NewWidth, size_t NewHeight)
 {
+	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__, 2);
 	//	copy old data
 	SoyPixels Old;
 	Old.Copy(*this);
