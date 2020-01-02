@@ -1821,6 +1821,7 @@ SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType) const
 		if ( !Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()", false ) )
 			continue;
 
+#if defined(GL_TEXTURE_COMPONENTS)
 		if (Format == 0)
 		{
 			GLint Components = 0;
@@ -1831,7 +1832,7 @@ SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType) const
 					std::Debug << "Invalid format, but components = " << Components << std::endl;
 			}
 		}
-
+#endif
 
 		//	we probably won't get an opengl error, but the values won't be good. We can assume it's not that type
 		//	tested on osx

@@ -19,7 +19,7 @@ public:
 	TFourcc(const uint8_t* abcd);
 	//TFourcc(char a,char b,char c,char d);	//	be careful with char->u8
 	TFourcc(uint8_t a,uint8_t b,uint8_t c,uint8_t d);	//	be careful with char->u8
-	TFourcc(uint32_t abcd);
+	TFourcc(uint32_t abcd=0);
 	
 	std::string	GetString() const;
 	bool		operator==(const TFourcc& That) const	{	return mFourcc32 == That.mFourcc32;	}
