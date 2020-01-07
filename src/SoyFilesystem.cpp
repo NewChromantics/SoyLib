@@ -142,7 +142,7 @@ Platform::TFileMonitor::~TFileMonitor()
 
 
 #if defined(TARGET_WINDOWS)
-std::string GetFilename(WIN32_FIND_DATA& FindData)
+std::string GetFilename(WIN32_FIND_DATAA& FindData)
 {
 	std::string Filename = FindData.cFileName;
 	return Filename;
@@ -151,7 +151,7 @@ std::string GetFilename(WIN32_FIND_DATA& FindData)
 
 
 #if defined(TARGET_WINDOWS)
-SoyPathType::Type GetPathType(WIN32_FIND_DATA& FindData)
+SoyPathType::Type GetPathType(WIN32_FIND_DATAA& FindData)
 {
 	auto Directory = bool_cast(FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 
@@ -173,11 +173,11 @@ SoyPathType::Type GetPathType(WIN32_FIND_DATA& FindData)
 
 
 #if defined(TARGET_WINDOWS) && !defined(HOLOLENS_SUPPORT)
-bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DATA&)> OnItemFound)
+bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DATAA&)> OnItemFound)
 {
-	WIN32_FIND_DATA FindData;
+	WIN32_FIND_DATAA FindData;
 	ZeroMemory( &FindData, sizeof(FindData) );
-	auto Handle = FindFirstFile( Directory.c_str(), &FindData );
+	auto Handle = FindFirstFileA( Directory.c_str(), &FindData );
 
 	//	invalid starting point... is okay?
 	if ( Handle == INVALID_HANDLE_VALUE )
@@ -192,7 +192,7 @@ bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DA
 
 		while ( Result )
 		{
-			if ( !FindNextFile( Handle, &FindData ) )
+			if ( !FindNextFileA( Handle, &FindData ) )
 			{
 				auto ErrorValue = Platform::GetLastError();
 				if ( ErrorValue != ERROR_NO_MORE_FILES )
@@ -233,7 +233,7 @@ bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(con
 	//	because this can matter
 	const char* DirectoryDelim = "\\";
 
-	auto OnFindItem = [&](WIN32_FIND_DATA& FindData)
+	auto OnFindItem = [&](WIN32_FIND_DATAA& FindData)
 	{
 		try
 		{
@@ -417,7 +417,7 @@ void Platform::CreateDirectory(const std::string& Path)
 	if ( mkdir( Directory.c_str(), Permissions ) != 0 )
 #elif defined(TARGET_WINDOWS)
 		SECURITY_ATTRIBUTES* Permissions = nullptr;
-	if ( !CreateDirectory( Directory.c_str(), Permissions ) )
+	if ( !CreateDirectoryA( Directory.c_str(), Permissions ) )
 #else
 		if ( false )
 #endif
@@ -443,7 +443,7 @@ void Platform::ShowFileExplorer(const std::string& Path)
 #if defined(HOLOLENS_SUPPORT)
 	//	unsupported
 #else
-	auto PathList = ILCreateFromPath( Path.c_str() );
+	auto PathList = ILCreateFromPathA( Path.c_str() );
 	if ( !PathList )
 	{
 		std::stringstream Error;
