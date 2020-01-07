@@ -1189,6 +1189,40 @@ void ConvertFormat_Uvy844_To_Luma(ArrayInterface<uint8>& PixelsArray,SoyPixelsMe
 	Meta = LumaMeta;
 }
 
+
+void ConvertFormat_YYuv8888_To_Luma(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
+{
+	auto& YuvMeta = Meta;
+	auto w = YuvMeta.GetWidth();
+	auto h = YuvMeta.GetHeight();
+	SoyPixelsMeta LumaMeta(w, h, NewFormat);
+	auto PixelCount = size_cast<int>(w*h);
+	
+	auto YuvStride = 2;
+	auto LumaStride = 1;
+	auto* Pixels = PixelsArray.GetArray();
+
+	//	when shrinking, we go forward through the array
+	for (int p = 0; p < PixelCount; p++)
+	{
+		uint8_t* OldPos = &Pixels[p*YuvStride];
+		uint8_t* NewPos = &Pixels[p*LumaStride];
+
+		//	invert
+		//auto Luma = 255 - OldPos[1];
+		auto Luma = OldPos[0];
+
+		//	threshold
+		//Luma = (Luma < 100) ? 0 : 255;
+
+		NewPos[0] = Luma;
+	}
+
+	PixelsArray.SetSize(LumaMeta.GetDataSize());
+
+	Meta = LumaMeta;
+}
+
 void ConvertFormat_TwoChannelToFour(ArrayInterface<uint8>& PixelsArray,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	auto& TwoMeta = Meta;
@@ -1422,6 +1456,9 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_8_8_Smptec, ConvertFormat_Greyscale_To_Yuv_8_8_8),
 	TConvertFunc( SoyPixelsFormat::ChromaUV_88, SoyPixelsFormat::RGBA, ConvertFormat_TwoChannelToFour ),
 	TConvertFunc( SoyPixelsFormat::Uvy_844_Full, SoyPixelsFormat::Greyscale, ConvertFormat_Uvy844_To_Luma),
+	TConvertFunc( SoyPixelsFormat::YYuv_8888_Full, SoyPixelsFormat::Greyscale, ConvertFormat_YYuv8888_To_Luma),
+	TConvertFunc( SoyPixelsFormat::YYuv_8888_Ntsc, SoyPixelsFormat::Greyscale, ConvertFormat_YYuv8888_To_Luma),
+	TConvertFunc( SoyPixelsFormat::YYuv_8888_Smptec, SoyPixelsFormat::Greyscale, ConvertFormat_YYuv8888_To_Luma),
 	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::Yuv_8_8_8_Ntsc, ConvertFormat_RGB_To_Yuv_8_8_8),
 };
 
@@ -2076,6 +2113,7 @@ vec2x<size_t> SoyPixelsImpl::GetXy(size_t PixelIndex) const
 
 void SoyPixelsImpl::ResizeFastSample(size_t NewWidth, size_t NewHeight)
 {
+	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__, 2);
 	//	copy old data
 	SoyPixels Old;
 	Old.Copy(*this);
