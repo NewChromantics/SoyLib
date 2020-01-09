@@ -53,6 +53,64 @@ std::string WebSocket::THandshakeMeta::GetReplyKey() const
 	return EncodedKey;
 }
 
+//	insert handshake headers
+void WebSocket::TRequestProtocol::Encode(TStreamBuffer& Buffer)
+{
+	/*
+	std::stringstream Request;
+	Request << "GET ws://echo.websocket.org/?encoding=text HTTP/1.1\r\n";
+	Request << "Host: echo.websocket.org\r\n";
+	Request << "Connection: Upgrade\r\n";
+	//Pragma : no - cache
+	//Cache - Control : no - cache
+	//User - Agent : Mozilla / 5.0 (Windows NT 10.0; Win64; x64) AppleWebKit / 537.36 (KHTML, like Gecko) Chrome / 79.0.3945.88 Safari / 537.36
+	Request << "Upgrade: websocket\r\n";
+	//Origin : http://www.websocket.org
+	Request << "Sec-WebSocket-Version: 13\r\n";
+	// Accept - Encoding : gzip, deflate
+	// Accept - Language : en - US, en; q = 0.9
+	Request << "Sec-WebSocket-Key: Y72O3fqT9myxqtrvAOzplA==\r\n";
+	Request << "\r\n";
+	//Sec - WebSocket - Extensions : permessage - deflate; client_max_window_bits
+	Buffer.Push(Request.str());
+	return;
+	*/
+	
+	//mHost = "echo.websocket.org";	//	switches to http 1.1
+	mUrl = "ws://echo.websocket.org/?encoding=text";	//	switches to http 1.1
+	mUrlPrefix = "";
+	mHost = "echo.websocket.org";	//	switches to http 1.1
+	//mHeaders["Host"] = "echo.websocket.org";
+
+	//	init handshake
+	//	the client sends a Sec - WebSocket - Key header containing base64 - 
+	//	encoded random bytes, and the server replies with a hash of the key 
+	//	in the Sec - WebSocket - Accept header.
+	Array<char> RandomBytes;
+	for ( auto i=0;	i<20;	i++)
+		RandomBytes.PushBack(i);
+	Array<char> EncodedRandomBytes;
+	Base64::Encode( GetArrayBridge(EncodedRandomBytes), GetArrayBridge(RandomBytes) );
+	std::string EncodedRandomBytesStr = Soy::ArrayToString( GetArrayBridge(EncodedRandomBytes) );
+	mHandshake.mWebSocketKey = EncodedRandomBytesStr;
+
+
+	mHandshake.mProtocol = "echo";
+	mHandshake.mVersion = "13";
+
+	mHeaders["Upgrade"] = "websocket";
+	mHeaders["Connection"] = "Upgrade";
+	mHeaders["Sec-WebSocket-Key"] = mHandshake.mWebSocketKey;
+
+	//	gr: these are optional apparently...
+	if (!mHandshake.mProtocol.empty())
+		mHeaders["Sec-WebSocket-Protocol"] = mHandshake.mProtocol;
+	if (!mHandshake.mVersion.empty())
+		mHeaders["Sec-WebSocket-Version"] = mHandshake.mVersion;
+
+	Http::TRequestProtocol::Encode(Buffer);
+}
+
 
 TProtocolState::Type WebSocket::TRequestProtocol::Decode(TStreamBuffer& Buffer)
 {
