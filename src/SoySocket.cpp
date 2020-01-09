@@ -624,7 +624,7 @@ void SoySocket::ListenTcp(int Port)
 }
 
 
-void SoySocket::ListenUdp(int Port)
+void SoySocket::ListenUdp(int Port,bool SaveListeningConnection)
 {
 	Bind(Port, mSocketAddr);
 	
@@ -632,13 +632,17 @@ void SoySocket::ListenUdp(int Port)
 	std::Debug << "Socket UDP bound on " << mSocketAddr << std::endl;
 	
 	//	udp needs a socket to recieve from for any new clients
-	//	gr: maybe add to WaitForClient?
-	SoySocketConnection PossibleClient;
-	PossibleClient.mAddr = mSocketAddr;
-	PossibleClient.mSocket = this->mSocket;
-	OnConnection( PossibleClient );
-
-	
+	//	gr: if we try and send to this peer, we get an error as it's our general listening address
+	//		so if we're binding in order to send, don't add it
+	if (SaveListeningConnection)
+	{
+		//	gr: maybe add to WaitForClient?
+		SoySocketConnection PossibleClient;
+		PossibleClient.mAddr = mSocketAddr;
+		PossibleClient.mSocket = this->mSocket;
+		OnConnection(PossibleClient);
+	}
+		
 	std::Debug << "Socket bound on " << mSocketAddr << ", on interfaces ";
 	auto DebugAddresses = [](std::string& InterfaceName,SoySockAddr& InterfaceAddr)
 	{
@@ -773,7 +777,7 @@ SoyRef SoySocket::UdpConnect(SoySockAddr Address)
 	//	gr: OSX does NOT require this, windows does
 	try
 	{
-		ListenUdp(PORT_ANY);
+		ListenUdp(PORT_ANY,false);
 		mConnectionLock.unlock();
 		return OnConnection( Connection );
 	}
