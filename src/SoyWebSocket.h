@@ -135,6 +135,7 @@ public:
 	{
 	}
 
+	virtual void					Encode(TStreamBuffer& Buffer) override;
 	virtual TProtocolState::Type	Decode(TStreamBuffer& Buffer) override;
 	virtual bool					ParseSpecificHeader(const std::string& Key,const std::string& Value) override;
 	

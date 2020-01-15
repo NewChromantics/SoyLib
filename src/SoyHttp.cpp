@@ -369,13 +369,14 @@ void Http::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 			HttpVersion = "HTTP/1.1";
 		
 		std::stringstream RequestHeader;
-		RequestHeader << mMethod << " /" << mUrl << " " << HttpVersion << "\r\n";
+		RequestHeader << mMethod << " " << mUrlPrefix << mUrl << " " << HttpVersion << "\r\n";
 		Buffer.Push( RequestHeader.str() );
 	}
 
 	//mHeaders["Accept"] = "text/html";
 	if ( !mHost.empty() )
-		mHeaders["Host"] = mHost;
+		if ( mHeaders.count("Host") == 0 )
+			mHeaders["Host"] = mHost;
 	//mHeaders["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.85 Safari/537.36";
 	BakeHeaders();
 	WriteHeaders( Buffer );
