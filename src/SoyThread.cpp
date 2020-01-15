@@ -438,6 +438,28 @@ std::string SoyThread::GetCurrentThreadName()
 		return "<ErrorGettingThreadName>";
 	}
 
+
+#elif defined(TARGET_WINDOWS)
+	//	https://stackoverflow.com/a/41902967/355753
+	//	if the thread name was set with SetThreadDescription, we can retrieve it
+	try
+	{
+		auto CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
+		PWSTR NameBuffer = nullptr;
+		auto Result = GetThreadDescription(CurrentThread, &NameBuffer);
+		Platform::IsOkay(Result, "GetThreadDescription");
+		LocalFree(NameBuffer);
+		std::wstring NameW(NameBuffer);
+		auto Name = Soy::WStringToString(NameW);
+		return Name;
+	}
+	catch (std::exception& e)
+	{
+		std::stringstream Name;
+		Name << "Unnamed thread [" << e.what() << "]";
+		return Name.str();
+	}
+
 #else
 	return "<NoThreadNameOnThisPlatform>";
 #endif
@@ -510,6 +532,26 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 
 #elif defined(TARGET_WINDOWS)
 	
+	//	try and use the new SetThreadDescription
+	{
+		//	gr: this si failing, but ThreadHandle seems to be 0 when going up the callstack there IS a 64bit handle value on the std::thread...
+		auto ThreadHandle = GetCurrentThread();
+		auto NameW = Soy::StringToWString(Name);
+		const WCHAR* NameBuffer = NameW.c_str();
+		auto Result = SetThreadDescription(ThreadId, NameBuffer);
+		try
+		{
+			std::stringstream Error;
+			Error << "SetThreadDescription(" << Name << ")";
+			Platform::IsOkay(Result, Error.str());
+			return;
+		}
+		catch (std::exception& e)
+		{
+			std::Debug << "Error in SetThreadDescription() " << e.what() << std::endl;
+		}
+	}
+
 	//	wrap the try() function in a lambda to avoid the unwinding
 	auto SetNameFunc = [](const char* ThreadName,HANDLE ThreadHandle)
 	{
