@@ -211,7 +211,9 @@ void std::DebugStreamBuf::flush()
 		//	if there's a debugger attached output to that, otherwise to-screen
 		//PlatformStdout &= !Platform::IsDebuggerAttached();
 		PlatformStdout = true;
-		PlatformDebugPrint = Platform::IsDebuggerAttached();
+		//	gr: expensive call! is it cheaper to just OutputDebugString than check? 
+		//PlatformDebugPrint = Platform::IsDebuggerAttached();
+		PlatformDebugPrint = true;
 
 #elif defined(TARGET_OSX)
 
