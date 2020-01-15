@@ -38,6 +38,7 @@ void Soy::TSemaphore::OnCompleted()
 	mConditional.notify_all();
 }
 
+
 void Soy::TSemaphore::Wait(const char* TimerName)
 {
 	if ( mCompleted )
@@ -78,6 +79,22 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 		throw Soy::AssertException( mThrownError );
 }
 
+void Soy::TSemaphore::WaitAndReset(const char* TimerName)
+{
+	//	wait, then reset the status so it can be re-waited and re-resolved
+	Wait(TimerName);
+	Reset();
+}
+
+void Soy::TSemaphore::Reset()
+{
+	//	gr: should this be locked?
+	//		with this going with Wait() could we get a race 
+	//		condition? maybe the reset needs to move explicity inside the wait()'s lock
+	std::unique_lock<std::mutex> Lock(mLock);
+	mThrownError = std::string();
+	mCompleted = false;
+}
 
 PopWorker::TJobQueue::~TJobQueue()
 {
