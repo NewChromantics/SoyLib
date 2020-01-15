@@ -555,7 +555,11 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 	//	wrap the try() function in a lambda to avoid the unwinding
 	auto SetNameFunc = [](const char* ThreadName,HANDLE ThreadHandle)
 	{
-		DWORD ThreadId = ::GetThreadId(ThreadHandle);
+		//	https://docs.microsoft.com/en-us/visualstudio/debugger/how-to-set-a-thread-name-in-native-code?view=vs-2019
+		//	ThreadId -1 == calling thread
+		//	gr: this isn't working with GetThreadId, but -1 is...
+		//DWORD ThreadId = ::GetThreadId(ThreadHandle);
+		DWORD ThreadId = -1;
 		//	set the OS thread name
 		//	http://msdn.microsoft.com/en-gb/library/xcb2z8hs.aspx
 		const DWORD MS_VC_EXCEPTION = 0x406D1388;
