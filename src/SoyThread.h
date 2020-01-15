@@ -26,13 +26,9 @@ namespace Platform
 class Soy::TSemaphore
 {
 public:
-	TSemaphore() :
-		mCompleted	( false )
-	{
-	}
-	
-	bool		IsCompleted() const						{	return mCompleted;	}
-	void		Wait(const char* TimerName=nullptr);
+	bool		IsCompleted() const				{	return mCompleted;	}
+	void		Wait(const char* TimerName = nullptr);
+	void		WaitAndReset(const char* TimerName = nullptr);
 	void		OnCompleted();
 	
 	//	if whatever we're waiting for had an error, we re-throw the message in Wait() as a Soy::AssertException
@@ -41,11 +37,16 @@ public:
 		mThrownError = ThrownError ? ThrownError : "Failed with unspecified error";
 		OnCompleted();
 	}
-	
+
+private:
+	//	reset the semaphore (ie, after waiting) so it can be re-triggered, like a recurring promise
+	//	this should only be called by the waiter
+	void		Reset();
+
 private:
 	std::mutex				mLock;
 	std::condition_variable	mConditional;
-	volatile bool			mCompleted;
+	volatile bool			mCompleted = false;
 	std::string				mThrownError;
 };
 
