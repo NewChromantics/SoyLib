@@ -171,9 +171,9 @@ private:
 	void		Bind(uint16 Port,SoySockAddr& outSockAddr);
 
 public:
-	std::function<void(SoyRef)>			mOnConnect;
-	std::function<void(SoyRef)>			mOnDisconnect;
-	SoySockAddr							mSocketAddr;		//	current socket address; gr: find this from the socket? Is it the first connection?
+	std::function<void(SoyRef)>						mOnConnect;
+	std::function<void(SoyRef,const std::string&)>	mOnDisconnect;
+	SoySockAddr										mSocketAddr;		//	current socket address; gr: find this from the socket? Is it the first connection?
 
 private:
 	//	lock to control ordered connect/disconnect (not strictly for race conditions)

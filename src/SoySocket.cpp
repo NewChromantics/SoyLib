@@ -858,7 +858,7 @@ void SoySocket::Disconnect(SoyRef ConnectionRef,const std::string& Reason)
 	//	do callback in case we want to try a hail mary
 	//	gr: the old Disconnect() had this AFTER closing socket, OnError did NOT
 	if ( mOnDisconnect != nullptr )
-		mOnDisconnect(ConnectionRef);
+		mOnDisconnect(ConnectionRef,Reason);
 
 	//	if the connection's socket is ourselves, (we are a client connecting to a server) close
 	if ( ClosingSelf )
