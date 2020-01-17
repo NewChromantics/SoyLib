@@ -303,9 +303,23 @@ void SoyThread::Stop(bool WaitToFinish)
 	if ( WaitToFinish )
 	{
 		//	if thread is active, then wait for it to finish and join it
+		//	gr: Joinable() doesn't block until its finished!
+		try
+		{
+			std::stringstream TimerName;
+			TimerName << "Waiting for thread " << mThreadName << " to finish";
+			mFinishedSemaphore.Wait(TimerName.str().c_str());
+		}
+		catch (std::exception& e)
+		{
+			std::Debug << "Exception waiting for thread to end: " << e.what() << std::endl;
+		}
+
+		//	now join now that it's finished
 		if ( mThread.joinable() )
 			mThread.join();
 
+		//	delete
 		mThread = std::thread();
 	}
 }
@@ -337,16 +351,16 @@ void SoyThread::Start()
 					throw Soy::AssertException("How did this get null");
 			}
 			
-			This->OnThreadFinish();
+			This->OnThreadFinish(std::string());
 		}
 		catch(std::exception& e)
 		{
-			This->OnThreadFinish();
+			This->OnThreadFinish(e.what());
 			throw;
 		}
 		catch(...)
 		{
-			This->OnThreadFinish();
+			This->OnThreadFinish("Unknown exception");
 			throw;
 		}
 		
@@ -489,9 +503,15 @@ void SoyThread::OnThreadStart()
 		SetThreadName( mThreadName );
 }
 
-void SoyThread::OnThreadFinish()
+void SoyThread::OnThreadFinish(const std::string& Exception)
 {
 	CleanupHeap();
+
+	//	if there was an error, flag semaphore with error
+	if (!Exception.empty())
+		mFinishedSemaphore.OnFailed(Exception.c_str());
+	else
+		mFinishedSemaphore.OnCompleted();
 }
 
 void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handle_type ThreadId)

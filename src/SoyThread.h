@@ -254,7 +254,7 @@ protected:
 	bool					HasThread() const		{	return mThread.get_id() != std::thread::id();	}
 	//	these are called ON thread
 	virtual void			OnThreadStart();
-	virtual void			OnThreadFinish();
+	virtual void			OnThreadFinish(const std::string& Exception);
 
 private:
 	static void				SetThreadName(const std::string& Name,std::thread::native_handle_type ThreadHandle);
@@ -291,8 +291,9 @@ protected:
 
 private:
 	std::string			mThreadName;
-	volatile bool		mIsRunning;
+	volatile bool		mIsRunning;			//	used to STOP the thread.
 	std::thread			mThread;
+	Soy::TSemaphore		mFinishedSemaphore;	//	this gets flagged when the thread has finished, so we can block when waiting for it to finish
 };
 
 
