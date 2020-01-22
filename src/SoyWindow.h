@@ -84,7 +84,7 @@ class SoySlider
 public:
 	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
 	
-	virtual void					SetMinMax(uint16_t Min,uint16_t Max)=0;
+	virtual void					SetMinMax(uint16_t Min,uint16_t Max,uint16_t NotchCount)=0;
 	virtual void					SetValue(uint16_t Value)=0;
 	virtual uint16_t				GetValue()=0;
 	
