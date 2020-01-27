@@ -33,6 +33,9 @@ const BufferArray<char,100>& GetAlphabet()
 	if ( Alphabet.IsEmpty() )
 	{
 		Alphabet.PushBackArray( Private::gAlphabetRaw );
+		//	remove terminator
+		if (Alphabet.GetBack() == '\0')
+			Alphabet.Remove('\0');
 	}
 
 	return Private::gAlphabet;
