@@ -834,26 +834,25 @@ void SoySocket::OnError(SoyRef ConnectionRef,const std::string& Reason)
 
 void SoySocket::Disconnect(SoyRef ConnectionRef,const std::string& Reason)
 {
-	mConnectionLock.lock();
-	
-	//	get the connection
-	auto Connection = GetConnection( ConnectionRef );
-	//	if missing we've probably already dealt with it
-	if ( !Connection.IsValid() )
+	SoySocketConnection Connection;
 	{
-		mConnectionLock.unlock();
-		return;
+		std::lock_guard<std::recursive_mutex> Lock(mConnectionLock);
+
+		auto Existing = mConnections.find(ConnectionRef);
+		if (Existing == mConnections.end())
+		{
+			//	missing, already deleted?
+			return;
+		}
+
+		Connection = Existing->second;
+
+		bool ClosingSelf = (mSocket == Connection.mSocket);
+		std::Debug << "Disconnect " << (ClosingSelf ? "self" : "client") << ConnectionRef << "(" << Connection << ") reason: " << Reason << std::endl;
+
+		//	remove from list before callback? or after, so list is accurate for callbacks
+		mConnections.erase(Existing);
 	}
-	
-	bool ClosingSelf = ( mSocket == Connection.mSocket );
-	std::Debug << "Disconnect " << (ClosingSelf?"self" : "client") << ConnectionRef << "(" << Connection << ") reason: " << Reason << std::endl;
-
-	//	remove from list before callback? or after, so list is accurate for callbacks
-	mConnections.erase( ConnectionRef );
-
-	//	unlock for disconnect callback...
-	//	gr: could still cause race condition?
-	mConnectionLock.unlock();
 
 	//	do callback in case we want to try a hail mary
 	//	gr: the old Disconnect() had this AFTER closing socket, OnError did NOT
@@ -861,6 +860,7 @@ void SoySocket::Disconnect(SoyRef ConnectionRef,const std::string& Reason)
 		mOnDisconnect(ConnectionRef,Reason);
 
 	//	if the connection's socket is ourselves, (we are a client connecting to a server) close
+	bool ClosingSelf = (mSocket == Connection.mSocket);
 	if ( ClosingSelf )
 	{
 		Close();
@@ -898,15 +898,17 @@ SoySocketConnection SoySocket::GetFirstConnection() const
 
 SoySocketConnection SoySocket::GetConnection(SoyRef ConnectionRef)
 {
-	mConnectionLock.lock();
+	std::lock_guard<std::recursive_mutex> Lock(mConnectionLock);
 	
 	//	accessing the map will create a new key, so look for it first
-	SoySocketConnection Connection;
 	auto Find = mConnections.find( ConnectionRef );
-	if ( Find != mConnections.end() )
-		Connection = Find->second;
-
-	mConnectionLock.unlock();
+	if (Find == mConnections.end())
+	{
+		std::stringstream Error;
+		Error << "No such connection ref " << ConnectionRef;
+		throw Soy::AssertException(Error);
+	}
+	auto Connection = Find->second;
 	
 	return Connection;
 }
