@@ -10,6 +10,7 @@ namespace Private
 };
 
 
+
 struct uint64Chars
 {
 	uint64Chars() :
@@ -92,7 +93,10 @@ uint64 FromAlphabetIndexes(const BufferArray<size_t,SoyRef::MaxStringLength>& In
 	for ( int i=0;	i<Indexes.GetSize();	i++ )
 	{
 		auto Index = Indexes[i];
-		Ref64Chars.mChars[i] = Alphabet[Index];
+		auto& RefChar = Ref64Chars.mChars[i];
+		RefChar = Alphabet[Index];
+		if (RefChar == '\0')
+			throw "No character should be zero";
 	}
 	return Ref64Chars.m64;
 }
@@ -153,12 +157,32 @@ void SoyRef::Increment()
 		//	... let i-- and we increment previous char
 	}
 
+	//	convert back
+	mRef = FromAlphabetIndexes( AlphabetIndexes );
+
 	//	if the "final integer" is reached, we'll end up with 000000000 (ie, invalid).
 	//	if this is the case, we need to increment the alphabet, or start packing.
 	//	gr: actually, this will never happen. 0000000 is _________ (not invalid!)
-	assert( IsValid() );
-
-	//	convert back
-	mRef = FromAlphabetIndexes( AlphabetIndexes );
+	if (!IsValid())
+		throw Soy::AssertException("Generated invalid SoyRef during increment");
 }
+
+
+bool SoyRef::IsValid() const
+{
+	//	if any char is 0, its invalid.
+	//	but it should be all or nothing
+	for (auto i = 0; i < std::size(mRefChars); i++)
+	{
+		auto& Char = mRefChars[i];
+		if (Char == '\0')
+		{
+			if (mRef != 0)
+				throw Soy::AssertException("Corrupted soyref found");
+			return false;
+		}
+	}
+	return true;
+}
+
 
