@@ -212,7 +212,7 @@ void Soy::TRuntimeLibrary::AddSearchPath(const std::string& Path)
 #if defined(TARGET_WINDOWS)
 	if ( Path.length() == 0 )
 	{
-		std::Debug << "Skipped adding empty directory to DLL search path" << std::endl;
+		//std::Debug << "Skipped adding empty directory to DLL search path" << std::endl;
 		return;
 	}
 

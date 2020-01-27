@@ -96,7 +96,7 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 		std::stringstream err;
 		err << "sockaddr length (" << ExpectedLength << ") doesn't match incoming address " << AddrLen << " (Using smallest)";
 #if defined(TARGET_WINDOWS)
-		std::Debug << err.str() << std::endl;
+		//std::Debug << err.str() << std::endl;
 #else
 		throw Soy::AssertException( err.str() );
 #endif

@@ -570,6 +570,8 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 #elif defined(TARGET_WINDOWS)
 	
 	//	try and use the new SetThreadDescription
+	static bool UseSetThreadDescription = false;
+	if (UseSetThreadDescription)
 	{
 		//	gr: this si failing, but ThreadHandle seems to be 0 when going up the callstack there IS a 64bit handle value on the std::thread...
 		auto ThreadHandle = GetCurrentThread();
