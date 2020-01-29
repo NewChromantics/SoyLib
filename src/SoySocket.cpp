@@ -1193,7 +1193,7 @@ void SoySocketConnection::Send(const ArrayBridge<char>& Data,bool IsUdp)
 			auto Error = Soy::Winsock::GetError();
 			
 			std::stringstream SocketError;
-			SocketError << "Send(" << *this << ")";
+			SocketError << "Send(" << *this << ", " << SendArray.GetDataSize() << "bytes)";
 			if ( !Soy::Winsock::HasError("",false,Error,&SocketError) )
 				SocketError << "Missing error(" << Error << ") but socket error, so failing anyway";
 			throw Soy::AssertException( SocketError.str() );
