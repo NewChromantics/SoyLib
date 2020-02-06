@@ -36,3 +36,12 @@ void SoyTickBox::OnChanged()
 	auto Value = GetValue();
 	mOnValueChanged( Value );
 }
+
+void SoyColourButton::OnChanged(bool FinalValue)
+{
+	if (!mOnValueChanged)
+		return;
+
+	auto Value = GetValue();
+	mOnValueChanged(Value, FinalValue);
+}

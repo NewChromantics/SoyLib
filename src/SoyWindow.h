@@ -141,6 +141,21 @@ public:
 };
 
 
+//	native control, but a custom one in SoyLib
+class SoyColourButton
+{
+public:
+	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect) = 0;		//	set position on screen
+
+	virtual void					SetValue(vec3x<uint8_t> Value) = 0;
+	virtual vec3x<uint8_t>			GetValue() = 0;
+
+	virtual void					OnChanged(bool FinalValue);	//	helper to do GetValue and call the callback
+
+	std::function<void(vec3x<uint8_t>&,bool)>	mOnValueChanged;	//	reference so caller can change value in the callback
+};
+
+
 namespace Gui
 {
 	class TColourPicker;
