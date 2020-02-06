@@ -115,5 +115,19 @@ void Win32_Unregister_ColourButton(void)
 
 void ColourButton_SetColour(HWND ColourButtonHandle, uint8_t Red, uint8_t Green, uint8_t Blue)
 {
-	//	send message
+	//	remake the brush
+	//	gr: is it safe to do here? do it when we repaint?
+	ColourButtonData* pData = (ColourButtonData*)GetWindowLongPtr(ColourButtonHandle, 0);
+	
+	if (pData->mBrushColour)
+	{
+		DeleteObject(pData->mBrushColour);
+		pData->mBrushColour = NULL;
+	}
+
+	auto Colour = RGB(Red, Green, Blue);
+	pData->mBrushColour = CreateSolidBrush(Colour);
+
+	//	trigger repaint automtically?
+	InvalidateRect(ColourButtonHandle, NULL, TRUE);
 }
