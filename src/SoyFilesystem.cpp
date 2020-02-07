@@ -22,7 +22,7 @@
 
 #include <sstream>
 #include <fstream>
-
+#include <algorithm>
 
 namespace Platform
 {
@@ -517,10 +517,21 @@ bool Platform::IsFullPath(const std::string& Path)
 		//	expecting this to throw if not a valid filename
 		auto FullPath = GetFullPathFromFilename(Path);
 
+		//	gr: if above didn't throw, then its a valid path, even if it's not full...
+		//		maybe some better function to test than matching start
+		//	this may not work with say, x://dir/hello\\\\xy.z with multiple slashes
+#if defined(TARGET_WINDOWS)
+		//	windows corrects path / to \ so need to cope with that
+		auto CleanPath = Path;
+		std::replace(CleanPath.begin(), CleanPath.end(), '/', '\\');
+#else
+		auto& CleanPath = Path;
+#endif
+
 		//	gr: OSX will correct by adding / to end of the dir
 		//	lets allow if Path is matching the start, but maybe we can do something better
 		bool CaseSensitive = true;
-		if ( !Soy::StringBeginsWith( FullPath, Path, CaseSensitive ) )
+		if ( !Soy::StringBeginsWith( FullPath, CleanPath, CaseSensitive ) )
 			return false;
 		return true;
 	}
