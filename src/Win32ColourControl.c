@@ -16,8 +16,29 @@ typedef struct ColourButtonData {
 	DWORD style;
 	HBRUSH mBrushColour;
 	HPEN mPenOutline;
-	//HANDLE	mColourDialog;
+	HANDLE	mColourDialog;
 } ColourButtonData;
+
+
+static void ColourButton_SetColourRef(HWND ColourButtonHandle, COLORREF Colour)
+{
+	//	remake the brush
+	//	gr: is it safe to do here? do it when we repaint?
+	ColourButtonData* pData = (ColourButtonData*)GetWindowLongPtr(ColourButtonHandle, 0);
+	if (!pData)
+		return;// FALSE;
+
+	if (pData->mBrushColour)
+	{
+		DeleteObject(pData->mBrushColour);
+		pData->mBrushColour = NULL;
+	}
+
+	pData->mBrushColour = CreateSolidBrush(Colour);
+
+	//	trigger repaint automtically?
+	InvalidateRect(ColourButtonHandle, NULL, TRUE);
+}
 
 
 static void ColourButton_Paint(ColourButtonData* pData, HDC hDC, RECT* rcDirty, BOOL bErase)
@@ -38,6 +59,22 @@ static void ColourButton_Paint(ColourButtonData* pData, HDC hDC, RECT* rcDirty, 
 	SelectObject(hDC, pData->mBrushColour);
 	Rectangle( hDC, Rect.left, Rect.top, Rect.right, Rect.bottom );
 	//FillRect(hDC, &Rect, pData->mBrushColour);
+}
+
+
+static ColourButtonData* CreateColourButtonData(COLORREF InitialColour)
+{
+	ColourButtonData* pData = (ColourButtonData*)malloc(sizeof(ColourButtonData));
+	if (pData == NULL)
+		return NULL;
+	
+	//pData->style = ((CREATESTRUCT*)lParam)->style;
+	pData->style = 0;
+	pData->mPenOutline = CreatePen(PS_SOLID, OUTLINE_WIDTH, OUTLINE_COLOR);
+	pData->mBrushColour = CreateSolidBrush(BRUSH_COLOR);
+	pData->hwnd = NULL;
+	pData->mColourDialog = NULL;
+	return pData;
 }
 
 static LRESULT CALLBACK ColourButtonCallback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -71,14 +108,16 @@ static LRESULT CALLBACK ColourButtonCallback(HWND hwnd, UINT uMsg, WPARAM wParam
 		break;
 
 	case WM_NCCREATE:
-		pData = (ColourButtonData*)malloc(sizeof(ColourButtonData));
-		if (pData == NULL)
-			return FALSE;
-		SetWindowLongPtr(hwnd, 0, (LONG_PTR)pData);
+
+		if (!pData)
+		{
+			pData = CreateColourButtonData(BRUSH_COLOR);
+			SetWindowLongPtr(hwnd, 0, (LONG_PTR)pData);
+			if (!pData)
+				return FALSE;
+		}
+
 		pData->hwnd = hwnd;
-		pData->style = ((CREATESTRUCT*)lParam)->style;
-		pData->mPenOutline = CreatePen(PS_SOLID, OUTLINE_WIDTH, OUTLINE_COLOR);
-		pData->mBrushColour = CreateSolidBrush(BRUSH_COLOR);
 		return TRUE;
 
 	case WM_NCDESTROY:
@@ -86,6 +125,33 @@ static LRESULT CALLBACK ColourButtonCallback(HWND hwnd, UINT uMsg, WPARAM wParam
 			DeleteObject(pData->mPenOutline);
 			DeleteObject(pData->mBrushColour);
 			free(pData);
+		}
+		return 0;
+
+	case WM_LBUTTONDOWN:
+		if (pData != NULL) 
+		{
+			CHOOSECOLOR Meta;
+			ZeroMemory(&Meta, sizeof(CHOOSECOLOR));
+			Meta.lStructSize = sizeof(CHOOSECOLOR);
+			Meta.hwndOwner = hwnd;
+			//Meta.rgbResult = rgbCurrent;
+			Meta.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+			//	gr: crashes without palette
+			static COLORREF CustomColours[16];
+			Meta.lpCustColors = (LPDWORD)CustomColours;
+
+			if (ChooseColor(&Meta))
+			{
+				ColourButton_SetColourRef(hwnd,Meta.rgbResult);
+				//	report changed
+			}
+			else
+			{
+				//	check  CommDlgExtendedError 
+				//	https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms646912(v=vs.85)?redirectedfrom=MSDN
+			}
 		}
 		return 0;
 	}
@@ -113,21 +179,10 @@ void Win32_Unregister_ColourButton(void)
 	UnregisterClass(COLOURBUTTON_CLASSNAME, NULL);
 }
 
+
+
 void ColourButton_SetColour(HWND ColourButtonHandle, uint8_t Red, uint8_t Green, uint8_t Blue)
 {
-	//	remake the brush
-	//	gr: is it safe to do here? do it when we repaint?
-	ColourButtonData* pData = (ColourButtonData*)GetWindowLongPtr(ColourButtonHandle, 0);
-	
-	if (pData->mBrushColour)
-	{
-		DeleteObject(pData->mBrushColour);
-		pData->mBrushColour = NULL;
-	}
-
 	auto Colour = RGB(Red, Green, Blue);
-	pData->mBrushColour = CreateSolidBrush(Colour);
-
-	//	trigger repaint automtically?
-	InvalidateRect(ColourButtonHandle, NULL, TRUE);
+	ColourButton_SetColourRef( ColourButtonHandle, Colour);
 }
