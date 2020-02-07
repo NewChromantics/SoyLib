@@ -471,6 +471,7 @@ std::string SoyThread::GetCurrentThreadName()
 
 
 #elif defined(TARGET_WINDOWS)
+	/*
 	//	https://stackoverflow.com/a/41902967/355753
 	//	if the thread name was set with SetThreadDescription, we can retrieve it
 	try
@@ -490,7 +491,8 @@ std::string SoyThread::GetCurrentThreadName()
 		Name << "Unnamed thread [" << e.what() << "]";
 		return Name.str();
 	}
-
+	*/
+	return "<NoThreadName>";
 #else
 	return "<NoThreadNameOnThisPlatform>";
 #endif
