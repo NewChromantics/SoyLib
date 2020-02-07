@@ -333,7 +333,7 @@ void Platform::EnumFiles(std::string Directory,std::function<void(const std::str
 	
 	//	don't get stuck!
 	//	gr: much higher for recursive directories... could do with a more solid checker though
-	static int MatchLimit = 20000;
+	static int MatchLimit = 50000;
 	int MatchCount = 0;
 	
 	while ( !SearchDirectories.IsEmpty() )
