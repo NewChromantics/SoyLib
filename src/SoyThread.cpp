@@ -355,13 +355,12 @@ void SoyThread::Start()
 		}
 		catch(std::exception& e)
 		{
+			//	gr: this shouldn't throw, but just set the error (with OnThreadFinish)
 			This->OnThreadFinish(e.what());
-			throw;
 		}
 		catch(...)
 		{
 			This->OnThreadFinish("Unknown exception");
-			throw;
 		}
 		
 		return 0;
