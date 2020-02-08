@@ -297,6 +297,28 @@ private:
 };
 
 
+class SoyThreadLambda : public SoyThread
+{
+public:
+	SoyThreadLambda(const std::string& ThreadName, std::function<bool()> Lambda) :
+		SoyThread	(ThreadName),
+		mLambda		( Lambda )
+	{
+		Start();
+	}
+
+	virtual void	Thread() override
+	{
+		while (IsThreadRunning())
+		{
+			if (!mLambda())
+				return;
+		}
+	}
+
+	std::function<bool()>	mLambda;
+};
+
 //	gr: maybe change this to a policy?
 namespace SoyWorkerWaitMode
 {
