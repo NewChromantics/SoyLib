@@ -18,6 +18,8 @@
 #if defined(TARGET_WINDOWS)
 #include <Shlobj.h>
 #include <Shlwapi.h>
+#include <shellapi.h>
+#undef ShellExecute
 #endif
 
 #include <sstream>
@@ -436,6 +438,26 @@ void Platform::CreateDirectory(const std::string& Path)
 		}
 }
 
+
+
+#if defined(TARGET_WINDOWS)
+void Platform::ShellExecute(const std::string& Path)
+{
+	//	https://docs.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecutea
+	//	returns HINSTANCE but it's an int
+	auto Result = ShellExecuteA(nullptr, "open", Path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+	auto ResultInt = static_cast<int>(reinterpret_cast<std::uintptr_t>(Result));
+	auto Context = std::string("ShellExecute(") + Path + ")";
+	Platform::IsOkay(ResultInt, Context);
+}
+#endif
+
+#if defined(TARGET_WINDOWS)
+void Platform::ShellOpenUrl(const std::string& UrlString)
+{
+	ShellExecute(UrlString);
+}
+#endif
 
 #if defined(TARGET_WINDOWS)
 void Platform::ShowFileExplorer(const std::string& Path)
