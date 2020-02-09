@@ -95,6 +95,7 @@ namespace SoyMediaFormat
         QuicktimeTimecode,  //  explicitly listing this until I've established what the format is
 		
 		Html,
+		Css,
 		Text,
 		Json,				//	has seperate mime type
 		Subtitle,

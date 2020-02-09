@@ -160,6 +160,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Text,				"text" },
 	{ SoyMediaFormat::Json,				"Json" },
 	{ SoyMediaFormat::Html,				"Html" },
+	{ SoyMediaFormat::Css,				"Css" },
 	{ SoyMediaFormat::Subtitle,			"subtitle" },
 	{ SoyMediaFormat::ClosedCaption,	"closedcaption" },
 	{ SoyMediaFormat::Timecode,			"timecode" },
@@ -291,7 +292,8 @@ const Array<SoyMediaFormatMeta>& SoyMediaFormat::GetFormatMap()
 		
 		SoyMediaFormatMeta( SoyMediaFormat::Text,			{"txt"},		"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::Json,			{"js","json"},	"application/javascript",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Html,			{"htm","html","xhtml"},	"text/html",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
+		SoyMediaFormatMeta(SoyMediaFormat::Html,			{"htm","html","xhtml"},	"text/html",	'xxxx', SoyMediaMetaFlags::IsText, 0),
+		SoyMediaFormatMeta(SoyMediaFormat::Css,				{"css"},	"text/css",	'xxxx', SoyMediaMetaFlags::IsText, 0),
 		SoyMediaFormatMeta( SoyMediaFormat::ClosedCaption,	{},		"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::Subtitle,		{"srt"},	"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
 		
