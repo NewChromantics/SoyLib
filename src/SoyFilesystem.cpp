@@ -528,7 +528,8 @@ std::string	Platform::GetExePath()
 #if defined(TARGET_WINDOWS)
 bool Platform::FileExists(const std::string& Path)
 {
-	return ::PathFileExistsA(Path.c_str());
+	auto FullPath = GetFullPathFromFilename(Path);
+	return ::PathFileExistsA(FullPath.c_str());
 }
 #endif
 
