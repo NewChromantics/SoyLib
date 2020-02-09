@@ -103,6 +103,34 @@ static ColourButtonData* CreateColourButtonData()
 	return pData;
 }
 
+UINT_PTR ColourDialogCallback(
+	HWND Arg1,
+	UINT Message,
+	WPARAM Arg3,
+	LPARAM Arg4
+)
+{
+	switch (Message)
+	{
+	case WM_KILLFOCUS:
+	case WM_SETFOCUS:
+	case WM_COMMAND:
+	case WM_SETFONT:
+	case WM_ERASEBKGND:
+	case WM_PAINT:
+	case WM_WINDOWPOSCHANGING:
+	case WM_GETICON:
+	case WM_WINDOWPOSCHANGED:
+	case WM_CHANGEUISTATE:
+	case WM_UPDATEUISTATE:
+	case WM_INITDIALOG:
+	case WM_ACTIVATEAPP:
+	case WM_NCACTIVATE:
+		return 0;
+	}
+	return 0;
+}
+
 static LRESULT CALLBACK ColourButtonCallback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	ColourButtonData* pData = (ColourButtonData*)GetWindowLongPtr(hwnd, 0);
@@ -161,8 +189,8 @@ static LRESULT CALLBACK ColourButtonCallback(HWND hwnd, UINT uMsg, WPARAM wParam
 			ZeroMemory(&Meta, sizeof(CHOOSECOLOR));
 			Meta.lStructSize = sizeof(CHOOSECOLOR);
 			Meta.hwndOwner = hwnd;
-			Meta.Flags = CC_FULLOPEN | CC_RGBINIT;
-
+			Meta.Flags = CC_FULLOPEN | CC_RGBINIT | CC_ENABLEHOOK;
+			Meta.lpfnHook = ColourDialogCallback;
 			//	gr: crashes without palette
 			Meta.lpCustColors = (LPDWORD)pData->mPalette;
 			Meta.rgbResult = pData->mColour;
