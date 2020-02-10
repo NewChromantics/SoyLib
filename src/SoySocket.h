@@ -141,8 +141,8 @@ public:
 	void		ListenTcp(int Port);
 	void		ListenUdp(int Port, bool SaveListeningConnection);
 	SoyRef		WaitForClient();
-	SoyRef		Connect(std::string Address);
-	SoyRef		UdpConnect(const char* Address,uint16 Port);	//	this doesn't "do" a connect, but fakes one as a success, and starts listening (required only on windows
+	SoyRef		Connect(const char* Hostname, uint16 Port);
+	SoyRef		UdpConnect(const char* Hostname,uint16 Port);	//	this doesn't "do" a connect, but fakes one as a success, and starts listening (required only on windows
 	SoyRef		UdpConnect(SoySockAddr Address);
 
 	bool		IsConnected();

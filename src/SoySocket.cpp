@@ -660,20 +660,17 @@ bool SoySocket::IsConnected()
 	return Connected;
 }
 
-SoyRef SoySocket::Connect(std::string Address)
+SoyRef SoySocket::Connect(const char* Hostname,uint16_t Port)
 {
-	if ( mSocket == INVALID_SOCKET )
-		return SoyRef();
-
-	u_short Port;
-	std::string Hostname;
-	Soy::SplitHostnameAndPort( Hostname, Port, Address );
+	if (mSocket == INVALID_SOCKET)
+		throw Soy::AssertException("TCP Connect without creating socket first");
 
 	SoySockAddr HostAddr( Hostname, Port );
 	if ( !HostAddr.IsValid() )
 	{
-		std::Debug << "couldn't get sock address for " << Address << std::endl;
-		return SoyRef();
+		std::stringstream Error;
+		Error << "couldn't get sock address for " << Hostname;
+		throw Soy::AssertException(Error);
 	}
 
 	//	gr: no connection lock here as this is blocking
@@ -683,7 +680,7 @@ SoyRef SoySocket::Connect(std::string Address)
 	Connection.mAddr = HostAddr;
 	
 	//	try and connect
-	std::Debug << "Connecting to " << Address << "..." << std::endl;
+	std::Debug << "Connecting to " << Hostname << ":" << Port << "..." << std::endl;
 	int Return = ::connect( mSocket, Connection.mAddr.GetSockAddr(), Connection.mAddr.GetSockAddrLength() );
 
 	//	immediate connection success (when in blocking mode)
@@ -702,8 +699,9 @@ SoyRef SoySocket::Connect(std::string Address)
 		}
 		else
 		{
-			std::Debug << "connect(" << Address << ") error: " << Platform::GetErrorString( Error ) << std::endl;
-			return SoyRef();
+			std::stringstream ErrorStr;
+			ErrorStr << "connect(" << Hostname << ":" << Port << ") error: " << Platform::GetErrorString( Error );
+			throw Soy::AssertException(ErrorStr);
 		}
 	}
 
@@ -732,15 +730,16 @@ SoyRef SoySocket::Connect(std::string Address)
 		}
 		else if ( ReadyFileDescriptorCount == 0 )
 		{
-			std::Debug << "Timed out waiting for connection (select)" << std::endl;
-			return SoyRef();
+			throw Soy::AssertException("Timed out waiting for connection (select)");
 		}
 		
-		if ( !Soy::Assert( ReadyFileDescriptorCount == 1, [ReadyFileDescriptorCount]{	return Soy::StreamToString( std::stringstream() << "unexpected return from select() -> " << ReadyFileDescriptorCount << " (expected 1)"	);	} ) )
+		if (ReadyFileDescriptorCount != 1 )
 		{
+			std::stringstream Exception;
+			Exception << "unexpected return from select() -> " << ReadyFileDescriptorCount << " (expected 1)";
 			//	gr: what to do with socket if it's valid?
 			Close();
-			return SoyRef();
+			throw Soy::AssertException(Exception);
 		}
 
 		//	todo: double check state of socket here?
