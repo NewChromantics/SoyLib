@@ -1,7 +1,6 @@
 #pragma once
 
 
-#include <cassert>
 #include <cstddef>
 #include "SoyTypes.h"	//	gr: not sure why I have to include this, when it's included earlier in Soy.hpp...
 #include "Array.hpp"
@@ -619,7 +618,8 @@ public:
 			return false;
 		}
 		mmaxsize = NewSize;
-		assert( moffset <= mmaxsize );
+		//	gr: this assert macro
+		//assert( moffset <= mmaxsize );
 		return true;
 	}
 

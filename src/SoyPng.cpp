@@ -1,9 +1,15 @@
 #include "SoyPixels.h"
-#include "miniz/miniz.h"
 #include "SoyDebug.h"
 #include "SoyPng.h"
 #include "RemoteArray.h"
 #include "SoyFourcc.h"
+
+namespace MiniZ
+{
+#include "miniz/miniz.h"
+}
+using namespace MiniZ;
+
 
 const Soy::TFourcc TPng::IHDR("IHDR");
 const Soy::TFourcc TPng::IEND("IEND");
@@ -247,6 +253,8 @@ bool DeFilterScanline(TPng::TFilterNone_ScanlineFilter::Type Filter,const ArrayB
 
 bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char>& Data,std::stringstream& Error)
 {
+	using namespace MiniZ;
+
 	if ( Header.mCompression == TCompression::DEFLATE )
 	{
 		//	decompress straight into image. But the decompressed data will have extra filter values per row!
@@ -429,19 +437,17 @@ void TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 	}
 }
 
-bool TPng::GetDeflateData(Array<char>& DeflateData,const ArrayBridge<uint8>& PixelBlock,bool LastBlock,int WindowSize)
+void TPng::GetDeflateData(Array<char>& DeflateData,const ArrayBridge<uint8>& PixelBlock,bool LastBlock,int WindowSize)
 {
 	//	pixel block should have already been split
-	assert( PixelBlock.GetSize() <= WindowSize );
-	if ( PixelBlock.GetSize() > WindowSize )
-		return false;
+	if (PixelBlock.GetSize() > WindowSize)
+		throw Soy::AssertException("Pixel block should have already been split");
 
 	//	if it's NOT the last block, it MUST be full-size
 	if ( !LastBlock )
 	{
-		assert( PixelBlock.GetSize() == WindowSize );
-		if ( PixelBlock.GetSize() != WindowSize )
-			return false;
+		if (PixelBlock.GetSize() != WindowSize)
+			throw Soy::AssertException("Expecting pixel block size to be window size");
 	}
 
 	//	http://en.wikipedia.org/wiki/DEFLATE
@@ -461,7 +467,6 @@ bool TPng::GetDeflateData(Array<char>& DeflateData,const ArrayBridge<uint8>& Pix
 	if ( sizeof(Len)==2 )
 		DeflateData.PushBackReinterpret( NLen );
 	DeflateData.PushBackArray( PixelBlock );
-	return true;
 }
 
 
@@ -519,7 +524,8 @@ void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,float C
 	uint32 Height = size_cast<uint32>(Pixels.GetHeight());
 	uint8 BitDepth = Pixels.GetBitDepth();
 	uint8 ColourType = PngColourType;
-	assert( PngColourType != TPng::TColour::Invalid );
+	if (PngColourType == TPng::TColour::Invalid)
+		throw Soy::AssertException("Png colour type is invalid");
 	uint8 Compression = TPng::TCompression::DEFLATE;
 	uint8 Filter = TPng::TFilter::None;
 	uint8 Interlace = TPng::TInterlace::None;
