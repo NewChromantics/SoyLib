@@ -465,7 +465,8 @@ void Platform::ShowFileExplorer(const std::string& Path)
 #if defined(HOLOLENS_SUPPORT)
 	//	unsupported
 #else
-	auto PathList = ILCreateFromPathA( Path.c_str() );
+	auto CleanPath = Platform::GetFullPathFromFilename(Path);
+	auto PathList = ILCreateFromPathA(CleanPath.c_str() );
 	if ( !PathList )
 	{
 		std::stringstream Error;
@@ -473,9 +474,19 @@ void Platform::ShowFileExplorer(const std::string& Path)
 		throw Soy::AssertException(Error.str());
 	}
 
-	auto Result = SHOpenFolderAndSelectItems( PathList, 0, 0, 0 );
-	ILFree( PathList );
-	Platform::IsOkay( Result, "SHOpenFolderAndSelectItems");
+	try
+	{
+		auto Result = CoInitialize(nullptr);
+		Platform::IsOkay(Result, "CoInitialize for SHOpenFolderAndSelectItems");
+		Result = SHOpenFolderAndSelectItems(PathList, 0, 0, 0);
+		Platform::IsOkay(Result, "SHOpenFolderAndSelectItems");
+		ILFree(PathList);
+	}
+	catch (std::exception& e)
+	{
+		ILFree(PathList);
+		throw;
+	}
 #endif
 }
 #endif
