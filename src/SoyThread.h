@@ -309,10 +309,9 @@ public:
 
 	virtual void	Thread() override
 	{
-		while (IsThreadRunning())
+		if (!mLambda())
 		{
-			if (!mLambda())
-				return;
+			Stop(false);
 		}
 	}
 

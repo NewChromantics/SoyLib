@@ -291,6 +291,7 @@ SoyThread::SoyThread(const std::string& ThreadName) :
 
 SoyThread::~SoyThread()
 {
+	Stop(true);
 }
 
 
