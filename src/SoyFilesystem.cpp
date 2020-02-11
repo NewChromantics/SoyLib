@@ -535,26 +535,19 @@ bool Platform::FileExists(const std::string& Path)
 
 bool Platform::IsFullPath(const std::string& Path)
 {
+#if defined(TARGET_WINDOWS)
+	auto IsRelative = PathIsRelativeA(Path.c_str());
+	return !IsRelative;
+#else
 	try
 	{
 		//	expecting this to throw if not a valid filename
 		auto FullPath = GetFullPathFromFilename(Path);
 
-		//	gr: if above didn't throw, then its a valid path, even if it's not full...
-		//		maybe some better function to test than matching start
-		//	this may not work with say, x://dir/hello\\\\xy.z with multiple slashes
-#if defined(TARGET_WINDOWS)
-		//	windows corrects path / to \ so need to cope with that
-		auto CleanPath = Path;
-		std::replace(CleanPath.begin(), CleanPath.end(), '/', '\\');
-#else
-		auto& CleanPath = Path;
-#endif
-
 		//	gr: OSX will correct by adding / to end of the dir
 		//	lets allow if Path is matching the start, but maybe we can do something better
 		bool CaseSensitive = true;
-		if ( !Soy::StringBeginsWith( FullPath, CleanPath, CaseSensitive ) )
+		if ( !Soy::StringBeginsWith( FullPath, Path, CaseSensitive ) )
 			return false;
 		return true;
 	}
@@ -564,6 +557,7 @@ bool Platform::IsFullPath(const std::string& Path)
 		//	gr: should make a specialised exception type here
 		return false;
 	}
+#endif
 }
 
 #if defined(TARGET_WINDOWS)
