@@ -31,8 +31,6 @@ namespace Platform
 #if defined(TARGET_OSX) || defined(TARGET_IOS)
 	void	EnumNsDirectory(const std::string& Directory,std::function<void(const std::string&)> OnFileFound,bool Recursive);
 #endif
-
-	std::string		ExePath;
 }
 
 
@@ -492,48 +490,28 @@ void Platform::ShowFileExplorer(const std::string& Path)
 #endif
 
 
-
-
-
-void Platform::SetExePath()
-{
 #if defined(TARGET_WINDOWS)
-	//	auto init path
-	char Buffer[MAX_PATH] = { 0 };
-	auto Length = GetModuleFileNameA( NULL, Buffer, MAX_PATH );
-	Length = std::min<size_t>( Length, sizeof(Buffer)-1 );
-	Buffer[Length] = '\0';
-	SetExePath(Buffer);
-
-	/*
-	std::string Path;
-
-	char PathBuffer[MAX_PATH];
-	auto PathBufferLength = GetModuleFileNameA( Module, PathBuffer, sizeof(PathBuffer) );
-	if ( Platform::IsOkay( "GetModuleFileName in DLLMain", false ) )
-	{
-		//	just in case 
-		PathBufferLength = std::min<size_t>( PathBufferLength, sizeof(PathBuffer)-1 );
-		PathBuffer[PathBufferLength] = '\0';
-		Path = PathBuffer;
-	}
-	*/
-#else
-	throw Soy::AssertException("Auto SetExePath only on windows");
-#endif
-}
-
-
-void Platform::SetExePath(const std::string& Path)
+std::string Platform::GetExeFilename()
 {
-	//	gr: should we disallow this on windows and force the auto method
-	//		to get it from hmodule?
-	ExePath = Path;
+	static std::string ExeFilenameCache;
+
+	if (ExeFilenameCache.length())
+		return ExeFilenameCache;
+
+	char Buffer[MAX_PATH] = { 0 };
+	auto Length = GetModuleFileNameA( nullptr, Buffer, std::size(Buffer) );
+	Length = std::min<size_t>(Length, sizeof(Buffer) - 1);
+	Buffer[Length] = '\0';
+	ExeFilenameCache = Buffer;
+	return ExeFilenameCache;
 }
+#endif
+
 
 std::string	Platform::GetExePath()
 {
-	return GetDirectoryFromFilename( ExePath );
+	auto ExeFilename = GetExeFilename();
+	return GetDirectoryFromFilename(ExeFilename);
 }
 
 #if defined(TARGET_WINDOWS)
@@ -857,5 +835,25 @@ std::string Platform::GetComputerName()
 		Platform::ThrowLastError("GetComputerNameA");
 	std::string Name(Buffer);
 	return Name;
+}
+#endif
+
+#if defined(TARGET_WINDOWS)
+void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
+{
+	//	split the command line
+	auto CommandLine = GetCommandLineW();
+	
+	int ArgCount = 0;
+	auto* Args = CommandLineToArgvW(CommandLine, &ArgCount);
+
+	//	skip exe at 0
+	for (auto i = 1; i < ArgCount;	i++ )
+	{
+		auto ArgN = Args[i];
+		auto ArgString = Soy::WStringToString(ArgN);
+		Arguments.PushBack(ArgString);
+	}
+	LocalFree(Args);
 }
 #endif

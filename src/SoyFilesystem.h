@@ -53,13 +53,10 @@ namespace Platform
 	NSURL*	GetUrl(const std::string& Filename);
 #endif
 	
-	void				SetExePath(const std::string& Path);
-	inline void			SetDllPath(const std::string& Path) { SetExePath(Path); }
-	void				SetExePath();
-	inline void			SetDllPath() { SetExePath(); }
 	std::string			GetExePath();
+	std::string			GetExeFilename();
 	inline std::string	GetDllPath() { return GetExePath(); }
-
+	void				GetExeArguments(ArrayBridge<std::string>&& Arguments);
 	
 	//	gr: this is the resources dir inside .app on osx
 	//	on windows it's just exe path
