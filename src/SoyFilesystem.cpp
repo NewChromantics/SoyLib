@@ -832,7 +832,7 @@ std::string Platform::GetAppResourcesDirectory()
 std::string Platform::GetComputerName()
 {
 	char Buffer[MAX_PATH];
-	DWORD Length = sizeofarray(Buffer);
+	DWORD Length = std::size(Buffer);
 	if ( !GetComputerNameA(Buffer,&Length) )
 		Platform::ThrowLastError("GetComputerNameA");
 	std::string Name(Buffer);

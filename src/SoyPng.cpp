@@ -563,7 +563,7 @@ void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,float C
 	PngData.Reserve( PixelData.GetDataSize() + 12 );
 	PngData.Reserve( Tail.GetDataSize() + 12 );
 	
-	uint32 HeaderLength = size_cast<uint32>( Header.GetDataSize() - sizeofarray(IHDR) );
+	uint32 HeaderLength = size_cast<uint32>( Header.GetDataSize() - std::size(IHDR) );
 	if ( HeaderLength != 13 )
 		throw Soy_AssertException("HeaderLength not 13");
 	
@@ -576,20 +576,20 @@ void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,float C
 	//	exif can go between header and end, but not inbetween idats
 	if ( !ExifData.IsEmpty() )
 	{
-		uint32 ExifDataLength = size_cast<uint32>( ExifData.GetDataSize() - sizeofarray(EXIF) );
+		uint32 ExifDataLength = size_cast<uint32>( ExifData.GetDataSize() - std::size(EXIF) );
 		uint32 ExifDataCrc = Soy::GetCrc32( GetArrayBridge(ExifData) );
 		PngData.PushBackReinterpretReverse( ExifDataLength );
 		PngData.PushBackArray( ExifData );
 		PngData.PushBackReinterpretReverse( ExifDataCrc );
 	}
 	
-	uint32 PixelDataLength = size_cast<uint32>( PixelData.GetDataSize() - sizeofarray(IDAT) );
+	uint32 PixelDataLength = size_cast<uint32>( PixelData.GetDataSize() - std::size(IDAT) );
 	uint32 PixelDataCrc = Soy::GetCrc32( GetArrayBridge(PixelData) );
 	PngData.PushBackReinterpretReverse( PixelDataLength );
 	PngData.PushBackArray( PixelData );
 	PngData.PushBackReinterpretReverse( PixelDataCrc );
 	
-	uint32 TailLength = size_cast<uint32>( Tail.GetDataSize() - sizeofarray(IEND) );
+	uint32 TailLength = size_cast<uint32>( Tail.GetDataSize() - std::size(IEND) );
 	uint32 TailCrc = Soy::GetCrc32( GetArrayBridge(Tail) );
 	if ( TailCrc != 0xAE426082 )
 		throw Soy_AssertException("Tail CRC not 0xAE426082");

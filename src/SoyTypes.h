@@ -96,8 +96,6 @@ namespace std
 };
 
 
-#define sizeofarray(ARRAY)	( sizeof(ARRAY)/sizeof((ARRAY)[0]) )
-
 //	set a standard RTTI macro
 #if defined(__cpp_rtti) || defined(GCC_ENABLE_CPP_RTTI) || __has_feature(cxx_rtti)
 #define ENABLE_RTTI
