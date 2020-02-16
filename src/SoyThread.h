@@ -26,7 +26,10 @@ namespace Platform
 class Soy::TSemaphore
 {
 public:
-	bool		IsCompleted() const				{	return mCompleted;	}
+	bool		IsCompleted() const		{ return mCompleted; }
+	bool		IsErrored() const		{ return !mThrownError.empty(); }
+	bool		IsFinished() const		{ return IsCompleted() || IsErrored(); }
+	
 	void		Wait(const char* TimerName = nullptr);
 	void		WaitAndReset(const char* TimerName = nullptr);
 	void		OnCompleted();
@@ -224,11 +227,14 @@ public:
 //	thread wrapper. basically a giant while loop, if real efficiency is required, use the SoyWorkerThread which waits/sleeps/wakes on conditionals
 class SoyThread
 {
-public:
-	//	global thread events for platform hooks
-	//	gr: this is a bit hacky, the main ones are now members, restore this if needed (JNI on android!)
-	//static std::function<void(SoyThread&)>&	GetOnThreadFinish();	//	call whilst in thread
-	//static std::function<void(SoyThread&)>&	GetOnThreadStart();		//	call whilst in thread
+private:
+	enum ThreadState
+	{
+		NotStarted,
+		Running,
+		Stopping,		//	stop has been requested
+		//	no Stopped, this state is based on conditional wait
+	};
 
 public:
 	SoyThread(const std::string& ThreadName);
@@ -236,7 +242,7 @@ public:
 	
 	void					Start();
 	void					Stop(bool WaitToFinish);			//	signal thread to stop
-	void					WaitToFinish()				{	Stop(true);	}
+	void					WaitToFinish();
 	const std::string&		GetThreadName() const		{	return mThreadName;	}
 
 	//bool					IsCurrentThread() const	{	return GetThreadId() == std::this_thread::get_id();	}
@@ -250,7 +256,7 @@ public:
 	void					CleanupHeap();
 	
 protected:
-	virtual void			Thread()=0;				//	wrapped in an IsRunning() loop
+	virtual bool			ThreadIteration()=0;	//	wrapped in an IsRunning() loop
 	bool					HasThread() const		{	return mThread.get_id() != std::thread::id();	}
 	//	these are called ON thread
 	virtual void			OnThreadStart();
@@ -260,40 +266,16 @@ private:
 	static void				SetThreadName(const std::string& Name,std::thread::native_handle_type ThreadHandle);
 	void					SetThreadName(const std::string& Name)		{	SetThreadName( Name, mThread.native_handle() );	}
 
-	
-	/*
-	bool				startThread(bool blocking, bool verbose);
-	void				stopThread();
-	bool				isThreadRunning()					{	return mIsRunning;	}
-	void				waitForThread(bool stop = true);
-	std::thread::id		GetThreadId() const					{	return mThread.get_id();	}
-	std::string			GetThreadName() const				{	return mThreadName;	}
-	static void			Sleep(size_t ms=0)
-	{
-		std::this_thread::sleep_for( std::chrono::milliseconds(ms) );
-	}
-	
-#if defined(TARGET_WINDOWS)
-	DWORD			GetNativeThreadId()					{	return ::GetThreadId( GetThreadHandle() );	}
-	HANDLE			GetThreadHandle()					{	return static_cast<HANDLE>( mThread.native_handle() );	}
-#elif defined(TARGET_OSX)
-	//    typedef pthread_t native_handle_type;
-	std::thread::native_handle_type		GetNativeThreadId()					{	return mThread.native_handle();	}
-#endif
-	
 protected:
-	bool				create(unsigned int stackSize=0);
-	void				destroy();
-*/
-
-protected:
-	bool				IsThreadRunning() const		{	return mIsRunning;	}	//	currently only exposed for the worker thread
+	bool				IsThreadRunning() const		{	return mThreadState == Running;	}	//	currently only exposed for the worker thread
+	bool				IsThreadFinished()			{	return mFinishedSemaphore.IsFinished(); }
+	bool				IsThreadStarted()			{	return mThreadState != NotStarted; }
 
 private:
-	std::string			mThreadName;
-	volatile bool		mIsRunning;			//	used to STOP the thread.
-	std::thread			mThread;
-	Soy::TSemaphore		mFinishedSemaphore;	//	this gets flagged when the thread has finished, so we can block when waiting for it to finish
+	std::string				mThreadName;
+	volatile ThreadState	mThreadState = NotStarted;
+	std::thread				mThread;
+	Soy::TSemaphore			mFinishedSemaphore;	//	this gets flagged when the thread has finished, so we can block when waiting for it to finish
 };
 
 
@@ -307,12 +289,9 @@ public:
 		Start();
 	}
 
-	virtual void	Thread() override
+	virtual bool	ThreadIteration() override
 	{
-		if (!mLambda())
-		{
-			Stop(false);
-		}
+		return mLambda();
 	}
 
 	std::function<bool()>	mLambda;
@@ -422,7 +401,7 @@ public:
 
 protected:
 //	bool				HasThread() const		{	return SoyThread::get_id() != std::thread::id();	}
-	virtual void		Thread() override;
+	virtual bool		ThreadIteration() override;
 };
 
 

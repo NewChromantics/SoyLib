@@ -284,8 +284,7 @@ void PopWorker::TJobQueue::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphor
 
 
 SoyThread::SoyThread(const std::string& ThreadName) :
-	mThreadName	( ThreadName ),
-	mIsRunning	( false )
+	mThreadName	( ThreadName )
 {
 }
 
@@ -298,31 +297,48 @@ SoyThread::~SoyThread()
 void SoyThread::Stop(bool WaitToFinish)
 {
 	//	thread's loop will stop on next loop
-	mIsRunning = false;
-	
-	//	wait for thread to exit
-	if ( WaitToFinish )
-	{
-		//	if thread is active, then wait for it to finish and join it
-		//	gr: Joinable() doesn't block until its finished!
-		try
-		{
-			std::stringstream TimerName;
-			TimerName << "Waiting for thread " << mThreadName << " to finish";
-			mFinishedSemaphore.Wait(TimerName.str().c_str());
-		}
-		catch (std::exception& e)
-		{
-			std::Debug << "Exception waiting for thread to end: " << e.what() << std::endl;
-		}
+	if (mThreadState == Running)
+		mThreadState = Stopping;
 
+	if (WaitToFinish)
+		this->WaitToFinish();
+}
+
+void SoyThread::WaitToFinish()
+{
+	//	never started
+	if (mThreadState == NotStarted)
+		return;
+
+	//	wait for thread to exit
+	//	gr: Joinable() doesn't block until its finished, so
+	//		now we wait on the semaphore
+	//		We throw if the thread threw, so we can use WaitToFinish
+	//		as a way to check what happened what happened in the thread
+	//		we should throw here if the thread threw
+
+	auto DestroyThread = [&]()
+	{
 		//	now join now that it's finished
-		if ( mThread.joinable() )
+		if (mThread.joinable())
 			mThread.join();
 
 		//	delete
 		mThread = std::thread();
+	};
+
+	try
+	{
+		std::stringstream TimerName;
+		TimerName << "Waiting for thread " << mThreadName << " to finish";
+		mFinishedSemaphore.Wait(TimerName.str().c_str());
+		DestroyThread();
 	}
+	catch(std::exception& e)
+	{
+		DestroyThread();
+		throw;
+	}		
 }
 
 void SoyThread::Start()
@@ -330,14 +346,11 @@ void SoyThread::Start()
 	//	already running
 	if ( mThread.get_id() != std::thread::id() )
 		return;
-	
-	//	maybe stopping...
-	Soy::Assert( !mIsRunning, "Thread doesn't exist, but is marked as running");
-	
+		
 	auto ThreadFuncWrapper = [](void* pThis)
 	{
 		auto* This = reinterpret_cast<SoyThread*>(pThis);
-		This->mIsRunning = true;
+		This->mThreadState = Running;
 
 		//	POSIX needs to name threads IN the thread. so do that for everyone by default
 		This->OnThreadStart();
@@ -345,9 +358,11 @@ void SoyThread::Start()
 		//	gr: even if we're not catching exceptions, java NEEDS us to cleanup the threads or the OS will abort us
 		try
 		{
-			while ( This->mIsRunning )
+			while ( This->IsThreadRunning() )
 			{
-				This->Thread();
+				if (!This->ThreadIteration())
+					break;
+
 				if ( This == nullptr )
 					throw Soy::AssertException("How did this get null");
 			}
@@ -366,45 +381,8 @@ void SoyThread::Start()
 		
 		return 0;
 	};
-	
-	auto CatchException_ThreadFuncWrapper = [=](void* This)
-	{
-		try
-		{
-			return ThreadFuncWrapper(This);
-		}
-		catch(std::exception& e)
-		{
-			std::Debug << "Caught SoyThread " << GetThreadName() << " exception: " << e.what() << std::endl;
-		}
-		catch(...)
-		{
-			std::Debug << "Caught SoyThread " << GetThreadName() << " unknown exception." << std::endl;
-		}
-		
-		return 0;
-	};
 
-	//	gr: catch all. Maybe only enable this for "release" builds?
-	//		android is throwing an exception, but callstack doesn't contain exception handler/throw indicator... so seeing if we can trap it
-	//	crash with exception is still useful in release though...
-	#if defined(TARGET_ANDROID)
-	bool CatchExceptions = true;
-	#else
-	bool CatchExceptions = !Platform::IsDebuggerAttached();
-	#endif
-	
-	CatchExceptions = false;
-	
-	//	start thread
-	if ( CatchExceptions )
-	{
-		mThread = std::thread( CatchException_ThreadFuncWrapper, this );
-	}
-	else
-	{
-		mThread = std::thread( ThreadFuncWrapper, this );
-	}
+	mThread = std::thread( ThreadFuncWrapper, this );
 }
 
 std::thread::native_handle_type SoyThread::GetCurrentThreadNativeHandle()
@@ -766,16 +744,12 @@ void SoyWorkerThread::Start(bool ThrowIfAlreadyStarted)
 }
 
 
-void SoyWorkerThread::Thread()
+bool SoyWorkerThread::ThreadIteration()
 {
+	//	this blocks and does its own iterating
 	SoyWorker::Start();
 	
-	//	when this exits, we should stop, to break the thread out of it's loop
-	if ( this->IsThreadRunning() )
-	{
-		std::Debug << "SoyWorkerThread " << GetThreadName() << " finished, but not stopped. Stopping to end thread." << std::endl;
-		SoyThread::Stop(false);
-	}
+	return false;
 }
 
 void SoyThread::CleanupHeap()
