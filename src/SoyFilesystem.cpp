@@ -676,6 +676,8 @@ void Soy::ReadStream(ArrayBridge<uint8_t>& Data,std::istream& Stream)
 
 void Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename)
 {
+	Filename = ::Platform::GetFullPathFromFilename(Filename);
+
 	//	gr: would be nice to have an array! MemFileArray maybe, if it can be cross paltform...
 	std::ifstream Stream( Filename, std::ios::binary|std::ios::in );
 	
