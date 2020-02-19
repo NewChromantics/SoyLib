@@ -99,6 +99,7 @@ namespace SoyMediaFormat
 		Text,
 		Json,				//	has seperate mime type
 		Subtitle,
+		Svg,
 		ClosedCaption,
 		Timecode,
 		MetaData,

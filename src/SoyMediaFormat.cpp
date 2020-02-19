@@ -295,8 +295,9 @@ const Array<SoyMediaFormatMeta>& SoyMediaFormat::GetFormatMap()
 		SoyMediaFormatMeta(SoyMediaFormat::Html,			{"htm","html","xhtml"},	"text/html",	'xxxx', SoyMediaMetaFlags::IsText, 0),
 		SoyMediaFormatMeta(SoyMediaFormat::Css,				{"css"},	"text/css",	'xxxx', SoyMediaMetaFlags::IsText, 0),
 		SoyMediaFormatMeta( SoyMediaFormat::ClosedCaption,	{},		"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Subtitle,		{"srt"},	"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
-		
+		SoyMediaFormatMeta(SoyMediaFormat::Subtitle,		{"srt"},	"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0),
+		SoyMediaFormatMeta(SoyMediaFormat::Svg,				{"svg"},	"image/svg+xml",	'xxxx', SoyMediaMetaFlags::IsText, 0),
+
 		SoyMediaFormatMeta( SoyMediaFormat::QuicktimeTimecode,	{"qt","mov"},	"application/quicktimetimecode",	'tmcd', SoyMediaMetaFlags::None, 0 ),
 
 		//	pixel formats

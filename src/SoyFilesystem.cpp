@@ -443,8 +443,14 @@ void Platform::ShellExecute(const std::string& Path)
 {
 	//	https://docs.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecutea
 	//	returns HINSTANCE but it's an int
+	//	If the function succeeds, it returns a value greater than 32. 
+	//	If the function fails, it returns an error value that indicates the cause of the failure.
 	auto Result = ShellExecuteA(nullptr, "open", Path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 	auto ResultInt = static_cast<int>(reinterpret_cast<std::uintptr_t>(Result));
+
+	if (ResultInt > 32)
+		return;
+
 	auto Context = std::string("ShellExecute(") + Path + ")";
 	Platform::IsOkay(ResultInt, Context);
 }
