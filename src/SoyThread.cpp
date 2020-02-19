@@ -304,6 +304,34 @@ void SoyThread::Stop(bool WaitToFinish)
 		this->WaitToFinish();
 }
 
+namespace Platform
+{
+	namespace ThreadState
+	{
+		enum TYPE
+		{
+			_WAIT_ABANDONED = WAIT_ABANDONED,
+			_WAIT_OBJECT_0 = WAIT_OBJECT_0,
+			_WAIT_TIMEOUT = WAIT_TIMEOUT,
+			_WAIT_FAILED = WAIT_FAILED
+		};
+	}
+	std::string	GetThreadStateString(ThreadState::TYPE State);
+}
+
+std::string Platform::GetThreadStateString(ThreadState::TYPE State)
+{
+	switch (State)
+	{
+	case ThreadState::_WAIT_ABANDONED:	return "_WAIT_ABANDONED";
+	case ThreadState::_WAIT_OBJECT_0:	return "_WAIT_ABANDONED";
+	case ThreadState::_WAIT_TIMEOUT:	return "_WAIT_ABANDONED";
+	case ThreadState::_WAIT_FAILED:	return "_WAIT_ABANDONED";
+	default:
+		return "ThreadState::UNKNOWN";
+	}
+}
+
 void SoyThread::WaitToFinish()
 {
 	//	never started
@@ -326,6 +354,16 @@ void SoyThread::WaitToFinish()
 		//	delete
 		mThread = std::thread();
 	};
+
+	//	get OS thread state
+#if defined(TARGET_WINDOWS)
+	{
+		//	0 = success, and means it's exited, but still running, I think
+		auto ThreadState = WaitForSingleObject(mThread.native_handle(), 0);
+		std::Debug << this->mThreadName << " Thread State is " << Platform::GetThreadStateString( static_cast<Platform::ThreadState::TYPE>(ThreadState)) << "(" << ThreadState << ")" << std::endl;
+	}
+#endif
+	
 
 	try
 	{
@@ -379,6 +417,7 @@ void SoyThread::Start()
 			This->OnThreadFinish("Unknown exception");
 		}
 		
+		std::Debug << "Thread has exited" << std::endl;
 		return 0;
 	};
 
