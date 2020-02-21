@@ -475,7 +475,7 @@ std::ostream& operator<<(std::ostream& os, REFGUID guid)
 	}
 
 	OLECHAR Buffer[100] = {0};
-	StringFromGUID2( guid, Buffer, sizeofarray(Buffer) );
+	StringFromGUID2( guid, Buffer, std::size(Buffer) );
 	os << Buffer;
 	/*
 	os << std::uppercase;
