@@ -215,7 +215,7 @@ void GetPlatforms(ArrayBridge<cl_platform_id>&& Platforms)
 {
 	cl_platform_id PlatformBuffer[100];
 	cl_uint PlatformCount = 0;
-	auto Error = clGetPlatformIDs( sizeofarray(PlatformBuffer), PlatformBuffer, &PlatformCount );
+	auto Error = clGetPlatformIDs( std::size(PlatformBuffer), PlatformBuffer, &PlatformCount );
 	if ( !Opencl::IsOkay( Error, "Failed to get opencl platforms" ) )
 		return;
 
@@ -370,7 +370,7 @@ void Opencl::TPlatform::EnumDevices(std::function<void(const TDeviceMeta&)> Enum
 {
 	cl_device_id DeviceBuffer[100];
 	cl_uint DeviceCount = 0;
-	auto err = clGetDeviceIDs( mPlatform, Filter, sizeofarray(DeviceBuffer), DeviceBuffer, &DeviceCount );
+	auto err = clGetDeviceIDs( mPlatform, Filter, std::size(DeviceBuffer), DeviceBuffer, &DeviceCount );
 	
 	if ( err != CL_SUCCESS )
 	{
@@ -619,7 +619,7 @@ Opencl::TProgram::TProgram(const std::string& Source,TContext& Context) :
 		Source.c_str(),
 	};
 	cl_int Error = 0;
-	mProgram = clCreateProgramWithSource( Context.GetContext(), sizeofarray(Lines), Lines, nullptr, &Error );
+	mProgram = clCreateProgramWithSource( Context.GetContext(), std::size(Lines), Lines, nullptr, &Error );
 	Opencl_IsOkay(Error);
 	Soy::Assert( mProgram != nullptr, "creating program failed" );
 	
