@@ -379,7 +379,7 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 		//	16 bit, but 1 channel
 	case KinectDepth:	return 1;
 	case FreenectDepth11bit:	return 1;
-	case FreenectDepth10bit:	return 21;	
+	case FreenectDepth10bit:	return 1;	
 	case FreenectDepthmm:	return 1;
 
 	case ChromaUV_8_8:	return 1;
@@ -397,6 +397,11 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case YYuv_8888_Ntsc:
 	case YYuv_8888_Smptec:
 		return 2;
+
+	case Yuv_8_8_8_Full:
+	case Yuv_8_8_8_Ntsc:
+	case Yuv_8_8_8_Smptec:
+		return 1;
 
 	case uyvy:
 		return 2;
@@ -454,6 +459,9 @@ bool SoyPixelsFormat::IsFloatChannel(SoyPixelsFormat::Type Format)
 		case YYuv_8888_Ntsc:
 		case YYuv_8888_Smptec:
 		case uyvy:
+		case Yuv_8_8_8_Full:
+		case Yuv_8_8_8_Ntsc:
+		case Yuv_8_8_8_Smptec:
 			return false;
 			
 		default:
@@ -1332,6 +1340,31 @@ int GetDepthFormatBits(SoyPixelsFormat::Type Format)
 	}
 }
 
+void Depth16_To_Yuv_8_8_8(ArrayInterface<uint8>& Pixels, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
+{
+	//	if we need control, do it at a higher level :)
+	static const int DepthMax = 4000;
+
+	uint16* DepthPixels = reinterpret_cast<uint16*>(Pixels.GetArray());
+	auto PixelCount = Meta.GetWidth() * Meta.GetHeight();
+
+	SoyPixels Yuv(SoyPixelsMeta(Meta.GetWidth(), Meta.GetHeight(), SoyPixelsFormat::Yuv_8_8_8_Full));
+	auto* LumaPixels = &Yuv.GetPixelPtr(0, 0, 0);
+
+	for (int p = 0; p < PixelCount; p++)
+	{
+		auto Depth16 = DepthPixels[p];
+		float Depthf = Depth16 / static_cast<float>(DepthMax);
+		auto Depth8 = Depthf * 255.0f;
+
+		LumaPixels[p] = Depth8;
+	}
+
+	Pixels.Copy(Yuv.GetPixelsArray());
+	Meta.DumbSetFormat(NewFormat);
+}
+
+
 void ConvertDepth16(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
 {
 	auto OldFormat = Meta.GetFormat();
@@ -1427,7 +1460,9 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::KinectDepth, ConvertDepth16 ),
 	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::FreenectDepth10bit, ConvertDepth16 ),
 	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::FreenectDepth11bit, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::KinectDepth, ConvertDepth16 ),
+	TConvertFunc(SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::KinectDepth, ConvertDepth16),
+	TConvertFunc(SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::Yuv_8_8_8_Full, Depth16_To_Yuv_8_8_8),
+	TConvertFunc(SoyPixelsFormat::FreenectDepthmm, SoyPixelsFormat::Yuv_8_8_8_Ntsc, Depth16_To_Yuv_8_8_8),
 	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::RGB, DepthToGreyOrRgb ),
 	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::RGBA, DepthToGreyOrRgb ),
 	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Greyscale, DepthToGreyOrRgb ),
