@@ -304,6 +304,7 @@ void SoyThread::Stop(bool WaitToFinish)
 		this->WaitToFinish();
 }
 
+#if defined(TARGET_WINDOWS)
 namespace Platform
 {
 	namespace ThreadState
@@ -318,7 +319,10 @@ namespace Platform
 	}
 	std::string	GetThreadStateString(ThreadState::TYPE State);
 }
+#endif
 
+
+#if defined(TARGET_WINDOWS)
 std::string Platform::GetThreadStateString(ThreadState::TYPE State)
 {
 	switch (State)
@@ -331,6 +335,7 @@ std::string Platform::GetThreadStateString(ThreadState::TYPE State)
 		return "ThreadState::UNKNOWN";
 	}
 }
+#endif
 
 void SoyThread::WaitToFinish()
 {
