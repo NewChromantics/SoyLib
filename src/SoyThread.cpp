@@ -290,7 +290,14 @@ SoyThread::SoyThread(const std::string& ThreadName) :
 
 SoyThread::~SoyThread()
 {
-	Stop(true);
+	try
+	{
+		Stop(true);
+	}
+	catch (std::exception& e)
+	{
+		std::Debug << __PRETTY_FUNCTION__ << "; Exception stopping thread; " << e.what() << std::endl;
+	}
 }
 
 
@@ -300,6 +307,8 @@ void SoyThread::Stop(bool WaitToFinish)
 	if (mThreadState == Running)
 		mThreadState = Stopping;
 
+	//	gr: here, we may have already WaitToFinish'd and thrown if the thread failed
+	//		this just triggers it again... is that intended?
 	if (WaitToFinish)
 		this->WaitToFinish();
 }
@@ -328,9 +337,9 @@ std::string Platform::GetThreadStateString(ThreadState::TYPE State)
 	switch (State)
 	{
 	case ThreadState::_WAIT_ABANDONED:	return "_WAIT_ABANDONED";
-	case ThreadState::_WAIT_OBJECT_0:	return "_WAIT_ABANDONED";
-	case ThreadState::_WAIT_TIMEOUT:	return "_WAIT_ABANDONED";
-	case ThreadState::_WAIT_FAILED:	return "_WAIT_ABANDONED";
+	case ThreadState::_WAIT_OBJECT_0:	return "_WAIT_OBJECT_0";
+	case ThreadState::_WAIT_TIMEOUT:	return "_WAIT_TIMEOUT";
+	case ThreadState::_WAIT_FAILED:	return "_WAIT_FAILED";
 	default:
 		return "ThreadState::UNKNOWN";
 	}
