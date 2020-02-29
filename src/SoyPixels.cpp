@@ -510,12 +510,12 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(size_t ChannelC
 
 namespace SoyPixelsFormat
 {
-	const std::map<Type,BufferArray<Type,2>>&	GetMergedFormatMap();
+	const std::map<Type,BufferArray<Type,4>>&	GetMergedFormatMap();
 }
 
-const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyPixelsFormat::GetMergedFormatMap()
+const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,4>>& SoyPixelsFormat::GetMergedFormatMap()
 {
-	static std::map<Type,BufferArray<Type,2>> Map;
+	static std::map<Type,BufferArray<Type,4>> Map;
 
 	if ( Map.empty() )
 	{
@@ -533,7 +533,9 @@ const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyP
 
 		Map[ChromaUV_8_8].PushBackArray( { ChromaU_8, ChromaV_8 } );
 
-		Map[Yuv_8_88_Full_Depth16].PushBackArray({ Luma_Full, ChromaUV_88, Depth16mm });
+		Map[Yuv_8_88_Ntsc_Depth16].PushBackArray({ Luma_Ntsc, ChromaUV_88, Depth16mm });
+		Map[Yuv_844_Ntsc_Depth16].PushBackArray({ Luma_Ntsc, ChromaUV_44, Depth16mm });
+		Map[BGRA_Depth16].PushBackArray({ BGRA, Depth16mm });
 	}
 
 	return Map;
@@ -691,7 +693,9 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::Float2,				"Float2"	},
 	{ SoyPixelsFormat::Float3,				"Float3"	},
 	{ SoyPixelsFormat::Float4,				"Float4"	},
-	{ SoyPixelsFormat::Yuv_8_88_Full_Depth16,	"Yuv_8_88_Full_Depth16"	},
+	{ SoyPixelsFormat::Yuv_8_88_Ntsc_Depth16,	"Yuv_8_88_Ntsc_Depth16"	},
+	{ SoyPixelsFormat::Yuv_844_Ntsc_Depth16,	"Yuv_844_Ntsc_Depth16"	},
+	{ SoyPixelsFormat::BGRA_Depth16,	"BGRA_Depth16"	},
 };
 
 
@@ -2385,8 +2389,8 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaUV_88));
 			break;
 
-		case SoyPixelsFormat::Yuv_8_88_Full_Depth16:
-			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full));
+		case SoyPixelsFormat::Yuv_8_88_Ntsc_Depth16:
+			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Ntsc));
 			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaUV_88));
 			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Depth16mm));
 			break;
@@ -2426,6 +2430,11 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 		case SoyPixelsFormat::ChromaUV_8_8:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaU_8 ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaV_8 ) );
+			break;
+
+		case SoyPixelsFormat::BGRA_Depth16:
+			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::BGRA));
+			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Depth16mm));
 			break;
 
 		//	gr: these are interlaced, so don't split
