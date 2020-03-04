@@ -2631,7 +2631,7 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping(SoyPixelsFormat::KinectDepth,			Opengl1ChannelFormats),
 		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth10bit,	Opengl1ChannelFormats),
 		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth11bit,	Opengl1ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::FreenectDepthmm,		Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Depth16mm,		Opengl1ChannelFormats),
 
 		TPixelFormatMapping(SoyPixelsFormat::Uvy_844_Full,		Opengl2ChannelFormats),
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Full,		Opengl2ChannelFormats),
