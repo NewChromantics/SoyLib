@@ -358,9 +358,14 @@ void SoyThread::WaitToFinish()
 	//	get OS thread state
 #if defined(TARGET_WINDOWS)
 	{
-		//	0 = success, and means it's exited, but still running, I think
-		auto ThreadState = WaitForSingleObject(mThread.native_handle(), 0);
-		std::Debug << this->mThreadName << " Thread State is " << Platform::GetThreadStateString( static_cast<Platform::ThreadState::TYPE>(ThreadState)) << "(" << ThreadState << ")" << std::endl;
+		auto Handle = mThread.native_handle();
+		//	app verifier throws if we pass a null handle
+		if (Handle)
+		{
+			//	0 = success, and means it's exited, but still running, I think
+			auto ThreadState = WaitForSingleObject(mThread.native_handle(), 0);
+			std::Debug << this->mThreadName << " Thread State is " << Platform::GetThreadStateString(static_cast<Platform::ThreadState::TYPE>(ThreadState)) << "(" << ThreadState << ")" << std::endl;
+		}
 	}
 #endif
 	
