@@ -533,8 +533,11 @@ const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,4>>& SoyP
 
 		Map[ChromaUV_8_8].PushBackArray( { ChromaU_8, ChromaV_8 } );
 
-		Map[Yuv_8_88_Ntsc_Depth16].PushBackArray({ Luma_Ntsc, ChromaUV_88, Depth16mm });
-		Map[Yuv_844_Ntsc_Depth16].PushBackArray({ Luma_Ntsc, ChromaUV_44, Depth16mm });
+		//	the merge is used to match in both directions reverse, so this whole map might need to change?
+		Map[Yuv_8_88_Ntsc_Depth16].PushBackArray({ Yuv_8_88_Ntsc, Depth16mm });
+		Map[Yuv_844_Ntsc_Depth16].PushBackArray({ Yuv_844_Ntsc, Depth16mm });
+		//Map[Yuv_8_88_Ntsc_Depth16].PushBackArray({ Luma_Ntsc, ChromaUV_88, Depth16mm });
+		//Map[Yuv_844_Ntsc_Depth16].PushBackArray({ Luma_Ntsc, ChromaUV_44, Depth16mm });
 		Map[BGRA_Depth16].PushBackArray({ BGRA, Depth16mm });
 	}
 
@@ -572,8 +575,9 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetMergedFormat(SoyPixelsFormat::Type For
 			return MergedFormat;
 	}
 
-	//	no merged version
-	return SoyPixelsFormat::Invalid;
+	std::stringstream Error;
+	Error << "No merged format for " << Formata << " + " << Formatb;
+	throw Soy::AssertException(Error);
 }
 
 //	merge index & palette into Paletteised_8_8
