@@ -287,10 +287,19 @@ public:
 class TDumbSharedPixelBuffer : public TPixelBuffer
 {
 public:
-	TDumbSharedPixelBuffer(std::shared_ptr<SoyPixelsImpl>& Pixels,const float3x3& Transform) :
-		mPixels	( Pixels )
+	TDumbSharedPixelBuffer(std::shared_ptr<SoyPixelsImpl>& Pixels, const float3x3& Transform) :
+		mTransform	( Transform )
 	{
-		Soy::Assert( mPixels!=nullptr, "TDumbSharedPixelBuffer: Expected pixel buffer");
+		mPixelsArray.PushBack(Pixels);
+	}
+	TDumbSharedPixelBuffer(std::shared_ptr<SoyPixelsImpl>& PixelsA, std::shared_ptr<SoyPixelsImpl>& PixelsB)
+	{
+		mPixelsArray.PushBack(PixelsA);
+		mPixelsArray.PushBack(PixelsB);
+	}
+	TDumbSharedPixelBuffer(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Pixels)
+	{
+		mPixelsArray.Copy(Pixels);
 	}
 
 	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override	{}
@@ -299,7 +308,11 @@ public:
 	virtual void		Lock(ArrayBridge<SoyPixelsImpl*>&& Textures,float3x3& Transform) override
 	{
 		Transform = mTransform;
-		Textures.PushBack( mPixels.get() );
+		for (auto i = 0; i < mPixelsArray.GetSize(); i++)
+		{
+			auto& Pixels = mPixelsArray[i];
+			Textures.PushBack(Pixels.get());
+		}
 	}
 
 	virtual void	Unlock() override
@@ -307,7 +320,7 @@ public:
 	}
 
 public:
-	std::shared_ptr<SoyPixelsImpl>	mPixels;
+	BufferArray<std::shared_ptr<SoyPixelsImpl>,3>	mPixelsArray;
 	float3x3		mTransform;
 };
 

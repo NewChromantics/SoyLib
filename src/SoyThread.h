@@ -255,6 +255,10 @@ public:
 	static prmem::Heap&		GetHeap(std::thread::native_handle_type Thread);
 	void					CleanupHeap();
 	
+	//	for (so far) win32 DLL's, when a process exits, threads have gone, but we may not have exited cleanly and 
+	//	finished semaphore will never be completed, then we get stuck on a thread destructor
+	void					OnDetatchedExternally();
+
 protected:
 	virtual bool			ThreadIteration()=0;	//	wrapped in an IsRunning() loop
 	bool					HasThread() const		{	return mThread.get_id() != std::thread::id();	}

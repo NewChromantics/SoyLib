@@ -290,7 +290,14 @@ SoyThread::SoyThread(const std::string& ThreadName) :
 
 SoyThread::~SoyThread()
 {
-	Stop(true);
+	try
+	{
+		Stop(true);
+	}
+	catch (std::exception& e)
+	{
+		std::Debug << __PRETTY_FUNCTION__ << "; Exception stopping thread; " << e.what() << std::endl;
+	}
 }
 
 
@@ -300,10 +307,13 @@ void SoyThread::Stop(bool WaitToFinish)
 	if (mThreadState == Running)
 		mThreadState = Stopping;
 
+	//	gr: here, we may have already WaitToFinish'd and thrown if the thread failed
+	//		this just triggers it again... is that intended?
 	if (WaitToFinish)
 		this->WaitToFinish();
 }
 
+#if defined(TARGET_WINDOWS)
 namespace Platform
 {
 	namespace ThreadState
@@ -318,19 +328,23 @@ namespace Platform
 	}
 	std::string	GetThreadStateString(ThreadState::TYPE State);
 }
+#endif
 
+
+#if defined(TARGET_WINDOWS)
 std::string Platform::GetThreadStateString(ThreadState::TYPE State)
 {
 	switch (State)
 	{
 	case ThreadState::_WAIT_ABANDONED:	return "_WAIT_ABANDONED";
-	case ThreadState::_WAIT_OBJECT_0:	return "_WAIT_ABANDONED";
-	case ThreadState::_WAIT_TIMEOUT:	return "_WAIT_ABANDONED";
-	case ThreadState::_WAIT_FAILED:	return "_WAIT_ABANDONED";
+	case ThreadState::_WAIT_OBJECT_0:	return "_WAIT_OBJECT_0";
+	case ThreadState::_WAIT_TIMEOUT:	return "_WAIT_TIMEOUT";
+	case ThreadState::_WAIT_FAILED:	return "_WAIT_FAILED";
 	default:
 		return "ThreadState::UNKNOWN";
 	}
 }
+#endif
 
 void SoyThread::WaitToFinish()
 {
@@ -358,14 +372,25 @@ void SoyThread::WaitToFinish()
 	//	get OS thread state
 #if defined(TARGET_WINDOWS)
 	{
-		auto Handle = mThread.native_handle();
 		//	app verifier throws if we pass a null handle
+        auto Handle = mThread.native_handle();
 		if (Handle)
-		{
-			//	0 = success, and means it's exited, but still running, I think
-			auto ThreadState = WaitForSingleObject(mThread.native_handle(), 0);
-			std::Debug << this->mThreadName << " Thread State is " << Platform::GetThreadStateString(static_cast<Platform::ThreadState::TYPE>(ThreadState)) << "(" << ThreadState << ")" << std::endl;
-		}
+        {
+    		//	0 = success, and means it's exited, but still running, I think
+	    	auto ThreadState = WaitForSingleObject(mThread.native_handle(), 0);
+		    std::Debug << this->mThreadName << " Thread State is " << Platform::GetThreadStateString( static_cast<Platform::ThreadState::TYPE>(ThreadState)) << "(" << ThreadState << ")" << std::endl;
+	
+		//	to cover the problem when this thread has been externally killed
+		//	(this happens when program is exiting, the threads in a DLL are killed(!?) before we release globals 
+		//	and a global could wait for a thread
+		//	if the thread is abandoned, we may not have the FinishedSemaphore triggered
+		//	and we get stuck below
+		//	see this about WAIT_ABANDONED	https://devblogs.microsoft.com/oldnewthing/20050912-14/?p=34253
+		if (ThreadState == WAIT_ABANDONED)
+			if (!mFinishedSemaphore.IsCompleted())
+                    mFinishedSemaphore.OnFailed("ThreadState is WAIT_ABANDONED. Assuming thread has been killed externally.");
+        }
+		
 	}
 #endif
 	
@@ -794,6 +819,14 @@ bool SoyWorkerThread::ThreadIteration()
 	SoyWorker::Start();
 	
 	return false;
+}
+
+void SoyThread::OnDetatchedExternally()
+{
+	if (mFinishedSemaphore.IsCompleted())
+		return;
+
+	mFinishedSemaphore.OnFailed(__PRETTY_FUNCTION__);
 }
 
 void SoyThread::CleanupHeap()
