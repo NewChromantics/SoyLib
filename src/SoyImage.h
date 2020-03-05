@@ -8,6 +8,12 @@ class SoyPixelsImpl;
 class TStreamBuffer;
 
 
+namespace Soy
+{
+	//	detect presence of a[stb supported] image from a buffer
+	SoyPixelsMeta	IsImage(const ArrayBridge<uint8_t>&& Buffer);
+	void			DecodeImage(SoyPixelsImpl& Pixels, const ArrayBridge<uint8_t>&& Buffer);
+}
 
 //	stb interfaces which haven't yet had any specific Soy stuff yet
 namespace Png
