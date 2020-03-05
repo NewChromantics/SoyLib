@@ -3,6 +3,7 @@
 #include <SoyDirectx.h>
 #endif
 #include <SoyMedia.h>
+#include <SoyFourcc.h>
 
 #include <Mferror.h>
 #include <Codecapi.h>
@@ -53,7 +54,8 @@ std::string GetFourCCString(uint32 MediaFormatFourCC)
 	}
 
 	//	extract fourcc
-	return Soy::FourCCToString( MediaFormatFourCC );
+	Soy::TFourcc Fourcc(MediaFormatFourCC);
+	return Fourcc.GetString();
 }	
 
 
@@ -320,15 +322,15 @@ SoyMediaFormat::Type MediaFoundation::GetFormat(GUID Major,GUID Minor,size_t H26
 {
 	if (Major == MFMediaType_Audio)
 	{
-		uint32 Fourcc = 0;
-		GetMediaFormatGuidFourcc( Minor, Fourcc );
+		Soy::TFourcc Fourcc;
+		GetMediaFormatGuidFourcc( Minor, Fourcc.mFourcc32 );
 		{
-			auto Format = SoyMediaFormat::FromFourcc( Fourcc, H264NaluLengthSize );
+			auto Format = SoyMediaFormat::FromFourcc( Fourcc.mFourcc32, H264NaluLengthSize );
 			if ( Format != SoyMediaFormat::Invalid )
 				return Format;
 		}
 	
-		std::Debug << "Warning: audio media type not detected via fourcc (" << Minor << "/fourcc=" << Soy::FourCCToString(Fourcc) << ")" << std::endl;
+		std::Debug << "Warning: audio media type not detected via fourcc (" << Minor << "/fourcc=" << Fourcc.GetString() << ")" << std::endl;
 
 		if ( Minor == MFAudioFormat_AUDS )
 			return SoyMediaFormat::Audio_AUDS;
@@ -361,15 +363,15 @@ SoyMediaFormat::Type MediaFoundation::GetFormat(GUID Major,GUID Minor,size_t H26
 	{
 		//	gr: do fourcc method by default so we can remove all this code
 		//	gr: on win7 with bjork, we get a fourcc of avc1, but the rest doesn't match MediaFormat Base, so this func fails, but secretly has what we want...s
-		uint32 Fourcc = 0;
-		GetMediaFormatGuidFourcc( Minor, Fourcc );
+		Soy::TFourcc Fourcc;
+		GetMediaFormatGuidFourcc( Minor, Fourcc.mFourcc32 );
 		{
-			auto Format = SoyMediaFormat::FromFourcc( Fourcc, H264NaluLengthSize );
+			auto Format = SoyMediaFormat::FromFourcc( Fourcc.mFourcc32, H264NaluLengthSize );
 			if ( Format != SoyMediaFormat::Invalid )
 				return Format;
 		}
 
-		std::Debug << "Warning: video media type not detected via fourcc (" << Minor << "/fourcc=" << Soy::FourCCToString(Fourcc) << ")" << std::endl;
+		std::Debug << "Warning: video media type not detected via fourcc (" << Minor << "/fourcc=" << Fourcc.GetString() << ")" << std::endl;
 
 		if ( Minor == MFVideoFormat_H264 )
 		{
@@ -473,7 +475,7 @@ std::ostream& operator<<(std::ostream& os, REFGUID guid)
 	}
 
 	OLECHAR Buffer[100] = {0};
-	StringFromGUID2( guid, Buffer, sizeofarray(Buffer) );
+	StringFromGUID2( guid, Buffer, std::size(Buffer) );
 	os << Buffer;
 	/*
 	os << std::uppercase;

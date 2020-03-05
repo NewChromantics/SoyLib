@@ -305,7 +305,7 @@ Soy::TVersion::TVersion(std::string VersionStr,const std::string& Prefix) :
 
 size_t Soy::TVersion::GetHundred() const
 {
-	auto MajorMult = 100;
+	auto MajorMult = MinorMax;
 	
 	//	gr: throw if the minor is going to overflow
 	//	gr: I forget what version this was checking against, but it probbaly shouldn't have been here
@@ -322,8 +322,8 @@ size_t Soy::TVersion::GetHundred() const
 
 size_t Soy::TVersion::GetMillion() const
 {
-	auto MajorMult = 100;
-	auto MinorMult = 100;
+	auto MajorMult = MinorMax;
+	auto MinorMult = PatchMax;
 
 	if ( mMinor >= MajorMult )
 	{

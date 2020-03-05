@@ -96,7 +96,7 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 		std::stringstream err;
 		err << "sockaddr length (" << ExpectedLength << ") doesn't match incoming address " << AddrLen << " (Using smallest)";
 #if defined(TARGET_WINDOWS)
-		std::Debug << err.str() << std::endl;
+		//std::Debug << err.str() << std::endl;
 #else
 		throw Soy::AssertException( err.str() );
 #endif
@@ -624,7 +624,7 @@ void SoySocket::ListenTcp(int Port)
 }
 
 
-void SoySocket::ListenUdp(int Port)
+void SoySocket::ListenUdp(int Port,bool SaveListeningConnection)
 {
 	Bind(Port, mSocketAddr);
 	
@@ -632,13 +632,17 @@ void SoySocket::ListenUdp(int Port)
 	std::Debug << "Socket UDP bound on " << mSocketAddr << std::endl;
 	
 	//	udp needs a socket to recieve from for any new clients
-	//	gr: maybe add to WaitForClient?
-	SoySocketConnection PossibleClient;
-	PossibleClient.mAddr = mSocketAddr;
-	PossibleClient.mSocket = this->mSocket;
-	OnConnection( PossibleClient );
-
-	
+	//	gr: if we try and send to this peer, we get an error as it's our general listening address
+	//		so if we're binding in order to send, don't add it
+	if (SaveListeningConnection)
+	{
+		//	gr: maybe add to WaitForClient?
+		SoySocketConnection PossibleClient;
+		PossibleClient.mAddr = mSocketAddr;
+		PossibleClient.mSocket = this->mSocket;
+		OnConnection(PossibleClient);
+	}
+		
 	std::Debug << "Socket bound on " << mSocketAddr << ", on interfaces ";
 	auto DebugAddresses = [](std::string& InterfaceName,SoySockAddr& InterfaceAddr)
 	{
@@ -656,20 +660,17 @@ bool SoySocket::IsConnected()
 	return Connected;
 }
 
-SoyRef SoySocket::Connect(std::string Address)
+SoyRef SoySocket::Connect(const char* Hostname,uint16_t Port)
 {
-	if ( mSocket == INVALID_SOCKET )
-		return SoyRef();
-
-	u_short Port;
-	std::string Hostname;
-	Soy::SplitHostnameAndPort( Hostname, Port, Address );
+	if (mSocket == INVALID_SOCKET)
+		throw Soy::AssertException("TCP Connect without creating socket first");
 
 	SoySockAddr HostAddr( Hostname, Port );
 	if ( !HostAddr.IsValid() )
 	{
-		std::Debug << "couldn't get sock address for " << Address << std::endl;
-		return SoyRef();
+		std::stringstream Error;
+		Error << "couldn't get sock address for " << Hostname;
+		throw Soy::AssertException(Error);
 	}
 
 	//	gr: no connection lock here as this is blocking
@@ -679,7 +680,7 @@ SoyRef SoySocket::Connect(std::string Address)
 	Connection.mAddr = HostAddr;
 	
 	//	try and connect
-	std::Debug << "Connecting to " << Address << "..." << std::endl;
+	std::Debug << "Connecting to " << Hostname << ":" << Port << "..." << std::endl;
 	int Return = ::connect( mSocket, Connection.mAddr.GetSockAddr(), Connection.mAddr.GetSockAddrLength() );
 
 	//	immediate connection success (when in blocking mode)
@@ -698,8 +699,9 @@ SoyRef SoySocket::Connect(std::string Address)
 		}
 		else
 		{
-			std::Debug << "connect(" << Address << ") error: " << Platform::GetErrorString( Error ) << std::endl;
-			return SoyRef();
+			std::stringstream ErrorStr;
+			ErrorStr << "connect(" << Hostname << ":" << Port << ") error: " << Platform::GetErrorString( Error );
+			throw Soy::AssertException(ErrorStr);
 		}
 	}
 
@@ -728,15 +730,16 @@ SoyRef SoySocket::Connect(std::string Address)
 		}
 		else if ( ReadyFileDescriptorCount == 0 )
 		{
-			std::Debug << "Timed out waiting for connection (select)" << std::endl;
-			return SoyRef();
+			throw Soy::AssertException("Timed out waiting for connection (select)");
 		}
 		
-		if ( !Soy::Assert( ReadyFileDescriptorCount == 1, [ReadyFileDescriptorCount]{	return Soy::StreamToString( std::stringstream() << "unexpected return from select() -> " << ReadyFileDescriptorCount << " (expected 1)"	);	} ) )
+		if (ReadyFileDescriptorCount != 1 )
 		{
+			std::stringstream Exception;
+			Exception << "unexpected return from select() -> " << ReadyFileDescriptorCount << " (expected 1)";
 			//	gr: what to do with socket if it's valid?
 			Close();
-			return SoyRef();
+			throw Soy::AssertException(Exception);
 		}
 
 		//	todo: double check state of socket here?
@@ -773,7 +776,7 @@ SoyRef SoySocket::UdpConnect(SoySockAddr Address)
 	//	gr: OSX does NOT require this, windows does
 	try
 	{
-		ListenUdp(PORT_ANY);
+		ListenUdp(PORT_ANY,false);
 		mConnectionLock.unlock();
 		return OnConnection( Connection );
 	}
@@ -830,33 +833,33 @@ void SoySocket::OnError(SoyRef ConnectionRef,const std::string& Reason)
 
 void SoySocket::Disconnect(SoyRef ConnectionRef,const std::string& Reason)
 {
-	mConnectionLock.lock();
-	
-	//	get the connection
-	auto Connection = GetConnection( ConnectionRef );
-	//	if missing we've probably already dealt with it
-	if ( !Connection.IsValid() )
+	SoySocketConnection Connection;
 	{
-		mConnectionLock.unlock();
-		return;
+		std::lock_guard<std::recursive_mutex> Lock(mConnectionLock);
+
+		auto Existing = mConnections.find(ConnectionRef);
+		if (Existing == mConnections.end())
+		{
+			//	missing, already deleted?
+			return;
+		}
+
+		Connection = Existing->second;
+
+		bool ClosingSelf = (mSocket == Connection.mSocket);
+		std::Debug << "Disconnect " << (ClosingSelf ? "self" : "client") << ConnectionRef << "(" << Connection << ") reason: " << Reason << std::endl;
+
+		//	remove from list before callback? or after, so list is accurate for callbacks
+		mConnections.erase(Existing);
 	}
-	
-	bool ClosingSelf = ( mSocket == Connection.mSocket );
-	std::Debug << "Disconnect " << (ClosingSelf?"self" : "client") << ConnectionRef << "(" << Connection << ") reason: " << Reason << std::endl;
-
-	//	remove from list before callback? or after, so list is accurate for callbacks
-	mConnections.erase( ConnectionRef );
-
-	//	unlock for disconnect callback...
-	//	gr: could still cause race condition?
-	mConnectionLock.unlock();
 
 	//	do callback in case we want to try a hail mary
 	//	gr: the old Disconnect() had this AFTER closing socket, OnError did NOT
 	if ( mOnDisconnect != nullptr )
-		mOnDisconnect(ConnectionRef);
+		mOnDisconnect(ConnectionRef,Reason);
 
 	//	if the connection's socket is ourselves, (we are a client connecting to a server) close
+	bool ClosingSelf = (mSocket == Connection.mSocket);
 	if ( ClosingSelf )
 	{
 		Close();
@@ -894,15 +897,17 @@ SoySocketConnection SoySocket::GetFirstConnection() const
 
 SoySocketConnection SoySocket::GetConnection(SoyRef ConnectionRef)
 {
-	mConnectionLock.lock();
+	std::lock_guard<std::recursive_mutex> Lock(mConnectionLock);
 	
 	//	accessing the map will create a new key, so look for it first
-	SoySocketConnection Connection;
 	auto Find = mConnections.find( ConnectionRef );
-	if ( Find != mConnections.end() )
-		Connection = Find->second;
-
-	mConnectionLock.unlock();
+	if (Find == mConnections.end())
+	{
+		std::stringstream Error;
+		Error << "No such connection ref " << ConnectionRef;
+		throw Soy::AssertException(Error);
+	}
+	auto Connection = Find->second;
 	
 	return Connection;
 }
@@ -1187,7 +1192,7 @@ void SoySocketConnection::Send(const ArrayBridge<char>& Data,bool IsUdp)
 			auto Error = Soy::Winsock::GetError();
 			
 			std::stringstream SocketError;
-			SocketError << "Send(" << *this << ")";
+			SocketError << "Send(" << *this << ", " << SendArray.GetDataSize() << "bytes)";
 			if ( !Soy::Winsock::HasError("",false,Error,&SocketError) )
 				SocketError << "Missing error(" << Error << ") but socket error, so failing anyway";
 			throw Soy::AssertException( SocketError.str() );

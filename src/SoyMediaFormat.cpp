@@ -160,6 +160,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::Text,				"text" },
 	{ SoyMediaFormat::Json,				"Json" },
 	{ SoyMediaFormat::Html,				"Html" },
+	{ SoyMediaFormat::Css,				"Css" },
 	{ SoyMediaFormat::Subtitle,			"subtitle" },
 	{ SoyMediaFormat::ClosedCaption,	"closedcaption" },
 	{ SoyMediaFormat::Timecode,			"timecode" },
@@ -184,7 +185,7 @@ std::map<SoyMediaFormat::Type,std::string> SoyMediaFormat::EnumMap =
 	{ SoyMediaFormat::KinectDepth,		"KinectDepth" },
 	{ SoyMediaFormat::FreenectDepth10bit,	"FreenectDepth10bit" },
 	{ SoyMediaFormat::FreenectDepth11bit,	"FreenectDepth11bit" },
-	{ SoyMediaFormat::FreenectDepthmm,		"FreenectDepthmm" },
+	{ SoyMediaFormat::Depth16mm,		"Depth16mm" },
 	{ SoyMediaFormat::Luma_Full,			"Luma_Full" },
 	{ SoyMediaFormat::Luma_Ntsc,		"Luma_Ntsc" },
 	{ SoyMediaFormat::Luma_Smptec,		"Luma_Smptec" },
@@ -291,10 +292,12 @@ const Array<SoyMediaFormatMeta>& SoyMediaFormat::GetFormatMap()
 		
 		SoyMediaFormatMeta( SoyMediaFormat::Text,			{"txt"},		"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::Json,			{"js","json"},	"application/javascript",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Html,			{"htm","html","xhtml"},	"text/html",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
+		SoyMediaFormatMeta(SoyMediaFormat::Html,			{"htm","html","xhtml"},	"text/html",	'xxxx', SoyMediaMetaFlags::IsText, 0),
+		SoyMediaFormatMeta(SoyMediaFormat::Css,				{"css"},	"text/css",	'xxxx', SoyMediaMetaFlags::IsText, 0),
 		SoyMediaFormatMeta( SoyMediaFormat::ClosedCaption,	{},		"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
-		SoyMediaFormatMeta( SoyMediaFormat::Subtitle,		{"srt"},	"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0 ),
-		
+		SoyMediaFormatMeta(SoyMediaFormat::Subtitle,		{"srt"},	"text/plain",	'xxxx', SoyMediaMetaFlags::IsText, 0),
+		SoyMediaFormatMeta(SoyMediaFormat::Svg,				{"svg"},	"image/svg+xml",	'xxxx', SoyMediaMetaFlags::IsText, 0),
+
 		SoyMediaFormatMeta( SoyMediaFormat::QuicktimeTimecode,	{"qt","mov"},	"application/quicktimetimecode",	'tmcd', SoyMediaMetaFlags::None, 0 ),
 
 		//	pixel formats
@@ -309,7 +312,7 @@ const Array<SoyMediaFormatMeta>& SoyMediaFormat::GetFormatMap()
 		SoyMediaFormatMeta( SoyMediaFormat::KinectDepth,		{},	"application/KinectDepth",	'xxxx', SoyMediaMetaFlags::None, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepth10bit,	{},	"application/FreenectDepth10bit",	'xxxx', SoyMediaMetaFlags::None, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepth11bit,	{},	"application/FreenectDepth11bit",	'xxxx', SoyMediaMetaFlags::None, 0 ),
-		SoyMediaFormatMeta( SoyMediaFormat::FreenectDepthmm,	{},	"application/FreenectDepthmm",	'xxxx', SoyMediaMetaFlags::None, 0 ),
+		SoyMediaFormatMeta( SoyMediaFormat::Depth16mm		,	{},	"application/Depth16mm",	'xxxx', SoyMediaMetaFlags::None, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::Luma_Full,			{},	"application/Luma_Full",	'xxxx', SoyMediaMetaFlags::None, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::Luma_Ntsc,			{},	"application/Luma_Ntsc",	'xxxx', SoyMediaMetaFlags::None, 0 ),
 		SoyMediaFormatMeta( SoyMediaFormat::Luma_Smptec,		{},	"application/Luma_Smptec",	'xxxx', SoyMediaMetaFlags::None, 0 ),

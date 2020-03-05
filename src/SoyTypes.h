@@ -96,8 +96,6 @@ namespace std
 };
 
 
-#define sizeofarray(ARRAY)	( sizeof(ARRAY)/sizeof((ARRAY)[0]) )
-
 //	set a standard RTTI macro
 #if defined(__cpp_rtti) || defined(GCC_ENABLE_CPP_RTTI) || __has_feature(cxx_rtti)
 #define ENABLE_RTTI
@@ -295,6 +293,8 @@ public:
 	bool	operator!=(const TVersion& that) const	{	return GetMillion() != that.GetMillion();	}
 	
 public:
+	static const size_t	MinorMax = 100;	//	
+	static const size_t	PatchMax = 100000;	//	this is large because windows is say 10.0.16832
 	size_t	mMajor = 0;
 	size_t	mMinor = 0;
 	size_t	mPatch = 0;
@@ -374,7 +374,9 @@ inline void Soy::EndianSwap(uint32_t& Value)
 
 //	c++17 functions for pre-c++17 compilers.
 //	standard c++17 definition from https://stackoverflow.com/a/38456243/355753
-#if __cplusplus != 201703L
+//	with visal studio 2017, this is 199711... so extra check
+//	(bug in vs2017) https://stackoverflow.com/questions/38456127/what-is-the-value-of-cplusplus-for-c17/38456243#comment88509472_38456243
+#if __cplusplus != 201703L && !defined(_HAS_CXX17)
 namespace std
 {
 	//	implementation of c++17's std::size() to get safe C-array size

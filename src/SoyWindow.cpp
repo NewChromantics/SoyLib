@@ -8,13 +8,13 @@ void SoyWindow::OnClosed()
 	}
 }
 
-void SoySlider::OnChanged()
+void SoySlider::OnChanged(bool FinalValue)
 {
 	if ( !mOnValueChanged )
 		return;
 	
 	auto Value = GetValue();
-	mOnValueChanged( Value );
+	mOnValueChanged( Value, FinalValue );
 }
 
 
@@ -35,4 +35,13 @@ void SoyTickBox::OnChanged()
 	
 	auto Value = GetValue();
 	mOnValueChanged( Value );
+}
+
+void SoyColourButton::OnChanged(bool FinalValue)
+{
+	if (!mOnValueChanged)
+		return;
+
+	auto Value = GetValue();
+	mOnValueChanged(Value, FinalValue);
 }

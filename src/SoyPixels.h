@@ -30,9 +30,9 @@ namespace SoyPixelsFormat
 
 		//	non integer-based channel counts
 		KinectDepth,		//	16 bit. 13 bits of depth, 3 bits of user-index
-		FreenectDepth10bit,	//	16 bit
-		FreenectDepth11bit,	//	16 bit
-		FreenectDepthmm,	//	16 bit
+		FreenectDepth10bit,	//	16 bit, 1 channel
+		FreenectDepth11bit,	//	16 bit, 1 channel
+		Depth16mm,			//	16 bit, 1 channel
 	
 
 		//	http://stackoverflow.com/a/6315159/355753
@@ -124,7 +124,10 @@ namespace SoyPixelsFormat
 		Float3,
 		Float4,
 		
-		
+		Yuv_8_88_Ntsc_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
+		Yuv_844_Ntsc_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
+		BGRA_Depth16,
+			
 		//	shorthand names
 		//	http://www.fourcc.org/yuv.php
 		Luma_Full		= Greyscale,	//	Luma plane of a YUV

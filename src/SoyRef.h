@@ -29,7 +29,7 @@ public:
 	{
 	}
 
-	bool			IsValid() const							{	return (*this) != SoyRef();	}
+	bool			IsValid() const;
 	std::string		ToString() const;
 	void			Increment();
 	void			Increment(int IncCount)					{	assert( IncCount >= 0 );	while ( IncCount-- > 0 )	Increment();	}

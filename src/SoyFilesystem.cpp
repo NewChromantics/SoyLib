@@ -18,19 +18,19 @@
 #if defined(TARGET_WINDOWS)
 #include <Shlobj.h>
 #include <Shlwapi.h>
+#include <shellapi.h>
+#undef ShellExecute
 #endif
 
 #include <sstream>
 #include <fstream>
-
+#include <algorithm>
 
 namespace Platform
 {
 #if defined(TARGET_OSX) || defined(TARGET_IOS)
 	void	EnumNsDirectory(const std::string& Directory,std::function<void(const std::string&)> OnFileFound,bool Recursive);
 #endif
-
-	std::string		ExePath;
 }
 
 
@@ -142,7 +142,7 @@ Platform::TFileMonitor::~TFileMonitor()
 
 
 #if defined(TARGET_WINDOWS)
-std::string GetFilename(WIN32_FIND_DATA& FindData)
+std::string GetFilename(WIN32_FIND_DATAA& FindData)
 {
 	std::string Filename = FindData.cFileName;
 	return Filename;
@@ -151,7 +151,7 @@ std::string GetFilename(WIN32_FIND_DATA& FindData)
 
 
 #if defined(TARGET_WINDOWS)
-SoyPathType::Type GetPathType(WIN32_FIND_DATA& FindData)
+SoyPathType::Type GetPathType(WIN32_FIND_DATAA& FindData)
 {
 	auto Directory = bool_cast(FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 
@@ -173,11 +173,11 @@ SoyPathType::Type GetPathType(WIN32_FIND_DATA& FindData)
 
 
 #if defined(TARGET_WINDOWS) && !defined(HOLOLENS_SUPPORT)
-bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DATA&)> OnItemFound)
+bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DATAA&)> OnItemFound)
 {
-	WIN32_FIND_DATA FindData;
+	WIN32_FIND_DATAA FindData;
 	ZeroMemory( &FindData, sizeof(FindData) );
-	auto Handle = FindFirstFile( Directory.c_str(), &FindData );
+	auto Handle = FindFirstFileA( Directory.c_str(), &FindData );
 
 	//	invalid starting point... is okay?
 	if ( Handle == INVALID_HANDLE_VALUE )
@@ -192,7 +192,7 @@ bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DA
 
 		while ( Result )
 		{
-			if ( !FindNextFile( Handle, &FindData ) )
+			if ( !FindNextFileA( Handle, &FindData ) )
 			{
 				auto ErrorValue = Platform::GetLastError();
 				if ( ErrorValue != ERROR_NO_MORE_FILES )
@@ -233,7 +233,7 @@ bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(con
 	//	because this can matter
 	const char* DirectoryDelim = "\\";
 
-	auto OnFindItem = [&](WIN32_FIND_DATA& FindData)
+	auto OnFindItem = [&](WIN32_FIND_DATAA& FindData)
 	{
 		try
 		{
@@ -333,7 +333,7 @@ void Platform::EnumFiles(std::string Directory,std::function<void(const std::str
 	
 	//	don't get stuck!
 	//	gr: much higher for recursive directories... could do with a more solid checker though
-	static int MatchLimit = 20000;
+	static int MatchLimit = 50000;
 	int MatchCount = 0;
 	
 	while ( !SearchDirectories.IsEmpty() )
@@ -417,7 +417,7 @@ void Platform::CreateDirectory(const std::string& Path)
 	if ( mkdir( Directory.c_str(), Permissions ) != 0 )
 #elif defined(TARGET_WINDOWS)
 		SECURITY_ATTRIBUTES* Permissions = nullptr;
-	if ( !CreateDirectory( Directory.c_str(), Permissions ) )
+	if ( !CreateDirectoryA( Directory.c_str(), Permissions ) )
 #else
 		if ( false )
 #endif
@@ -437,13 +437,40 @@ void Platform::CreateDirectory(const std::string& Path)
 }
 
 
+
+#if defined(TARGET_WINDOWS)
+void Platform::ShellExecute(const std::string& Path)
+{
+	//	https://docs.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecutea
+	//	returns HINSTANCE but it's an int
+	//	If the function succeeds, it returns a value greater than 32. 
+	//	If the function fails, it returns an error value that indicates the cause of the failure.
+	auto Result = ShellExecuteA(nullptr, "open", Path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+	auto ResultInt = static_cast<int>(reinterpret_cast<std::uintptr_t>(Result));
+
+	if (ResultInt > 32)
+		return;
+
+	auto Context = std::string("ShellExecute(") + Path + ")";
+	Platform::IsOkay(ResultInt, Context);
+}
+#endif
+
+#if defined(TARGET_WINDOWS)
+void Platform::ShellOpenUrl(const std::string& UrlString)
+{
+	ShellExecute(UrlString);
+}
+#endif
+
 #if defined(TARGET_WINDOWS)
 void Platform::ShowFileExplorer(const std::string& Path)
 {
 #if defined(HOLOLENS_SUPPORT)
 	//	unsupported
 #else
-	auto PathList = ILCreateFromPath( Path.c_str() );
+	auto CleanPath = Platform::GetFullPathFromFilename(Path);
+	auto PathList = ILCreateFromPathA(CleanPath.c_str() );
 	if ( !PathList )
 	{
 		std::stringstream Error;
@@ -451,67 +478,62 @@ void Platform::ShowFileExplorer(const std::string& Path)
 		throw Soy::AssertException(Error.str());
 	}
 
-	auto Result = SHOpenFolderAndSelectItems( PathList, 0, 0, 0 );
-	ILFree( PathList );
-	Platform::IsOkay( Result, "SHOpenFolderAndSelectItems");
-#endif
-}
-#endif
-
-
-
-
-
-void Platform::SetExePath()
-{
-#if defined(TARGET_WINDOWS)
-	//	auto init path
-	char Buffer[MAX_PATH] = { 0 };
-	auto Length = GetModuleFileNameA( NULL, Buffer, MAX_PATH );
-	Length = std::min<size_t>( Length, sizeof(Buffer)-1 );
-	Buffer[Length] = '\0';
-	SetExePath(Buffer);
-
-	/*
-	std::string Path;
-
-	char PathBuffer[MAX_PATH];
-	auto PathBufferLength = GetModuleFileNameA( Module, PathBuffer, sizeof(PathBuffer) );
-	if ( Platform::IsOkay( "GetModuleFileName in DLLMain", false ) )
+	try
 	{
-		//	just in case 
-		PathBufferLength = std::min<size_t>( PathBufferLength, sizeof(PathBuffer)-1 );
-		PathBuffer[PathBufferLength] = '\0';
-		Path = PathBuffer;
+		auto Result = CoInitialize(nullptr);
+		Platform::IsOkay(Result, "CoInitialize for SHOpenFolderAndSelectItems");
+		Result = SHOpenFolderAndSelectItems(PathList, 0, 0, 0);
+		Platform::IsOkay(Result, "SHOpenFolderAndSelectItems");
+		ILFree(PathList);
 	}
-	*/
-#else
-	throw Soy::AssertException("Auto SetExePath only on windows");
+	catch (std::exception& e)
+	{
+		ILFree(PathList);
+		throw;
+	}
 #endif
 }
+#endif
 
 
-void Platform::SetExePath(const std::string& Path)
+#if defined(TARGET_WINDOWS)
+std::string Platform::GetExeFilename()
 {
-	//	gr: should we disallow this on windows and force the auto method
-	//		to get it from hmodule?
-	ExePath = Path;
+	static std::string ExeFilenameCache;
+
+	if (ExeFilenameCache.length())
+		return ExeFilenameCache;
+
+	char Buffer[MAX_PATH] = { 0 };
+	auto Length = GetModuleFileNameA( nullptr, Buffer, std::size(Buffer) );
+	Length = std::min<size_t>(Length, sizeof(Buffer) - 1);
+	Buffer[Length] = '\0';
+	ExeFilenameCache = Buffer;
+	return ExeFilenameCache;
 }
+#endif
+
 
 std::string	Platform::GetExePath()
 {
-	return GetDirectoryFromFilename( ExePath );
+	auto ExeFilename = GetExeFilename();
+	return GetDirectoryFromFilename(ExeFilename);
 }
 
 #if defined(TARGET_WINDOWS)
 bool Platform::FileExists(const std::string& Path)
 {
-	return ::PathFileExistsA(Path.c_str());
+	auto FullPath = GetFullPathFromFilename(Path);
+	return ::PathFileExistsA(FullPath.c_str());
 }
 #endif
 
 bool Platform::IsFullPath(const std::string& Path)
 {
+#if defined(TARGET_WINDOWS)
+	auto IsRelative = PathIsRelativeA(Path.c_str());
+	return !IsRelative;
+#else
 	try
 	{
 		//	expecting this to throw if not a valid filename
@@ -530,6 +552,7 @@ bool Platform::IsFullPath(const std::string& Path)
 		//	gr: should make a specialised exception type here
 		return false;
 	}
+#endif
 }
 
 #if defined(TARGET_WINDOWS)
@@ -659,6 +682,8 @@ void Soy::ReadStream(ArrayBridge<uint8_t>& Data,std::istream& Stream)
 
 void Soy::FileToArray(ArrayBridge<char>& Data,std::string Filename)
 {
+	Filename = ::Platform::GetFullPathFromFilename(Filename);
+
 	//	gr: would be nice to have an array! MemFileArray maybe, if it can be cross paltform...
 	std::ifstream Stream( Filename, std::ios::binary|std::ios::in );
 	
@@ -813,10 +838,30 @@ std::string Platform::GetAppResourcesDirectory()
 std::string Platform::GetComputerName()
 {
 	char Buffer[MAX_PATH];
-	DWORD Length = sizeofarray(Buffer);
+	DWORD Length = std::size(Buffer);
 	if ( !GetComputerNameA(Buffer,&Length) )
 		Platform::ThrowLastError("GetComputerNameA");
 	std::string Name(Buffer);
 	return Name;
+}
+#endif
+
+#if defined(TARGET_WINDOWS)
+void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
+{
+	//	split the command line
+	auto CommandLine = GetCommandLineW();
+	
+	int ArgCount = 0;
+	auto* Args = CommandLineToArgvW(CommandLine, &ArgCount);
+
+	//	skip exe at 0
+	for (auto i = 1; i < ArgCount;	i++ )
+	{
+		auto ArgN = Args[i];
+		auto ArgString = Soy::WStringToString(ArgN);
+		Arguments.PushBack(ArgString);
+	}
+	LocalFree(Args);
 }
 #endif

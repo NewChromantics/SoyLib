@@ -784,6 +784,7 @@ Opengl::TTexture::TTexture(SoyPixelsMeta Meta,GLenum Type,size_t TextureSlot) :
 	
 	//	set mip-map levels to 0..0
 	GLint MipLevel = 0;
+	//	storage = u8, u16, u32, float
 	GLenum GlPixelsStorage = GetGlPixelStorageFormat(Meta.GetFormat());
 	GLint Border = 0;
 	
@@ -1654,6 +1655,7 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 	//	todo: fix the unpack alignment so it's more efficient when widths are aligned
 	//	I thought the packing was the problem, but it's the unpacking (reading of data provided?)
 	//	https://stackoverflow.com/a/11264136/355753
+	//	alignment of 1 means it's byte aligned, 2 is even, 4 is aligned to 4
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 	//	gr: this is still crashing from overread!	
@@ -1760,8 +1762,10 @@ void Opengl::TTexture::RefreshMeta()
 	auto NewMeta = GetInternalMeta(Type);
 	if ( !NewMeta.IsValid() )
 	{
-		std::Debug << "Opengl::TTexture meta not refreshed as internal meta invalid" << std::endl;
-		return;
+		//std::Debug << "Opengl::TTexture meta not refreshed as internal meta invalid " << NewMeta << std::endl;
+		//	BAD!
+		NewMeta.DumbSetFormat(SoyPixelsFormat::RGBA);
+		//return;
 	}
 
 	if ( this->mMeta != NewMeta )
@@ -1818,13 +1822,29 @@ SoyPixelsMeta Opengl::TTexture::GetInternalMeta(GLenum& RealType) const
 		
 		if ( !Opengl::IsOkay( std::string(__func__) + " glGetTexLevelParameteriv()", false ) )
 			continue;
-		
-		
+
+#if defined(GL_TEXTURE_COMPONENTS)
+		if (Format == 0)
+		{
+			GLint Components = 0;
+			glGetTexLevelParameteriv(Type, MipLevel, GL_TEXTURE_COMPONENTS, &Components);
+			if (Opengl::IsOkay("glGetTexLevelParameteriv(GL_TEXTURE_COMPONENTS)", false))
+			{
+				if (Components!=0)
+					std::Debug << "Invalid format, but components = " << Components << std::endl;
+			}
+		}
+#endif
+
 		//	we probably won't get an opengl error, but the values won't be good. We can assume it's not that type
 		//	tested on osx
-		if ( Width==0 || Height==0 || Format==0 )
+		if ( Width==0 || Height==0 )
 			continue;
 		
+		//	gr: openvr shared texture has format=0 & components=0
+		//if (Format == 0)
+		//	continue;
+
 		if ( Type != mType )
 			std::Debug << "Determined that texture is " << GetEnumString(Type) << " not " << GetEnumString(mType) << std::endl;
 		
@@ -2540,7 +2560,7 @@ Opengl::TGeometry::~TGeometry()
 
 //	gr: put R8 first as note4 works with glTexImage R8->RED, but not RED->RED or RED->R8
 //	gr: GLR8 doesn't work on windows8, glcore, so put GL_RED first
-const std::initializer_list<GLenum> Opengl8BitFormats =
+const std::initializer_list<GLenum> Opengl1ChannelFormats =
 {
 #if defined(TARGET_WINDOWS)
 	GL_RED,
@@ -2555,7 +2575,8 @@ const std::initializer_list<GLenum> Opengl8BitFormats =
 #endif
 	GL_ALPHA,
 };
-const std::initializer_list<GLenum> Opengl16BitFormats =
+
+const std::initializer_list<GLenum> Opengl2ChannelFormats =
 {
 	GL_RG,
 #if defined(GL_LUMINANCE_ALPHA)
@@ -2564,6 +2585,22 @@ const std::initializer_list<GLenum> Opengl16BitFormats =
 };
 
 
+const std::initializer_list<GLenum> Opengl3ChannelFormats =
+{
+	//	gr: for openvr/steamvr, we're prioritising GL_RGBA8 over GL_RGBA
+	GL_RGB,
+#if defined(GL_RGB8)
+	GL_RGB8
+#endif
+};
+
+const std::initializer_list<GLenum> Opengl4ChannelFormats =
+{
+#if defined(GL_RGBA8)
+	GL_RGBA8,
+#endif
+	GL_RGBA
+};
 
 
 
@@ -2571,51 +2608,44 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 {
 	static TPixelFormatMapping _PixelFormatMap[] =
 	{
-#if defined(GL_RGB8)
-		TPixelFormatMapping( SoyPixelsFormat::RGB,			{GL_RGB, GL_RGB8} ),
-#else
-		TPixelFormatMapping( SoyPixelsFormat::RGB,			{GL_RGB} ),
-#endif
-		
-		//	gr: for openvr/steamvr, we're prioritising GL_RGBA8 over GL_RGBA
-#if defined(GL_RGBA8)
-		TPixelFormatMapping( SoyPixelsFormat::RGBA,			{GL_RGBA8,GL_RGBA} ),
-#else
-		TPixelFormatMapping( SoyPixelsFormat::RGBA,			{GL_RGBA} ),
-#endif
+		TPixelFormatMapping( SoyPixelsFormat::RGB,			Opengl3ChannelFormats),
+		TPixelFormatMapping( SoyPixelsFormat::RGBA,			Opengl4ChannelFormats),
 
 		//	gr: untested
 		//	gr: use this with 8_8_8_REV to convert to BGRA!
-		TPixelFormatMapping( SoyPixelsFormat::ARGB,			{GL_RGBA, GL_RGBA8} ),
+		TPixelFormatMapping( SoyPixelsFormat::ARGB,			Opengl4ChannelFormats),
 		
-		TPixelFormatMapping( SoyPixelsFormat::Luma_Full,	Opengl8BitFormats ),
-		TPixelFormatMapping( SoyPixelsFormat::Luma_Ntsc,	Opengl8BitFormats ),
-		TPixelFormatMapping( SoyPixelsFormat::Luma_Smptec,	Opengl8BitFormats ),
-		TPixelFormatMapping( SoyPixelsFormat::Greyscale,	Opengl8BitFormats ),
-		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_8_8,	Opengl8BitFormats ),
-		TPixelFormatMapping( SoyPixelsFormat::ChromaU_8,	Opengl8BitFormats ),
-		TPixelFormatMapping( SoyPixelsFormat::ChromaV_8,	Opengl8BitFormats ),
+		TPixelFormatMapping( SoyPixelsFormat::Luma_Full,	Opengl1ChannelFormats),
+		TPixelFormatMapping( SoyPixelsFormat::Luma_Ntsc,	Opengl1ChannelFormats),
+		TPixelFormatMapping( SoyPixelsFormat::Luma_Smptec,	Opengl1ChannelFormats),
+		TPixelFormatMapping( SoyPixelsFormat::Greyscale,	Opengl1ChannelFormats),
+		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_8_8,	Opengl1ChannelFormats),
+		TPixelFormatMapping( SoyPixelsFormat::ChromaU_8,	Opengl1ChannelFormats),
+		TPixelFormatMapping( SoyPixelsFormat::ChromaV_8,	Opengl1ChannelFormats),
 
-		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_88,			Opengl16BitFormats ),
-		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha,		Opengl16BitFormats ),
-		TPixelFormatMapping(SoyPixelsFormat::KinectDepth,			Opengl16BitFormats ),
-		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth10bit,	Opengl16BitFormats ),
-		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth11bit,	Opengl16BitFormats ),
-		TPixelFormatMapping(SoyPixelsFormat::FreenectDepthmm,		Opengl16BitFormats ),
+		//	note: this needs to align with GetGlPixelStorageFormat
+		//		if GetGlPixelStorageFormat is 16bit, then this needs to be one channel
+		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_88,			Opengl2ChannelFormats),
+		TPixelFormatMapping( SoyPixelsFormat::GreyscaleAlpha,		Opengl2ChannelFormats),
+		//	one channel, 16 bit
+		TPixelFormatMapping(SoyPixelsFormat::KinectDepth,			Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth10bit,	Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth11bit,	Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Depth16mm,		Opengl1ChannelFormats),
 
-		TPixelFormatMapping(SoyPixelsFormat::Uvy_844_Full,		Opengl16BitFormats ),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Full,		Opengl16BitFormats ),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Ntsc,		Opengl16BitFormats ),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Smptec,	Opengl16BitFormats ),
+		TPixelFormatMapping(SoyPixelsFormat::Uvy_844_Full,		Opengl2ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Full,		Opengl2ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Ntsc,		Opengl2ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Smptec,	Opengl2ChannelFormats),
 		
-		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Full,		Opengl16BitFormats ),
-		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Ntsc,		Opengl16BitFormats ),
-		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Smptec,		Opengl16BitFormats ),
-		TPixelFormatMapping(SoyPixelsFormat::uyvy,					Opengl16BitFormats ),
+		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Full,		Opengl2ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Ntsc,		Opengl2ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Smptec,		Opengl2ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::uyvy,					Opengl2ChannelFormats),
 
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Full,		Opengl8BitFormats ),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Ntsc,		Opengl8BitFormats ),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Smptec,		Opengl8BitFormats ),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Full,		Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Ntsc,		Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Smptec,		Opengl1ChannelFormats),
 
 		
 #if defined(GL_BGRA)
@@ -2716,7 +2746,7 @@ SoyPixelsFormat::Type Opengl::GetDownloadPixelFormat(GLenum Format)
 	}
 	
 
-	std::Debug << "Failed to convert glpixelformat " << GetEnumString(Format) << " to soy pixel format" << std::endl;
+	//std::Debug << "Failed to convert glpixelformat " << GetEnumString(Format) << " to soy pixel format" << std::endl;
 	return SoyPixelsFormat::Invalid;
 }
 

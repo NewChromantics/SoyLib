@@ -139,10 +139,10 @@ public:
 
 	SoyRef		AllocConnectionRef();
 	void		ListenTcp(int Port);
-	void		ListenUdp(int Port);
+	void		ListenUdp(int Port, bool SaveListeningConnection);
 	SoyRef		WaitForClient();
-	SoyRef		Connect(std::string Address);
-	SoyRef		UdpConnect(const char* Address,uint16 Port);	//	this doesn't "do" a connect, but fakes one as a success, and starts listening (required only on windows
+	SoyRef		Connect(const char* Hostname, uint16 Port);
+	SoyRef		UdpConnect(const char* Hostname,uint16 Port);	//	this doesn't "do" a connect, but fakes one as a success, and starts listening (required only on windows
 	SoyRef		UdpConnect(SoySockAddr Address);
 
 	bool		IsConnected();
@@ -171,9 +171,9 @@ private:
 	void		Bind(uint16 Port,SoySockAddr& outSockAddr);
 
 public:
-	std::function<void(SoyRef)>			mOnConnect;
-	std::function<void(SoyRef)>			mOnDisconnect;
-	SoySockAddr							mSocketAddr;		//	current socket address; gr: find this from the socket? Is it the first connection?
+	std::function<void(SoyRef)>						mOnConnect;
+	std::function<void(SoyRef,const std::string&)>	mOnDisconnect;
+	SoySockAddr										mSocketAddr;		//	current socket address; gr: find this from the socket? Is it the first connection?
 
 private:
 	//	lock to control ordered connect/disconnect (not strictly for race conditions)

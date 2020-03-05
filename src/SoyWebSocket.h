@@ -36,11 +36,6 @@ namespace WebSocket
 class WebSocket::THandshakeMeta
 {
 public:
-	THandshakeMeta() :
-		mIsWebSocketUpgrade	( true ),
-		mHasSentAcceptReply	( false )
-	{
-	}
 	std::string			GetReplyKey() const;
 	bool				IsCompleted() const	{	return mIsWebSocketUpgrade && mWebSocketKey.length()!=0 && mVersion.length()!=0;	}
 	
@@ -48,11 +43,10 @@ public:
 	//	protocol and version are optional
 	std::string			mProtocol;
 	std::string			mVersion;
-	bool				mIsWebSocketUpgrade;
+	bool				mIsWebSocketUpgrade = true;
 	std::string			mWebSocketKey;
 	
-	
-	bool				mHasSentAcceptReply;
+	bool				mHasSentAcceptReply = false;
 };
 
 
@@ -141,6 +135,7 @@ public:
 	{
 	}
 
+	virtual void					Encode(TStreamBuffer& Buffer) override;
 	virtual TProtocolState::Type	Decode(TStreamBuffer& Buffer) override;
 	virtual bool					ParseSpecificHeader(const std::string& Key,const std::string& Value) override;
 	

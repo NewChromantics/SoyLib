@@ -63,6 +63,8 @@ public:
 
 	virtual void					SetFullscreen(bool Fullscreen)=0;
 	virtual bool					IsFullscreen()=0;
+	virtual bool					IsMinimised() = 0;
+	virtual bool					IsForeground() = 0;
 	virtual void					EnableScrollBars(bool Horz,bool Vert)=0;
 	virtual void					OnClosed();
 
@@ -83,15 +85,16 @@ class SoySlider
 public:
 	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
 	
-	virtual void					SetMinMax(uint16_t Min,uint16_t Max)=0;
+	virtual void					SetMinMax(uint16_t Min,uint16_t Max,uint16_t NotchCount)=0;
 	virtual void					SetValue(uint16_t Value)=0;
 	virtual uint16_t				GetValue()=0;
 	
-	virtual void					OnChanged();	//	helper to do GetValue and call the callback
+	virtual void					OnChanged(bool FinalValue=true);	//	helper to do GetValue and call the callback
 
 	//	gr: windows has a limit of DWORDs so we'll limit to 16bit for now
 	//		OSX uses doubles
-	std::function<void(uint16_t&)>	mOnValueChanged;	//	reference so caller can change value in the callback
+	//		2nd param is whether value is final (ie. mouseup)
+	std::function<void(uint16_t&,bool)>	mOnValueChanged;	//	reference so caller can change value in the callback
 
 };
 
@@ -135,6 +138,21 @@ public:
 	virtual void					OnChanged();	//	helper to do GetValue and call the callback
 	
 	std::function<void(bool&)>		mOnValueChanged;	//	reference so caller can change value in the callback
+};
+
+
+//	native control, but a custom one in SoyLib
+class SoyColourButton
+{
+public:
+	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect) = 0;		//	set position on screen
+
+	virtual void					SetValue(vec3x<uint8_t> Value) = 0;
+	virtual vec3x<uint8_t>			GetValue() = 0;
+
+	virtual void					OnChanged(bool FinalValue);	//	helper to do GetValue and call the callback
+
+	std::function<void(vec3x<uint8_t>&,bool)>	mOnValueChanged;	//	reference so caller can change value in the callback
 };
 
 

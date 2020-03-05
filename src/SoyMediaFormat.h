@@ -21,7 +21,7 @@ namespace SoyMediaFormat
 		KinectDepth = SoyPixelsFormat::KinectDepth,
 		FreenectDepth10bit = SoyPixelsFormat::FreenectDepth10bit,
 		FreenectDepth11bit = SoyPixelsFormat::FreenectDepth11bit,
-		FreenectDepthmm = SoyPixelsFormat::FreenectDepthmm,
+		Depth16mm = SoyPixelsFormat::Depth16mm,
 		Luma_Full = SoyPixelsFormat::Luma_Full,
 		Luma_Ntsc = SoyPixelsFormat::Luma_Ntsc,
 		Luma_Smptec = SoyPixelsFormat::Luma_Smptec,
@@ -95,9 +95,11 @@ namespace SoyMediaFormat
         QuicktimeTimecode,  //  explicitly listing this until I've established what the format is
 		
 		Html,
+		Css,
 		Text,
 		Json,				//	has seperate mime type
 		Subtitle,
+		Svg,
 		ClosedCaption,
 		Timecode,
 		MetaData,

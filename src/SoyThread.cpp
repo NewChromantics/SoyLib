@@ -38,6 +38,7 @@ void Soy::TSemaphore::OnCompleted()
 	mConditional.notify_all();
 }
 
+
 void Soy::TSemaphore::Wait(const char* TimerName)
 {
 	if ( mCompleted )
@@ -78,6 +79,22 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 		throw Soy::AssertException( mThrownError );
 }
 
+void Soy::TSemaphore::WaitAndReset(const char* TimerName)
+{
+	//	wait, then reset the status so it can be re-waited and re-resolved
+	Wait(TimerName);
+	Reset();
+}
+
+void Soy::TSemaphore::Reset()
+{
+	//	gr: should this be locked?
+	//		with this going with Wait() could we get a race 
+	//		condition? maybe the reset needs to move explicity inside the wait()'s lock
+	std::unique_lock<std::mutex> Lock(mLock);
+	mThrownError = std::string();
+	mCompleted = false;
+}
 
 PopWorker::TJobQueue::~TJobQueue()
 {
@@ -267,30 +284,129 @@ void PopWorker::TJobQueue::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphor
 
 
 SoyThread::SoyThread(const std::string& ThreadName) :
-	mThreadName	( ThreadName ),
-	mIsRunning	( false )
+	mThreadName	( ThreadName )
 {
 }
 
 SoyThread::~SoyThread()
 {
+	try
+	{
+		Stop(true);
+	}
+	catch (std::exception& e)
+	{
+		std::Debug << __PRETTY_FUNCTION__ << "; Exception stopping thread; " << e.what() << std::endl;
+	}
 }
 
 
 void SoyThread::Stop(bool WaitToFinish)
 {
 	//	thread's loop will stop on next loop
-	mIsRunning = false;
-	
-	//	wait for thread to exit
-	if ( WaitToFinish )
+	if (mThreadState == Running)
+		mThreadState = Stopping;
+
+	//	gr: here, we may have already WaitToFinish'd and thrown if the thread failed
+	//		this just triggers it again... is that intended?
+	if (WaitToFinish)
+		this->WaitToFinish();
+}
+
+#if defined(TARGET_WINDOWS)
+namespace Platform
+{
+	namespace ThreadState
 	{
-		//	if thread is active, then wait for it to finish and join it
-		if ( mThread.joinable() )
+		enum TYPE
+		{
+			_WAIT_ABANDONED = WAIT_ABANDONED,
+			_WAIT_OBJECT_0 = WAIT_OBJECT_0,
+			_WAIT_TIMEOUT = WAIT_TIMEOUT,
+			_WAIT_FAILED = WAIT_FAILED
+		};
+	}
+	std::string	GetThreadStateString(ThreadState::TYPE State);
+}
+#endif
+
+
+#if defined(TARGET_WINDOWS)
+std::string Platform::GetThreadStateString(ThreadState::TYPE State)
+{
+	switch (State)
+	{
+	case ThreadState::_WAIT_ABANDONED:	return "_WAIT_ABANDONED";
+	case ThreadState::_WAIT_OBJECT_0:	return "_WAIT_OBJECT_0";
+	case ThreadState::_WAIT_TIMEOUT:	return "_WAIT_TIMEOUT";
+	case ThreadState::_WAIT_FAILED:	return "_WAIT_FAILED";
+	default:
+		return "ThreadState::UNKNOWN";
+	}
+}
+#endif
+
+void SoyThread::WaitToFinish()
+{
+	//	never started
+	if (mThreadState == NotStarted)
+		return;
+
+	//	wait for thread to exit
+	//	gr: Joinable() doesn't block until its finished, so
+	//		now we wait on the semaphore
+	//		We throw if the thread threw, so we can use WaitToFinish
+	//		as a way to check what happened what happened in the thread
+	//		we should throw here if the thread threw
+
+	auto DestroyThread = [&]()
+	{
+		//	now join now that it's finished
+		if (mThread.joinable())
 			mThread.join();
 
+		//	delete
 		mThread = std::thread();
+	};
+
+	//	get OS thread state
+#if defined(TARGET_WINDOWS)
+	{
+		//	app verifier throws if we pass a null handle
+        auto Handle = mThread.native_handle();
+		if (Handle)
+        {
+    		//	0 = success, and means it's exited, but still running, I think
+	    	auto ThreadState = WaitForSingleObject(mThread.native_handle(), 0);
+		    std::Debug << this->mThreadName << " Thread State is " << Platform::GetThreadStateString( static_cast<Platform::ThreadState::TYPE>(ThreadState)) << "(" << ThreadState << ")" << std::endl;
+	
+		//	to cover the problem when this thread has been externally killed
+		//	(this happens when program is exiting, the threads in a DLL are killed(!?) before we release globals 
+		//	and a global could wait for a thread
+		//	if the thread is abandoned, we may not have the FinishedSemaphore triggered
+		//	and we get stuck below
+		//	see this about WAIT_ABANDONED	https://devblogs.microsoft.com/oldnewthing/20050912-14/?p=34253
+		if (ThreadState == WAIT_ABANDONED)
+			if (!mFinishedSemaphore.IsCompleted())
+                    mFinishedSemaphore.OnFailed("ThreadState is WAIT_ABANDONED. Assuming thread has been killed externally.");
+        }
+		
 	}
+#endif
+	
+
+	try
+	{
+		std::stringstream TimerName;
+		TimerName << "Waiting for thread " << mThreadName << " to finish";
+		mFinishedSemaphore.Wait(TimerName.str().c_str());
+		DestroyThread();
+	}
+	catch(std::exception& e)
+	{
+		DestroyThread();
+		throw;
+	}		
 }
 
 void SoyThread::Start()
@@ -298,14 +414,11 @@ void SoyThread::Start()
 	//	already running
 	if ( mThread.get_id() != std::thread::id() )
 		return;
-	
-	//	maybe stopping...
-	Soy::Assert( !mIsRunning, "Thread doesn't exist, but is marked as running");
-	
+		
 	auto ThreadFuncWrapper = [](void* pThis)
 	{
 		auto* This = reinterpret_cast<SoyThread*>(pThis);
-		This->mIsRunning = true;
+		This->mThreadState = Running;
 
 		//	POSIX needs to name threads IN the thread. so do that for everyone by default
 		This->OnThreadStart();
@@ -313,67 +426,32 @@ void SoyThread::Start()
 		//	gr: even if we're not catching exceptions, java NEEDS us to cleanup the threads or the OS will abort us
 		try
 		{
-			while ( This->mIsRunning )
+			while ( This->IsThreadRunning() )
 			{
-				This->Thread();
+				if (!This->ThreadIteration())
+					break;
+
 				if ( This == nullptr )
 					throw Soy::AssertException("How did this get null");
 			}
 			
-			This->OnThreadFinish();
+			This->OnThreadFinish(std::string());
 		}
 		catch(std::exception& e)
 		{
-			This->OnThreadFinish();
-			throw;
+			//	gr: this shouldn't throw, but just set the error (with OnThreadFinish)
+			This->OnThreadFinish(e.what());
 		}
 		catch(...)
 		{
-			This->OnThreadFinish();
-			throw;
+			This->OnThreadFinish("Unknown exception");
 		}
 		
-		return 0;
-	};
-	
-	auto CatchException_ThreadFuncWrapper = [=](void* This)
-	{
-		try
-		{
-			return ThreadFuncWrapper(This);
-		}
-		catch(std::exception& e)
-		{
-			std::Debug << "Caught SoyThread " << GetThreadName() << " exception: " << e.what() << std::endl;
-		}
-		catch(...)
-		{
-			std::Debug << "Caught SoyThread " << GetThreadName() << " unknown exception." << std::endl;
-		}
-		
+		std::Debug << "Thread has exited" << std::endl;
 		return 0;
 	};
 
-	//	gr: catch all. Maybe only enable this for "release" builds?
-	//		android is throwing an exception, but callstack doesn't contain exception handler/throw indicator... so seeing if we can trap it
-	//	crash with exception is still useful in release though...
-	#if defined(TARGET_ANDROID)
-	bool CatchExceptions = true;
-	#else
-	bool CatchExceptions = !Platform::IsDebuggerAttached();
-	#endif
-	
-	CatchExceptions = false;
-	
-	//	start thread
-	if ( CatchExceptions )
-	{
-		mThread = std::thread( CatchException_ThreadFuncWrapper, this );
-	}
-	else
-	{
-		mThread = std::thread( ThreadFuncWrapper, this );
-	}
+	mThread = std::thread( ThreadFuncWrapper, this );
 }
 
 std::thread::native_handle_type SoyThread::GetCurrentThreadNativeHandle()
@@ -438,6 +516,30 @@ std::string SoyThread::GetCurrentThreadName()
 		return "<ErrorGettingThreadName>";
 	}
 
+
+#elif defined(TARGET_WINDOWS)
+	/*
+	//	https://stackoverflow.com/a/41902967/355753
+	//	if the thread name was set with SetThreadDescription, we can retrieve it
+	try
+	{
+		auto CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
+		PWSTR NameBuffer = nullptr;
+		auto Result = GetThreadDescription(CurrentThread, &NameBuffer);
+		Platform::IsOkay(Result, "GetThreadDescription");
+		LocalFree(NameBuffer);
+		std::wstring NameW(NameBuffer);
+		auto Name = Soy::WStringToString(NameW);
+		return Name;
+	}
+	catch (std::exception& e)
+	{
+		std::stringstream Name;
+		Name << "Unnamed thread [" << e.what() << "]";
+		return Name.str();
+	}
+	*/
+	return "<NoThreadName>";
 #else
 	return "<NoThreadNameOnThisPlatform>";
 #endif
@@ -450,9 +552,15 @@ void SoyThread::OnThreadStart()
 		SetThreadName( mThreadName );
 }
 
-void SoyThread::OnThreadFinish()
+void SoyThread::OnThreadFinish(const std::string& Exception)
 {
 	CleanupHeap();
+
+	//	if there was an error, flag semaphore with error
+	if (!Exception.empty())
+		mFinishedSemaphore.OnFailed(Exception.c_str());
+	else
+		mFinishedSemaphore.OnCompleted();
 }
 
 void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handle_type ThreadId)
@@ -510,10 +618,36 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 
 #elif defined(TARGET_WINDOWS)
 	
+	//	try and use the new SetThreadDescription
+	static bool UseSetThreadDescription = false;
+	if (UseSetThreadDescription)
+	{
+		//	gr: this si failing, but ThreadHandle seems to be 0 when going up the callstack there IS a 64bit handle value on the std::thread...
+		auto ThreadHandle = GetCurrentThread();
+		auto NameW = Soy::StringToWString(Name);
+		const WCHAR* NameBuffer = NameW.c_str();
+		auto Result = SetThreadDescription(ThreadId, NameBuffer);
+		try
+		{
+			std::stringstream Error;
+			Error << "SetThreadDescription(" << Name << ")";
+			Platform::IsOkay(Result, Error.str());
+			return;
+		}
+		catch (std::exception& e)
+		{
+			std::Debug << "Error in SetThreadDescription() " << e.what() << std::endl;
+		}
+	}
+
 	//	wrap the try() function in a lambda to avoid the unwinding
 	auto SetNameFunc = [](const char* ThreadName,HANDLE ThreadHandle)
 	{
-		DWORD ThreadId = ::GetThreadId(ThreadHandle);
+		//	https://docs.microsoft.com/en-us/visualstudio/debugger/how-to-set-a-thread-name-in-native-code?view=vs-2019
+		//	ThreadId -1 == calling thread
+		//	gr: this isn't working with GetThreadId, but -1 is...
+		//DWORD ThreadId = ::GetThreadId(ThreadHandle);
+		DWORD ThreadId = -1;
 		//	set the OS thread name
 		//	http://msdn.microsoft.com/en-gb/library/xcb2z8hs.aspx
 		const DWORD MS_VC_EXCEPTION = 0x406D1388;
@@ -679,16 +813,20 @@ void SoyWorkerThread::Start(bool ThrowIfAlreadyStarted)
 }
 
 
-void SoyWorkerThread::Thread()
+bool SoyWorkerThread::ThreadIteration()
 {
+	//	this blocks and does its own iterating
 	SoyWorker::Start();
 	
-	//	when this exits, we should stop, to break the thread out of it's loop
-	if ( this->IsThreadRunning() )
-	{
-		std::Debug << "SoyWorkerThread " << GetThreadName() << " finished, but not stopped. Stopping to end thread." << std::endl;
-		SoyThread::Stop(false);
-	}
+	return false;
+}
+
+void SoyThread::OnDetatchedExternally()
+{
+	if (mFinishedSemaphore.IsCompleted())
+		return;
+
+	mFinishedSemaphore.OnFailed(__PRETTY_FUNCTION__);
 }
 
 void SoyThread::CleanupHeap()

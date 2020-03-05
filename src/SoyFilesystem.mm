@@ -349,3 +349,33 @@ std::string Platform::GetComputerName()
 #endif
 }
 
+std::string Platform::GetExeFilename()
+{
+	NSArray<NSString*>* ArgumentsNs = [[NSProcessInfo processInfo] arguments];
+	std::string Exe = Soy::NSStringToString(ArgumentsNs[0]);
+	return Exe;
+}
+
+
+void NSArray_String_ForEach(NSArray<NSString*>* Array,std::function<void(std::string&)> Enum,int StartIndex=0)
+{
+	auto Size = [Array count];
+	for ( auto i=StartIndex;	i<Size;	i++ )
+	{
+		auto Element = [Array objectAtIndex:i];
+		//auto StringNs = [Element stringValue];
+		auto String = Soy::NSStringToString(Element);
+		Enum( String );
+	}
+}
+
+void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
+{
+	auto PushArgument = [&](std::string& Argument)
+	{
+		Arguments.PushBack( Argument );
+	};
+	NSArray<NSString*>* ArgumentsNs = [[NSProcessInfo processInfo] arguments];
+	//	skip 1st which is exe
+	NSArray_String_ForEach( ArgumentsNs, PushArgument, 1 );
+}

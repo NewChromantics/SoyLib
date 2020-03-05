@@ -23,8 +23,10 @@
 #define __noexcept_prefix
 #define __stdcall
 #define __export			extern "C"
-#define __deprecated_prefix	
+#define __deprecated_prefix
+#if !defined(__deprecated)	//	this is now in sdks
 #define __deprecated		__attribute__((deprecated))
+#endif
 
 #if defined(TARGET_IOS)
 //	https://github.com/ericniebler/range-v3/issues/407
@@ -36,8 +38,9 @@
 #endif
 
 //	unused variable
+#if !defined(__unused)	//	this is now in sdks
 #define __unused	__attribute__((unused))
-
+#endif
 
 namespace Platform
 {

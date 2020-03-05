@@ -58,9 +58,11 @@ public:
 	{
 	}
 
-	void					SetContent(const std::string& Content,SoyMediaFormat::Type Format=SoyMediaFormat::Text);
+	void					SetContent(const std::string& Content, SoyMediaFormat::Type Format = SoyMediaFormat::Text);
+	void					SetContent(const std::string& Content, const std::string& MimeFormat);
 	void					SetContent(const ArrayBridge<char>& Data,SoyMediaFormat::Type Format);
-	void					SetContent(const ArrayBridge<char>& Data,const std::string& MimeFormat);
+	void					SetContent(const ArrayBridge<char>& Data, const std::string& MimeFormat);
+	void					SetContent(const ArrayBridge<uint8_t>& Data, const std::string& MimeFormat);
 	void					SetContentType(SoyMediaFormat::Type Format);
 	
 	//	common code atm
@@ -86,6 +88,7 @@ protected:
 public:
 	std::map<std::string,std::string>	mHeaders;
 	std::map<std::string,std::string>	mVariables;			//	GET url vars in requests
+	const char*							mUrlPrefix = "/";	//	inserted into GET url, now a variable so it can be removed in specific cases (eg. websocket url is ws://xyz)
 	std::string							mUrl;				//	could be "Bad Request" or "OK" for responses
 	Array<char>							mContent;
 	std::string							mContentMimeType;	//	change this to SoyMediaFormat

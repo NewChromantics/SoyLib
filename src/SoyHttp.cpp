@@ -24,20 +24,30 @@ std::string Http::GetDefaultResponseString(size_t ResponseCode)
 }
 
 
+void Http::TCommonProtocol::SetContent(const std::string& Content,const std::string& Mime)
+{
+	//	re-instate this for when content is read-only
+	//Soy::Assert( mContent.IsEmpty(), "Content already set" );
+	Soy::Assert(mWriteContent == nullptr, "Content has a write-content function set");
+
+	mContentMimeType = Mime;
+	mContent.Clear(false);
+	Soy::StringToArray(Content, GetArrayBridge(mContent));
+	mContentLength = mContent.GetDataSize();
+}
+
+
 void Http::TCommonProtocol::SetContent(const std::string& Content,SoyMediaFormat::Type Format)
 {
-	Soy::Assert( mContent.IsEmpty(), "Content already set" );
-	Soy::Assert( mWriteContent==nullptr, "Content has a write-content function set");
-	
-	mContentMimeType = SoyMediaFormat::ToMime( Format );
-	Soy::StringToArray( Content, GetArrayBridge( mContent ) );
-	mContentLength = mContent.GetDataSize();
+	auto Mime = SoyMediaFormat::ToMime(Format);
+	SetContent(Content, Mime);
 }
 
 
 void Http::TCommonProtocol::SetContent(const ArrayBridge<char>& Data,SoyMediaFormat::Type Format)
 {
-	Soy::Assert( mContent.IsEmpty(), "Content already set" );
+	//	re-instate this for when content is read-only
+	//Soy::Assert( mContent.IsEmpty(), "Content already set" );
 	Soy::Assert( mWriteContent==nullptr, "Content has a write-content function set");
 	
 	mContent.Copy( Data );
@@ -53,7 +63,8 @@ void Http::TCommonProtocol::SetContent(const ArrayBridge<char>& Data,const std::
 		SetContent( Data, SoyMediaFormat::Text );
 		return;
 	}
-	Soy::Assert( mContent.IsEmpty(), "Content already set" );
+	//	re-instate this for when content is read-only
+	//Soy::Assert( mContent.IsEmpty(), "Content already set" );
 	Soy::Assert( mWriteContent==nullptr, "Content has a write-content function set");
 	
 	mContent.Copy( Data );
@@ -61,6 +72,13 @@ void Http::TCommonProtocol::SetContent(const ArrayBridge<char>& Data,const std::
 	mContentLength = mContent.GetDataSize();
 }
 
+
+void Http::TCommonProtocol::SetContent(const ArrayBridge<uint8_t>& Data, const std::string& Mime)
+{
+	mContent.Copy(Data);
+	mContentMimeType = Mime;
+	mContentLength = mContent.GetDataSize();
+}
 
 void Http::TCommonProtocol::SetContentType(SoyMediaFormat::Type Format)
 {
@@ -369,13 +387,14 @@ void Http::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 			HttpVersion = "HTTP/1.1";
 		
 		std::stringstream RequestHeader;
-		RequestHeader << mMethod << " /" << mUrl << " " << HttpVersion << "\r\n";
+		RequestHeader << mMethod << " " << mUrlPrefix << mUrl << " " << HttpVersion << "\r\n";
 		Buffer.Push( RequestHeader.str() );
 	}
 
 	//mHeaders["Accept"] = "text/html";
 	if ( !mHost.empty() )
-		mHeaders["Host"] = mHost;
+		if ( mHeaders.count("Host") == 0 )
+			mHeaders["Host"] = mHost;
 	//mHeaders["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.2454.85 Safari/537.36";
 	BakeHeaders();
 	WriteHeaders( Buffer );
