@@ -424,3 +424,28 @@ void Psd::Read(SoyPixelsImpl& Pixels,TStreamBuffer& Buffer)
 {
 	Stb::Read( Pixels, Buffer, stbi__psd_load );
 }
+
+SoyPixelsMeta Soy::IsImage(const ArrayBridge<uint8_t>&& Image)
+{
+	int Width = 0;
+	int Height = 0;
+	int Channels = 0;
+	auto* Buffer = Image.GetArray();
+	auto BufferSize = Image.GetDataSize();
+	auto IsImage = stbi_info_from_memory(Buffer, BufferSize, &Width, &Height, &Channels);
+	if (!IsImage)
+		return SoyPixelsMeta();
+
+	auto Format = SoyPixelsFormat::GetFormatFromChannelCount(Channels);
+	return SoyPixelsMeta(Width, Height, Format);
+}
+
+void Soy::DecodeImage(SoyPixelsImpl& Pixels, const ArrayBridge<uint8_t>&& Data)
+{
+	TStreamBuffer Buffer;
+	Buffer.Push(Data);
+	Stb::Read(Pixels, Buffer, stbi__load_main);
+
+}
+
+
