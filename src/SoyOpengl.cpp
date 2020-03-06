@@ -1450,6 +1450,21 @@ void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBr
 		throw Soy::AssertException(Context);
 }
 
+SoyPixelsRemote	GetRealignedSinglePlanePixels(const SoyPixelsImpl& Pixels)
+{
+	if (Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_8_8_Ntsc)
+	{
+		auto* Data = Pixels.GetPixelsArray().GetArray();
+		auto DataSize = Pixels.GetPixelsArray().GetDataSize();
+		auto Width = Pixels.GetWidth();
+		auto Height = DataSize / Width;
+		auto Format = SoyPixelsFormat::Greyscale;
+		return SoyPixelsRemote( const_cast<uint8_t*>(Data), Width, Height, DataSize, Format);
+	}
+
+	return SoyPixelsRemote();
+}
+
 
 void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTextureUploadParams Params)
 {
@@ -1486,6 +1501,13 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 #endif
 	
 	const SoyPixelsImpl* UsePixels = &SourcePixels;
+
+	//	yuv_8_8_8 is 3 planes (different sizes) crammed into one buffer
+	//	as the plane sizes are different, we can't do multiple channels,
+	//	so in this case (and maybe others) we need to turn it into one giant luma image
+	auto RealignedForUploadPixels = GetRealignedSinglePlanePixels(*UsePixels);
+	if (RealignedForUploadPixels.IsValid() )
+		UsePixels = &RealignedForUploadPixels;
 
 	
 	//	we CANNOT go from big to small, only small to big, so to avoid corrupted textures, lets shrink
