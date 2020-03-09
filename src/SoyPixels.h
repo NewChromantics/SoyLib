@@ -52,7 +52,8 @@ namespace SoyPixelsFormat
 		Yuv_8_88_Full,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
 		Yuv_8_88_Ntsc,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
 		Yuv_8_88_Smptec,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
-		
+		Yvu_8_88_Ntsc,
+
 		//	this format has a flaw in that the data is striped, (splits correctly)
 		//	but the data is WxH + WxH/2 + WxH/2 so data is 1.5x components so we can't make a buffer size correctly for opengl etc
 		//	figure out a way to express virtual w/h, data w/h, non integer components and data size
@@ -75,6 +76,8 @@ namespace SoyPixelsFormat
 		Yuv_844_Full,
 		Yuv_844_Ntsc,
 		Yuv_844_Smptec,
+		Yvu_844_Ntsc,		//	NV21
+
 
 		ChromaUV_8_8,		//	8 bit plane, 8 bit plane
 		ChromaUV_88,		//	16 bit interleaved plane
@@ -132,6 +135,7 @@ namespace SoyPixelsFormat
 		//	http://www.fourcc.org/yuv.php
 		Luma_Full		= Greyscale,	//	Luma plane of a YUV
 		Nv12			= Yuv_8_88_Full,
+		Nv21			= Yvu_8_88_Ntsc,
 		I420			= Yuv_8_8_8_Full,
 		
 		Count=99,
@@ -144,7 +148,8 @@ namespace SoyPixelsFormat
 	size_t			GetChannelCount(Type Format);
 	Type			GetFormatFromChannelCount(size_t ChannelCount);
 	void			GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats);
-	SoyPixelsFormat::Type	GetMergedFormat(SoyPixelsFormat::Type Formata,SoyPixelsFormat::Type Formatb);
+	SoyPixelsFormat::Type	GetMergedFormat(SoyPixelsFormat::Type Formata, SoyPixelsFormat::Type Formatb);
+	SoyPixelsFormat::Type	GetMergedFormat(SoyPixelsFormat::Type Formata, SoyPixelsFormat::Type Formatb, SoyPixelsFormat::Type FormatC);
 
 	int				GetMaxValue(SoyPixelsFormat::Type Format);
 	int				GetMinValue(SoyPixelsFormat::Type Format);
@@ -326,7 +331,9 @@ public:
 
 	//	split these pixels into multiple pixels if there are multiple planes
 	void			SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes) const;
-	
+	void			AppendPlane(const SoyPixelsImpl& Plane);
+	void			AppendPlane(const SoyPixelsImpl& PlaneA,const SoyPixelsImpl& PlaneB);
+
 	inline bool		operator==(const SoyPixelsImpl& that) const		{	return this == &that;	}
 	inline bool		operator==(const SoyPixelsMeta& Meta) const		{	return GetMeta() == Meta;	}
 	

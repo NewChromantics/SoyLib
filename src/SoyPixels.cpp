@@ -510,12 +510,13 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(size_t ChannelC
 
 namespace SoyPixelsFormat
 {
-	const std::map<Type,BufferArray<Type,4>>&	GetMergedFormatMap();
+	const std::map<Type, BufferArray<Type,2>>&	GetMergedFormatMap2();
+	const std::map<Type,BufferArray<Type,3>>&	GetMergedFormatMap3();
 }
 
-const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,4>>& SoyPixelsFormat::GetMergedFormatMap()
+const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyPixelsFormat::GetMergedFormatMap2()
 {
-	static std::map<Type,BufferArray<Type,4>> Map;
+	static std::map<Type,BufferArray<Type,2>> Map;
 
 	if ( Map.empty() )
 	{
@@ -544,29 +545,54 @@ const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,4>>& SoyP
 	return Map;
 }
 
+const std::map<SoyPixelsFormat::Type, BufferArray<SoyPixelsFormat::Type, 3>>& SoyPixelsFormat::GetMergedFormatMap3()
+{
+	static std::map<Type, BufferArray<Type, 3>> Map;
+
+	if (Map.empty())
+	{
+		Map[Yuv_8_8_8_Full].PushBackArray({ Luma_Full, ChromaU_8,ChromaV_8 });
+		Map[Yuv_8_8_8_Ntsc].PushBackArray({ Luma_Ntsc, ChromaU_8,ChromaV_8 });
+		Map[Yuv_8_8_8_Smptec].PushBackArray({ Luma_Smptec, ChromaU_8,ChromaV_8 });
+	}
+
+	return Map;
+}
 
 
 void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats)
 {
-	auto& Map = GetMergedFormatMap();
-	auto it = Map.find( Format );
-
-	//	single plane type, return self
-	if ( it == Map.end() )
 	{
-		PlaneFormats.PushBack(Format);
-		return;
+		auto& Map2 = GetMergedFormatMap2();
+		auto it2 = Map2.find(Format);
+		if (it2 != Map2.end())
+		{
+			PlaneFormats.Copy(it2->second);
+			return;
+		}
 	}
 
-	PlaneFormats.Copy( it->second );
+	{
+		auto& Map3 = GetMergedFormatMap3();
+		auto it3 = Map3.find(Format);
+
+		if (it3 != Map3.end())
+		{
+			PlaneFormats.Copy(it3->second);
+			return;
+		}
+	}
+	PlaneFormats.PushBack(Format);
+	return;
 }
+
 
 
 SoyPixelsFormat::Type SoyPixelsFormat::GetMergedFormat(SoyPixelsFormat::Type Formata,SoyPixelsFormat::Type Formatb)
 {
 	BufferArray<Type,2> Formatab( { Formata, Formatb } );
 
-	auto& Map = GetMergedFormatMap();
+	auto& Map = GetMergedFormatMap2();
 	for ( auto it=Map.begin();	it!=Map.end();	it++ )
 	{
 		auto& Matchab = it->second;
@@ -579,6 +605,25 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetMergedFormat(SoyPixelsFormat::Type For
 	Error << "No merged format for " << Formata << " + " << Formatb;
 	throw Soy::AssertException(Error);
 }
+
+SoyPixelsFormat::Type SoyPixelsFormat::GetMergedFormat(SoyPixelsFormat::Type Formata, SoyPixelsFormat::Type Formatb, SoyPixelsFormat::Type Formatc)
+{
+	BufferArray<Type, 3> Formatabc({ Formata, Formatb, Formatc });
+
+	auto& Map = GetMergedFormatMap3();
+	for (auto it = Map.begin(); it != Map.end(); it++)
+	{
+		auto& Matchab = it->second;
+		auto& MergedFormat = it->first;
+		if (Matchab == Formatabc)
+			return MergedFormat;
+	}
+
+	std::stringstream Error;
+	Error << "No merged format for " << Formata << " + " << Formatb;
+	throw Soy::AssertException(Error);
+}
+
 
 //	merge index & palette into Paletteised_8_8
 void SoyPixelsFormat::MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPixelsImpl& IndexedImage,const SoyPixelsImpl& Palette,uint8 TransparentIndex)
@@ -1159,8 +1204,17 @@ void ConvertFormat_RGB_To_Yuv_8_8_8(ArrayInterface<uint8>& PixelsArray, SoyPixel
 	auto& ChromaVArray = ChromaV.GetPixelsArray();
 	for (auto i = 0; i < ChromaUArray.GetDataSize(); i++)
 	{
-		uint8_t u = 128;
-		uint8_t v = 128;
+		auto x = i % ChromaU.GetWidth();
+		auto y = i / ChromaU.GetWidth();
+		auto rgbi = (x * 2) + (y * 2 * Luma.GetWidth());
+		rgbi *= RgbStride;
+		auto r = RgbPixels[rgbi + 0];
+		auto g = RgbPixels[rgbi + 1];
+		auto b = RgbPixels[rgbi + 2];
+
+		//	convert to chroma uv
+		uint8_t u = g;
+		uint8_t v = b;
 		ChromaUArray[i] = u;
 		ChromaVArray[i] = v;
 	}
@@ -2078,6 +2132,42 @@ void SoyPixelsMeta::SplitPlanes(size_t PixelDataSize,ArrayBridge<std::tuple<size
 	{
 		std::Debug << Error.str() << std::endl;
 	}
+}
+
+void SoyPixelsImpl::AppendPlane(const SoyPixelsImpl& Plane)
+{
+	auto NewFormat = GetMergedFormat(this->GetFormat(), Plane.GetFormat());
+	auto& PixelsA = this->GetPixelsArray();
+	auto& PixelsB = Plane.GetPixelsArray();
+
+	//	verify this is valid first
+	auto NewSize = PixelsA.GetDataSize() + PixelsB.GetDataSize();
+	SoyPixelsRemote NewPixels(nullptr, this->GetWidth(), this->GetHeight(), NewSize, NewFormat);
+
+	//	add new data
+	PixelsA.PushBackArray(PixelsB);
+
+	//	set new meta
+	this->GetMeta().DumbSetFormat(NewFormat);
+}
+
+void SoyPixelsImpl::AppendPlane(const SoyPixelsImpl& PlaneB, const SoyPixelsImpl& PlaneC)
+{
+	auto NewFormat = GetMergedFormat(this->GetFormat(), PlaneB.GetFormat(), PlaneC.GetFormat());
+	auto& PixelsA = this->GetPixelsArray();
+	auto& PixelsB = PlaneB.GetPixelsArray();
+	auto& PixelsC = PlaneC.GetPixelsArray();
+
+	//	verify this is valid first
+	auto NewSize = PixelsA.GetDataSize() + PixelsB.GetDataSize() + PixelsC.GetDataSize();
+	SoyPixelsRemote NewPixels(PixelsA.GetArray(), this->GetWidth(), this->GetHeight(), NewSize, NewFormat);
+
+	//	add new data
+	PixelsA.PushBackArray(PixelsB);
+	PixelsA.PushBackArray(PixelsC);
+
+	//	set new meta
+	this->GetMeta().DumbSetFormat(NewFormat);
 }
 
 void SoyPixelsImpl::SplitPlanes(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Planes) const
