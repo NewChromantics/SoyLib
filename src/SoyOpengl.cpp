@@ -1452,7 +1452,9 @@ void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBr
 
 SoyPixelsRemote	GetRealignedSinglePlanePixels(const SoyPixelsImpl& Pixels)
 {
-	if (Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_8_8_Ntsc)
+	//	maybe a better approach by finding pixels array size vs w/h
+	if (Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_8_8_Full ||
+		Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_8_8_Ntsc )
 	{
 		auto* Data = Pixels.GetPixelsArray().GetArray();
 		auto DataSize = Pixels.GetPixelsArray().GetDataSize();
