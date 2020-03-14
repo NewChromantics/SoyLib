@@ -42,7 +42,7 @@ static void ImageMap_Paint(ImageMapData* pData, HDC hDC, RECT* rcDirty, BOOL bEr
 		Rectangle(hDC, Rect.left, Rect.top, Rect.right, Rect.bottom);
 	}
 
-	if (!NoBitmap)
+	if (NoBitmap)
 		return;
 
 	HANDLE BitmapHandle = pData->mBitmap;
@@ -52,9 +52,23 @@ static void ImageMap_Paint(ImageMapData* pData, HDC hDC, RECT* rcDirty, BOOL bEr
 	BITMAP Bitmap;
 	GetObject(BitmapHandle, sizeof(Bitmap), &Bitmap);
 	
-	if (!BitBlt(hDC, 0, 0, Bitmap.bmWidth, Bitmap.bmHeight, HdcMem, 0, 0, SRCCOPY))
+	int SourceWidth = Bitmap.bmWidth;
+	int SourceHeight= Bitmap.bmHeight;
+	int DestWidth = Rect.right - Rect.left;
+	int DestHeight = Rect.bottom - Rect.top;
+	
+	if (DestWidth != SourceWidth || DestHeight != SourceHeight)
 	{
-
+		SetStretchBltMode(hDC, HALFTONE);
+		if (!StretchBlt(hDC, 0, 0, DestWidth, DestHeight, HdcMem, 0, 0, SourceWidth, SourceHeight, SRCCOPY))
+		{
+		}
+	}
+	else
+	{
+		if (!BitBlt(hDC, 0, 0, Bitmap.bmWidth, Bitmap.bmHeight, HdcMem, 0, 0, SRCCOPY))
+		{
+		}
 	}
 
 	//	restore	
@@ -223,16 +237,65 @@ void ImageMap_Repaint(HWND ImageMap)
 	InvalidateRect(ImageMap, NULL, TRUE);
 }
 
+
+void ResizeArray(HCURSOR** Data, uint32_t* Width, uint32_t* Height, uint32_t NewWidth, uint32_t NewHeight, uint32_t ElementSize)
+{
+	uint32_t OldSize = (*Width) * (*Height);
+	uint32_t NewSize = NewWidth * NewHeight;
+	if (*Data)
+	{
+		if (OldSize != NewSize)
+		{
+			free(*Data);
+			*Data = NULL;
+		}
+	}
+
+	if (!*Data)
+	{
+		*Data = malloc(ElementSize * NewSize);
+		*Width = NewWidth;
+		*Height = NewHeight;
+	}
+}
+
 void ImageMap_SetImage(HWND ImageMapHandle,const uint8_t* PixelsRgb, uint32_t Width, uint32_t Height)
 {
 	ImageMapData* ImageMap = GetImageMapData(ImageMapHandle);
 	if (!ImageMap)
 		return;
 	
-	//	make new image
-	//	gr: gotta be on correct thread?
+	if (ImageMap->mBitmap)
+	{
+		DeleteObject(ImageMap->mBitmap);
+		ImageMap->mBitmap = NULL;
+	}
+
+	bool Flip = TRUE;
+	int Channels = 3;
+	BITMAPINFO BitmapInfo;
+	BitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	BitmapInfo.bmiHeader.biWidth = Width;
+	BitmapInfo.bmiHeader.biHeight = Flip ? -Height : Height;
+	BitmapInfo.bmiHeader.biPlanes = 1;
+	BitmapInfo.bmiHeader.biBitCount = Channels * sizeof(uint8_t)*8;
+	BitmapInfo.bmiHeader.biCompression = BI_RGB;
+	BitmapInfo.bmiHeader.biSizeImage = 0;	//	only needed for !BI_RGB
+	BitmapInfo.bmiHeader.biXPelsPerMeter = 0;
+	BitmapInfo.bmiHeader.biYPelsPerMeter = 0;
+	BitmapInfo.bmiHeader.biClrUsed = 0;
+	BitmapInfo.bmiHeader.biClrImportant = 0;
+	
+	HDC Hdc = GetDC(ImageMap->mHwnd);
+	//void* BitmapPixels = (void*)&PixelsRgb;	//	const cast
+	void* BitmapPixels = NULL;
+	ImageMap->mBitmap = CreateDIBSection(Hdc, &BitmapInfo, DIB_RGB_COLORS, &BitmapPixels, 0, 0);
+	
+	memcpy(BitmapPixels, PixelsRgb, Width*Height * Channels);
+	
 	ImageMap_Repaint(ImageMapHandle);
 }
+
 
 void ImageMap_SetCursorMap(HWND ImageMapHandle,const HCURSOR* PixelsCursors, uint32_t Width, uint32_t Height)
 {
@@ -241,24 +304,9 @@ void ImageMap_SetCursorMap(HWND ImageMapHandle,const HCURSOR* PixelsCursors, uin
 		return;
 
 	//	resize map
-	if (Data->mCursorMap)
-	{
-		int OldSize = Data->mCursorMapWidth * Data->mCursorMapHeight;
-		int NewSize = Width * Height;
-		if (OldSize != NewSize)
-		{
-			free(Data->mCursorMap);
-			Data->mCursorMap = NULL;
-		}
-	}
-
-	if (!Data->mCursorMap)
-	{
-		int NewSize = Width * Height;
-		Data->mCursorMap = malloc(sizeof(HCURSOR) * NewSize);
-		Data->mCursorMapWidth = Width;
-		Data->mCursorMapHeight = Height;
-	}
+	int OldSize = Data->mCursorMapWidth * Data->mCursorMapHeight;
+	int NewSize = Width * Height;
+	ResizeArray(&Data->mCursorMap, &Data->mCursorMapWidth, &Data->mCursorMapHeight, Width, Height, sizeof(HCURSOR) );
 
 	//	copy data
 	memcpy(Data->mCursorMap, PixelsCursors, sizeof(HCURSOR) * Width * Height);
