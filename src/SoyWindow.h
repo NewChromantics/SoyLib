@@ -3,6 +3,17 @@
 #include "SoyMath.h"
 #include "Array.hpp"
 
+//	should we remove the pixels dependency? (for ImageMap)
+class SoyPixelsImpl;
+
+//	todo: move all types into this namespace
+namespace Gui
+{
+	class TColourPicker;
+	class TImageMap;
+	class TMouseEvent;
+}
+
 //	gr: this might want expanding later for multiple screens, mouse button number etc
 typedef vec2x<int32_t> TMousePos;
 namespace SoyMouseButton
@@ -18,19 +29,43 @@ namespace SoyMouseButton
 	};
 }
 
+namespace SoyMouseEvent
+{
+	enum Type
+	{
+		Invalid = 0,
+		Down,
+		Move,
+		Up
+	};
+}
+
+
 //	we'll make this more sophisticated later
 namespace SoyKeyButton
 {
 	typedef char Type;
 }
 
+
 namespace SoyCursor
 {
 	enum Type
 	{
 		Arrow,
+		ArrowAndWait,
+		Cross,
 		Hand,
-		Busy,
+		Help,
+		TextCursor,
+		NotAllowed,
+		ResizeAll,
+		ResizeVert,
+		ResizeHorz,
+		ResizeNorthEast,
+		ResizeNorthWest,
+		UpArrow,
+		Wait,
 	};
 }
 
@@ -156,10 +191,14 @@ public:
 };
 
 
-namespace Gui
+class Gui::TMouseEvent
 {
-	class TColourPicker;
-}
+public:
+	vec2x<int32_t>			mPosition;
+	SoyMouseButton::Type	mButton = SoyMouseButton::None;
+	SoyMouseEvent::Type		mEvent = SoyMouseEvent::Invalid;
+};
+
 
 //	colour pickers are temporary dialogs on windows & osx, but can have consistent callbacks
 //	windows' default colour picker has no alpha, so we're not supporting it atm
@@ -170,3 +209,44 @@ public:
 	std::function<void()>					mOnDialogClosed;
 };
 
+
+//	an Image map control is an image which auto sets the OS cursor for certain areas
+//	and relays back mouse movement. Used for high-level custom gui controls which just update pixels
+class Gui::TImageMap
+{
+public:
+	virtual void			SetRect(const Soy::Rectx<int32_t>& Rect) = 0;		//	set position on screen
+
+	virtual void			SetImage(const SoyPixelsImpl& Pixels) = 0;
+
+	//	we accept strings for cursor names, because windows allows loading from exe resources. Otherwise they map to SoyCursor::Type enums
+	virtual void			SetCursorMap(const SoyPixelsImpl& CursorMap,const ArrayBridge<std::string>&& CursorIndexes) = 0;
+
+public:
+	std::function<void(Gui::TMouseEvent&)>	mOnMouseEvent;
+};
+
+namespace Platform
+{
+	class TWindow;
+	class TSlider;
+	class TTextBox;
+	class TLabel;
+	class TTickBox;
+	class TColourButton;
+	class TColourPicker;
+	class TImageMap;
+
+	class TOpenglView;		//	on osx it's a view control
+	class TOpenglContext;	//	on windows, its a context that binds to any control
+	class TWin32Thread;		//	windows needs to make calls on a specific thread (just as OSX needs it to be on the main dispatcher)
+
+	std::shared_ptr<SoyWindow>			CreateWindow(const std::string& Name, Soy::Rectx<int32_t>& Rect, bool Resizable);
+	std::shared_ptr<SoySlider>			CreateSlider(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<SoyTextBox>			CreateTextBox(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<SoyLabel>			CreateLabel(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<SoyTickBox>			CreateTickBox(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<Gui::TColourPicker>	CreateColourPicker(vec3x<uint8_t> InitialColour);
+	std::shared_ptr<SoyColourButton>	CreateColourButton(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<Gui::TImageMap>		CreateImageMap(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+}
