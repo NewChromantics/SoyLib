@@ -2,8 +2,8 @@
 
 #include <tchar.h>
 #include <windows.h>
+#include <stdint.h>
 
-typedef unsigned char      uint8_t;
 
  /* Window class */
 #define COLOURBUTTON_CLASSNAME	_T("ColourButton")

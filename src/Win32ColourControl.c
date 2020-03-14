@@ -1,7 +1,3 @@
-/* File custom.c
- * (custom control implementation)
- */
-
 #include "Win32ColourControl.h"
 #include <wingdi.h>
 
