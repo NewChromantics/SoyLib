@@ -9,6 +9,7 @@ typedef struct ImageMapData
 {
 	HWND		mHwnd;
 	HBITMAP		mBitmap;
+	uint32_t	mBitmapOverflow;	//	as bitmaps are aligned to DWORDS, we sometimes have bitmaps bigger than the original image, use this to cut those columns off
 	HCURSOR*	mCursorMap;
 	uint32_t	mCursorMapWidth;
 	uint32_t	mCursorMapHeight;
@@ -52,7 +53,7 @@ static void ImageMap_Paint(ImageMapData* pData, HDC hDC, RECT* rcDirty, BOOL bEr
 	BITMAP Bitmap;
 	GetObject(BitmapHandle, sizeof(Bitmap), &Bitmap);
 	
-	int SourceWidth = Bitmap.bmWidth;
+	int SourceWidth = Bitmap.bmWidth - pData->mBitmapOverflow;
 	int SourceHeight= Bitmap.bmHeight;
 	int DestWidth = Rect.right - Rect.left;
 	int DestHeight = Rect.bottom - Rect.top;
@@ -271,11 +272,13 @@ void ImageMap_SetImage(HWND ImageMapHandle,const uint8_t* PixelsBgr, uint32_t Wi
 		ImageMap->mBitmap = NULL;
 	}
 
+	ImageMap->mBitmapOverflow = sizeof(DWORD) - (Width % sizeof(DWORD));
+	
 	bool Flip = TRUE;
 	int Channels = 3;
 	BITMAPINFO BitmapInfo;
 	BitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-	BitmapInfo.bmiHeader.biWidth = Width;
+	BitmapInfo.bmiHeader.biWidth = Width + ImageMap->mBitmapOverflow;
 	BitmapInfo.bmiHeader.biHeight = Flip ? -Height : Height;
 	BitmapInfo.bmiHeader.biPlanes = 1;
 	BitmapInfo.bmiHeader.biBitCount = Channels * sizeof(uint8_t)*8;
@@ -288,10 +291,19 @@ void ImageMap_SetImage(HWND ImageMapHandle,const uint8_t* PixelsBgr, uint32_t Wi
 	
 	HDC Hdc = GetDC(ImageMap->mHwnd);
 	//void* BitmapPixels = (void*)&PixelsRgb;	//	const cast
-	void* BitmapPixels = NULL;
+	uint8_t* BitmapPixels = NULL;
 	ImageMap->mBitmap = CreateDIBSection(Hdc, &BitmapInfo, DIB_RGB_COLORS, &BitmapPixels, 0, 0);
 	
-	memcpy(BitmapPixels, PixelsBgr, Width*Height * Channels);
+	//	images are aligned to 32, so do capped memcpys or things will be misaligned
+	ImageMap->mBitmapOverflow = sizeof(DWORD) - (Width % sizeof(DWORD));
+	int BitmapWidth = Width + ImageMap->mBitmapOverflow;
+	for (int Row = 0; Row < Height; Row++)
+	{
+		int RowWidth = Width * Channels;
+		int DstStart = BitmapWidth * Row * Channels;
+		int SrcStart = Width * Row * Channels;
+		memcpy(BitmapPixels + DstStart, PixelsBgr + SrcStart, RowWidth);
+	}
 	
 	ImageMap_Repaint(ImageMapHandle);
 }
