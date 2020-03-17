@@ -259,7 +259,7 @@ void ResizeArray(HCURSOR** Data, uint32_t* Width, uint32_t* Height, uint32_t New
 	}
 }
 
-void ImageMap_SetImage(HWND ImageMapHandle,const uint8_t* PixelsRgb, uint32_t Width, uint32_t Height)
+void ImageMap_SetImage(HWND ImageMapHandle,const uint8_t* PixelsBgr, uint32_t Width, uint32_t Height)
 {
 	ImageMapData* ImageMap = GetImageMapData(ImageMapHandle);
 	if (!ImageMap)
@@ -279,7 +279,7 @@ void ImageMap_SetImage(HWND ImageMapHandle,const uint8_t* PixelsRgb, uint32_t Wi
 	BitmapInfo.bmiHeader.biHeight = Flip ? -Height : Height;
 	BitmapInfo.bmiHeader.biPlanes = 1;
 	BitmapInfo.bmiHeader.biBitCount = Channels * sizeof(uint8_t)*8;
-	BitmapInfo.bmiHeader.biCompression = BI_RGB;
+	BitmapInfo.bmiHeader.biCompression = BI_RGB;	//	this is BGR!
 	BitmapInfo.bmiHeader.biSizeImage = 0;	//	only needed for !BI_RGB
 	BitmapInfo.bmiHeader.biXPelsPerMeter = 0;
 	BitmapInfo.bmiHeader.biYPelsPerMeter = 0;
@@ -291,7 +291,7 @@ void ImageMap_SetImage(HWND ImageMapHandle,const uint8_t* PixelsRgb, uint32_t Wi
 	void* BitmapPixels = NULL;
 	ImageMap->mBitmap = CreateDIBSection(Hdc, &BitmapInfo, DIB_RGB_COLORS, &BitmapPixels, 0, 0);
 	
-	memcpy(BitmapPixels, PixelsRgb, Width*Height * Channels);
+	memcpy(BitmapPixels, PixelsBgr, Width*Height * Channels);
 	
 	ImageMap_Repaint(ImageMapHandle);
 }
