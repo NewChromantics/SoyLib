@@ -870,7 +870,7 @@ cl_channel_order Opencl::GetImageChannelOrder(SoyPixelsFormat::Type Format,cl_ch
 		case SoyPixelsFormat::KinectDepth:
 		case SoyPixelsFormat::FreenectDepth10bit:
 		case SoyPixelsFormat::FreenectDepth11bit:
-		case SoyPixelsFormat::FreenectDepthmm:
+		case SoyPixelsFormat::Depth16mm:
 			DataType = CL_UNORM_INT16;
 			return CL_R;
 			
