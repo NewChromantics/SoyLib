@@ -9,10 +9,34 @@ NSCursor* CursorToNSCursor(SoyCursor::Type Cursor)
 {
 	switch ( Cursor )
 	{
+			//	unused;
+			//	openHandCursor
+			//	closedHandCursor
+			//	resizeLeftCursor
+			//	resizeRightCursor
+			//	resizeDownCursor
+			//	disappearingItemCursor
+			
 		default:
-		case SoyCursor::Arrow:	return [NSCursor arrowCursor];
-		case SoyCursor::Hand:	return [NSCursor openHandCursor];
-		case SoyCursor::Busy:	return [NSCursor openHandCursor];
+		case SoyCursor::Arrow:			return [NSCursor arrowCursor];
+		case SoyCursor::Hand:			return [NSCursor pointingHandCursor];
+		case SoyCursor::ResizeVert:		return [NSCursor resizeUpDownCursor];
+		case SoyCursor::ResizeHorz:		return [NSCursor resizeLeftRightCursor];
+		case SoyCursor::UpArrow:		return [NSCursor resizeUpCursor];
+		case SoyCursor::TextCursor:		return [NSCursor IBeamCursor];
+		case SoyCursor::Cross:			return [NSCursor crosshairCursor];
+		case SoyCursor::NotAllowed:		return [NSCursor operationNotAllowedCursor];
+
+		//	osx doesn't have these, we should implement our own
+		case SoyCursor::ArrowAndWait:
+		case SoyCursor::Wait:
+			return [NSCursor arrowCursor];
+	
+		//	wrong for now
+		case SoyCursor::ResizeAll:			return [NSCursor dragCopyCursor];
+		case SoyCursor::ResizeNorthEast:	return [NSCursor dragCopyCursor];
+		case SoyCursor::ResizeNorthWest:	return [NSCursor dragCopyCursor];
+		case SoyCursor::Help:			return [NSCursor contextualMenuCursor];
 	}
 }
 #endif
