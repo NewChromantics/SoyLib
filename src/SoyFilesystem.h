@@ -45,7 +45,7 @@ namespace Platform
 	void		CreateDirectory(const std::string& Path);	//	will strip filenames
 	
 	bool		IsFullPath(const std::string& Path);		//	 is this a fully qualified path, not relative etc
-	std::string	GetFullPathFromFilename(const std::string& Filename);
+	std::string	GetFullPathFromFilename(const std::string& Filename);	//	if this is a directory, it should end with a slash
 	std::string	GetDirectoryFromFilename(const std::string& Filename,bool IncludeTrailingSlash=true);
 
 	//	implement platform specific "path interface" type?

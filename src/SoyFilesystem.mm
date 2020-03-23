@@ -243,11 +243,12 @@ void Platform::ShowFileExplorer(const std::string& Path)
 std::string Platform::GetFullPathFromFilename(const std::string& Filename)
 {
 	NSString* UrlString = Soy::StringToNSString( Filename );
-	NSError *err;
+	NSError *err = nullptr;
 	
 	//	try as file which we can test for immediate fail
 	NSURL* Url = [[NSURL alloc]initFileURLWithPath:UrlString];
 	//	resolve ../ ./ etc
+	//	gr: this turns /Hello/Cat//../World into /Hello/Cat/World, not as expected
 	Url = [Url standardizedURL];
 
 	if ( !Url.fileURL )
