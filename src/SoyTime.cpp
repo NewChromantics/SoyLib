@@ -3,7 +3,9 @@
 #include <sstream>
 #include "SoyString.h"
 
+#if defined(TARGET_OSX)||defined(TARGET_IOS)
 #include <mach/mach_time.h>
+#endif
 
 //	gr: solve this properly and move to somewhere in SoyTypes
 #if defined(TARGET_ANDROID)
@@ -81,7 +83,7 @@ SoyTime SoyTime::Now()
 	//	https://stackoverflow.com/a/59359900/355753
 #if defined(TARGET_WINDOWS) || defined(TARGET_UWP)
 	auto DurationSinceEpoch = std::chrono::system_clock::now().time_since_epoch();
-	auto DurationSinceEpochMs = sc::duration_cast<std::chrono::milliseconds>(DurationSinceEpoch);
+	auto DurationSinceEpochMs = std::chrono::duration_cast<std::chrono::milliseconds>(DurationSinceEpoch);
 	auto MilliSecs = DurationSinceEpochMs.count();
 #elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)||defined(TARGET_PS4)||defined(TARGET_LUMIN)
 	struct timeval now;
