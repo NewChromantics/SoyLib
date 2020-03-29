@@ -579,9 +579,14 @@ std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 		Platform::IsOkay( LastError, Error.str() );
 	}
 	PathBufferLength = std::min<size_t>( PathBufferLength, sizeof(PathBuffer)-1 );
-	PathBuffer[PathBufferLength] = '\0';
+	
+	std::string Path(PathBuffer, PathBufferLength);
 
-	return PathBuffer;
+	//	if directory, append a slash
+	if (::PathIsDirectoryA(PathBuffer))
+		Path += '\\';
+
+	return Path;
 #else
 	throw Soy::AssertException("GetFullPathFromFilename not implemented");
 #endif
