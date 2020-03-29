@@ -5,8 +5,8 @@
 class Platform::TProcessInfo : public TProcessInfoBase
 {
 public:
-	TProcessInfo(const std::string& RunCommand);
-	
+	TProcessInfo(const std::string& Command,const ArrayBridge<std::string>&& Arguments);
+
 	virtual int32_t		WaitForProcessHandle() override;
 
 	PROCESS_INFORMATION				mProcessInfo;
@@ -150,8 +150,8 @@ void TReadWritePipe::StartReadThread(std::function<void(const std::string&)>& On
 
 
 
-Soy::TShellExecute::TShellExecute(const std::string& RunCommand, std::function<void(int)> OnExit, std::function<void(const std::string&)> OnStdOut, std::function<void(const std::string&)> OnStdErr) :
-	SoyThread	(std::string("ShellExecute ") + RunCommand ),
+Soy::TShellExecute::TShellExecute(const std::string& Command,const ArrayBridge<std::string>&& Arguments,std::function<void(int)> OnExit, std::function<void(const std::string&)> OnStdOut, std::function<void(const std::string&)> OnStdErr) :
+	SoyThread	(std::string("ShellExecute ") + Command ),
 	mOnExit		(OnExit),
 	mOnStdOut	(OnStdOut),
 	mOnStdErr	(OnStdErr)
@@ -165,7 +165,7 @@ Soy::TShellExecute::TShellExecute(const std::string& RunCommand, std::function<v
 	}
 
 	//	throw here if we can't create the process
-	mProcessInfo = ::Platform::AllocProcessInfo(RunCommand);
+	mProcessInfo = ::Platform::AllocProcessInfo(Command,Arguments);
 	//CreateProcessHandle( RunCommand );
 	Start();
 }

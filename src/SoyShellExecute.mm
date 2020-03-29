@@ -9,7 +9,7 @@
 class Platform::TProcessInfo : public Soy::TProcessInfo
 {
 public:
-	TProcessInfo(const std::string& RunCommand);
+	TProcessInfo(const std::string& Command,const ArrayBridge<std::string>& Arguments);
 	
 	virtual int32_t	WaitForProcessHandle() override;
 
@@ -23,13 +23,13 @@ public:
 };
 
 
-std::shared_ptr<Soy::TProcessInfo> Platform::AllocProcessInfo(const std::string& RunCommand)
+std::shared_ptr<Soy::TProcessInfo> Platform::AllocProcessInfo(const std::string& Command,const ArrayBridge<std::string>& Arguments)
 {
-	return std::make_shared<Platform::TProcessInfo>(RunCommand);
+	return std::make_shared<Platform::TProcessInfo>(Command,Arguments);
 }
 
 
-Platform::TProcessInfo::TProcessInfo(const std::string& RunCommand)
+Platform::TProcessInfo::TProcessInfo(const std::string& Command,const ArrayBridge<std::string>& Arguments)
 {
 	//	https://stackoverflow.com/a/412573/355753
 	//int pid = [[NSProcessInfo processInfo] processIdentifier];
@@ -37,10 +37,17 @@ Platform::TProcessInfo::TProcessInfo(const std::string& RunCommand)
 	mStdOutFileHandle = mStdOutPipe.fileHandleForReading;
 	mStdErrPipe = [NSPipe pipe];
 	mStdErrFileHandle = mStdErrPipe.fileHandleForReading;
-	
+
+	auto ArgumentsArray = [[NSMutableArray alloc] init];
+	for ( auto a=0;	a<Arguments.GetSize();	a++ )
+	{
+		auto* Arg = Soy::StringToNSString(Arguments[a]);
+		[ArgumentsArray addObject:Arg];
+	}
+
 	mTask = [[NSTask alloc] init];
-	mTask.launchPath = Soy::StringToNSString(RunCommand);
-	//task.arguments = @[@"foo", @"bar.txt"];
+	mTask.launchPath = Soy::StringToNSString(Command);
+	mTask.arguments = ArgumentsArray;
 	mTask.standardOutput = mStdErrPipe;
 	mTask.standardError = mStdErrPipe;
 	
@@ -49,7 +56,7 @@ Platform::TProcessInfo::TProcessInfo(const std::string& RunCommand)
 
 void Platform::TProcessInfo::RunTask()
 {
-	//	gr: this is blocking
+	//	gr: this is not blocking!
 	@try
 	{
 		NSError* Error = nullptr;

@@ -12,7 +12,7 @@ namespace Platform
 {
 	class TProcessInfo;		//	per platform
 	
-	std::shared_ptr<Soy::TProcessInfo>	AllocProcessInfo(const std::string& RunCommand);
+	std::shared_ptr<Soy::TProcessInfo>	AllocProcessInfo(const std::string& Command,const ArrayBridge<std::string>& Arguments);
 }
 
 
@@ -28,7 +28,7 @@ public:
 class Soy::TShellExecute : public SoyThread
 {
 public:
-	TShellExecute(const std::string& RunCommand, std::function<void(int)> OnExit, std::function<void(const std::string&)> OnStdOut, std::function<void(const std::string&)> OnStdErr);
+	TShellExecute(const std::string& Command,const ArrayBridge<std::string>&& Arguments,std::function<void(int)> OnExit, std::function<void(const std::string&)> OnStdOut, std::function<void(const std::string&)> OnStdErr);
 	~TShellExecute();
 	
 protected:
