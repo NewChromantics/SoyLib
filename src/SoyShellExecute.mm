@@ -85,6 +85,10 @@ void Platform::TProcessInfo::RunTask()
 
 int32_t Platform::TProcessInfo::WaitForProcessHandle()
 {
+	//	block
+	std::Debug << "NSTask waitUntilExit..." << std::endl;
+	[mTask waitUntilExit];
+
 	auto ExitCode = [mTask terminationStatus];
 	mTask = nullptr;
 	return ExitCode;
