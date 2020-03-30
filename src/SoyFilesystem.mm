@@ -209,8 +209,24 @@ NSURL* Platform::GetUrl(const std::string& Filename)
 }
 
 
+bool Platform::DirectoryExists(const std::string& Filename)
+{
+	NSString* Path = Soy::StringToNSString( Filename );
+	BOOL IsDir = NO;
+	BOOL IsFile = [[NSFileManager defaultManager] fileExistsAtPath:Path isDirectory:&IsDir];
+	
+	return IsDir && IsFile;
+}
+
 bool Platform::FileExists(const std::string& Filename)
 {
+	NSString* Path = Soy::StringToNSString( Filename );
+	BOOL IsDir = NO;
+	BOOL IsFile = [[NSFileManager defaultManager] fileExistsAtPath:Path isDirectory:&IsDir];
+	
+	return !IsDir && IsFile;
+
+	/*
 	NSString* UrlString = Soy::StringToNSString( Filename );
 	NSError *err;
 	
@@ -220,6 +236,7 @@ bool Platform::FileExists(const std::string& Filename)
 		return false;
 	
 	return true;
+	*/
 }
 
 void Platform::ShowFileExplorer(const std::string& Path)

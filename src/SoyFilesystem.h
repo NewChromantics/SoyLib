@@ -37,6 +37,7 @@ class ArrayBridge;
 
 namespace Platform
 {
+	extern const char	DirectorySeperator;
 	class TFileMonitor;
 	
 	void		EnumFiles(std::string Directory,std::function<void(const std::string&)> OnFileFound);	//	end with ** to recurse
@@ -67,7 +68,8 @@ namespace Platform
 	void		ShellOpenUrl(const std::string& Url);
 	
 	bool		FileExists(const std::string& Path);
-	
+	bool		DirectoryExists(const std::string& Path);
+
 	//	maybe not file system? generic platform stuff...
 	std::string	GetComputerName();
 }

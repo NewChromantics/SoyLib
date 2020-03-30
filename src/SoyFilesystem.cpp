@@ -33,6 +33,11 @@ namespace Platform
 #endif
 }
 
+#if defined(TARGET_WINDOWS)
+const char Platform::DirectorySeperator = '\\';
+#else
+const char Platform::DirectorySeperator = '/';
+#endif
 
 SoyTime Soy::GetFileTimestamp(const std::string& Filename)
 {
@@ -595,15 +600,35 @@ std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 
 std::string	Platform::GetDirectoryFromFilename(const std::string& Filename,bool IncludeTrailingSlash)
 {
-	//	hacky
+	//	todo: OSX directory resolving functions fail if there is a double trailing slash, make sure this function cleans that
+	//	if the path is a directory, make sure it ends with a slash
+	if ( Platform::DirectoryExists(Filename) )
+	{
+		auto Directory = Filename;
+		Soy::StringTrimRight(Directory,'/');
+		Soy::StringTrimRight(Directory,'\\');
+		Soy::StringTrimRight(Directory,'/');
+		//	remove all trailing slashes
+		//	make sure it ends in one
+		if ( IncludeTrailingSlash )
+			Directory += DirectorySeperator;
+		return Directory;
+	}
+	
+	//	todo: make use of platform funcs
 	//	gr: why does rfind give us unsigned :|
+	//	chop everything up to last slash
+	//	todo: correct slashes to platform's seperator
 	ssize_t LastSlasha = Filename.rfind('/');
 	ssize_t LastSlashb = Filename.rfind('\\');
 	ssize_t LastSlash = std::max( LastSlasha, LastSlashb );
 	if ( LastSlash == std::string::npos )
 		return "";
 
-	return Filename.substr( 0, LastSlash + (IncludeTrailingSlash ? 1 : 0 ) );
+	auto Directory = Filename.substr( 0, LastSlash );
+	if ( IncludeTrailingSlash )
+		Directory += DirectorySeperator;
+	return Directory;
 }
 
 
