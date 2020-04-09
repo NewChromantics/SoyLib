@@ -2,6 +2,8 @@
 #include "SoyDebug.h"
 #include "HeapArray.hpp"
 
+#include <filesystem>
+
 #if defined(TARGET_OSX)
 #include <sys/stat.h>
 #include <unistd.h>
@@ -533,6 +535,16 @@ bool Platform::FileExists(const std::string& Path)
 }
 #endif
 
+#if defined(TARGET_WINDOWS)
+bool Platform::DirectoryExists(const std::string& Path)
+{
+	auto FullPath = GetFullPathFromFilename(Path);
+	return std::filesystem::is_directory(FullPath);
+	return ::PathIsDirectoryA(FullPath.c_str());
+	auto Attribs = ::GetFileAttributesA(FullPath.c_str());
+}
+#endif
+
 bool Platform::IsFullPath(const std::string& Path)
 {
 #if defined(TARGET_WINDOWS)
@@ -588,9 +600,12 @@ std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 	std::string Path(PathBuffer, PathBufferLength);
 
 	//	if directory, append a slash
-	if (::PathIsDirectoryA(PathBuffer))
-		Path += '\\';
-
+	//	gr: windows doesn't need this, so make sure there's a check
+	if (Path.length() != 0 && Path.back() != DirectorySeperator)
+	{
+		if (::PathIsDirectoryA(PathBuffer))
+			Path += DirectorySeperator;
+	}
 	return Path;
 #else
 	throw Soy::AssertException("GetFullPathFromFilename not implemented");
