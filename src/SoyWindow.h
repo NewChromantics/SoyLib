@@ -244,6 +244,7 @@ namespace Platform
 	std::shared_ptr<SoyWindow>			CreateWindow(const std::string& Name, Soy::Rectx<int32_t>& Rect, bool Resizable);
 	std::shared_ptr<SoySlider>			CreateSlider(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<SoyTextBox>			CreateTextBox(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<SoyLabel>			GetLabel(SoyWindow& Parent,const std::string& Name);
 	std::shared_ptr<SoyLabel>			CreateLabel(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<SoyTickBox>			CreateTickBox(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<Gui::TColourPicker>	CreateColourPicker(vec3x<uint8_t> InitialColour);
