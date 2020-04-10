@@ -1,28 +1,6 @@
 #include "SoyShellExecute.h"
 
 
-#if defined(TARGET_WINDOWS)
-class Platform::TProcessInfo : public TProcessInfoBase
-{
-public:
-	TProcessInfo(const std::string& Command,const ArrayBridge<std::string>&& Arguments);
-
-	virtual int32_t		WaitForProcessHandle() override;
-
-	PROCESS_INFORMATION				mProcessInfo;
-	std::shared_ptr<TReadWritePipe>	mStdOutPipe;
-	std::shared_ptr<TReadWritePipe>	mStdErrPipe;
-};
-#endif
-
-#if defined(TARGET_WINDOWS)
-std::shared_ptr<Soy::TProcessInfo> Platform::AllocProcessInfo(const std::string& RunCommand)
-{
-	return new Platform::TProcessInfo(RunCommand);
-}
-#endif
-
-
 
 #if defined(TARGET_WINDOWS)
 class TReadWritePipe
@@ -30,18 +8,46 @@ class TReadWritePipe
 public:
 	TReadWritePipe();
 	~TReadWritePipe();
-	
+
 	void	StartReadThread(std::function<void(const std::string&)>& OnRead);
-	
+
 protected:
 	void	CloseHandles();
-	
+
 public:
 	HANDLE	mReadPipe = nullptr;
 	HANDLE	mWritePipe = nullptr;
 	std::shared_ptr<SoyThreadLambda>	mReadThread;
 };
 #endif
+
+
+
+#if defined(TARGET_WINDOWS)
+class Platform::TProcessInfo : public Soy::TProcessInfo
+{
+public:
+	TProcessInfo(const std::string& Command,const ArrayBridge<std::string>& Arguments, std::function<void(const std::string&)>& OnStdOut, std::function<void(const std::string&)>& OnStdErr);
+
+	virtual int32_t		WaitForProcessHandle() override;
+
+	PROCESS_INFORMATION				mProcessInfo;
+	std::shared_ptr<TReadWritePipe>	mStdOutPipe;
+	std::shared_ptr<TReadWritePipe>	mStdErrPipe;
+
+	std::function<void(const std::string&)>	mOnStdOut;
+	std::function<void(const std::string&)>	mOnStdErr;
+
+};
+#endif
+
+#if defined(TARGET_WINDOWS)
+std::shared_ptr<Soy::TProcessInfo> Platform::AllocProcessInfo(const std::string& RunCommand, const ArrayBridge<std::string>& Arguments, std::function<void(const std::string&)>& OnStdOut, std::function<void(const std::string&)>& OnStdErr)
+{
+	return std::shared_ptr<Soy::TProcessInfo>(new Platform::TProcessInfo(RunCommand, Arguments, OnStdOut, OnStdErr ));
+}
+#endif
+
 
 
 
@@ -165,7 +171,7 @@ Soy::TShellExecute::TShellExecute(const std::string& Command,const ArrayBridge<s
 	}
 
 	//	throw here if we can't create the process
-	mProcessInfo = ::Platform::AllocProcessInfo(Command,Arguments);
+	mProcessInfo = ::Platform::AllocProcessInfo(Command,Arguments, mOnStdOut, mOnStdErr );
 	//CreateProcessHandle( RunCommand );
 	Start();
 }
@@ -187,7 +193,9 @@ bool Soy::TShellExecute::ThreadIteration()
 
 
 #if defined(TARGET_WINDOWS)
-Platform::TProcessInfo::TProcessInfo(const std::string& RunCommand)
+Platform::TProcessInfo::TProcessInfo(const std::string& RunCommand,const ArrayBridge<std::string>& Arguments, std::function<void(const std::string&)>& OnStdOut, std::function<void(const std::string&)>& OnStdErr) :
+	mOnStdOut	( OnStdOut ),
+	mOnStdErr	( OnStdErr )
 {
 	//	https://docs.microsoft.com/en-us/windows/win32/procthread/creating-a-child-process-with-redirected-input-and-output
 	mStdOutPipe.reset(new TReadWritePipe);
@@ -204,8 +212,14 @@ Platform::TProcessInfo::TProcessInfo(const std::string& RunCommand)
 	siStartInfo.hStdOutput = mStdOutPipe->mWritePipe;
 	siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 	
-	
-	auto* RunCommandStr = const_cast<char*>(RunCommand.c_str());
+	std::stringstream FullCommand;
+	FullCommand << RunCommand;
+	for (auto i = 0; i < Arguments.GetSize(); i++)
+	{
+		FullCommand << ' ' << Arguments[i];
+	}
+	auto FullCommandStr = FullCommand.str();
+	auto* RunCommandStr = const_cast<char*>(FullCommandStr.c_str());
 	
 	// Execute a synchronous child process & get exit code
 	auto Success = CreateProcessA(nullptr,
