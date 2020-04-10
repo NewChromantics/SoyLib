@@ -2,7 +2,9 @@
 #include "SoyDebug.h"
 #include "HeapArray.hpp"
 
+#if defined(TARGET_WINDOWS)
 #include <filesystem>
+#endif
 
 #if defined(TARGET_OSX)
 #include <sys/stat.h>

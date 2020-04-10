@@ -23,7 +23,7 @@ public:
 };
 
 
-std::shared_ptr<Soy::TProcessInfo> Platform::AllocProcessInfo(const std::string& Command,const ArrayBridge<std::string>& Arguments)
+std::shared_ptr<Soy::TProcessInfo> Platform::AllocProcessInfo(const std::string& Command,const ArrayBridge<std::string>& Arguments, std::function<void(const std::string&)>& OnStdOut, std::function<void(const std::string&)>& OnStdErr)
 {
 	return std::make_shared<Platform::TProcessInfo>(Command,Arguments);
 }
