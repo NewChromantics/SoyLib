@@ -220,7 +220,11 @@ void std::DebugStreamBuf::flush()
 		static bool UseNsLog = false;
 		PlatformDebugPrint = UseNsLog;
 
+#elif defined(TARGET_IOS)
+		PlatformDebugPrint = true;		//	NSLog proper os logging
+		PlatformStdout = false;			//	cleaner output in xcode
 #endif
+		
 		if ( PlatformStdout )
 		{
 			std::lock_guard<std::mutex> lock(CoutLock);
