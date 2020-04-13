@@ -71,6 +71,10 @@ namespace TPng
 		TInterlace::Type	mInterlace;
 	};
 	
+	//	fast, non-throwing PNG header check
+	bool		IsPngHeader(const ArrayBridge<uint8_t>&& Data);
+
+	//	these are designed for reading, so they throw
 	void		GetMagic(ArrayBridge<char>&& Magic);
 	bool		CheckMagic(TArrayReader& ArrayReader);
 	bool		CheckMagic(ArrayBridge<char>&& PngData);

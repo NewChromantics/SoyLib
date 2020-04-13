@@ -111,6 +111,22 @@ void TPng::CheckMagic(const ArrayBridge<uint8_t>& PngData)
 	throw Soy::AssertException("Png magic header mismatch");
 }
 
+bool TPng::IsPngHeader(const ArrayBridge<uint8_t>&& Data)
+{
+	if (Data.GetSize() < 8)
+		return false;
+
+	BufferArray<char, 8> Magic;
+	GetMagic(GetArrayBridge(Magic));
+
+	auto Diff = memcmp(Data.GetArray(), Magic.GetArray(), Magic.GetDataSize());
+	if (Diff != 0)
+		return false;
+
+	return true;
+}
+
+
 
 bool TPng::THeader::IsValid() const
 {
