@@ -580,6 +580,7 @@ std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 #if !defined(HOLOLENS_SUPPORT)
 	char PathBuffer[MAX_PATH];
 	char* FilenameStart = nullptr;	//	pointer to inside buffer
+	//	gr: this pre-pends the CWD, what should it do if the file doesnt exist?
 	auto PathBufferLength = GetFullPathNameA( Filename.c_str(), sizeof(PathBuffer), PathBuffer, &FilenameStart );
 
 	auto LastError = Platform::GetLastError();
