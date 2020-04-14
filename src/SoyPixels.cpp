@@ -620,7 +620,7 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetMergedFormat(SoyPixelsFormat::Type For
 	}
 
 	std::stringstream Error;
-	Error << "No merged format for " << Formata << " + " << Formatb;
+	Error << "No merged format for " << Formata << " + " << Formatb << " + " << Formatc;
 	throw Soy::AssertException(Error);
 }
 
