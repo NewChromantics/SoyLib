@@ -2,6 +2,10 @@
 #include "SoyDebug.h"
 #include "HeapArray.hpp"
 
+#if defined(TARGET_WINDOWS)
+#include <filesystem>
+#endif
+
 #if defined(TARGET_OSX)
 #include <sys/stat.h>
 #include <unistd.h>
@@ -33,6 +37,11 @@ namespace Platform
 #endif
 }
 
+#if defined(TARGET_WINDOWS)
+const char Platform::DirectorySeperator = '\\';
+#else
+const char Platform::DirectorySeperator = '/';
+#endif
 
 SoyTime Soy::GetFileTimestamp(const std::string& Filename)
 {
@@ -528,6 +537,16 @@ bool Platform::FileExists(const std::string& Path)
 }
 #endif
 
+#if defined(TARGET_WINDOWS)
+bool Platform::DirectoryExists(const std::string& Path)
+{
+	auto FullPath = GetFullPathFromFilename(Path);
+	return std::filesystem::is_directory(FullPath);
+	return ::PathIsDirectoryA(FullPath.c_str());
+	auto Attribs = ::GetFileAttributesA(FullPath.c_str());
+}
+#endif
+
 bool Platform::IsFullPath(const std::string& Path)
 {
 #if defined(TARGET_WINDOWS)
@@ -561,6 +580,7 @@ std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 #if !defined(HOLOLENS_SUPPORT)
 	char PathBuffer[MAX_PATH];
 	char* FilenameStart = nullptr;	//	pointer to inside buffer
+	//	gr: this pre-pends the CWD, what should it do if the file doesnt exist?
 	auto PathBufferLength = GetFullPathNameA( Filename.c_str(), sizeof(PathBuffer), PathBuffer, &FilenameStart );
 
 	auto LastError = Platform::GetLastError();
@@ -579,9 +599,17 @@ std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 		Platform::IsOkay( LastError, Error.str() );
 	}
 	PathBufferLength = std::min<size_t>( PathBufferLength, sizeof(PathBuffer)-1 );
-	PathBuffer[PathBufferLength] = '\0';
+	
+	std::string Path(PathBuffer, PathBufferLength);
 
-	return PathBuffer;
+	//	if directory, append a slash
+	//	gr: windows doesn't need this, so make sure there's a check
+	if (Path.length() != 0 && Path.back() != DirectorySeperator)
+	{
+		if (::PathIsDirectoryA(PathBuffer))
+			Path += DirectorySeperator;
+	}
+	return Path;
 #else
 	throw Soy::AssertException("GetFullPathFromFilename not implemented");
 #endif
@@ -590,15 +618,35 @@ std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 
 std::string	Platform::GetDirectoryFromFilename(const std::string& Filename,bool IncludeTrailingSlash)
 {
-	//	hacky
+	//	todo: OSX directory resolving functions fail if there is a double trailing slash, make sure this function cleans that
+	//	if the path is a directory, make sure it ends with a slash
+	if ( Platform::DirectoryExists(Filename) )
+	{
+		auto Directory = Filename;
+		Soy::StringTrimRight(Directory,'/');
+		Soy::StringTrimRight(Directory,'\\');
+		Soy::StringTrimRight(Directory,'/');
+		//	remove all trailing slashes
+		//	make sure it ends in one
+		if ( IncludeTrailingSlash )
+			Directory += DirectorySeperator;
+		return Directory;
+	}
+	
+	//	todo: make use of platform funcs
 	//	gr: why does rfind give us unsigned :|
+	//	chop everything up to last slash
+	//	todo: correct slashes to platform's seperator
 	ssize_t LastSlasha = Filename.rfind('/');
 	ssize_t LastSlashb = Filename.rfind('\\');
 	ssize_t LastSlash = std::max( LastSlasha, LastSlashb );
 	if ( LastSlash == std::string::npos )
 		return "";
 
-	return Filename.substr( 0, LastSlash + (IncludeTrailingSlash ? 1 : 0 ) );
+	auto Directory = Filename.substr( 0, LastSlash );
+	if ( IncludeTrailingSlash )
+		Directory += DirectorySeperator;
+	return Directory;
 }
 
 

@@ -37,6 +37,7 @@ class ArrayBridge;
 
 namespace Platform
 {
+	extern const char	DirectorySeperator;
 	class TFileMonitor;
 	
 	void		EnumFiles(std::string Directory,std::function<void(const std::string&)> OnFileFound);	//	end with ** to recurse
@@ -45,7 +46,7 @@ namespace Platform
 	void		CreateDirectory(const std::string& Path);	//	will strip filenames
 	
 	bool		IsFullPath(const std::string& Path);		//	 is this a fully qualified path, not relative etc
-	std::string	GetFullPathFromFilename(const std::string& Filename);
+	std::string	GetFullPathFromFilename(const std::string& Filename);	//	if this is a directory, it should end with a slash
 	std::string	GetDirectoryFromFilename(const std::string& Filename,bool IncludeTrailingSlash=true);
 
 	//	implement platform specific "path interface" type?
@@ -67,7 +68,8 @@ namespace Platform
 	void		ShellOpenUrl(const std::string& Url);
 	
 	bool		FileExists(const std::string& Path);
-	
+	bool		DirectoryExists(const std::string& Path);
+
 	//	maybe not file system? generic platform stuff...
 	std::string	GetComputerName();
 }

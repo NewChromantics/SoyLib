@@ -1165,6 +1165,11 @@ void SoySocketConnection::Send(const ArrayBridge<char>& Data,bool IsUdp)
 			
 			if ( IsUdp )
 			{
+				//	UDP cannot send more than ~64kb
+				//	find the proper limit
+				if ( DataSize > 1033 )
+					DataSize = 1033;
+				
 				Result = ::sendto( mSocket, DataArray, DataSize, Flags, mAddr.GetSockAddr(), mAddr.GetSockAddrLength() );
 			}
 			else

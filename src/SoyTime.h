@@ -81,7 +81,8 @@ public:
 
 	uint64			GetTime() const							{	return mTime;	}
 	bool			IsValid() const							{	return mTime!=0;	}
-	static SoyTime	Now();
+	static SoyTime	Now();				//	time since jan 1 1970, this will inevitably be a 32bit number
+	static SoyTime	UpTime();			//	smaller clock, will loop after ~40 days
 	ssize_t			GetDiff(const SoyTime& that) const
 	{
 		ssize_t a = size_cast<ssize_t>( this->GetTime() );
