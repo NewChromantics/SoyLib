@@ -1,7 +1,10 @@
 #import "AvfPixelBuffer.h"
-#include "SoyOpengl.h"
 #include "SoyAvf.h"
 #include "SoyFourcc.h"
+
+#if defined(ENABLE_OPENGL)
+#include "SoyOpengl.h"
+#endif
 
 #if defined(ENABLE_METAL)
 #include <SoyMetal.h>
@@ -408,10 +411,11 @@ Metal::TTexture ExtractPlaneTexture_Metal(AvfTextureCache& TextureCache,CVImageB
 }
 #endif
 
+#if defined(ENABLE_OPENGL)
 #if defined(TARGET_IOS)
-Opengl::TTexture ExtractNonPlanarTexture(AvfTextureCache& TextureCache,CVImageBufferRef ImageBuffer,CFPtr<CVOpenGLESTextureRef>& TextureRef,CFAllocatorRef& Allocator)
+Opengl::TTexture ExtractNonPlanarTexture_Opengl(AvfTextureCache& TextureCache,CVImageBufferRef ImageBuffer,CFPtr<CVOpenGLESTextureRef>& TextureRef,CFAllocatorRef& Allocator)
 #elif defined(TARGET_OSX)
-Opengl::TTexture ExtractNonPlanarTexture(AvfTextureCache& TextureCache,CVImageBufferRef ImageBuffer,CFPtr<CVOpenGLTextureRef>& TextureRef,CFAllocatorRef& Allocator)
+Opengl::TTexture ExtractNonPlanarTexture_Opengl(AvfTextureCache& TextureCache,CVImageBufferRef ImageBuffer,CFPtr<CVOpenGLTextureRef>& TextureRef,CFAllocatorRef& Allocator)
 #endif
 {
 #if defined(TARGET_IOS)
@@ -455,6 +459,7 @@ Opengl::TTexture ExtractNonPlanarTexture(AvfTextureCache& TextureCache,CVImageBu
 	return Texture;
 #endif
 }
+#endif
 
 
 #if defined(ENABLE_METAL)
@@ -593,7 +598,7 @@ void AvfPixelBuffer::Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContex
 		throw Soy::AssertException("Failed to get texture cache");
 	
 	mTextureCaches.PushBack( TextureCache );
-	auto Texture = ExtractNonPlanarTexture( *TextureCache, ImageBuffer, mLockedTexture, Allocator );
+	auto Texture = ExtractNonPlanarTexture_Opengl( *TextureCache, ImageBuffer, mLockedTexture, Allocator );
 	
 	if ( Texture.IsValid() )
 		Textures.PushBack( Texture );
@@ -605,6 +610,7 @@ void AvfPixelBuffer::Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContex
 
 void AvfPixelBuffer::Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform)
 {
+#if defined(ENABLE_OPENGL)
 	Opengl::IsOkay("LockTexture flush", false);
 	
 	Soy::Assert( mDecoder!=nullptr, "Decoder expected" );
@@ -667,7 +673,7 @@ void AvfPixelBuffer::Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TCont
 			throw Soy::AssertException("Failed to get texture cache");
 		
 		mTextureCaches.PushBack( TextureCache );
-		auto Texture = ExtractNonPlanarTexture( *TextureCache, ImageBuffer, TextureRef, Allocator );
+		auto Texture = ExtractNonPlanarTexture_Opengl( *TextureCache, ImageBuffer, TextureRef, Allocator );
 		
 		if ( Texture.IsValid() )
 			Textures.PushBack( Texture );
@@ -688,10 +694,11 @@ void AvfPixelBuffer::Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TCont
 		throw Soy::AssertException("Failed to get texture cache");
 	
 	mTextureCaches.PushBack( TextureCache );
-	auto Texture = ExtractNonPlanarTexture( *TextureCache, ImageBuffer, mLockedTexture, Allocator );
+	auto Texture = ExtractNonPlanarTexture_Opengl( *TextureCache, ImageBuffer, mLockedTexture, Allocator );
 	
 	if ( Texture.IsValid() )
 		Textures.PushBack( Texture );
+#endif
 #endif
 }
 
@@ -910,13 +917,13 @@ void AvfPixelBuffer::Unlock()
 	};
 	GetArrayBridge(mTextureCaches).ForEach(ClearTextureCache);
 	mTextureCaches.Clear();
-	
-#if defined(TARGET_IOS)
+
+#if defined(TARGET_IOS) && defined(ENABLE_OPENGL)
 	if ( mLockedTexture0 )
 		mLockedTexture0.Release();
 	if ( mLockedTexture1 )
 		mLockedTexture1.Release();
-#elif defined(TARGET_OSX)
+#elif defined(TARGET_OSX) && defined(ENABLE_OPENGL)
 	if ( mLockedTexture )
 		mLockedTexture.Release();
 #endif
@@ -972,6 +979,7 @@ AvfTextureCache::AvfTextureCache(Metal::TContext* MetalContext)
 
 void AvfTextureCache::AllocOpengl()
 {
+#if defined(ENABLE_OPENGL)
 	CFAllocatorRef Allocator = kCFAllocatorDefault;
 	
 #if defined(TARGET_IOS)
@@ -1006,6 +1014,9 @@ void AvfTextureCache::AllocOpengl()
 		Error << "Failed to allocate texture cache " << Avf::GetCVReturnString(Result);
 		throw Soy::AssertException( Error.str() );
 	}
+#else
+	throw Soy::AssertException("opengl not supported ENABLE_OPENGL");
+#endif
 }
 
 
@@ -1033,7 +1044,9 @@ void AvfTextureCache::AllocMetal(Metal::TContext& Context)
 AvfTextureCache::~AvfTextureCache()
 {
 	Flush();
+#if defined(ENABLE_OPENGL)
 	mOpenglTextureCache.Release();
+#endif
 #if defined(ENABLE_METAL)
 	mMetalTextureCache.Release();
 #endif
@@ -1050,12 +1063,12 @@ void AvfTextureCache::Flush()
 		CVMetalTextureCacheFlush( mMetalTextureCache.mObject, 0 );
 #endif
 
-#if defined(TARGET_IOS)
+#if defined(TARGET_IOS) && defined(ENABLE_OPENGL)
 	if ( mOpenglTextureCache )
 		CVOpenGLESTextureCacheFlush( mOpenglTextureCache.mObject, 0 );
 #endif
 
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX) && defined(ENABLE_OPENGL)
 	if ( mOpenglTextureCache )
 		CVOpenGLTextureCacheFlush( mOpenglTextureCache.mObject, 0 );
 #endif
