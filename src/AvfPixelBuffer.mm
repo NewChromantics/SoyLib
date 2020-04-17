@@ -286,8 +286,8 @@ std::string Avf::GetCVReturnString(CVReturn Error)
 
 
 
-#if defined(TARGET_IOS)
-Opengl::TTexture ExtractPlaneTexture(AvfTextureCache& TextureCache,CVImageBufferRef ImageBuffer,CFPtr<CVOpenGLESTextureRef>& TextureRef,CFAllocatorRef& Allocator,size_t PlaneIndex,SoyPixelsFormat::Type PlaneFormat)
+#if defined(TARGET_IOS) && defined(ENABLE_OPENGL)
+Opengl::TTexture ExtractPlaneTexture_Opengl(AvfTextureCache& TextureCache,CVImageBufferRef ImageBuffer,CFPtr<CVOpenGLESTextureRef>& TextureRef,CFAllocatorRef& Allocator,size_t PlaneIndex,SoyPixelsFormat::Type PlaneFormat)
 {
 	GLenum TextureType = GL_TEXTURE_2D;
 	GLenum PixelComponentType = GL_UNSIGNED_BYTE;
@@ -423,7 +423,7 @@ Opengl::TTexture ExtractNonPlanarTexture_Opengl(AvfTextureCache& TextureCache,CV
 	//	ios can just grab plane 0
 	auto FormatCv = CVPixelBufferGetPixelFormatType( ImageBuffer );
 	auto Format = Avf::GetPixelFormat( FormatCv );
-	return ExtractPlaneTexture( TextureCache, ImageBuffer, TextureRef, Allocator, 0, Format );
+	return ExtractPlaneTexture_Opengl( TextureCache, ImageBuffer, TextureRef, Allocator, 0, Format );
 	
 #elif defined(TARGET_OSX)
 	
@@ -658,7 +658,7 @@ void AvfPixelBuffer::Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TCont
 			auto& TextureRef = (i==0) ? mLockedTexture0 : mLockedTexture1;
 			
 			mTextureCaches.PushBack( TextureCache );
-			auto Texture = ExtractPlaneTexture( *TextureCache, ImageBuffer, TextureRef, Allocator, i, PlaneFormats[i] );
+			auto Texture = ExtractPlaneTexture_Opengl( *TextureCache, ImageBuffer, TextureRef, Allocator, i, PlaneFormats[i] );
 			if ( !Texture.IsValid() )
 				continue;
 			
