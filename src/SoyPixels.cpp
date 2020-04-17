@@ -1304,10 +1304,13 @@ void ConvertFormat_Uvy844_To_Luma(ArrayInterface<uint8>& PixelsArray,SoyPixelsMe
 	auto* Pixels = PixelsArray.GetArray();
 	
 	//	when shrinking, we go forward through the array
+	//	gr: tiny optimisation (save ~2ms in debug)
+	uint8_t* OldPos = &Pixels[0];
+	uint8_t* NewPos = &Pixels[0];
 	for ( int p=0;	p<PixelCount;	p++ )
 	{
-		uint8_t* OldPos = &Pixels[p*YuvStride];
-		uint8_t* NewPos = &Pixels[p*LumaStride];
+		//uint8_t* OldPos = &Pixels[p*YuvStride];
+		//uint8_t* NewPos = &Pixels[p*LumaStride];
 		
 		//	invert
 		//auto Luma = 255 - OldPos[1];
@@ -1317,9 +1320,13 @@ void ConvertFormat_Uvy844_To_Luma(ArrayInterface<uint8>& PixelsArray,SoyPixelsMe
 		//Luma = (Luma < 100) ? 0 : 255;
 
 		NewPos[0] = Luma;
+
+		OldPos += YuvStride;
+		NewPos += LumaStride;
 	}
 	
-	PixelsArray.SetSize( LumaMeta.GetDataSize() );
+	PixelsArray.SetSize( PixelCount );
+	//PixelsArray.SetSize( LumaMeta.GetDataSize() );
 
 	Meta = LumaMeta;
 }
