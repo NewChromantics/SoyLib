@@ -169,6 +169,7 @@ namespace Soy
 {
 	NSString*	StringToNSString(const std::string& String);
 	std::string	NSStringToString(NSString* String);
+	std::string	CFStringToString(CFStringRef String);
 	std::string	NSErrorToString(NSError* Error);
 	std::string	NSErrorToString(NSException* Exception);
 	void		NSDictionaryToStrings(ArrayBridge<std::pair<std::string,std::string>>&& Elements,NSDictionary* Dictionary);

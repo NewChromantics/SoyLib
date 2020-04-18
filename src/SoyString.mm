@@ -4,7 +4,7 @@
 #include "SoyCFString.h"
 
 
-std::string Soy::GetString(CFStringRef CfString)
+std::string Soy::CFStringToString(CFStringRef CfString)
 {
 	//	https://stackoverflow.com/questions/28860033/convert-from-cfurlref-or-cfstringref-to-stdstring
 	//	https://stackoverflow.com/questions/17227348/nsstring-to-cfstringref-and-cfstringref-to-nsstring-in-arc
