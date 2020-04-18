@@ -69,12 +69,12 @@ std::shared_ptr<TMediaPacket> Avf::GetFormatDescriptionPacket(CMSampleBufferRef 
 	}
 
 	
-	GetFormatDescriptionData( GetArrayBridge( Data ), Desc, ParamIndex, Format );
+	GetFormatDescriptionData( GetArrayBridge( Data ), Desc, ParamIndex );
 	return pPacket;
 }
 
 
-void Avf::GetFormatDescriptionData(ArrayBridge<uint8>&& Data,CMFormatDescriptionRef FormatDesc,size_t ParamIndex,SoyMediaFormat::Type Format)
+void Avf::GetFormatDescriptionData(ArrayBridge<uint8>&& Data,CMFormatDescriptionRef FormatDesc,size_t ParamIndex)
 {
 	size_t ParamCount = 0;
 	auto Result = CMVideoFormatDescriptionGetH264ParameterSetAtIndex( FormatDesc, 0, nullptr, nullptr, &ParamCount, nullptr );
@@ -462,8 +462,8 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 	
 	if ( SoyMediaFormat::IsH264( Meta.mCodec ) )
 	{
-		Avf::GetFormatDescriptionData( GetArrayBridge(Meta.mSps), FormatDesc, 0, SoyMediaFormat::H264_SPS_ES );
-		Avf::GetFormatDescriptionData( GetArrayBridge(Meta.mPps), FormatDesc, 1, SoyMediaFormat::H264_PPS_ES );
+		Avf::GetFormatDescriptionData( GetArrayBridge(Meta.mSps), FormatDesc, 0 );
+		Avf::GetFormatDescriptionData( GetArrayBridge(Meta.mPps), FormatDesc, 1 );
 	}
 	
 	Boolean usePixelAspectRatio = false;

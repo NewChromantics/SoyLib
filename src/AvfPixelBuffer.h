@@ -49,9 +49,9 @@ public:
 #if defined(ENABLE_METAL)
 	CFPtr<CVMetalTextureCacheRef>		mMetalTextureCache;
 #endif
-#if defined(TARGET_IOS)
+#if defined(TARGET_IOS)&&defined(ENABLE_OPENGL)
 	CFPtr<CVOpenGLESTextureCacheRef>	mOpenglTextureCache;
-#elif defined(TARGET_OSX)
+#elif defined(TARGET_OSX)&&defined(ENABLE_OPENGL)
 	CFPtr<CVOpenGLTextureCacheRef>		mOpenglTextureCache;
 #endif
 };
@@ -119,13 +119,13 @@ protected:
 	std::mutex					mLockLock;
 	
 	Array<std::shared_ptr<AvfTextureCache>>	mTextureCaches;
-#if defined(TARGET_IOS)
+#if defined(TARGET_IOS)&&defined(ENABLE_OPENGL)
 	//	ios has 2 texture caches for multiple planes. Just 0 is used for non-planar
 	CFPtr<CVOpenGLESTextureRef>			mLockedTexture0;
 	CFPtr<CVOpenGLESTextureRef>			mLockedTexture1;
 	CFPtr<CVMetalTextureRef>			mMetal_LockedTexture0;
 	CFPtr<CVMetalTextureRef>			mMetal_LockedTexture1;
-#elif defined(TARGET_OSX)
+#elif defined(TARGET_OSX)&&defined(ENABLE_OPENGL)
 	CFPtr<CVOpenGLTextureRef>			mLockedTexture;
 #endif
 	BufferArray<SoyPixelsRemote,2>		mLockedPixels;
