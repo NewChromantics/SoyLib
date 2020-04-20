@@ -203,6 +203,10 @@ public:
 		vec4x4	( 1,0,0,0,	0,1,0,0,	0,0,1,0,	0,0,0,1 )
 	{
 	}
+	vec4x4(const TYPE* m44)
+	{
+		std::copy(m44, m44 + 16, &rows[0][0]);
+	}
 	vec4x4(TYPE a,TYPE b,TYPE c,TYPE d,
 		   TYPE e,TYPE f,TYPE g,TYPE h,
 		   TYPE i,TYPE j,TYPE k,TYPE l,
@@ -250,8 +254,14 @@ public:
 	}
 
 	//	gr: may need a more float-error friendly version
-	bool	IsIdentity() const		{	return *this == vec4x4();	}
+	bool					IsIdentity() const		{	return *this == vec4x4();	}
 	
+	FixedRemoteArray<TYPE>	GetArray() const 
+	{
+		auto* m00 = const_cast<TYPE*>(&rows[0][0]);
+		return FixedRemoteArray<TYPE>(m00, 4 * 4);
+	}
+
 	bool	operator==(const vec4x4& that) const
 	{
 		return
