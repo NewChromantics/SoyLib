@@ -103,6 +103,13 @@ public:
 		Copy<typename ARRAY::TYPE>( a.GetArray(), 0, a.GetSize() );
 	}
 
+	template<class ARRAY>
+	void				Copy(const ARRAY& a,size_t CopyMax)
+	{
+		CopyMax = std::min( CopyMax, a.GetSize() );
+		SetSize( CopyMax );
+		Copy<typename ARRAY::TYPE>( a.GetArray(), 0, CopyMax );
+	}
 
 
 	template<class ARRAYTYPE>
