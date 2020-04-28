@@ -105,6 +105,7 @@ namespace Soy
 	void		FileToArray(ArrayBridge<uint8_t>& Data,std::string Filename);
 	inline void	FileToArray(ArrayBridge<uint8_t>&& Data,std::string Filename)		{	FileToArray( Data, Filename );	}
 	void		ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename);
+	void		ArrayToFile(const ArrayBridge<uint8_t>&& Data,const std::string& Filename);
 	inline void	LoadBinaryFile(ArrayBridge<char>& Data,std::string Filename)	{	FileToArray( Data, Filename );	}
 	void		ReadStream(ArrayBridge<uint8_t>& Data, std::istream& Stream);
 	void		ReadStream(ArrayBridge<char>& Data, std::istream& Stream);
