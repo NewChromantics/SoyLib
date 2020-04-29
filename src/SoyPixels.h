@@ -72,6 +72,8 @@ namespace SoyPixelsFormat
 		//	4:2:2, apple call this yuvs
 		//	watch out for 2uvy where luma and chroma are backwards to normal!
 		//	these are vertically interlaced. need to fix this in the plane splitting code
+		//	gr: some times this is NOT vertically interlaced
+		//		need to split this into Yuv_844 and Yuv_8_44
 		Uvy_844_Full,
 		Yuv_844_Full,
 		Yuv_844_Ntsc,
@@ -83,7 +85,10 @@ namespace SoyPixelsFormat
 		ChromaUV_88,		//	16 bit interleaved plane
 		ChromaU_8,			//	single plane
 		ChromaV_8,			//	single plane
-		ChromaUV_44,		//	8 bit interleaved plane
+		//	halfwidth halfheight 2x8 bit interleaved plane
+		//	gr: may have some inconsistency atm where some things consider this 8bit
+		//	we should treat this as a 2 channel 8 bit format
+		ChromaUV_44,
 		
 
 		//	https://github.com/ofTheo/ofxKinect/blob/ebb9075bcb5ab2543220b4dec598fd73cec40904/libs/libfreenect/src/cameras.c

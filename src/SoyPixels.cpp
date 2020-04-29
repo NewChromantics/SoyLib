@@ -384,7 +384,7 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 
 	case ChromaUV_8_8:	return 1;
 	case ChromaUV_88:	return 2;
-	case ChromaUV_44:	return 1;	//	actually 2 channels, but not supporting nibbles
+	case ChromaUV_44:	return 2;
 	case ChromaU_8:		return 1;
 	case ChromaV_8:		return 1;
 
@@ -2611,22 +2611,22 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
 			break;
-
+		*/
 		case SoyPixelsFormat::Yuv_844_Full:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_44 ) );
 			break;
 			
 		case SoyPixelsFormat::Yuv_844_Ntsc:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Ntsc ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_44 ) );
 			break;
 			
 		case SoyPixelsFormat::Yuv_844_Smptec:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
+			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_44 ) );
 			break;
-		*/
+		
 		case SoyPixelsFormat::Palettised_RGB_8:
 		{
 			Soy::Assert( Data!=nullptr, "Cannot split format of Palettised_8_8 without data");

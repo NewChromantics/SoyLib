@@ -1453,8 +1453,12 @@ void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBr
 SoyPixelsRemote	GetRealignedSinglePlanePixels(const SoyPixelsImpl& Pixels)
 {
 	//	maybe a better approach by finding pixels array size vs w/h
+	//	but this approach just "overflows" the luma plane
+	//	(which means the following planes may have multiple side-by-side)
 	if (Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_8_8_Full ||
-		Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_8_8_Ntsc )
+		Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_8_8_Ntsc ||
+		Pixels.GetFormat() == SoyPixelsFormat::Yuv_844_Full ||
+		Pixels.GetFormat() == SoyPixelsFormat::Yuv_844_Ntsc )
 	{
 		auto* Data = Pixels.GetPixelsArray().GetArray();
 		auto DataSize = Pixels.GetPixelsArray().GetDataSize();
@@ -1463,7 +1467,7 @@ SoyPixelsRemote	GetRealignedSinglePlanePixels(const SoyPixelsImpl& Pixels)
 		auto Format = SoyPixelsFormat::Greyscale;
 		return SoyPixelsRemote( const_cast<uint8_t*>(Data), Width, Height, DataSize, Format);
 	}
-
+	
 	return SoyPixelsRemote();
 }
 
@@ -2657,10 +2661,10 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth11bit,	Opengl1ChannelFormats),
 		TPixelFormatMapping(SoyPixelsFormat::Depth16mm,		Opengl1ChannelFormats),
 
-		TPixelFormatMapping(SoyPixelsFormat::Uvy_844_Full,		Opengl2ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Full,		Opengl2ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Ntsc,		Opengl2ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Smptec,	Opengl2ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Uvy_844_Full,		Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Full,		Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Ntsc,		Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Smptec,	Opengl1ChannelFormats),
 		
 		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Full,		Opengl2ChannelFormats),
 		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Ntsc,		Opengl2ChannelFormats),
@@ -2670,8 +2674,12 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Full,		Opengl1ChannelFormats),
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Ntsc,		Opengl1ChannelFormats),
 		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Smptec,		Opengl1ChannelFormats),
-
 		
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_88_Full,			Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_88_Ntsc,			Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_88_Smptec,		Opengl1ChannelFormats),
+		
+
 #if defined(GL_BGRA)
 		//	BGRA is not a valid internal format
 		TPixelFormatMapping( SoyPixelsFormat::BGRA,			{ GL_BGRA	}, { GL_RGBA	} ),
