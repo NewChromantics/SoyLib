@@ -83,17 +83,22 @@ namespace TPng
 	TColour::Type			GetColourType(SoyPixelsFormat::Type Format);
 	SoyPixelsFormat::Type	GetPixelFormatType(TColour::Type Format);
 	
-	void		GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression,float CompressionLevel);
-	void		GetDeflateData(Array<char>& ChunkData,const ArrayBridge<uint8>& PixelBlock,bool LastBlock,int WindowSize);
-	
+	namespace Private
+	{
+		void		GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression,float CompressionLevel);
+		void		GetDeflateData(Array<char>& ChunkData,const ArrayBridge<uint8>& PixelBlock,bool LastBlock,int WindowSize);
+	}
 	bool		ReadHeader(SoyPixelsImpl& Pixels,THeader& Header,ArrayBridge<char>& Data,std::stringstream& Error);
 	bool		ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char>& Data,std::stringstream& Error);
 	bool		ReadTail(SoyPixelsImpl& Pixels,ArrayBridge<char>& Data,std::stringstream& Error);
 
 	//	moved from soypixels
-	//	todo: fix type from char
-	void		GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,float CompressionLevel,ArrayBridge<uint8_t>* Exif=nullptr);
-	inline void	GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,float CompressionLevel,ArrayBridge<uint8_t>&& Exif)
+	void		GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<uint8_t>& PngData,float CompressionLevel,ArrayBridge<uint8_t>* Exif=nullptr);
+	inline void	GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<uint8_t>&& PngData,float CompressionLevel,ArrayBridge<uint8_t>* Exif=nullptr)
+	{
+		GetPng(Pixels,PngData,CompressionLevel,Exif);
+	}
+	inline void	GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<uint8_t>& PngData,float CompressionLevel,ArrayBridge<uint8_t>&& Exif)
 	{
 		GetPng( Pixels, PngData, CompressionLevel, &Exif );		
 	}

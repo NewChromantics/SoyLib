@@ -780,17 +780,25 @@ void Soy::FileToArray(ArrayBridge<uint8_t>& Data,std::string Filename)
 	}
 }
 
-
-void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename)
+//	gr: quickest to code, should do a toll-free arraybridge cast!
+template<typename TYPE>
+void ArrayToFile(const ArrayBridge<TYPE>& Data,const std::string& Filename,bool Binary)
 {
 	::Platform::CreateDirectory(Filename);
 	
-	std::ofstream File( Filename, std::ios::out );
+	auto Mode = std::ios::out;
+	if ( Binary )
+		Mode |= std::ios::binary;
+	
+	std::ofstream File( Filename, Mode );
 	if ( !File.is_open() )
 		throw Soy::AssertException( std::string("Failed to open ")+Filename );
 	
 	if ( !Data.IsEmpty() )
-		File.write( Data.GetArray(), Data.GetDataSize() );
+	{
+		auto* DataPtr = reinterpret_cast<const char*>( Data.GetArray() );
+		File.write( DataPtr, Data.GetDataSize() );
+	}
 	
 	if ( File.fail() )
 	{
@@ -803,6 +811,17 @@ void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename
 	
 	File.close();
 }
+
+void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename)
+{
+	ArrayToFile(Data,Filename,false);
+}
+
+void Soy::ArrayToFile(const ArrayBridge<uint8_t>&& Data,const std::string& Filename)
+{
+	ArrayToFile(Data,Filename,true);
+}
+
 
 void Soy::StringToFile(std::string Filename,std::string String,bool Append)
 {

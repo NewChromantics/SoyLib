@@ -340,7 +340,7 @@ int GetMinizCompressionLevel(float Levelf)
 	return Level;
 }
 
-void TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression,float CompressionLevel)
+void TPng::Private::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression,float CompressionLevel)
 {
 	if ( Compression == TCompression::DEFLATE )
 	{
@@ -453,7 +453,7 @@ void TPng::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompressi
 	}
 }
 
-void TPng::GetDeflateData(Array<char>& DeflateData,const ArrayBridge<uint8>& PixelBlock,bool LastBlock,int WindowSize)
+void TPng::Private::GetDeflateData(Array<char>& DeflateData,const ArrayBridge<uint8>& PixelBlock,bool LastBlock,int WindowSize)
 {
 	//	pixel block should have already been split
 	if (PixelBlock.GetSize() > WindowSize)
@@ -487,7 +487,7 @@ void TPng::GetDeflateData(Array<char>& DeflateData,const ArrayBridge<uint8>& Pix
 
 
 
-void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,float CompressionLevel,ArrayBridge<uint8_t>* Exif)
+void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<uint8_t>& PngData,float CompressionLevel,ArrayBridge<uint8_t>* Exif)
 {
 	//	remove need for Png. Isn't this deprecated anyway
 #if defined(TARGET_PS4)
@@ -566,7 +566,7 @@ void TPng::GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<char>& PngData,float C
 	//	write data chunks
 	Array<char> PixelData;
 	PixelData.PushBackArray( IDAT );
-	TPng::GetPngData( PixelData, Pixels, static_cast<TPng::TCompression::Type>(Compression), CompressionLevel );
+	TPng::Private::GetPngData( PixelData, Pixels, static_cast<TPng::TCompression::Type>(Compression), CompressionLevel );
 	
 	//	write Tail chunks
 	Array<char> Tail;
