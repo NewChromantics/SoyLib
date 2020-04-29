@@ -100,9 +100,13 @@ namespace TPng
 	}
 	inline void	GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<uint8_t>& PngData,float CompressionLevel,ArrayBridge<uint8_t>&& Exif)
 	{
-		GetPng( Pixels, PngData, CompressionLevel, &Exif );		
+		GetPng( Pixels, PngData, CompressionLevel, &Exif );
 	}
-	
+	inline void	GetPng(const SoyPixelsImpl& Pixels,ArrayBridge<uint8_t>&& PngData,float CompressionLevel,ArrayBridge<uint8_t>&& Exif)
+	{
+		GetPng( Pixels, PngData, CompressionLevel, &Exif );
+	}
+
 	void		EnumChunks(const ArrayBridge<uint8_t>&& PngData,std::function<void(Soy::TFourcc&,uint32_t,ArrayBridge<uint8_t>&&)> EnumChunk);
 };
 std::ostream& operator<< (std::ostream &out,const TPng::TColour::Type &in);
