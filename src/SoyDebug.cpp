@@ -217,8 +217,8 @@ void std::DebugStreamBuf::flush()
 
 #elif defined(TARGET_OSX)
 
-		PlatformDebugPrint = true;
-		PlatformStdout = false;
+		PlatformDebugPrint = false;
+		PlatformStdout = true;
 
 #elif defined(TARGET_IOS)
 		PlatformDebugPrint = true;		//	NSLog proper os logging
