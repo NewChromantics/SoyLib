@@ -786,7 +786,7 @@ void ArrayToFile(const ArrayBridge<TYPE>& Data,const std::string& Filename,bool 
 {
 	::Platform::CreateDirectory(Filename);
 	
-	auto Mode = std::ios::out;
+	auto Mode = Binary ? (std::ios::out | std::ios::binary) : std::ios::out;
 	if ( Binary )
 		Mode |= std::ios::binary;
 	
