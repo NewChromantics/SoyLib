@@ -1231,6 +1231,35 @@ void ConvertFormat_Greyscale_To_Yuv_8_8_8(ArrayInterface<uint8>& PixelsArray, So
 	Meta = YuvMeta;
 }
 
+
+void ConvertFormat_Greyscale_To_Yuv_8_88(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
+{
+	//	we just need to ADD another pair of planes, so luma plane stays the same
+	SoyPixelsMeta YuvMeta(Meta.GetWidth(), Meta.GetHeight(), NewFormat);
+
+	//	split the planes and then write the new data to them
+	PixelsArray.SetSize(YuvMeta.GetDataSize());
+	SoyPixelsRemote YuvPixels(PixelsArray.GetArray(), YuvMeta.GetWidth(), YuvMeta.GetHeight(), YuvMeta.GetDataSize(), YuvMeta.GetFormat());
+	BufferArray<std::shared_ptr<SoyPixelsImpl>, 3> Planes;
+	YuvPixels.SplitPlanes(GetArrayBridge(Planes));
+
+	//	luma already in correct size & place
+
+	//	write chromas... all grey, so all 128
+	auto& ChromaUV = *Planes[1];
+	auto& ChromaUVArray_Array = ChromaUV.GetPixelsArray();
+	auto* ChromaUVArray = ChromaUVArray_Array.GetArray();
+	for (auto i = 0; i < ChromaUVArray_Array.GetDataSize(); i+=2)
+	{
+		uint8_t u = 128;
+		uint8_t v = 128;
+		ChromaUVArray[i+0] = u;
+		ChromaUVArray[i+1] = v;
+	}
+
+	Meta = YuvMeta;
+}
+
 void ConvertFormat_RGB_To_Yuv_8_8_8(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
 {
 	SoyPixelsMeta YuvMeta(Meta.GetWidth(), Meta.GetHeight(), NewFormat);
@@ -1633,6 +1662,10 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::YYuv_8888_Ntsc, SoyPixelsFormat::Greyscale, ConvertFormat_YYuv8888_To_Luma),
 	TConvertFunc( SoyPixelsFormat::YYuv_8888_Smptec, SoyPixelsFormat::Greyscale, ConvertFormat_YYuv8888_To_Luma),
 	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::Yuv_8_8_8_Ntsc, ConvertFormat_RGB_To_Yuv_8_8_8),
+	TConvertFunc(SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_88_Full, ConvertFormat_Greyscale_To_Yuv_8_88),
+	TConvertFunc(SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_88_Ntsc, ConvertFormat_Greyscale_To_Yuv_8_88),
+	TConvertFunc(SoyPixelsFormat::Luma_Ntsc, SoyPixelsFormat::Yuv_8_88_Full, ConvertFormat_Greyscale_To_Yuv_8_88),
+	TConvertFunc(SoyPixelsFormat::Luma_Full, SoyPixelsFormat::Yuv_8_88_Ntsc, ConvertFormat_Greyscale_To_Yuv_8_88),
 };
 
 
