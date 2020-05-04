@@ -163,11 +163,13 @@ class CVPixelBuffer : public AvfPixelBuffer
 {
 public:
 	CVPixelBuffer(CVPixelBufferRef Buffer,bool DoRetain,std::shared_ptr<AvfDecoderRenderer>& Decoder,const float3x3& Transform) :
-	AvfPixelBuffer	( DoRetain, Decoder, Transform ),
-	mSample			( Buffer, DoRetain )
+		AvfPixelBuffer	( DoRetain, Decoder, Transform ),
+		mSample			( Buffer )
 	{
-		if ( !Soy::Assert( mSample, "Sample expected") )
-			return;
+		if ( !mSample )
+			throw Soy::AssertException("Sample expected");
+		if ( DoRetain )
+			CVPixelBufferRetain(mSample);
 	}
 	~CVPixelBuffer();
 	
@@ -176,7 +178,7 @@ private:
 	virtual void				UnlockImageBuffer() override;
 	
 private:
-	CFPtr<CVPixelBufferRef>	mSample;
+	CVPixelBufferRef	mSample = nullptr;
 };
 #endif
 

@@ -1102,19 +1102,17 @@ std::shared_ptr<AvfTextureCache> AvfDecoderRenderer::GetTextureCache(size_t Inde
 
 CVPixelBuffer::~CVPixelBuffer()
 {
-	//	release
 	if ( mSample )
 	{
-		//auto RetainCount = CFGetRetainCount( mSample.mObject );
-		CVBufferRelease( mSample.mObject );
-		mSample.Release();
+		CVBufferRelease(mSample);
+		mSample = nullptr;
 	}
 }
 
 
 CVImageBufferRef CVPixelBuffer::LockImageBuffer()
 {
-	return mSample.mObject;
+	return mSample;
 }
 
 void CVPixelBuffer::UnlockImageBuffer()

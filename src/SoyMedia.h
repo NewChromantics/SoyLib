@@ -197,6 +197,7 @@ std::ostream& operator<<(std::ostream& out,const TStreamMeta& in);
 class TPixelBuffer
 {
 public:
+	virtual ~TPixelBuffer()	{};
 	//	different paths return arrays now - shader/fbo blit is pretty generic now so move it out of pixel buffer
 	//	generic array, handle that internally (each implementation tends to have it's own lock info anyway)
 	//	for future devices (metal, dx), expand these
