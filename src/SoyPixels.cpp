@@ -433,44 +433,9 @@ bool SoyPixelsFormat::IsFloatChannel(SoyPixelsFormat::Type Format)
 		case Float4:
 			return true;
 
-		case Greyscale:
-		case Luma_Ntsc:
-		case Luma_Smptec:
-		case GreyscaleAlpha:
-		case RGB:
-		case BGR:
-		case RGBA:
-		case BGRA:
-		case ARGB:
-		case KinectDepth:
-		case FreenectDepth11bit:
-		case FreenectDepth10bit:
-		case Depth16mm:
-		case ChromaUV_8_8:
-		case ChromaUV_88:
-		case ChromaUV_44:
-		case ChromaU_8:
-		case ChromaV_8:
-		case Uvy_844_Full:
-		case Yuv_844_Full:
-		case Yuv_844_Ntsc:
-		case Yuv_844_Smptec:
-		case YYuv_8888_Full:
-		case YYuv_8888_Ntsc:
-		case YYuv_8888_Smptec:
-		case uyvy:
-		case Yuv_8_8_8_Full:
-		case Yuv_8_8_8_Ntsc:
-		case Yuv_8_8_8_Smptec:
-			return false;
-			
 		default:
-			break;
+			return false;
 	}
-	
-	std::stringstream Error;
-	Error << __func__ << " not implemented for " << Format;
-	throw Soy::AssertException( Error.str() );
 }
 
 
