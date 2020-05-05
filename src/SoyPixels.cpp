@@ -2215,7 +2215,7 @@ void SoyPixelsImpl::AppendPlane(const SoyPixelsImpl& Plane)
 
 	//	verify this is valid first
 	auto NewSize = PixelsA.GetDataSize() + PixelsB.GetDataSize();
-	SoyPixelsRemote NewPixels(nullptr, this->GetWidth(), this->GetHeight(), NewSize, NewFormat);
+	SoyPixelsRemote NewPixels( PixelsA.GetArray(), this->GetWidth(), this->GetHeight(), NewSize, NewFormat);
 
 	//	add new data
 	PixelsA.PushBackArray(PixelsB);
