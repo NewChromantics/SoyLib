@@ -878,7 +878,7 @@ void PixelReleaseCallback(void *releaseRefCon, const void *baseAddress)
 	}
 }
 
-
+//	this creates a buffer dependent on Image, so this lifetime needs to be less than image
 CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 {
 	CFAllocatorRef PixelBufferAllocator = nullptr;

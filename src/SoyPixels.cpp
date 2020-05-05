@@ -401,6 +401,9 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case Yuv_8_8_8_Full:
 	case Yuv_8_8_8_Ntsc:
 	case Yuv_8_8_8_Smptec:
+	case Yuv_8_88_Full:
+	case Yuv_8_88_Ntsc:
+	case Yuv_8_88_Smptec:
 		return 1;
 
 	case uyvy:
@@ -1196,6 +1199,13 @@ void ConvertFormat_Greyscale_To_Yuv_8_8_8(ArrayInterface<uint8>& PixelsArray, So
 	Meta = YuvMeta;
 }
 
+void ConvertFormat_YuvPlane_To_Greyscale(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
+{
+	//	crop to first plane
+	SoyPixelsMeta NewMeta(Meta.GetWidth(), Meta.GetHeight(), NewFormat);
+	PixelsArray.SetSize(NewMeta.GetDataSize());
+	Meta = NewMeta;
+}
 
 void ConvertFormat_Greyscale_To_Yuv_8_88(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
 {
@@ -1631,6 +1641,11 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc(SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_88_Ntsc, ConvertFormat_Greyscale_To_Yuv_8_88),
 	TConvertFunc(SoyPixelsFormat::Luma_Ntsc, SoyPixelsFormat::Yuv_8_88_Full, ConvertFormat_Greyscale_To_Yuv_8_88),
 	TConvertFunc(SoyPixelsFormat::Luma_Full, SoyPixelsFormat::Yuv_8_88_Ntsc, ConvertFormat_Greyscale_To_Yuv_8_88),
+
+	TConvertFunc( SoyPixelsFormat::Yuv_8_8_8_Full, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
+	TConvertFunc( SoyPixelsFormat::Yuv_8_8_8_Ntsc, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
+	TConvertFunc( SoyPixelsFormat::Yuv_8_88_Full, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
+	TConvertFunc( SoyPixelsFormat::Yuv_8_88_Ntsc, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
 };
 
 
