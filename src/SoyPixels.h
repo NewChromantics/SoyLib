@@ -17,8 +17,6 @@ namespace SoyPixelsFormat
 {
 	enum Type
 	{
-	//	UnityUnknown	=-1,	//	gr: temp for this project
-
 		Invalid			= 0,
 		Greyscale,
 		GreyscaleAlpha,		//	png has this for 2 channel, so why not us!
@@ -136,14 +134,13 @@ namespace SoyPixelsFormat
 		Yuv_844_Ntsc_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
 		BGRA_Depth16,
 			
+		Count,
 		//	shorthand names
 		//	http://www.fourcc.org/yuv.php
 		Luma_Full		= Greyscale,	//	Luma plane of a YUV
 		Nv12			= Yuv_8_88_Full,
 		Nv21			= Yvu_8_88_Ntsc,
 		I420			= Yuv_8_8_8_Full,
-		
-		Count=99,
 	};
 
 	//	gr: consider changing this to either Type, Bytes per channel or bits per channel to handle 16 bit better
