@@ -1458,7 +1458,9 @@ SoyPixelsRemote	GetRealignedSinglePlanePixels(const SoyPixelsImpl& Pixels)
 	if (Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_8_8_Full ||
 		Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_8_8_Ntsc ||
 		Pixels.GetFormat() == SoyPixelsFormat::Yuv_844_Full ||
-		Pixels.GetFormat() == SoyPixelsFormat::Yuv_844_Ntsc )
+		Pixels.GetFormat() == SoyPixelsFormat::Yuv_844_Ntsc ||
+		Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_88_Full ||
+		Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_88_Ntsc )
 	{
 		auto* Data = Pixels.GetPixelsArray().GetArray();
 		auto DataSize = Pixels.GetPixelsArray().GetDataSize();
