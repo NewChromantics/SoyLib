@@ -107,6 +107,7 @@ public:
 	
 private:
 	virtual CVImageBufferRef	LockImageBuffer()=0;
+	virtual CVImageBufferRef	GetLockedImageBuffer()=0;	//	return null if not locked, expecting to only use this in unlock. Maybe should be called "GetBaseAddressLockedPixelBuffer"
 	virtual void				UnlockImageBuffer()=0;
 	void						LockPixels(ArrayBridge<SoyPixelsImpl*>& Planes,void* _Data,size_t BytesPerRow,SoyPixelsMeta Meta,float3x3& Transform,ssize_t DataSize=-1);
 	
@@ -148,6 +149,7 @@ public:
 	
 private:
 	virtual CVImageBufferRef	LockImageBuffer() override;
+	virtual CVImageBufferRef	GetLockedImageBuffer() override;
 	virtual void				UnlockImageBuffer() override;
 	
 private:
@@ -175,6 +177,7 @@ public:
 	
 private:
 	virtual CVImageBufferRef	LockImageBuffer() override;
+	virtual CVImageBufferRef	GetLockedImageBuffer() override;
 	virtual void				UnlockImageBuffer() override;
 	
 private:

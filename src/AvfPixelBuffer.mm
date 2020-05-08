@@ -753,6 +753,10 @@ CVImageBufferRef CFPixelBuffer::LockImageBuffer()
 	return mLockedImageBuffer.mObject;
 }
 
+CVImageBufferRef CFPixelBuffer::GetLockedImageBuffer()
+{
+	return mLockedImageBuffer.mObject;
+}
 
 void AvfPixelBuffer::LockPixels(ArrayBridge<SoyPixelsImpl*>& Planes,void* _Data,size_t BytesPerRow,SoyPixelsMeta Meta,float3x3& Transform,ssize_t DataSize)
 {
@@ -930,6 +934,20 @@ void AvfPixelBuffer::Unlock()
 	mLockedPixels.SetAll( SoyPixelsRemote() );
 	mLockedPixels.SetSize(0);
 	
+	auto LockedImageBuffer = GetLockedImageBuffer();
+	if ( LockedImageBuffer )
+	{
+		//	must make sure nothing is using texture before releasing it
+		//glFlush();
+		CVPixelBufferLockFlags LockFlags = mReadOnlyLock ? kCVPixelBufferLock_ReadOnly : 0;
+		auto Error = CVPixelBufferUnlockBaseAddress( LockedImageBuffer, LockFlags );
+		if ( Error != kCVReturnSuccess )
+		{
+			std::Debug << "Failed to lock CVPixelBuffer address " << Avf::GetCVReturnString( Error ) << std::endl;
+			//throw Soy::AssertException(Err.str());
+		}
+	}
+	
 	UnlockImageBuffer();
 	mLockLock.unlock();
 }
@@ -940,10 +958,6 @@ void CFPixelBuffer::UnlockImageBuffer()
 {
 	if ( mLockedImageBuffer )
 	{
-		//	must make sure nothing is using texture before releasing it
-		//glFlush();
-		CVPixelBufferUnlockBaseAddress(mLockedImageBuffer.mObject, mReadOnlyLock ? kCVPixelBufferLock_ReadOnly : 0 );
-		
 		//std::Debug << "[c] Locked image buffer refcount before release: " << mLockedImageBuffer.GetRetainCount() << std::endl;
 		mLockedImageBuffer.Release();
 	}
@@ -1111,6 +1125,11 @@ CVPixelBuffer::~CVPixelBuffer()
 
 
 CVImageBufferRef CVPixelBuffer::LockImageBuffer()
+{
+	return mSample;
+}
+
+CVImageBufferRef CVPixelBuffer::GetLockedImageBuffer()
 {
 	return mSample;
 }
