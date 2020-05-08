@@ -24,17 +24,30 @@ namespace Platform
 	//	gr: make a class for generic file handles as we use it for serial ports too.
 	bool	ParentConsoleTried = false;
 	HANDLE	ParentConsoleFileHandle = INVALID_HANDLE_VALUE;
-	void	WriteToParentConsole(const std::string& String);
+	void	WriteToParentConsole(const char* String);
 }
 #endif
 
 
 std::DebugStreamThreadSafeWrapper	std::Debug;
 
-//	gr: although cout is threadsafe, it doesnt synchornise the output
-std::mutex			CoutLock;
+namespace Debug
+{
+	//	gr: although cout is threadsafe, it doesnt synchronise the output
+	std::mutex	CoutCerrLock;
 
-
+	bool	EnablePrint_CouterrSync = true;	//	use a lock to make cout/cerr prints synchronised
+	bool	EnablePrint_Cout = true;
+	bool	EnablePrint_Cerr = false;
+#if defined(TARGET_OSX)
+	bool	EnablePrint_Platform = false;
+#else
+	bool	EnablePrint_Platform = true;
+#endif
+	bool	EnablePrint_Console = true;
+	
+	std::function<void(const char*)>	OnPrint;
+}
 
 std::string Soy::FormatSizeBytes(uint64 bytes)
 {
@@ -84,31 +97,31 @@ __thread std::DebugBufferString* ThreadBuffer = nullptr;	//	thread_local not sup
 
 
 #if defined(TARGET_ANDROID)
-void Platform::DebugPrint(const std::string& Message)
+void Platform::DebugPrint(const char* String)
 {
-	__android_log_print( ANDROID_LOG_INFO, Platform::LogIdentifer, "pop: %s", Message.c_str() );
+	__android_log_print( ANDROID_LOG_INFO, Platform::LogIdentifer, "pop: %s", String );
 }
 #endif
 
 
 #if defined(TARGET_WINDOWS)
-void Platform::DebugPrint(const std::string& Message)
+void Platform::DebugPrint(const char* String)
 {
-	OutputDebugStringA( Message.c_str() );
+	OutputDebugStringA( String );
 }
 #endif
 
 #if defined(TARGET_PS4)
-void Platform::DebugPrint(const std::string& Message)
+void Platform::DebugPrint(const char* String)
 {
-	printf( "PopPs4: %s\n", Message.c_str() );
+	printf( "PopPs4: %s\n", String );
 }
 #endif
 
 #if defined(TARGET_LUMIN)
-void Platform::DebugPrint(const std::string& Message)
+void Platform::DebugPrint(const char* String)
 {
-	ML_LOG_TAG( Info, Platform::LogIdentifer, "%s", Message.c_str() );
+	ML_LOG_TAG( Info, Platform::LogIdentifer, "%s", String );
 }
 #endif
 
@@ -152,7 +165,7 @@ std::DebugBufferString& std::DebugStreamBuf::GetBuffer()
 
 
 #if defined(TARGET_WINDOWS) && !defined(TARGET_UWP)
-void Platform::WriteToParentConsole(const std::string& String)
+void Platform::WriteToParentConsole(const char* String)
 {
 	//	if we don't have a handle, try and create one
 	if (ParentConsoleFileHandle == INVALID_HANDLE_VALUE)
@@ -182,10 +195,9 @@ void Platform::WriteToParentConsole(const std::string& String)
 		}
 	}
 
-	auto* Buffer = String.c_str();
-	auto BufferSize = String.length();
+	auto BufferSize = strlen(String);
 	DWORD Written = 0;
-	if (!WriteFile(ParentConsoleFileHandle, Buffer, BufferSize, &Written, nullptr))
+	if (!WriteFile(ParentConsoleFileHandle, String, BufferSize, &Written, nullptr))
 	{
 		//	failed to write, should report this!
 	}
@@ -199,54 +211,53 @@ void std::DebugStreamBuf::flush()
 	
 	if ( Buffer.length() > 0 )
 	{
-		//	gr: change these to be OS/main defined callbacks in OnFlush
-		bool PlatformDebugPrint = true;
-		bool PlatformStdout = mEnableStdOut;
-		auto& PlatformOutputBuffer = std::cout;
-	
-		std::string BufferStr(Buffer.c_str());
+		auto* BufferCStr = Buffer.c_str();
 
-#if defined(TARGET_WINDOWS)
-
-		//	if there's a debugger attached output to that, otherwise to-screen
-		//PlatformStdout &= !Platform::IsDebuggerAttached();
-		PlatformStdout = true;
-		//	gr: expensive call! is it cheaper to just OutputDebugString than check? 
-		//PlatformDebugPrint = Platform::IsDebuggerAttached();
-		PlatformDebugPrint = true;
-
-#elif defined(TARGET_OSX)
-
-		PlatformDebugPrint = false;
-		PlatformStdout = true;
-
-#elif defined(TARGET_IOS)
-		PlatformDebugPrint = true;		//	NSLog proper os logging
-		PlatformStdout = false;			//	cleaner output in xcode
-#endif
-		
-		if ( PlatformStdout )
+		bool Locked = false;
+		if ( Debug::EnablePrint_CouterrSync )
 		{
-			std::lock_guard<std::mutex> lock(CoutLock);
-			PlatformOutputBuffer << BufferStr;
-			PlatformOutputBuffer << std::flush;
+			if ( Debug::EnablePrint_Cout||Debug::EnablePrint_Cerr )
+			{
+				Debug::CoutCerrLock.lock();
+				Locked = true;
+			}
 		}
 		
-		if ( PlatformDebugPrint )
+		if ( Debug::EnablePrint_Cout )
 		{
-			Platform::DebugPrint( BufferStr );
+			std::cout << BufferCStr;
+			std::cout << std::flush;
 		}
 		
-		if ( mOnFlush )
+		if ( Debug::EnablePrint_Cerr )
 		{
-			mOnFlush(BufferStr);
+			std::cerr << BufferCStr;
+			std::cerr << std::flush;
 		}
 		
-		//	on windows, try and write to parent console window
+		if ( Debug::EnablePrint_Platform )
+		{
+			Platform::DebugPrint( BufferCStr );
+		}
+		
+		if ( Debug::OnPrint )
+		{
+			Debug::OnPrint( BufferCStr );
+		}
+		
+		if ( Debug::EnablePrint_Console )
+		{
+			//	on windows, try and write to parent console window
 #if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
-		Platform::WriteToParentConsole(BufferStr);
+			Platform::WriteToParentConsole(BufferCStr);
 #endif
+		}
 
+		if ( Locked )
+		{
+			Debug::CoutCerrLock.unlock();
+		}
+		
 		Buffer.erase();	// erase message buffer
 	}
 }
