@@ -595,3 +595,156 @@ inline void Soy::Rectx<TYPE>::Accumulate(TYPE Newx,TYPE Newy)
 	}
 }
 
+
+//	gr: in string rather than math to reduce math's dependancies.
+//		this header already requires array's so here it is
+template<typename TYPE>
+inline std::istream& operator>>(std::istream &in, vec2x<TYPE> &out)
+{
+	std::string instr;
+	in >> instr;
+	if (in.fail())
+		return in;
+
+	BufferArray<TYPE, 2> VecArray;
+	if (!Soy::StringParseVecNx(instr, GetArrayBridge(VecArray)))
+	{
+		in.setstate(std::ios::failbit);
+		return in;
+	}
+
+	out.x = VecArray[0];
+	out.y = VecArray[1];
+
+	return in;
+}
+
+
+
+template<typename TYPE>
+inline std::istream& operator>>(std::istream &in, vec3x<TYPE> &out)
+{
+	std::string instr;
+	in >> instr;
+	if (in.fail())
+		return in;
+
+	BufferArray<TYPE, 3> VecArray;
+	if (!Soy::StringParseVecNx(instr, GetArrayBridge(VecArray)))
+	{
+		in.setstate(std::ios::failbit);
+		return in;
+	}
+
+	out.x = VecArray[0];
+	out.y = VecArray[1];
+	out.z = VecArray[2];
+
+	return in;
+}
+
+template<typename TYPE>
+inline std::ostream& operator<<(std::ostream &out, const vec2x<TYPE> &in)
+{
+	out << in.x << Soy::VecNXDelins[0] << in.y;
+	return out;
+}
+
+inline std::ostream& operator<<(std::ostream &out, const Soy::Matrix2x1 &in)
+{
+	out << in.x() << Soy::VecNXDelins[0] << in.y();
+	return out;
+}
+
+template<typename TYPE>
+inline std::ostream& operator<<(std::ostream &out, const vec3x<TYPE> &in)
+{
+	out << in.x << Soy::VecNXDelins[0] << in.y << Soy::VecNXDelins[0] << in.z;
+	return out;
+}
+
+inline std::ostream& operator<<(std::ostream &out, const Soy::Matrix3x1 &in)
+{
+	out << in.x() << Soy::VecNXDelins[0] << in.y() << Soy::VecNXDelins[0] << in.z();
+	return out;
+}
+
+template<typename TYPE>
+inline std::ostream& operator<<(std::ostream &out, const vec4x<TYPE> &in)
+{
+	out << in.x << Soy::VecNXDelins[0] << in.y << Soy::VecNXDelins[0] << in.z << Soy::VecNXDelins[0] << in.w;
+	return out;
+}
+
+namespace Soy
+{
+	template<typename TYPE>
+	inline std::ostream& operator<<(std::ostream &out, const Soy::Rectx<TYPE> &in)
+	{
+		out << in.x << Soy::VecNXDelins[0] << in.y << Soy::VecNXDelins[0] << in.w << Soy::VecNXDelins[0] << in.h;
+		return out;
+	}
+}
+
+
+namespace Soy
+{
+	template<typename TYPE>
+	inline std::ostream& operator<<(std::ostream &out, const Soy::Boundsx<TYPE> &in)
+	{
+		out << in.min << Soy::VecNXDelins[1] << in.max;
+		return out;
+	}
+}
+
+
+inline std::ostream& operator<<(std::ostream &out, const Soy::Matrix4x1 &in)
+{
+	out << in.x() << Soy::VecNXDelins[0] << in.y() << Soy::VecNXDelins[0] << in.z() << Soy::VecNXDelins[0] << in.w();
+	return out;
+}
+
+inline std::ostream& operator<<(std::ostream &out, const Soy::Matrix4x4 &in)
+{
+	auto d = Soy::VecNXDelins[0];
+
+	//	output row by row
+	//	mat(row,col)
+	out << in(0, 0) << d << in(0, 1) << d << in(0, 2) << d << in(0, 3) << d;
+	out << in(1, 0) << d << in(1, 1) << d << in(1, 2) << d << in(1, 3) << d;
+	out << in(2, 0) << d << in(2, 1) << d << in(2, 2) << d << in(2, 3) << d;
+	out << in(3, 0) << d << in(3, 1) << d << in(3, 2) << d << in(3, 3);
+
+	return out;
+}
+
+inline std::ostream& operator<<(std::ostream &out, const Soy::Matrix3x3 &in)
+{
+	auto d = Soy::VecNXDelins[0];
+
+	//	output row by row
+	//	mat(row,col)
+	out << in(0, 0) << d << in(0, 1) << d << in(0, 2) << d;
+	out << in(1, 0) << d << in(1, 1) << d << in(1, 2) << d;
+	out << in(2, 0) << d << in(2, 1) << d << in(2, 2);
+
+	return out;
+}
+
+
+inline std::ostream& operator<<(std::ostream &out, const float4x4&in)
+{
+	out << in.rows[0] << Soy::VecNXDelins[0]
+		<< in.rows[1] << Soy::VecNXDelins[0]
+		<< in.rows[2] << Soy::VecNXDelins[0]
+		<< in.rows[3];
+	return out;
+}
+
+inline std::ostream& operator<<(std::ostream &out, const float3x3&in)
+{
+	out << in.GetRow(0) << Soy::VecNXDelins[0]
+		<< in.GetRow(1) << Soy::VecNXDelins[0]
+		<< in.GetRow(2);
+	return out;
+}
