@@ -782,13 +782,15 @@ void Soy::FileToArray(ArrayBridge<uint8_t>& Data,std::string Filename)
 
 //	gr: quickest to code, should do a toll-free arraybridge cast!
 template<typename TYPE>
-void ArrayToFile(const ArrayBridge<TYPE>& Data,const std::string& Filename,bool Binary)
+void ArrayToFile(const ArrayBridge<TYPE>& Data,const std::string& Filename,bool Binary,bool Append)
 {
 	::Platform::CreateDirectory(Filename);
 	
 	auto Mode = Binary ? (std::ios::out | std::ios::binary) : std::ios::out;
 	if ( Binary )
 		Mode |= std::ios::binary;
+	if ( Append )
+		Mode |= std::ios::app;
 	
 	std::ofstream File( Filename, Mode );
 	if ( !File.is_open() )
@@ -812,14 +814,14 @@ void ArrayToFile(const ArrayBridge<TYPE>& Data,const std::string& Filename,bool 
 	File.close();
 }
 
-void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename)
+void Soy::ArrayToFile(const ArrayBridge<char>&& Data,const std::string& Filename,bool Append)
 {
-	ArrayToFile(Data,Filename,false);
+	ArrayToFile(Data,Filename,false,Append);
 }
 
-void Soy::ArrayToFile(const ArrayBridge<uint8_t>&& Data,const std::string& Filename)
+void Soy::ArrayToFile(const ArrayBridge<uint8_t>&& Data,const std::string& Filename,bool Append)
 {
-	ArrayToFile(Data,Filename,true);
+	ArrayToFile(Data,Filename,true,Append);
 }
 
 
