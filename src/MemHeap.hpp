@@ -11,7 +11,7 @@
 
 //	gr: something in xcode has suddenly started causing
 //		zone allocs to not free correctly (missing from zone) with address sanitising on
-#if defined(TARGET_ANDROID)||defined(TARGET_IOS)||defined(TARGET_PS4)||defined(TARGET_LUMIN) //|| defined(TARGET_OSX)
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)||defined(TARGET_IOS)||defined(TARGET_PS4)||defined(TARGET_LUMIN) //|| defined(TARGET_OSX)
 #include <memory>
 #define STD_ALLOC
 #endif
