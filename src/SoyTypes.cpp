@@ -4,7 +4,7 @@
 #include "SoyString.h"
 #include "SoyDebug.h"
 #include <atomic>
-#include "string.hpp"
+//#include "string.hpp"
 #include "SoyThread.h"
 #include "SoyFilesystem.h"
 
