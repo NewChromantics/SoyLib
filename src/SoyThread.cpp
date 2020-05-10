@@ -1,6 +1,13 @@
 #include "SoyThread.h"
 #include "SoyDebug.h"
+
+#if !defined(TARGET_LINUX)
+#define ENABLE_FUTURE
+#endif
+
+#if defined(ENABLE_FUTURE)
 #include <future>
+#endif
 
 
 #if defined(TARGET_PS4)
@@ -463,6 +470,8 @@ std::thread::native_handle_type SoyThread::GetCurrentThreadNativeHandle()
 #elif defined(TARGET_PS4)
 	ScePthread Handle = scePthreadSelf();
 	return Handle;
+#elif defined(TARGET_LINUX)
+	Soy_AssertTodo();
 #else
 #error SoyThread::GetCurrentThreadNativeHandle Platform not handled
 #endif
@@ -880,8 +889,12 @@ void Platform::ExecuteDelayed(std::chrono::milliseconds Delay,std::function<void
 		Lambda();
 	};
 	
+#if defined(ENABLE_FUTURE)
 	// Use async to launch a function (lambda) in parallel
 	std::async( std::launch::async, Thread );
+#else
+	Soy_AssertTodo();
+#endif
 }
 
 
@@ -893,8 +906,12 @@ void Platform::ExecuteDelayed(std::chrono::high_resolution_clock::time_point Fut
 		Lambda();
 	};
 	
+#if defined(ENABLE_FUTURE)
 	// Use async to launch a function (lambda) in parallel
-	std::async( std::launch::async, Thread );
+	std::async(std::launch::async, Thread);
+#else
+	Soy_AssertTodo();
+#endif
 }
 
 
