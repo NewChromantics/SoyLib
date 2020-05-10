@@ -183,8 +183,8 @@ class Soy::TPushPopStreamSettings
 {
 public:
 	TPushPopStreamSettings(std::ostream& Stream) :
-		mPushedFlags	( Stream.flags() ),
-		mStream			( Stream )
+		mStream			( Stream ),
+		mPushedFlags	(Stream.flags())
 	{
 	}
 	~TPushPopStreamSettings()

@@ -14,5 +14,6 @@
 #define __deprecated_prefix
 
 #include <stdint.h>
+#include <cstring>
 
 //#define TARGET_POSIX

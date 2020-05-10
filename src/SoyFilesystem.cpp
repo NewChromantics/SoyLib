@@ -6,6 +6,12 @@
 #include <filesystem>
 #endif
 
+#if defined(TARGET_LINUX)
+#include <filesystem>
+#include <unistd.h>	//	gethostname
+#include <sys/stat.h>
+#endif
+
 #if defined(TARGET_OSX)
 #include <sys/stat.h>
 #include <unistd.h>
@@ -504,6 +510,12 @@ void Platform::ShowFileExplorer(const std::string& Path)
 }
 #endif
 
+#if defined(TARGET_LINUX)
+std::string Platform::GetExeFilename()
+{
+	Soy_AssertTodo();
+}
+#endif
 
 #if defined(TARGET_WINDOWS)
 std::string Platform::GetExeFilename()
@@ -547,6 +559,18 @@ bool Platform::DirectoryExists(const std::string& Path)
 }
 #endif
 
+#if defined(TARGET_LINUX)
+bool Platform::DirectoryExists(const std::string& Path)
+{
+	struct stat Stat;
+	if (stat(Path.c_str(), &Stat) != 0)
+		return false;	//	error
+	
+	bool isdir = S_ISDIR(Stat.st_mode);
+	return isdir;
+}
+#endif
+
 bool Platform::IsFullPath(const std::string& Path)
 {
 #if defined(TARGET_WINDOWS)
@@ -574,10 +598,10 @@ bool Platform::IsFullPath(const std::string& Path)
 #endif
 }
 
-#if defined(TARGET_WINDOWS)
+#if !defined(TARGET_IOS)&&!defined(TARGET_OSX)
 std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 {
-#if !defined(HOLOLENS_SUPPORT)
+#if defined(TARGET_WINDOWS)&&!defined(HOLOLENS_SUPPORT)
 	char PathBuffer[MAX_PATH];
 	char* FilenameStart = nullptr;	//	pointer to inside buffer
 	//	gr: this pre-pends the CWD, what should it do if the file doesnt exist?
@@ -894,10 +918,23 @@ void Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& Strin
 	Soy::SplitStringLines( StringLines, FileContents );
 }
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)
 std::string Platform::GetAppResourcesDirectory()
 {
 	return Platform::GetDllPath();
+}
+#endif
+
+
+#if defined(TARGET_LINUX)
+std::string Platform::GetComputerName()
+{
+	char Buffer[1024];
+	auto Result = gethostname(Buffer, std::size(Buffer));
+	if ( Result != 0 )
+		Platform::ThrowLastError("gethostname");
+	std::string Name(Buffer);
+	return Name;
 }
 #endif
 

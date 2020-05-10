@@ -53,10 +53,6 @@ Soy::TVersion Platform::GetSdkVersion()
 }
 #endif
 
-#if !defined(TARGET_WINDOWS)
-#include <cstring>	//	strerror
-#endif
-
 bool Platform::Init()
 {
 #if defined(TARGET_ANDROID) && defined(ENABLE_JAVA)
@@ -227,7 +223,7 @@ std::string Platform::GetErrorString(int Error)
 	if ( Error == NO_ERROR )
 		return std::string();
 
-	return strerror(Error);
+	return std::strerror(Error);
 #endif
 }
 

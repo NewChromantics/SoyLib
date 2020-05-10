@@ -158,7 +158,7 @@ public:
 				}
 				else if ( count > 0 )
 				{
-					memcpy( array, mdata, count * sizeof(T) );
+					std::memcpy( array, mdata, count * sizeof(T) );
 				}
 			}
 		}
@@ -372,7 +372,7 @@ public:
 		}
 		else if ( left > 0 )
 		{
-			memmove( &mdata[index+count], &mdata[index], left * sizeof(T) );
+			std::memmove( &mdata[index+count], &mdata[index], left * sizeof(T) );
 		}
 
 		return mdata + index;
@@ -419,7 +419,7 @@ public:
 		else
 		{
 			if ( ShiftCount > 0 )
-				memmove( dest, src, ShiftCount * sizeof(T) );
+				std::memmove( dest, src, ShiftCount * sizeof(T) );
 		}
 	}
 	

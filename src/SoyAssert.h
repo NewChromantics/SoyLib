@@ -5,7 +5,7 @@
 
 
 //	windows complains that I don't need to specify throw exception type?
-#if !defined(TARGET_PS4)
+#if !defined(TARGET_PS4)&& !defined(TARGET_LINUX)
 #pragma warning(disable:4290)	//	C++ exception specification ignored except to indicate a function is not __declspec(nothrow)
 #endif
 

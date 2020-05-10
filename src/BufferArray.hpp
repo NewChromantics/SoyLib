@@ -284,7 +284,7 @@ public:
 		}
 		else if ( left > 0 )
 		{
-			memmove( &mdata[index+count], &mdata[index], left * sizeof(T) );
+			std::memmove( &mdata[index+count], &mdata[index], left * sizeof(T) );
 		}
 
 		return mdata + index;
@@ -320,7 +320,7 @@ public:
 		else
 		{
 			if ( left > 0 )
-				memmove( dest, src, left * sizeof(T) );
+				std::memmove( dest, src, left * sizeof(T) );
 			moffset -= Count;
 		}			
 	}

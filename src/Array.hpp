@@ -323,7 +323,7 @@ private:
 			//	re-fetch address for bounds check. technically unncessary
 			auto* pNewData = &((*this)[NewDataIndex]);
 			//	note: lack of bounds check for all elements here
-			memcpy( pNewData, Source, Length * sizeof(T) );
+			std::memcpy( pNewData, Source, Length * sizeof(T) );
 		}
 	}
 
@@ -529,8 +529,7 @@ class TArrayReader
 {
 public:
 	TArrayReader(const ArrayBridge<char>& Array) :
-		mArray	( Array ),
-		mOffset	( 0 )
+		mArray	( Array )
 	{
 	}
 	
@@ -554,8 +553,8 @@ private:
 	bool		ReadReverse(ArrayBridge<char>& Pop);
 	
 public:
-	size_t		mOffset;
 	const ArrayBridge<char>&	mArray;
+	size_t						mOffset = 0;
 };
 
 

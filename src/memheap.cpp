@@ -754,7 +754,7 @@ void prmem::HeapDebugBase::DumpToOutput(const prmem::HeapInfo& OwnerHeap,ArrayBr
 		std::Debug << std::endl;
 	}
 
-	for ( int i=0;	i<AllocItems.GetSize();	i++ )
+	for ( auto i=0;	i<AllocItems.GetSize();	i++ )
 	{
 		//	gr: big string, but if we break out OutputDebugString, other threads will interrupt it
 		auto& AllocInfo = AllocItems[i];
