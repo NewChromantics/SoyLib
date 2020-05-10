@@ -3,9 +3,11 @@
 #include "SoyTime.h"
 #include <functional>
 #include "RemoteArray.h"
-#include "SoyMath.h"
-#include "SoyStream.h"
+//#include "SoyMath.h"
+//#include "SoyStream.h"
 #include "SoyImage.h"
+
+
 
 
 /// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED frame callbacks

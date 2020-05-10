@@ -3,14 +3,6 @@
 
 #include "SoyTypes.h"
 
-#define MATHFU_COMPILE_WITHOUT_SIMD_SUPPORT
-
-#include "mathfu/vector.h"
-#include "mathfu/vector_2.h"
-#include "mathfu/vector_3.h"
-#include "mathfu/vector_4.h"
-#include "mathfu/matrix_4x4.h"
-
 //	gr: if we want to reduce dependancies, put a GetArrayBridge(vecN<T>) func in another file
 #include "RemoteArray.h"
 
@@ -18,12 +10,6 @@
 //	the simple POD types are called floatX's
 namespace Soy
 {
-	typedef mathfu::Vector<float,2>		Matrix2x1;
-	typedef mathfu::Vector<float,3>		Matrix3x1;
-	typedef mathfu::Vector<float,4>		Matrix4x1;
-	typedef mathfu::Matrix<float,4,4>	Matrix4x4;
-	typedef mathfu::Matrix<float,3,3>	Matrix3x3;
-	
 	template<typename TYPE>
 	class Rectx;
 
@@ -479,41 +465,6 @@ DECLARE_NONCOMPLEX_TYPE( Soy::Bounds3f );
 
 namespace Soy
 {
-	inline Matrix2x1 VectorToMatrix(const vec2f& v)	{	return Matrix2x1( v.x, v.y );	}
-	inline Matrix3x1 VectorToMatrix(const vec3f& v)	{	return Matrix3x1( v.x, v.y, v.z );	}
-	inline Matrix4x1 VectorToMatrix(const vec4f& v)	{	return Matrix4x1( v.x, v.y, v.z, v.w );	}
-	inline Matrix3x3 VectorToMatrix(const float3x3& v)
-	{
-		return Matrix3x3( v(0,0), v(1,0), v(2,0),
-						 v(0,1), v(1,1), v(2,1),
-						 v(0,2), v(1,2), v(2,2)
-						 );
-	}
-	inline Matrix4x4 VectorToMatrix(const float4x4& v)
-	{
-		return Matrix4x4( v(0,0), v(1,0), v(2,0), v(3,0),
-						 v(0,1), v(1,1), v(2,1), v(3,1),
-						 v(0,2), v(1,2), v(2,2), v(3,2),
-						 v(0,3), v(1,3), v(2,3), v(3,3) );
-	}
-	
-	inline vec2f MatrixToVector(const Matrix2x1& v)	{	return vec2f( v.x(), v.y() );	}
-	inline vec3f MatrixToVector(const Matrix3x1& v)	{	return vec3f( v.x(), v.y(), v.z() );	}
-	inline vec4f MatrixToVector(const Matrix4x1& v)	{	return vec4f( v.x(), v.y(), v.z(), v.w() );	}
-	inline float3x3 MatrixToVector(const Matrix3x3& v)
-	{
-		return float3x3( v[0], v[1], v[2],
-						v[3], v[4], v[5],
-						v[6], v[7], v[8] );
-	}
-	inline float4x4 MatrixToVector(const Matrix4x4& v)
-	{
-		return float4x4( v[0], v[1], v[2], v[3],
-						v[4], v[5], v[6], v[7],
-						v[8], v[9], v[10], v[11],
-						v[12], v[13], v[14], v[15] );
-	}
-	
 	inline vec4f	RectToVector(const Rectf& v)	{	return vec4f( v.x, v.y, v.w, v.h );	}
 
 	float3x3		MatrixToVector(const CGAffineTransform& Transform,vec2f TransformNormalisation);
@@ -650,12 +601,6 @@ inline std::ostream& operator<<(std::ostream &out, const vec2x<TYPE> &in)
 	return out;
 }
 
-inline std::ostream& operator<<(std::ostream &out, const Soy::Matrix2x1 &in)
-{
-	out << in.x() << Soy::VecNXDelins[0] << in.y();
-	return out;
-}
-
 template<typename TYPE>
 inline std::ostream& operator<<(std::ostream &out, const vec3x<TYPE> &in)
 {
@@ -663,11 +608,6 @@ inline std::ostream& operator<<(std::ostream &out, const vec3x<TYPE> &in)
 	return out;
 }
 
-inline std::ostream& operator<<(std::ostream &out, const Soy::Matrix3x1 &in)
-{
-	out << in.x() << Soy::VecNXDelins[0] << in.y() << Soy::VecNXDelins[0] << in.z();
-	return out;
-}
 
 template<typename TYPE>
 inline std::ostream& operator<<(std::ostream &out, const vec4x<TYPE> &in)
@@ -695,40 +635,6 @@ namespace Soy
 		out << in.min << Soy::VecNXDelins[1] << in.max;
 		return out;
 	}
-}
-
-
-inline std::ostream& operator<<(std::ostream &out, const Soy::Matrix4x1 &in)
-{
-	out << in.x() << Soy::VecNXDelins[0] << in.y() << Soy::VecNXDelins[0] << in.z() << Soy::VecNXDelins[0] << in.w();
-	return out;
-}
-
-inline std::ostream& operator<<(std::ostream &out, const Soy::Matrix4x4 &in)
-{
-	auto d = Soy::VecNXDelins[0];
-
-	//	output row by row
-	//	mat(row,col)
-	out << in(0, 0) << d << in(0, 1) << d << in(0, 2) << d << in(0, 3) << d;
-	out << in(1, 0) << d << in(1, 1) << d << in(1, 2) << d << in(1, 3) << d;
-	out << in(2, 0) << d << in(2, 1) << d << in(2, 2) << d << in(2, 3) << d;
-	out << in(3, 0) << d << in(3, 1) << d << in(3, 2) << d << in(3, 3);
-
-	return out;
-}
-
-inline std::ostream& operator<<(std::ostream &out, const Soy::Matrix3x3 &in)
-{
-	auto d = Soy::VecNXDelins[0];
-
-	//	output row by row
-	//	mat(row,col)
-	out << in(0, 0) << d << in(0, 1) << d << in(0, 2) << d;
-	out << in(1, 0) << d << in(1, 1) << d << in(1, 2) << d;
-	out << in(2, 0) << d << in(2, 1) << d << in(2, 2);
-
-	return out;
 }
 
 

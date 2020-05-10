@@ -5,6 +5,7 @@
 #include "HeapArray.hpp"
 #include "SoyEnum.h"
 #include "RemoteArray.h"
+#include "SoyVector.h"
 
 
 class SoyPixelsMeta;
