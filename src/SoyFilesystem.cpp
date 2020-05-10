@@ -41,6 +41,10 @@ namespace Platform
 #if defined(TARGET_OSX) || defined(TARGET_IOS)
 	void	EnumNsDirectory(const std::string& Directory,std::function<void(const std::string&)> OnFileFound,bool Recursive);
 #endif
+
+#if defined(TARGET_LINUX)
+	std::string	ExeFilename;
+#endif
 }
 
 #if defined(TARGET_WINDOWS)
@@ -513,7 +517,7 @@ void Platform::ShowFileExplorer(const std::string& Path)
 #if defined(TARGET_LINUX)
 std::string Platform::GetExeFilename()
 {
-	Soy_AssertTodo();
+	return ExeFilename;
 }
 #endif
 
@@ -549,18 +553,28 @@ bool Platform::FileExists(const std::string& Path)
 }
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_LINUX)
+namespace std
+{
+	namespace filesystem
+	{
+		bool is_directory(const std::string& Path);
+	}
+}
+#endif
+
+#if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)
 bool Platform::DirectoryExists(const std::string& Path)
 {
 	auto FullPath = GetFullPathFromFilename(Path);
 	return std::filesystem::is_directory(FullPath);
-	return ::PathIsDirectoryA(FullPath.c_str());
-	auto Attribs = ::GetFileAttributesA(FullPath.c_str());
+	//return ::PathIsDirectoryA(FullPath.c_str());
+	//auto Attribs = ::GetFileAttributesA(FullPath.c_str());
 }
 #endif
 
 #if defined(TARGET_LINUX)
-bool Platform::DirectoryExists(const std::string& Path)
+bool std::filesystem::is_directory(const std::string& Path)
 {
 	struct stat Stat;
 	if (stat(Path.c_str(), &Stat) != 0)
@@ -598,10 +612,24 @@ bool Platform::IsFullPath(const std::string& Path)
 #endif
 }
 
+#if defined(TARGET_LINUX)
+#include <linux/limits.h>
+#endif
+
+
 #if !defined(TARGET_IOS)&&!defined(TARGET_OSX)
 std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 {
-#if defined(TARGET_WINDOWS)&&!defined(HOLOLENS_SUPPORT)
+	//	get a std::string Path; and then followup code will fix directory suffix
+#if defined(TARGET_LINUX)
+	char AbsolutePath[PATH_MAX] = { 0 };
+	auto* ResultPath = realpath(Filename.c_str(), AbsolutePath);
+	if (!ResultPath)
+		Platform::ThrowLastError(std::string("realpath(") + Filename);
+	std::string Path(AbsolutePath);
+
+#elif defined(TARGET_WINDOWS)&&!defined(HOLOLENS_SUPPORT)
+
 	char PathBuffer[MAX_PATH];
 	char* FilenameStart = nullptr;	//	pointer to inside buffer
 	//	gr: this pre-pends the CWD, what should it do if the file doesnt exist?
@@ -625,18 +653,18 @@ std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 	PathBufferLength = std::min<size_t>( PathBufferLength, sizeof(PathBuffer)-1 );
 	
 	std::string Path(PathBuffer, PathBufferLength);
-
+#else
+	std::string Path;
+	throw Soy::AssertException("GetFullPathFromFilename not implemented");
+#endif
 	//	if directory, append a slash
 	//	gr: windows doesn't need this, so make sure there's a check
 	if (Path.length() != 0 && Path.back() != DirectorySeperator)
 	{
-		if (::PathIsDirectoryA(PathBuffer))
+		if (std::filesystem::is_directory(Path))
 			Path += DirectorySeperator;
 	}
 	return Path;
-#else
-	throw Soy::AssertException("GetFullPathFromFilename not implemented");
-#endif
 }
 #endif
 

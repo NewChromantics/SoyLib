@@ -72,6 +72,10 @@ namespace Platform
 
 	//	maybe not file system? generic platform stuff...
 	std::string	GetComputerName();
+
+#if defined(TARGET_LINUX)
+	extern std::string	ExeFilename;
+#endif
 }
 
 namespace Soy
