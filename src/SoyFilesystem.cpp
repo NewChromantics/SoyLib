@@ -674,7 +674,7 @@ std::string	Platform::GetDirectoryFromFilename(const std::string& Filename,bool 
 }
 
 
-#if defined(TARGET_PS4)
+#if defined(TARGET_PS4)||defined(TARGET_LINUX)
 bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
 	return false;

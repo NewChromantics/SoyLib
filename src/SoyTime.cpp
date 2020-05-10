@@ -18,6 +18,11 @@ namespace std
 }
 #endif
 
+#if defined(TARGET_LINUX)
+#include <unistd.h>
+#include <sys/time.h>
+#endif
+
 bool SoyTime::FromString(const std::string& String)
 {
 	std::regex Pattern("T?([0-9]+)$" );
@@ -65,6 +70,13 @@ SoyTime SoyTime::UpTime()
 	 }
 	 */
 #elif defined(TARGET_ANDROID)||defined(TARGET_PS4)||defined(TARGET_LUMIN)
+#elif defined(TARGET_LINUX)
+	struct timespec ts;
+	unsigned theTick = 0U;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	theTick = ts.tv_nsec / 1000000;
+	theTick += ts.tv_sec * 1000;
+	auto MilliSecs = theTick;
 #else
 	#error GetSystemTime undefined on target
 #endif
@@ -85,9 +97,9 @@ SoyTime SoyTime::Now()
 	auto DurationSinceEpoch = std::chrono::system_clock::now().time_since_epoch();
 	auto DurationSinceEpochMs = std::chrono::duration_cast<std::chrono::milliseconds>(DurationSinceEpoch);
 	auto MilliSecs = DurationSinceEpochMs.count();
-#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)||defined(TARGET_PS4)||defined(TARGET_LUMIN)
+#elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)||defined(TARGET_PS4)||defined(TARGET_LUMIN)||defined(TARGET_LINUX)
 	struct timeval now;
-	gettimeofday( &now, NULL );
+	auto Result = gettimeofday( &now, nullptr );
 	auto MilliSecs = (unsigned long long) now.tv_usec/1000 +
 		(unsigned long long) now.tv_sec*1000;
 #else 
