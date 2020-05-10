@@ -53,7 +53,9 @@ Soy::TVersion Platform::GetSdkVersion()
 }
 #endif
 
-
+#if !defined(TARGET_WINDOWS)
+#include <cstring>	//	strerror
+#endif
 
 bool Platform::Init()
 {

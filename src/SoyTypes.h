@@ -34,6 +34,8 @@ struct NonCopyable {
 #include "SoyTypes_Ps4.h"
 #elif defined(TARGET_LUMIN)
 #include "SoyTypes_Lumin.h"
+#elif defined(TARGET_LINUX)
+#include "SoyTypes_Linux.h"
 #else
 #error no TARGET_XXX defined
 #endif
@@ -56,6 +58,7 @@ typedef	uint64_t	uint64;
 #include <string>
 #include <type_traits>
 #include <sstream>
+#include <limits>
 
 
 //	clang(?) macro for testing features missing on android
