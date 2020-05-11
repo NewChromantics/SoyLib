@@ -185,3 +185,26 @@ public:
 	uint32		num_ref_frames_in_pic_order_cnt_cycle;
 };
 
+
+//	gr; these should be in SoyH264, but that currently ends up with too many dependencies
+namespace H264
+{
+	namespace NaluPrefix
+	{
+		enum Type
+		{
+			AnnexB		= 0,	//	001 or 0001
+			Eight		= 1,
+			Sixteen		= 2,
+			ThirtyTwo	= 4
+		};
+	}
+	
+	size_t					GetNaluLength(const ArrayBridge<uint8_t>& Data);
+	inline size_t			GetNaluLength(const ArrayBridge<uint8_t>&& Data) { return GetNaluLength(Data); }
+	size_t					GetNaluAnnexBLength(const ArrayBridge<uint8_t>& Data);
+	inline size_t			GetNaluAnnexBLength(const ArrayBridge<uint8_t>&& Data) { return GetNaluAnnexBLength(Data); }
+	H264NaluContent::Type	GetPacketType(const ArrayBridge<uint8_t>&& Data);
+	void					ConvertNaluPrefix(ArrayBridge<uint8_t>& Nalu,H264::NaluPrefix::Type NaluSize);
+	size_t					GetNextNaluOffset(const ArrayBridge<uint8_t>&& Data, size_t StartFrom = 3);	//	returns 0 if there is no next
+}

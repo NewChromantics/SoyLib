@@ -16,28 +16,124 @@
 #include <VideoToolbox/VTDecompressionSession.h>
 #include <VideoToolbox/VTErrors.h>
 
+#include "magic_enum/include/magic_enum.hpp"
+
+
+
+#define CV_VIDEO_TYPE_META(Enum,SoyFormat)	TCvVideoTypeMeta( Enum, #Enum, SoyFormat )
+#define CV_VIDEO_INVALID_ENUM		0
+class TCvVideoTypeMeta
+{
+public:
+	TCvVideoTypeMeta(OSType Enum,const char* EnumName,SoyPixelsFormat::Type SoyFormat) :
+	mPlatformFormat		( Enum ),
+	mName				( EnumName ),
+	mSoyFormat			( SoyFormat )
+	{
+		if ( !IsValid() )
+		throw Soy::AssertException("Expected valid enum - or invalid enum is bad" );
+	}
+	TCvVideoTypeMeta() :
+	mPlatformFormat		( CV_VIDEO_INVALID_ENUM ),
+	mName				( "Invalid enum" ),
+	mSoyFormat			( SoyPixelsFormat::Invalid )
+	{
+	}
+	
+	bool		IsValid() const		{	return mPlatformFormat != CV_VIDEO_INVALID_ENUM;	}
+	
+	bool		operator==(const OSType& Enum) const					{	return mPlatformFormat == Enum;	}
+	bool		operator==(const SoyPixelsFormat::Type& Format) const	{	return mSoyFormat == Format;	}
+	
+public:
+	OSType					mPlatformFormat;
+	SoyPixelsFormat::Type	mSoyFormat;
+	std::string				mName;
+};
 
 
 std::ostream& operator<<(std::ostream& out,const AVAssetExportSessionStatus& in)
 {
-	switch ( in )
-	{
-		case AVAssetExportSessionStatusUnknown:		out << "AVAssetExportSessionStatusUnknown";	 return out;
-		case AVAssetExportSessionStatusWaiting:		out << "AVAssetExportSessionStatusWaiting";	 return out;
-		case AVAssetExportSessionStatusExporting:	out << "AVAssetExportSessionStatusExporting";	 return out;
-		case AVAssetExportSessionStatusCompleted:	out << "AVAssetExportSessionStatusCompleted";	 return out;
-		case AVAssetExportSessionStatusFailed:		out << "AVAssetExportSessionStatusFailed";	 return out;
-		case AVAssetExportSessionStatusCancelled:	out << "AVAssetExportSessionStatusCancelled";	 return out;
-		default:
-		{
-			out << "AVAssetExportSessionStatus<" << static_cast<int>( in ) << ">";
-			return out;
-		}
-	}
-	
+	out << magic_enum::enum_name(in);
+	return out;
 }
 
 
+static TCvVideoTypeMeta Cv_PixelFormatMap[] =
+{
+	/*
+	 //	from avfDecoder ResolveFormat(id)
+	 //	gr: RGBA never seems to decode, but with no error[on osx]
+	 case SoyPixelsFormat::RGBA:
+	 //	BGRA is internal format on IOS so return that as default
+	 case SoyPixelsFormat::BGRA:
+	 default:
+	 */
+	
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_OneComponent8,	SoyPixelsFormat::Luma ),
+	
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_24RGB,	SoyPixelsFormat::RGB ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_24BGR,	SoyPixelsFormat::BGR ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_32BGRA,	SoyPixelsFormat::BGRA ),
+	
+	//	gr: PopFace creating a pixel buffer from a unity "argb" texture, failed as RGBA is unsupported...
+	//	gr: ARGB is accepted, but channels are wrong
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_32RGBA,	SoyPixelsFormat::RGBA ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_32ARGB,	SoyPixelsFormat::ARGB ),
+	
+	//	gr: no colourspace distinction!
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,	SoyPixelsFormat::Yuv_8_88 ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,	SoyPixelsFormat::Yuv_8_88 ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr_4A_8BiPlanar,	SoyPixelsFormat::Invalid ),	//	YuvAlpha_8888_8
+	
+	//	gr: this is CHROMA|YUV! not YUV, this is why the fourcc is 2vuy
+	//		kCVPixelFormatType_422YpCbCr8     = '2vuy',     /* Component Y'CbCr 8-bit 4:2:2, ordered Cb Y'0 Cr Y'1 */
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Uvy_8_88 ),
+	
+	//	todo: check these
+	//	gr: no colourspace distinction!
+	//	no planar = interlaced
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::YYuv_8888 ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::YYuv_8888 ),
+	
+	//	gr: planar = 3 planes
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8Planar,	SoyPixelsFormat::Yuv_8_8_8 ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8PlanarFullRange,	SoyPixelsFormat::Yuv_8_8_8 ),
+	
+	
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_1Monochrome,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_2Indexed,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_4Indexed,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_8Indexed,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_1IndexedGray_WhiteIsZero,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_2IndexedGray_WhiteIsZero,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_4IndexedGray_WhiteIsZero,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_8IndexedGray_WhiteIsZero,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_16BE555,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_16LE555,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_16LE5551,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_16BE565,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_16LE565,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_32ABGR,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_64ARGB,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_48RGB,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_32AlphaGray,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_16Gray,	SoyPixelsFormat::Invalid ),
+	
+	
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_4444YpCbCrA8,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_4444YpCbCrA8R,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_444YpCbCr8,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr16,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr10,	SoyPixelsFormat::Invalid ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_444YpCbCr10,	SoyPixelsFormat::Invalid ),
+	
+	//	the logitech C22 has this format, which apparently might be a kind of motion jpeg
+	CV_VIDEO_TYPE_META( 'dmb1',	SoyPixelsFormat::Invalid ),
+};
+
+
+/*
 std::shared_ptr<TMediaPacket> Avf::GetFormatDescriptionPacket(CMSampleBufferRef SampleBuffer,size_t ParamIndex,SoyMediaFormat::Type Format,size_t StreamIndex)
 {
 	auto Desc = CMSampleBufferGetFormatDescription( SampleBuffer );
@@ -72,7 +168,7 @@ std::shared_ptr<TMediaPacket> Avf::GetFormatDescriptionPacket(CMSampleBufferRef 
 	GetFormatDescriptionData( GetArrayBridge( Data ), Desc, ParamIndex );
 	return pPacket;
 }
-
+*/
 
 void Avf::GetFormatDescriptionData(ArrayBridge<uint8>&& Data,CMFormatDescriptionRef FormatDesc,size_t ParamIndex)
 {
@@ -100,69 +196,6 @@ void Avf::GetFormatDescriptionData(ArrayBridge<uint8>&& Data,CMFormatDescription
 	
 	Data.PushBackArray( GetRemoteArray( ParamsData, ParamsSize ) );
 }
-
-
-std::shared_ptr<TMediaPacket> Avf::GetH264Packet(CMSampleBufferRef SampleBuffer,size_t StreamIndex)
-{
-	auto Desc = CMSampleBufferGetFormatDescription( SampleBuffer );
-	
-	//	need length-byte-size to get proper h264 format
-	int nal_size_field_bytes = 0;
-	auto Result = CMVideoFormatDescriptionGetH264ParameterSetAtIndex( Desc, 0, nullptr, nullptr, nullptr, &nal_size_field_bytes );
-	Avf::IsOkay( Result, "Get H264 param NAL size");
-	if ( nal_size_field_bytes < 0 )
-		nal_size_field_bytes = 0;
-	
-	//	extract SPS/PPS packet
-	auto Fourcc = CFSwapInt32HostToBig( CMFormatDescriptionGetMediaSubType(Desc) );
-	auto Codec = SoyMediaFormat::FromFourcc( Fourcc, nal_size_field_bytes );
-	std::shared_ptr<TMediaPacket> pPacket( new TMediaPacket() );
-	auto& Packet = *pPacket;
-	Packet.mMeta = GetStreamMeta( Desc );
-	Packet.mMeta.mCodec = Codec;
-	Packet.mMeta.mStreamIndex = StreamIndex;
-	Packet.mFormat.reset( new Platform::TMediaFormat( Desc ) );
-	
-	CMTime PresentationTimestamp = CMSampleBufferGetPresentationTimeStamp(SampleBuffer);
-	CMTime DecodeTimestamp = CMSampleBufferGetDecodeTimeStamp(SampleBuffer);
-	CMTime SampleDuration = CMSampleBufferGetDuration(SampleBuffer);
-	Packet.mTimecode = Soy::Platform::GetTime(PresentationTimestamp);
-	Packet.mDecodeTimecode = Soy::Platform::GetTime(DecodeTimestamp);
-	Packet.mDuration = Soy::Platform::GetTime(SampleDuration);
-	//GetPixelBufferManager().mOnFrameFound.OnTriggered( Timestamp );
-	
-	
-	//	get bytes, either blocks of data or a CVImageBuffer
-	{
-		CMBlockBufferRef BlockBuffer = CMSampleBufferGetDataBuffer( SampleBuffer );
-		//CVImageBufferRef ImageBuffer = CMSampleBufferGetImageBuffer( SampleBuffer );
-		
-		if ( BlockBuffer )
-		{
-			//	read bytes from block
-			auto DataSize = CMBlockBufferGetDataLength( BlockBuffer );
-			Packet.mData.SetSize( DataSize );
-			auto Result = CMBlockBufferCopyDataBytes( BlockBuffer, 0, Packet.mData.GetDataSize(), Packet.mData.GetArray() );
-			Avf::IsOkay( Result, "CMBlockBufferCopyDataBytes" );
-		}
-		else
-		{
-			throw Soy::AssertException("Expecting block buffer");
-		}
-		
-		//if ( BlockBuffer )
-		//	CFRelease( BlockBuffer );
-		
-		//if ( ImageBuffer )
-		//	CFRelease( ImageBuffer );
-	}
-	
-	//	verify/convert h264 AVCC to ES/annexb
-	H264::ConvertToFormat( Packet.mMeta.mCodec, SoyMediaFormat::H264_ES, GetArrayBridge(Packet.mData) );
-	
-	return pPacket;
-}
-
 
 
 
@@ -273,27 +306,6 @@ std::string Avf::GetString(OSStatus Status)
  }
  */
 
-bool Avf::IsOkay(OSStatus Error,const std::string& Context,bool Throw)
-{
-	//	kCVReturnSuccess
-	if ( Error == noErr )
-		return true;
-	
-	std::stringstream ErrorString;
-	ErrorString << "OSStatus/CVReturn error in " << Context << ": " << GetString(Error);
-	
-	if ( Throw )
-	{
-		throw Soy::AssertException( ErrorString.str() );
-	}
-	else
-	{
-		std::Debug << ErrorString.str() << std::endl;
-	}
-	return false;
-}
-
-
 
 CFStringRef Avf::GetProfile(H264Profile::Type Profile)
 {
@@ -307,7 +319,7 @@ CFStringRef Avf::GetProfile(H264Profile::Type Profile)
 	}
 }
 
-
+/*
 CMFormatDescriptionRef Avf::GetFormatDescription(const TStreamMeta& Stream)
 {
 	CFAllocatorRef Allocator = nil;
@@ -359,63 +371,17 @@ CMFormatDescriptionRef Avf::GetFormatDescription(const TStreamMeta& Stream)
 		 
 			Extensions = (__bridge CFDictionaryRef)ExtensionsDict;
 		 }
-		 */
+		 *//*
 		auto Result = CMFormatDescriptionCreate( Allocator, MediaType, MediaCodec, Extensions, &FormatDesc );
 		Avf::IsOkay( Result, "CMFormatDescriptionCreate" );
 	}
-	
-	
-	//	setup some final bits
-/*
-	//	gr: these are missing
-FormatName='avc1';
-SpatialQuality=0;
-Version=0;
-RevisionLevel=0;
-TemporalQuality=0;
-Depth=24;
-VerbatimISOSampleEntry=<00000098 61766331 00000000 00000001 00000000 00000000 00000000 00000000 08000800 00480000 00480000 00000000 00010000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000018 ffff0000 00426176 6343014d 4032ffe1 002b674d 40329652 00400080 dff80008 000a8400 00030004 00000300 f3920000 98960001 6e36fc63 83b42c5a 24010004 68eb7352>;
-
-	
-CVImageBufferChromaLocationBottomField=Left;
-CVFieldCount=1;
-SampleDescriptionExtensionAtoms={\n    avcC = <014d4032 ffe1002b 674d4032 96520040 0080dff8 0008000a 84000003 00040000 0300f392 00009896 00016e36 fc6383b4 2c5a2401 000468eb 7352>;\n};
-CVPixelAspectRatio={\n    HorizontalSpacing = 1;\n    VerticalSpacing = 1;\n};
-CVImageBufferChromaLocationTopField=Left;
-FullRangeVideo=0;
-
-CVImageBufferChromaLocationBottomField=Left;
-CVFieldCount=1;
-SampleDescriptionExtensionAtoms={\n    avcC = <014d4032 ffe1002b 674d4032 96520040 0080dff8 0008000a 84000003 00040000 0300f392 00009896 00016e36 fc6383b4 2c5a2401 000468eb 7352>;\n};
-CVPixelAspectRatio={\n    HorizontalSpacing = 1;\n    VerticalSpacing = 1;\n};
-CVImageBufferChromaLocationTopField=Left;
-FullRangeVideo=0;
-*/
-	
+		
 	return FormatDesc;
 }
+			*/
 
 
-SoyMediaFormat::Type Avf::SoyMediaFormat_FromFourcc(uint32 Fourcc,size_t H264LengthSize)
-{
-	auto AvfPixelFormat = Avf::GetPixelFormat( Fourcc );
-	if ( AvfPixelFormat != SoyPixelsFormat::Invalid )
-		return SoyMediaFormat::FromPixelFormat( AvfPixelFormat );
-	
-	//	double check for swapped endianness
-	auto FourccSwap = Fourcc;
-	Soy::EndianSwap(FourccSwap);
-	AvfPixelFormat = Avf::GetPixelFormat( FourccSwap );
-	if ( AvfPixelFormat != SoyPixelsFormat::Invalid )
-	{
-		Soy::TFourcc Reversed(FourccSwap);
-		std::Debug << "Warning, detected avf pixel format with reversed fourcc " << Reversed.GetString() << std::endl;
-		return SoyMediaFormat::FromPixelFormat( AvfPixelFormat );
-	}
-	
-	return SoyMediaFormat::FromFourcc( Fourcc, H264LengthSize );
-}
-
+/*
 //	gr: speed this up! (or reduce usage) all the obj-c calls are expensive.
 TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 {
@@ -476,17 +442,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 	//std::stringstream Debug;
 	//Debug << "Extensions=" << Soy::Platform::GetExtensions( FormatDesc ) << "; ";
 	
-	/*
-	 //	serialise extensions
-	 {
-		auto Extensions = (NSDictionary*)CMFormatDescriptionGetExtensions( FormatDesc );
-		NSError *error = nullptr;
-		NSPropertyListFormat Format = NSPropertyListBinaryFormat_v1_0;
-		auto Data = [NSPropertyListSerialization dataWithPropertyList:Extensions format:Format options:0 error:&error];
-	 
-		NSDataToArray( Data, GetArrayBridge(Meta.mExtensions) );
-	 }
-		*/
+
 	//	get specific bits
 	//GetExtension( Desc, "FullRangeVideo", mMeta.mFullRangeYuv );
 	
@@ -537,7 +493,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 			auto PresentationDimNew = CMVideoFormatDescriptionGetPresentationDimensions( TestFormat, true, true );
 			auto DimNew = CMVideoFormatDescriptionGetDimensions( TestFormat );
 			auto ExtensionsStringNew = Soy::NSDictionaryToString( ExtensionsNew );
-			*/
+			*//*
 			std::Debug << "Warning: generated meta from description, but not equal when converted back again. " << Meta << std::endl;
 		}
 	}
@@ -545,6 +501,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 	
 	return Meta;
 }
+*/
 
 void Avf::GetMediaType(CMMediaType& MediaType,FourCharCode& MediaCodec,SoyMediaFormat::Type Format)
 {
@@ -745,6 +702,7 @@ CFStringRef Avf::GetProfile(H264Profile::Type Profile,Soy::TVersion Level)
 	}
 }
 
+/*
 NSString* const Avf::GetFormatType(SoyMediaFormat::Type Format)
 {
 	if ( SoyMediaFormat::IsVideo( Format ) )
@@ -756,7 +714,7 @@ NSString* const Avf::GetFormatType(SoyMediaFormat::Type Format)
 	Error << "Cannot convert " << Format << " to AVMediaType";
 	throw Soy::AssertException( Error.str() );
 }
-
+*/
 
 const std::map<std::string,NSString *>& GetFileExtensionTypeConversion()
 {
@@ -865,173 +823,6 @@ bool Avf::IsKeyframe(CMSampleBufferRef SampleBuffer,bool DefaultValue)
 	return Keyframe;
 }
 
-void PixelReleaseCallback(void *releaseRefCon, const void *baseAddress)
-{
-	//std::Debug << __func__ << std::endl;
-
-	//	this page says we need to release
-	//	http://codefromabove.com/2015/01/av-foundation-saving-a-sequence-of-raw-rgb-frames-to-a-movie/
-	if ( releaseRefCon != nullptr )
-	{
-		CFDataRef bufferData = (CFDataRef)releaseRefCon;
-		CFRelease(bufferData);
-	}
-}
-
-//	this creates a buffer dependent on Image, so this lifetime needs to be less than image
-CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
-{
-	CFAllocatorRef PixelBufferAllocator = nullptr;
-	OSType PixelFormatType = GetPlatformPixelFormat( Image.GetFormat() );
-	auto& PixelsArray = Image.GetPixelsArray();
-	auto* Pixels = const_cast<uint8*>( PixelsArray.GetArray() );
-	auto BytesPerRow = Image.GetMeta().GetRowDataSize();
-	void* ReleaseContext = nullptr;
-	CFDictionaryRef PixelBufferAttributes = nullptr;
-
-#if defined(TARGET_OSX)
-	//	gr: hack, cannot create RGBA pixel buffer on OSX. do a last-min conversion here, but ideally it's done beforehand
-	//		REALLY ideally we can go from texture to CVPixelBuffer
-	if ( Image.GetFormat() == SoyPixelsFormat::RGBA && PixelFormatType == kCVPixelFormatType_32RGBA )
-	{
-		//std::Debug << "CVPixelBufferCreateWithBytes will fail with RGBA, forcing BGRA" << std::endl;
-		PixelFormatType = kCVPixelFormatType_32BGRA;
-	}
-#endif
-	
-	CVPixelBufferRef PixelBuffer = nullptr;
-	auto Result = CVPixelBufferCreateWithBytes( PixelBufferAllocator, Image.GetWidth(), Image.GetHeight(), PixelFormatType, Pixels, BytesPerRow, PixelReleaseCallback, ReleaseContext, PixelBufferAttributes, &PixelBuffer );
-	
-	Soy::TFourcc Fourcc(PixelFormatType);
-	std::stringstream Error;
-	Error << "CVPixelBufferCreateWithBytes " << Image.GetMeta() << "(" << Fourcc << ")";
-	Avf::IsOkay( Result, Error.str() );
-
-	return PixelBuffer;
-}
-
-
-
-
-//	todo: abstract MediaFoundation templated version of this
-
-#define CV_VIDEO_TYPE_META(Enum,SoyFormat)	TCvVideoTypeMeta( Enum, #Enum, SoyFormat )
-#define CV_VIDEO_INVALID_ENUM		0
-class TCvVideoTypeMeta
-{
-public:
-	TCvVideoTypeMeta(OSType Enum,const char* EnumName,SoyPixelsFormat::Type SoyFormat) :
-		mPlatformFormat		( Enum ),
-		mName				( EnumName ),
-		mSoyFormat			( SoyFormat )
-	{
-		if ( !IsValid() )
-			throw Soy::AssertException("Expected valid enum - or invalid enum is bad" );
-	}
-	TCvVideoTypeMeta() :
-		mPlatformFormat		( CV_VIDEO_INVALID_ENUM ),
-		mName				( "Invalid enum" ),
-		mSoyFormat			( SoyPixelsFormat::Invalid )
-	{
-	}
-	
-	bool		IsValid() const		{	return mPlatformFormat != CV_VIDEO_INVALID_ENUM;	}
-	
-	bool		operator==(const OSType& Enum) const					{	return mPlatformFormat == Enum;	}
-	bool		operator==(const SoyPixelsFormat::Type& Format) const	{	return mSoyFormat == Format;	}
-	
-public:
-	OSType					mPlatformFormat;
-	SoyPixelsFormat::Type	mSoyFormat;
-	std::string				mName;
-};
-
-
-
-
-
-
-
-
-
-
-
-
-
-	
-static TCvVideoTypeMeta Cv_PixelFormatMap[] =
-{
-	/*
-	 //	from avfDecoder ResolveFormat(id)
-	 //	gr: RGBA never seems to decode, but with no error[on osx]
-		case SoyPixelsFormat::RGBA:
-		//	BGRA is internal format on IOS so return that as default
-		case SoyPixelsFormat::BGRA:
-		default:
-*/
-	
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_OneComponent8,	SoyPixelsFormat::Luma_Full ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_OneComponent8,	SoyPixelsFormat::Luma_Ntsc ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_OneComponent8,	SoyPixelsFormat::Luma_Smptec ),
-	
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_24RGB,	SoyPixelsFormat::RGB ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_24BGR,	SoyPixelsFormat::BGR ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_32BGRA,	SoyPixelsFormat::BGRA ),
-	
-	//	gr: PopFace creating a pixel buffer from a unity "argb" texture, failed as RGBA is unsupported...
-	//	gr: ARGB is accepted, but channels are wrong
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_32RGBA,	SoyPixelsFormat::RGBA ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_32ARGB,	SoyPixelsFormat::ARGB ),
-
-
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,	SoyPixelsFormat::Yuv_8_88_Full ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,	SoyPixelsFormat::Yuv_8_88_Ntsc ),
-
-	//	gr: this is CHROMA|YUV! not YUV, this is why the fourcc is 2vuy
-	//		kCVPixelFormatType_422YpCbCr8     = '2vuy',     /* Component Y'CbCr 8-bit 4:2:2, ordered Cb Y'0 Cr Y'1 */
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8,	SoyPixelsFormat::Uvy_844_Full ),
-
-	//	todo: check these
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8FullRange,	SoyPixelsFormat::Yuv_844_Full ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr8_yuvs,	SoyPixelsFormat::Yuv_844_Ntsc ),
-
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8Planar,	SoyPixelsFormat::YYuv_8888_Ntsc ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8PlanarFullRange,	SoyPixelsFormat::YYuv_8888_Full ),
-	
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_1Monochrome,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_2Indexed,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_4Indexed,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_8Indexed,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_1IndexedGray_WhiteIsZero,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_2IndexedGray_WhiteIsZero,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_4IndexedGray_WhiteIsZero,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_8IndexedGray_WhiteIsZero,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_16BE555,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_16LE555,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_16LE5551,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_16BE565,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_16LE565,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_32ABGR,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_64ARGB,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_48RGB,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_32AlphaGray,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_16Gray,	SoyPixelsFormat::Invalid ),
-	
-	
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_4444YpCbCrA8,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_4444YpCbCrA8R,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_444YpCbCr8,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr16,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr10,	SoyPixelsFormat::Invalid ),
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_444YpCbCr10,	SoyPixelsFormat::Invalid ),
-	
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr_4A_8BiPlanar,	SoyPixelsFormat::Invalid ),
-
-	//	the logitech C22 has this format, which apparently might be a kind of motion jpeg
-	CV_VIDEO_TYPE_META( 'dmb1',	SoyPixelsFormat::Invalid ),
-};
-
-
 
 std::string Avf::GetPixelFormatString(OSType Format)
 {
@@ -1111,4 +902,135 @@ vec2x<uint32_t> Avf::GetSize(CVImageBufferRef Image)
 	return vec2x<uint32_t>( Size.width, Size.height );
 }
 
+void Avf::IsOkay(OSStatus Error,const std::string& Context)
+{
+	IsOkay( Error, Context.c_str() );
+}
 
+void Avf::IsOkay(OSStatus Error,const char* Context)
+{
+	//	kCVReturnSuccess
+	if ( Error == noErr )
+		return;
+	
+	std::stringstream ErrorString;
+	ErrorString << "OSStatus/CVReturn error in " << Context << ": " << GetString(Error);
+	
+	throw Soy::AssertException( ErrorString.str() );
+}
+
+
+void PixelReleaseCallback(void *releaseRefCon, const void *baseAddress)
+{
+	//std::Debug << __func__ << std::endl;
+	
+	//	this page says we need to release
+	//	http://codefromabove.com/2015/01/av-foundation-saving-a-sequence-of-raw-rgb-frames-to-a-movie/
+	if ( releaseRefCon != nullptr )
+	{
+		CFDataRef bufferData = (CFDataRef)releaseRefCon;
+		CFRelease(bufferData);
+	}
+}
+
+//	gr: these create buffers that hold their lifetime AFTER this function, so the Image and the PixelBuffer ref must be kept together
+//		todo: pass in a lambda that gets called when image is released
+CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
+{
+	CFAllocatorRef PixelBufferAllocator = nullptr;
+	OSType PixelFormatType = GetPlatformPixelFormat( Image.GetFormat() );
+	void* ReleaseContext = nullptr;
+	
+#if defined(TARGET_OSX)
+	//	gr: hack, cannot create RGBA pixel buffer on OSX. do a last-min conversion here, but ideally it's done beforehand
+	//		REALLY ideally we can go from texture to CVPixelBuffer
+	if ( Image.GetFormat() == SoyPixelsFormat::RGBA && PixelFormatType == kCVPixelFormatType_32RGBA )
+	{
+		//std::Debug << "CVPixelBufferCreateWithBytes will fail with RGBA, forcing BGRA" << std::endl;
+		PixelFormatType = kCVPixelFormatType_32BGRA;
+	}
+#endif
+	
+	BufferArray<std::shared_ptr<SoyPixelsImpl>,3> Planes;
+	Image.SplitPlanes( GetArrayBridge(Planes));
+	
+	CVPixelBufferRef PixelBuffer = nullptr;
+	
+	CFDictionaryRef PixelBufferAttributes = nullptr;
+	
+	
+	//	handle multiplane
+	if ( Planes.GetSize() > 1 )
+	{
+		auto& Plane0 = *Planes[0];
+		size_t Widths[3] = {0};
+		size_t Heights[3] = {0};
+		size_t RowSizes[3] = {0};
+		void* Datas[3] = {nullptr};
+		for ( auto p=0;	p<Planes.GetSize();	p++ )
+		{
+			auto& Plane = *Planes[p];
+			Widths[p] = Plane.GetWidth();
+			Heights[p] = Plane.GetHeight();
+			RowSizes[p] = Plane.GetRowPitchBytes();
+			Datas[p] = Plane.GetPixelsArray().GetArray();
+		}
+		
+		CVPixelBufferReleasePlanarBytesCallback Callback = [](void* CallbackReference,const void* DataPtr,size_t DataSize,size_t PlaneCount,const void* PlaneAddresses[])
+		{
+			//std::Debug << "Pixel Buffer released" << std::endl;
+		};
+		void* CallbackReference = nullptr;
+		
+		auto Result = CVPixelBufferCreateWithPlanarBytes( PixelBufferAllocator, Widths[0], Heights[0], PixelFormatType,
+														 nullptr, 0,//use these if contigiuous
+														 Planes.GetSize(),
+														 Datas, Widths, Heights,
+														 RowSizes,
+														 Callback, CallbackReference,
+														 PixelBufferAttributes,
+														 &PixelBuffer );
+		Avf::IsOkay( Result, "CVPixelBufferCreateWithPlanarBytes");
+	}
+	else
+	{
+		auto& PixelsArray = Image.GetPixelsArray();
+		auto* Pixels = const_cast<uint8*>( PixelsArray.GetArray() );
+		auto BytesPerRow = Image.GetMeta().GetRowDataSize();
+		
+		//	just using pixels directly
+		auto Result = CVPixelBufferCreateWithBytes( PixelBufferAllocator, Image.GetWidth(), Image.GetHeight(), PixelFormatType, Pixels, BytesPerRow, PixelReleaseCallback, ReleaseContext, PixelBufferAttributes, &PixelBuffer );
+		Avf::IsOkay( Result, "CVPixelBufferCreateWithBytes");
+	}
+	
+	return PixelBuffer;
+}
+
+CFPtr<CMFormatDescriptionRef> Avf::GetFormatDescriptionH264(const ArrayBridge<uint8_t>& Sps,const ArrayBridge<uint8_t>& Pps,H264::NaluPrefix::Type NaluPrefixType)
+{
+	CFAllocatorRef Allocator = nil;
+	
+	//	need to strip nalu prefix from these
+	auto SpsPrefixLength = H264::GetNaluLength(Sps);
+	auto PpsPrefixLength = H264::GetNaluLength(Pps);
+	
+	BufferArray<const uint8_t*,2> Params;
+	BufferArray<size_t,2> ParamSizes;
+	Params.PushBack( Sps.GetArray()+SpsPrefixLength );
+	ParamSizes.PushBack( Sps.GetDataSize()-SpsPrefixLength );
+	Params.PushBack( Pps.GetArray()+PpsPrefixLength );
+	ParamSizes.PushBack( Pps.GetDataSize()-PpsPrefixLength );
+	
+	//	ios doesnt support annexb, so we will have to convert inputs
+	//	lets use 32 bit nalu size prefix
+	if ( NaluPrefixType == H264::NaluPrefix::AnnexB )
+	NaluPrefixType = H264::NaluPrefix::ThirtyTwo;
+	auto NaluLength = static_cast<int>(NaluPrefixType);
+	
+	CFPtr<CMFormatDescriptionRef> FormatDesc;
+	//	-12712 http://stackoverflow.com/questions/25078364/cmvideoformatdescriptioncreatefromh264parametersets-issues
+	auto Result = CMVideoFormatDescriptionCreateFromH264ParameterSets( Allocator, Params.GetSize(), Params.GetArray(), ParamSizes.GetArray(), NaluLength, &FormatDesc.mObject );
+	Avf::IsOkay( Result, "CMVideoFormatDescriptionCreateFromH264ParameterSets" );
+	
+	return FormatDesc;
+}
