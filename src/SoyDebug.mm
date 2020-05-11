@@ -5,20 +5,20 @@
 
 
 #if defined(TARGET_OSX)
-void Platform::DebugPrint(const std::string& String)
+void Platform::DebugPrint(const char* String)
 {
 //	NSString* MacString = Soy::StringToNSString( String );
 
-	NSLog( @"%s", String.c_str() );
+	NSLog( @"%s", String );
 }
 #endif
 
 
 #if defined(TARGET_IOS)
-void Platform::DebugPrint(const std::string& String)
+void Platform::DebugPrint(const char* String)
 {
 	//	NSString* MacString = Soy::StringToNSString( String );
 	
-	NSLog( @"%s", String.c_str() );
+	NSLog( @"%s", String );
 }
 #endif

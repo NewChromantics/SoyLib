@@ -152,7 +152,7 @@ public:
 	
 	//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
 	template<typename THATTYPE>
-	T*	PushBackReinterpret(const THATTYPE& OtherData)
+	THATTYPE*	PushBackReinterpret(const THATTYPE& OtherData)
 	{
 		size_t ThatDataSize = sizeof(THATTYPE);
 		auto* pData = PushBlock( ThatDataSize / sizeof(T) );
@@ -161,12 +161,12 @@ public:
 		
 		//	memcpy over the block
 		memcpy( pData, &OtherData, ThatDataSize );
-		return pData;
+		return reinterpret_cast<THATTYPE*>(pData);
 	}
 	
 	//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
 	template<typename THATTYPE>
-	T*	PushBackReinterpret(const THATTYPE* OtherData,size_t Count)
+	THATTYPE*	PushBackReinterpret(const THATTYPE* OtherData,size_t Count)
 	{
 		size_t ThatDataSize = sizeof(THATTYPE) * Count;
 		auto* pData = PushBlock( ThatDataSize / sizeof(T) );

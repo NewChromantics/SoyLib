@@ -193,7 +193,7 @@ public:
 
 	//	raw push of data as a reinterpret cast. Really only for use on PoD array types...
 	template<typename THATTYPE>
-	T* PushBackReinterpret(const THATTYPE& OtherData)
+	THATTYPE* PushBackReinterpret(const THATTYPE& OtherData)
 	{
 		return GetArrayBridge(*this).PushBackReinterpret( OtherData );
 	}

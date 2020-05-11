@@ -33,11 +33,23 @@ namespace Platform
 {
 	bool	DebugBreak();
 	bool	IsDebuggerAttached();
-	void	DebugPrint(const std::string& String);
+	void	DebugPrint(const char* String);
 	
 #if defined(TARGET_LUMIN) || defined(TARGET_ANDROID)
 	extern const char*	LogIdentifer;	//	define this in your app
 #endif
+}
+
+namespace Debug
+{
+	//	control where std::Debug prints to
+	extern bool	EnablePrint_CouterrSync;	//	use a lock to make cout/cerr prints synchronised
+	extern bool	EnablePrint_Cout;
+	extern bool	EnablePrint_Cerr;
+	extern bool	EnablePrint_Platform;	//	windows; output to vs. Osx/ios; NSLog
+	extern bool	EnablePrint_Console;	//	windows; output to parent console if invoked from cmd
+
+	extern std::function<void(const char*)>	OnPrint;
 }
 
 namespace Soy
@@ -57,8 +69,7 @@ namespace std
 	class DebugStreamBuf : public streambuf
 	{
 	public:
-		DebugStreamBuf() :
-			mEnableStdOut	( true )
+		DebugStreamBuf()
 		{
 		};
 		~DebugStreamBuf()	
@@ -80,11 +91,6 @@ namespace std
 		void operator= (DebugStreamBuf const &);	// disallow copy assignment
 
 		DebugBufferString&	GetBuffer();
-		
-	public:
-		bool			mEnableStdOut;
-		//	gr: need to defer creation of this event(contains mutex) for PS4 until first use (NOT global!)
-		std::function<void(const std::string&)>	mOnFlush;		//	catch debug output
 	};
 
 	class DebugStream : public std::ostream
@@ -95,11 +101,6 @@ namespace std
 		{
 		}
 
-		std::function<void(const std::string&)>&	GetOnFlushEvent()	{	return mBuffer.mOnFlush;	}
-		
-		//	toggle std output for this std debug stream
-		void			EnableStdOut(bool Enable)	{	mBuffer.mEnableStdOut = Enable;	}
-		
 	private:
 		DebugStreamBuf	mBuffer;
 	};
@@ -191,23 +192,6 @@ namespace std
 		#endif
 			
 			return *this;
-		}
-		
-		std::function<void(const std::string&)>&		GetOnFlushEvent()
-		{	
-		#if defined(SOYDEBUG_ENABLE)			
-			return mStream.GetOnFlushEvent();
-		#else
-			return mDummyFlushEvent;
-		#endif
-		}
-		
-		//	toggle std output for this std debug stream
-		void			EnableStdOut(bool Enable)	
-		{	
-		#if defined(SOYDEBUG_ENABLE)			
-			mStream.EnableStdOut(Enable);
-		#endif
 		}
 		
 		void			PushStreamSettings()
