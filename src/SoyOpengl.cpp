@@ -1455,12 +1455,8 @@ SoyPixelsRemote	GetRealignedSinglePlanePixels(const SoyPixelsImpl& Pixels)
 	//	maybe a better approach by finding pixels array size vs w/h
 	//	but this approach just "overflows" the luma plane
 	//	(which means the following planes may have multiple side-by-side)
-	if (Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_8_8_Full ||
-		Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_8_8_Ntsc ||
-		Pixels.GetFormat() == SoyPixelsFormat::Yuv_844_Full ||
-		Pixels.GetFormat() == SoyPixelsFormat::Yuv_844_Ntsc ||
-		Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_88_Full ||
-		Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_88_Ntsc )
+	if (Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_8_8 ||
+		Pixels.GetFormat() == SoyPixelsFormat::Yuv_8_88 )
 	{
 		auto* Data = Pixels.GetPixelsArray().GetArray();
 		auto DataSize = Pixels.GetPixelsArray().GetDataSize();
@@ -2645,9 +2641,7 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		//	gr: use this with 8_8_8_REV to convert to BGRA!
 		TPixelFormatMapping( SoyPixelsFormat::ARGB,			Opengl4ChannelFormats),
 		
-		TPixelFormatMapping( SoyPixelsFormat::Luma_Full,	Opengl1ChannelFormats),
-		TPixelFormatMapping( SoyPixelsFormat::Luma_Ntsc,	Opengl1ChannelFormats),
-		TPixelFormatMapping( SoyPixelsFormat::Luma_Smptec,	Opengl1ChannelFormats),
+		TPixelFormatMapping( SoyPixelsFormat::Luma,	Opengl1ChannelFormats),
 		TPixelFormatMapping( SoyPixelsFormat::Greyscale,	Opengl1ChannelFormats),
 		TPixelFormatMapping( SoyPixelsFormat::ChromaUV_8_8,	Opengl1ChannelFormats),
 		TPixelFormatMapping( SoyPixelsFormat::ChromaU_8,	Opengl1ChannelFormats),
@@ -2663,23 +2657,12 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 		TPixelFormatMapping(SoyPixelsFormat::FreenectDepth11bit,	Opengl1ChannelFormats),
 		TPixelFormatMapping(SoyPixelsFormat::Depth16mm,		Opengl1ChannelFormats),
 
-		TPixelFormatMapping(SoyPixelsFormat::Uvy_844_Full,		Opengl1ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Full,		Opengl1ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Ntsc,		Opengl1ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_844_Smptec,	Opengl1ChannelFormats),
-		
-		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Full,		Opengl2ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Ntsc,		Opengl2ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888_Smptec,		Opengl2ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::uyvy,					Opengl2ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::YYuv_8888,		Opengl2ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::uyvy_8888,			Opengl2ChannelFormats),
 
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Full,		Opengl1ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Ntsc,		Opengl1ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8_Smptec,		Opengl1ChannelFormats),
-		
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_88_Full,			Opengl1ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_88_Ntsc,			Opengl1ChannelFormats),
-		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_88_Smptec,		Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Uvy_8_88,		Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_88,		Opengl1ChannelFormats),
+		TPixelFormatMapping(SoyPixelsFormat::Yuv_8_8_8,		Opengl1ChannelFormats),
 		
 
 #if defined(GL_BGRA)

@@ -17,6 +17,9 @@ namespace Soy
 	//	minmax or bounds...
 	template<typename TYPE>
 	class Boundsx;
+	
+	//	delineators for string. Was using multiple chars for input parsing, but that's gone
+	static const char* VecNXDelins = ",x";
 };
 
 struct CGAffineTransform;

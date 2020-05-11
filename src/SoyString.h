@@ -29,9 +29,6 @@ namespace Soy
 		return __os;
 	}
 	
-	//	delineators for strings. First is used for output
-	static const char* VecNXDelins = ",x";
-	
 	class TPushPopStreamSettings;	//	scoped push/pop of stream flags
 };
 
