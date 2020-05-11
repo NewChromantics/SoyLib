@@ -3,6 +3,24 @@
 #include "HeapArray.hpp"
 
 
+namespace std
+{
+	//	gr: I'm sure there's an stl version of this, but I can't remember the name (its not range)
+	template<typename TYPE>
+	float range(TYPE Min,TYPE Max,TYPE Value)
+	{
+		return (Value-Min) / (Max-Min);
+	}
+	
+	//	c++20
+	template<typename TYPE>
+	TYPE lerp(TYPE Min,TYPE Max,float Time)
+	{
+		return Min + (Time* (Max-Min));
+	}
+
+}
+
 
 size_t SoyWaveBitsPerSample::GetByteSize(SoyMediaFormat::Type Format)
 {
@@ -99,7 +117,7 @@ void Wave::TMeta::WriteHeader(ArrayBridge<char>&& Data,size_t DataSize)
 void Wave::ConvertSample(const sint16 Input,float& Output)
 {
 	//	0..1
-	Output = Soy::Range<sint16>( Input, -32768, 32767 );
+	Output = std::range<sint16>( -32768, 32767, Input );
 	Output *= 2.f;
 	Output -= 1.f;
 }
@@ -108,7 +126,7 @@ void Wave::ConvertSample(const sint16 Input,float& Output)
 void Wave::ConvertSample(const sint8 Input,float& Output)
 {
 	//	0..1
-	Output = Soy::Range<sint8>( Input, -127, 127 );
+	Output = std::range<sint8>( -127, 127, Input );
 	Output *= 2.f;
 	Output -= 1.f;
 }
@@ -126,7 +144,7 @@ void Wave::ConvertSample(const float Input,uint8& Output)
 
 void Wave::ConvertSample(const float Input,sint16& Output)
 {
-	Output = Soy::Lerp<sint16>( -32768, 32767, Input );
+	Output = std::lerp<sint16>( -32768, 32767, Input );
 }
 
 void Wave::ConvertSample(const float Input,float& Output)

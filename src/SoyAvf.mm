@@ -503,6 +503,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 }
 */
 
+/*
 void Avf::GetMediaType(CMMediaType& MediaType,FourCharCode& MediaCodec,SoyMediaFormat::Type Format)
 {
 	if ( SoyMediaFormat::IsVideo(Format) )
@@ -525,9 +526,9 @@ void Avf::GetMediaType(CMMediaType& MediaType,FourCharCode& MediaCodec,SoyMediaF
 	//		kCMVideoCodecType_H264
 	MediaCodec = SoyMediaFormat::ToFourcc( Format );
 }
+*/
 
-
-
+/*
 Avf::TAsset::TAsset(const std::string& Filename)
 {
 	//	alloc asset
@@ -637,13 +638,7 @@ void Avf::TAsset::LoadTracks()
 	}
 	
 }
-
-NSURL* Avf::GetUrl(const std::string& Filename)
-{
-	return Platform::GetUrl( Filename );
-}
-
-
+*/
 
 
 CFStringRef Avf::GetProfile(H264Profile::Type Profile,Soy::TVersion Level)

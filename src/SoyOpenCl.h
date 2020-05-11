@@ -100,7 +100,7 @@ namespace Soy
 
 	vec2f		ClToVector(const cl_float2& v);
 	vec4f		ClToVector(const cl_float4& v);
-	mathfu::Vector<float,8>		ClToVector(const cl_float8& v);
+	//vec8f		ClToVector(const cl_float8& v);
 }
 
 std::ostream& operator<<(std::ostream &out,const cl_float2& in);

@@ -29,9 +29,6 @@ namespace Soy
 		return __os;
 	}
 	
-	//	delineators for strings. First is used for output
-	static const char* VecNXDelins = ",x";
-	
 	class TPushPopStreamSettings;	//	scoped push/pop of stream flags
 };
 
@@ -143,10 +140,6 @@ namespace Soy
 	template<typename TYPE>
 	TYPE			StringToType(const std::string& String);
 	bool			StringToUnsignedInteger(size_t& IntegerOut,const std::string& String);
-
-	//	max size of vector (ie. buffer array/remote array) dictates expected size
-	template<typename TYPE>
-	inline bool		StringParseVecNx(const std::string& String,ArrayBridge<TYPE>&& Vector);
 
 	std::string		DataToHexString(const ArrayBridge<uint8>&& Data,int MaxBytes=-1);
 	void			DataToHexString(std::ostream& String,const ArrayBridge<uint8>& Data,int MaxBytes=-1);
@@ -275,27 +268,4 @@ inline bool Soy::StringEndsWith(const std::string& Haystack,const char* (& Needl
 }
 
 
-
-template<typename TYPE>
-inline bool Soy::StringParseVecNx(const std::string& instr,ArrayBridge<TYPE>&& Components)
-{
-	auto Append = [&Components](const std::string& Valuestr,const char& Delim)
-	{
-		TYPE Value;
-		if ( !Soy::StringToType( Value, Valuestr ) )
-			return false;
-		if ( Components.IsFull() )
-			return false;
-		Components.PushBack( Value );
-		return true;
-	};
-	if ( !Soy::StringSplitByMatches( Append, instr, Soy::VecNXDelins, false ) )
-		return false;
-	
-	//	didn;t find enough components
-	if ( !Components.IsFull() )
-		return false;
-
-	return true;
-}
 
