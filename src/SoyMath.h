@@ -49,11 +49,6 @@ namespace Soy
 		return static_cast<float>(Value-Start) / static_cast<float>(End-Start);
 	}
 	
-
-	
-	//	will probably replace this at some point, but for now, handy for 3D work
-	class TCamera;
-	
 	//	maybe not "math" ?
 	class THsl;
 	class TRgb;
@@ -110,28 +105,6 @@ namespace std
 		return a;
 	}
 }
-
-
-class Soy::TCamera
-{
-public:
-	TCamera() :
-		mProjectionMtx	( Matrix4x4::Identity() ),
-		mModelViewMtx	( Matrix4x4::Identity() ),
-		mDepthNear		( 0.001f ),
-		mDepthFar		( 1000.f )
-	{
-	}
-	
-	Matrix4x4	GetModelViewProjection() const	{	return mProjectionMtx * mModelViewMtx;	}
-	
-public:
-	float		mDepthNear;
-	float		mDepthFar;
-	Matrix4x4	mProjectionMtx;
-	Matrix4x4	mModelViewMtx;
-	
-};
 
 
 
