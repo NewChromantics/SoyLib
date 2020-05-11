@@ -34,65 +34,44 @@ namespace SoyPixelsFormat
 		Depth16mm,			//	16 bit, 1 channel
 	
 
-		//	http://stackoverflow.com/a/6315159/355753
-		//	bi planar is luma followed by chroma.
-		//	Full range is 0..255
-		//	video LUMA range 16-235 (chroma is still 0-255)	http://stackoverflow.com/a/10129300/355753
-		//	Y=luma	uv=ChromaUv
+		//	YUV formats;
+		//	ditched colourspace, this is now a multi-plane descriptor
+		//	note: apple still has multiple colourspace!
+		//	Planes seperated by underscore.
+		//	Plane dictates bpp (todo: fix 4 so this indicates half resolution)
 		
-		//	gr: I want to remove video/full/ntsc etc and have that explicit in a media format
-		//	http://www.chromapure.com/colorscience-decoding.asp
-		//	the range counts towards luma & chroma
-		//	video = NTSC
-		//	full = Rec. 709
-		//	SMPTE-C = SMPTE 170M 
-
-		//	gr: naming convention; planes seperated by underscore
-		Yuv_8_88_Full,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
-		Yuv_8_88_Ntsc,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
-		Yuv_8_88_Smptec,		//	8 bit Luma, interleaved Chroma uv plane (uv is half size... reflect this somehow in the name!)
-		Yvu_8_88_Ntsc,
-
-		//	this format has a flaw in that the data is striped, (splits correctly)
-		//	but the data is WxH + WxH/2 + WxH/2 so data is 1.5x components so we can't make a buffer size correctly for opengl etc
-		//	figure out a way to express virtual w/h, data w/h, non integer components and data size
-		Yuv_8_8_8_Full,		//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
-		Yuv_8_8_8_Ntsc,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
-		Yuv_8_8_8_Smptec,	//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
-
-		//	gr: YUY2: LumaX,ChromaU,LumaX+1,ChromaV (4:2:2 ratio, 8 bit)
-		//		we still treat it like a 2 component format so dimensions match original
-		//		(maybe should be renamed YYuv_88 for this reason)
-		YYuv_8888_Full,
-		YYuv_8888_Ntsc,
-		YYuv_8888_Smptec,
-		
+		//	biplane, uv is interleaved byte-by-byte
 		//	https://stackoverflow.com/a/22793325/355753
 		//	4:2:2, apple call this yuvs
 		//	watch out for 2uvy where luma and chroma are backwards to normal!
 		//	these are vertically interlaced. need to fix this in the plane splitting code
 		//	gr: some times this is NOT vertically interlaced
 		//		need to split this into Yuv_844 and Yuv_8_44
-		Uvy_844_Full,
-		Yuv_844_Full,
-		Yuv_844_Ntsc,
-		Yuv_844_Smptec,
-		Yvu_844_Ntsc,		//	NV21
+		Yuv_8_88,	//	NV12
+		Yvu_8_88,	//	NV21
+		Uvy_8_88,	//	yuvs	//	gr: should this be Uvy_88_8?
 
+		//	this format has a flaw in that the data is striped, (splits correctly)
+		//	but the data is WxH + WxH/2 + WxH/2 so data is 1.5x components so we can't make a buffer size correctly for opengl etc
+		//	figure out a way to express virtual w/h, data w/h, non integer components and data size
+		//	todo: distinguish striped format!
+		Yuv_8_8_8,		//	luma, u, v seperate planes (uv is half size... reflect this somehow in the name!)
+
+		//	gr: YUY2: LumaX,ChromaU,LumaX+1,ChromaV (4:2:2 ratio, 8 bit)
+		//		we still treat it like a 2 component format so dimensions match original
+		//		(maybe should be renamed YYuv_88 for this reason)
+		YYuv_8888,
+		//	https://github.com/ofTheo/ofxKinect/blob/ebb9075bcb5ab2543220b4dec598fd73cec40904/libs/libfreenect/src/cameras.c
+		//	kinect (16bit?) yuv. See if its the same as a standard one
+		uyvy_8888,
+
+		//YuvAlpha_8888_8,	//	a2vy
 
 		ChromaUV_8_8,		//	8 bit plane, 8 bit plane
 		ChromaUV_88,		//	16 bit interleaved plane
 		ChromaU_8,			//	single plane
 		ChromaV_8,			//	single plane
-		//	halfwidth halfheight 2x8 bit interleaved plane
-		//	gr: may have some inconsistency atm where some things consider this 8bit
-		//	we should treat this as a 2 channel 8 bit format
-		ChromaUV_44,
-		
 
-		//	https://github.com/ofTheo/ofxKinect/blob/ebb9075bcb5ab2543220b4dec598fd73cec40904/libs/libfreenect/src/cameras.c
-		//	kinect (16bit?) yuv. See if its the same as a standard one 
-		uyvy,
 		/*
 		 int u  = raw_buf[2*i];
 			int y1 = raw_buf[2*i+1];
@@ -117,9 +96,6 @@ namespace SoyPixelsFormat
 			proc_buf[3*i+4]=g2;
 			proc_buf[3*i+5]=b2;		 */
 
-		Luma_Ntsc,			//	ntsc-range luma plane
-		Luma_Smptec,		//	Smptec-range luma plane
-
 		//	2 planes, RGB (palette+length8) Greyscale (indexes)
 		//	warning, palette's first byte is the size of the palette! need to work out how to auto skip over this when extracting the plane...
 		Palettised_RGB_8,
@@ -131,45 +107,35 @@ namespace SoyPixelsFormat
 		Float3,
 		Float4,
 		
-		Yuv_8_88_Ntsc_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
-		Yuv_844_Ntsc_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
+		Yuv_8_88_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
 		BGRA_Depth16,
 			
 		Count,
 		//	shorthand names
+		//	gr: fix this, to work around magic_enum problem, change this to SoyPixelsFormat::Fourcc
 		//	http://www.fourcc.org/yuv.php
-		Luma_Full		= Greyscale,	//	Luma plane of a YUV
-		Nv12			= Yuv_8_88_Full,
-		Nv21			= Yvu_8_88_Ntsc,
-		I420			= Yuv_8_8_8_Full,
+		Nv12			= Yuv_8_88,
+		Nv21			= Yvu_8_88,
+		I420			= Yuv_8_8_8,
+		Luma			= Greyscale,
 	};
 
 	//	gr: consider changing this to either Type, Bytes per channel or bits per channel to handle 16 bit better
-	bool			IsFloatChannel(Type Format);
-	uint8_t			GetBytesPerChannel(Type Format);
+	bool				IsFloatChannel(Type Format);
+	uint8_t				GetBytesPerChannel(Type Format);
 	
-	size_t			GetChannelCount(Type Format);
-	Type			GetFormatFromChannelCount(size_t ChannelCount);
-	void			GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats);
+	size_t				GetChannelCount(Type Format);
+	Type				GetFormatFromChannelCount(size_t ChannelCount);
+	void				GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats);
 	SoyPixelsFormat::Type	GetMergedFormat(SoyPixelsFormat::Type Formata, SoyPixelsFormat::Type Formatb);
 	SoyPixelsFormat::Type	GetMergedFormat(SoyPixelsFormat::Type Formata, SoyPixelsFormat::Type Formatb, SoyPixelsFormat::Type FormatC);
 
-	int				GetMaxValue(SoyPixelsFormat::Type Format);
-	int				GetMinValue(SoyPixelsFormat::Type Format);
-	int				GetInvalidValue(SoyPixelsFormat::Type Format);
-	int				GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format);
-	bool			GetIsFrontToBackDepth(SoyPixelsFormat::Type Format);
 	size_t			GetHeaderSize(SoyPixelsFormat::Type Format);
 	void			GetHeaderPalettised(const ArrayBridge<uint8_t>&& Data,size_t& PaletteSize,size_t& TransparentIndex);
 
 	//	merge index & palette into Paletteised_8_8
 	void			MakePaletteised(SoyPixelsImpl& PalettisedImage,const SoyPixelsImpl& IndexedImage,const SoyPixelsImpl& Palette,uint8_t TransparentIndex);
 
-	//	get alternatives of formats
-	Type			GetYuvFull(Type Format);
-	Type			GetYuvNtsc(Type Format);
-	Type			GetYuvSmptec(Type Format);
-	Type			ChangeYuvColourRange(Type Format,Type YuvColourRange);
 	Type			GetFloatFormat(Type Format);
 	Type			GetByteFormat(Type Format);
 	

@@ -10,16 +10,6 @@
 
 
 
-/// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED frame callbacks
-#define FREENECT_DEPTH_MM_MAX_VALUE 10000
-/// Value indicating that this pixel has no data, when using FREENECT_DEPTH_MM or FREENECT_DEPTH_REGISTERED depth modes
-#define FREENECT_DEPTH_MM_NO_VALUE 0
-/// Maximum value that a uint16_t pixel will take on in the buffer of any of the FREENECT_DEPTH_11BIT, FREENECT_DEPTH_10BIT, FREENECT_DEPTH_11BIT_PACKED, or FREENECT_DEPTH_10BIT_PACKED frame callbacks
-#define FREENECT_DEPTH_RAW_MAX_VALUE 2048
-/// Value indicating that this pixel has no data, when using FREENECT_DEPTH_11BIT, FREENECT_DEPTH_10BIT, FREENECT_DEPTH_11BIT_PACKED, or FREENECT_DEPTH_10BIT_PACKED
-#define FREENECT_DEPTH_RAW_NO_VALUE 2047
-
-
 std::ostream& operator<< (std::ostream &out,const SoyPixelsMeta &in)
 {
 	out << in.GetWidth() << 'x' << in.GetHeight() << '^' << in.GetFormat();
@@ -80,152 +70,6 @@ prmem::Heap& SoyPixels::GetDefaultHeap()
 }
 	
 
-SoyPixelsFormat::Type SoyPixelsFormat::GetYuvFull(SoyPixelsFormat::Type Format)
-{
-	switch ( Format )
-	{
-		case Luma_Full:
-		case Luma_Ntsc:
-		case Luma_Smptec:
-			return Luma_Full;
-	
-		case Yuv_8_88_Full:
-		case Yuv_8_88_Ntsc:
-		case Yuv_8_88_Smptec:
-			return Yuv_8_88_Full;
-
-		case Yuv_8_8_8_Full:
-		case Yuv_8_8_8_Ntsc:
-		case Yuv_8_8_8_Smptec:
-			return Yuv_8_8_8_Full;
-
-		case YYuv_8888_Full:
-		case YYuv_8888_Ntsc:
-		case YYuv_8888_Smptec:
-			return YYuv_8888_Full;
-
-		case Yuv_844_Ntsc:
-		case Yuv_844_Full:
-		case Yuv_844_Smptec:
-			return Yuv_844_Full;
-
-		case Uvy_844_Full:
-			return Uvy_844_Full;
-			
-		default:
-			break;
-	}
-
-	throw Soy::AssertException( std::string(__func__) + " no equivilent");
-}
-
-
-SoyPixelsFormat::Type SoyPixelsFormat::GetYuvNtsc(SoyPixelsFormat::Type Format)
-{
-	switch ( Format )
-	{
-		case Luma_Full:
-		case Luma_Ntsc:
-		case Luma_Smptec:
-			return Luma_Ntsc;
-	
-		case Yuv_8_88_Full:
-		case Yuv_8_88_Ntsc:
-		case Yuv_8_88_Smptec:
-			return Yuv_8_88_Ntsc;
-
-		case Yuv_8_8_8_Full:
-		case Yuv_8_8_8_Ntsc:
-		case Yuv_8_8_8_Smptec:
-			return Yuv_8_8_8_Ntsc;
-
-		case YYuv_8888_Full:
-		case YYuv_8888_Ntsc:
-		case YYuv_8888_Smptec:
-			return YYuv_8888_Ntsc;
-
-		case Yuv_844_Ntsc:
-		case Yuv_844_Full:
-		case Yuv_844_Smptec:
-			return Yuv_844_Ntsc;
-
-		default:
-			break;
-	}
-
-	throw Soy::AssertException( std::string(__func__) + " no equivilent");
-}
-
-SoyPixelsFormat::Type SoyPixelsFormat::GetYuvSmptec(SoyPixelsFormat::Type Format)
-{
-	switch ( Format )
-	{
-		case Luma_Full:
-		case Luma_Ntsc:
-		case Luma_Smptec:
-			return Luma_Smptec;
-	
-		case Yuv_8_88_Full:
-		case Yuv_8_88_Ntsc:
-		case Yuv_8_88_Smptec:
-			return Yuv_8_88_Smptec;
-
-		case Yuv_8_8_8_Full:
-		case Yuv_8_8_8_Ntsc:
-		case Yuv_8_8_8_Smptec:
-			return Yuv_8_8_8_Smptec;
-
-		case YYuv_8888_Full:
-		case YYuv_8888_Ntsc:
-		case YYuv_8888_Smptec:
-			return YYuv_8888_Smptec;
-
-		case Yuv_844_Full:
-		case Yuv_844_Ntsc:
-		case Yuv_844_Smptec:
-			return Yuv_844_Smptec;
-			
-		default:
-			break;
-	}
-
-	throw Soy::AssertException( std::string(__func__) + " no equivilent");
-}
-
-SoyPixelsFormat::Type SoyPixelsFormat::ChangeYuvColourRange(Type Format,Type YuvColourRange)
-{
-	switch ( YuvColourRange )
-	{
-		case Luma_Full:
-		case Yuv_8_88_Full:
-		case Yuv_8_8_8_Full:
-		case YYuv_8888_Full:
-		case Yuv_844_Full:
-			return GetYuvFull( Format );
-
-		case Luma_Ntsc:
-		case Yuv_8_88_Ntsc:
-		case Yuv_8_8_8_Ntsc:
-		case YYuv_8888_Ntsc:
-		case Yuv_844_Ntsc:
-			return GetYuvNtsc( Format );
-
-		case Luma_Smptec:
-		case Yuv_8_88_Smptec:
-		case Yuv_8_8_8_Smptec:
-		case YYuv_8888_Smptec:
-		case Yuv_844_Smptec:
-			return GetYuvSmptec( Format );
-
-
-		default:
-			break;
-	}
-
-	std::stringstream Error;
-	Error << std::string(__func__) << " " << Format << "," << YuvColourRange << " no conversion";
-	throw Soy::AssertException( Error.str() );
-}
 
 SoyPixelsFormat::Type SoyPixelsFormat::GetFloatFormat(Type Format)
 {
@@ -290,87 +134,11 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetByteFormat(Type Format)
 
 
 
-bool SoyPixelsFormat::GetIsFrontToBackDepth(SoyPixelsFormat::Type Format)
-{
-	switch ( Format )
-	{
-		case SoyPixelsFormat::KinectDepth:			return true;
-		case SoyPixelsFormat::Depth16mm:			return false;
-		case SoyPixelsFormat::FreenectDepth10bit:	return false;
-		case SoyPixelsFormat::FreenectDepth11bit:	return false;
-			
-		default:
-			return false;
-	}
-}
-
-
-int SoyPixelsFormat::GetMaxValue(SoyPixelsFormat::Type Format)
-{
-	switch ( Format )
-	{
-		case SoyPixelsFormat::KinectDepth:		return (1<<13);
-		case SoyPixelsFormat::Depth16mm:		return FREENECT_DEPTH_MM_MAX_VALUE;
-		case SoyPixelsFormat::FreenectDepth10bit:	return 1022;
-		
-		//	test: min: 246, Max: 1120
-		//case SoyPixelsFormat::FreenectDepth11bit:	return FREENECT_DEPTH_RAW_MAX_VALUE;
-		case SoyPixelsFormat::FreenectDepth11bit:	return 1120;
-
-		default:
-			return 0;
-	}
-}
-
-int SoyPixelsFormat::GetMinValue(SoyPixelsFormat::Type Format)
-{
-	switch ( Format )
-	{
-		case SoyPixelsFormat::KinectDepth:		return 1;
-		case SoyPixelsFormat::Depth16mm:		return 0;
-		case SoyPixelsFormat::FreenectDepth10bit:	return 0;
-
-		//	test: min: 246, Max: 1120
-		//case SoyPixelsFormat::FreenectDepth11bit:	return 0;
-		case SoyPixelsFormat::FreenectDepth11bit:	return 200;
-		default:
-			return 0;
-	}
-}
-
-
-int SoyPixelsFormat::GetInvalidValue(SoyPixelsFormat::Type Format)
-{
-	switch ( Format )
-	{
-		case SoyPixelsFormat::KinectDepth:			return 0;
-		case SoyPixelsFormat::Depth16mm:			return FREENECT_DEPTH_MM_NO_VALUE;
-		case SoyPixelsFormat::FreenectDepth11bit:	return FREENECT_DEPTH_RAW_NO_VALUE;
-		case SoyPixelsFormat::FreenectDepth10bit:	return 1023;	//	10 bit
-		default:
-			return 0;
-	}
-}
-
-int SoyPixelsFormat::GetPlayerIndexFirstBit(SoyPixelsFormat::Type Format)
-{
-	switch ( Format )
-	{
-		case SoyPixelsFormat::KinectDepth:			return 13;
-		default:
-			return -1;
-	}
-}
-
-
-
 size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 {
 	switch ( Format )
 	{
 	case Greyscale:		return 1;
-	case Luma_Ntsc:		return 1;
-	case Luma_Smptec:	return 1;
 	case GreyscaleAlpha:	return 2;
 	case RGB:			return 3;
 	case BGR:			return 3;
@@ -386,29 +154,17 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 
 	case ChromaUV_8_8:	return 1;
 	case ChromaUV_88:	return 2;
-	case ChromaUV_44:	return 2;
 	case ChromaU_8:		return 1;
 	case ChromaV_8:		return 1;
 
-	//	yuv 844 is interlaced luma & chroma, so kinda have 2 channels (helps with a lot of things when it aligns even though we have technically 3 channels)
-	case Uvy_844_Full:
-	case Yuv_844_Full:
-	case Yuv_844_Ntsc:
-	case Yuv_844_Smptec:
-	case YYuv_8888_Full:
-	case YYuv_8888_Ntsc:
-	case YYuv_8888_Smptec:
-		return 2;
-
-	case Yuv_8_8_8_Full:
-	case Yuv_8_8_8_Ntsc:
-	case Yuv_8_8_8_Smptec:
-	case Yuv_8_88_Full:
-	case Yuv_8_88_Ntsc:
-	case Yuv_8_88_Smptec:
+		//	treating these as all bytes at the moment
+	case Uvy_8_88:
+	case Yuv_8_88:
+	case Yuv_8_8_8:
 		return 1;
 
-	case uyvy:
+	case YYuv_8888:
+	case uyvy_8888:
 		return 2;
 
 	case Float1:	return 1;
@@ -490,25 +246,24 @@ const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyP
 
 	if ( Map.empty() )
 	{
-		Map[Yuv_8_88_Full].PushBackArray( { Luma_Full, ChromaUV_88 } );
-		Map[Yuv_8_88_Ntsc].PushBackArray( { Luma_Ntsc, ChromaUV_88 } );
-		Map[Yuv_8_88_Smptec].PushBackArray( { Luma_Smptec, ChromaUV_88 } );
+		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
+		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
+		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
 
-		Map[Yuv_8_8_8_Full].PushBackArray( { Luma_Full, ChromaUV_8_8 } );
-		Map[Yuv_8_8_8_Ntsc].PushBackArray( { Luma_Ntsc, ChromaUV_8_8 } );
-		Map[Yuv_8_8_8_Smptec].PushBackArray( { Luma_Smptec, ChromaUV_8_8 } );
+		Map[Yuv_8_8_8].PushBackArray( { Luma, ChromaUV_8_8 } );
+		Map[Yuv_8_8_8].PushBackArray( { Luma, ChromaUV_8_8 } );
+		Map[Yuv_8_8_8].PushBackArray( { Luma, ChromaUV_8_8 } );
 
-		Map[Yuv_844_Full].PushBackArray( { Luma_Full, ChromaUV_44 } );
-		Map[Yuv_844_Ntsc].PushBackArray( { Luma_Ntsc, ChromaUV_44 } );
-		Map[Yuv_844_Smptec].PushBackArray( { Luma_Smptec, ChromaUV_44 } );
+		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
+		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
+		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
 
 		Map[ChromaUV_8_8].PushBackArray( { ChromaU_8, ChromaV_8 } );
 
 		//	the merge is used to match in both directions reverse, so this whole map might need to change?
-		Map[Yuv_8_88_Ntsc_Depth16].PushBackArray({ Yuv_8_88_Ntsc, Depth16mm });
-		Map[Yuv_844_Ntsc_Depth16].PushBackArray({ Yuv_844_Ntsc, Depth16mm });
-		//Map[Yuv_8_88_Ntsc_Depth16].PushBackArray({ Luma_Ntsc, ChromaUV_88, Depth16mm });
-		//Map[Yuv_844_Ntsc_Depth16].PushBackArray({ Luma_Ntsc, ChromaUV_44, Depth16mm });
+		Map[Yuv_8_88_Depth16].PushBackArray({ Yuv_8_88, Depth16mm });
+		//Map[Yuv_8_88_Depth16].PushBackArray({ Luma, ChromaUV_88, Depth16mm });
+		//Map[Yuv_844_Depth16].PushBackArray({ Luma, ChromaUV_44, Depth16mm });
 		Map[BGRA_Depth16].PushBackArray({ BGRA, Depth16mm });
 	}
 
@@ -521,9 +276,9 @@ const std::map<SoyPixelsFormat::Type, BufferArray<SoyPixelsFormat::Type, 3>>& So
 
 	if (Map.empty())
 	{
-		Map[Yuv_8_8_8_Full].PushBackArray({ Luma_Full, ChromaU_8,ChromaV_8 });
-		Map[Yuv_8_8_8_Ntsc].PushBackArray({ Luma_Ntsc, ChromaU_8,ChromaV_8 });
-		Map[Yuv_8_8_8_Smptec].PushBackArray({ Luma_Smptec, ChromaU_8,ChromaV_8 });
+		Map[Yuv_8_8_8].PushBackArray({ Luma, ChromaU_8,ChromaV_8 });
+		Map[Yuv_8_8_8].PushBackArray({ Luma, ChromaU_8,ChromaV_8 });
+		Map[Yuv_8_8_8].PushBackArray({ Luma, ChromaU_8,ChromaV_8 });
 	}
 
 	return Map;
@@ -684,26 +439,22 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::FreenectDepth10bit,	"FreenectDepth10bit"	},
 	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},
 	{ SoyPixelsFormat::Depth16mm,			"Depth16mm"	},
-	{ SoyPixelsFormat::uyvy,				"uyvy"	},
-	{ SoyPixelsFormat::Yuv_8_88_Full,		"Yuv_8_88_Full"	},
-	{ SoyPixelsFormat::Yuv_8_88_Ntsc,		"Yuv_8_88_Ntsc"	},
-	{ SoyPixelsFormat::Yuv_8_88_Smptec,		"Yuv_8_88_Smptec"	},
-	{ SoyPixelsFormat::Yuv_8_8_8_Full,		"Yuv_8_8_8_Full"	},
-	{ SoyPixelsFormat::Yuv_8_8_8_Ntsc,		"Yuv_8_8_8_Ntsc"	},
-	{ SoyPixelsFormat::Yuv_8_8_8_Smptec,	"Yuv_8_8_8_Smptec"	},
-	{ SoyPixelsFormat::YYuv_8888_Full,		"YYuv_8888_Full"	},
-	{ SoyPixelsFormat::YYuv_8888_Ntsc,		"YYuv_8888_Ntsc"	},
-	{ SoyPixelsFormat::YYuv_8888_Smptec,	"YYuv_8888_Smptec"	},
-	{ SoyPixelsFormat::Uvy_844_Full,		"Uvy_844_Full"	},
-	{ SoyPixelsFormat::Yuv_844_Full,		"Yuv_844_Full"	},
-	{ SoyPixelsFormat::Yuv_844_Ntsc,		"Yuv_844_Ntsc"	},
-	{ SoyPixelsFormat::Yuv_844_Smptec,		"Yuv_844_Smptec"	},
-	{ SoyPixelsFormat::Luma_Full,			"LumaFull"	},
-	{ SoyPixelsFormat::Luma_Ntsc,			"Luma_Ntsc"	},
-	{ SoyPixelsFormat::Luma_Smptec,			"Luma_Smptec"	},
+	{ SoyPixelsFormat::uyvy_8888,			"uyvy_8888"	},
+	{ SoyPixelsFormat::Yuv_8_88,		"Yuv_8_88"	},
+	{ SoyPixelsFormat::Yuv_8_88,		"Yuv_8_88"	},
+	{ SoyPixelsFormat::Yuv_8_88,		"Yuv_8_88"	},
+	{ SoyPixelsFormat::Yuv_8_8_8,		"Yuv_8_8_8"	},
+	{ SoyPixelsFormat::Yuv_8_8_8,		"Yuv_8_8_8"	},
+	{ SoyPixelsFormat::Yuv_8_8_8,	"Yuv_8_8_8"	},
+	{ SoyPixelsFormat::YYuv_8888,		"YYuv_8888"	},
+	{ SoyPixelsFormat::YYuv_8888,		"YYuv_8888"	},
+	{ SoyPixelsFormat::YYuv_8888,	"YYuv_8888"	},
+	{ SoyPixelsFormat::Uvy_8_88,		"Uvy_844"	},
+	{ SoyPixelsFormat::Luma,			"LumaFull"	},
+	{ SoyPixelsFormat::Luma,			"Luma"	},
+	{ SoyPixelsFormat::Luma,			"Luma"	},
 	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
 	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
-	{ SoyPixelsFormat::ChromaUV_44,			"ChromaUV_44"	},
 	{ SoyPixelsFormat::ChromaU_8,			"ChromaU_8"	},
 	{ SoyPixelsFormat::ChromaV_8,			"ChromaV_8"	},
 	{ SoyPixelsFormat::Palettised_RGB_8,	"Palettised_RGB_8"	},
@@ -712,8 +463,7 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::Float2,				"Float2"	},
 	{ SoyPixelsFormat::Float3,				"Float3"	},
 	{ SoyPixelsFormat::Float4,				"Float4"	},
-	{ SoyPixelsFormat::Yuv_8_88_Ntsc_Depth16,	"Yuv_8_88_Ntsc_Depth16"	},
-	{ SoyPixelsFormat::Yuv_844_Ntsc_Depth16,	"Yuv_844_Ntsc_Depth16"	},
+	{ SoyPixelsFormat::Yuv_8_88_Depth16,	"Yuv_8_88_Depth16"	},
 	{ SoyPixelsFormat::BGRA_Depth16,	"BGRA_Depth16"	},
 };
 
@@ -762,249 +512,6 @@ void SoyPixelsImpl::SetChannels(uint8 Channels)
 {
 	SoyPixelsFormat::Type Format = SoyPixelsFormat::GetFormatFromChannelCount( Channels );
 	SetFormat( Format );
-}
-
-
-void SetDepthColour(uint8& Red,uint8& Green,uint8& Blue,float Depth,int PlayerIndex,bool NoDepthValue)
-{
-	//	yelow if invalid
-	if ( NoDepthValue )
-	{
-		Red = 255;
-		Blue = 0;
-		Green = 255;
-		return;
-	}
-	
-	//	magenta for invalid depth
-	if ( Depth > 1.f || Depth < 0.f )
-	{
-		Red = 255;
-		Blue = 255;
-		Green = 20;
-		return;
-	}
-	
-	static int MinBrightness = 0;
-	//	gr: invert to distinguish invalid from close
-	uint8 Greyscale = 255 - std::clamped<int>( static_cast<int>(Depth*255.f), MinBrightness, 255 );
-
-	static bool UseRainbowScale = true;
-	if ( UseRainbowScale )
-	{
-		if ( Depth < 1.f/3.f )
-		{
-			float d = Soy::Range( Depth, 0.f, 1.f/3.f );
-			//	red to green
-			Red = Soy::Lerp( 0, 255, 1.f-d );
-			Green = Soy::Lerp( 0, 255, d );
-			Blue = 0;
-		}
-		else if ( Depth < 2.f/3.f )
-		{
-			float d = Soy::Range( Depth, 1.f/3.f, 2.f/3.f );
-			//	yellow to blue
-			Green = Soy::Lerp( 0, 255, 1.f-d );
-			Blue = Soy::Lerp( 0, 255, d );
-			Red = 0;
-		}
-		else
-		{
-			float d = Soy::Range( Depth, 2.f/3.f, 3.f/3.f );
-			//	blue to red
-			Blue = Soy::Lerp( 0, 255, 1.f-d );
-			Red = Soy::Lerp( 0, 255, d );
-			Green = 0;
-		}
-		return;
-	}
-
-	static bool UsePlayerColourGreyScale = true;
-	if ( UsePlayerColourGreyScale )
-	{
-		Red = 0;
-		Green = 0;
-		Blue = 0;
-		
-		//	make 0 (no user) white
-		if ( PlayerIndex == 0 )
-			PlayerIndex = 7;
-		
-		if ( PlayerIndex & 1 )
-			Red = Greyscale;
-		if ( PlayerIndex & 2 )
-			Green = Greyscale;
-		if ( PlayerIndex & 4 )
-			Blue = Greyscale;
-		return;
-	}
-}
-
-void ConvertFormat_KinectDepthToGreyscale(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
-{
-	bool GreyscaleAlphaFormat = (NewFormat == SoyPixelsFormat::GreyscaleAlpha);
-	auto Height = Meta.GetHeight();
-	auto PixelCount = Meta.GetWidth() * Height;
-	for ( int p=0;	p<PixelCount;	p++ )
-	{
-		uint16 KinectDepth = *reinterpret_cast<uint16*>( &Pixels[p*2] );
-		uint8& Greyscale = Pixels[ p * (GreyscaleAlphaFormat?2:1) ];
-
-		int PlayerIndex = KinectDepth & ((1<<3)-1);
-		float Depthf = static_cast<float>(KinectDepth >> 3) / static_cast<float>( 1<<13 );
-		Greyscale = std::clamped<int>( static_cast<int>(Depthf*255.f), 0, 255 );
-
-		if ( GreyscaleAlphaFormat )
-		{
-			uint8& GreyscaleAlpha = Pixels[ (p * 2) + 1 ];
-			GreyscaleAlpha = PlayerIndex;
-		}
-	}
-
-	//	half the pixels & change format
-	if ( !GreyscaleAlphaFormat )
-		Pixels.SetSize( PixelCount );
-	Meta.DumbSetFormat( GreyscaleAlphaFormat ? SoyPixelsFormat::GreyscaleAlpha : SoyPixelsFormat::Greyscale );
-	assert( Meta.IsValid() );
-}
-
-void ConvertFormat_KinectDepthToRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
-{
-	Array<uint16> DepthPixels;
-	DepthPixels.SetSize( Pixels.GetSize() / 2 );
-	memcpy( DepthPixels.GetArray(), Pixels.GetArray(), DepthPixels.GetDataSize() );
-	
-	auto Components = SoyPixelsFormat::GetChannelCount( NewFormat );
-	auto Height = Meta.GetHeight();
-	auto PixelCount = Meta.GetWidth() * Height;
-	
-	//	realloc
-	Pixels.SetSize( Components * PixelCount );
-	
-	static bool Debug = false;
-	
-	for ( int p=0;	p<PixelCount;	p++ )
-	{
-		uint16 KinectDepth = DepthPixels[p];
-		if ( Debug )
-			std::Debug << KinectDepth << " ";
-		
-		static int DepthBits = 13;
-		uint16 PlayerIndex = KinectDepth >> DepthBits;
-		uint16 MaxDepth = (1<<DepthBits)-1;
-		uint16 MinDepth = 0;
-		KinectDepth &= MaxDepth;
-		
-		bool DepthInvalid = (KinectDepth == 0);
-		float Depthf = Soy::Range( KinectDepth, MinDepth, MaxDepth );
-		
-		uint8& Red = Pixels[ p * (Components) + 0 ];
-		uint8& Green = Pixels[ p * (Components) + 1 ];
-		uint8& Blue = Pixels[ p * (Components) + 2 ];
-		SetDepthColour( Red, Green, Blue, Depthf, PlayerIndex, DepthInvalid );
-	}
-	
-	if ( Debug )
-		std::Debug << std::endl;
-	
-	Meta.DumbSetFormat( NewFormat );
-	assert( Meta.IsValid() );
-	assert( Meta.GetHeight() == Height );
-}
-
-
-
-bool DepthToGreyOrRgb(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
-{
-	bool RawDepth = (Meta.GetFormat() != SoyPixelsFormat::Depth16mm);
-	uint16 MinDepth = SoyPixelsFormat::GetMinValue( Meta.GetFormat() );
-	uint16 MaxDepth = SoyPixelsFormat::GetMaxValue( Meta.GetFormat() );
-	uint16 InvalidDepth = SoyPixelsFormat::GetInvalidValue( Meta.GetFormat() );
-	int PlayerIndexFirstBit = SoyPixelsFormat::GetPlayerIndexFirstBit( Meta.GetFormat() );
- 
-	Array<uint16> DepthPixels;
-	DepthPixels.SetSize( Pixels.GetSize() / 2 );
-	memcpy( DepthPixels.GetArray(), Pixels.GetArray(), DepthPixels.GetDataSize() );
-	
-	auto Components = SoyPixelsFormat::GetChannelCount( NewFormat );
-	auto Height = Meta.GetHeight();
-	auto PixelCount = Meta.GetWidth() * Height;
-	
-	//	realloc
-	Pixels.SetSize( Components * PixelCount );
-	
-	static bool Debug = false;
-	
-	for ( int p=0;	p<PixelCount;	p++ )
-	{
-		uint16 KinectDepth = DepthPixels[p];
-		int PlayerIndex = 0;
-
-		if ( PlayerIndexFirstBit >= 0 )
-		{
-			PlayerIndex = KinectDepth >> PlayerIndexFirstBit;
-			KinectDepth &= (1<<PlayerIndexFirstBit) -1;
-		}
-
-		if ( Debug )
-			std::Debug << KinectDepth << " ";
-		
-
-		bool DepthInvalid = (KinectDepth == InvalidDepth);
-		float Depthf = Soy::Range( KinectDepth, MinDepth, MaxDepth );
-		
-		uint8& Red = Pixels[ p * (Components) + 0 ];
-		
-		//	if RGB then we do different colours for raw and mm
-		if ( Components >= 3 )
-		{
-			int CompZero = RawDepth ? 1 : 2;
-			int CompDepth = RawDepth ? 2 : 1;
-			uint8& Green = Pixels[ p * (Components) + CompZero ];
-			uint8& Blue = Pixels[ p * (Components) + CompDepth ];
-
-			SetDepthColour( Red, Green, Blue, Depthf, PlayerIndex, DepthInvalid );
-
-			/*
-			
-			Green = 0;
-			Blue = DepthInvalid ? 0 : 255-Red;
-			
-			if ( Components > 3 )
-			{
-				int c = 3;
-				uint8& Alpha = Pixels[ p * (Components) + c ];
-				Alpha = DepthInvalid ? 0 : 255;
-			}
-			 */
-		}
-		else
-		{
-			//	greyscale...
-			static int GreyInvalid = 0;
-			static int GreyMin = 1;
-			uint8 Greyscale = std::clamped<int>( static_cast<int>(Depthf*255.f), GreyMin, 255 );
-
-			//	set first component to greyscale
-			Red = DepthInvalid ? GreyInvalid : Greyscale;
-			
-			//	other components just valid/not
-			for ( int c=1;	c<Components;	c++ )
-			{
-				uint8& Blue = Pixels[ p * (Components) + c ];
-				Blue = DepthInvalid ? 0 : 255;
-			}
-		}
-		
-	}
-
-	if ( Debug )
-		std::Debug << std::endl;
-	
-	Meta.DumbSetFormat( NewFormat );
-	assert( Meta.IsValid() );
-	assert( Meta.GetHeight() == Height );
-	return true;
 }
 
 
@@ -1470,98 +977,57 @@ bool ConvertFormat_RGBAToGreyscale(ArrayInterface<uint8>& PixelsArray,SoyPixelsM
 	return true;
 }
 
-int GetDepthFormatBits(SoyPixelsFormat::Type Format)
+void Depth16_To_Plane(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
 {
-	switch ( Format )
-	{
-		case SoyPixelsFormat::KinectDepth:		return 13;
-		default:
-			return 16;
-	}
-}
-
-void Depth16_To_Yuv_8_8_8(ArrayInterface<uint8>& Pixels, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
-{
-	//	if we need control, do it at a higher level :)
-	static const int DepthMax = 4000;
-
-	uint16* DepthPixels = reinterpret_cast<uint16*>(Pixels.GetArray());
+	uint16* DepthPixels = reinterpret_cast<uint16*>(PixelsArray.GetArray());
 	auto PixelCount = Meta.GetWidth() * Meta.GetHeight();
 
-	SoyPixels Yuv(SoyPixelsMeta(Meta.GetWidth(), Meta.GetHeight(), SoyPixelsFormat::Yuv_8_8_8_Full));
-	auto* LumaPixels = &Yuv.GetPixelPtr(0, 0, 0);
+	//	get new format planes
+	SoyPixelsMeta NewMeta( Meta.GetWidth(), Meta.GetHeight(), NewFormat );
+	BufferArray<SoyPixelsMeta,5> NewPlaneMetas;
+	NewMeta.GetPlanes(GetArrayBridge(NewPlaneMetas));
 
-	for (int p = 0; p < PixelCount; p++)
+	//	if the first plane is exactly half (ie, 16bit to 8bit) then convert
 	{
-		auto Depth16 = DepthPixels[p];
-		float Depthf = Depth16 / static_cast<float>(DepthMax);
-		auto Depth8 = Depthf * 255.0f;
-
-		LumaPixels[p] = Depth8;
+		auto NewPlaneSize = NewPlaneMetas[0].GetDataSize();
+		auto OldPlaneSize = Meta.GetDataSize();
+		if ( NewPlaneSize*2 != OldPlaneSize )
+			throw Soy::AssertException("Cannot convert depth16 to plane8, not exactly half");
 	}
-
-	Pixels.Copy(Yuv.GetPixelsArray());
+	
+	//	rewrite plane0
+	{
+		static auto DepthMax = 10000;
+		auto* Plane0 = PixelsArray.GetArray();
+		for (int p = 0; p < PixelCount; p++)
+		{
+			auto Depth16 = DepthPixels[p];
+			float Depthf = Depth16 / static_cast<float>(DepthMax);
+			auto Depth8 = Depthf * 255.0f;
+			Plane0[p] = Depth8;
+		}
+	}
+	
+	//	resize data (do this AFTER writing otherwise we might clip the 16bit data)
+	PixelsArray.SetSize(NewMeta.GetDataSize());
 	Meta.DumbSetFormat(NewFormat);
-}
 
-
-void ConvertDepth16(ArrayInterface<uint8>& Pixels,SoyPixelsMeta& Meta,SoyPixelsFormat::Type NewFormat)
-{
-	auto OldFormat = Meta.GetFormat();
-
-	//	assume this is a valid depth format...
-	Soy::Assert(SoyPixelsFormat::GetChannelCount(OldFormat) == 2, "expected 2-channel 16 bit depth format" );
-	Soy::Assert(SoyPixelsFormat::GetChannelCount(NewFormat) == 2, "expected 2-channel 16 bit depth format" );
-	
-	int OldInvalid = SoyPixelsFormat::GetInvalidValue( OldFormat );
-	int OldMin = SoyPixelsFormat::GetMinValue( OldFormat );
-	int OldMax = SoyPixelsFormat::GetMaxValue( OldFormat );
-	bool OldFrontToBack = SoyPixelsFormat::GetIsFrontToBackDepth( OldFormat );
-
-	int NewInvalid = SoyPixelsFormat::GetInvalidValue( NewFormat );
-	int NewMin = SoyPixelsFormat::GetMinValue( NewFormat );
-	int NewMax = SoyPixelsFormat::GetMaxValue( NewFormat );
-	bool NewFrontToBack = SoyPixelsFormat::GetIsFrontToBackDepth( NewFormat );
-	
-	int OldDepthBits = GetDepthFormatBits( OldFormat );
-	//int NewDepthBits = GetDepthFormatBits( NewFormat );
-	
-	uint16* DepthPixels = reinterpret_cast<uint16*>( Pixels.GetArray() );
-	auto PixelCount = Meta.GetWidth() * Meta.GetHeight();
-
-	static bool Debug = false;
-	
-	for ( int p=0;	p<PixelCount;	p++ )
+	//	clear other planes
 	{
-		auto& DepthValue = DepthPixels[p];
-		uint16 Depth16 = DepthValue & ((1<<OldDepthBits)-1);
-		//uint16 Player16 = DepthValue >> OldDepthBits;
-		bool InvalidDepth = (Depth16 == OldInvalid);
-		float Depthf = Soy::Range<uint16>( Depth16, OldMin, OldMax );
-		Depthf = std::clamped<float>( Depthf, 0.f, 1.f );
-		
-		if ( OldFrontToBack != NewFrontToBack )
-			Depthf = 1.f - Depthf;
-		
-		if ( InvalidDepth )
+		BufferArray<std::shared_ptr<SoyPixelsImpl>,5> Planes;
+		SoyPixelsRemote Pixels( PixelsArray.GetArray(), PixelsArray.GetDataSize(), Meta );
+		Pixels.SplitPlanes(GetArrayBridge(Planes));
+		for ( auto p=1;	p<Planes.GetSize();	p++ )
 		{
-			//	todo: write player index if both formats have it
-			DepthValue = NewInvalid;
+			auto& PlaneArray = Planes[p]->GetPixelsArray();
+			auto* PlanePixels = PlaneArray.GetArray();
+			for ( auto i=0;	i<PlaneArray.GetDataSize();	i++ )
+				PlanePixels[i] = 0;
 		}
-		else
-		{
-			//	todo: write player index if both formats have it
-			DepthValue = static_cast<uint16>( Soy::Lerp( NewMin, NewMax, Depthf ) );
-		}
-		
-		if ( Debug )
-			std::Debug << Depth16 << "/" << DepthValue << "   ";
 	}
-	if ( Debug )
-		std::Debug << std::endl;
-	
-	Meta.DumbSetFormat( NewFormat );
 }
+
+
 
 class TConvertFunc
 {
@@ -1589,32 +1055,6 @@ public:
 
 TConvertFunc gConversionFuncs[] =
 {
-	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::FreenectDepth10bit, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::FreenectDepth11bit, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Depth16mm, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::Depth16mm, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::FreenectDepth11bit, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::KinectDepth, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::Depth16mm, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::FreenectDepth10bit, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::KinectDepth, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::Depth16mm, SoyPixelsFormat::FreenectDepth10bit, ConvertDepth16 ),
-	TConvertFunc( SoyPixelsFormat::Depth16mm, SoyPixelsFormat::FreenectDepth11bit, ConvertDepth16 ),
-	TConvertFunc(SoyPixelsFormat::Depth16mm, SoyPixelsFormat::KinectDepth, ConvertDepth16),
-	TConvertFunc(SoyPixelsFormat::Depth16mm, SoyPixelsFormat::Yuv_8_8_8_Full, Depth16_To_Yuv_8_8_8),
-	TConvertFunc(SoyPixelsFormat::Depth16mm, SoyPixelsFormat::Yuv_8_8_8_Ntsc, Depth16_To_Yuv_8_8_8),
-	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::RGB, DepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::RGBA, DepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Greyscale, DepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::RGB, DepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::RGBA, DepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::Greyscale, DepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::RGB, DepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::RGBA, DepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::Greyscale, DepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::Depth16mm, SoyPixelsFormat::RGB, DepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::Depth16mm, SoyPixelsFormat::RGBA, DepthToGreyOrRgb ),
-	TConvertFunc( SoyPixelsFormat::Depth16mm, SoyPixelsFormat::Greyscale, DepthToGreyOrRgb ),
 	TConvertFunc( SoyPixelsFormat::BGR, SoyPixelsFormat::Greyscale, ConvertFormat_RGBAToGreyscale ),
 	TConvertFunc( SoyPixelsFormat::BGRA, SoyPixelsFormat::Greyscale, ConvertFormat_RGBAToGreyscale ),
 	TConvertFunc( SoyPixelsFormat::RGBA, SoyPixelsFormat::Greyscale, ConvertFormat_RGBAToGreyscale ),
@@ -1626,28 +1066,47 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::RGBA, ConvertFormat_RgbToRgba ),
 	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::RGB, ConvertFormat_GreyscaleToRgb ),
 	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::RGBA, ConvertFormat_GreyscaleToRgba ),
-	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_8_8_Full, ConvertFormat_Greyscale_To_Yuv_8_8_8),
-	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_8_8_Ntsc, ConvertFormat_Greyscale_To_Yuv_8_8_8),
-	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_8_8_Smptec, ConvertFormat_Greyscale_To_Yuv_8_8_8),
-	TConvertFunc( SoyPixelsFormat::Luma_Ntsc, SoyPixelsFormat::Yuv_8_8_8_Full, ConvertFormat_Greyscale_To_Yuv_8_8_8),
-	TConvertFunc( SoyPixelsFormat::Luma_Ntsc, SoyPixelsFormat::Yuv_8_8_8_Ntsc, ConvertFormat_Greyscale_To_Yuv_8_8_8),
-	TConvertFunc( SoyPixelsFormat::Luma_Ntsc, SoyPixelsFormat::Yuv_8_8_8_Smptec, ConvertFormat_Greyscale_To_Yuv_8_8_8),
+	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_8_8, ConvertFormat_Greyscale_To_Yuv_8_8_8),
+	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_8_8, ConvertFormat_Greyscale_To_Yuv_8_8_8),
+	TConvertFunc( SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_8_8, ConvertFormat_Greyscale_To_Yuv_8_8_8),
+	TConvertFunc( SoyPixelsFormat::Luma, SoyPixelsFormat::Yuv_8_8_8, ConvertFormat_Greyscale_To_Yuv_8_8_8),
+	TConvertFunc( SoyPixelsFormat::Luma, SoyPixelsFormat::Yuv_8_8_8, ConvertFormat_Greyscale_To_Yuv_8_8_8),
+	TConvertFunc( SoyPixelsFormat::Luma, SoyPixelsFormat::Yuv_8_8_8, ConvertFormat_Greyscale_To_Yuv_8_8_8),
 	TConvertFunc( SoyPixelsFormat::ChromaUV_88, SoyPixelsFormat::RGBA, ConvertFormat_TwoChannelToFour ),
-	TConvertFunc( SoyPixelsFormat::Uvy_844_Full, SoyPixelsFormat::Greyscale, ConvertFormat_Uvy844_To_Luma),
-	TConvertFunc( SoyPixelsFormat::Uvy_844_Full, SoyPixelsFormat::Yuv_8_8_8_Ntsc, ConvertFormat_Uvy844_To_Yuv_8_8_8),
-	TConvertFunc( SoyPixelsFormat::YYuv_8888_Full, SoyPixelsFormat::Greyscale, ConvertFormat_YYuv8888_To_Luma),
-	TConvertFunc( SoyPixelsFormat::YYuv_8888_Ntsc, SoyPixelsFormat::Greyscale, ConvertFormat_YYuv8888_To_Luma),
-	TConvertFunc( SoyPixelsFormat::YYuv_8888_Smptec, SoyPixelsFormat::Greyscale, ConvertFormat_YYuv8888_To_Luma),
-	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::Yuv_8_8_8_Ntsc, ConvertFormat_RGB_To_Yuv_8_8_8),
-	TConvertFunc(SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_88_Full, ConvertFormat_Greyscale_To_Yuv_8_88),
-	TConvertFunc(SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_88_Ntsc, ConvertFormat_Greyscale_To_Yuv_8_88),
-	TConvertFunc(SoyPixelsFormat::Luma_Ntsc, SoyPixelsFormat::Yuv_8_88_Full, ConvertFormat_Greyscale_To_Yuv_8_88),
-	TConvertFunc(SoyPixelsFormat::Luma_Full, SoyPixelsFormat::Yuv_8_88_Ntsc, ConvertFormat_Greyscale_To_Yuv_8_88),
+	TConvertFunc( SoyPixelsFormat::Uvy_8_88, SoyPixelsFormat::Greyscale, ConvertFormat_Uvy844_To_Luma),
+	TConvertFunc( SoyPixelsFormat::Uvy_8_88, SoyPixelsFormat::Yuv_8_8_8, ConvertFormat_Uvy844_To_Yuv_8_8_8),
+	TConvertFunc( SoyPixelsFormat::YYuv_8888, SoyPixelsFormat::Greyscale, ConvertFormat_YYuv8888_To_Luma),
+	TConvertFunc( SoyPixelsFormat::YYuv_8888, SoyPixelsFormat::Greyscale, ConvertFormat_YYuv8888_To_Luma),
+	TConvertFunc( SoyPixelsFormat::YYuv_8888, SoyPixelsFormat::Greyscale, ConvertFormat_YYuv8888_To_Luma),
+	TConvertFunc( SoyPixelsFormat::RGB, SoyPixelsFormat::Yuv_8_8_8, ConvertFormat_RGB_To_Yuv_8_8_8),
+	TConvertFunc(SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_88, ConvertFormat_Greyscale_To_Yuv_8_88),
+	TConvertFunc(SoyPixelsFormat::Greyscale, SoyPixelsFormat::Yuv_8_88, ConvertFormat_Greyscale_To_Yuv_8_88),
+	TConvertFunc(SoyPixelsFormat::Luma, SoyPixelsFormat::Yuv_8_88, ConvertFormat_Greyscale_To_Yuv_8_88),
+	TConvertFunc(SoyPixelsFormat::Luma, SoyPixelsFormat::Yuv_8_88, ConvertFormat_Greyscale_To_Yuv_8_88),
 
-	TConvertFunc( SoyPixelsFormat::Yuv_8_8_8_Full, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
-	TConvertFunc( SoyPixelsFormat::Yuv_8_8_8_Ntsc, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
-	TConvertFunc( SoyPixelsFormat::Yuv_8_88_Full, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
-	TConvertFunc( SoyPixelsFormat::Yuv_8_88_Ntsc, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
+	TConvertFunc( SoyPixelsFormat::Yuv_8_8_8, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
+	TConvertFunc( SoyPixelsFormat::Yuv_8_8_8, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
+	TConvertFunc( SoyPixelsFormat::Yuv_8_88, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
+	TConvertFunc( SoyPixelsFormat::Yuv_8_88, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
+
+	TConvertFunc( SoyPixelsFormat::Depth16mm, SoyPixelsFormat::Greyscale, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Greyscale, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::Greyscale, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::Greyscale, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::Depth16mm, SoyPixelsFormat::Yuv_8_88, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Yuv_8_88, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::Yuv_8_88, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::Yuv_8_88, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::Depth16mm, SoyPixelsFormat::Yuv_8_8_8, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Yuv_8_8_8, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::Yuv_8_8_8, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::Yuv_8_8_8, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::Depth16mm, SoyPixelsFormat::Yvu_8_88, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Yvu_8_88, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth10bit, SoyPixelsFormat::Yvu_8_88, Depth16_To_Plane),
+	TConvertFunc( SoyPixelsFormat::FreenectDepth11bit, SoyPixelsFormat::Yvu_8_88, Depth16_To_Plane),
+
+	
 };
 
 
@@ -1660,28 +1119,10 @@ void SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 		Error << "Trying to change to " << Format << " (invalid)";
 		throw Soy::AssertException(Error.str());
 	}
-
-	//	allow these to be the same!
-	auto IsGrey = [](SoyPixelsFormat::Type Format)
-	{
-		switch(Format)
-		{
-			case SoyPixelsFormat::Luma_Full:
-			case SoyPixelsFormat::Luma_Ntsc:
-			case SoyPixelsFormat::Luma_Smptec:
-			//case SoyPixelsFormat::Greyscale:
-				return true;
-			default:
-				return false;
-		}
-	};
-	if ( IsGrey(OldFormat) && IsGrey(Format) )
-	{
-		this->GetMeta().DumbSetFormat(Format);
-		return;
-	}
+	
 	if ( OldFormat == Format )
 		return;
+	
 	if ( !IsValid() )
 		throw Soy::AssertException("Pixels are not valid");
 
@@ -1698,18 +1139,6 @@ void SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 		return;
 	}
 	
-
-	if ( GetFormat() == SoyPixelsFormat::KinectDepth && Format == SoyPixelsFormat::Greyscale )
-	{
-		ConvertFormat_KinectDepthToGreyscale( PixelsArray, GetMeta(), Format );
-		return;
-	}
-
-	if ( GetFormat() == SoyPixelsFormat::KinectDepth && Format == SoyPixelsFormat::GreyscaleAlpha )
-	{
-		ConvertFormat_KinectDepthToGreyscale( PixelsArray, GetMeta(), Format );
-		return;
-	}
 
 	//	see if we can use of simple channel-count change
 	bool UseOfPixels = false;
@@ -2566,49 +1995,23 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 {
 	switch ( GetFormat() )
 	{
-		case SoyPixelsFormat::Yuv_8_88_Full:
-			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full));
+		case SoyPixelsFormat::Yuv_8_88:
+			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Luma));
 			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaUV_88));
 			break;
 
-		case SoyPixelsFormat::Yuv_8_88_Ntsc_Depth16:
-			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Ntsc));
+		case SoyPixelsFormat::Yuv_8_88_Depth16:
+			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Luma));
 			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaUV_88));
 			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Depth16mm));
 			break;
-
-		case SoyPixelsFormat::Yuv_8_88_Ntsc:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Ntsc ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_88 ) );
-			break;
-			
-		case SoyPixelsFormat::Yuv_8_88_Smptec:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_88 ) );
-			break;
-			
-		case SoyPixelsFormat::Yuv_8_8_8_Full:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
-			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
-			//Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight(), SoyPixelsFormat::ChromaUV_8_8 ) );
+		
+		case SoyPixelsFormat::Yuv_8_8_8:
+			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaU_8 ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaV_8 ) );
 			break;
-			
-		case SoyPixelsFormat::Yuv_8_8_8_Ntsc:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Ntsc ) );
-			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
-			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaU_8));
-			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaV_8));
-			break;
-			
-		case SoyPixelsFormat::Yuv_8_8_8_Smptec:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
-			//	each plane is half width, half height, but next to each other, so double height, and 8 bits per pixel
-			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaU_8));
-			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaV_8));
-			break;
-			
+		
 		case SoyPixelsFormat::ChromaUV_8_8:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaU_8 ) );
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaV_8 ) );
@@ -2619,28 +2022,6 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Depth16mm));
 			break;
 
-		//	gr: these are interlaced, so don't split
-		/*
-		//	need to handle these horizontally interlaced formats better
-		case SoyPixelsFormat::Uvy_844_Full:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaUV_44 ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
-			break;
-		*/
-		case SoyPixelsFormat::Yuv_844_Full:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Full ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_44 ) );
-			break;
-			
-		case SoyPixelsFormat::Yuv_844_Ntsc:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Ntsc ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_44 ) );
-			break;
-			
-		case SoyPixelsFormat::Yuv_844_Smptec:
-			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma_Smptec ) );
-			Planes.PushBack( SoyPixelsMeta( GetWidth()/2, GetHeight()/2, SoyPixelsFormat::ChromaUV_44 ) );
-			break;
 		
 		case SoyPixelsFormat::Palettised_RGB_8:
 		{

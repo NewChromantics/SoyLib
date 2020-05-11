@@ -786,11 +786,15 @@ void AvfPixelBuffer::LockPixels(ArrayBridge<SoyPixelsImpl*>& Planes,void* _Data,
 	}
 	
 	//	now apply the parent(stream) transform
+	if ( !Transform.IsIdentity() || !mTransform.IsIdentity() )
 	{
+		throw Soy::AssertException("todo: AvfPixelBuffer transform multiply");
+		/*
 		auto TransformMtx = Soy::VectorToMatrix( Transform );
 		auto ParentTransformMtx = Soy::VectorToMatrix( mTransform );
 		TransformMtx *= ParentTransformMtx;
 		Transform = Soy::MatrixToVector( TransformMtx );
+		 */
 	}
 	
 	
