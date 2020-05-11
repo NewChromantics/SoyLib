@@ -5,6 +5,7 @@
 
 //	gr: if we want to reduce dependancies, put a GetArrayBridge(vecN<T>) func in another file
 #include "RemoteArray.h"
+#include "BufferArray.hpp"
 
 //	for soy: optimised/full implementations are called "matrix's"
 //	the simple POD types are called floatX's
@@ -546,53 +547,6 @@ inline void Soy::Rectx<TYPE>::Accumulate(TYPE Newx,TYPE Newy)
 	}
 }
 
-
-//	gr: in string rather than math to reduce math's dependancies.
-//		this header already requires array's so here it is
-template<typename TYPE>
-inline std::istream& operator>>(std::istream &in, vec2x<TYPE> &out)
-{
-	std::string instr;
-	in >> instr;
-	if (in.fail())
-		return in;
-
-	BufferArray<TYPE, 2> VecArray;
-	if (!Soy::StringParseVecNx(instr, GetArrayBridge(VecArray)))
-	{
-		in.setstate(std::ios::failbit);
-		return in;
-	}
-
-	out.x = VecArray[0];
-	out.y = VecArray[1];
-
-	return in;
-}
-
-
-
-template<typename TYPE>
-inline std::istream& operator>>(std::istream &in, vec3x<TYPE> &out)
-{
-	std::string instr;
-	in >> instr;
-	if (in.fail())
-		return in;
-
-	BufferArray<TYPE, 3> VecArray;
-	if (!Soy::StringParseVecNx(instr, GetArrayBridge(VecArray)))
-	{
-		in.setstate(std::ios::failbit);
-		return in;
-	}
-
-	out.x = VecArray[0];
-	out.y = VecArray[1];
-	out.z = VecArray[2];
-
-	return in;
-}
 
 template<typename TYPE>
 inline std::ostream& operator<<(std::ostream &out, const vec2x<TYPE> &in)
