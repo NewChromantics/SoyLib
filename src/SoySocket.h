@@ -142,7 +142,7 @@ public:
 	void		ListenUdp(int Port, bool SaveListeningConnection);
 	SoyRef		WaitForClient();
 	SoyRef		Connect(const char* Hostname, uint16 Port);
-	SoyRef		UdpConnect(const char* Hostname,uint16 Port);	//	this doesn't "do" a connect, but fakes one as a success, and starts listening (required only on windows
+	SoyRef		UdpConnect(const char* Hostname,uint16 Port);	//	this doesn't "do" a connect, but fakes one as a success, and starts listening
 	SoyRef		UdpConnect(SoySockAddr Address);
 
 	bool		IsConnected();
