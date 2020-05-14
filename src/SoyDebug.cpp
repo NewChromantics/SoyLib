@@ -96,11 +96,11 @@ __thread std::DebugBufferString* ThreadBuffer = nullptr;	//	thread_local not sup
 
 
 #if defined(TARGET_LINUX)
-void Platform::DebugPrint(const std::string& Message)
+void Platform::DebugPrint(const char* Message)
 {
 	//	gr: superfolous? just write to cerr/cout
 	//		find out if there's a gdb pipe or something
-	printf("PopEngine: %s\n", Message.c_str());
+	printf("PopEngine: %s\n", Message);
 }
 #endif
 
