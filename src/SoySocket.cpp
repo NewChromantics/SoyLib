@@ -748,9 +748,17 @@ SoyRef SoySocket::Connect(const char* Hostname,uint16_t Port)
 	return OnConnection( Connection );
 }
 
-SoyRef SoySocket::UdpConnect(const char* Address,uint16 Port)
+SoyRef SoySocket::UdpConnect(const char* Hostname,uint16 Port)
 {
-	return UdpConnect( SoySockAddr(inet_addr(Address), Port ) );
+	SoySockAddr HostAddr( Hostname, Port );
+	if ( !HostAddr.IsValid() )
+	{
+		std::stringstream Error;
+		Error << "couldn't get sock address for " << Hostname;
+		throw Soy::AssertException(Error);
+	}
+	
+	return UdpConnect( HostAddr );
 }
 
 
