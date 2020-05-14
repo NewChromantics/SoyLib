@@ -2,7 +2,6 @@
 #include <regex>
 #include "RemoteArray.h"
 #include "SoyProtocol.h"
-#include <future>
 
 
 bool TStreamBuffer::Pop(std::string Pattern,ArrayBridge<std::string>& Parts)
@@ -560,80 +559,30 @@ bool TStreamWriter::Iteration()
 	
 	//	pop next
 	mQueueLock.lock();
-	auto Data = mQueue[0];
-	mQueue.RemoveBlock(0,1);
+	auto Data = mQueue.PopAt(0);
 	mQueueLock.unlock();
-	
-	//	turn it into data
-	//	todo: have two threads, one writing the Buffer, and one that pops the queue and just keeps pushing data
-	//		onto the buffer. That way we can encode & write at the same time and have infinite write protocols!
+
+	//	gr: we can't use future on pi, so come back to this for parallel encode() and write() at the same time
 	TStreamBuffer Buffer;
-	bool EncodingFinished = false;
-	std::stringstream WriteError;
-
-	auto AsyncWrite = [&Buffer,&EncodingFinished,&WriteError,this]
-	{
-		auto Block = [this] ()->bool
-		{
-			static bool BreakIfThreadStopped = false;
-			if ( !IsWorking() && BreakIfThreadStopped )
-				return false;
-
-			return true;
-		};
-		
-		while ( !EncodingFinished || Buffer.GetBufferedSize()>0 )
-		{
-			try
-			{
-				Write( Buffer, Block );
-			}
-			catch (std::exception& e)
-			{
-				WriteError << e.what();
-				break;
-			}
-			
-			//	sleep this thread so it doesn't hammer CPU.
-			//	if we've reached here, we can assume the Write()r has done as much as it can
-			//	todo: replace with some wake-on-event simple blocking func like
-			//		Soy::SleepUntilEvent( Event )
-			//	which has a temporary conditional and takes the Block() test func
-			//	and maybe an extra event so outer thread can wake it up
-			if ( !EncodingFinished && Block() && Buffer.GetBufferedSize() == 0 )
-			{
-				static auto SleepMs = 10;
-				std::this_thread::sleep_for( std::chrono::milliseconds(SleepMs) );
-			}
-		}
-		//Soy::Assert( Buffer.GetBufferedSize() == 0, "Still some data to write");
-	};
-
-	auto Future = std::async(/*std::launch::async,*/ AsyncWrite );
-
 	try
 	{
 		Data->Encode( Buffer );
+	
+		auto Block = [this]()
+		{
+			return true;
+		};
+		while (Buffer.GetBufferedSize() > 0)
+		{
+			Write(Buffer, Block);
+		}
 	}
 	catch (std::exception& e)
 	{
-		//	end the async thread
-		EncodingFinished = true;
-		Future.wait();
-
 		std::stringstream Error;
 		Error << "Failed to write buffer from protocol: " << e.what();
 		OnError( Error.str() );
 		return true;
-	}
-	
-	//	now wait for writing to finish
-	EncodingFinished = true;
-	Future.wait();
-
-	if ( !WriteError.str().empty() )
-	{
-		OnError( WriteError.str() );
 	}
 	
 	return true;
