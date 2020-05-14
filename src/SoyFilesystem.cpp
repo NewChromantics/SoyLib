@@ -455,7 +455,19 @@ void Platform::CreateDirectory(const std::string& Path)
 		}
 }
 
+#if defined(TARGET_LINUX)
+void Platform::ShellExecute(const std::string& Path)
+{
+	Soy_AssertTodo();
+}
+#endif
 
+#if defined(TARGET_LINUX)
+void Platform::ShellOpenUrl(const std::string& Path)
+{
+	Soy_AssertTodo();
+}
+#endif
 
 #if defined(TARGET_WINDOWS)
 void Platform::ShellExecute(const std::string& Path)
@@ -479,6 +491,13 @@ void Platform::ShellExecute(const std::string& Path)
 void Platform::ShellOpenUrl(const std::string& UrlString)
 {
 	ShellExecute(UrlString);
+}
+#endif
+
+#if defined(TARGET_LINUX)
+void Platform::ShowFileExplorer(const std::string& Path)
+{
+	Soy_AssertTodo();
 }
 #endif
 
@@ -521,6 +540,14 @@ std::string Platform::GetExeFilename()
 }
 #endif
 
+
+#if defined(TARGET_LINUX)
+void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
+{
+	//	todo: store these!
+}
+#endif
+
 #if defined(TARGET_WINDOWS)
 std::string Platform::GetExeFilename()
 {
@@ -545,21 +572,13 @@ std::string	Platform::GetExePath()
 	return GetDirectoryFromFilename(ExeFilename);
 }
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)
 bool Platform::FileExists(const std::string& Path)
 {
 	auto FullPath = GetFullPathFromFilename(Path);
-	return ::PathFileExistsA(FullPath.c_str());
-}
-#endif
-
-#if defined(TARGET_LINUX)
-namespace std
-{
-	namespace filesystem
-	{
-		bool is_directory(const std::string& Path);
-	}
+	return std::filesystem::is_regular_file(FullPath);
+	//auto FullPath = GetFullPathFromFilename(Path);
+	//return ::PathFileExistsA(FullPath.c_str());
 }
 #endif
 
@@ -570,18 +589,6 @@ bool Platform::DirectoryExists(const std::string& Path)
 	return std::filesystem::is_directory(FullPath);
 	//return ::PathIsDirectoryA(FullPath.c_str());
 	//auto Attribs = ::GetFileAttributesA(FullPath.c_str());
-}
-#endif
-
-#if defined(TARGET_LINUX)
-bool std::filesystem::is_directory(const std::string& Path)
-{
-	struct stat Stat;
-	if (stat(Path.c_str(), &Stat) != 0)
-		return false;	//	error
-	
-	bool isdir = S_ISDIR(Stat.st_mode);
-	return isdir;
 }
 #endif
 

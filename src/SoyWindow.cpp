@@ -45,3 +45,13 @@ void SoyColourButton::OnChanged(bool FinalValue)
 	auto Value = GetValue();
 	mOnValueChanged(Value, FinalValue);
 }
+
+//	this should be in a linux gui file
+#if defined(TARGET_LINUX)
+void Platform::EnumScreens(std::function<void(TScreenMeta&)> EnumScreen)
+{
+	Soy_AssertTodo();
+}
+#endif
+
+
