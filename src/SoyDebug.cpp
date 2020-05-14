@@ -100,7 +100,7 @@ void Platform::DebugPrint(const char* Message)
 {
 	//	gr: superfolous? just write to cerr/cout
 	//		find out if there's a gdb pipe or something
-	printf("PopEngine: %s\n", Message);
+	printf("PopEngine: %s", Message);
 }
 #endif
 
