@@ -4,6 +4,8 @@
 #include "SoyTime.h"
 #include "scope_ptr.h"
 
+class SoyThreadLambda;
+
 #if defined(TARGET_OSX)
 #include <CoreServices/CoreServices.h>
 #endif
@@ -92,11 +94,18 @@ public:
 	TFileMonitor(const std::string& Filename);
 	~TFileMonitor();
 	
-	std::function<void()>		mOnChanged;
+	std::function<void(const std::string& Filename)>	mOnChanged;	//	this has a filename param in case we're monitoring a directory
 
 #if defined(TARGET_OSX)
 	CFPtr<CFStringRef>			mPathString;
 	scope_ptr<FSEventStreamRef>	mStream;
+#elif defined(TARGET_WINDOWS)
+	void								StartFileWatch(const std::string& Filename);
+	void								WatchFileIteration(const std::string& Filename);
+	void								StartDirectoryWatch(const std::string& Directory);
+	void								WatchDirectoryIteration(const std::string& Directory);
+	std::shared_ptr<SoyThreadLambda>	mWatchThread;
+	HANDLE								mWatchHandle = nullptr;
 #endif
 };
 

@@ -4,6 +4,8 @@
 
 #if defined(TARGET_WINDOWS)
 #include <filesystem>
+#include "SoyThread.h"
+#include "magic_enum/include/magic_enum.hpp"
 #endif
 
 #if defined(TARGET_LINUX)
@@ -122,7 +124,7 @@ Platform::TFileMonitor::TFileMonitor(const std::string& Filename)
 #endif
 {
 	//	debug callback
-	auto DebugOnChanged = [=]()
+	auto DebugOnChanged = [](const std::string& Filename)
 	{
 		std::Debug << Filename << " changed" << std::endl;
 	};
@@ -152,13 +154,136 @@ Platform::TFileMonitor::TFileMonitor(const std::string& Filename)
 	FSEventStreamScheduleWithRunLoop( mStream.mObject, CFRunLoopGetMain(), kCFRunLoopDefaultMode );
 	FSEventStreamStart( mStream.mObject );
 #endif
+
+#if defined(TARGET_WINDOWS)
+	if (Platform::DirectoryExists(Filename))
+		StartDirectoryWatch(Filename);
+	else
+		StartFileWatch(Filename);
+#endif
 }
 
 
 Platform::TFileMonitor::~TFileMonitor()
 {
+#if defined(TARGET_WINDOWS)
+	mWatchThread.reset();
+#endif
 }
 
+void Platform::TFileMonitor::StartFileWatch(const std::string& Filename)
+{
+	if (!Platform::FileExists(Filename))
+		throw Soy::AssertException("File doesn't exist");
+
+	//	this API will notify of a directory change, but we don't know what changed
+	auto WatchSubTree = false;
+	//auto WatchSubTree = true;
+	//auto NotifyFlags = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_CREATION;
+	auto NotifyFlags = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_CREATION;
+
+	// Watch the directory for file creation and deletion. 
+	mWatchHandle = FindFirstChangeNotification(Filename.c_str(), WatchSubTree, NotifyFlags);
+
+	if (mWatchHandle == INVALID_HANDLE_VALUE || mWatchHandle == nullptr)
+		Platform::ThrowLastError("FindFirstChangeNotification");
+
+	auto Loop = [=]()
+	{
+		this->WatchFileIteration(Filename);
+		return true;
+	};
+	mWatchThread.reset(new SoyThreadLambda(__PRETTY_FUNCTION__,Loop));
+}
+
+#if defined(TARGET_WINDOWS)
+void Platform::TFileMonitor::WatchFileIteration(const std::string& Filename)
+{
+	// Wait for notification.
+	std::Debug << "Waiting for notification for " << Filename << std::endl;
+	HANDLE Handles[] = { mWatchHandle };
+	auto WaitStatus = WaitForMultipleObjects( std::size(Handles), Handles, FALSE, INFINITE);
+
+	switch (WaitStatus)
+	{
+	case WAIT_OBJECT_0:
+		this->mOnChanged(Filename);
+		auto Status = FindNextChangeNotification(mWatchHandle);
+		if (!Status)
+			Platform::ThrowLastError("FindNextChangeNotification");
+		break;
+
+	case WAIT_TIMEOUT:
+		// A timeout occurred, this would happen if some value other 
+		// than INFINITE is used in the Wait call and no changes occur.
+		// In a single-threaded environment you might not want an
+		// INFINITE wait.
+		std::Debug << "No changes in the timeout period for " << Filename << std::endl;
+		break;
+
+	default:
+		Platform::ThrowLastError("Unhandled WaitStatus.");
+		ExitProcess(GetLastError());
+		break;
+	}
+}
+#endif
+
+
+void Platform::TFileMonitor::StartDirectoryWatch(const std::string& Directory)
+{
+	if (!Platform::DirectoryExists(Directory))
+		throw Soy::AssertException("Directory doesn't exist");
+	
+	mWatchHandle = CreateFile(
+		Directory.c_str(),
+		FILE_LIST_DIRECTORY,
+		FILE_SHARE_WRITE | FILE_SHARE_READ | FILE_SHARE_DELETE,
+		NULL,
+		OPEN_EXISTING,
+		FILE_FLAG_BACKUP_SEMANTICS,
+		NULL );
+
+	auto Loop = [=]()
+	{
+		this->WatchDirectoryIteration(Directory);
+		return true;
+	};
+	mWatchThread.reset(new SoyThreadLambda(__PRETTY_FUNCTION__, Loop));
+}
+
+#if defined(TARGET_WINDOWS)
+namespace FileAction
+{
+	enum Type
+	{
+		Added = FILE_ACTION_ADDED,
+		Removed = FILE_ACTION_REMOVED,
+		Modified = FILE_ACTION_MODIFIED,
+		RenamedOldName = FILE_ACTION_RENAMED_OLD_NAME,
+		RenamedNewName = FILE_ACTION_RENAMED_NEW_NAME
+	};
+}
+#endif
+
+void Platform::TFileMonitor::WatchDirectoryIteration(const std::string& Directory)
+{
+	FILE_NOTIFY_INFORMATION strFileNotifyInfo[1024];
+	DWORD dwBytesReturned = 0;
+		
+	auto Result = ReadDirectoryChangesW(mWatchHandle, (LPVOID)&strFileNotifyInfo, sizeof(strFileNotifyInfo), FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE, &dwBytesReturned, NULL, NULL);
+	if (Result == 0 )
+		Platform::ThrowLastError("ReadDirectoryChangesW");
+
+	//	dwBytesReturned
+	auto& FileInfo = strFileNotifyInfo[0];
+	std::wstring FilenameW(FileInfo.FileName, FileInfo.FileNameLength);
+	auto Filename = Soy::WStringToString(FilenameW);
+	auto Change = magic_enum::enum_cast<Platform::Action>(FileInfo.Action);
+	std::Debug << "File " << magic_enum::enum_name(Change) << " " << Filename << std::endl;
+	this->mOnChanged(Filename);
+}
+#endif
 
 #if defined(TARGET_WINDOWS)
 std::string GetFilename(WIN32_FIND_DATAA& FindData)
