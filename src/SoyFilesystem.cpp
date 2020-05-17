@@ -110,7 +110,7 @@ static void OnFileChanged(
 		//const FSEventStreamEventId EventIds( eventIds[e] );
 		
 		if ( FileWatch.mOnChanged )
-			FileWatch.mOnChanged();
+			FileWatch.mOnChanged(Filename);
 	}
 }
 #endif
@@ -171,6 +171,7 @@ Platform::TFileMonitor::~TFileMonitor()
 #endif
 }
 
+#if defined(TARGET_WINDOWS)
 void Platform::TFileMonitor::StartFileWatch(const std::string& Filename)
 {
 	if (!Platform::FileExists(Filename))
@@ -195,6 +196,7 @@ void Platform::TFileMonitor::StartFileWatch(const std::string& Filename)
 	};
 	mWatchThread.reset(new SoyThreadLambda(__PRETTY_FUNCTION__,Loop));
 }
+#endif
 
 #if defined(TARGET_WINDOWS)
 void Platform::TFileMonitor::WatchFileIteration(const std::string& Filename)
@@ -230,6 +232,7 @@ void Platform::TFileMonitor::WatchFileIteration(const std::string& Filename)
 #endif
 
 
+#if defined(TARGET_WINDOWS)
 void Platform::TFileMonitor::StartDirectoryWatch(const std::string& Directory)
 {
 	if (!Platform::DirectoryExists(Directory))
@@ -251,6 +254,7 @@ void Platform::TFileMonitor::StartDirectoryWatch(const std::string& Directory)
 	};
 	mWatchThread.reset(new SoyThreadLambda(__PRETTY_FUNCTION__, Loop));
 }
+#endif
 
 #if defined(TARGET_WINDOWS)
 namespace FileAction
@@ -266,6 +270,7 @@ namespace FileAction
 }
 #endif
 
+#if defined(TARGET_WINDOWS)
 void Platform::TFileMonitor::WatchDirectoryIteration(const std::string& Directory)
 {
 	FILE_NOTIFY_INFORMATION strFileNotifyInfo[1024];
