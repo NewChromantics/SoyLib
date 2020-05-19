@@ -209,11 +209,13 @@ void Platform::TFileMonitor::WatchFileIteration(const std::string& Filename)
 	switch (WaitStatus)
 	{
 	case WAIT_OBJECT_0:
+	{
 		this->mOnChanged(Filename);
 		auto Status = FindNextChangeNotification(mWatchHandle);
 		if (!Status)
 			Platform::ThrowLastError("FindNextChangeNotification");
-		break;
+	}
+	break;
 
 	case WAIT_TIMEOUT:
 		// A timeout occurred, this would happen if some value other 
@@ -257,16 +259,19 @@ void Platform::TFileMonitor::StartDirectoryWatch(const std::string& Directory)
 #endif
 
 #if defined(TARGET_WINDOWS)
-namespace FileAction
+namespace Platform
 {
-	enum Type
+	namespace FileAction
 	{
-		Added = FILE_ACTION_ADDED,
-		Removed = FILE_ACTION_REMOVED,
-		Modified = FILE_ACTION_MODIFIED,
-		RenamedOldName = FILE_ACTION_RENAMED_OLD_NAME,
-		RenamedNewName = FILE_ACTION_RENAMED_NEW_NAME
-	};
+		enum Type
+		{
+			Added = FILE_ACTION_ADDED,
+			Removed = FILE_ACTION_REMOVED,
+			Modified = FILE_ACTION_MODIFIED,
+			RenamedOldName = FILE_ACTION_RENAMED_OLD_NAME,
+			RenamedNewName = FILE_ACTION_RENAMED_NEW_NAME
+		};
+	}
 }
 #endif
 
@@ -284,7 +289,7 @@ void Platform::TFileMonitor::WatchDirectoryIteration(const std::string& Director
 	auto& FileInfo = strFileNotifyInfo[0];
 	std::wstring FilenameW(FileInfo.FileName, FileInfo.FileNameLength);
 	auto Filename = Soy::WStringToString(FilenameW);
-	auto Change = magic_enum::enum_cast<Platform::Action>(FileInfo.Action);
+	auto Change = *magic_enum::enum_cast<Platform::FileAction::Type>(FileInfo.Action);
 	std::Debug << "File " << magic_enum::enum_name(Change) << " " << Filename << std::endl;
 	this->mOnChanged(Filename);
 }
