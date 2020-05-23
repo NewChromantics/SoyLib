@@ -9,7 +9,12 @@
 
 class SoyPixelsImpl;
 
-
+//	rather than ifdef out functions, fake forward declarations
+#if !defined(__OBJC__)
+class NSString;
+class NSNumber;
+class id;
+#endif
 
 namespace Avf
 {

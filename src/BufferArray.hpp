@@ -378,8 +378,8 @@ public:
 	//	swap two elements
 	void	Swap(size_t a,size_t b)
 	{
-		if ( !SoyArray_CheckBounds(a,*this) || !SoyArray_CheckBounds(b,*this) )
-			return;
+		SoyArray_CheckBounds(a, *this);
+		SoyArray_CheckBounds(b, *this);
 		T& ElementA = (*this)[a];
 		T& ElementB = (*this)[b];
 		T Temp = ElementA;

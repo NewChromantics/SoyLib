@@ -693,7 +693,7 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 
 #else
 
-	std::Debug << "Platform does not allow thread rename from " << OldThreadName << " to " << Name << std::endl;
+	//std::Debug << "Platform does not allow thread rename from " << OldThreadName << " to " << Name << std::endl;
 
 #endif
 }

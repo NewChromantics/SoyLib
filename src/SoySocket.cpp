@@ -85,8 +85,9 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 	auto ExpectedLength = __SOCK_SIZE__;
 #elif defined(TARGET_WINDOWS)
 	auto ExpectedLength = sizeof(sockaddr_storage);
-#elif defined(TARGET_PS4)
-	auto ExpectedLength = sizeof(sockaddr);
+#elif defined(TARGET_PS4)||defined(TARGET_POSIX)
+	auto ExpectedLength = sizeof(sockaddr); 
+	//	_SS_SIZE = size of sockaddr_storage
 #endif
 
 	//	gr: on windows, accepting unity WWW connection was 16 bytes...
@@ -213,6 +214,10 @@ bool SoySockAddr::operator==(const SoySockAddr& That) const
 	//	gr: need to check this
 	auto ThisLength = this->GetSockAddrLength();
 	auto ThatLength = That.GetSockAddrLength();
+#elif defined(TARGET_LINUX)
+	//	this is sockaddr_storage size, but may not be the socket size...
+	auto ThisLength = _SS_SIZE;
+	auto ThatLength = _SS_SIZE;
 #else
 	auto ThisLength = ThisAddr.ss_len;
 	auto ThatLength = ThatAddr.ss_len;
@@ -748,9 +753,17 @@ SoyRef SoySocket::Connect(const char* Hostname,uint16_t Port)
 	return OnConnection( Connection );
 }
 
-SoyRef SoySocket::UdpConnect(const char* Address,uint16 Port)
+SoyRef SoySocket::UdpConnect(const char* Hostname,uint16 Port)
 {
-	return UdpConnect( SoySockAddr(inet_addr(Address), Port ) );
+	SoySockAddr HostAddr( Hostname, Port );
+	if ( !HostAddr.IsValid() )
+	{
+		std::stringstream Error;
+		Error << "couldn't get sock address for " << Hostname;
+		throw Soy::AssertException(Error);
+	}
+	
+	return UdpConnect( HostAddr );
 }
 
 
@@ -1035,7 +1048,11 @@ void SoySocket::GetSocketAddresses(std::function<void(std::string& Name,SoySockA
 		
 		try
 		{
+#if defined(TARGET_LINUX)
+			socklen_t AddrLen = __SOCK_SIZE__;
+#else
 			socklen_t AddrLen = Interface.ifa_addr->sa_len;
+#endif
 			SoySockAddr Addr( *Interface.ifa_addr, AddrLen );
 			if ( Port != PORT_ANY )
 				Addr.SetPort( Port );
@@ -1207,5 +1224,4 @@ void SoySocketConnection::Send(const ArrayBridge<char>& Data,bool IsUdp)
 		BytesWritten += DataToRemove;
 	}
 }
-
 

@@ -12,7 +12,7 @@ namespace SoyArray
 {
 	//	gr: this wasnt inlined
 	//	#define	DLIB_FORCE_INLINE __attribute__((always_inline)) inline
-#define SoyArray_CheckBounds(Index,This)	(true)
+#define SoyArray_CheckBounds(Index,This)	{}
 #if !defined(SoyArray_CheckBounds)
 	template<typename ARRAY>
 	bool		CheckBounds(size_t Index,const ARRAY& This);

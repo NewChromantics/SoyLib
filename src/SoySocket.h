@@ -6,6 +6,10 @@
 #include <map>
 
 
+#if defined(TARGET_LINUX)
+#define TARGET_POSIX
+#endif
+
 #if defined(TARGET_WINDOWS)
 
 	#include <winsock2.h>
@@ -21,8 +25,12 @@
 	#include <arpa/inet.h>	//	in_addr_t
 	//	typedef __in_addr_t in_addr_t;
 
-	#if defined(TARGET_PS4)
-		#include <netinet\in.h>
+	#if defined(TARGET_PS4)||defined(TARGET_LINUX)
+		#include <netinet/in.h>
+	#endif
+
+	#if defined(TARGET_LINUX)
+	#define __SOCK_SIZE__	_SS_SIZE
 	#endif
 
 	#define INVALID_SOCKET -1
@@ -142,7 +150,7 @@ public:
 	void		ListenUdp(int Port, bool SaveListeningConnection);
 	SoyRef		WaitForClient();
 	SoyRef		Connect(const char* Hostname, uint16 Port);
-	SoyRef		UdpConnect(const char* Hostname,uint16 Port);	//	this doesn't "do" a connect, but fakes one as a success, and starts listening (required only on windows
+	SoyRef		UdpConnect(const char* Hostname,uint16 Port);	//	this doesn't "do" a connect, but fakes one as a success, and starts listening
 	SoyRef		UdpConnect(SoySockAddr Address);
 
 	bool		IsConnected();
