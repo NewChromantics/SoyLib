@@ -32,7 +32,7 @@ bool SoyTime::FromString(const std::string& String)
 	
 	//	extract long long
 	auto IntegerStr = Match[1].str();
-	auto Time = std::stoll( IntegerStr );
+	auto Time = std::stoll( IntegerStr,0 ,0 );
 	if ( Time < 0 )
 		return false;
 	mTime = Time;
@@ -69,8 +69,7 @@ SoyTime SoyTime::UpTime()
 	 return Double(uptime.tv_sec) + Double(uptime.tv_nsec) / 1000000000.0
 	 }
 	 */
-#elif defined(TARGET_ANDROID)||defined(TARGET_PS4)||defined(TARGET_LUMIN)
-#elif defined(TARGET_LINUX)
+#elif defined(TARGET_ANDROID)||defined(TARGET_PS4)||defined(TARGET_LUMIN)||defined(TARGET_LINUX)
 	struct timespec ts;
 	unsigned theTick = 0U;
 	clock_gettime(CLOCK_REALTIME, &ts);

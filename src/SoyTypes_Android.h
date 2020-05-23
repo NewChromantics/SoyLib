@@ -3,9 +3,14 @@
 
 #include <jni.h>
 
-#define __func__	__PRETTY_FUNCTION__
-#define __noexcept	_GLIBCXX_USE_NOEXCEPT
+#if defined(_NOEXCEPT)
+#define __noexcept	_NOEXCEPT
+#else
+#define __noexcept	_GLIBCXX_USE_NOEXCEPT	//	when using gnu_static
+#endif
 #define __noexcept_prefix
+
+#define __func__	__PRETTY_FUNCTION__
 #define __export	extern "C"
 //	gr: consider undefining this to indicate no support
 #define __thread				//	thread local not supported on android

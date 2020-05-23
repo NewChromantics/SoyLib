@@ -66,7 +66,7 @@ public:
 	}
 #endif
 	
-	virtual const char* what() const __noexcept	{	return mErrorConst ? mErrorConst : mError.c_str();	}
+	virtual const char* what() const _NOEXCEPT	{	return mErrorConst ? mErrorConst : mError.c_str();	}
 
 public:
 	const char*			mErrorConst = nullptr;
