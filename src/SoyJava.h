@@ -18,6 +18,18 @@ class TJniLocalObject;
 #define INVALID_FILE_HANDLE	0	//	gr: I swear this is declared somewhere in soy
 
 
+//	media format keys
+//	android java defines, see if we can find a JNI header with these
+#define KEY_WIDTH			"width"
+#define KEY_HEIGHT			"height"
+#define KEY_DURATION		"durationUs"
+#define KEY_COLOR_FORMAT	"color-format"
+#define KEY_FRAME_RATE		"frame-rate"
+#define KEY_MIME			"mime"
+#define KEY_PROFILE			"profile"
+#define KEY_CHANNEL_COUNT	"channel-count"
+#define KEY_SAMPLE_RATE		"sample-rate"
+#define KEY_BITS_FORMAT_UNDOCUMENTED	"bits-format"
 
 
 
@@ -575,6 +587,15 @@ public:
 	{
 		Soy::Assert( GetWeakObject()!=nullptr, "JniMediaFormat expected object" );
 	}
+	
+	int		GetWidth()	{	return CallIntMethod("getInteger", KEY_WIDTH );	}
+	int		GetHeight()	{	return CallIntMethod("getInteger", KEY_HEIGHT );	}
+
+	int		GetSampleRate()				{	return CallIntMethod("getInteger", KEY_SAMPLE_RATE );	}
+	void	SetSampleRate(int Value)	{	CallVoidMethod("setInteger", KEY_SAMPLE_RATE, Value );	}
+	int		GetChannelCount()			{	return CallIntMethod("getInteger", KEY_CHANNEL_COUNT );	}
+	void	SetChannelCount(int Value)	{	CallVoidMethod("setInteger", KEY_CHANNEL_COUNT, Value );	}
+
 	
 	
 };
