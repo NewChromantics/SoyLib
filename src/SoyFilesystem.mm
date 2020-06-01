@@ -55,7 +55,9 @@ std::string GetUrlKeyString(NSURL* Path,NSString* Key)
 
 std::string UrlGetFilename(NSURL* Path)
 {
-	auto* AbsolutePathNs = [Path absoluteString];
+	//	gr: absoluteString is urlencoded
+	//auto* AbsolutePathStrNs = [Path absoluteString];
+	auto* AbsolutePathNs = [Path path];
 	auto AbsolutePath = Soy::NSStringToString( AbsolutePathNs );
 
 	//	gr: this is just to make it pretty and remove the protocol really...
