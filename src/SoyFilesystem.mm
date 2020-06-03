@@ -128,7 +128,8 @@ bool Platform::EnumDirectoryUnsafe(const std::string& Directory,std::function<bo
  
 	NSArray* Keys = [NSArray arrayWithObjects:NSURLIsDirectoryKey, NSURLIsPackageKey, NSURLLocalizedNameKey, nil];
 	
-	auto ErrorHandler = ^(NSURL *url, NSError *error) {
+	auto ErrorHandler = ^(NSURL *url, NSError *error)
+	{
 		// Handle the error.
 		// Return YES if the enumeration should continue after the error.
 		return YES;
@@ -143,6 +144,9 @@ bool Platform::EnumDirectoryUnsafe(const std::string& Directory,std::function<bo
  
 	for (NSURL* url in enumerator)
 	{
+		//	this stops the enumerator going into subdirectories from this point
+		[enumerator skipDescendants];
+		
 		try
 		{
 			auto UrlType = GetPathType( url );
