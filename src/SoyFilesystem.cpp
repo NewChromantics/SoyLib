@@ -278,20 +278,59 @@ namespace Platform
 #if defined(TARGET_WINDOWS)
 void Platform::TFileMonitor::WatchDirectoryIteration(const std::string& Directory)
 {
-	FILE_NOTIFY_INFORMATION strFileNotifyInfo[1024];
-	DWORD dwBytesReturned = 0;
+	uint8_t FileNotifyInfoBuffer[1024*2];
+	DWORD BufferBytesUsed = 0;
 		
-	auto Result = ReadDirectoryChangesW(mWatchHandle, (LPVOID)&strFileNotifyInfo, sizeof(strFileNotifyInfo), FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE, &dwBytesReturned, NULL, NULL);
+	auto WatchSubTree = true;
+	auto NotifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_CREATION;
+	auto Result = ReadDirectoryChangesW(mWatchHandle, FileNotifyInfoBuffer, sizeof(FileNotifyInfoBuffer), WatchSubTree, NotifyFilter, &BufferBytesUsed, nullptr, nullptr);
 	if (Result == 0 )
 		Platform::ThrowLastError("ReadDirectoryChangesW");
 
-	//	dwBytesReturned
-	auto& FileInfo = strFileNotifyInfo[0];
-	std::wstring FilenameW(FileInfo.FileName, FileInfo.FileNameLength);
-	auto Filename = Soy::WStringToString(FilenameW);
-	auto Change = *magic_enum::enum_cast<Platform::FileAction::Type>(FileInfo.Action);
-	std::Debug << "File " << magic_enum::enum_name(Change) << " " << Filename << std::endl;
-	this->mOnChanged(Filename);
+	if (BufferBytesUsed==0)
+		Platform::ThrowLastError("ReadDirectoryChangesW buffer too small");
+
+	//	walk over the results
+	auto BytesRead = 0;
+	while (BytesRead < BufferBytesUsed && BytesRead < sizeof(FileNotifyInfoBuffer))
+	{
+		auto& FileInfo = *reinterpret_cast<FILE_NOTIFY_INFORMATION*>(&FileNotifyInfoBuffer[BytesRead]);
+
+		auto FileNameLength = FileInfo.FileNameLength / sizeof(wchar_t);
+		std::wstring FilenameW(FileInfo.FileName, FileNameLength);
+		auto Filename = Soy::WStringToString(FilenameW);
+		auto Change = *magic_enum::enum_cast<Platform::FileAction::Type>(FileInfo.Action);
+		std::Debug << "File " << magic_enum::enum_name(Change) << " " << Filename << std::endl;
+		
+		
+		auto Path = Directory + Platform::DirectorySeperator + Filename;
+		if (DirectoryExists(Path))
+		{
+			//	ignore "directory has been modified"
+			std::Debug << "Ignoring directory changed notifiucation" << std::endl;
+		}
+		else
+		{
+			//	gr: todo: handle visual studio's temp file changes (gather in this loop and remove redundant changes)
+			//		created/modified abcd.tmp
+			//		added thefilename.xyz.tmp
+			//		removed thefilename.xyz.tmp
+			//		renameOldName thefilename
+			//		renameNewName thefilename.tmp
+			//		renameoldname abcd.tmp
+			//		rename New name thefilename
+			if (Change != Platform::FileAction::RenamedOldName)
+			{
+				this->mOnChanged(Filename);
+			}
+		}
+
+		//	goto next
+		BytesRead += FileInfo.NextEntryOffset;
+		//	0 means this is the last entry
+		if (FileInfo.NextEntryOffset == 0)
+			break;
+	}
 }
 #endif
 
@@ -384,16 +423,19 @@ bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DA
 #if defined(TARGET_WINDOWS)
 bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
-	//	because this can matter
-	const char* DirectoryDelim = "\\";
-
 	auto OnFindItem = [&](WIN32_FIND_DATAA& FindData)
 	{
 		try
 		{
 			auto UrlType = GetPathType( FindData );
-			auto Filename = Directory + DirectoryDelim + GetFilename( FindData );
-			
+			//	gr: return path relative to original Directory
+			//auto Filename = Directory + Platform::DirectorySeperator + GetFilename( FindData );
+			auto Filename = GetFilename( FindData );
+
+			//	ignore . and .. (maybe change this type to a system/ignore type?)
+			if (UrlType == SoyPathType::Unknown)
+				return true;
+
 			//	if this returns false, bail
 			if ( !OnPathFound( Filename, UrlType ) )
 				return false;
@@ -406,7 +448,7 @@ bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(con
 	};
 
 	std::stringstream SearchDirectory;
-	SearchDirectory << Directory << DirectoryDelim << "*";
+	SearchDirectory << Directory << Platform::DirectorySeperator << "*";
 
 	return ::EnumDirectory( SearchDirectory.str(), OnFindItem );
 }
