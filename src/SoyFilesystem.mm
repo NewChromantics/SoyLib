@@ -55,7 +55,9 @@ std::string GetUrlKeyString(NSURL* Path,NSString* Key)
 
 std::string UrlGetFilename(NSURL* Path)
 {
-	auto* AbsolutePathNs = [Path absoluteString];
+	//	gr: absoluteString is urlencoded
+	//auto* AbsolutePathStrNs = [Path absoluteString];
+	auto* AbsolutePathNs = [Path path];
 	auto AbsolutePath = Soy::NSStringToString( AbsolutePathNs );
 
 	//	gr: this is just to make it pretty and remove the protocol really...
@@ -298,10 +300,11 @@ std::string Platform::GetFullPathFromFilename(const std::string& Filename)
 void Platform::ShellExecute(const std::string& Path)
 {
 #if defined(TARGET_OSX)
-	//	https://gist.github.com/piaoapiao/4103404
-	//	https://stackoverflow.com/questions/17497561/opening-web-url-with-nsbutton-mac-os
-	auto* Url = GetUrl(Path);
-	[[NSWorkspace sharedWorkspace] openURL:Url];
+	//	gr: this isn't proper shell execute
+	//		maybe this should wrap Platform::AllocProcess
+	auto ExitCode = system(Path.c_str());
+	if ( ExitCode == -1 )
+		Platform::ThrowLastError(std::string("system(") + Path + std::string(")"));
 #elif defined(TARGET_IOS)
 	ShellOpenUrl(Path);
 #else
