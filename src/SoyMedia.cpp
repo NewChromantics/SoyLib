@@ -15,6 +15,9 @@
 
 #include "SoyPool.h"
 
+#if defined(TARGET_IOS)
+#include <math.h>//	modff
+#endif
 
 prmem::Heap& SoyMedia::GetDefaultHeap()
 {
