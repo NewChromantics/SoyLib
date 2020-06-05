@@ -97,7 +97,9 @@ public:
 	std::function<void(const std::string& Filename)>	mOnChanged;	//	this has a filename param in case we're monitoring a directory
 
 #if defined(TARGET_OSX)
-	CFPtr<CFStringRef>			mPathString;
+	void						OnFileChanged(std::string& FilePath);
+	CFPtr<CFStringRef>			mWatchPathString;
+	std::string					mWatchPath;
 	scope_ptr<FSEventStreamRef>	mStream;
 #elif defined(TARGET_WINDOWS)
 	void								StartFileWatch(const std::string& Filename);

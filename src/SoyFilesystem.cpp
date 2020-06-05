@@ -92,7 +92,7 @@ auto StreamRelease = [](FSEventStreamRef& Stream)
 
 
 #if defined(TARGET_OSX)
-static void OnFileChanged(
+static void OnFileChangedEvent(
     ConstFSEventStreamRef streamRef,
     void *clientCallBackInfo,
     size_t numEvents,
@@ -102,15 +102,15 @@ static void OnFileChanged(
 {
 	auto& FileWatch = *reinterpret_cast<Platform::TFileMonitor*>( clientCallBackInfo );
 	char **paths = reinterpret_cast<char **>(eventPaths);
-	
+
+	//	windows has the same thing; stream of events with path+change
+	//	merge them together!
 	for ( int e=0;	e<numEvents;	e++ )
 	{
 		std::string Filename( paths[e] );
 		//const FSEventStreamEventFlags& EventFlags( eventFlags[e] );
 		//const FSEventStreamEventId EventIds( eventIds[e] );
-		
-		if ( FileWatch.mOnChanged )
-			FileWatch.mOnChanged(Filename);
+		FileWatch.OnFileChanged(Filename);
 	}
 }
 #endif
@@ -120,7 +120,8 @@ Platform::TFileMonitor::TFileMonitor(const std::string& Filename)
 
 #if defined(TARGET_OSX)
 :
-	mStream	( StreamRelease )
+	mStream				( StreamRelease ),
+	mWatchPath			( Filename )
 #endif
 {
 	//	debug callback
@@ -133,8 +134,9 @@ Platform::TFileMonitor::TFileMonitor(const std::string& Filename)
 #if defined(TARGET_OSX)
 	
 	//std::string Filename("/Volumes/Code/PopTrack/");
-	mPathString.Retain( CFStringCreateWithCString( nullptr, Filename.c_str(), kCFStringEncodingUTF8 ) );
-	CFArrayRef pathsToWatch = CFArrayCreate(NULL, (const void **)&mPathString.mObject, 1, NULL);
+	mWatchPathString.Retain( CFStringCreateWithCString( nullptr, Filename.c_str(), kCFStringEncodingUTF8 ) );
+	mWatchPath +="/";
+	CFArrayRef pathsToWatch = CFArrayCreate(NULL, (const void **)&mWatchPathString.mObject, 1, NULL);
 	
 	CFAbsoluteTime latency = 0.2; /* Latency in seconds */
 	FSEventStreamContext Context = {0, this, NULL, NULL, NULL};
@@ -142,7 +144,7 @@ Platform::TFileMonitor::TFileMonitor(const std::string& Filename)
 	
 	/* Create the stream, passing in a callback */
 	mStream.mObject = FSEventStreamCreate(NULL,
-										  &OnFileChanged,
+										  &OnFileChangedEvent,
 										  &Context,
 										  pathsToWatch,
 										  kFSEventStreamEventIdSinceNow,
@@ -170,6 +172,18 @@ Platform::TFileMonitor::~TFileMonitor()
 	mWatchThread.reset();
 #endif
 }
+
+#if defined(TARGET_OSX)
+void Platform::TFileMonitor::OnFileChanged(std::string& FilePath)
+{
+	//	make path relative to what we're monitoring
+	if ( !Soy::StringTrimLeft(FilePath, mWatchPath, true ) )
+	{
+		std::Debug << "Warning: " << __PRETTY_FUNCTION__ << " path (" << FilePath << ") not prefixed with root directory(" << mWatchPath << ")" << std::endl;
+	}
+	mOnChanged( FilePath );
+}
+#endif
 
 #if defined(TARGET_WINDOWS)
 void Platform::TFileMonitor::StartFileWatch(const std::string& Filename)
