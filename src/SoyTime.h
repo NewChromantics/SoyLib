@@ -25,30 +25,6 @@ namespace Soy
 
 
 
-//	gr: repalce uses of this with SoyTime
-namespace Poco
-{
-	class Timestamp
-	{
-	public:
-		Timestamp(int Value=0)
-		{
-		}
-		inline bool		operator==(const int v) const			{	return false;	}
-		inline bool		operator==(const Timestamp& t) const	{	return false;	}
-		inline bool		operator!=(const Timestamp& t) const	{	return false;	}
-	};
-	class File
-	{
-	public:
-		File(const char* Filename)	{}
-		File(const std::string& Filename)	{}
-		bool		exists() const	{	return false;	}
-		Timestamp	getLastModified() const	{	return Timestamp();	}
-	};
-};
-
-
 
 class SoyTime
 {
