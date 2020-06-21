@@ -6,6 +6,7 @@
 #include "SoyH264.h"
 #include "Array.hpp"
 #include "SoyPixels.h"
+#include "SoyFourcc.h"
 
 class SoyPixelsImpl;
 
@@ -20,7 +21,7 @@ namespace Avf
 {
 	class TAsset;
 	
-	SoyMediaFormat::Type			SoyMediaFormat_FromFourcc(uint32 Fourcc,size_t H264LengthSize);
+	SoyMediaFormat::Type			SoyMediaFormat_FromFourcc(Soy::TFourcc Fourcc,size_t H264LengthSize);
 	void							GetFileExtensions(ArrayBridge<std::string>&& Extensions);
 
 	//	OSStatus == CVReturn

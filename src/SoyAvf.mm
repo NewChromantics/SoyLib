@@ -133,6 +133,14 @@ static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 };
 
 
+SoyMediaFormat::Type Avf::SoyMediaFormat_FromFourcc(Soy::TFourcc Fourcc,size_t H264LengthSize)
+{
+	if ( Fourcc == "avcc" )	return SoyMediaFormat::H264_8;
+
+	throw Soy::AssertException(std::string("SoyMediaFormat_FromFourcc unhandled fourcc ") + Fourcc.GetString() );
+}
+
+
 /*
 std::shared_ptr<TMediaPacket> Avf::GetFormatDescriptionPacket(CMSampleBufferRef SampleBuffer,size_t ParamIndex,SoyMediaFormat::Type Format,size_t StreamIndex)
 {
@@ -381,12 +389,13 @@ CMFormatDescriptionRef Avf::GetFormatDescription(const TStreamMeta& Stream)
 			*/
 
 
-/*
+
 //	gr: speed this up! (or reduce usage) all the obj-c calls are expensive.
 TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 {
 	TStreamMeta Meta;
-	auto Fourcc = CMFormatDescriptionGetMediaSubType(FormatDesc);
+	auto FourccOrig = CMFormatDescriptionGetMediaSubType(FormatDesc);
+	Soy::TFourcc Fourcc(FourccOrig);
 
 	size_t H264LengthSize = 0;
 	
@@ -471,7 +480,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 			std::Debug << "Warning, format has audio data, but we've detected non-audio format (" << Meta.mCodec << ")" << std::endl;
 		}
 	}
-	
+	/*
 	//	test validity of the conversion (slow!)
 	static bool DoCompareFormatIntegrity = false;
 	if ( DoCompareFormatIntegrity )
@@ -497,11 +506,11 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 			std::Debug << "Warning: generated meta from description, but not equal when converted back again. " << Meta << std::endl;
 		}
 	}
-	
+	*/
 	
 	return Meta;
 }
-*/
+
 
 /*
 void Avf::GetMediaType(CMMediaType& MediaType,FourCharCode& MediaCodec,SoyMediaFormat::Type Format)
