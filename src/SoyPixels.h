@@ -32,7 +32,8 @@ namespace SoyPixelsFormat
 		FreenectDepth10bit,	//	16 bit, 1 channel
 		FreenectDepth11bit,	//	16 bit, 1 channel
 		Depth16mm,			//	16 bit, 1 channel
-	
+		DepthFloatMetres,	//	32bit float
+		DepthHalfMetres,	//	16bit float
 
 		//	YUV formats;
 		//	ditched colourspace, this is now a multi-plane descriptor

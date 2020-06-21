@@ -885,6 +885,7 @@ void AvfPixelBuffer::Lock(ArrayBridge<SoyPixelsImpl*>&& Planes,float3x3& Transfo
 			auto Width = CVPixelBufferGetWidth( PixelBuffer );
 			auto* Pixels = CVPixelBufferGetBaseAddress(PixelBuffer);
 			auto Format = CVPixelBufferGetPixelFormatType( PixelBuffer );
+			Soy::TFourcc FormatFourcc(Format);
 			auto DataSize = CVPixelBufferGetDataSize(PixelBuffer);
 			auto SoyFormat = Avf::GetPixelFormat( Format );
 			auto BytesPerRow = CVPixelBufferGetBytesPerRow( PixelBuffer );
@@ -892,7 +893,7 @@ void AvfPixelBuffer::Lock(ArrayBridge<SoyPixelsImpl*>&& Planes,float3x3& Transfo
 			if ( SoyFormat == SoyPixelsFormat::Invalid )
 			{
 				std::stringstream Error;
-				Error << "Trying to lock plane but pixel format(" << Format << ") is unsupported(" << SoyFormat << ")";
+				Error << "Trying to lock plane but pixel format(" << Format << "/" << FormatFourcc <<") is unsupported(" << SoyFormat << ")";
 				throw Soy::AssertException(Error.str());
 			}
 			

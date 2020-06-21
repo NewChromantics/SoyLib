@@ -150,7 +150,10 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case KinectDepth:	return 1;
 	case FreenectDepth11bit:	return 1;
 	case FreenectDepth10bit:	return 1;	
-	case Depth16mm:		return 1;
+		case Depth16mm:		return 1;
+		
+		case DepthFloatMetres:		return 1;
+		case DepthHalfMetres:		return 1;
 
 	case ChromaUV_8_8:	return 1;
 	case ChromaUV_88:	return 2;
@@ -208,7 +211,12 @@ uint8_t SoyPixelsFormat::GetBytesPerChannel(SoyPixelsFormat::Type Format)
 	case Float2:
 	case Float3:
 	case Float4:
+	case DepthFloatMetres:
 		return sizeof(float);
+
+	//	maybe need to make a c++ type for this
+	case DepthHalfMetres:
+		return sizeof(uint16_t);
 
 	case KinectDepth:
 	case FreenectDepth11bit:
@@ -439,6 +447,8 @@ std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
 	{ SoyPixelsFormat::FreenectDepth10bit,	"FreenectDepth10bit"	},
 	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},
 	{ SoyPixelsFormat::Depth16mm,			"Depth16mm"	},
+	{ SoyPixelsFormat::DepthFloatMetres,	"DepthFloatMetres"	},
+	{ SoyPixelsFormat::DepthHalfMetres,		"DepthHalfMetres"	},
 	{ SoyPixelsFormat::uyvy_8888,			"uyvy_8888"	},
 	{ SoyPixelsFormat::Yuv_8_88,		"Yuv_8_88"	},
 	{ SoyPixelsFormat::Yuv_8_88,		"Yuv_8_88"	},

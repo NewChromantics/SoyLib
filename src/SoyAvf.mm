@@ -130,6 +130,13 @@ static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 	
 	//	the logitech C22 has this format, which apparently might be a kind of motion jpeg
 	CV_VIDEO_TYPE_META( 'dmb1',	SoyPixelsFormat::Invalid ),
+
+	//	hdis, fdis
+	//CV_VIDEO_TYPE_META( kCVPixelFormatType_DisparityFloat16,	SoyPixelsFormat::Depth16mm ),
+	//CV_VIDEO_TYPE_META( kCVPixelFormatType_DisparityFloat32,	SoyPixelsFormat::Depth16mm ),
+	//	hdep, fdep
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_DepthFloat16,	SoyPixelsFormat::DepthFloatMetres ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_DepthFloat32,	SoyPixelsFormat::DepthHalfMetres ),
 };
 
 
