@@ -34,6 +34,8 @@ namespace SoyPixelsFormat
 		Depth16mm,			//	16 bit, 1 channel
 		DepthFloatMetres,	//	32bit float
 		DepthHalfMetres,	//	16bit float
+		DepthDisparityFloat,	//	32bit float - apple true depth camera raw format
+		DepthDisparityHalf,		//	16bit float - apple true depth camera raw format
 
 		//	YUV formats;
 		//	ditched colourspace, this is now a multi-plane descriptor
