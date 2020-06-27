@@ -709,7 +709,7 @@ void ConvertFormat_Yuv_3Plane_To_2Plane(ArrayInterface<uint8>& PixelsArray, SoyP
 	auto* ChromaV = &OldPlanes[2]->GetPixelPtr(0,0,0);
 
 	//	if we work backwards we can overwrite ourselves without losing data
-	for ( auto i=ChromaPixelCount-1;	i>=0;	i-- )
+	for ( int i=ChromaPixelCount-1;	i>=0;	i-- )
 	{
 		auto u = ChromaU[i];
 		auto v = ChromaV[i];
