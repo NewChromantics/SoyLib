@@ -82,8 +82,8 @@ static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_32ARGB,	SoyPixelsFormat::ARGB ),
 	
 	//	gr: no colourspace distinction!
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,	SoyPixelsFormat::Yuv_8_88 ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,	SoyPixelsFormat::Yuv_8_88 ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,	SoyPixelsFormat::Yuv_8_88 ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr_4A_8BiPlanar,	SoyPixelsFormat::Invalid ),	//	YuvAlpha_8888_8
 	
 	//	gr: this is CHROMA|YUV! not YUV, this is why the fourcc is 2vuy
@@ -221,6 +221,8 @@ void Avf::GetFormatDescriptionData(ArrayBridge<uint8>&& Data,CMFormatDescription
 //	http://stackoverflow.com/questions/2196869/how-do-you-convert-an-iphone-osstatus-code-to-something-useful
 std::string Avf::GetString(OSStatus Status)
 {
+	//[NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:nil]);
+	
 	TESTENUMERROR(Status,kVTPropertyNotSupportedErr);
 	TESTENUMERROR(Status,kVTPropertyReadOnlyErr);
 	TESTENUMERROR(Status,kVTParameterErr);
@@ -305,7 +307,7 @@ std::string Avf::GetString(OSStatus Status)
 	
 	//	gr: can't find any documentation on this value.
 	if ( static_cast<sint32>(Status) == -12780 )
-		return "Unknown VTCompressionSessionEncodeFrame error -12780";
+		return "Unknown VTCompressionSessionEncodeFrame error -12780. On IOS this seems fail with a YUV format but not BGRA32";
 
 	
 	//	as integer..
@@ -997,14 +999,51 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 			Datas[p] = Plane.GetPixelsArray().GetArray();
 		}
 		
+		auto GetPlanarMeta = [&](int PlaneIndex)
+		{
+			CVPlanarComponentInfo Meta;
+			Meta.offset = 0;
+			Meta.rowBytes = RowSizes[PlaneIndex];
+			for ( int i=0;	i<PlaneIndex;	i++ )
+				Meta.offset += RowSizes[i] * Heights[i];
+			return Meta;
+		};
+		
 		CVPixelBufferReleasePlanarBytesCallback Callback = [](void* CallbackReference,const void* DataPtr,size_t DataSize,size_t PlaneCount,const void* PlaneAddresses[])
 		{
 			//std::Debug << "Pixel Buffer released" << std::endl;
 		};
 		void* CallbackReference = nullptr;
+
+		//	gr: on ios we get a -12780 error when using planar formats
+		//	BUT BGRA32 works.
+		//	kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange also works but ONLY when we provide the CVPlanarPixelBufferInfo_YCbCrBiPlanar
+		//		struct.
+		//	OSX doesn't require it
+		CVPlanarPixelBufferInfo_YCbCrBiPlanar PlanarMeta_8_88;
+		PlanarMeta_8_88.componentInfoY = GetPlanarMeta(0);
+		PlanarMeta_8_88.componentInfoCbCr = GetPlanarMeta(1);
+		CVPlanarPixelBufferInfo_YCbCrPlanar PlanarMeta_8_8_8;
+		PlanarMeta_8_8_8.componentInfoY = GetPlanarMeta(0);
+		PlanarMeta_8_8_8.componentInfoCb = GetPlanarMeta(1);
+		PlanarMeta_8_8_8.componentInfoCr = GetPlanarMeta(2);
+		void* PlanarMetaStruct = nullptr;
+		size_t PlanarMetaSize = 0;
+
+		if ( PixelFormatType == kCVPixelFormatType_420YpCbCr8Planar || PixelFormatType == kCVPixelFormatType_420YpCbCr8PlanarFullRange )
+		{
+			PlanarMetaStruct = &PlanarMeta_8_8_8;
+			PlanarMetaSize = sizeof(PlanarMeta_8_8_8);
+		}
+		else if ( PixelFormatType == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange || PixelFormatType == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange )
+		{
+			PlanarMetaStruct = &PlanarMeta_8_88;
+			PlanarMetaSize = sizeof(PlanarMeta_8_88);
+		}
+
 		
 		auto Result = CVPixelBufferCreateWithPlanarBytes( PixelBufferAllocator, Widths[0], Heights[0], PixelFormatType,
-														 nullptr, 0,//use these if contigiuous
+														 PlanarMetaStruct, PlanarMetaSize,	//use these if contigiuous	//	gr: MUST use on ios
 														 Planes.GetSize(),
 														 Datas, Widths, Heights,
 														 RowSizes,
