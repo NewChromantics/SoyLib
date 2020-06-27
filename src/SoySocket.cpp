@@ -446,7 +446,7 @@ void SoySocket::CreateTcp(bool Blocking)
 	}
 
 	//	turn off SIGPIPE signals for broken pipe read/writing
-#if !defined(TARGET_ANDROID) && !defined(TARGET_PS4)
+#if !defined(TARGET_ANDROID) && !defined(TARGET_PS4) && !defined(TARGET_LINUX)
 	bool EnableSigPipe = false;
 	if ( !EnableSigPipe )
 	{
