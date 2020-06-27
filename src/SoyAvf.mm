@@ -250,6 +250,8 @@ std::string Avf::GetString(OSStatus Status)
 	TESTENUMERROR(Status,kVTFrameSiloInvalidTimeRangeErr);
 	TESTENUMERROR(Status,kVTCouldNotFindTemporalFilterErr);
 	TESTENUMERROR(Status,kVTPixelTransferNotPermittedErr);
+	TESTENUMERROR(Status,kVTColorCorrectionImageRotationFailedErr);
+	TESTENUMERROR(Status,kVTVideoDecoderRemovedErr);
 	
 	TESTENUMERROR(Status,kCVReturnInvalidArgument);
 	
@@ -283,7 +285,10 @@ std::string Avf::GetString(OSStatus Status)
 	
 	//	decompression gives us this
 	TESTENUMERROR(Status,MACH_RCV_TIMED_OUT);
-	
+
+	TESTENUMERROR(Status,kCVReturnInvalidPoolAttributes);
+
+	//	corefoundation versions of VT errors
 	switch ( static_cast<sint32>(Status) )
 	{
 		case -8961:	return "kVTPixelTransferNotSupportedErr -8961";
@@ -297,6 +302,11 @@ std::string Avf::GetString(OSStatus Status)
 	//	gr: can't find any documentation on this value.
 	if ( static_cast<sint32>(Status) == -12349 )
 		return "Unknown VTDecodeFrame error -12349";
+	
+	//	gr: can't find any documentation on this value.
+	if ( static_cast<sint32>(Status) == -12780 )
+		return "Unknown VTCompressionSessionEncodeFrame error -12780";
+
 	
 	//	as integer..
 	std::stringstream Error;
