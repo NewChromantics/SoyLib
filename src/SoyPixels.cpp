@@ -1148,7 +1148,7 @@ void SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 	
 	//	report missing, but desired conversions
 	std::stringstream Error;
-	Error << "No soypixel conversion from " << OldFormat << " to " << Format;
+	Error << "No soypixel conversion from " << SoyPixelsFormat::ToString(OldFormat) << " to " << SoyPixelsFormat::ToString(Format);
 	throw Soy::AssertException(Error.str());
 }
 
