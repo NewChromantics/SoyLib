@@ -17,6 +17,7 @@
 #include <VideoToolbox/VTErrors.h>
 
 #include "magic_enum/include/magic_enum.hpp"
+#include "AvfPixelBuffer.h"
 
 
 
@@ -981,9 +982,32 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 	
 	CFDictionaryRef PixelBufferAttributes = nullptr;
 	
+	//	on ios, if we create YUV formats with pixel references, we no longer get an error (see notes below)
+	//	but we do get OnCompressionCallback = -12902 kvtparametererr error
+	//	the fix is to create a new buffer and write to it, not remote buffers (which maybe why we get this in the console vtCompressionSessionRemote_EncodeFrameCommon )
+	if ( Planes.GetSize() > 1 )	//	&& ios?
+	{
+		auto Width = Planes[0]->GetWidth();
+		auto Height = Planes[0]->GetHeight();
+		auto Result = CVPixelBufferCreate( PixelBufferAllocator, Width, Height, PixelFormatType, PixelBufferAttributes, &PixelBuffer );
+		Avf::IsOkay( Result, std::string("CVPixelBufferCreate ") + Soy::TFourcc(PixelFormatType).GetString() );
 	
-	//	handle multiplane
-	if ( Planes.GetSize() > 1 )
+		//	we already have a nice accessor!
+		float3x3 Transform;
+		std::shared_ptr<AvfDecoderRenderer> Decoder;
+		static bool DoRetain = true;
+		CVPixelBuffer PixelBufferAccessor(PixelBuffer,DoRetain,Decoder,Transform);
+		BufferArray<SoyPixelsImpl*,3> OutputPlanes;
+		PixelBufferAccessor.Lock( GetArrayBridge(OutputPlanes),Transform);
+		for ( auto i=0;	i<OutputPlanes.GetSize();	i++ )
+		{
+			auto& DstPlane = *OutputPlanes[i];
+			auto& SrcPlane = *Planes[i];
+			DstPlane.Copy(SrcPlane);
+		}
+		PixelBufferAccessor.Unlock();
+	}
+	else if ( Planes.GetSize() > 1 )	//	handle multiplane
 	{
 		auto& Plane0 = *Planes[0];
 		size_t Widths[3] = {0};
