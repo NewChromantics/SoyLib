@@ -6,7 +6,7 @@
 //#include "SoyMath.h"
 //#include "SoyStream.h"
 #include "SoyImage.h"
-
+#include "magic_enum/include/magic_enum.hpp"
 
 
 
@@ -68,7 +68,21 @@ prmem::Heap& SoyPixels::GetDefaultHeap()
 	static auto* Heap = new prmem::Heap( true, true, "SoyPixels::DefaultHeap" );
 	return *Heap;
 }
-	
+
+std::string SoyPixelsFormat::ToString(Type Format)
+{
+	auto FormatName = magic_enum::enum_name(Format);
+	return std::string(FormatName);
+}
+
+SoyPixelsFormat::Type SoyPixelsFormat::ToFormat(const std::string& FormatName)
+{
+	auto FormatMaybe = magic_enum::enum_cast<SoyPixelsFormat::Type>(FormatName);
+	if ( !FormatMaybe.has_value() )
+		throw Soy::AssertException( std::string("Invalid pixel format name ") + FormatName);
+	return *FormatMaybe;
+}
+
 
 
 SoyPixelsFormat::Type SoyPixelsFormat::GetFloatFormat(Type Format)
@@ -433,55 +447,6 @@ void SoyPixelsFormat::GetHeaderPalettised(const ArrayBridge<uint8>&& Data,size_t
 	PaletteSize |= Data[1] << 8;
 	TransparentIndex = Data[2];
 }
-
-
-
-std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
-{
-	{ SoyPixelsFormat::Invalid,				"Invalid" },
-//	{ SoyPixelsFormat::UnityUnknown,		"UnityUnknown" },
-	{ SoyPixelsFormat::Greyscale,			"Greyscale" },
-	{ SoyPixelsFormat::GreyscaleAlpha,		"GreyscaleAlpha"	},
-	{ SoyPixelsFormat::RGB,					"RGB"	},
-	{ SoyPixelsFormat::RGBA,				"RGBA"	},
-	{ SoyPixelsFormat::BGRA,				"BGRA"	},
-	{ SoyPixelsFormat::BGR,					"BGR"	},
-	{ SoyPixelsFormat::ARGB,				"ARGB"	},
-	{ SoyPixelsFormat::KinectDepth,			"KinectDepth"	},
-	{ SoyPixelsFormat::FreenectDepth10bit,	"FreenectDepth10bit"	},
-	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},
-	{ SoyPixelsFormat::Depth16mm,			"Depth16mm"	},
-	{ SoyPixelsFormat::DepthFloatMetres,	"DepthFloatMetres"	},
-	{ SoyPixelsFormat::DepthHalfMetres,		"DepthHalfMetres"	},
-	{ SoyPixelsFormat::DepthDisparityFloat,	"DepthDisparityFloat"	},
-	{ SoyPixelsFormat::DepthDisparityHalf,	"DepthDisparityHalf"	},
-	{ SoyPixelsFormat::uyvy_8888,			"uyvy_8888"	},
-	{ SoyPixelsFormat::Yuv_8_88,		"Yuv_8_88"	},
-	{ SoyPixelsFormat::Yuv_8_88,		"Yuv_8_88"	},
-	{ SoyPixelsFormat::Yuv_8_88,		"Yuv_8_88"	},
-	{ SoyPixelsFormat::Yuv_8_8_8,		"Yuv_8_8_8"	},
-	{ SoyPixelsFormat::Yuv_8_8_8,		"Yuv_8_8_8"	},
-	{ SoyPixelsFormat::Yuv_8_8_8,	"Yuv_8_8_8"	},
-	{ SoyPixelsFormat::YYuv_8888,		"YYuv_8888"	},
-	{ SoyPixelsFormat::YYuv_8888,		"YYuv_8888"	},
-	{ SoyPixelsFormat::YYuv_8888,	"YYuv_8888"	},
-	{ SoyPixelsFormat::Uvy_8_88,		"Uvy_844"	},
-	{ SoyPixelsFormat::Luma,			"LumaFull"	},
-	{ SoyPixelsFormat::Luma,			"Luma"	},
-	{ SoyPixelsFormat::Luma,			"Luma"	},
-	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
-	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
-	{ SoyPixelsFormat::ChromaU_8,			"ChromaU_8"	},
-	{ SoyPixelsFormat::ChromaV_8,			"ChromaV_8"	},
-	{ SoyPixelsFormat::Palettised_RGB_8,	"Palettised_RGB_8"	},
-	{ SoyPixelsFormat::Palettised_RGBA_8,	"Palettised_RGBA_8"	},
-	{ SoyPixelsFormat::Float1,				"Float1"	},
-	{ SoyPixelsFormat::Float2,				"Float2"	},
-	{ SoyPixelsFormat::Float3,				"Float3"	},
-	{ SoyPixelsFormat::Float4,				"Float4"	},
-	{ SoyPixelsFormat::Yuv_8_88_Depth16,	"Yuv_8_88_Depth16"	},
-	{ SoyPixelsFormat::BGRA_Depth16,	"BGRA_Depth16"	},
-};
 
 
 #if defined(SOY_OPENCL)
@@ -1129,13 +1094,6 @@ TConvertFunc gConversionFuncs[] =
 void SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 {
 	auto OldFormat = GetFormat();
-	if ( !SoyPixelsFormat::IsValid( Format ) )
-	{
-		std::stringstream Error;
-		Error << "Trying to change to " << Format << " (invalid)";
-		throw Soy::AssertException(Error.str());
-	}
-	
 	if ( OldFormat == Format )
 		return;
 	

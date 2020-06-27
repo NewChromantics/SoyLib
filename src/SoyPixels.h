@@ -112,16 +112,15 @@ namespace SoyPixelsFormat
 		
 		Yuv_8_88_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
 		BGRA_Depth16,
-			
+		
 		Count,
-		//	shorthand names
-		//	gr: fix this, to work around magic_enum problem, change this to SoyPixelsFormat::Fourcc
-		//	http://www.fourcc.org/yuv.php
-		Nv12			= Yuv_8_88,
-		Nv21			= Yvu_8_88,
-		I420			= Yuv_8_8_8,
-		Luma			= Greyscale,
 	};
+	
+	//	magic_enum doesn't work with aliases, so here's so extra aliases
+	const static auto Nv12			= Yuv_8_88;
+	const static auto Nv21			= Yvu_8_88;
+	const static auto I420			= Yuv_8_8_8;
+	const static auto Luma			= Greyscale;
 
 	//	gr: consider changing this to either Type, Bytes per channel or bits per channel to handle 16 bit better
 	bool				IsFloatChannel(Type Format);
@@ -142,7 +141,9 @@ namespace SoyPixelsFormat
 	Type			GetFloatFormat(Type Format);
 	Type			GetByteFormat(Type Format);
 	
-	DECLARE_SOYENUM( SoyPixelsFormat );
+	std::string		ToString(Type Format);
+	Type			ToFormat(const std::string& FormatString);
+	inline Type		ToType(const std::string& FormatString)		{	return ToFormat(FormatString);	}
 };
 
 
@@ -198,7 +199,7 @@ public:
 	{
 	}
 	
-	bool			IsValid() const					{	return (mWidth>0) && (mHeight>0) && SoyPixelsFormat::IsValid(mFormat);	}
+	bool			IsValid() const					{	return (mWidth>0) && (mHeight>0) && mFormat!=SoyPixelsFormat::Invalid;	}
 	bool			IsValidDimensions() const		{	return (mWidth>0) && (mHeight>0);	}
 	uint8_t			GetBitDepth() const				{	return 8;	}
 	
