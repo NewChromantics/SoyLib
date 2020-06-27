@@ -689,6 +689,38 @@ void ConvertFormat_Greyscale_To_Yuv_8_8_8(ArrayInterface<uint8>& PixelsArray, So
 	Meta = YuvMeta;
 }
 
+
+void ConvertFormat_Yuv_3Plane_To_2Plane(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
+{
+	//	split the planes and then write the new data to them
+	SoyPixelsRemote Yuv3_Pixels(PixelsArray.GetArray(), Meta.GetWidth(), Meta.GetHeight(), Meta.GetDataSize(), Meta.GetFormat());
+	SoyPixelsRemote Yuv2_Pixels(PixelsArray.GetArray(), Meta.GetWidth(), Meta.GetHeight(), Meta.GetDataSize(), NewFormat);
+	BufferArray<std::shared_ptr<SoyPixelsImpl>, 3> OldPlanes;
+	BufferArray<std::shared_ptr<SoyPixelsImpl>, 3> NewPlanes;
+	Yuv3_Pixels.SplitPlanes(GetArrayBridge(OldPlanes));
+	Yuv2_Pixels.SplitPlanes(GetArrayBridge(NewPlanes));
+	
+	//	luma already in correct size & place
+
+	//	chroma [u][v] turning into chroma[uv]
+	auto ChromaPixelCount = OldPlanes[1]->GetWidth() * OldPlanes[1]->GetHeight();
+	auto* ChromaUV = &NewPlanes[1]->GetPixelPtr(0,0,0);
+	auto* ChromaU = &OldPlanes[1]->GetPixelPtr(0,0,0);
+	auto* ChromaV = &OldPlanes[2]->GetPixelPtr(0,0,0);
+
+	//	if we work backwards we can overwrite ourselves without losing data
+	for ( auto i=ChromaPixelCount-1;	i>=0;	i-- )
+	{
+		auto u = ChromaU[i];
+		auto v = ChromaV[i];
+		auto uvindex = i*2;
+		ChromaUV[uvindex+0] = u;
+		ChromaUV[uvindex+1] = v;
+	}
+	
+	Meta.DumbSetFormat(NewFormat);
+}
+
 void ConvertFormat_YuvPlane_To_Greyscale(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
 {
 	//	crop to first plane
@@ -1069,6 +1101,7 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::Yuv_8_8_8, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
 	TConvertFunc( SoyPixelsFormat::Yuv_8_88, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
 	TConvertFunc( SoyPixelsFormat::Yuv_8_88, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
+	TConvertFunc( SoyPixelsFormat::Yuv_8_8_8, SoyPixelsFormat::Yuv_8_88, ConvertFormat_Yuv_3Plane_To_2Plane),
 
 	TConvertFunc( SoyPixelsFormat::Depth16mm, SoyPixelsFormat::Greyscale, Depth16_To_Plane),
 	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Greyscale, Depth16_To_Plane),
