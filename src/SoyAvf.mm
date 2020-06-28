@@ -17,6 +17,7 @@
 #include <VideoToolbox/VTErrors.h>
 
 #include "magic_enum/include/magic_enum.hpp"
+#include "AvfPixelBuffer.h"
 
 
 
@@ -82,8 +83,8 @@ static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_32ARGB,	SoyPixelsFormat::ARGB ),
 	
 	//	gr: no colourspace distinction!
-	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,	SoyPixelsFormat::Yuv_8_88 ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,	SoyPixelsFormat::Yuv_8_88 ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,	SoyPixelsFormat::Yuv_8_88 ),
 	CV_VIDEO_TYPE_META( kCVPixelFormatType_422YpCbCr_4A_8BiPlanar,	SoyPixelsFormat::Invalid ),	//	YuvAlpha_8888_8
 	
 	//	gr: this is CHROMA|YUV! not YUV, this is why the fourcc is 2vuy
@@ -130,7 +131,22 @@ static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 	
 	//	the logitech C22 has this format, which apparently might be a kind of motion jpeg
 	CV_VIDEO_TYPE_META( 'dmb1',	SoyPixelsFormat::Invalid ),
+
+	//	hdis, fdis
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_DisparityFloat32,	SoyPixelsFormat::DepthDisparityFloat ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_DisparityFloat16,	SoyPixelsFormat::DepthDisparityHalf ),
+	//	hdep, fdep
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_DepthFloat32,	SoyPixelsFormat::DepthFloatMetres ),
+	CV_VIDEO_TYPE_META( kCVPixelFormatType_DepthFloat16,	SoyPixelsFormat::DepthHalfMetres ),
 };
+
+
+SoyMediaFormat::Type Avf::SoyMediaFormat_FromFourcc(Soy::TFourcc Fourcc,size_t H264LengthSize)
+{
+	if ( Fourcc == "avcc" )	return SoyMediaFormat::H264_8;
+
+	throw Soy::AssertException(std::string("SoyMediaFormat_FromFourcc unhandled fourcc ") + Fourcc.GetString() );
+}
 
 
 /*
@@ -206,6 +222,8 @@ void Avf::GetFormatDescriptionData(ArrayBridge<uint8>&& Data,CMFormatDescription
 //	http://stackoverflow.com/questions/2196869/how-do-you-convert-an-iphone-osstatus-code-to-something-useful
 std::string Avf::GetString(OSStatus Status)
 {
+	//[NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:nil]);
+	
 	TESTENUMERROR(Status,kVTPropertyNotSupportedErr);
 	TESTENUMERROR(Status,kVTPropertyReadOnlyErr);
 	TESTENUMERROR(Status,kVTParameterErr);
@@ -235,6 +253,8 @@ std::string Avf::GetString(OSStatus Status)
 	TESTENUMERROR(Status,kVTFrameSiloInvalidTimeRangeErr);
 	TESTENUMERROR(Status,kVTCouldNotFindTemporalFilterErr);
 	TESTENUMERROR(Status,kVTPixelTransferNotPermittedErr);
+	TESTENUMERROR(Status,kVTColorCorrectionImageRotationFailedErr);
+	TESTENUMERROR(Status,kVTVideoDecoderRemovedErr);
 	
 	TESTENUMERROR(Status,kCVReturnInvalidArgument);
 	
@@ -268,7 +288,10 @@ std::string Avf::GetString(OSStatus Status)
 	
 	//	decompression gives us this
 	TESTENUMERROR(Status,MACH_RCV_TIMED_OUT);
-	
+
+	TESTENUMERROR(Status,kCVReturnInvalidPoolAttributes);
+
+	//	corefoundation versions of VT errors
 	switch ( static_cast<sint32>(Status) )
 	{
 		case -8961:	return "kVTPixelTransferNotSupportedErr -8961";
@@ -282,6 +305,11 @@ std::string Avf::GetString(OSStatus Status)
 	//	gr: can't find any documentation on this value.
 	if ( static_cast<sint32>(Status) == -12349 )
 		return "Unknown VTDecodeFrame error -12349";
+	
+	//	gr: can't find any documentation on this value.
+	if ( static_cast<sint32>(Status) == -12780 )
+		return "Unknown VTCompressionSessionEncodeFrame error -12780. On IOS this seems fail with a YUV format but not BGRA32";
+
 	
 	//	as integer..
 	std::stringstream Error;
@@ -381,12 +409,13 @@ CMFormatDescriptionRef Avf::GetFormatDescription(const TStreamMeta& Stream)
 			*/
 
 
-/*
+
 //	gr: speed this up! (or reduce usage) all the obj-c calls are expensive.
 TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 {
 	TStreamMeta Meta;
-	auto Fourcc = CMFormatDescriptionGetMediaSubType(FormatDesc);
+	auto FourccOrig = CMFormatDescriptionGetMediaSubType(FormatDesc);
+	Soy::TFourcc Fourcc(FourccOrig);
 
 	size_t H264LengthSize = 0;
 	
@@ -471,7 +500,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 			std::Debug << "Warning, format has audio data, but we've detected non-audio format (" << Meta.mCodec << ")" << std::endl;
 		}
 	}
-	
+	/*
 	//	test validity of the conversion (slow!)
 	static bool DoCompareFormatIntegrity = false;
 	if ( DoCompareFormatIntegrity )
@@ -497,11 +526,11 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 			std::Debug << "Warning: generated meta from description, but not equal when converted back again. " << Meta << std::endl;
 		}
 	}
-	
+	*/
 	
 	return Meta;
 }
-*/
+
 
 /*
 void Avf::GetMediaType(CMMediaType& MediaType,FourCharCode& MediaCodec,SoyMediaFormat::Type Format)
@@ -953,9 +982,32 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 	
 	CFDictionaryRef PixelBufferAttributes = nullptr;
 	
+	//	on ios, if we create YUV formats with pixel references, we no longer get an error (see notes below)
+	//	but we do get OnCompressionCallback = -12902 kvtparametererr error
+	//	the fix is to create a new buffer and write to it, not remote buffers (which maybe why we get this in the console vtCompressionSessionRemote_EncodeFrameCommon )
+	if ( Planes.GetSize() > 1 )	//	&& ios?
+	{
+		auto Width = Planes[0]->GetWidth();
+		auto Height = Planes[0]->GetHeight();
+		auto Result = CVPixelBufferCreate( PixelBufferAllocator, Width, Height, PixelFormatType, PixelBufferAttributes, &PixelBuffer );
+		Avf::IsOkay( Result, std::string("CVPixelBufferCreate ") + Soy::TFourcc(PixelFormatType).GetString() );
 	
-	//	handle multiplane
-	if ( Planes.GetSize() > 1 )
+		//	we already have a nice accessor!
+		float3x3 Transform;
+		std::shared_ptr<AvfDecoderRenderer> Decoder;
+		static bool DoRetain = true;
+		CVPixelBuffer PixelBufferAccessor(PixelBuffer,DoRetain,Decoder,Transform);
+		BufferArray<SoyPixelsImpl*,3> OutputPlanes;
+		PixelBufferAccessor.Lock( GetArrayBridge(OutputPlanes),Transform);
+		for ( auto i=0;	i<OutputPlanes.GetSize();	i++ )
+		{
+			auto& DstPlane = *OutputPlanes[i];
+			auto& SrcPlane = *Planes[i];
+			DstPlane.Copy(SrcPlane);
+		}
+		PixelBufferAccessor.Unlock();
+	}
+	else if ( Planes.GetSize() > 1 )	//	handle multiplane
 	{
 		auto& Plane0 = *Planes[0];
 		size_t Widths[3] = {0};
@@ -971,14 +1023,51 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 			Datas[p] = Plane.GetPixelsArray().GetArray();
 		}
 		
+		auto GetPlanarMeta = [&](int PlaneIndex)
+		{
+			CVPlanarComponentInfo Meta;
+			Meta.offset = 0;
+			Meta.rowBytes = RowSizes[PlaneIndex];
+			for ( int i=0;	i<PlaneIndex;	i++ )
+				Meta.offset += RowSizes[i] * Heights[i];
+			return Meta;
+		};
+		
 		CVPixelBufferReleasePlanarBytesCallback Callback = [](void* CallbackReference,const void* DataPtr,size_t DataSize,size_t PlaneCount,const void* PlaneAddresses[])
 		{
 			//std::Debug << "Pixel Buffer released" << std::endl;
 		};
 		void* CallbackReference = nullptr;
+
+		//	gr: on ios we get a -12780 error when using planar formats
+		//	BUT BGRA32 works.
+		//	kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange also works but ONLY when we provide the CVPlanarPixelBufferInfo_YCbCrBiPlanar
+		//		struct.
+		//	OSX doesn't require it
+		CVPlanarPixelBufferInfo_YCbCrBiPlanar PlanarMeta_8_88;
+		PlanarMeta_8_88.componentInfoY = GetPlanarMeta(0);
+		PlanarMeta_8_88.componentInfoCbCr = GetPlanarMeta(1);
+		CVPlanarPixelBufferInfo_YCbCrPlanar PlanarMeta_8_8_8;
+		PlanarMeta_8_8_8.componentInfoY = GetPlanarMeta(0);
+		PlanarMeta_8_8_8.componentInfoCb = GetPlanarMeta(1);
+		PlanarMeta_8_8_8.componentInfoCr = GetPlanarMeta(2);
+		void* PlanarMetaStruct = nullptr;
+		size_t PlanarMetaSize = 0;
+
+		if ( PixelFormatType == kCVPixelFormatType_420YpCbCr8Planar || PixelFormatType == kCVPixelFormatType_420YpCbCr8PlanarFullRange )
+		{
+			PlanarMetaStruct = &PlanarMeta_8_8_8;
+			PlanarMetaSize = sizeof(PlanarMeta_8_8_8);
+		}
+		else if ( PixelFormatType == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange || PixelFormatType == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange )
+		{
+			PlanarMetaStruct = &PlanarMeta_8_88;
+			PlanarMetaSize = sizeof(PlanarMeta_8_88);
+		}
+
 		
 		auto Result = CVPixelBufferCreateWithPlanarBytes( PixelBufferAllocator, Widths[0], Heights[0], PixelFormatType,
-														 nullptr, 0,//use these if contigiuous
+														 PlanarMetaStruct, PlanarMetaSize,	//use these if contigiuous	//	gr: MUST use on ios
 														 Planes.GetSize(),
 														 Datas, Widths, Heights,
 														 RowSizes,

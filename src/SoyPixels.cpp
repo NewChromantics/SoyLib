@@ -6,7 +6,7 @@
 //#include "SoyMath.h"
 //#include "SoyStream.h"
 #include "SoyImage.h"
-
+#include "magic_enum/include/magic_enum.hpp"
 
 
 
@@ -68,7 +68,21 @@ prmem::Heap& SoyPixels::GetDefaultHeap()
 	static auto* Heap = new prmem::Heap( true, true, "SoyPixels::DefaultHeap" );
 	return *Heap;
 }
-	
+
+std::string SoyPixelsFormat::ToString(Type Format)
+{
+	auto FormatName = magic_enum::enum_name(Format);
+	return std::string(FormatName);
+}
+
+SoyPixelsFormat::Type SoyPixelsFormat::ToFormat(const std::string& FormatName)
+{
+	auto FormatMaybe = magic_enum::enum_cast<SoyPixelsFormat::Type>(FormatName);
+	if ( !FormatMaybe.has_value() )
+		throw Soy::AssertException( std::string("Invalid pixel format name ") + FormatName);
+	return *FormatMaybe;
+}
+
 
 
 SoyPixelsFormat::Type SoyPixelsFormat::GetFloatFormat(Type Format)
@@ -150,7 +164,12 @@ size_t SoyPixelsFormat::GetChannelCount(SoyPixelsFormat::Type Format)
 	case KinectDepth:	return 1;
 	case FreenectDepth11bit:	return 1;
 	case FreenectDepth10bit:	return 1;	
-	case Depth16mm:		return 1;
+		case Depth16mm:		return 1;
+		
+		case DepthFloatMetres:		return 1;
+		case DepthHalfMetres:		return 1;
+		case DepthDisparityFloat:		return 1;
+		case DepthDisparityHalf:		return 1;
 
 	case ChromaUV_8_8:	return 1;
 	case ChromaUV_88:	return 2;
@@ -208,7 +227,14 @@ uint8_t SoyPixelsFormat::GetBytesPerChannel(SoyPixelsFormat::Type Format)
 	case Float2:
 	case Float3:
 	case Float4:
+	case DepthFloatMetres:
+	case DepthDisparityFloat:
 		return sizeof(float);
+
+	//	maybe need to make a c++ type for this
+	case DepthHalfMetres:
+	case DepthDisparityHalf:
+		return sizeof(uint16_t);
 
 	case KinectDepth:
 	case FreenectDepth11bit:
@@ -247,17 +273,8 @@ const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyP
 	if ( Map.empty() )
 	{
 		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
-		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
-		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
-
 		Map[Yuv_8_8_8].PushBackArray( { Luma, ChromaUV_8_8 } );
-		Map[Yuv_8_8_8].PushBackArray( { Luma, ChromaUV_8_8 } );
-		Map[Yuv_8_8_8].PushBackArray( { Luma, ChromaUV_8_8 } );
-
 		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
-		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
-		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
-
 		Map[ChromaUV_8_8].PushBackArray( { ChromaU_8, ChromaV_8 } );
 
 		//	the merge is used to match in both directions reverse, so this whole map might need to change?
@@ -421,51 +438,6 @@ void SoyPixelsFormat::GetHeaderPalettised(const ArrayBridge<uint8>&& Data,size_t
 	PaletteSize |= Data[1] << 8;
 	TransparentIndex = Data[2];
 }
-
-
-
-std::map<SoyPixelsFormat::Type, std::string> SoyPixelsFormat::EnumMap =
-{
-	{ SoyPixelsFormat::Invalid,				"Invalid" },
-//	{ SoyPixelsFormat::UnityUnknown,		"UnityUnknown" },
-	{ SoyPixelsFormat::Greyscale,			"Greyscale" },
-	{ SoyPixelsFormat::GreyscaleAlpha,		"GreyscaleAlpha"	},
-	{ SoyPixelsFormat::RGB,					"RGB"	},
-	{ SoyPixelsFormat::RGBA,				"RGBA"	},
-	{ SoyPixelsFormat::BGRA,				"BGRA"	},
-	{ SoyPixelsFormat::BGR,					"BGR"	},
-	{ SoyPixelsFormat::ARGB,				"ARGB"	},
-	{ SoyPixelsFormat::KinectDepth,			"KinectDepth"	},
-	{ SoyPixelsFormat::FreenectDepth10bit,	"FreenectDepth10bit"	},
-	{ SoyPixelsFormat::FreenectDepth11bit,	"FreenectDepth11bit"	},
-	{ SoyPixelsFormat::Depth16mm,			"Depth16mm"	},
-	{ SoyPixelsFormat::uyvy_8888,			"uyvy_8888"	},
-	{ SoyPixelsFormat::Yuv_8_88,		"Yuv_8_88"	},
-	{ SoyPixelsFormat::Yuv_8_88,		"Yuv_8_88"	},
-	{ SoyPixelsFormat::Yuv_8_88,		"Yuv_8_88"	},
-	{ SoyPixelsFormat::Yuv_8_8_8,		"Yuv_8_8_8"	},
-	{ SoyPixelsFormat::Yuv_8_8_8,		"Yuv_8_8_8"	},
-	{ SoyPixelsFormat::Yuv_8_8_8,	"Yuv_8_8_8"	},
-	{ SoyPixelsFormat::YYuv_8888,		"YYuv_8888"	},
-	{ SoyPixelsFormat::YYuv_8888,		"YYuv_8888"	},
-	{ SoyPixelsFormat::YYuv_8888,	"YYuv_8888"	},
-	{ SoyPixelsFormat::Uvy_8_88,		"Uvy_844"	},
-	{ SoyPixelsFormat::Luma,			"LumaFull"	},
-	{ SoyPixelsFormat::Luma,			"Luma"	},
-	{ SoyPixelsFormat::Luma,			"Luma"	},
-	{ SoyPixelsFormat::ChromaUV_8_8,		"ChromaUV_8_8"	},
-	{ SoyPixelsFormat::ChromaUV_88,			"ChromaUV_88"	},
-	{ SoyPixelsFormat::ChromaU_8,			"ChromaU_8"	},
-	{ SoyPixelsFormat::ChromaV_8,			"ChromaV_8"	},
-	{ SoyPixelsFormat::Palettised_RGB_8,	"Palettised_RGB_8"	},
-	{ SoyPixelsFormat::Palettised_RGBA_8,	"Palettised_RGBA_8"	},
-	{ SoyPixelsFormat::Float1,				"Float1"	},
-	{ SoyPixelsFormat::Float2,				"Float2"	},
-	{ SoyPixelsFormat::Float3,				"Float3"	},
-	{ SoyPixelsFormat::Float4,				"Float4"	},
-	{ SoyPixelsFormat::Yuv_8_88_Depth16,	"Yuv_8_88_Depth16"	},
-	{ SoyPixelsFormat::BGRA_Depth16,	"BGRA_Depth16"	},
-};
 
 
 #if defined(SOY_OPENCL)
@@ -706,6 +678,38 @@ void ConvertFormat_Greyscale_To_Yuv_8_8_8(ArrayInterface<uint8>& PixelsArray, So
 	}
 
 	Meta = YuvMeta;
+}
+
+
+void ConvertFormat_Yuv_3Plane_To_2Plane(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
+{
+	//	split the planes and then write the new data to them
+	SoyPixelsRemote Yuv3_Pixels(PixelsArray.GetArray(), Meta.GetWidth(), Meta.GetHeight(), Meta.GetDataSize(), Meta.GetFormat());
+	SoyPixelsRemote Yuv2_Pixels(PixelsArray.GetArray(), Meta.GetWidth(), Meta.GetHeight(), Meta.GetDataSize(), NewFormat);
+	BufferArray<std::shared_ptr<SoyPixelsImpl>, 3> OldPlanes;
+	BufferArray<std::shared_ptr<SoyPixelsImpl>, 3> NewPlanes;
+	Yuv3_Pixels.SplitPlanes(GetArrayBridge(OldPlanes));
+	Yuv2_Pixels.SplitPlanes(GetArrayBridge(NewPlanes));
+	
+	//	luma already in correct size & place
+
+	//	chroma [u][v] turning into chroma[uv]
+	auto ChromaPixelCount = OldPlanes[1]->GetWidth() * OldPlanes[1]->GetHeight();
+	auto* ChromaUV = &NewPlanes[1]->GetPixelPtr(0,0,0);
+	auto* ChromaU = &OldPlanes[1]->GetPixelPtr(0,0,0);
+	auto* ChromaV = &OldPlanes[2]->GetPixelPtr(0,0,0);
+
+	//	if we work backwards we can overwrite ourselves without losing data
+	for ( int i=ChromaPixelCount-1;	i>=0;	i-- )
+	{
+		auto u = ChromaU[i];
+		auto v = ChromaV[i];
+		auto uvindex = i*2;
+		ChromaUV[uvindex+0] = u;
+		ChromaUV[uvindex+1] = v;
+	}
+	
+	Meta.DumbSetFormat(NewFormat);
 }
 
 void ConvertFormat_YuvPlane_To_Greyscale(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
@@ -1088,6 +1092,7 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::Yuv_8_8_8, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
 	TConvertFunc( SoyPixelsFormat::Yuv_8_88, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
 	TConvertFunc( SoyPixelsFormat::Yuv_8_88, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
+	TConvertFunc( SoyPixelsFormat::Yuv_8_8_8, SoyPixelsFormat::Yuv_8_88, ConvertFormat_Yuv_3Plane_To_2Plane),
 
 	TConvertFunc( SoyPixelsFormat::Depth16mm, SoyPixelsFormat::Greyscale, Depth16_To_Plane),
 	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Greyscale, Depth16_To_Plane),
@@ -1113,13 +1118,6 @@ TConvertFunc gConversionFuncs[] =
 void SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 {
 	auto OldFormat = GetFormat();
-	if ( !SoyPixelsFormat::IsValid( Format ) )
-	{
-		std::stringstream Error;
-		Error << "Trying to change to " << Format << " (invalid)";
-		throw Soy::AssertException(Error.str());
-	}
-	
 	if ( OldFormat == Format )
 		return;
 	
@@ -1150,7 +1148,7 @@ void SoyPixelsImpl::SetFormat(SoyPixelsFormat::Type Format)
 	
 	//	report missing, but desired conversions
 	std::stringstream Error;
-	Error << "No soypixel conversion from " << OldFormat << " to " << Format;
+	Error << "No soypixel conversion from " << SoyPixelsFormat::ToString(OldFormat) << " to " << SoyPixelsFormat::ToString(Format);
 	throw Soy::AssertException(Error.str());
 }
 
