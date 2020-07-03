@@ -110,17 +110,24 @@ namespace SoyPixelsFormat
 		Float3,
 		Float4,
 		
+		//	gr: maybe try and avoid this and instead make the PopCameraDevice easily allow mulitple handles
+		//		for one device
 		Yuv_8_88_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
+		Yuv_844_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
 		BGRA_Depth16,
 		
 		Count,
 	};
 	
 	//	magic_enum doesn't work with aliases, so here's so extra aliases
+	const static auto YUY2			= YYuv_8888;	//	gr: should this be YuYv_8888?
 	const static auto Nv12			= Yuv_8_88;
 	const static auto Nv21			= Yvu_8_88;
 	const static auto I420			= Yuv_8_8_8;
 	const static auto Luma			= Greyscale;
+	//	old aliases, should we remove these? verify they're the same
+	const static auto Yuv_844		= YYuv_8888;
+	const static auto Uvy_844		= Uvy_8_88;
 
 	//	gr: consider changing this to either Type, Bytes per channel or bits per channel to handle 16 bit better
 	bool				IsFloatChannel(Type Format);

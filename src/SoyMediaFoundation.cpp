@@ -158,30 +158,20 @@ TPlatformFormatMap<GUID> PlatformFormatMap[] =
 	//	https://msdn.microsoft.com/en-us/library/windows/desktop/aa370819(v=vs.85).aspx
 	//	MFVideoFormat_NV11	NV11	4:1:1	Planar	8
 	//	MFVideoFormat_NV12	NV12	4:2:0	Planar	8
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_NV12,	SoyMediaFormat::Yuv_8_88_Full ),
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_NV12,	SoyMediaFormat::Yuv_8_88_Ntsc ),
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_NV12,	SoyMediaFormat::Yuv_8_88_Smptec ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_NV12,	SoyMediaFormat::Yuv_8_88 ),
 
 	//	MFVideoFormat_YUY2	YUY2	4:2:2	Packed	8
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_YUY2,	SoyMediaFormat::YYuv_8888_Full ),
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_YUY2,	SoyMediaFormat::YYuv_8888_Ntsc ),
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_YUY2,	SoyMediaFormat::YYuv_8888_Smptec ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_YUY2,	SoyMediaFormat::YYuv_8888 ),
 
 	//	gr: not actually YYuv_8888?
 	//	MFVideoFormat_UYVY	UYVY	4:2:2	Packed	8
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_IYUV,	SoyMediaFormat::YYuv_8888_Full ),
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_IYUV,	SoyMediaFormat::YYuv_8888_Ntsc ),
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_IYUV,	SoyMediaFormat::YYuv_8888_Smptec ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_IYUV,	SoyMediaFormat::YYuv_8888 ),
 
 	//	gr: not actually YYuv_8888
 	//	MFVideoFormat_Y42T	Y42T	4:2:2	Packed	8
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Full ),
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Ntsc ),
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888_Smptec ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_Y42T,	SoyMediaFormat::YYuv_8888 ),
 
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_I420,	SoyMediaFormat::Yuv_8_8_8_Full ),
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_I420,	SoyMediaFormat::Yuv_8_8_8_Ntsc ),
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_I420,	SoyMediaFormat::Yuv_8_8_8_Smptec ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_I420,	SoyMediaFormat::Yuv_8_8_8 ),
 
 
 	
@@ -189,9 +179,7 @@ TPlatformFormatMap<GUID> PlatformFormatMap[] =
 	//	from an apple sample movie
 	//	http://www.fourcc.org/codecs.php
 	//	YUV 4:2:2 CCIR 601 for V422 (no, I don't understand this either) 
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_VIDS,	SoyMediaFormat::Yuv_8_88_Full ),
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_VIDS,	SoyMediaFormat::Yuv_8_88_Ntsc ),
-	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_VIDS,	SoyMediaFormat::Yuv_8_88_Smptec ),
+	FORMAT_MAP( MFMediaType_Video,	MFVideoFormat_VIDS,	SoyMediaFormat::Yuv_8_88 ),
 
 
 	/*
