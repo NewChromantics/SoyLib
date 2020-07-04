@@ -789,7 +789,7 @@ void AvfPixelBuffer::LockPixels(ArrayBridge<SoyPixelsImpl*>& Planes,void* _Data,
 	if ( !Transform.IsIdentity() || !mTransform.IsIdentity() )
 	{
 		//throw Soy::AssertException("todo: AvfPixelBuffer transform multiply");
-		std::Debug << "todo: AvfPixelBuffer non-identity transform multiply" << std::endl;
+		//std::Debug << "todo: AvfPixelBuffer non-identity transform multiply" << std::endl;
 		/*
 		auto TransformMtx = Soy::VectorToMatrix( Transform );
 		auto ParentTransformMtx = Soy::VectorToMatrix( mTransform );
