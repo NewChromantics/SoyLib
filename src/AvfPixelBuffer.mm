@@ -849,6 +849,8 @@ void AvfPixelBuffer::Lock(ArrayBridge<SoyPixelsImpl*>&& Planes,float3x3& Transfo
 			auto Format = CVPixelBufferGetPixelFormatType( PixelBuffer );
 			auto SoyFormat = Avf::GetPixelFormat( Format );
 			SoyPixelsFormat::GetFormatPlanes( SoyFormat, GetArrayBridge(PlaneFormats) );
+			if ( PlaneFormats.GetSize() != PlaneCount )
+				throw Soy::AssertException("Soy got a different number of planes to what avf has expected");
 			auto PixelBufferDataSize = CVPixelBufferGetDataSize(PixelBuffer);
 			for ( size_t PlaneIndex=0;	PlaneIndex<PlaneCount;	PlaneIndex++ )
 			{

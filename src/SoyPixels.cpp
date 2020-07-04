@@ -301,6 +301,18 @@ const std::map<SoyPixelsFormat::Type, BufferArray<SoyPixelsFormat::Type, 3>>& So
 
 void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneFormats)
 {
+	//	prioritise 3 planes over 2 (this is mostly for yuv_8_8_8 as avf needs this to match 3 planes)
+	{
+		auto& Map3 = GetMergedFormatMap3();
+		auto it3 = Map3.find(Format);
+		
+		if (it3 != Map3.end())
+		{
+			PlaneFormats.Copy(it3->second);
+			return;
+		}
+	}
+
 	{
 		auto& Map2 = GetMergedFormatMap2();
 		auto it2 = Map2.find(Format);
@@ -311,16 +323,6 @@ void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneForma
 		}
 	}
 
-	{
-		auto& Map3 = GetMergedFormatMap3();
-		auto it3 = Map3.find(Format);
-
-		if (it3 != Map3.end())
-		{
-			PlaneFormats.Copy(it3->second);
-			return;
-		}
-	}
 	PlaneFormats.PushBack(Format);
 	return;
 }
