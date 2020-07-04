@@ -548,7 +548,7 @@ void AvfPixelBuffer::Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContex
 	auto PlaneCount = CVPixelBufferGetPlaneCount( ImageBuffer );
 	if ( PlaneCount > 0 )
 	{
-		BufferArray<SoyPixelsFormat::Type,2> PlaneFormats;
+		BufferArray<SoyPixelsFormat::Type,4> PlaneFormats;
 		auto Format = CVPixelBufferGetPixelFormatType( ImageBuffer );
 		auto SoyFormat = Avf::GetPixelFormat( Format );
 		SoyPixelsFormat::GetFormatPlanes( SoyFormat, GetArrayBridge(PlaneFormats) );
@@ -644,7 +644,7 @@ void AvfPixelBuffer::Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TCont
 	auto PlaneCount = CVPixelBufferGetPlaneCount( ImageBuffer );
 	if ( PlaneCount > 0 )
 	{
-		BufferArray<SoyPixelsFormat::Type,2> PlaneFormats;
+		BufferArray<SoyPixelsFormat::Type,4> PlaneFormats;
 		auto Format = CVPixelBufferGetPixelFormatType( ImageBuffer );
 		auto SoyFormat = Avf::GetPixelFormat( Format );
 		SoyPixelsFormat::GetFormatPlanes( SoyFormat, GetArrayBridge(PlaneFormats) );
@@ -845,7 +845,7 @@ void AvfPixelBuffer::Lock(ArrayBridge<SoyPixelsImpl*>&& Planes,float3x3& Transfo
 		auto PlaneCount = CVPixelBufferGetPlaneCount( PixelBuffer );
 		if ( PlaneCount >= 1 )
 		{
-			BufferArray<SoyPixelsFormat::Type,2> PlaneFormats;
+			BufferArray<SoyPixelsFormat::Type,4> PlaneFormats;
 			auto Format = CVPixelBufferGetPixelFormatType( PixelBuffer );
 			auto SoyFormat = Avf::GetPixelFormat( Format );
 			SoyPixelsFormat::GetFormatPlanes( SoyFormat, GetArrayBridge(PlaneFormats) );

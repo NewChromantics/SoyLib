@@ -293,8 +293,6 @@ const std::map<SoyPixelsFormat::Type, BufferArray<SoyPixelsFormat::Type, 3>>& So
 	if (Map.empty())
 	{
 		Map[Yuv_8_8_8].PushBackArray({ Luma, ChromaU_8,ChromaV_8 });
-		Map[Yuv_8_8_8].PushBackArray({ Luma, ChromaU_8,ChromaV_8 });
-		Map[Yuv_8_8_8].PushBackArray({ Luma, ChromaU_8,ChromaV_8 });
 	}
 
 	return Map;
