@@ -6,6 +6,7 @@
 #include "SoyTypes.h"
 #include <cmath>
 #include "SoyVector.h"
+#include <algorithm>
 
 #if defined(TARGET_WINDOWS)
 #include <math.h>

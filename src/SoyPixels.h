@@ -110,18 +110,24 @@ namespace SoyPixelsFormat
 		Float3,
 		Float4,
 		
+		//	gr: maybe try and avoid this and instead make the PopCameraDevice easily allow mulitple handles
+		//		for one device
 		Yuv_8_88_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
+		Yuv_844_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
 		BGRA_Depth16,
-			
+		
 		Count,
-		//	shorthand names
-		//	gr: fix this, to work around magic_enum problem, change this to SoyPixelsFormat::Fourcc
-		//	http://www.fourcc.org/yuv.php
-		Nv12			= Yuv_8_88,
-		Nv21			= Yvu_8_88,
-		I420			= Yuv_8_8_8,
-		Luma			= Greyscale,
 	};
+	
+	//	magic_enum doesn't work with aliases, so here's so extra aliases
+	const static auto YUY2			= YYuv_8888;	//	gr: should this be YuYv_8888?
+	const static auto Nv12			= Yuv_8_88;
+	const static auto Nv21			= Yvu_8_88;
+	const static auto I420			= Yuv_8_8_8;
+	const static auto Luma			= Greyscale;
+	//	old aliases, should we remove these? verify they're the same
+	const static auto Yuv_844		= YYuv_8888;
+	const static auto Uvy_844		= Uvy_8_88;
 
 	//	gr: consider changing this to either Type, Bytes per channel or bits per channel to handle 16 bit better
 	bool				IsFloatChannel(Type Format);
@@ -142,7 +148,9 @@ namespace SoyPixelsFormat
 	Type			GetFloatFormat(Type Format);
 	Type			GetByteFormat(Type Format);
 	
-	DECLARE_SOYENUM( SoyPixelsFormat );
+	std::string		ToString(Type Format);
+	Type			ToFormat(const std::string& FormatString);
+	inline Type		ToType(const std::string& FormatString)		{	return ToFormat(FormatString);	}
 };
 
 
@@ -198,7 +206,7 @@ public:
 	{
 	}
 	
-	bool			IsValid() const					{	return (mWidth>0) && (mHeight>0) && SoyPixelsFormat::IsValid(mFormat);	}
+	bool			IsValid() const					{	return (mWidth>0) && (mHeight>0) && mFormat!=SoyPixelsFormat::Invalid;	}
 	bool			IsValidDimensions() const		{	return (mWidth>0) && (mHeight>0);	}
 	uint8_t			GetBitDepth() const				{	return 8;	}
 	
@@ -266,7 +274,7 @@ public:
 	uint8_t			GetChannels() const				{	return size_cast<uint8_t>( GetMeta().GetChannels() );	}
 	size_t			GetWidth() const				{	return GetMeta().GetWidth();	}
 	size_t			GetHeight() const				{	return GetMeta().GetHeight();	}
-	size_t			GetRowPitchBytes() const		{	return sizeof(uint8_t) * GetChannels() * GetWidth();	}
+	size_t			GetRowPitchBytes() const		{	return GetMeta().GetBytesPerChannel() * GetChannels() * GetWidth();	}
 	SoyPixelsFormat::Type	GetFormat() const		{	return GetMeta().GetFormat();	}
 	void			PrintPixels(const std::string& Prefix,std::ostream& Stream,bool Hex,const char* PixelSuffix) const;
 

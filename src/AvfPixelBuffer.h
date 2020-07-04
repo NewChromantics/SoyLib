@@ -90,7 +90,7 @@ class AvfPixelBuffer : public TPixelBuffer
 public:
 	AvfPixelBuffer(bool DoRetain,std::shared_ptr<AvfDecoderRenderer>& Decoder,const float3x3& Transform) :
 		mDecoder		( Decoder ),
-		mLockedPixels	( 2 ),
+		mLockedPixels	( 0 ),	//	gr: this was 2, why?...
 		mReadOnlyLock	( true ),
 		mTransform		( Transform )
 	{
@@ -129,7 +129,7 @@ protected:
 #elif defined(TARGET_OSX)&&defined(ENABLE_OPENGL)
 	CFPtr<CVOpenGLTextureRef>			mLockedTexture;
 #endif
-	BufferArray<SoyPixelsRemote,2>		mLockedPixels;
+	BufferArray<SoyPixelsRemote,4>		mLockedPixels;
 };
 #endif
 

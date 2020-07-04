@@ -3,6 +3,7 @@
 
 
 
+
 TSocketClient::TSocketClient(std::shared_ptr<TSocketReadThread> ReadThread,std::shared_ptr<TSocketWriteThread> WriteThread) :
 	mWriteThread		( WriteThread ),
 	mReadThread			( ReadThread )
@@ -44,12 +45,7 @@ TSocketServer::TSocketServer(size_t& Port,const std::string& ThreadName) :
 	mSocket->CreateTcp(Blocking);
 	
 	//	gr: change this so socket throws
-	if ( !mSocket->ListenTcp( size_cast<uint16>(Port) ) )
-	{
-		std::stringstream Error;
-		Error << "Failed to open listening socket on port " << Port;
-		throw Soy::AssertException( Error.str() );
-	}
+	mSocket->ListenTcp(size_cast<uint16>(Port));
 	
 	auto OnConnected = [this](SoyRef ConnectionRef)
 	{
@@ -61,8 +57,8 @@ TSocketServer::TSocketServer(size_t& Port,const std::string& ThreadName) :
 		DestroyClient( ConnectionRef );
 	};
 	
-	mSocket->mOnConnect.AddListener( OnConnected );
-	mSocket->mOnDisconnect.AddListener( OnDisconnected );
+	mSocket->mOnConnect = OnConnected;
+	mSocket->mOnDisconnect = OnDisconnected;
 	
 	//	may need to defer this later
 	Start();
@@ -143,7 +139,7 @@ void TSocketServer::CreateClient(SoyRef Connection)
 		mClients[Connection] = Client;
 	}
 						 
-	ReadThread->mOnDataRecieved.AddListener( OnRecvData );
+	ReadThread->mOnDataRecieved = OnRecvData;
 	ReadThread->Start();
 	WriteThread->Start();
 }
