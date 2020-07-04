@@ -274,7 +274,6 @@ const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyP
 	{
 		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
 		Map[Yuv_8_8_8].PushBackArray( { Luma, ChromaUV_8_8 } );
-		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
 		Map[ChromaUV_8_8].PushBackArray( { ChromaU_8, ChromaV_8 } );
 
 		//	the merge is used to match in both directions reverse, so this whole map might need to change?
