@@ -267,7 +267,7 @@ public:
 	uint8_t			GetChannels() const				{	return size_cast<uint8_t>( GetMeta().GetChannels() );	}
 	size_t			GetWidth() const				{	return GetMeta().GetWidth();	}
 	size_t			GetHeight() const				{	return GetMeta().GetHeight();	}
-	size_t			GetRowPitchBytes() const		{	return sizeof(uint8_t) * GetChannels() * GetWidth();	}
+	size_t			GetRowPitchBytes() const		{	return GetMeta().GetBytesPerChannel() * GetChannels() * GetWidth();	}
 	SoyPixelsFormat::Type	GetFormat() const		{	return GetMeta().GetFormat();	}
 	void			PrintPixels(const std::string& Prefix,std::ostream& Stream,bool Hex,const char* PixelSuffix) const;
 

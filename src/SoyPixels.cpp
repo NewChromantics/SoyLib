@@ -1824,7 +1824,7 @@ void SoyPixelsImpl::Flip()
 	Soy::TScopeTimerPrint Timer("SoyPixelsImpl::Flip", 5);
 	
 	//	buffer a line so we don't need to realloc for the temp line
-	auto LineSize = GetWidth() * GetChannels();
+	auto LineSize = GetRowPitchBytes();
 	Array<char> TempLine( size_cast<size_t>(LineSize) );
 	auto* Pixels = GetPixelsArray().GetArray();
 	
