@@ -2,7 +2,7 @@
 
 
 #include <sstream>
-#include <SoyAssert.h>
+#include "SoyAssert.h"
 #include "magic_enum/include/magic_enum.hpp"
 
 /*
