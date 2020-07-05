@@ -2,8 +2,7 @@
 
 
 #include <string>
-#include <map>
-#include "SoyAssert.h"
+#include "magic_enum/include/magic_enum.hpp"
 
 /*
 	gr: new SoyEnum system, usage:
@@ -23,89 +22,34 @@ namespace TDeviceType
 	DECLARE_SOYENUM( TDeviceType );
 };
 
-
-std::map<TDeviceType::Type,std::string> TDeviceType::EnumMap =
-{
-	{ TDeviceType::Invalid,	"invalid" },
-	{ TDeviceType::Speaker,	"speaker" },
-	{ TDeviceType::Tv,		"tv" },
-	{ TDeviceType::TvLeft,	"tvleft" },
-	{ TDeviceType::TvRight,	"tvright" },
-	{ TDeviceType::Phone,	"phone" },
-};
 */
 
 
 #define DECLARE_SOYENUM(Namespace)	\
-	extern std::map<Namespace::Type,std::string> EnumMap;	\
-	inline Type						ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap, Invalid );	}	\
-	inline const std::string&		ToString(Type type)			{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
-	inline const char*				ToCString(Type type)		{	return ToString( type ).c_str();	}	\
-	template<typename T>inline bool	IsValid(T type)				{	return SoyEnum::Validate<Type>( type, EnumMap, Invalid ) != Invalid;	}	\
-	template<typename T>inline Type	Validate(T type)			{	return SoyEnum::Validate<Type>( static_cast<Type>(type), EnumMap, Invalid );	}	\
-	template<>inline Type			Validate(Type type)			{	return SoyEnum::Validate<Type>( type, EnumMap, Invalid );	}	\
+	inline Type						ToType(const std::string& String)	{	return *magic_enum::enum_cast<Type>( String );	}	\
+	inline Type						ToType(std::string_view String)		{	return *magic_enum::enum_cast<Type>( String );	}	\
+	inline constexpr auto			ToString(Type type)					{	return magic_enum::enum_name( type );	}	\
+	template<typename T>inline bool	IsValid(T type)						{	auto CastValue = Validate(type);	return CastValue != Invalid;	}	\
+	template<typename T>inline Type	Validate(T type)					{	auto CastValue = magic_enum::enum_cast<Type>( type );	SoyEnum::ThrowInvalid<Type>(type, CastValue, #Namespace );	return *CastValue;	}	\
 	inline std::ostream& operator<<(std::ostream &out,const Namespace::Type &in)	{	out << ToString(in);	return out;	}	\
-\
-
-
-#define DECLARE_SOYENUM_WITHINVALID(Namespace,INVALID)	\
-	extern std::map<Namespace::Type,std::string> EnumMap;	\
-	inline Type					ToType(const std::string& String)	{	return SoyEnum::ToType<Type>( String, EnumMap, INVALID );	}	\
-	inline const std::string&	ToString(Type type)					{	return SoyEnum::ToString<Type>( type, EnumMap );	}	\
-	inline bool					IsValid(Type type)					{	return SoyEnum::Validate<Type>( type, EnumMap, INVALID ) != INVALID;	}	\
-	inline Type					Validate(Type type)					{	return SoyEnum::Validate<Type>( type, EnumMap, INVALID );	}	\
 \
 
 
 namespace SoyEnum
 {
-	template<typename ENUMTYPE,class ENUMMAP>
-	const std::string&	ToString(ENUMTYPE Type,const ENUMMAP& EnumMap);
-	
-	template<typename ENUMTYPE,class ENUMMAP>
-	ENUMTYPE			ToType(const std::string& String,const ENUMMAP& EnumMap,ENUMTYPE Default);
-	
-	template<typename ENUMTYPE,class ENUMMAP>
-	ENUMTYPE			Validate(ENUMTYPE Type,const ENUMMAP& EnumMap,ENUMTYPE InvalidReturn);
-	
+	template<typename EnumType,typename InputType>
+	void	ThrowInvalid(InputType InputValue,const std::optional<EnumType>& OutputValue,const char* SoyEnumTypeName);
 }
 
-template<typename ENUMTYPE,class ENUMMAP>
-inline const std::string& SoyEnum::ToString(ENUMTYPE Type,const ENUMMAP& EnumMap)
+
+template<typename EnumType,typename InputType>
+inline void SoyEnum::ThrowInvalid(InputType InputValue,const std::optional<EnumType>& OutputValue,const char* SoyEnumTypeName)
 {
-	//	stop bad cases being created in the map
-	auto it = EnumMap.find( Type );
-
-	if ( it == EnumMap.end() )
-	{
-		std::stringstream Error;
-		Error << "Value missing from enum map for " << Soy::GetTypeName<ENUMTYPE>() << ": " << static_cast<int>(Type);
-		throw Soy::AssertException( Error.str() );
-	}
-
-	return it->second;
-};
-
-
-//	note: this only will succeed if it's in the enum map... could still be valid in code
-template<typename ENUMTYPE,class ENUMMAP>
-inline ENUMTYPE SoyEnum::Validate(ENUMTYPE Type,const ENUMMAP& EnumMap,ENUMTYPE InvalidReturn)
-{
-	//	stop bad cases being created in the map
-	auto it = EnumMap.find( Type );
-	
-	return ( it != EnumMap.end() ) ? Type : InvalidReturn;
-};
-
-template<typename ENUMTYPE,class ENUMMAP>
-inline ENUMTYPE SoyEnum::ToType(const std::string& String,const ENUMMAP& EnumMap,ENUMTYPE Default)
-{
-	for ( auto it=EnumMap.begin();	it!=EnumMap.end();	it++ )
-	{
-		if ( it->second == String )
-			return it->first;
-	}
-	return Default;
-};
+	if ( OutputValue.has_value() )
+		return;
+	std::stringstream Error;
+	Error << "Tried to convert " << InputValue << " to " << SoyEnumTypeName << " enum, but invalid";
+	throw Soy::AssertException(Error);
+}
 
 

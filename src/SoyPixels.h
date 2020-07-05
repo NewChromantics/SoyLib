@@ -148,9 +148,7 @@ namespace SoyPixelsFormat
 	Type			GetFloatFormat(Type Format);
 	Type			GetByteFormat(Type Format);
 	
-	std::string		ToString(Type Format);
-	Type			ToFormat(const std::string& FormatString);
-	inline Type		ToType(const std::string& FormatString)		{	return ToFormat(FormatString);	}
+	DECLARE_SOYENUM(SoyPixelsFormat);
 };
 
 

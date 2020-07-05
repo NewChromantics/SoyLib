@@ -69,19 +69,6 @@ prmem::Heap& SoyPixels::GetDefaultHeap()
 	return *Heap;
 }
 
-std::string SoyPixelsFormat::ToString(Type Format)
-{
-	auto FormatName = magic_enum::enum_name(Format);
-	return std::string(FormatName);
-}
-
-SoyPixelsFormat::Type SoyPixelsFormat::ToFormat(const std::string& FormatName)
-{
-	auto FormatMaybe = magic_enum::enum_cast<SoyPixelsFormat::Type>(FormatName);
-	if ( !FormatMaybe.has_value() )
-		throw Soy::AssertException( std::string("Invalid pixel format name ") + FormatName);
-	return *FormatMaybe;
-}
 
 
 

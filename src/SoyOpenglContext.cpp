@@ -29,7 +29,7 @@ namespace Opengl
 	ssize_t	gTextureAllocationCount=0;
 };
 
-
+/*	gr: note this had specific names, not just a 1:1 enum name map
 std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 {
 	{	OpenglExtensions::Invalid,				"Invalid"	},
@@ -48,6 +48,7 @@ std::map<OpenglExtensions::Type,std::string> OpenglExtensions::EnumMap =
 	{	OpenglExtensions::GenerateMipMap,		"GenerateMipMap"	},
 	{	OpenglExtensions::Sync,					"Sync"	},
 };
+*/
 
 namespace Opengl
 {
@@ -239,7 +240,7 @@ bool PushExtension(std::map<OpenglExtensions::Type,bool>& SupportedExtensions,co
 	
 	//	set support in the map
 	SupportedExtensions[ExtensionType] = true;
-	std::Debug << "Extension supported: " << OpenglExtensions::ToString( ExtensionType ) << std::endl;
+	std::Debug << "Extension supported: " << ExtensionType << std::endl;
 	
 	return true;
 }
