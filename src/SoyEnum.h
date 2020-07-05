@@ -1,7 +1,8 @@
 #pragma once
 
 
-#include <string>
+#include <sstream>
+#include <SoyAssert.h>
 #include "magic_enum/include/magic_enum.hpp"
 
 /*
@@ -28,10 +29,11 @@ namespace TDeviceType
 #define DECLARE_SOYENUM(Namespace)	\
 	inline Type						ToType(const std::string& String)	{	return *magic_enum::enum_cast<Type>( String );	}	\
 	inline Type						ToType(std::string_view String)		{	return *magic_enum::enum_cast<Type>( String );	}	\
-	inline constexpr auto			ToString(Type type)					{	return magic_enum::enum_name( type );	}	\
+	inline constexpr auto			ToStringView(Type type)				{	return magic_enum::enum_name( type );	}	\
+	inline std::string				ToString(Type type)					{	return std::string(magic_enum::enum_name( type ) );	}	\
 	template<typename T>inline bool	IsValid(T type)						{	auto CastValue = Validate(type);	return CastValue != Invalid;	}	\
 	template<typename T>inline Type	Validate(T type)					{	auto CastValue = magic_enum::enum_cast<Type>( type );	SoyEnum::ThrowInvalid<Type>(type, CastValue, #Namespace );	return *CastValue;	}	\
-	inline std::ostream& operator<<(std::ostream &out,const Namespace::Type &in)	{	out << ToString(in);	return out;	}	\
+	inline std::ostream& operator<<(std::ostream &out,const Namespace::Type &in)	{	out << ToStringView(in);	return out;	}	\
 \
 
 
