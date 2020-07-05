@@ -334,19 +334,6 @@ WebSocket::THandshakeResponseProtocol::THandshakeResponseProtocol(const THandsha
 }
 
 
-
-std::map<WebSocket::TOpCode::Type,std::string> WebSocket::TOpCode::EnumMap =
-{
-	{ WebSocket::TOpCode::Invalid,				"invalid" },
-	{ WebSocket::TOpCode::ContinuationFrame,	"ContinuationFrame" },
-	{ WebSocket::TOpCode::TextFrame,			"TextFrame" },
-	{ WebSocket::TOpCode::BinaryFrame,			"BinaryFrame" },
-	{ WebSocket::TOpCode::ConnectionCloseFrame,	"ConnectionCloseFrame" },
-	{ WebSocket::TOpCode::PingFrame,			"PingFrame" },
-	{ WebSocket::TOpCode::PongFrame,			"PongFrame" },
-};
-
-
 size_t WebSocket::TMessageHeader::GetLength() const
 {
 	if ( Length64 != 0 )
