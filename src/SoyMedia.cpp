@@ -15,7 +15,7 @@
 
 #include "SoyPool.h"
 
-#if defined(TARGET_IOS)||defined(TARGET_OSX)
+#if defined(TARGET_IOS)||defined(TARGET_OSX)||defined(TARGET_LINUX)
 #include <math.h>//	modff
 #endif
 
