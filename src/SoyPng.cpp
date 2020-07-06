@@ -4,11 +4,13 @@
 #include "RemoteArray.h"
 #include "SoyFourcc.h"
 
+//	to avoid various symbol conflicts with other libs 
+//	that use miniz (but different versions)
+//	we put all the miniZ stuff in it's own namespace
 namespace MiniZ
 {
 #include "miniz/miniz.h"
 }
-using namespace MiniZ;
 
 
 const Soy::TFourcc TPng::IHDR("IHDR");
@@ -328,6 +330,7 @@ bool TPng::ReadTail(SoyPixelsImpl& Pixels,ArrayBridge<char>& Data,std::stringstr
 
 int GetMinizCompressionLevel(float Levelf)
 {
+	using namespace MiniZ;
 	//	0-10
 	auto Level = static_cast<int>( Levelf * MZ_UBER_COMPRESSION );
 	if ( Level < MZ_NO_COMPRESSION || Level > MZ_UBER_COMPRESSION )
@@ -342,6 +345,7 @@ int GetMinizCompressionLevel(float Levelf)
 
 void TPng::Private::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,TCompression::Type Compression,float CompressionLevel)
 {
+	using namespace MiniZ;
 	if ( Compression == TCompression::DEFLATE )
 	{
 		//	we need to add a filter value at the start of each row, so calculate all the byte indexes
