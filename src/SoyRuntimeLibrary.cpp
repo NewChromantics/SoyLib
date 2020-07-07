@@ -113,7 +113,7 @@ Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(vo
 		return;
 	}
 	
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX) || defined(TARGET_LINUX)
 	//	link all symbols immediately
 	int Mode = RTLD_LAZY | RTLD_GLOBAL;
 	mHandle = dlopen( Filename.c_str(), Mode );
