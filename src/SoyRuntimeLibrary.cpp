@@ -5,10 +5,11 @@
 #include "SoyFilesystem.h"
 
 
-#if defined(TARGET_OSX)
-#include <dlfcn.h>
-#include <unistd.h>
+#if defined(TARGET_OSX) || defined(TARGET_LINUX)
+#include <dlfcn.h>	//	dlopen
+#include <unistd.h>	//	getcwd
 #endif
+
 
 std::string Soy::GetEnvVar(const char* Key)
 {
@@ -102,9 +103,6 @@ std::string Soy::GetCurrentWorkingDir()
 
 
 Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(void)> LoadTest) :
-#if defined(TARGET_OSX)||defined(TARGET_WINDOWS)
-	mHandle			( nullptr ),
-#endif
 	mLibraryName	( Filename )
 {
 	if ( LoadTest && LoadTest() )
@@ -254,7 +252,7 @@ void* Soy::TRuntimeLibrary::GetSymbol(const char* Name)
 {
 #if defined(TARGET_IOS)
 	throw Soy::AssertException("No Runtime library support on ios");
-#elif defined(TARGET_OSX)
+#elif defined(TARGET_OSX) || defined(TARGET_LINUX)
 	Soy::Assert( mHandle!=nullptr, mLibraryName + " library not loaded");
 	return dlsym( mHandle, Name );
 #else

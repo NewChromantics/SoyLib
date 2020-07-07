@@ -63,7 +63,7 @@ public:
 	}
 
 private:
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX)||defined(TARGET_LINUX)
 	void*		mHandle = nullptr;
 #elif defined(TARGET_WINDOWS)
 	HMODULE		mHandle = nullptr;
