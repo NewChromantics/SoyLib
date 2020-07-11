@@ -186,6 +186,16 @@ std::shared_ptr<TMediaPacket> Avf::GetFormatDescriptionPacket(CMSampleBufferRef 
 }
 */
 
+
+SoyPixelsMeta Avf::GetPixelMeta(CVPixelBufferRef PixelBuffer)
+{
+	auto Height = CVPixelBufferGetHeight( PixelBuffer );
+	auto Width = CVPixelBufferGetWidth( PixelBuffer );
+	auto Format = CVPixelBufferGetPixelFormatType( PixelBuffer );
+	auto SoyFormat = Avf::GetPixelFormat( Format );
+	return SoyPixelsMeta( Width, Height, SoyFormat );
+}
+
 void Avf::GetFormatDescriptionData(ArrayBridge<uint8>&& Data,CMFormatDescriptionRef FormatDesc,size_t ParamIndex)
 {
 	size_t ParamCount = 0;

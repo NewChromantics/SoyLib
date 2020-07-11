@@ -61,6 +61,7 @@ namespace Avf
 	OSType							GetPlatformPixelFormat(SoyPixelsFormat::Type Format);
 	SoyPixelsFormat::Type			GetPixelFormat(OSType Format);
 	SoyPixelsFormat::Type			GetPixelFormat(NSNumber* Format);
+	SoyPixelsMeta					GetPixelMeta(CVPixelBufferRef PixelBuffer);
 
 	vec2x<uint32_t>					GetSize(CVImageBufferRef Image);
 }
