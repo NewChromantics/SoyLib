@@ -39,7 +39,7 @@ namespace Debug
 	bool	EnablePrint_CouterrSync = true;	//	use a lock to make cout/cerr prints synchronised
 	bool	EnablePrint_Cout = true;
 	bool	EnablePrint_Cerr = false;
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX) || defined(TARGET_LINUX)
 	bool	EnablePrint_Platform = false;
 #else
 	bool	EnablePrint_Platform = true;
