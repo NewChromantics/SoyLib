@@ -681,18 +681,52 @@ void ConvertFormat_Yuv_3Plane_To_2Plane(ArrayInterface<uint8>& PixelsArray, SoyP
 
 	//	chroma [u][v] turning into chroma[uv]
 	auto ChromaPixelCount = OldPlanes[1]->GetWidth() * OldPlanes[1]->GetHeight();
+	SoyPixels ChromaUCopy(*OldPlanes[1]);
+	SoyPixels ChromaVCopy(*OldPlanes[2]);
 	auto* ChromaUV = &NewPlanes[1]->GetPixelPtr(0,0,0);
-	auto* ChromaU = &OldPlanes[1]->GetPixelPtr(0,0,0);
-	auto* ChromaV = &OldPlanes[2]->GetPixelPtr(0,0,0);
+	auto* ChromaU = &ChromaUCopy.GetPixelPtr(0,0,0);
+	auto* ChromaV = &ChromaVCopy.GetPixelPtr(0,0,0);
 
-	//	if we work backwards we can overwrite ourselves without losing data
-	for ( int i=ChromaPixelCount-1;	i>=0;	i-- )
+	for ( int i=0;	i<ChromaPixelCount;	i++ )
 	{
 		auto u = ChromaU[i];
 		auto v = ChromaV[i];
 		auto uvindex = i*2;
 		ChromaUV[uvindex+0] = u;
 		ChromaUV[uvindex+1] = v;
+	}
+	
+	Meta.DumbSetFormat(NewFormat);
+}
+
+
+void ConvertFormat_Yuv_2Plane_To_3Plane(ArrayInterface<uint8>& PixelsArray, SoyPixelsMeta& Meta, SoyPixelsFormat::Type NewFormat)
+{
+	//	split the planes and then write the new data to them
+	SoyPixelsRemote Yuv2_Pixels(PixelsArray.GetArray(), Meta.GetWidth(), Meta.GetHeight(), Meta.GetDataSize(), Meta.GetFormat());
+	SoyPixelsRemote Yuv3_Pixels(PixelsArray.GetArray(), Meta.GetWidth(), Meta.GetHeight(), Meta.GetDataSize(), NewFormat);
+	BufferArray<std::shared_ptr<SoyPixelsImpl>, 3> OldPlanes;
+	BufferArray<std::shared_ptr<SoyPixelsImpl>, 3> NewPlanes;
+	Yuv2_Pixels.SplitPlanes(GetArrayBridge(OldPlanes));
+	Yuv3_Pixels.SplitPlanes(GetArrayBridge(NewPlanes));
+	
+	//	luma already in correct size & place
+	
+	//	chroma [uv] turning into chroma[u][v]
+	auto ChromaPixelCount = OldPlanes[1]->GetWidth() * OldPlanes[1]->GetHeight();
+	SoyPixels ChromaUvCopy(*OldPlanes[1]);
+	auto* ChromaUV = &ChromaUvCopy.GetPixelPtr(0,0,0);
+	auto* ChromaU = &NewPlanes[1]->GetPixelPtr(0,0,0);
+	auto* ChromaV = &NewPlanes[2]->GetPixelPtr(0,0,0);
+	
+	//	if we work backwards we can overwrite ourselves without losing data
+	for ( int i=0;	i<ChromaPixelCount;	i++ )
+	{
+		auto uvindex = i*2;
+		auto u = ChromaUV[uvindex+0];
+		auto v = ChromaUV[uvindex+1];
+		ChromaU[i] = u;
+		ChromaV[i] = v;
 	}
 	
 	Meta.DumbSetFormat(NewFormat);
@@ -1079,6 +1113,7 @@ TConvertFunc gConversionFuncs[] =
 	TConvertFunc( SoyPixelsFormat::Yuv_8_88, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
 	TConvertFunc( SoyPixelsFormat::Yuv_8_88, SoyPixelsFormat::Greyscale, ConvertFormat_YuvPlane_To_Greyscale),
 	TConvertFunc( SoyPixelsFormat::Yuv_8_8_8, SoyPixelsFormat::Yuv_8_88, ConvertFormat_Yuv_3Plane_To_2Plane),
+	TConvertFunc( SoyPixelsFormat::Yuv_8_88, SoyPixelsFormat::Yuv_8_8_8, ConvertFormat_Yuv_2Plane_To_3Plane),
 
 	TConvertFunc( SoyPixelsFormat::Depth16mm, SoyPixelsFormat::Greyscale, Depth16_To_Plane),
 	TConvertFunc( SoyPixelsFormat::KinectDepth, SoyPixelsFormat::Greyscale, Depth16_To_Plane),
