@@ -520,6 +520,7 @@ Metal::TTexture ExtractNonPlanarTexture_Metal(AvfTextureCache& TextureCache,CVIm
 
 void AvfPixelBuffer::Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform)
 {
+	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__,5);
 #if defined(ENABLE_METAL)
 	Soy::Assert( mDecoder!=nullptr, "Decoder expected" );
 	
@@ -610,6 +611,7 @@ void AvfPixelBuffer::Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContex
 
 void AvfPixelBuffer::Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform)
 {
+	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__,5);
 #if defined(ENABLE_OPENGL)
 	Opengl::IsOkay("LockTexture flush", false);
 	
@@ -821,6 +823,7 @@ void AvfPixelBuffer::LockPixels(ArrayBridge<SoyPixelsImpl*>& Planes,void* _Data,
 
 void AvfPixelBuffer::Lock(ArrayBridge<SoyPixelsImpl*>&& Planes,float3x3& Transform)
 {
+	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__,5);
 	mLockLock.lock();
 	
 	try
