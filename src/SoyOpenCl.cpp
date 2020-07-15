@@ -34,14 +34,6 @@ std::ostream& Opencl::operator<<(std::ostream &out,const Opencl::TDeviceMeta& in
 }
 */
 
-std::map<OpenclDevice::Type,std::string> OpenclDevice::EnumMap =
-{
-	{ OpenclDevice::Invalid,	"Invalid" },
-	{ OpenclDevice::CPU,	"CPU" },
-	{ OpenclDevice::GPU,	"GPU" },
-	{ OpenclDevice::ANY,	"ANY" },
-};
-
 
 cl_float8 Soy::VectorToCl8(const ArrayBridge<float>& v)
 {
