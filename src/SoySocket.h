@@ -30,7 +30,7 @@
 	#endif
 
 	#if defined(TARGET_LINUX)
-	#define __SOCK_SIZE__	_SS_SIZE
+	auto const static __SOCK_SIZE__ = _SS_SIZE;
 	#endif
 
 	#define INVALID_SOCKET -1

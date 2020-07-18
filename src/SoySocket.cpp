@@ -81,7 +81,8 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 	//	check length. field not present in winsock or linux (android)
 #if defined(TARGET_OSX)||defined(TARGET_IOS)
 	auto ExpectedLength = Addr.sa_len;
-#elif defined(TARGET_ANDROID)
+#elif defined(TARGET_ANDROID) || defined(TARGET_LINUX)
+	//	gr: on jetson linux(amd64) AddrLen is typically 128 (same as sockaddr_storage)
 	auto ExpectedLength = __SOCK_SIZE__;
 #elif defined(TARGET_WINDOWS)
 	auto ExpectedLength = sizeof(sockaddr_storage);
@@ -92,11 +93,12 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 
 	//	gr: on windows, accepting unity WWW connection was 16 bytes...
 	//	on windows, the address from probing addaptors is 128
+	//	gr: ^^ same on linux
 	if ( AddrLen != ExpectedLength )
 	{
 		std::stringstream err;
 		err << "sockaddr length (" << ExpectedLength << ") doesn't match incoming address " << AddrLen << " (Using smallest)";
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS) || defined(TARGET_LINUX)
 		//std::Debug << err.str() << std::endl;
 #else
 		throw Soy::AssertException( err.str() );
