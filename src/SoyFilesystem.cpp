@@ -55,6 +55,8 @@ const char Platform::DirectorySeperator = '\\';
 const char Platform::DirectorySeperator = '/';
 #endif
 
+
+
 SoyTime Soy::GetFileTimestamp(const std::string& Filename)
 {
 	/*
@@ -1197,3 +1199,94 @@ void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
 	LocalFree(Args);
 }
 #endif
+
+
+
+void Platform::SetEnvVar(const char* Key,const char* Value)
+{
+#if defined(TARGET_LINUX)
+	int Overwrite = 1;
+	auto Result = setenv( Key, Value, Overwrite );
+	if ( Result != 0 )
+		Platform::ThrowLastError("setenv()");
+#else
+	throw Soy::AssertException("SetEnvVar not implemented on this platform");
+#endif
+}
+
+std::string Platform::GetEnvVar(const char* Key)
+{
+#if defined(TARGET_OSX)||defined(TARGET_LINUX)
+	const char* Value = getenv(Key);
+	if ( !Value )
+	{
+		std::stringstream Error;
+		Error << "Missing env var " << Key;
+		throw Soy::AssertException( Error.str() );
+	}
+	return Value;
+#elif defined(TARGET_WINDOWS)
+	char* Buffer = nullptr;
+	size_t BufferSize = 0;
+	auto Result = _dupenv_s( &Buffer, &BufferSize, Key );
+
+	if ( Result != S_OK || !Buffer )
+	{
+		std::stringstream Error;
+		if ( Result == S_OK )
+		{
+			Error << "Null buffer returned for env var " << Key;
+		}
+		else
+		{
+			Error << "EnvVar " << Key << " error: " << ::Platform::GetErrorString(Result);
+		}
+		if ( Buffer )
+		{
+			free( Buffer );
+			Buffer = nullptr;
+		}
+		throw Soy::AssertException( Error.str() );
+	}
+
+	std::string Value = Buffer;
+	free( Buffer );
+	Buffer = nullptr;
+	return Value;
+#else
+	throw Soy::AssertException("GetEnvVar not implemented on this platform");
+#endif
+}
+
+
+std::string Platform::GetCurrentWorkingDirectory()
+{
+	Array<char> Buffer;
+	Buffer.SetSize(300);
+
+#if defined(TARGET_WINDOWS)
+	while ( !_getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
+#elif defined(TARGET_PS4)||defined(TARGET_IOS)
+	throw Soy::AssertException("Platform doesn't support current working dir");
+	while(false)
+#else
+	while ( !getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
+#endif
+	{
+		//	check in case buffer isn't big enough
+		auto LastError = ::Platform::GetLastError();
+		if ( LastError == ERANGE )
+		{
+			Buffer.PushBlock(100);
+			continue;
+		}
+		
+		//	some other error
+		std::stringstream Error;
+		Error << "Failed to get current working directory: " << ::Platform::GetErrorString(LastError);
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	return std::string( Buffer.GetArray() );
+}
+

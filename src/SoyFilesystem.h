@@ -60,7 +60,8 @@ namespace Platform
 	std::string			GetExeFilename();
 	inline std::string	GetDllPath() { return GetExePath(); }
 	void				GetExeArguments(ArrayBridge<std::string>&& Arguments);
-	
+	std::string			GetCurrentWorkingDirectory();
+
 	//	gr: this is the resources dir inside .app on osx
 	//	on windows it's just exe path
 	std::string	GetAppResourcesDirectory();
@@ -74,6 +75,8 @@ namespace Platform
 
 	//	maybe not file system? generic platform stuff...
 	std::string	GetComputerName();
+	void		SetEnvVar(const char* Key,const char* Value);
+	std::string	GetEnvVar(const char* Key);
 
 #if defined(TARGET_LINUX)
 	extern std::string	ExeFilename;

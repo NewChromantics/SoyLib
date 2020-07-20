@@ -6,3 +6,6 @@
 [oO]rbis_DEBUG/
 
 *.visualstudio/[Cc]uda/
+
+# ignore linux temp object files
+*.o
