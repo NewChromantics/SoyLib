@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <unistd.h>	//	gethostname
 #include <sys/stat.h>
+#include <limits.h>	//	PATH_MAX
 #endif
 
 #if defined(TARGET_OSX)
@@ -42,10 +43,6 @@ namespace Platform
 {
 #if defined(TARGET_OSX) || defined(TARGET_IOS)
 	void	EnumNsDirectory(const std::string& Directory,std::function<void(const std::string&)> OnFileFound,bool Recursive);
-#endif
-
-#if defined(TARGET_LINUX)
-	std::string	ExeFilename;
 #endif
 }
 
@@ -729,10 +726,17 @@ void Platform::ShowFileExplorer(const std::string& Path)
 #if defined(TARGET_LINUX)
 std::string Platform::GetExeFilename()
 {
-	return ExeFilename;
+	//	https://stackoverflow.com/a/4025415/355753
+	char ExePath[PATH_MAX];
+	// readlink does not null terminate!
+	memset(ExePath,0,sizeof(ExePath));
+	auto Length = readlink("/proc/self/exe", ExePath, PATH_MAX);
+	if ( Length == -1 )
+		Platform::ThrowLastError("readlink(/proc/self/exe)");
+	std::string ExePathString( ExePath, Length );
+	return ExePathString;
 }
 #endif
-
 
 #if defined(TARGET_LINUX)
 void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)

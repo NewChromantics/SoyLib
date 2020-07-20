@@ -1,11 +1,5 @@
+# OS temp/cache files
 ._*
 
-[bB]in/
-[dD]ebug/
-[dD]ebug_Win7/
-[oO]rbis_DEBUG/
-
-*.visualstudio/[Cc]uda/
-
-# ignore linux temp object files
+# Linux build files
 *.o
