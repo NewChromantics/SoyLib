@@ -51,6 +51,20 @@ std::shared_ptr<Soy::TProcessInfo> Platform::AllocProcessInfo(const std::string&
 #if defined(TARGET_LINUX)
 std::shared_ptr<Soy::TProcessInfo> Platform::AllocProcessInfo(const std::string& RunCommand, const ArrayBridge<std::string>& Arguments, std::function<void(const std::string&)>& OnStdOut, std::function<void(const std::string&)>& OnStdErr)
 {
+	//	https://stackoverflow.com/a/7292659/355753
+	//	this should...
+	//	open a pipe to read
+	//	fork [this process]
+	//	{
+	//		fork pid...
+	//		set stdout to the pipe
+	//		execl to change this process image to another executable
+	//		exit when its done (interrpt from outside?)
+	//	}
+	//	read pipe on thread until feof
+	//	close fork?
+	//	close pipe
+	//	~: kill() pid- https://stackoverflow.com/a/13273865/355753
 	Soy_AssertTodo();
 }
 #endif
