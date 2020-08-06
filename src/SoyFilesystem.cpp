@@ -620,7 +620,7 @@ void Platform::CreateDirectory(const std::string& Path)
 	if ( Directory.empty() )
 		return;
 	
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX) || defined(TARGET_LINUX)
 	mode_t Permissions = S_IRWXU|S_IRWXG|S_IRWXO;
 	//	mode_t Permissions = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
 	if ( mkdir( Directory.c_str(), Permissions ) != 0 )
