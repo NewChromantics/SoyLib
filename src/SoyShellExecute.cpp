@@ -48,7 +48,7 @@ std::shared_ptr<Soy::TProcessInfo> Platform::AllocProcessInfo(const std::string&
 }
 #endif
 
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 std::shared_ptr<Soy::TProcessInfo> Platform::AllocProcessInfo(const std::string& RunCommand, const ArrayBridge<std::string>& Arguments, std::function<void(const std::string&)>& OnStdOut, std::function<void(const std::string&)>& OnStdErr)
 {
 	//	https://stackoverflow.com/a/7292659/355753

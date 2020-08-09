@@ -10,6 +10,9 @@
 
 #if defined(TARGET_LINUX)
 #include <filesystem>
+#endif
+
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 #include <unistd.h>	//	gethostname
 #include <sys/stat.h>
 #include <limits.h>	//	PATH_MAX
@@ -645,14 +648,14 @@ void Platform::CreateDirectory(const std::string& Path)
 		}
 }
 
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 void Platform::ShellExecute(const std::string& Path)
 {
 	Soy_AssertTodo();
 }
 #endif
 
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 void Platform::ShellOpenUrl(const std::string& Path)
 {
 	Soy_AssertTodo();
@@ -684,7 +687,7 @@ void Platform::ShellOpenUrl(const std::string& UrlString)
 }
 #endif
 
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 void Platform::ShowFileExplorer(const std::string& Path)
 {
 	Soy_AssertTodo();
@@ -738,7 +741,15 @@ std::string Platform::GetExeFilename()
 }
 #endif
 
-#if defined(TARGET_LINUX)
+
+#if defined(TARGET_ANDROID)
+std::string Platform::GetExeFilename()
+{
+	Soy_AssertTodo();
+}
+#endif
+
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
 {
 	//	todo: store these!
@@ -768,6 +779,21 @@ std::string	Platform::GetExePath()
 	auto ExeFilename = GetExeFilename();
 	return GetDirectoryFromFilename(ExeFilename);
 }
+
+
+#if defined(TARGET_ANDROID)
+bool Platform::FileExists(const std::string& Path)
+{
+	Soy_AssertTodo();
+}
+#endif
+
+#if defined(TARGET_ANDROID)
+bool Platform::DirectoryExists(const std::string& Path)
+{
+	Soy_AssertTodo();
+}
+#endif
 
 #if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)
 bool Platform::FileExists(const std::string& Path)
@@ -815,10 +841,6 @@ bool Platform::IsFullPath(const std::string& Path)
 	}
 #endif
 }
-
-#if defined(TARGET_LINUX)
-#include <linux/limits.h>
-#endif
 
 
 #if !defined(TARGET_IOS)&&!defined(TARGET_OSX)
@@ -1152,7 +1174,7 @@ void Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& Strin
 	Soy::SplitStringLines( StringLines, FileContents );
 }
 
-#if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)
+#if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 std::string Platform::GetAppResourcesDirectory()
 {
 	return Platform::GetDllPath();
@@ -1160,7 +1182,7 @@ std::string Platform::GetAppResourcesDirectory()
 #endif
 
 
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 std::string Platform::GetComputerName()
 {
 	char Buffer[1024];
