@@ -218,8 +218,8 @@ bool SoySockAddr::operator==(const SoySockAddr& That) const
 	auto ThatLength = That.GetSockAddrLength();
 #elif defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 	//	this is sockaddr_storage size, but may not be the socket size...
-	auto ThisLength = _SS_SIZE;
-	auto ThatLength = _SS_SIZE;
+	auto ThisLength = __SOCK_SIZE__;
+	auto ThatLength = __SOCK_SIZE__;
 #else
 	auto ThisLength = ThisAddr.ss_len;
 	auto ThatLength = ThatAddr.ss_len;
@@ -1050,7 +1050,7 @@ void SoySocket::GetSocketAddresses(std::function<void(std::string& Name,SoySockA
 		
 		try
 		{
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 			socklen_t AddrLen = __SOCK_SIZE__;
 #else
 			socklen_t AddrLen = Interface.ifa_addr->sa_len;

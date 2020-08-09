@@ -1270,7 +1270,7 @@ std::string Platform::GetCurrentWorkingDirectory()
 
 #if defined(TARGET_WINDOWS)
 	while ( !_getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
-#elif defined(TARGET_PS4)||defined(TARGET_IOS)
+#elif defined(TARGET_PS4)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
 	throw Soy::AssertException("Platform doesn't support current working dir");
 	while(false)
 #else
