@@ -803,7 +803,7 @@ bool Platform::FileExists(const std::string& Path)
 		auto FullPath = GetFullPathFromFilename(Path);
 		return std::filesystem::is_regular_file(FullPath);
 	}
-	catch
+	catch(std::exception& e)
 	{
 		std::Debug << __PRETTY_FUNCTION__ << e.what() << std::endl; return false;
 	}
@@ -820,7 +820,7 @@ bool Platform::DirectoryExists(const std::string& Path)
 		auto FullPath = GetFullPathFromFilename(Path);
 		return std::filesystem::is_directory(FullPath);
 	}
-	catch
+	catch(std::exception& e)
 	{
 		std::Debug << __PRETTY_FUNCTION__ << e.what() << std::endl; return false;
 	}
