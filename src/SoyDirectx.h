@@ -66,6 +66,7 @@ namespace Directx
 class Directx::TContext : public PopWorker::TJobQueue, public PopWorker::TContext
 {
 public:
+	TContext();						//	create a device
 	TContext(ID3D11Device& Device);
 
 	virtual void	Lock() override;
@@ -81,7 +82,7 @@ public:
 public:
 	Soy::AutoReleasePtr<ID3D11DeviceContext>	mLockedContext;
 	size_t										mLockCount = 0;		//	for recursive locking
-	ID3D11Device*								mDevice;
+	ID3D11Device*								mDevice = nullptr;
 	std::shared_ptr<DirectxCompiler::TCompiler>	mCompiler;
 };
 
