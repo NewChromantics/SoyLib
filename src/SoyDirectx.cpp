@@ -12,16 +12,6 @@ namespace Directx
 }
 
 
-std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap = 
-{
-	{	Directx::TTextureMode::Invalid,			"Invalid"	},
-	{	Directx::TTextureMode::ReadOnly,		"ReadOnly"	},
-	{	Directx::TTextureMode::WriteOnly,		"WriteOnly"	},
-	{	Directx::TTextureMode::GpuOnly,			"GpuOnly"	},
-	{	Directx::TTextureMode::RenderTarget,	"RenderTarget"	},
-};
-
-
 //	skip std::string alloc, move to platform!
 void Directx::IsOkay(HRESULT Error,const char* Context)			
 {
@@ -97,9 +87,7 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 	FORMAT_MAP( SoyMediaFormat::RGB,	DXGI_FORMAT_R8G8B8A8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::BGR,	DXGI_FORMAT_R8G8B8A8_UNORM	),
 
-	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Full,		DXGI_FORMAT_NV12	),	
-	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Ntsc,		DXGI_FORMAT_NV12	),
-	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Smptec,	DXGI_FORMAT_NV12	),	
+	FORMAT_MAP( SoyMediaFormat::Yuv_8_88,		DXGI_FORMAT_NV12	),	
 
 	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_TYPELESS	),
@@ -122,8 +110,8 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 	FORMAT_MAP( SoyMediaFormat::ChromaV_8,			DXGI_FORMAT_R8_SINT	),
 	FORMAT_MAP( SoyMediaFormat::ChromaV_8,			DXGI_FORMAT_A8_UNORM	),
 
-	FORMAT_MAP( SoyMediaFormat::Luma_Ntsc,			DXGI_FORMAT_R8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::Luma_Smptec,		DXGI_FORMAT_R8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::Luma,				DXGI_FORMAT_R8_UNORM),
+	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_TYPELESS	),
 	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_UNORM	),
@@ -135,15 +123,9 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 
 	//	_R8G8_B8G8 is a special format for YUY2... but I think it may not be supported on everything
 	//	gr: using RG for now and ignoring chroma until we have variables etc... we'll just fix monochrome when someone complains
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		DXGI_FORMAT_YUY2	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		DXGI_FORMAT_YUY2	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		DXGI_FORMAT_YUY2	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888,		DXGI_FORMAT_YUY2	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
 
 
 //case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
@@ -170,7 +152,7 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 	FORMAT_MAP( SoyMediaFormat::KinectDepth,			DXGI_FORMAT_R8G8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::FreenectDepth10bit,		DXGI_FORMAT_R8G8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::FreenectDepth11bit,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::FreenectDepthmm,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::Depth16mm,				DXGI_FORMAT_R8G8_UNORM	),
 };
 
 
@@ -352,7 +334,7 @@ DirectxCompiler::TCompiler& Directx::TContext::GetCompiler()
 
 Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode,bool EnableMips)
 {
-	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
+	bool IsWindows8 = Platform::GetOsVersion().mMajor >= 8;
 
 	Soy::Assert( Meta.IsValid(), "Cannot create texture with invalid meta");
 	
@@ -852,7 +834,7 @@ Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 	Soy::Assert(mTexture.IsValid(), "Render target needs a valid texture target" );
 	auto& Meta = mTexture.GetMeta();
 	
-	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
+	bool IsWindows8 = Platform::GetOsVersion().mMajor >= 8;
 
 	// Create the render target view.
 	auto& Device = ContextDx.LockGetDevice();
