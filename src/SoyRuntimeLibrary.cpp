@@ -71,7 +71,7 @@ Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(vo
 		throw Soy::AssertException( Error.str() );
 	}
 	
-#elif defined(TARGET_WINDOWS) && !defined(HOLOLENS_SUPPORT)
+#elif defined(TARGET_WINDOWS) && !defined(TARGET_UWP)
 	//	todo: warn that / doesn't work in paths, only \ 
 	Soy::StringReplace( Filename, "/", "\\" );
 
@@ -132,7 +132,7 @@ Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(vo
 
 void Soy::TRuntimeLibrary::AddSearchPath(const std::string& Path)
 {
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 	if ( Path.length() == 0 )
 	{
 		//std::Debug << "Skipped adding empty directory to DLL search path" << std::endl;

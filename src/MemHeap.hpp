@@ -17,7 +17,7 @@
 #endif
 
 
-#if defined(HOLOLENS_SUPPORT)
+#if defined(TARGET_UWP)
 #define STD_ALLOC
 #endif
 

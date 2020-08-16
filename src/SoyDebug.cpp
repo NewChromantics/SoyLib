@@ -348,7 +348,7 @@ bool Platform::DebugBreak()
 	return true;
 #endif
 
-#if defined(TARGET_WINDOWS) && !defined(HOLOLENS_SUPPORT)
+#if defined(TARGET_WINDOWS) && !defined(TARGET_UWP)
 	static bool DoBreak = false;
 	if (DoBreak)
 	{
