@@ -4,8 +4,9 @@
 #include "SoyPixels.h"
 #include "SoyUniform.h"
 #include <functional>
-
-#include "SoyOpengl.h"	//	re-using opengl's vertex description atm
+#include "SoyMath.h"
+#include "SoyPixels.h"
+#include "SoyGraphics.h"
 #include "SoyMediaFormat.h"
 #include "SoyAutoReleasePtr.h"
 
