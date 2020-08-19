@@ -157,20 +157,22 @@ Platform::TFileMonitor::TFileMonitor(const std::string& Filename)
 	//	add to new runloop
 	FSEventStreamScheduleWithRunLoop( mStream.mObject, CFRunLoopGetMain(), kCFRunLoopDefaultMode );
 	FSEventStreamStart( mStream.mObject );
-#endif
 
-#if defined(TARGET_WINDOWS)
+#elif defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
+
 	if (Platform::DirectoryExists(Filename))
 		StartDirectoryWatch(Filename);
 	else
 		StartFileWatch(Filename);
+#else
+	Soy_AssertTodo();
 #endif
 }
 
 
 Platform::TFileMonitor::~TFileMonitor()
 {
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 	mWatchThread.reset();
 #endif
 }
@@ -187,7 +189,7 @@ void Platform::TFileMonitor::OnFileChanged(std::string& FilePath)
 }
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 void Platform::TFileMonitor::StartFileWatch(const std::string& Filename)
 {
 	if (!Platform::FileExists(Filename))
@@ -214,7 +216,7 @@ void Platform::TFileMonitor::StartFileWatch(const std::string& Filename)
 }
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 void Platform::TFileMonitor::WatchFileIteration(const std::string& Filename)
 {
 	// Wait for notification.
@@ -250,7 +252,7 @@ void Platform::TFileMonitor::WatchFileIteration(const std::string& Filename)
 #endif
 
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 void Platform::TFileMonitor::StartDirectoryWatch(const std::string& Directory)
 {
 	if (!Platform::DirectoryExists(Directory))
@@ -291,7 +293,7 @@ namespace Platform
 }
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 void Platform::TFileMonitor::WatchDirectoryIteration(const std::string& Directory)
 {
 	uint8_t FileNotifyInfoBuffer[1024*2];
@@ -381,7 +383,7 @@ SoyPathType::Type GetPathType(WIN32_FIND_DATAA& FindData)
 #endif
 
 
-#if defined(TARGET_WINDOWS) && !defined(HOLOLENS_SUPPORT)
+#if defined(TARGET_WINDOWS) && !defined(TARGET_UWP)
 bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DATAA&)> OnItemFound)
 {
 	WIN32_FIND_DATAA FindData;
@@ -429,14 +431,14 @@ bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DA
 
 
 
-#if defined(TARGET_WINDOWS) && defined(HOLOLENS_SUPPORT)
+#if defined(TARGET_WINDOWS) && defined(TARGET_UWP)
 bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DATA&)> OnItemFound)
 {
 	return false;
 }
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
 	auto OnFindItem = [&](WIN32_FIND_DATAA& FindData)
@@ -648,7 +650,7 @@ void Platform::CreateDirectory(const std::string& Path)
 		}
 }
 
-#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)||defined(TARGET_UWP)
 void Platform::ShellExecute(const std::string& Path)
 {
 	Soy_AssertTodo();
@@ -662,7 +664,7 @@ void Platform::ShellOpenUrl(const std::string& Path)
 }
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 void Platform::ShellExecute(const std::string& Path)
 {
 	//	https://docs.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecutea
@@ -697,7 +699,7 @@ void Platform::ShowFileExplorer(const std::string& Path)
 #if defined(TARGET_WINDOWS)
 void Platform::ShowFileExplorer(const std::string& Path)
 {
-#if defined(HOLOLENS_SUPPORT)
+#if defined(TARGET_UWP)
 	//	unsupported
 #else
 	auto CleanPath = Platform::GetFullPathFromFilename(Path);
@@ -826,7 +828,7 @@ bool Platform::DirectoryExists(const std::string& Path)
 
 bool Platform::IsFullPath(const std::string& Path)
 {
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 	auto IsRelative = PathIsRelativeA(Path.c_str());
 	return !IsRelative;
 #else
@@ -863,7 +865,7 @@ std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 		Platform::ThrowLastError(std::string("realpath(") + Filename);
 	std::string Path(AbsolutePath);
 
-#elif defined(TARGET_WINDOWS)&&!defined(HOLOLENS_SUPPORT)
+#elif defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 
 	char PathBuffer[MAX_PATH];
 	char* FilenameStart = nullptr;	//	pointer to inside buffer
@@ -937,7 +939,7 @@ std::string	Platform::GetDirectoryFromFilename(const std::string& Filename,bool 
 }
 
 
-#if defined(TARGET_PS4)||defined(TARGET_LINUX)
+#if defined(TARGET_PS4)||defined(TARGET_LINUX)||defined(TARGET_UWP)
 bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
 	return false;
@@ -1212,6 +1214,15 @@ std::string Platform::GetComputerName()
 		Platform::ThrowLastError("GetComputerNameA");
 	std::string Name(Buffer);
 	return Name;
+}
+#endif
+
+#if defined(TARGET_UWP)
+LPWSTR* CommandLineToArgvW(LPWSTR CommandLine,int* ArgCount)
+{
+	//	GetCommandLineW exists on uwp, but this helper function doesnt
+	ArgCount = 0;
+	return nullptr;
 }
 #endif
 

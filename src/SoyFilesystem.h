@@ -104,7 +104,7 @@ public:
 	CFPtr<CFStringRef>			mWatchPathString;
 	std::string					mWatchPath;
 	scope_ptr<FSEventStreamRef>	mStream;
-#elif defined(TARGET_WINDOWS)
+#elif defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 	void								StartFileWatch(const std::string& Filename);
 	void								WatchFileIteration(const std::string& Filename);
 	void								StartDirectoryWatch(const std::string& Directory);
