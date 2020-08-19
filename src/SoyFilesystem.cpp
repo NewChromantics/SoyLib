@@ -709,11 +709,20 @@ void Platform::ShowFileExplorer(const std::string& Path)
 		throw Soy::AssertException(Error.str());
 	}
 
+	//	this is required, but often already run (maybe with other params), often uneeded
 	try
 	{
 		auto Result = CoInitialize(nullptr);
 		Platform::IsOkay(Result, "CoInitialize for SHOpenFolderAndSelectItems");
-		Result = SHOpenFolderAndSelectItems(PathList, 0, 0, 0);
+	}
+	catch (std::exception& e)
+	{
+		std::Debug << e.what() << std::endl;
+	}
+
+	try
+	{
+		auto Result = SHOpenFolderAndSelectItems(PathList, 0, 0, 0);
 		Platform::IsOkay(Result, "SHOpenFolderAndSelectItems");
 		ILFree(PathList);
 	}
