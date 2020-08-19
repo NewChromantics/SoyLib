@@ -809,6 +809,7 @@ bool Platform::DirectoryExists(const std::string& Path)
 #if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)
 bool Platform::FileExists(const std::string& Path)
 {
+	//	if this errors, the file must not exist
 	try
 	{
 		auto FullPath = GetFullPathFromFilename(Path);
@@ -816,7 +817,8 @@ bool Platform::FileExists(const std::string& Path)
 	}
 	catch(std::exception& e)
 	{
-		std::Debug << __PRETTY_FUNCTION__ << e.what() << std::endl; return false;
+		std::Debug << __PRETTY_FUNCTION__ << e.what() << std::endl;
+		return false;
 	}
 	//auto FullPath = GetFullPathFromFilename(Path);
 	//return ::PathFileExistsA(FullPath.c_str());
@@ -826,6 +828,7 @@ bool Platform::FileExists(const std::string& Path)
 #if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)
 bool Platform::DirectoryExists(const std::string& Path)
 {
+	//	if this errors, the directory must not exist
 	try
 	{
 		auto FullPath = GetFullPathFromFilename(Path);
@@ -833,7 +836,8 @@ bool Platform::DirectoryExists(const std::string& Path)
 	}
 	catch(std::exception& e)
 	{
-		std::Debug << __PRETTY_FUNCTION__ << e.what() << std::endl; return false;
+		std::Debug << __PRETTY_FUNCTION__ << e.what() << std::endl;
+		return false;
 	}
 	//return ::PathIsDirectoryA(FullPath.c_str());
 	//auto Attribs = ::GetFileAttributesA(FullPath.c_str());
