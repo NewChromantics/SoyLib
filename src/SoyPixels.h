@@ -109,13 +109,7 @@ namespace SoyPixelsFormat
 		Float2,
 		Float3,
 		Float4,
-		
-		//	gr: maybe try and avoid this and instead make the PopCameraDevice easily allow mulitple handles
-		//		for one device
-		Yuv_8_88_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
-		Yuv_844_Depth16,	//	Luma plane, chroma plane, depth plane. For a single colour&depth kinect image
-		BGRA_Depth16,
-		
+	
 		Count,
 	};
 	

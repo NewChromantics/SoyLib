@@ -262,12 +262,6 @@ const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyP
 		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
 		Map[Yuv_8_8_8].PushBackArray( { Luma, ChromaUV_8_8 } );
 		Map[ChromaUV_8_8].PushBackArray( { ChromaU_8, ChromaV_8 } );
-
-		//	the merge is used to match in both directions reverse, so this whole map might need to change?
-		Map[Yuv_8_88_Depth16].PushBackArray({ Yuv_8_88, Depth16mm });
-		//Map[Yuv_8_88_Depth16].PushBackArray({ Luma, ChromaUV_88, Depth16mm });
-		//Map[Yuv_844_Depth16].PushBackArray({ Luma, ChromaUV_44, Depth16mm });
-		Map[BGRA_Depth16].PushBackArray({ BGRA, Depth16mm });
 	}
 
 	return Map;
@@ -2018,12 +2012,6 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Luma));
 			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaUV_88));
 			break;
-
-		case SoyPixelsFormat::Yuv_8_88_Depth16:
-			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Luma));
-			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaUV_88));
-			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Depth16mm));
-			break;
 		
 		case SoyPixelsFormat::Yuv_8_8_8:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma ) );
@@ -2036,12 +2024,6 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaV_8 ) );
 			break;
 
-		case SoyPixelsFormat::BGRA_Depth16:
-			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::BGRA));
-			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Depth16mm));
-			break;
-
-		
 		case SoyPixelsFormat::Palettised_RGB_8:
 		{
 			Soy::Assert( Data!=nullptr, "Cannot split format of Palettised_8_8 without data");
