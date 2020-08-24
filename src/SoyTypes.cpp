@@ -175,7 +175,7 @@ std::string Platform::GetErrorString(HRESULT Error)
 std::string Platform::GetErrorString(int Error)
 {
 	//	gr: UWA has no LocalFree so need to redo FormatMessage
-#if defined(HOLOLENS_SUPPORT)
+#if defined(TARGET_UWP)
 	if ( Error == NO_ERROR )
 		return std::string();
 
@@ -435,6 +435,13 @@ Soy::TVersion Platform::GetOsVersion()
 	//	https://stackoverflow.com/a/47583450
 	//	get version from a dll
 	return GetFileVersion("kernel32.dll");
+}
+#endif
+
+#if defined(TARGET_UWP)
+Soy::TVersion Platform::GetOsVersion()
+{
+	Soy_AssertTodo();
 }
 #endif
 

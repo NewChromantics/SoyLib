@@ -220,8 +220,12 @@ void Opengl::TContext::Lock()
 void Opengl::TContext::Unlock()
 {
 	auto ThisThread = std::this_thread::get_id();
-	Soy::Assert( mLockedThread != std::thread::id(), "context not locked to any thread" );
-	Soy::Assert( mLockedThread == ThisThread, "context [not] unlocked from wrong thread" );
+	if ( mLockedThread == std::thread::id() )
+		throw Soy::AssertException("context not locked to any thread" );
+	
+	if ( mLockedThread != ThisThread )
+		throw Soy::AssertException("context [not] unlocked from wrong thread" );
+
 	mLockedThread = std::thread::id();
 	mLockLock.unlock();
 }

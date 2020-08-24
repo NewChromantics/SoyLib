@@ -3,6 +3,10 @@
 #include <regex>
 #include "HeapArray.hpp"
 
+#if defined(TARGET_POSIX)
+#error TARGET_POSIX should not be defined any more
+#endif
+
 
 #if defined(TARGET_PS4)
 
@@ -14,14 +18,6 @@ in_addr_t inet_addr(const char*)
 	return 0; 
 }
 
-#elif defined(TARGET_POSIX)
-
-#include <fcntl.h>	//	fcntl
-#include <unistd.h>	//	close
-#include <netdb.h>	//	gethostbyname
-#include <signal.h>
-#include <ifaddrs.h>	//	getifaddrs
-
 #elif defined(TARGET_WINDOWS)
 
 #include <signal.h>
@@ -30,7 +26,11 @@ in_addr_t inet_addr(const char*)
 
 #else
 
+#include <fcntl.h>	//	fcntl
+#include <unistd.h>	//	close
+#include <netdb.h>	//	gethostbyname
 #include <signal.h>
+#include <ifaddrs.h>	//	getifaddrs
 
 #endif
 
@@ -86,7 +86,7 @@ SoySockAddr::SoySockAddr(const sockaddr& Addr,socklen_t AddrLen)
 	auto ExpectedLength = __SOCK_SIZE__;
 #elif defined(TARGET_WINDOWS)
 	auto ExpectedLength = sizeof(sockaddr_storage);
-#elif defined(TARGET_PS4)||defined(TARGET_POSIX)
+#elif defined(TARGET_PS4)
 	auto ExpectedLength = sizeof(sockaddr); 
 	//	_SS_SIZE = size of sockaddr_storage
 #endif
@@ -216,10 +216,10 @@ bool SoySockAddr::operator==(const SoySockAddr& That) const
 	//	gr: need to check this
 	auto ThisLength = this->GetSockAddrLength();
 	auto ThatLength = That.GetSockAddrLength();
-#elif defined(TARGET_LINUX)
+#elif defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 	//	this is sockaddr_storage size, but may not be the socket size...
-	auto ThisLength = _SS_SIZE;
-	auto ThatLength = _SS_SIZE;
+	auto ThisLength = __SOCK_SIZE__;
+	auto ThatLength = __SOCK_SIZE__;
 #else
 	auto ThisLength = ThisAddr.ss_len;
 	auto ThatLength = ThatAddr.ss_len;
@@ -313,19 +313,19 @@ int Soy::Winsock::GetError()
 {
 #if defined(TARGET_WINDOWS)
 	return WSAGetLastError();
-#elif defined(TARGET_POSIX)
+#else
 	return ::Platform::GetLastError();
 #endif
 }
 
 
-#if defined(TARGET_POSIX)
+#if defined(TARGET_WINDOWS)
+	#define SOCKERROR(e)	(WSAE ## e)
+	#define SOCKERROR_SUCCESS	ERROR_SUCCESS
+#else
 	#define SOCKERROR(e)		(E ## e)
 	#define SOCKERROR_SUCCESS	0
 	#define SOCKET_ERROR		-1
-#elif defined(TARGET_WINDOWS)
-	#define SOCKERROR(e)	(WSAE ## e)
-	#define SOCKERROR_SUCCESS	ERROR_SUCCESS
 #endif
 
 #if !defined(SOCKERROR)
@@ -368,7 +368,7 @@ void SoySocket::Close()
 		{
 	#if defined(TARGET_WINDOWS)
 			closesocket( mSocket );
-	#elif defined(TARGET_POSIX)
+	#else
 			close( mSocket );
 	#endif
 			Soy::Winsock::HasError("CloseSocket");
@@ -432,7 +432,7 @@ void SoySocket::CreateTcp(bool Blocking)
 	mSocketAddr = SoySockAddr();
 
 	bool Success = false;
-#if defined(TARGET_POSIX)
+#if !defined(TARGET_WINDOWS)
 	int flags;
 	flags = fcntl( mSocket, F_GETFL, 0 );
 	
@@ -569,7 +569,7 @@ void SoySocket::Bind(uint16 Port,SoySockAddr& outSockAddr)
 		std::stringstream ErrorStr;
 		ErrorStr << "Failed to bind to " << Port;
 		Soy::Winsock::HasError("", true, Error, &ErrorStr);
-#if defined(TARGET_POSIX)
+#if !defined(TARGET_WINDOWS)
 		if ( Error == EACCES )
 			ErrorStr << "Access denied binding to port " << Port << " only root user on OSX can have a port < 1024";
 #endif
@@ -886,7 +886,7 @@ void SoySocket::Disconnect(SoyRef ConnectionRef,const std::string& Reason)
 	{
 	#if defined(TARGET_WINDOWS)
 		if ( closesocket(Connection.mSocket) == SOCKET_ERROR )
-	#elif defined(TARGET_POSIX)
+	#else
 			if ( ::close(Connection.mSocket) == SOCKET_ERROR )
 	#endif
 		{
@@ -1050,7 +1050,7 @@ void SoySocket::GetSocketAddresses(std::function<void(std::string& Name,SoySockA
 		
 		try
 		{
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 			socklen_t AddrLen = __SOCK_SIZE__;
 #else
 			socklen_t AddrLen = Interface.ifa_addr->sa_len;

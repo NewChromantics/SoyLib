@@ -5,21 +5,13 @@
 #include "SoyAssert.h"
 #include "SoyDirectxCompiler.h"
 
+//	needed for D3D11CreateDevice, but why wasn't this here before
+#pragma comment(lib,"d3d11.lib")
 
 namespace Directx
 {
 	bool	CanCopyMeta(const SoyPixelsMeta& Source,const SoyPixelsMeta& Destination);
 }
-
-
-std::map<Directx::TTextureMode::Type,std::string> Directx::TTextureMode::EnumMap = 
-{
-	{	Directx::TTextureMode::Invalid,			"Invalid"	},
-	{	Directx::TTextureMode::ReadOnly,		"ReadOnly"	},
-	{	Directx::TTextureMode::WriteOnly,		"WriteOnly"	},
-	{	Directx::TTextureMode::GpuOnly,			"GpuOnly"	},
-	{	Directx::TTextureMode::RenderTarget,	"RenderTarget"	},
-};
 
 
 //	skip std::string alloc, move to platform!
@@ -97,9 +89,7 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 	FORMAT_MAP( SoyMediaFormat::RGB,	DXGI_FORMAT_R8G8B8A8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::BGR,	DXGI_FORMAT_R8G8B8A8_UNORM	),
 
-	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Full,		DXGI_FORMAT_NV12	),	
-	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Ntsc,		DXGI_FORMAT_NV12	),
-	FORMAT_MAP( SoyMediaFormat::Yuv_8_88_Smptec,	DXGI_FORMAT_NV12	),	
+	FORMAT_MAP( SoyMediaFormat::Yuv_8_88,		DXGI_FORMAT_NV12	),	
 
 	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_TYPELESS	),
@@ -122,8 +112,8 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 	FORMAT_MAP( SoyMediaFormat::ChromaV_8,			DXGI_FORMAT_R8_SINT	),
 	FORMAT_MAP( SoyMediaFormat::ChromaV_8,			DXGI_FORMAT_A8_UNORM	),
 
-	FORMAT_MAP( SoyMediaFormat::Luma_Ntsc,			DXGI_FORMAT_R8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::Luma_Smptec,		DXGI_FORMAT_R8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::Luma,				DXGI_FORMAT_R8_UNORM),
+	FORMAT_MAP( SoyMediaFormat::Greyscale,			DXGI_FORMAT_R8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_TYPELESS	),
 	FORMAT_MAP( SoyMediaFormat::GreyscaleAlpha,		DXGI_FORMAT_R8G8_UNORM	),
@@ -135,15 +125,9 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 
 	//	_R8G8_B8G8 is a special format for YUY2... but I think it may not be supported on everything
 	//	gr: using RG for now and ignoring chroma until we have variables etc... we'll just fix monochrome when someone complains
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		DXGI_FORMAT_YUY2	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Full,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		DXGI_FORMAT_YUY2	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Ntsc,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		DXGI_FORMAT_YUY2	),
-	FORMAT_MAP( SoyMediaFormat::YYuv_8888_Smptec,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888,		DXGI_FORMAT_YUY2	),
+	FORMAT_MAP( SoyMediaFormat::YYuv_8888,		DXGI_FORMAT_R8G8_B8G8_UNORM	),
 
 
 //case SoyPixelsFormat::YYuv_8888_Full:		return DXGI_FORMAT_R8G8_B8G8_UNORM;
@@ -170,7 +154,7 @@ static TPlatformFormatMap<DXGI_FORMAT> PlatformFormatMap[] =
 	FORMAT_MAP( SoyMediaFormat::KinectDepth,			DXGI_FORMAT_R8G8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::FreenectDepth10bit,		DXGI_FORMAT_R8G8_UNORM	),
 	FORMAT_MAP( SoyMediaFormat::FreenectDepth11bit,		DXGI_FORMAT_R8G8_UNORM	),
-	FORMAT_MAP( SoyMediaFormat::FreenectDepthmm,		DXGI_FORMAT_R8G8_UNORM	),
+	FORMAT_MAP( SoyMediaFormat::Depth16mm,				DXGI_FORMAT_R8G8_UNORM	),
 };
 
 
@@ -276,6 +260,87 @@ std::ostream& operator<<(std::ostream &out,const Directx::TTextureMeta& in)
 
 
 
+/*
+
+
+ComPtr<IDXGIAdapter1> GetAdapter(LUID adapterId) {
+	// Create the DXGI factory.
+	ComPtr<IDXGIFactory1> dxgiFactory;
+	CHECK_HRCMD(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(dxgiFactory.ReleaseAndGetAddressOf())));
+
+	for (UINT adapterIndex = 0;; adapterIndex++) {
+		// EnumAdapters1 will fail with DXGI_ERROR_NOT_FOUND when there are no more adapters to enumerate.
+		ComPtr<IDXGIAdapter1> dxgiAdapter;
+		CHECK_HRCMD(dxgiFactory->EnumAdapters1(adapterIndex, dxgiAdapter.ReleaseAndGetAddressOf()));
+
+		DXGI_ADAPTER_DESC1 adapterDesc;
+		CHECK_HRCMD(dxgiAdapter->GetDesc1(&adapterDesc));
+		if (memcmp(&adapterDesc.AdapterLuid, &adapterId, sizeof(adapterId)) == 0) {
+			Log::Write(Log::Level::Verbose, Fmt("Using graphics adapter %ws", adapterDesc.Description));
+			return dxgiAdapter;
+		}
+	}
+}*/
+Directx::TContext::TContext() 
+{
+	auto EnableDebug = true;
+
+	UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+	if (EnableDebug )
+		creationFlags |= D3D11_CREATE_DEVICE_DEBUG;
+
+	// Create the Direct3D 11 API device object and a corresponding context.
+	IDXGIAdapter* Adaptor = nullptr;
+	D3D_DRIVER_TYPE driverType = (!Adaptor) ? D3D_DRIVER_TYPE_HARDWARE : D3D_DRIVER_TYPE_UNKNOWN;
+
+	//	preferential order of feature level
+	//	nullptr=default
+	//D3D_FEATURE_LEVEL DesiredFeatureLevels[X] = {};
+	D3D_FEATURE_LEVEL* DesiredFeatureLevels = nullptr;
+
+	ID3D11DeviceContext* pImmediateContext = nullptr;
+	HMODULE Software = 0;
+	D3D_FEATURE_LEVEL FeatureLevel;
+
+	auto Result = D3D11CreateDevice(
+		Adaptor, 
+		driverType, 
+		Software, 
+		creationFlags, 
+		DesiredFeatureLevels, 
+		0,//std::size(DesiredFeatureLevels),
+		D3D11_SDK_VERSION,
+		&mDevice,
+		&FeatureLevel,
+		&pImmediateContext );
+	IsOkay(Result, "D3D11CreateDevice");
+	/*
+	if (FAILED(hr)) {
+		// If initialization failed, it may be because device debugging isn't supported, so retry without that.
+		if ((creationFlags & D3D11_CREATE_DEVICE_DEBUG) && (hr == DXGI_ERROR_SDK_COMPONENT_MISSING)) {
+			creationFlags &= ~D3D11_CREATE_DEVICE_DEBUG;
+			goto TryAgain;
+		}
+		
+		// If the initialization still fails, fall back to the WARP device.
+		// For more information on WARP, see: http://go.microsoft.com/fwlink/?LinkId=286690
+		if (driverType != D3D_DRIVER_TYPE_WARP) {
+			driverType = D3D_DRIVER_TYPE_WARP;
+			goto TryAgain;
+		}
+	}
+	*/
+
+	//	gr: lets... let this happen. Let it fail when we actually need a shader
+	try
+	{
+		//	gr: just pre-empting for testing, could be done on-demand
+		auto& Compiler = GetCompiler();
+	}
+	catch (...)
+	{
+	}
+}
 
 
 Directx::TContext::TContext(ID3D11Device& Device) :
@@ -352,7 +417,7 @@ DirectxCompiler::TCompiler& Directx::TContext::GetCompiler()
 
 Directx::TTexture::TTexture(SoyPixelsMeta Meta,TContext& ContextDx,TTextureMode::Type Mode,bool EnableMips)
 {
-	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
+	bool IsWindows8 = Platform::GetOsVersion().mMajor >= 8;
 
 	Soy::Assert( Meta.IsValid(), "Cannot create texture with invalid meta");
 	
@@ -852,7 +917,7 @@ Directx::TRenderTarget::TRenderTarget(TTexture& Texture,TContext& ContextDx) :
 	Soy::Assert(mTexture.IsValid(), "Render target needs a valid texture target" );
 	auto& Meta = mTexture.GetMeta();
 	
-	bool IsWindows8 = Platform::GetWindowsVersion() >= 8;
+	bool IsWindows8 = Platform::GetOsVersion().mMajor >= 8;
 
 	// Create the render target view.
 	auto& Device = ContextDx.LockGetDevice();

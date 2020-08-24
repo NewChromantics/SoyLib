@@ -600,31 +600,6 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 		std::Debug << "Failed to change thread name from " << OldThreadName << " to " << Name << ": " << Error << std::endl;
 	}
 
-#elif defined(TARGET_POSIX)
-	
-#if defined(TARGET_OSX)||defined(TARGET_IOS)
-	//	has to be called whilst in this thread as OSX doesn't take a thread parameter
-	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
-	if ( CurrentThread != ThreadId )
-	{
-		std::Debug << "Trying to change thread name from " << OldThreadName << " to " << Name << ", out-of-thread" << std::endl;
-		return;
-	}
-	auto Result = pthread_setname_np( Name.c_str() );
-#else
-	auto Result = pthread_setname_np( ThreadId, Name.c_str() );
-#endif
-	
-	if ( Result == 0 )
-	{
-		std::Debug << "Renamed thread from " << OldThreadName << " to " << Name << ": " << std::endl;
-	}
-	else
-	{
-		std::string Error = (Result==ERANGE) ? "Name too long" : Platform::GetErrorString(Result);
-		std::Debug << "Failed to change thread name from " << OldThreadName << " to " << Name << ": " << Error << std::endl;
-	}
-
 #elif defined(TARGET_WINDOWS)
 	
 	//	try and use the new SetThreadDescription
@@ -693,7 +668,28 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 
 #else
 
-	//std::Debug << "Platform does not allow thread rename from " << OldThreadName << " to " << Name << std::endl;
+#if defined(TARGET_OSX)||defined(TARGET_IOS)
+	//	has to be called whilst in this thread as OSX doesn't take a thread parameter
+	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
+	if ( CurrentThread != ThreadId )
+	{
+		std::Debug << "Trying to change thread name from " << OldThreadName << " to " << Name << ", out-of-thread" << std::endl;
+		return;
+	}
+	auto Result = pthread_setname_np( Name.c_str() );
+#else
+	auto Result = pthread_setname_np( ThreadId, Name.c_str() );
+#endif
+	
+	if ( Result == 0 )
+	{
+		std::Debug << "Renamed thread from " << OldThreadName << " to " << Name << ": " << std::endl;
+	}
+	else
+	{
+		std::string Error = (Result==ERANGE) ? "Name too long" : Platform::GetErrorString(Result);
+		std::Debug << "Failed to change thread name from " << OldThreadName << " to " << Name << ": " << Error << std::endl;
+	}
 
 #endif
 }

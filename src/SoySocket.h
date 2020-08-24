@@ -6,10 +6,6 @@
 #include <map>
 
 
-#if defined(TARGET_LINUX)
-#define TARGET_POSIX
-#endif
-
 #if defined(TARGET_WINDOWS)
 
 	#include <winsock2.h>
@@ -19,7 +15,7 @@
 	typedef ULONG in_addr_t;	//	note, not IN_ADDR as that has extra fields we don't need
 	typedef int socket_data_size_t;
 
-#elif defined(TARGET_POSIX)
+#else
 
 	#include <sys/socket.h>
 	#include <arpa/inet.h>	//	in_addr_t

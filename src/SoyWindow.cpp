@@ -47,7 +47,7 @@ void SoyColourButton::OnChanged(bool FinalValue)
 }
 
 //	this should be in a linux gui file
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 void Platform::EnumScreens(std::function<void(TScreenMeta&)> EnumScreen)
 {
 	Soy_AssertTodo();
