@@ -16,6 +16,8 @@
 #include <unistd.h>	//	gethostname
 #include <sys/stat.h>
 #include <limits.h>	//	PATH_MAX
+//	gr: jetson seems to be missing PATH_MAX in limits.h...
+#include <linux/limits.h>	//	PATH_MAX
 #endif
 
 #if defined(TARGET_OSX)
