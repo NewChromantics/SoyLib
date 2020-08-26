@@ -96,6 +96,11 @@ public:
 	{
 	}
 	~AvfPixelBuffer();
+
+	virtual SoyPixelsMeta	GetMeta() override
+	{
+		Soy_AssertTodo();
+	}
 	
 	virtual void			Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform) override		{}
 	virtual void			Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override;
