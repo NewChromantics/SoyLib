@@ -157,6 +157,10 @@ public:
 	virtual std::string				GetValue()=0;
 };
 
+class SoyMetalView
+{
+};
+
 
 class SoyTickBox
 {
@@ -236,6 +240,7 @@ namespace Platform
 	class TColourButton;
 	class TColourPicker;
 	class TImageMap;
+	class TMetalView;
 
 	class TOpenglView;		//	on osx it's a view control
 	class TOpenglContext;	//	on windows, its a context that binds to any control
@@ -250,4 +255,5 @@ namespace Platform
 	std::shared_ptr<Gui::TColourPicker>	CreateColourPicker(vec3x<uint8_t> InitialColour);
 	std::shared_ptr<SoyColourButton>	CreateColourButton(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<Gui::TImageMap>		CreateImageMap(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<SoyMetalView>		GetMetalView(SoyWindow& Parent, const std::string& Name);
 }
