@@ -141,6 +141,7 @@ namespace SoyPixelsFormat
 
 	Type			GetFloatFormat(Type Format);
 	Type			GetByteFormat(Type Format);
+	bool			IsDepthFormat(Type Format);
 	
 	DECLARE_SOYENUM(SoyPixelsFormat);
 };
