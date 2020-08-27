@@ -379,6 +379,15 @@ bool SoyMediaFormat::IsH264(SoyMediaFormat::Type Format)
 	return Meta.Is( SoyMediaMetaFlags::IsH264 );
 }
 
+bool SoyMediaFormat::IsH264(Soy::TFourcc Fourcc)
+{
+	if ( Fourcc == "avcc" )	return true;
+	if ( Fourcc == "avc1" )	return true;
+	if ( Fourcc == "1cva" )	return true;
+
+	return false;
+}
+
 bool SoyMediaFormat::IsAudio(SoyMediaFormat::Type Format)
 {
 	auto& Meta = GetFormatMeta( Format );

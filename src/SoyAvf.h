@@ -21,7 +21,6 @@ namespace Avf
 {
 	class TAsset;
 	
-	SoyMediaFormat::Type			SoyMediaFormat_FromFourcc(Soy::TFourcc Fourcc,size_t H264LengthSize);
 	void							GetFileExtensions(ArrayBridge<std::string>&& Extensions);
 
 	//	OSStatus == CVReturn
@@ -52,6 +51,7 @@ namespace Avf
 	std::string						GetString(OSStatus Status);
 	CFStringRef						GetProfile(H264Profile::Type Profile);
 	std::string						GetString(OSStatus Status);
+	SoyPixelsFormat::Type			GetPixelFormat(const Soy::TFourcc& Fourcc);
 	SoyPixelsFormat::Type			GetPixelFormat(OSType Format);
 	SoyPixelsFormat::Type			GetPixelFormat(NSNumber* Format);
 	OSType							GetPlatformPixelFormat(SoyPixelsFormat::Type Format);
