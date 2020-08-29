@@ -2,6 +2,7 @@
 
 
 #include "SoyPixels.h"
+#include "SoyFourcc.h"
 
 
 //	merge this + pixel format at some point
@@ -106,7 +107,7 @@ namespace SoyMediaFormat
 	bool		IsImage(Type Format);	//	encoded image
 	Type		FromFourcc(uint32 Fourcc,size_t H264LengthSize=0);
 	uint32		ToFourcc(Type Format);
-	bool		IsH264Fourcc(uint32 Fourcc);
+	bool		IsH264(Soy::TFourcc Fourcc);
 	std::string	ToMime(Type Format);
 	Type		FromMime(const std::string& Mime);
 	Type		FromExtension(const std::string& Extension);

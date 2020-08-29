@@ -112,6 +112,26 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetFloatFormat(Type Format)
 
 }
 
+bool SoyPixelsFormat::IsDepthFormat(Type Format)
+{
+	switch(Format)
+	{
+		case KinectDepth:
+		case FreenectDepth10bit:
+		case FreenectDepth11bit:
+		case Depth16mm:
+		case DepthFloatMetres:
+		case DepthHalfMetres:
+		case DepthDisparityFloat:
+		case DepthDisparityHalf:
+		return true;
+		
+		default:
+		return false;
+	}
+}
+
+
 SoyPixelsFormat::Type SoyPixelsFormat::GetByteFormat(Type Format)
 {
 	switch ( Format )

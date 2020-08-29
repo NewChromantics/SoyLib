@@ -141,13 +141,6 @@ static TCvVideoTypeMeta Cv_PixelFormatMap[] =
 };
 
 
-SoyMediaFormat::Type Avf::SoyMediaFormat_FromFourcc(Soy::TFourcc Fourcc,size_t H264LengthSize)
-{
-	if ( Fourcc == "avcc" )	return SoyMediaFormat::H264_8;
-
-	throw Soy::AssertException(std::string("SoyMediaFormat_FromFourcc unhandled fourcc ") + Fourcc.GetString() );
-}
-
 
 /*
 std::shared_ptr<TMediaPacket> Avf::GetFormatDescriptionPacket(CMSampleBufferRef SampleBuffer,size_t ParamIndex,SoyMediaFormat::Type Format,size_t StreamIndex)
@@ -463,9 +456,9 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 		}
 	}
 	
-	Meta.mCodec = Avf::SoyMediaFormat_FromFourcc( Fourcc, H264LengthSize );
+	Meta.mCodecFourcc = Fourcc;
 	
-	if ( SoyMediaFormat::IsH264( Meta.mCodec ) )
+	if ( SoyMediaFormat::IsH264( Meta.mCodecFourcc ) )
 	{
 		Avf::GetFormatDescriptionData( GetArrayBridge(Meta.mSps), FormatDesc, 0 );
 		Avf::GetFormatDescriptionData( GetArrayBridge(Meta.mPps), FormatDesc, 1 );
@@ -476,7 +469,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 	auto Dim = CMVideoFormatDescriptionGetPresentationDimensions( FormatDesc, usePixelAspectRatio, useCleanAperture );
 	Meta.mPixelMeta.DumbSetWidth( Dim.width );
 	Meta.mPixelMeta.DumbSetHeight( Dim.height );
-	Meta.mPixelMeta.DumbSetFormat( SoyMediaFormat::GetPixelFormat( Meta.mCodec ) );
+	Meta.mPixelMeta.DumbSetFormat( GetPixelFormat( Meta.mCodecFourcc ) );
 	
 	//std::stringstream Debug;
 	//Debug << "Extensions=" << Soy::Platform::GetExtensions( FormatDesc ) << "; ";
@@ -900,6 +893,11 @@ SoyPixelsFormat::Type Avf::GetPixelFormat(OSType Format)
 	return Meta->mSoyFormat;
 }
 
+
+SoyPixelsFormat::Type Avf::GetPixelFormat(const Soy::TFourcc& Fourcc)
+{
+	return GetPixelFormat(Fourcc.mFourcc32);
+}
 
 SoyPixelsFormat::Type Avf::GetPixelFormat(NSNumber* Format)
 {

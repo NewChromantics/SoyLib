@@ -143,7 +143,9 @@ public:
 	}
 	
 public:
+	//	trying to eliminate SoyMediaFormat
 	SoyMediaFormat::Type	mCodec;
+	Soy::TFourcc			mCodecFourcc;
 	
 	//	specific to h264... make this more generic
 	BufferArray<uint8,200>	mSps;			//	no size/nalu header!
