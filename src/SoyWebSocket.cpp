@@ -474,7 +474,7 @@ bool WebSocket::TMessageHeader::Decode(TStreamBuffer& Buffer)
 	auto HeaderDataBridge = GetArrayBridge(HeaderData);
 	
 	//	gr: if it's EOF, then there will be no more data, so read all we can (probably just a "disconnect" websocket header when its a few bytes)
-	auto MaxBytes = std::min<size_t>( MaxBits / 8, Buffer.GetBufferedSize() );
+	//auto MaxBytes = std::min<size_t>( MaxBits / 8, Buffer.GetBufferedSize() );
 	HeaderData.SetSize( MaxBits/8 );
 	
 	if ( !Buffer.Peek( HeaderDataBridge ) )

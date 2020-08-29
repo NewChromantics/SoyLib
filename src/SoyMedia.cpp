@@ -1328,9 +1328,9 @@ void TAudioBufferManager::PushAudioBuffer(TAudioBufferBlock& AudioData)
 		AudioData.SetChannels( mFormat.mChannels );
 		AudioData.SetFrequencey( mFormat.mFrequency );
 
-		auto Start = AudioData.GetStartTime();
+		//auto Start = AudioData.GetStartTime();
 		auto End = AudioData.GetEndTime();
-		auto EndIndex = AudioData.GetTimeSampleIndex(End);
+		//auto EndIndex = AudioData.GetTimeSampleIndex(End);
 
 
 		std::lock_guard<std::mutex> Lock( mBlocksLock );

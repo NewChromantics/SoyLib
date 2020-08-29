@@ -398,7 +398,7 @@ CMFormatDescriptionRef Avf::GetFormatDescription(const TStreamMeta& Stream)
 		CMMediaType MediaType;
 		FourCharCode MediaCodec;
 		GetMediaType( MediaType, MediaCodec, Stream.mCodec );
-		/*
+		/ *
 		 //	extensions to dictionary
 		 if ( !Stream.mExtensions.IsEmpty() )
 		 {
@@ -1019,7 +1019,7 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 	}
 	else if ( Planes.GetSize() > 1 )	//	handle multiplane
 	{
-		auto& Plane0 = *Planes[0];
+		//auto& Plane0 = *Planes[0];
 		size_t Widths[3] = {0};
 		size_t Heights[3] = {0};
 		size_t RowSizes[3] = {0};
@@ -1037,7 +1037,7 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 		{
 			CVPlanarComponentInfo Meta;
 			Meta.offset = 0;
-			Meta.rowBytes = RowSizes[PlaneIndex];
+			Meta.rowBytes = size_cast<uint32_t>(RowSizes[PlaneIndex]);
 			for ( int i=0;	i<PlaneIndex;	i++ )
 				Meta.offset += RowSizes[i] * Heights[i];
 			return Meta;
