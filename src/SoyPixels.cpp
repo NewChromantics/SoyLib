@@ -1830,6 +1830,11 @@ void SoyPixelsImpl::ResizeFastSample(size_t NewImageWidth, size_t NewImageHeight
 		auto OldHeight = OldPlane.GetHeight();
 		auto OldWidth = OldPlane.GetWidth();
 		auto OldChannelCount = OldPlane.GetChannels();
+
+		//	gr: quick fix here for float & 16 bit without templating
+		OldChannelCount *= OldPlane.GetMeta().GetBytesPerChannel();
+		NewChannelCount *= NewPlane.GetMeta().GetBytesPerChannel();
+
 		auto MinChannelCount = std::min( OldChannelCount, NewChannelCount );
 		
 		auto& OldPixelsArray = OldPlane.GetPixelsArray();
