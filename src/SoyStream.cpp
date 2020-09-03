@@ -545,7 +545,7 @@ bool TStreamReader::Iteration()
 
 
 TStreamWriter::TStreamWriter(const std::string& Name) :
-	SoyWorkerThread	( Name, SoyWorkerWaitMode::Sleep ),
+	SoyWorkerThread	( Name, SoyWorkerWaitMode::Wake ),
 	mBytesWritten	( 0 )
 {
 	
