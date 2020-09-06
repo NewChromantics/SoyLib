@@ -65,6 +65,10 @@ namespace Platform
 	//	gr: this is the resources dir inside .app on osx
 	//	on windows it's just exe path
 	std::string	GetAppResourcesDirectory();
+	//	these are for ios, but should use OS-specified ones too
+	std::string	GetDocumentsDirectory();
+	std::string	GetTempDirectory();
+	std::string	GetCacheDirectory();	//	ios; same as temp, but auto-cleared less frequently
 
 	void		ShowFileExplorer(const std::string& Path);
 	void		ShellExecute(const std::string& Path);

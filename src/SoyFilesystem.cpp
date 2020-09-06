@@ -1213,6 +1213,25 @@ std::string Platform::GetAppResourcesDirectory()
 #endif
 
 
+#if !defined(TARGET_IOS)
+std::string	Platform::GetDocumentsDirectory()
+{
+	Soy_AssertTodo();
+}
+#endif
+
+std::string	Platform::GetTempDirectory()
+{
+	Soy_AssertTodo();
+}
+ 
+std::string	Platform::GetCacheDirectory()
+{
+	Soy_AssertTodo();
+}
+
+
+
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 std::string Platform::GetComputerName()
 {
