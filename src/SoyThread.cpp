@@ -678,6 +678,10 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 	}
 	auto Result = pthread_setname_np( Name.c_str() );
 #else
+
+	auto ThreadSelf = pthread_self();
+	if ( ThreadId != ThreadSelf )
+		ThreadId = ThreadSelf;
 	auto Result = pthread_setname_np( ThreadId, Name.c_str() );
 #endif
 	
