@@ -102,7 +102,7 @@ public:
 	virtual bool					IsForeground() = 0;
 	virtual void					EnableScrollBars(bool Horz,bool Vert)=0;
 	virtual void					OnClosed();
-	virtual void					StartRender(std::function<void()> Frame);
+	virtual void					StartRender(std::function<void()> Frame, std::string ViewName) {};
 
 public:
 	//	todo: change these coordinates to pixels and client can normalise with GetScreenRect
