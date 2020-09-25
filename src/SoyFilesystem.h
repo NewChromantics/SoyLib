@@ -83,7 +83,10 @@ namespace Platform
 	std::string	GetEnvVar(const char* Key);
 
 #if defined(TARGET_LINUX)
-	extern std::string	ExeFilename;
+	extern std::string					ExeFilename;
+	void 												EnumExternalDrives(std::function<void(std::string&)> OnFoundDevice);
+	void												EjectDevice(const std::string& DeviceName);
+	void												MonitorDevices();
 #endif
 }
 

@@ -8,9 +8,10 @@
 #include "magic_enum/include/magic_enum.hpp"
 #endif
 
-#if defined(TARGET_LINUX)
+// #if defined(TARGET_LINUX)
 #include <filesystem>
-#endif
+#include <libudev.h>
+// #endif
 
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 #include <unistd.h>	//	gethostname
@@ -1217,6 +1218,91 @@ std::string Platform::GetAppResourcesDirectory()
 std::string	Platform::GetDocumentsDirectory()
 {
 	Soy_AssertTodo();
+}
+#endif
+
+#if defined(TARGET_LINUX)
+// https://github.com/gavv/snippets/blob/master/udev/udev_list_usb_storage.c
+void Platform::EnumExternalDrives(std::function<void(std::string&)> OnDriveFound)
+{
+	struct udev *udev = udev_new();
+	if (!udev) {
+			Soy::AssertException("Can't create udev!");
+	}
+
+	struct udev_enumerate *enumerate = udev_enumerate_new(udev);
+
+	// tsdk: at the moment this is hardcoded to scsi but this can be extended for all connections if needed later
+	udev_enumerate_add_match_subsystem(enumerate, "scsi");
+	udev_enumerate_add_match_property(enumerate, "DEVTYPE", "scsi_device");
+	udev_enumerate_scan_devices(enumerate);
+
+	struct udev_list_entry *devices = udev_enumerate_get_list_entry(enumerate);
+	struct udev_list_entry *entry;
+
+	auto GetChild = [](struct udev *udev, struct udev_device *parent, const char *subsystem) 
+	{
+		struct udev_device *child = NULL;
+		struct udev_enumerate *enumerate = udev_enumerate_new(udev);
+
+		udev_enumerate_add_match_parent(enumerate, parent);
+		udev_enumerate_add_match_subsystem(enumerate, subsystem);
+		udev_enumerate_scan_devices(enumerate);
+
+		struct udev_list_entry *devices = udev_enumerate_get_list_entry(enumerate);
+		struct udev_list_entry *entry;
+
+		udev_list_entry_foreach(entry, devices)
+		{
+			const char *path = udev_list_entry_get_name(entry);
+			child = udev_device_new_from_syspath(udev, path);
+			break;
+		}
+
+		udev_enumerate_unref(enumerate);
+		return child;
+	};
+
+	udev_list_entry_foreach(entry, devices)
+	{
+		const char *path = udev_list_entry_get_name(entry);
+		struct udev_device *scsi = udev_device_new_from_syspath(udev, path);
+
+		struct udev_device* block = GetChild(udev, scsi, "block");
+
+		struct udev_device *usb = udev_device_get_parent_with_subsystem_devtype(scsi, "usb", "usb_device");
+
+		if (block && usb)
+		{
+			auto blockPath = std::string(udev_device_get_devnode(block));
+			auto vendor = std::string(udev_device_get_sysattr_value(usb, "idVendor"));
+			auto product = std::string(udev_device_get_sysattr_value(usb, "idProduct"));
+
+			OnDriveFound(blockPath);
+		}
+
+		if (block)
+		{
+			udev_device_unref(block);
+		}
+
+		udev_device_unref(scsi);
+		
+	}
+
+	udev_enumerate_unref(enumerate);
+
+	udev_unref(udev);
+}
+
+void Platform::EjectDevice(const std::string& DeviceName)
+{
+
+}
+
+void Platform::MonitorDevices()
+{
+	
 }
 #endif
 
