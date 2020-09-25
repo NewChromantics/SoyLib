@@ -1306,11 +1306,20 @@ void Platform::MonitorDevices()
 }
 #endif
 
+#if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)||defined(TARGET_ANDROID)
+std::string	Platform::GetTempDirectory()
+{
+	return std::filesystem::temp_directory_path();
+}
+#endif
+
+#if defined(TARGET_IOS) || defined(TARGET_OSX)
 std::string	Platform::GetTempDirectory()
 {
 	Soy_AssertTodo();
 }
- 
+#endif
+
 std::string	Platform::GetCacheDirectory()
 {
 	Soy_AssertTodo();
