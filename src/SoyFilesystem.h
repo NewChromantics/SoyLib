@@ -83,12 +83,13 @@ namespace Platform
 	void		SetEnvVar(const char* Key,const char* Value);
 	std::string	GetEnvVar(const char* Key);
 
-#if defined(TARGET_LINUX)
-	extern std::string					ExeFilename;
-	void 												EnumExternalDrives(std::function<void(std::string&)> OnFoundDevice);
-	void												EjectDevice(const std::string& DeviceName);
-	void												MonitorDevices();
-#endif
+// #if defined(TARGET_LINUX)
+	class																							TExternalDrive;
+	extern std::string																ExeFilename;
+	void 																							EnumExternalDrives(std::function<void(std::string&, std::string&)> OnFoundDevice);
+	void																							EjectDevice(const std::string& DeviceName);
+	TExternalDrive*																		GetExternalDrive(const std::string& DeviceName);
+// #endif
 }
 
 namespace Soy
@@ -120,6 +121,17 @@ public:
 	std::shared_ptr<SoyThreadLambda>	mWatchThread;
 	HANDLE								mWatchHandle = nullptr;
 #endif
+};
+
+class Platform::TExternalDrive
+{
+public:
+	TExternalDrive(const std::string& DriveName);
+	~TExternalDrive();
+
+public:
+	std::string					mDevicePath;
+	std::string					mMountPath;
 };
 
 
