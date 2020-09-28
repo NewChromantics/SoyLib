@@ -1230,7 +1230,7 @@ Platform::TExternalDrive::TExternalDrive(const std::string& DevicePath)
 	// May need to programmatically create this and run some sort of mkdir -p
 	mMountPath = "/mnt/test";
 
-	auto Success = mount( DevicePath.c_str(), mMountPath.c_str(), "fat", MS_MGC_VAL | MS_REMOUNT, "" );
+	auto Success = mount( DevicePath.c_str(), mMountPath.c_str(), "auto", MS_MGC_VAL | MS_REMOUNT, "" );
 
 	if(!Success)
 		Soy::AssertException("USB Mount Failed");
