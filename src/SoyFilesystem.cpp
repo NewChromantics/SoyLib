@@ -8,11 +8,11 @@
 #include "magic_enum/include/magic_enum.hpp"
 #endif
 
-// #if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX)
 #include <filesystem>
 #include <libudev.h>
 #include <sys/mount.h>
-// #endif
+#endif
 
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 #include <unistd.h>	//	gethostname
@@ -1222,32 +1222,9 @@ std::string	Platform::GetDocumentsDirectory()
 }
 #endif
 
-Platform::TExternalDrive::TExternalDrive(const std::string& DevicePath)
-{
-// #if defined(TARGET_LINUX)
-	mDevicePath = DevicePath;
-
-	// May need to programmatically create this and run some sort of mkdir -p
-	mMountPath = "/mnt/test";
-
-	auto Success = mount( DevicePath.c_str(), mMountPath.c_str(), "auto", MS_MGC_VAL | MS_REMOUNT, "" );
-
-	if(!Success)
-		Soy::AssertException("USB Mount Failed");
-// #endif
-}
-
-Platform::TExternalDrive::~TExternalDrive()
-{
-	auto Success = umount2( mMountPath.c_str(), MNT_FORCE);
-
-	if(!Success)
-		Soy::AssertException("Unmounting Failed!");
-}
-
-// #if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX)
 // https://github.com/gavv/snippets/blob/master/udev/udev_list_usb_storage.c
-void Platform::EnumExternalDrives(std::function<void(std::string&, std::string&)> OnDriveFound)
+void Platform::EnumExternalDrives(std::function<void(std::string&, std::string&, std::string&)> OnDriveFound)
 {
 	struct udev *udev = udev_new();
 	if (!udev) {
@@ -1302,16 +1279,16 @@ void Platform::EnumExternalDrives(std::function<void(std::string&, std::string&)
 			// tsdk: Cannot seem to get the human readable name the device was formatted with!
 			// for now just return the Path and Capacity
 			auto Name = std::string(udev_device_get_sysname(block));
-			auto Path = std::string(udev_device_get_devnode(block));
+			auto DevNode = std::string(udev_device_get_devnode(block));
 			uint64 Capacity = std::stoi(udev_device_get_sysattr_value(block, "size"));
 			auto Vendor = std::string(udev_device_get_sysattr_value(usb, "idVendor"));
 			auto Product = std::string(udev_device_get_sysattr_value(usb, "idProduct"));
 
 			auto ReadableCapacity = Soy::FormatSizeBytes(Capacity);
 
-			std::Debug << "SysPath: " << Path << "\nName: " << Name << "\nCapacity : " << ReadableCapacity << std::endl;
-
-			OnDriveFound(Path, ReadableCapacity);
+			// It is possible to get the label with udev just need to dig a bit deeper
+			std::string Label = "test";
+			OnDriveFound(Label, DevNode, ReadableCapacity);
 		}
 
 		if (block)
@@ -1333,32 +1310,32 @@ void Platform::EnumExternalDrives(std::function<void(std::string&, std::string&)
 	udev_unref(udev);
 }
 
-Platform::TExternalDrive* Platform::GetExternalDrive(const std::string& Filename)
+void Platform::MountDrive(const std::string& DevNode, const std::string& MountPath)
 {
-	for (int i = 0; sizeof(gMountedDrives); i++)
+	if (::popen("pmount /dev/sda2", "r"))
+	// if (mount(DevNode.c_str(), MountPath.c_str(), "auto", MS_NOATIME, NULL))
 	{
-		if( DeviceName == Platform::gMountedDrives[i].mDevicePath )
-			return Platform::gMountedDrives[i];
+		if (errno == EBUSY)
+		{
+			printf("Mountpoint busy");
+		}
+		else
+		{
+			printf("Mount error: %s", std::strerror(errno), "\n");
+		}
+	}
+	else
+	{
+		printf("Mount successful");
 	}
 
-	auto MountedDrive = new TExternalDrive(DeviceName);
-
-	return MountedDrive;
 }
 
-void Platform::EjectDevice(const std::string& DeviceName)
+void Platform::EjectDevice(const std::string& DevNode)
 {
-	Platform::TExternalDrive* DriveToEject;
-	
-	for (int i = 0; sizeof(gMountedDrives); i++)
-	{
-		if( DeviceName == Platform::gMountedDrives[i].mDevicePath )
-			DriveToEject = Platform::gMountedDrives[i];
-	}
-
-	delete DriveToEject;
+	umount(DevNode.c_str());
 }
-// #endif
+#endif
 
 #if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 std::string	Platform::GetTempDirectory()
