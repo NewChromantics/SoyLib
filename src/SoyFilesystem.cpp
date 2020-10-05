@@ -772,7 +772,13 @@ void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
 	memset(CmdLine,0,sizeof(CmdLine));
 
 	int fd = open("/proc/self/cmdline", O_RDONLY);
+	if (fd == -1)
+		Platform::ThrowLastError("open(/proc/self/cmdline)");
+
 	int Length = read(fd, CmdLine, PATH_MAX);
+	if (read == -1)
+		Platform::ThrowLastError("read(/proc/self/cmdline)");
+
 	char *end = CmdLine + Length;
 	for (char *p = CmdLine; p < end; /**/)
 	{ 
