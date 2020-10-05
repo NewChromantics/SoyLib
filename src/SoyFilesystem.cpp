@@ -10,6 +10,7 @@
 
 #if defined(TARGET_LINUX)
 #include <filesystem>
+#include <fcntl.h>
 #endif
 
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
@@ -765,7 +766,23 @@ std::string Platform::GetExeFilename()
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
 {
-	//	todo: store these!
+	//	https://stackoverflow.com/questions/1585989/how-to-parse-proc-pid-cmdline
+	char CmdLine[PATH_MAX];
+
+	memset(CmdLine,0,sizeof(CmdLine));
+
+	int fd = open("/proc/self/cmdline", O_RDONLY);
+	int Length = read(fd, CmdLine, PATH_MAX);
+	char *end = CmdLine + Length;
+	for (char *p = CmdLine; p < end; /**/)
+	{ 
+		auto ArgString = std::string(p);
+		Arguments.PushBack(ArgString);
+		std::Debug << p << std::endl;
+		while (*p++); // skip until start of next 0-terminated section
+	}
+	close(fd);
+
 }
 #endif
 
