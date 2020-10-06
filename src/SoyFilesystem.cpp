@@ -1470,13 +1470,16 @@ std::string Platform::GetCurrentWorkingDirectory()
 }
 
 #if defined(TARGET_LINUX)
+//TODO Add error handling here!
 void Platform::MountDrive(const std::string& DevNode, const std::string& Label)
 {
-	popen("pmount DevNode Label", "r");
+	auto Cmd = "pmount " + DevNode + " " + Label;
+	popen(Cmd.c_str(), "r");
 }
 
 void Platform::UnMountDrive(const std::string& Label)
 {
-	popen("pumount Label", "r");
+	auto Cmd = "pumount " + Label;
+	popen(Cmd.c_str(), "r");
 }
 #endif
