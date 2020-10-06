@@ -1471,12 +1471,12 @@ std::string Platform::GetCurrentWorkingDirectory()
 }
 
 #if defined(TARGET_LINUX)
-void Platform::MountDrive(std::string& DevNode, std::string& Label)
+void Platform::MountDrive(const std::string& DevNode, const std::string& Label)
 {
 	popen("pmount DevNode Label", "r");
 }
 
-void Platform::UnMountDrive(std::string& Label)
+void Platform::UnMountDrive(const std::string& Label)
 {
 	popen("pumount Label", "r");
 }
