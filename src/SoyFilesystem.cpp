@@ -1470,3 +1470,14 @@ std::string Platform::GetCurrentWorkingDirectory()
 	return std::string( Buffer.GetArray() );
 }
 
+#if defined(TARGET_LINUX)
+void Platform::MountDrive(std::string& DevNode, std::string& Label)
+{
+	popen("pmount DevNode Label", "r");
+}
+
+void Platform::UnMountDrive(std::string& Label)
+{
+	popen("pumount Label", "r");
+}
+#endif

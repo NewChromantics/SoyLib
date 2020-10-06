@@ -88,6 +88,8 @@ namespace Platform
 	void 												EnumExternalDrives(std::function<void(std::string&)> OnFoundDevice);
 	void												EjectDevice(const std::string& DeviceName);
 	void												MonitorDevices();
+	void												MountDrive(const std::string& DevNode, const std::string& Label);
+	void												UnMountDrive(const std::string& Label);
 #endif
 }
 
