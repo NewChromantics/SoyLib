@@ -1474,12 +1474,27 @@ std::string Platform::GetCurrentWorkingDirectory()
 void Platform::MountDrive(const std::string& DevNode, const std::string& Label)
 {
 	auto Cmd = "pmount " + DevNode + " " + Label;
-	popen(Cmd.c_str(), "r");
+
+	try
+	{
+		popen(Cmd.c_str(), "r");
+	}
+	catch(const std::exception& e)
+	{
+		std::Debug << e.what() << '\n';
+	}
+	
 }
 
 void Platform::UnMountDrive(const std::string& Label)
 {
 	auto Cmd = "pumount " + Label;
-	popen(Cmd.c_str(), "r");
+
+	try
+	{
+		popen(Cmd.c_str(), "r");
+	}
+	catch(const std::exception& e)
+	{
+		std::Debug << e.what() << '\n';
 }
-#endif
