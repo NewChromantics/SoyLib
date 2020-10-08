@@ -1481,7 +1481,9 @@ void Platform::MountDrive(const std::string& DevNode, const std::string& Label)
 	}
 	catch(const std::exception& e)
 	{
-		std::Debug << e.what() << '\n';
+		std::stringstream Error;
+		Error << "Failed to Mount " << Label << " (" << ::Platform::GetLastErrorString() << ")";
+		throw Soy::AssertException(Error.str());
 	}
 	
 }
@@ -1496,5 +1498,8 @@ void Platform::UnMountDrive(const std::string& Label)
 	}
 	catch(const std::exception& e)
 	{
-		std::Debug << e.what() << '\n';
+		std::stringstream Error;
+		Error << "Failed to UnMount " << Label << " (" << ::Platform::GetLastErrorString() << ")";
+		throw Soy::AssertException(Error.str());
+	}
 }
