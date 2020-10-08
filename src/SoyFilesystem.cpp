@@ -8,11 +8,10 @@
 #include "magic_enum/include/magic_enum.hpp"
 #endif
 
-#if defined(TARGET_LINUX)
+// #if defined(TARGET_LINUX)
 #include <filesystem>
 #include <libudev.h>
-#include <sys/mount.h>
-#endif
+// #endif
 
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 #include <unistd.h>	//	gethostname
@@ -1222,120 +1221,89 @@ std::string	Platform::GetDocumentsDirectory()
 }
 #endif
 
-#if defined(TARGET_LINUX)
-// https://github.com/gavv/snippets/blob/master/udev/udev_list_usb_storage.c
-void Platform::EnumExternalDrives(std::function<void(std::string&, std::string&, std::string&)> OnDriveFound)
+// #if defined(TARGET_LINUX)
+// https://github.com/robertalks/udev-examples/blob/master/udev_example2.c
+void Platform::EnumExternalDrives(std::function<void(std::string&,std::string&)> OnDriveFound)
 {
-	struct udev *udev = udev_new();
-	if (!udev) {
-			Soy::AssertException("Can't create udev!");
+	struct udev *udev;
+	struct udev_enumerate *enumerate;
+	struct udev_list_entry *devices;
+	struct udev_list_entry *dev_list_entry;
+
+	/* create udev object */
+	udev = udev_new();
+	if (!udev)
+	{
+		Soy::AssertException("Cannot create udev context.");
 	}
 
-	struct udev_enumerate *enumerate = udev_enumerate_new(udev);
+	/* create enumerate object */
+	enumerate = udev_enumerate_new(udev);
+	if (!enumerate)
+	{
+		Soy::AssertException("Cannot create enumerate context.");
+	}
 
-	// tsdk: at the moment this is hardcoded to scsi but this can be extended for all connections if needed later
-	udev_enumerate_add_match_subsystem(enumerate, "scsi");
-	udev_enumerate_add_match_property(enumerate, "DEVTYPE", "scsi_device");
+	// Filter Devices by block
+	// https://www.wikiwand.com/en/Device_file#/Block%20devices
+	udev_enumerate_add_match_subsystem(enumerate, "block");
 	udev_enumerate_scan_devices(enumerate);
 
-	struct udev_list_entry *devices = udev_enumerate_get_list_entry(enumerate);
-	struct udev_list_entry *entry;
-
-	auto GetChild = [](struct udev *udev, struct udev_device *parent, const char *subsystem) 
+	devices = udev_enumerate_get_list_entry(enumerate);
+	if (!devices)
 	{
-		struct udev_device *child = NULL;
-		struct udev_enumerate *enumerate = udev_enumerate_new(udev);
-
-		udev_enumerate_add_match_parent(enumerate, parent);
-		udev_enumerate_add_match_subsystem(enumerate, subsystem);
-		udev_enumerate_scan_devices(enumerate);
-
-		struct udev_list_entry *devices = udev_enumerate_get_list_entry(enumerate);
-		struct udev_list_entry *entry;
-
-		udev_list_entry_foreach(entry, devices)
-		{
-			const char *path = udev_list_entry_get_name(entry);
-			child = udev_device_new_from_syspath(udev, path);
-			break;
-		}
-
-		udev_enumerate_unref(enumerate);
-		return child;
-	};
-
-	udev_list_entry_foreach(entry, devices)
-	{
-		const char *path = udev_list_entry_get_name(entry);
-		struct udev_device *scsi = udev_device_new_from_syspath(udev, path);
-
-		struct udev_device *block = GetChild(udev, scsi, "block");
-		struct udev_device* scsi_disk = GetChild(udev, scsi, "scsi_disk");
-
-		struct udev_device *usb = udev_device_get_parent_with_subsystem_devtype(scsi, "usb", "usb_device");
-
-		if (block && scsi_disk && usb)
-		{
-			// tsdk: Cannot seem to get the human readable name the device was formatted with!
-			// for now just return the Path and Capacity
-			auto Name = std::string(udev_device_get_sysname(block));
-			auto DevNode = std::string(udev_device_get_devnode(block));
-			uint64 Capacity = std::stoi(udev_device_get_sysattr_value(block, "size"));
-			auto Vendor = std::string(udev_device_get_sysattr_value(usb, "idVendor"));
-			auto Product = std::string(udev_device_get_sysattr_value(usb, "idProduct"));
-
-			auto ReadableCapacity = Soy::FormatSizeBytes(Capacity);
-
-			// It is possible to get the label with udev just need to dig a bit deeper
-			std::string Label = "test";
-			OnDriveFound(Label, DevNode, ReadableCapacity);
-		}
-
-		if (block)
-		{
-			udev_device_unref(block);
-		}
-
-		if (scsi_disk)
-		{
-			udev_device_unref(scsi_disk);
-		}
-
-		udev_device_unref(scsi);
-		
+		Soy::AssertException("Failed to get device list.");
 	}
 
+	udev_list_entry_foreach(dev_list_entry, devices) {
+		auto path = udev_list_entry_get_name(dev_list_entry);
+		auto dev = udev_device_new_from_syspath(udev, path);
+
+		auto DeviceType = std::string(udev_device_get_devtype(dev));
+
+		// tsdk: Not guaranteed to have a value so cannot cast to std::string
+		auto ID_FS_LABEL = udev_device_get_property_value(dev, "ID_FS_LABEL");
+		auto ID_BUS = udev_device_get_property_value(dev, "ID_BUS");
+
+		// we are only interested in labelled partitions of usb's 
+		if (DeviceType == "partition" && ID_FS_LABEL != NULL && ID_BUS != NULL)
+		{
+			//tsdk: first partition is the signature partition https://unix.stackexchange.com/questions/477991/what-is-a-vfat-signature
+			// is there a better way to check for this?
+			auto ID_PART_ENTRY_NUMBER = udev_device_get_property_value(dev, "ID_PART_ENTRY_NUMBER");
+
+			if(std::stoi(ID_PART_ENTRY_NUMBER) > 1)
+			{
+				auto DevNode = std::string( udev_device_get_devnode(dev));
+				auto Label = std::string(ID_FS_LABEL);
+
+				// tsdk: may need in the future to explicitly check that ID_BUS=usb
+				std::Debug << ID_BUS << std::endl;
+
+				OnDriveFound(DevNode, Label);
+			}
+		}
+
+		/* free dev */
+		udev_device_unref(dev);
+	}
+	/* free enumerate */
 	udev_enumerate_unref(enumerate);
-
+	/* free udev */
 	udev_unref(udev);
+
 }
 
-void Platform::MountDrive(const std::string& DevNode, const std::string& MountPath)
+void Platform::EjectDevice(const std::string& DeviceName)
 {
-	if (::popen("pmount /dev/sda2", "r"))
-	// if (mount(DevNode.c_str(), MountPath.c_str(), "auto", MS_NOATIME, NULL))
-	{
-		if (errno == EBUSY)
-		{
-			printf("Mountpoint busy");
-		}
-		else
-		{
-			printf("Mount error: %s", std::strerror(errno), "\n");
-		}
-	}
-	else
-	{
-		printf("Mount successful");
-	}
 
 }
 
-void Platform::EjectDevice(const std::string& DevNode)
+void Platform::MonitorDevices()
 {
-	umount(DevNode.c_str());
+	
 }
-#endif
+// #endif
 
 #if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 std::string	Platform::GetTempDirectory()
@@ -1501,3 +1469,38 @@ std::string Platform::GetCurrentWorkingDirectory()
 	return std::string( Buffer.GetArray() );
 }
 
+#if defined(TARGET_LINUX)
+//TODO Add error handling is taken care of by 
+void Platform::MountDrive(const std::string& DevNode, const std::string& Label)
+{
+	auto Cmd = "pmount " + DevNode + " " + Label;
+
+	try
+	{
+		popen(Cmd.c_str(), "r");
+	}
+	catch(const std::exception& e)
+	{
+		std::stringstream Error;
+		Error << "Failed to Mount " << Label << " (" << ::Platform::GetLastErrorString() << ")";
+		throw Soy::AssertException(Error.str());
+	}
+	
+}
+
+void Platform::UnMountDrive(const std::string& Label)
+{
+	auto Cmd = "pumount " + Label;
+
+	try
+	{
+		popen(Cmd.c_str(), "r");
+	}
+	catch(const std::exception& e)
+	{
+		std::stringstream Error;
+		Error << "Failed to UnMount " << Label << " (" << ::Platform::GetLastErrorString() << ")";
+		throw Soy::AssertException(Error.str());
+	}
+}
+#endif

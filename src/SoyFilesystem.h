@@ -83,12 +83,14 @@ namespace Platform
 	void		SetEnvVar(const char* Key,const char* Value);
 	std::string	GetEnvVar(const char* Key);
 
-// #if defined(TARGET_LINUX)
-	extern std::string																ExeFilename;
-	void 																							EnumExternalDrives(std::function<void(std::string&, std::string&, std::string&)> OnFoundDevice);
-	void																							MountDrive(const std::string& DevNode, const std::string& MountPath);
-	void																							EjectDevice(const std::string& DevNode);
-// #endif
+#if defined(TARGET_LINUX)
+	extern std::string					ExeFilename;
+	void 												EnumExternalDrives(std::function<void(std::string&,std::string&)> OnDriveFound);
+	void												EjectDevice(const std::string& DeviceName);
+	void												MonitorDevices();
+	void												MountDrive(const std::string& DevNode, const std::string& Label);
+	void												UnMountDrive(const std::string& Label);
+#endif
 }
 
 namespace Soy
@@ -121,6 +123,7 @@ public:
 	HANDLE								mWatchHandle = nullptr;
 #endif
 };
+
 
 namespace Soy
 {
