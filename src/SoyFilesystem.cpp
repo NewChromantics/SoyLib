@@ -1514,10 +1514,11 @@ std::string Platform::GetCurrentWorkingDirectory()
 void Platform::MountDrive(const std::string& DevNode, const std::string& Label)
 {
 	auto Cmd = "pmount " + DevNode + " " + Label;
+	FILE *pipe;
 
 	try
 	{
-		auto pipe = popen(Cmd.c_str(), "r");
+		pipe = popen(Cmd.c_str(), "r");
 	}
 	catch(const std::exception& e)
 	{
@@ -1532,10 +1533,11 @@ void Platform::MountDrive(const std::string& DevNode, const std::string& Label)
 void Platform::UnMountDrive(const std::string& Label)
 {
 	auto Cmd = "pumount " + Label;
+	FILE *pipe;
 
 	try
 	{
-		auto pipe = popen(Cmd.c_str(), "r");
+		pipe = popen(Cmd.c_str(), "r");
 	}
 	catch(const std::exception& e)
 	{
