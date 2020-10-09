@@ -1467,7 +1467,7 @@ void Platform::MountDrive(const std::string& DevNode, const std::string& Label)
 
 	try
 	{
-		popen(Cmd.c_str(), "r");
+		auto pipe = popen(Cmd.c_str(), "r");
 	}
 	catch(const std::exception& e)
 	{
@@ -1476,6 +1476,7 @@ void Platform::MountDrive(const std::string& DevNode, const std::string& Label)
 		throw Soy::AssertException(Error.str());
 	}
 	
+	pclose(pipe);
 }
 
 void Platform::UnMountDrive(const std::string& Label)
@@ -1484,7 +1485,7 @@ void Platform::UnMountDrive(const std::string& Label)
 
 	try
 	{
-		popen(Cmd.c_str(), "r");
+		auto pipe = popen(Cmd.c_str(), "r");
 	}
 	catch(const std::exception& e)
 	{
@@ -1492,5 +1493,7 @@ void Platform::UnMountDrive(const std::string& Label)
 		Error << "Failed to UnMount " << Label << " (" << ::Platform::GetLastErrorString() << ")";
 		throw Soy::AssertException(Error.str());
 	}
+
+	pclose(pipe);
 }
 #endif
