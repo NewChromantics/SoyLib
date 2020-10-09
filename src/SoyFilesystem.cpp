@@ -1221,6 +1221,7 @@ std::string	Platform::GetDocumentsDirectory()
 }
 #endif
 
+#if defined(TARGET_LINUX)
 void Platform::EnumExternalDrives(std::function<void(std::string&,std::string&, std::string&)> OnDriveFound)
 {
 	MountedDriveSearch( OnDriveFound );
