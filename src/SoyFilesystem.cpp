@@ -1221,9 +1221,56 @@ std::string	Platform::GetDocumentsDirectory()
 }
 #endif
 
-#if defined(TARGET_LINUX)
+void Platform::EnumExternalDrives(std::function<void(std::string&,std::string&, std::string&)> OnDriveFound)
+{
+	MountedDriveSearch( OnDriveFound );
+	// UnMountedDriveSearch( OnDriveFound );
+}
+
+// Theoretically this should work on mac as well but hasnt been tested yet
+void Platform::MountedDriveSearch(std::function<void(std::string&,std::string&,std::string&)> OnDriveFound)
+{
+	auto Cmd = "mount";
+	auto pipe = popen(Cmd, "r");
+	char buf[BUFSIZ];
+
+	if (pipe != NULL)
+	{
+		while (fgets(buf, BUFSIZ, pipe) != NULL)
+		{
+			auto DeviceLine = std::string(buf);
+			// Parse the output
+			// tsdk: this is a rough approach and may need to be refined later
+			// #if defined(TARGET_LINUX)
+			if(Soy::StringBeginsWith(DeviceLine, "/dev", true) && Soy::StringContains(DeviceLine, "user", true))
+			{
+				Array<std::string> DeviceLineParts;
+				//	parse device string
+				Soy::StringSplitByString(GetArrayBridge(DeviceLineParts), DeviceLine, " ", false);
+
+				Array<std::string> MountPathParts;
+				Soy::StringSplitByString(GetArrayBridge(MountPathParts), DeviceLineParts[2], "/", false);
+
+				std::string DevNode = DeviceLineParts[0];
+				std::string Label = MountPathParts[ MountPathParts.GetSize() - 1 ];// Need to Parse the MountPoint here;
+				std::string MountPath = DeviceLineParts[2];
+
+				OnDriveFound(DevNode, Label, MountPath);
+			}
+
+			// #endif
+
+			#if defined(TARGET_OSX)
+				Soy_AssertTodo();
+			#endif
+		}
+
+		pclose(pipe);
+	}
+}
+
 // https://github.com/robertalks/udev-examples/blob/master/udev_example2.c
-void Platform::EnumExternalDrives(std::function<void(std::string&,std::string&)> OnDriveFound)
+void Platform::UnMountedDriveSearch(std::function<void(std::string&,std::string&, std::string&)> OnDriveFound)
 {
 	struct udev *udev;
 	struct udev_enumerate *enumerate;
@@ -1274,13 +1321,16 @@ void Platform::EnumExternalDrives(std::function<void(std::string&,std::string&)>
 
 			if(std::stoi(ID_PART_ENTRY_NUMBER) > 1)
 			{
-				auto DevNode = std::string( udev_device_get_devnode(dev));
-				auto Label = std::string(ID_FS_LABEL);
-
 				// tsdk: may need in the future to explicitly check that ID_BUS=usb
 				std::Debug << ID_BUS << std::endl;
 
-				OnDriveFound(DevNode, Label);
+				std::string DevNode = std::string( udev_device_get_devnode(dev));
+				std::string Label = std::string(ID_FS_LABEL);
+
+				// Dont Deal with the mounting in this code
+				std::string MountPath = "";
+
+				OnDriveFound(DevNode, Label, MountPath);
 			}
 		}
 

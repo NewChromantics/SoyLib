@@ -85,7 +85,9 @@ namespace Platform
 
 #if defined(TARGET_LINUX)
 	extern std::string					ExeFilename;
-	void 												EnumExternalDrives(std::function<void(std::string&,std::string&)> OnDriveFound);
+	void												EnumExternalDrives(std::function<void(std::string&,std::string&, std::string&)> OnDriveFound);
+	void												MountedDriveSearch(std::function<void(std::string&,std::string&, std::string&)> OnDriveFound);
+	void												UnMountedDriveSearch(std::function<void(std::string&,std::string&, std::string&)> OnDriveFound);
 	void												MountDrive(const std::string& DevNode, const std::string& Label);
 	void												UnMountDrive(const std::string& Label);
 #endif
