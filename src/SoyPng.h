@@ -89,7 +89,7 @@ namespace TPng
 		void		GetDeflateData(Array<char>& ChunkData,const ArrayBridge<uint8>& PixelBlock,bool LastBlock,int WindowSize);
 	}
 	bool		ReadHeader(SoyPixelsImpl& Pixels,THeader& Header,ArrayBridge<char>& Data,std::stringstream& Error);
-	bool		ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char>& Data,std::stringstream& Error);
+	void		ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char>& Data);
 	bool		ReadTail(SoyPixelsImpl& Pixels,ArrayBridge<char>& Data,std::stringstream& Error);
 
 	//	moved from soypixels
