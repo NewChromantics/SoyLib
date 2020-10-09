@@ -1221,7 +1221,7 @@ std::string	Platform::GetDocumentsDirectory()
 }
 #endif
 
-// #if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX)
 // https://github.com/robertalks/udev-examples/blob/master/udev_example2.c
 void Platform::EnumExternalDrives(std::function<void(std::string&,std::string&)> OnDriveFound)
 {
@@ -1293,17 +1293,7 @@ void Platform::EnumExternalDrives(std::function<void(std::string&,std::string&)>
 	udev_unref(udev);
 
 }
-
-void Platform::EjectDevice(const std::string& DeviceName)
-{
-
-}
-
-void Platform::MonitorDevices()
-{
-	
-}
-// #endif
+#endif
 
 #if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 std::string	Platform::GetTempDirectory()
