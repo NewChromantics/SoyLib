@@ -36,9 +36,13 @@ namespace Debug
 	//	gr: although cout is threadsafe, it doesnt synchronise the output
 	std::mutex	CoutCerrLock;
 
-	bool	EnablePrint_CouterrSync = true;	//	use a lock to make cout/cerr prints synchronised
-	bool	EnablePrint_Cout = true;
-	bool	EnablePrint_Cerr = false;
+	//	use a lock to make cout/cerr prints synchronised
+	bool	EnablePrint_CouterrSync = true;	
+
+	//	gr: by default now, we debug to stderr. 
+	//	as we want to use stdout sometimes for binary output
+	bool	EnablePrint_Cout = false;
+	bool	EnablePrint_Cerr = true;
 #if defined(TARGET_OSX) || defined(TARGET_LINUX)
 	bool	EnablePrint_Platform = false;
 #else
