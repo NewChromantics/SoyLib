@@ -102,6 +102,7 @@ public:
 	virtual bool					IsForeground() = 0;
 	virtual void					EnableScrollBars(bool Horz,bool Vert)=0;
 	virtual void					OnClosed();
+	virtual void					StartRender(std::function<void()> Frame, std::string ViewName) {};
 
 public:
 	//	todo: change these coordinates to pixels and client can normalise with GetScreenRect
@@ -155,6 +156,10 @@ public:
 	
 	virtual void					SetValue(const std::string& Value)=0;
 	virtual std::string				GetValue()=0;
+};
+
+class SoyMetalView
+{
 };
 
 
@@ -236,6 +241,7 @@ namespace Platform
 	class TColourButton;
 	class TColourPicker;
 	class TImageMap;
+	class TMetalView;
 
 	class TOpenglView;		//	on osx it's a view control
 	class TOpenglContext;	//	on windows, its a context that binds to any control
@@ -250,4 +256,5 @@ namespace Platform
 	std::shared_ptr<Gui::TColourPicker>	CreateColourPicker(vec3x<uint8_t> InitialColour);
 	std::shared_ptr<SoyColourButton>	CreateColourButton(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<Gui::TImageMap>		CreateImageMap(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<SoyMetalView>		GetMetalView(SoyWindow& Parent, const std::string& Name);
 }

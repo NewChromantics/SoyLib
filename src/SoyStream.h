@@ -133,6 +133,7 @@ public:
 	size_t									GetPendingWrites() const	{	return GetQueueSize();	}
 
 protected:
+	virtual bool							CanSleep() override					{	return mQueue.IsEmpty();	}
 	size_t									GetQueueSize() const				{	return mQueue.GetSize();	}
 	virtual void							Write(TStreamBuffer& Buffer,const std::function<bool()>& Block)=0;	//	write next chunk, as much as possible (but keep checking block)
 	void									OnError(const std::string& Error)	{	if ( mOnStreamError )	mOnStreamError( Error );	}

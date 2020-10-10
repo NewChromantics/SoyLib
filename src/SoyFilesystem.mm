@@ -263,6 +263,7 @@ void Platform::ShowFileExplorer(const std::string& Path)
 }
 
 
+
 std::string Platform::GetFullPathFromFilename(const std::string& Filename)
 {
 	@autoreleasepool
@@ -360,6 +361,27 @@ std::string Platform::GetAppResourcesDirectory()
 		throw;
 	}
 }
+
+#if defined(TARGET_IOS)
+std::string	Platform::GetDocumentsDirectory()
+{
+	//	NSCachesDirectory
+	//	NSItemReplacementDirectory
+	auto DirName = NSDocumentDirectory;
+	//	gr: why is there more than one?
+	auto* FileMan = [NSFileManager defaultManager];
+	auto* DirUrls = [FileMan URLsForDirectory:DirName inDomains:NSUserDomainMask];
+	if ( DirUrls.count == 0 )
+		throw Soy::AssertException("NSDocumentDirectory returned no directorys");
+	if ( DirUrls.count > 1 )
+		std::Debug << "NSDocumentDirectory returned " << DirUrls.count << " dirs" << std::endl;
+	auto* DirUrl = DirUrls[0];
+	auto Filename = UrlGetFilename(DirUrl);
+	return Filename;
+}
+#endif
+
+
 
 std::string Platform::GetComputerName()
 {
