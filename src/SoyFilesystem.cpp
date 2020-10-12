@@ -8,9 +8,10 @@
 #include "magic_enum/include/magic_enum.hpp"
 #endif
 
-#if defined(TARGET_LINUX)
+// #if defined(TARGET_LINUX)
 #include <filesystem>
 #include <fcntl.h>
+#include <libudev.h>
 #endif
 
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
@@ -1243,11 +1244,145 @@ std::string	Platform::GetDocumentsDirectory()
 }
 #endif
 
+#if defined(TARGET_LINUX)
+void Platform::EnumExternalDrives(std::function<void(std::string&,std::string&, std::string&)> OnDriveFound)
+{
+	MountedDriveSearch( OnDriveFound );
+	// UnMountedDriveSearch( OnDriveFound );
+}
+
+// Theoretically this should work on mac as well but hasnt been tested yet
+void Platform::MountedDriveSearch(std::function<void(std::string&,std::string&,std::string&)> OnDriveFound)
+{
+	auto Cmd = "mount";
+	auto pipe = popen(Cmd, "r");
+	char buf[BUFSIZ];
+
+	if (pipe != NULL)
+	{
+		while (fgets(buf, BUFSIZ, pipe) != NULL)
+		{
+			auto DeviceLine = std::string(buf);
+			// Parse the output
+			// tsdk: this is a rough approach and may need to be refined later
+			// #if defined(TARGET_LINUX)
+			if(Soy::StringBeginsWith(DeviceLine, "/dev", true) && Soy::StringContains(DeviceLine, "user", true))
+			{
+				Array<std::string> DeviceLineParts;
+				//	parse device string
+				Soy::StringSplitByString(GetArrayBridge(DeviceLineParts), DeviceLine, " ", false);
+
+				Array<std::string> MountPathParts;
+				Soy::StringSplitByString(GetArrayBridge(MountPathParts), DeviceLineParts[2], "/", false);
+
+				std::string DevNode = DeviceLineParts[0];
+				std::string Label = MountPathParts[ MountPathParts.GetSize() - 1 ];// Need to Parse the MountPoint here;
+				std::string MountPath = DeviceLineParts[2];
+
+				OnDriveFound(DevNode, Label, MountPath);
+			}
+
+			// #endif
+
+			#if defined(TARGET_OSX)
+				Soy_AssertTodo();
+			#endif
+		}
+
+		pclose(pipe);
+	}
+}
+
+// https://github.com/robertalks/udev-examples/blob/master/udev_example2.c
+void Platform::UnMountedDriveSearch(std::function<void(std::string&,std::string&, std::string&)> OnDriveFound)
+{
+	struct udev *udev;
+	struct udev_enumerate *enumerate;
+	struct udev_list_entry *devices;
+	struct udev_list_entry *dev_list_entry;
+
+	/* create udev object */
+	udev = udev_new();
+	if (!udev)
+	{
+		Soy::AssertException("Cannot create udev context.");
+	}
+
+	/* create enumerate object */
+	enumerate = udev_enumerate_new(udev);
+	if (!enumerate)
+	{
+		Soy::AssertException("Cannot create enumerate context.");
+	}
+
+	// Filter Devices by block
+	// https://www.wikiwand.com/en/Device_file#/Block%20devices
+	udev_enumerate_add_match_subsystem(enumerate, "block");
+	udev_enumerate_scan_devices(enumerate);
+
+	devices = udev_enumerate_get_list_entry(enumerate);
+	if (!devices)
+	{
+		Soy::AssertException("Failed to get device list.");
+	}
+
+	udev_list_entry_foreach(dev_list_entry, devices) {
+		auto path = udev_list_entry_get_name(dev_list_entry);
+		auto dev = udev_device_new_from_syspath(udev, path);
+
+		auto DeviceType = std::string(udev_device_get_devtype(dev));
+
+		// tsdk: Not guaranteed to have a value so cannot cast to std::string
+		auto ID_FS_LABEL = udev_device_get_property_value(dev, "ID_FS_LABEL");
+		auto ID_BUS = udev_device_get_property_value(dev, "ID_BUS");
+
+		// we are only interested in labelled partitions of usb's 
+		if (DeviceType == "partition" && ID_FS_LABEL != NULL && ID_BUS != NULL)
+		{
+			//tsdk: first partition is the signature partition https://unix.stackexchange.com/questions/477991/what-is-a-vfat-signature
+			// is there a better way to check for this?
+			auto ID_PART_ENTRY_NUMBER = udev_device_get_property_value(dev, "ID_PART_ENTRY_NUMBER");
+
+			if(std::stoi(ID_PART_ENTRY_NUMBER) > 1)
+			{
+				// tsdk: may need in the future to explicitly check that ID_BUS=usb
+				std::Debug << ID_BUS << std::endl;
+
+				std::string DevNode = std::string( udev_device_get_devnode(dev));
+				std::string Label = std::string(ID_FS_LABEL);
+
+				// Dont Deal with the mounting in this code
+				std::string MountPath = "";
+
+				OnDriveFound(DevNode, Label, MountPath);
+			}
+		}
+
+		/* free dev */
+		udev_device_unref(dev);
+	}
+	/* free enumerate */
+	udev_enumerate_unref(enumerate);
+	/* free udev */
+	udev_unref(udev);
+
+}
+#endif
+
+#if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)||defined(TARGET_ANDROID)
+std::string	Platform::GetTempDirectory()
+{
+	return std::filesystem::temp_directory_path();
+}
+#endif
+
+#if defined(TARGET_IOS) || defined(TARGET_OSX)
 std::string	Platform::GetTempDirectory()
 {
 	Soy_AssertTodo();
 }
- 
+#endif
+
 std::string	Platform::GetCacheDirectory()
 {
 	Soy_AssertTodo();
@@ -1398,3 +1533,43 @@ std::string Platform::GetCurrentWorkingDirectory()
 	return std::string( Buffer.GetArray() );
 }
 
+#if defined(TARGET_LINUX)
+//TODO Add error handling is taken care of by 
+void Platform::MountDrive(const std::string& DevNode, const std::string& Label)
+{
+	auto Cmd = "pmount " + DevNode + " " + Label;
+	FILE *pipe;
+
+	try
+	{
+		pipe = popen(Cmd.c_str(), "r");
+	}
+	catch(const std::exception& e)
+	{
+		std::stringstream Error;
+		Error << "Failed to Mount " << Label << " (" << ::Platform::GetLastErrorString() << ")";
+		throw Soy::AssertException(Error.str());
+	}
+	
+	pclose(pipe);
+}
+
+void Platform::UnMountDrive(const std::string& Label)
+{
+	auto Cmd = "pumount " + Label;
+	FILE *pipe;
+
+	try
+	{
+		pipe = popen(Cmd.c_str(), "r");
+	}
+	catch(const std::exception& e)
+	{
+		std::stringstream Error;
+		Error << "Failed to UnMount " << Label << " (" << ::Platform::GetLastErrorString() << ")";
+		throw Soy::AssertException(Error.str());
+	}
+
+	pclose(pipe);
+}
+#endif

@@ -67,8 +67,9 @@ namespace Platform
 	std::string	GetAppResourcesDirectory();
 	//	these are for ios, but should use OS-specified ones too
 	std::string	GetDocumentsDirectory();
-	std::string	GetTempDirectory();
 	std::string	GetCacheDirectory();	//	ios; same as temp, but auto-cleared less frequently
+	
+	std::string	GetTempDirectory(); // included in (C++17)!
 
 	void		ShowFileExplorer(const std::string& Path);
 	void		ShellExecute(const std::string& Path);
@@ -83,7 +84,12 @@ namespace Platform
 	std::string	GetEnvVar(const char* Key);
 
 #if defined(TARGET_LINUX)
-	extern std::string	ExeFilename;
+	extern std::string					ExeFilename;
+	void												EnumExternalDrives(std::function<void(std::string&,std::string&, std::string&)> OnDriveFound);
+	void												MountedDriveSearch(std::function<void(std::string&,std::string&, std::string&)> OnDriveFound);
+	void												UnMountedDriveSearch(std::function<void(std::string&,std::string&, std::string&)> OnDriveFound);
+	void												MountDrive(const std::string& DevNode, const std::string& Label);
+	void												UnMountDrive(const std::string& Label);
 #endif
 }
 
