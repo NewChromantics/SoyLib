@@ -160,6 +160,7 @@ public:
 	SWIZZLE3(x,x,x);
 	SWIZZLE3(y,y,y);
 	SWIZZLE3(z,z,z);
+	SWIZZLE3(w,w,w);
 	SWIZZLE3(x,y,z);
 	
 	FixedRemoteArray<TYPE>		GetArray() const 	{	return FixedRemoteArray<TYPE>(&x, 4);	}
@@ -223,22 +224,22 @@ public:
 	{
 		const TYPE* Elements[] =
 		{
-			&rows[0][0],
-			&rows[1][0],
-			&rows[2][0],
-			&rows[3][0],
-			&rows[0][1],
-			&rows[1][1],
-			&rows[2][1],
-			&rows[3][1],
-			&rows[0][2],
-			&rows[1][2],
-			&rows[2][2],
-			&rows[3][2],
-			&rows[0][3],
-			&rows[1][3],
-			&rows[2][3],
-			&rows[3][3],
+			&rows[0][0],	&rows[0][1],	&rows[0][2],	&rows[0][3],
+			&rows[1][0],	&rows[1][1],	&rows[1][2],	&rows[1][3],
+			&rows[2][0],	&rows[2][1],	&rows[2][2],	&rows[2][3],
+			&rows[3][0],	&rows[3][1],	&rows[3][2],	&rows[3][3],
+		};
+		return *Elements[i];
+	}
+	
+	TYPE&	operator[](size_t i)
+	{
+		TYPE* Elements[] =
+		{
+			&rows[0][0],	&rows[0][1],	&rows[0][2],	&rows[0][3],
+			&rows[1][0],	&rows[1][1],	&rows[1][2],	&rows[1][3],
+			&rows[2][0],	&rows[2][1],	&rows[2][2],	&rows[2][3],
+			&rows[3][0],	&rows[3][1],	&rows[3][2],	&rows[3][3],
 		};
 		return *Elements[i];
 	}
