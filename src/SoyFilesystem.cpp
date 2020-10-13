@@ -627,30 +627,46 @@ void Platform::CreateDirectory(const std::string& Path)
 	auto Directory = Path.substr(0, Last);
 	if ( Directory.empty() )
 		return;
-	
+
 #if defined(TARGET_OSX) || defined(TARGET_LINUX)
-	mode_t Permissions = S_IRWXU|S_IRWXG|S_IRWXO;
-	//	mode_t Permissions = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
-	if ( mkdir( Directory.c_str(), Permissions ) != 0 )
+	// https://en.cppreference.com/w/cpp/filesystem/create_directory
+	const std::filesystem::path DirectoryPath = Directory;
+	try
+	{
+		std::filesystem::create_directories( DirectoryPath );
+	}
+	catch(const std::exception& e)
+	{
+		auto LastError = Platform::GetLastError();
+		std::stringstream Error;
+		Error << "Failed to create directory " << Directory << ": " << Platform::GetErrorString(LastError);
+		throw Soy::AssertException(Error.str());
+	}
+	
 #elif defined(TARGET_WINDOWS)
-		SECURITY_ATTRIBUTES* Permissions = nullptr;
+	SECURITY_ATTRIBUTES* Permissions = nullptr;
 	if ( !CreateDirectoryA( Directory.c_str(), Permissions ) )
-#else
-		if ( false )
-#endif
+	{
+		auto LastError = Platform::GetLastError();
+		if ( LastError != ERROR_ALREADY_EXISTS )
 		{
-			auto LastError = Platform::GetLastError();
-#if defined(TARGET_WINDOWS)
-			if ( LastError != ERROR_ALREADY_EXISTS )
-#else
-				if ( LastError != EEXIST )
-#endif
-				{
-					std::stringstream Error;
-					Error << "Failed to create directory " << Directory << ": " << Platform::GetErrorString(LastError);
-					throw Soy::AssertException( Error.str() );
-				}
+			std::stringstream Error;
+			Error << "Failed to create directory " << Directory << ": " << Platform::GetErrorString(LastError);
+			throw Soy::AssertException(Error.str());
 		}
+	}
+#else
+	if ( false )
+	{
+		auto LastError = Platform::GetLastError();
+		if ( LastError != EEXIST )
+		{
+			std::stringstream Error;
+			Error << "Failed to create directory " << Directory << ": " << Platform::GetErrorString(LastError);
+			throw Soy::AssertException(Error.str());
+		}
+	}
+#endif
 }
 
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)||defined(TARGET_UWP)
@@ -776,7 +792,7 @@ void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
 		Platform::ThrowLastError("open(/proc/self/cmdline)");
 
 	int Length = read(fd, CmdLine, PATH_MAX);
-	if (read == -1)
+	if (Length == -1)
 		Platform::ThrowLastError("read(/proc/self/cmdline)");
 
 	char *end = CmdLine + Length;
@@ -1116,8 +1132,6 @@ void Soy::FileToArray(ArrayBridge<uint8_t>& Data,std::string Filename)
 template<typename TYPE>
 void ArrayToFile(const ArrayBridge<TYPE>& Data,const std::string& Filename,bool Binary,bool Append)
 {
-	::Platform::CreateDirectory(Filename);
-	
 	auto Mode = Binary ? (std::ios::out | std::ios::binary) : std::ios::out;
 	if ( Binary )
 		Mode |= std::ios::binary;
