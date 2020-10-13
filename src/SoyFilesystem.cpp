@@ -778,7 +778,7 @@ void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
 		Platform::ThrowLastError("open(/proc/self/cmdline)");
 
 	int Length = read(fd, CmdLine, PATH_MAX);
-	if (read == -1)
+	if (Length == -1)
 		Platform::ThrowLastError("read(/proc/self/cmdline)");
 
 	char *end = CmdLine + Length;
