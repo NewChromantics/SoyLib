@@ -1116,8 +1116,6 @@ void Soy::FileToArray(ArrayBridge<uint8_t>& Data,std::string Filename)
 template<typename TYPE>
 void ArrayToFile(const ArrayBridge<TYPE>& Data,const std::string& Filename,bool Binary,bool Append)
 {
-	::Platform::CreateDirectory(Filename);
-	
 	auto Mode = Binary ? (std::ios::out | std::ios::binary) : std::ios::out;
 	if ( Binary )
 		Mode |= std::ios::binary;
