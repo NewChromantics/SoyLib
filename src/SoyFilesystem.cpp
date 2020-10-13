@@ -627,11 +627,13 @@ void Platform::CreateDirectory(const std::string& Path)
 	auto Directory = Path.substr(0, Last);
 	if ( Directory.empty() )
 		return;
-	
+
 #if defined(TARGET_OSX) || defined(TARGET_LINUX)
+	// https://en.cppreference.com/w/cpp/filesystem/create_directory
+	const std::filesystem::path DirectoryPath = Directory;
 	mode_t Permissions = S_IRWXU|S_IRWXG|S_IRWXO;
 	//	mode_t Permissions = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
-	if ( mkdir( Directory.c_str(), Permissions ) != 0 )
+	if ( !std::filesystem::create_directories( DirectoryPath ) )
 #elif defined(TARGET_WINDOWS)
 		SECURITY_ATTRIBUTES* Permissions = nullptr;
 	if ( !CreateDirectoryA( Directory.c_str(), Permissions ) )
