@@ -631,28 +631,42 @@ void Platform::CreateDirectory(const std::string& Path)
 #if defined(TARGET_OSX) || defined(TARGET_LINUX)
 	// https://en.cppreference.com/w/cpp/filesystem/create_directory
 	const std::filesystem::path DirectoryPath = Directory;
-	mode_t Permissions = S_IRWXU|S_IRWXG|S_IRWXO;
-	//	mode_t Permissions = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
-	if ( !std::filesystem::create_directories( DirectoryPath ) )
+	try
+	{
+		std::filesystem::create_directories( DirectoryPath );
+	}
+	catch(const std::exception& e)
+	{
+		auto LastError = Platform::GetLastError();
+		std::stringstream Error;
+		Error << "Failed to create directory " << Directory << ": " << Platform::GetErrorString(LastError);
+		throw Soy::AssertException(Error.str());
+	}
+	
 #elif defined(TARGET_WINDOWS)
-		SECURITY_ATTRIBUTES* Permissions = nullptr;
+	SECURITY_ATTRIBUTES* Permissions = nullptr;
 	if ( !CreateDirectoryA( Directory.c_str(), Permissions ) )
-#else
-		if ( false )
-#endif
+	{
+		auto LastError = Platform::GetLastError();
+		if ( LastError != ERROR_ALREADY_EXISTS )
 		{
-			auto LastError = Platform::GetLastError();
-#if defined(TARGET_WINDOWS)
-			if ( LastError != ERROR_ALREADY_EXISTS )
-#else
-				if ( LastError != EEXIST )
-#endif
-				{
-					std::stringstream Error;
-					Error << "Failed to create directory " << Directory << ": " << Platform::GetErrorString(LastError);
-					throw Soy::AssertException( Error.str() );
-				}
+			std::stringstream Error;
+			Error << "Failed to create directory " << Directory << ": " << Platform::GetErrorString(LastError);
+			throw Soy::AssertException(Error.str());
 		}
+	}
+#else
+	if ( false )
+	{
+		auto LastError = Platform::GetLastError();
+		if ( LastError != EEXIST )
+		{
+			std::stringstream Error;
+			Error << "Failed to create directory " << Directory << ": " << Platform::GetErrorString(LastError);
+			throw Soy::AssertException(Error.str());
+		}
+	}
+#endif
 }
 
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)||defined(TARGET_UWP)
