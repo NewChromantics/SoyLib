@@ -687,7 +687,7 @@ SoyRef SoySocket::Connect(const char* Hostname,uint16_t Port)
 	Connection.mAddr = HostAddr;
 	
 	//	try and connect
-	std::Debug << "Connecting to " << Hostname << ":" << Port << "..." << std::endl;
+	std::Debug << "Connecting to " << Hostname << ":" << Port << "..." << Connection.mAddr << std::endl;
 	int Return = ::connect( mSocket, Connection.mAddr.GetSockAddr(), Connection.mAddr.GetSockAddrLength() );
 
 	//	immediate connection success (when in blocking mode)
