@@ -158,6 +158,9 @@ public:
 	virtual std::string				GetValue()=0;
 };
 
+
+//	gr: this should change to a "SoyRenderView" 
+//	for MetalView, GlView, win32 hwnd attached to a render dc etc
 class SoyMetalView
 {
 };
@@ -193,6 +196,15 @@ public:
 	virtual void					OnChanged(bool FinalValue);	//	helper to do GetValue and call the callback
 
 	std::function<void(vec3x<uint8_t>&,bool)>	mOnValueChanged;	//	reference so caller can change value in the callback
+};
+
+class SoyButton
+{
+public:
+	virtual void			SetLabel(const std::string& Label) = 0;
+	void					OnClicked();	//	helper function
+
+	std::function<void()>	mOnClicked;
 };
 
 
@@ -242,16 +254,20 @@ namespace Platform
 	class TColourPicker;
 	class TImageMap;
 	class TMetalView;
+	class TButton;
 
 	class TOpenglView;		//	on osx it's a view control
 	class TOpenglContext;	//	on windows, its a context that binds to any control
 	class TWin32Thread;		//	windows needs to make calls on a specific thread (just as OSX needs it to be on the main dispatcher)
 
+	//	platforms should implement these
 	std::shared_ptr<SoyWindow>			CreateWindow(const std::string& Name, Soy::Rectx<int32_t>& Rect, bool Resizable);
 	std::shared_ptr<SoySlider>			CreateSlider(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<SoyTextBox>			CreateTextBox(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<SoyLabel>			GetLabel(SoyWindow& Parent,const std::string& Name);
 	std::shared_ptr<SoyLabel>			CreateLabel(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<SoyButton>			GetButton(SoyWindow& Parent,const std::string& Name);
+	std::shared_ptr<SoyButton>			CreateButton(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<SoyTickBox>			CreateTickBox(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<Gui::TColourPicker>	CreateColourPicker(vec3x<uint8_t> InitialColour);
 	std::shared_ptr<SoyColourButton>	CreateColourButton(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
