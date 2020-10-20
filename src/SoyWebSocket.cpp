@@ -56,32 +56,15 @@ std::string WebSocket::THandshakeMeta::GetReplyKey() const
 //	insert handshake headers
 void WebSocket::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 {
-	/*
-	std::stringstream Request;
-	Request << "GET ws://echo.websocket.org/?encoding=text HTTP/1.1\r\n";
-	Request << "Host: echo.websocket.org\r\n";
-	Request << "Connection: Upgrade\r\n";
-	//Pragma : no - cache
-	//Cache - Control : no - cache
-	//User - Agent : Mozilla / 5.0 (Windows NT 10.0; Win64; x64) AppleWebKit / 537.36 (KHTML, like Gecko) Chrome / 79.0.3945.88 Safari / 537.36
-	Request << "Upgrade: websocket\r\n";
-	//Origin : http://www.websocket.org
-	Request << "Sec-WebSocket-Version: 13\r\n";
-	// Accept - Encoding : gzip, deflate
-	// Accept - Language : en - US, en; q = 0.9
-	Request << "Sec-WebSocket-Key: Y72O3fqT9myxqtrvAOzplA==\r\n";
-	Request << "\r\n";
-	//Sec - WebSocket - Extensions : permessage - deflate; client_max_window_bits
-	Buffer.Push(Request.str());
-	return;
-	*/
-	
-	//mHost = "echo.websocket.org";	//	switches to http 1.1
-	mUrl = "ws://echo.websocket.org/?encoding=text";	//	switches to http 1.1
+	//	gr: we should support urls but don't atm
+
+	//	need a host or url to switch to http 1.1
+	//	gr: test server's url doesn't require slash, but check other implementations (and spec!)
+	//mUrl = "ws://echo.websocket.org/?encoding=text";
+	mUrl = std::string("ws://");
+	mUrl += mRequestHost;
 	mUrlPrefix = "";
-	//mHost = "echo.websocket.org";	//	switches to http 1.1
 	mHost = mRequestHost;
-	//mHeaders["Host"] = "echo.websocket.org";
 
 	//	init handshake
 	//	the client sends a Sec - WebSocket - Key header containing base64 - 
@@ -95,10 +78,12 @@ void WebSocket::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 	std::string EncodedRandomBytesStr = Soy::ArrayToString( GetArrayBridge(EncodedRandomBytes) );
 	mHandshake.mWebSocketKey = EncodedRandomBytesStr;
 
-	std::string RequestProtocol = "echo";
+	//	gr: without version echo.websocket.org doesn't respond
+	//std::string RequestProtocol = "echo";
 	std::string RequestVersion = "13";
-	//mHandshake.mProtocol = "echo";
-	//mHandshake.mVersion = "13";
+
+	//	todo: support this
+	std::string RequestProtocol;
 
 	mHeaders["Upgrade"] = "websocket";
 	mHeaders["Connection"] = "Upgrade";
