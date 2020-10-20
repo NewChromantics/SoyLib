@@ -31,28 +31,18 @@ class Http::TCommonProtocol
 public:
 	TCommonProtocol() :
 		mKeepAlive			( false ),
-		mContentLength		( 0 ),
 		mWriteContent		( nullptr ),
-		mHeadersComplete	( false ),
-		mResponseCode		( Response_Invalid ),
-		mChunkedContent		( nullptr )
+		mHeadersComplete	( false )
 	{
 	}
 	//	gr: this may be response only?
 	TCommonProtocol(TStreamBuffer& ChunkedDataBuffer) :
-		mKeepAlive			( false ),
-		mContentLength		( 0 ),
-		mWriteContent		( nullptr ),
-		mHeadersComplete	( false ),
-		mResponseCode		( Response_Invalid ),
 		mChunkedContent		( &ChunkedDataBuffer )
 	{
 	}
 	TCommonProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback,size_t ContentLength) :
-		mKeepAlive			( false ),
 		mContentLength		( ContentLength ),
 		mWriteContent		( WriteContentCallback ),
-		mHeadersComplete	( false ),
 		mResponseCode		( Response_Invalid ),
 		mChunkedContent		( nullptr )
 	{
@@ -92,20 +82,20 @@ public:
 	std::string							mUrl;				//	could be "Bad Request" or "OK" for responses
 	Array<char>							mContent;
 	std::string							mContentMimeType;	//	change this to SoyMediaFormat
-	bool								mKeepAlive;
+	bool								mKeepAlive = false;
 
 	//	encoding
 private:
-	TStreamBuffer*						mChunkedContent;
+	TStreamBuffer*						mChunkedContent = nullptr;
 	std::function<void(TStreamBuffer&)>	mWriteContent;		//	if this is present, we use a callback to write the content and don't know ahead of time the content length
 	
 	//	decoding
 private:
-	size_t								mContentLength;		//	need this for when reading headers... maybe ditch if possible
-	bool								mHeadersComplete;
+	size_t								mContentLength = 0;		//	need this for when reading headers... maybe ditch if possible
+	bool								mHeadersComplete = false;
 	Soy::TVersion						mRequestProtocolVersion;
 public:
-	size_t								mResponseCode;
+	size_t								mResponseCode = Response_Invalid;
 	std::string							mMethod;
 };
 
@@ -115,7 +105,7 @@ public:
 class Http::TResponseProtocol : public Http::TCommonProtocol, public Soy::TReadProtocol, public Soy::TWriteProtocol
 {
 public:
-	TResponseProtocol(size_t ResponseCode=Http::Response_OK);
+	TResponseProtocol();
 	TResponseProtocol(TStreamBuffer& ChunkedDataBuffer);	
 	TResponseProtocol(std::function<void(TStreamBuffer&)> WriteContentCallback,size_t ContentLength);
 	

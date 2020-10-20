@@ -132,7 +132,7 @@ TProtocolState::Type WebSocket::TRequestProtocol::Decode(TStreamBuffer& Buffer)
 			throw Soy::AssertException("Websocket recieving http request, but was not a valid handshake request");
 		}
 		
-		mReplyMessage.reset( new WebSocket::THandshakeResponseProtocol(mHandshake) );
+		mReplyMessage.reset( new WebSocket::THandshakeResponseProtocol(mHandshake,nullptr) );
 		return HttpResult;
 	}
 
@@ -198,6 +198,46 @@ bool WebSocket::TRequestProtocol::ParseSpecificHeader(const std::string& Key,con
 }
 
 
+bool WebSocket::THandshakeResponseProtocol::ParseSpecificHeader(const std::string& Key, const std::string& Value)
+{
+	//	extract web-socket special headers
+	if (Soy::StringMatches(Key, "Upgrade", false))
+	{
+		if (Soy::StringMatches(Value, "websocket", false))
+		{
+			mHandshake.mIsWebSocketUpgrade = true;
+			return true;
+		}
+	}
+
+	if (Soy::StringMatches(Key, "Sec-WebSocket-Key", false))
+	{
+		mHandshake.mWebSocketKey = Value;
+		return true;
+	}
+
+	if (Soy::StringMatches(Key, "Sec-WebSocket-Accept", false))
+	{
+		mHandshake.mWebSocketAcceptedKey = Value;
+		return true;
+	}
+
+	if (Soy::StringMatches(Key, "Sec-WebSocket-Protocol", false))
+	{
+		mHandshake.mProtocol = Value;
+		return true;
+	}
+
+	if (Soy::StringMatches(Key, "Sec-WebSocket-Version", false))
+	{
+		mHandshake.mVersion = Value;
+		return true;
+	}
+
+	return Http::TResponseProtocol::ParseSpecificHeader(Key, Value);
+}
+
+
 
 TProtocolState::Type WebSocket::TRequestProtocol::DecodeBody(TMessageHeader& Header,TMessageBuffer& MessageBuffer,TStreamBuffer& Buffer)
 {
@@ -232,6 +272,7 @@ TProtocolState::Type WebSocket::TRequestProtocol::DecodeBody(TMessageHeader& Hea
 		return TProtocolState::Waiting;
 		
 	//	unmask the data
+	if ( !Header.MaskKey.IsEmpty() )
 	{
 		auto& MaskKey = Header.MaskKey;
 		for ( int i=0;	i<PayloadData.GetSize();	i++ )
@@ -314,17 +355,23 @@ void WebSocket::TMessageBuffer::PushTextMessageData(const ArrayBridge<char>& Pay
 	mIsComplete = IsLastPayload;
 }
 
-WebSocket::THandshakeResponseProtocol::THandshakeResponseProtocol(const THandshakeMeta& Handshake)
+WebSocket::THandshakeResponseProtocol::THandshakeResponseProtocol(THandshakeMeta& Handshake, std::shared_ptr<TMessageBuffer> Message) :
+	mHandshake	( Handshake ),
+	mMessage	( Message ) 
+{
+}
+
+void WebSocket::THandshakeResponseProtocol::Encode(TStreamBuffer& Buffer)
 {
 	//	setup http response for websocket acceptance
 	
 	//	add http headers we need to reply with
-	if ( !Handshake.mProtocol.empty() )
-		mHeaders.insert( {"Sec-WebSocket-Protocol", Handshake.mProtocol} );
+	if ( !mHandshake.mProtocol.empty() )
+		mHeaders.insert( {"Sec-WebSocket-Protocol", mHandshake.mProtocol} );
 	
-	if ( Handshake.mIsWebSocketUpgrade )
+	if ( mHandshake.mIsWebSocketUpgrade )
 	{
-		mHeaders.insert( {"Sec-WebSocket-Accept", Handshake.GetReplyKey() } );
+		mHeaders.insert( {"Sec-WebSocket-Accept", mHandshake.GetReplyKey() } );
 		mHeaders.insert( {"Upgrade", "websocket"} );
 		mHeaders.insert( {"Connection", "Upgrade"} );
 	}
@@ -335,8 +382,58 @@ WebSocket::THandshakeResponseProtocol::THandshakeResponseProtocol(const THandsha
 	//Http.PushHeader( SoyHttpHeaderElement("Content-Type", SoyHttpHeader::FormatToHttpContentType(Reply.mData.mFormat).c_str() ) );
 	
 	mResponseCode = Http::Response_SwitchingProtocols;
+
+	Http::TResponseProtocol::Encode(Buffer);
 }
 
+
+TProtocolState::Type WebSocket::THandshakeResponseProtocol::Decode(TStreamBuffer& Buffer)
+{
+	//	decode this handshake reply
+	if (!mHandshake.IsCompleted())
+	{
+		auto HttpResult = TCommonProtocol::Decode(Buffer);
+		if (HttpResult != TProtocolState::Finished)
+			return HttpResult;
+
+		//	gr: need to distinguish between outgoing handshake and incoming		
+		//	make the auto-reply packet that the caller needs to send to complete the handshake
+		if (!mHandshake.IsCompleted())
+		{
+			//	gr: would caller ever want the http reply if it's not a valid handshake?
+			throw Soy::AssertException("Websocket recieving http request, but was not a valid handshake request");
+		}
+
+		//mReplyMessage.reset(new WebSocket::THandshakeResponseProtocol(mHandshake));
+		return HttpResult;
+	}
+
+	//	we're doing websocket now, so we need to decode incoming data
+	TMessageHeader Header;
+
+	try
+	{
+		if (!Header.Decode(Buffer))
+		{
+			//	failed to decode header, but EOF (socket disconnected), so just quit
+			if (Buffer.mEof)
+				return TProtocolState::Disconnect;
+			return TProtocolState::Waiting;
+		}
+
+		//	just a close command
+		if (Header.GetOpCode() == TOpCode::ConnectionCloseFrame)
+			return TProtocolState::Disconnect;
+
+		//	decode body
+		return WebSocket::TRequestProtocol::DecodeBody(Header, *mMessage, Buffer);
+	}
+	catch (std::exception& e)
+	{
+		std::Debug << e.what() << std::endl;
+		return TProtocolState::Disconnect;
+	}
+}
 
 size_t WebSocket::TMessageHeader::GetLength() const
 {
@@ -472,14 +569,13 @@ void WebSocket::TMessageHeader::IsValid(bool ExpectedNonZeroLength) const
 //	return false if not enough data, throw on error
 bool WebSocket::TMessageHeader::Decode(TStreamBuffer& Buffer)
 {
-	//	peek the max we might need (this is variable, but expecting data after anyway that we wont read)
-	auto MaxBits = 32 + 64;	//	worst case, this is the most amount of bits we'll need
+	auto MinBits = 8+1+7;// 32 + 64;
 	Array<char> HeaderData;
 	auto HeaderDataBridge = GetArrayBridge(HeaderData);
 	
 	//	gr: if it's EOF, then there will be no more data, so read all we can (probably just a "disconnect" websocket header when its a few bytes)
 	//auto MaxBytes = std::min<size_t>( MaxBits / 8, Buffer.GetBufferedSize() );
-	HeaderData.SetSize( MaxBits/8 );
+	HeaderData.SetSize(MinBits /8 );
 	
 	if ( !Buffer.Peek( HeaderDataBridge ) )
 		return false;

@@ -186,10 +186,9 @@ void Http::TCommonProtocol::WriteContent(TStreamBuffer& Buffer)
 }
 
 
-Http::TResponseProtocol::TResponseProtocol(size_t ResponseCode) :
+Http::TResponseProtocol::TResponseProtocol() :
 	TCommonProtocol		( )
 {
-	mResponseCode = ResponseCode;
 }
 
 Http::TResponseProtocol::TResponseProtocol(TStreamBuffer& ChunkedDataBuffer) :

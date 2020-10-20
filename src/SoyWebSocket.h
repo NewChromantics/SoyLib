@@ -28,6 +28,15 @@ namespace WebSocket
 		DECLARE_SOYENUM( WebSocket::TOpCode );
 	}
 
+	//	Server
+	//		listens for client (who will send a request), Decodes packet with TRequestProtocol
+	//		sends back an encoded THandshakeResponseProtocol
+	//		once handshake is complete, just encode & decode websocket message protocol
+
+	//	Client
+	//		<high level> encodes a TRequestProtocol
+	//		recv's THandshakeResponseProtocol to decode
+	//		once handshake is complete, just encode & decode websocket message protocol
 }
 
 
@@ -47,8 +56,9 @@ public:
 	std::string			mVersion;
 	bool				mIsWebSocketUpgrade = false;	//	true once we get the upgrade reply
 	std::string			mWebSocketKey;
+	std::string			mWebSocketAcceptedKey;		//	response from handshake Sec-WebSocket-Accept
 	
-	bool				mHasSentAcceptReply = false;
+	bool				mHasSentAcceptReply = false;				//	once sent, we consider server has connected the client
 };
 
 
@@ -142,7 +152,7 @@ public:
 	virtual TProtocolState::Type	Decode(TStreamBuffer& Buffer) override;
 	virtual bool					ParseSpecificHeader(const std::string& Key,const std::string& Value) override;
 	
-protected:
+public:
 	static TProtocolState::Type	DecodeBody(TMessageHeader& Header,TMessageBuffer& Message,TStreamBuffer& Buffer);
 
 public:
@@ -159,7 +169,14 @@ public:
 class WebSocket::THandshakeResponseProtocol : public Http::TResponseProtocol
 {
 public:
-	THandshakeResponseProtocol(const THandshakeMeta& Handshake);
+	THandshakeResponseProtocol(THandshakeMeta& Handshake, std::shared_ptr<TMessageBuffer> Message);
+
+	virtual void					Encode(TStreamBuffer& Buffer) override;
+	virtual TProtocolState::Type	Decode(TStreamBuffer& Buffer) override;
+	virtual bool					ParseSpecificHeader(const std::string& Key, const std::string& Value) override;
+
+	THandshakeMeta&					mHandshake;
+	std::shared_ptr<TMessageBuffer>	mMessage;	//	persistent message for multi-frame messages
 };
 
 
