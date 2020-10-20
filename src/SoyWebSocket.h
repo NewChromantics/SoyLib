@@ -37,13 +37,15 @@ class WebSocket::THandshakeMeta
 {
 public:
 	std::string			GetReplyKey() const;
-	bool				IsCompleted() const	{	return mIsWebSocketUpgrade && mWebSocketKey.length()!=0 && mVersion.length()!=0;	}
+	//	gr: version is optional?
+	//bool				IsCompleted() const	{	return mIsWebSocketUpgrade && mWebSocketKey.length()!=0 && mVersion.length()!=0;	}
+	bool				IsCompleted() const	{	return mIsWebSocketUpgrade && mWebSocketKey.length()!=0;	}
 	
 public:
 	//	protocol and version are optional
 	std::string			mProtocol;
 	std::string			mVersion;
-	bool				mIsWebSocketUpgrade = true;
+	bool				mIsWebSocketUpgrade = false;	//	true once we get the upgrade reply
 	std::string			mWebSocketKey;
 	
 	bool				mHasSentAcceptReply = false;
@@ -129,9 +131,10 @@ class WebSocket::TRequestProtocol : public Http::TRequestProtocol
 {
 public:
 	TRequestProtocol() : mHandshake(* new THandshakeMeta() ) 	{	throw Soy::AssertException("Should not be called");	}
-	TRequestProtocol(THandshakeMeta& Handshake,std::shared_ptr<TMessageBuffer> Message) :
-		mHandshake	( Handshake ),
-		mMessage	( Message )
+	TRequestProtocol(THandshakeMeta& Handshake,std::shared_ptr<TMessageBuffer> Message,const std::string& Host) :
+		mHandshake		( Handshake ),
+		mMessage		( Message ),
+		mRequestHost	( Host )
 	{
 	}
 
@@ -149,6 +152,7 @@ public:
 	
 	THandshakeMeta&		mHandshake;	//	persistent handshake data etc
 	std::shared_ptr<TMessageBuffer>		mMessage;	//	persistent message for multi-frame messages
+	std::string			mRequestHost;
 };
 
 

@@ -79,7 +79,8 @@ void WebSocket::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 	//mHost = "echo.websocket.org";	//	switches to http 1.1
 	mUrl = "ws://echo.websocket.org/?encoding=text";	//	switches to http 1.1
 	mUrlPrefix = "";
-	mHost = "echo.websocket.org";	//	switches to http 1.1
+	//mHost = "echo.websocket.org";	//	switches to http 1.1
+	mHost = mRequestHost;
 	//mHeaders["Host"] = "echo.websocket.org";
 
 	//	init handshake
@@ -94,19 +95,20 @@ void WebSocket::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 	std::string EncodedRandomBytesStr = Soy::ArrayToString( GetArrayBridge(EncodedRandomBytes) );
 	mHandshake.mWebSocketKey = EncodedRandomBytesStr;
 
-
-	mHandshake.mProtocol = "echo";
-	mHandshake.mVersion = "13";
+	std::string RequestProtocol = "echo";
+	std::string RequestVersion = "13";
+	//mHandshake.mProtocol = "echo";
+	//mHandshake.mVersion = "13";
 
 	mHeaders["Upgrade"] = "websocket";
 	mHeaders["Connection"] = "Upgrade";
 	mHeaders["Sec-WebSocket-Key"] = mHandshake.mWebSocketKey;
 
 	//	gr: these are optional apparently...
-	if (!mHandshake.mProtocol.empty())
-		mHeaders["Sec-WebSocket-Protocol"] = mHandshake.mProtocol;
-	if (!mHandshake.mVersion.empty())
-		mHeaders["Sec-WebSocket-Version"] = mHandshake.mVersion;
+	if (!RequestProtocol.empty())
+		mHeaders["Sec-WebSocket-Protocol"] = RequestProtocol;
+	if (!RequestVersion.empty())
+		mHeaders["Sec-WebSocket-Version"] = RequestVersion;
 
 	Http::TRequestProtocol::Encode(Buffer);
 }
@@ -114,13 +116,15 @@ void WebSocket::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 
 TProtocolState::Type WebSocket::TRequestProtocol::Decode(TStreamBuffer& Buffer)
 {
+	//	gr: IsCompleted is true when we fill it in for the output
 	//	if we haven't handshaken yet, the first request should be a regular HTTP asking for an upgrade
 	if ( !mHandshake.IsCompleted() )
 	{
 		auto HttpResult = TCommonProtocol::Decode( Buffer );
 		if ( HttpResult != TProtocolState::Finished )
 			return HttpResult;
-		
+
+		//	gr: need to distinguish between outgoing handshake and incoming		
 		//	make the auto-reply packet that the caller needs to send to complete the handshake
 		if ( !mHandshake.IsCompleted() )
 		{
