@@ -87,26 +87,9 @@ public:
 class WebSocket::TMessageHeader
 {
 public:
-	TMessageHeader() :
-		Length		( 0 ),
-		Length16	( 0 ),
-		LenMostSignificant	( 0 ),
-		Length64	( 0 ),
-		Fin			( 1 ),
-		Reserved	( 0 ),
-		OpCode		( TOpCode::Invalid ),
-		Masked		( false )
-	{
-	}
+	TMessageHeader() {}
 	explicit TMessageHeader(TOpCode::Type Opcode) :
-		Length		( 0 ),
-		Length16	( 0 ),
-		LenMostSignificant	( 0 ),
-		Length64	( 0 ),
-		Fin			( 1 ),
-		Reserved	( 0 ),
-		OpCode		( Opcode ),
-		Masked		( false )
+		OpCode		( Opcode )
 	{
 	}
 	
@@ -124,14 +107,14 @@ public:
 	BufferArray<unsigned char,4> MaskKey;	//	store & 32 bit int
 
 private:
-	int		Fin;
-	int		Reserved;
-	int		OpCode;
-	int		Masked;
-	int		Length;
-	int		Length16;
-	int		LenMostSignificant;
-	uint64	Length64;
+	int		Fin = 1;
+	int		Reserved = 0;
+	int		OpCode = TOpCode::Invalid;
+	int		Masked = true;		//	previously false, but 
+	int		Length = 0;
+	int		Length16 = 0;
+	int		LenMostSignificant = 0;
+	uint64	Length64 = 0;
 };
 
 
