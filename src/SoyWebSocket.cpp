@@ -70,20 +70,25 @@ void WebSocket::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 	//	the client sends a Sec - WebSocket - Key header containing base64 - 
 	//	encoded random bytes, and the server replies with a hash of the key 
 	//	in the Sec - WebSocket - Accept header.
+	//	this was failing against node's ws module
+	//	https://github.com/websockets/ws/blob/62f71d1aa67f2803a121539580b3d4695a69c39c/lib/websocket-server.js#L12
+	//	spec says its 16 bytes (should be 24 bytes as per regex), some systems were allowing 20 though
 	Array<char> RandomBytes;
-	for ( auto i=0;	i<20;	i++)
-		RandomBytes.PushBack(i);
+	for ( auto i=0;	i<16;	i++)
+	{
+		auto Rand = rand() % 256;
+		RandomBytes.PushBack(Rand);
+	}
 	Array<char> EncodedRandomBytes;
 	Base64::Encode( GetArrayBridge(EncodedRandomBytes), GetArrayBridge(RandomBytes) );
 	std::string EncodedRandomBytesStr = Soy::ArrayToString( GetArrayBridge(EncodedRandomBytes) );
 	mHandshake.mWebSocketKey = EncodedRandomBytesStr;
 
-	//	gr: without version echo.websocket.org doesn't respond
-	//std::string RequestProtocol = "echo";
-	std::string RequestVersion = "13";
-
 	//	todo: support this
+	//std::string RequestProtocol = "echo";
 	std::string RequestProtocol;
+
+	std::string RequestVersion = "13";
 
 	mHeaders["Upgrade"] = "websocket";
 	mHeaders["Connection"] = "Upgrade";
