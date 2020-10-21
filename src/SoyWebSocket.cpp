@@ -112,7 +112,13 @@ TProtocolState::Type WebSocket::TRequestProtocol::Decode(TStreamBuffer& Buffer)
 	{
 		auto HttpResult = TCommonProtocol::Decode( Buffer );
 		if ( HttpResult != TProtocolState::Finished )
+		{
+			//	extra debug
+			if ( HttpResult != TProtocolState::Waiting )
+				std::Debug << "Websocket handshake failed; HTTP code=" << mResponseCode << " mime=" << mContentMimeType << std::endl;
+				
 			return HttpResult;
+		}
 
 		//	gr: need to distinguish between outgoing handshake and incoming		
 		//	make the auto-reply packet that the caller needs to send to complete the handshake
@@ -384,7 +390,13 @@ TProtocolState::Type WebSocket::THandshakeResponseProtocol::Decode(TStreamBuffer
 	{
 		auto HttpResult = TCommonProtocol::Decode(Buffer);
 		if (HttpResult != TProtocolState::Finished)
+		{
+			//	extra debug
+			if ( HttpResult != TProtocolState::Waiting )
+				std::Debug << "Websocket handshake failed; HTTP code=" << mResponseCode << " Response=" << mResponseString << " mime=" << mContentMimeType << std::endl;
+				
 			return HttpResult;
+		}
 
 		//	gr: need to distinguish between outgoing handshake and incoming		
 		//	make the auto-reply packet that the caller needs to send to complete the handshake
