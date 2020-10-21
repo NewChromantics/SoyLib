@@ -696,9 +696,9 @@ void WebSocket::TMessageHeader::Encode(TStreamBuffer& Buffer,ArrayBridge<uint8_t
 		BitWriter.Write( PayloadLength, 7 );
 	}
 	
+	unsigned char _MaskKey[4] = {0,0,0,0};
 	if ( Masked )
 	{
-		unsigned char _MaskKey[4] = {1,2,3,4};
 		BufferArray<unsigned char,4> MaskKey(_MaskKey);
 		BitWriter.Write( MaskKey[0], 8 );
 		BitWriter.Write( MaskKey[1], 8 );
@@ -714,25 +714,27 @@ void WebSocket::TMessageHeader::Encode(TStreamBuffer& Buffer,ArrayBridge<uint8_t
 		Error << "Websocket header data doesn't align to 8 bits (" << Remainder << ")";
 		throw Soy::AssertException(Error.str());
 	}
+
+	Buffer.Push( GetArrayBridge(HeaderData) );
 	
 	//	mask all the data
-	if ( Masked )
+	//	gr: quick hack, zero mask xor's to same value, so we can skip the masking
+	auto MaskedZero = !_MaskKey[0] && !_MaskKey[1] && !_MaskKey[2] && !_MaskKey[3];
+	if ( Masked && !MaskedZero )
 	{
-		throw Soy::AssertException("Todo: encode websocket message data with mask");
+		Array<uint8_t> MaskedPayload;
+		MaskedPayload.Copy(PayloadData);
+		for ( int i=0;	i<MaskedPayload.GetSize();	i++ )
+		{
+			char Encoded = PayloadData[i];
+			char Decoded = Encoded ^ MaskKey[i%4];
+			PayloadData[i] = Decoded;
+		}
 	}
-	/*	gr: do this at higher level
-	static bool TestForUtf8 = false;
-	if ( TestForUtf8 && this->IsText() )
+	else
 	{
-		std::stringstream OutputString;
-		Soy::ArrayToString( OutputData, OutputString );
-		bool IsUtf8 = Soy::IsUtf8String( OutputString.str() );
-		if ( !Soy::Assert( IsUtf8, "Unexpected non-UTF8 char in websocket text message" ) )
-			return false;
+		Buffer.Push( PayloadData );
 	}
-	*/
-	Buffer.Push( GetArrayBridge(HeaderData) );
-	Buffer.Push( PayloadData );
 }
 
 
