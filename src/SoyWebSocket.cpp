@@ -667,7 +667,7 @@ void WebSocket::TMessageHeader::Encode(TStreamBuffer& Buffer,ArrayBridge<uint8_t
 	}
 	
 	//	write header to it's own array first
-	BufferArray<char,10> HeaderData;
+	BufferArray<char,14> HeaderData;
 	auto HeaderDataBridge = GetArrayBridge( HeaderData );
 	
 	//	write message header
