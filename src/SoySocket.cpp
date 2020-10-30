@@ -2,6 +2,7 @@
 #include "SoyDebug.h"
 #include <regex>
 #include "HeapArray.hpp"
+#include <arpa/inet.h>
 
 #if defined(TARGET_POSIX)
 #error TARGET_POSIX should not be defined any more
@@ -60,6 +61,11 @@ SoySockAddr::SoySockAddr(const std::string& Hostname,const uint16 Port)
 	
 	auto Error = getaddrinfo( Hostname.c_str(), PortName.c_str(), &hints, &pHostAddrInfo );
 	
+	// tsdk: alternative approach to getting ipv6 address
+	// https://beej.us/guide/bgnet/html/#inet_ntopman
+//	struct sockaddr_in pHostAddrInfo;
+//	auto Error = inet_pton(AF_INET6, Hostname.c_str(), &pHostAddrInfo);
+
 	if ( Soy::Winsock::HasError( Soy::StreamToString( std::stringstream() << "getaddrinfo(" << Hostname << ":" << PortName << ")"), false, Error ) )
 	{
 		*this = SoySockAddr();
