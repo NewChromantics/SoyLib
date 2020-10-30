@@ -54,7 +54,12 @@ SoySockAddr::SoySockAddr(const std::string& Hostname,const uint16 Port)
 
 	//	ipv6 friendly host fetch
 	struct addrinfo* pHostAddrInfo = nullptr;
-	auto Error = getaddrinfo( Hostname.c_str(), PortName.c_str(), nullptr, &pHostAddrInfo );
+	struct addrinfo hints;
+	memset(&hints, 0, sizeof hints); // make sure the struct is empty
+	hints.ai_family = AF_INET;     // force to IPv4
+	
+	auto Error = getaddrinfo( Hostname.c_str(), PortName.c_str(), &hints, &pHostAddrInfo );
+	
 	if ( Soy::Winsock::HasError( Soy::StreamToString( std::stringstream() << "getaddrinfo(" << Hostname << ":" << PortName << ")"), false, Error ) )
 	{
 		*this = SoySockAddr();
