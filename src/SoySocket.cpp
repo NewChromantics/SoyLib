@@ -24,7 +24,6 @@ in_addr_t inet_addr(const char*)
 #include <signal.h>
 #include <iphlpapi.h>
 #pragma comment(lib, "IPHLPAPI.lib")
-typedef short sa_family_t;
 
 #else
 

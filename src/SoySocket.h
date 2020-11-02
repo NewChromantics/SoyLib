@@ -14,6 +14,7 @@
 	typedef int socklen_t;
 	typedef ULONG in_addr_t;	//	note, not IN_ADDR as that has extra fields we don't need
 	typedef int socket_data_size_t;
+	typedef short sa_family_t;
 
 #else
 
