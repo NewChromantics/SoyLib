@@ -46,7 +46,9 @@ bool Soy::Winsock::HasError(std::stringstream&& ErrorContext, bool BlockIsError,
 
 SoySockAddr SoySockAddr::ResolveAddress(const std::string& Hostname, std::string& PortName)
 {
+#if !defined (TARGET_WINDOWS)
 	res_init();
+#endif
 	struct addrinfo* pHostAddrInfo = nullptr;
 	//	ipv6 friendly host fetch
 	struct addrinfo hints;
