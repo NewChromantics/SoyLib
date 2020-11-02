@@ -154,7 +154,7 @@ sockaddr* SoySockAddr::GetSockAddr()
 
 sa_family_t SoySockAddr::GetFamily()
 {
-	auto SockAddrIn = this->GetSockAddr();
+	auto* SockAddrIn = this->GetSockAddr();
 	return SockAddrIn->sa_family;
 }
 
