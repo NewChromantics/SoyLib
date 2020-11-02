@@ -772,10 +772,8 @@ SoyRef SoySocket::UdpConnect(const char* Hostname,uint16 Port)
 {
 	SoySockAddr HostAddr( Hostname, Port );
 	
-	// Create the socket with the family type from getaddrinfo
-	auto* SockAddrIn = HostAddr.GetSockAddr();
-	auto family = SockAddrIn->sa_family;
-	CreateUdp(true, family);
+	// Create the socket with the correct socket family
+	CreateUdp(true, HostAddr.GetFamily());
 
 	if ( !HostAddr.IsValid() )
 	{
