@@ -2,6 +2,7 @@
 #include "SoyDebug.h"
 #include <regex>
 #include "HeapArray.hpp"
+#include <resolv.h>
 
 #if defined(TARGET_POSIX)
 #error TARGET_POSIX should not be defined any more
@@ -43,7 +44,24 @@ bool Soy::Winsock::HasError(std::stringstream&& ErrorContext, bool BlockIsError,
 	return HasError(ErrorContext.str(), BlockIsError, Error, ErrorStream );
 };
 
+SoySockAddr SoySockAddr::ResolveAddress(const std::string& Hostname, std::string& PortName)
+{
+	res_init();
+	struct addrinfo* pHostAddrInfo = nullptr;
+	//	ipv6 friendly host fetch
+	struct addrinfo hints;
+	memset(&hints, 0, sizeof hints); // make sure the struct is empty
+	hints.ai_family = AF_UNSPEC; // Return either ipv4 or ipv6
+	
+	auto Status = getaddrinfo( Hostname.c_str(), PortName.c_str(), &hints, &pHostAddrInfo );
 
+	Soy::Winsock::IsOkay( Soy::StreamToString( std::stringstream() << "getaddrinfo(" << Hostname << ":" << PortName << ")"), Status);
+	
+	SoySockAddr SocketAddr( *pHostAddrInfo );
+	freeaddrinfo( pHostAddrInfo );
+	
+	return SocketAddr;
+}
 
 SoySockAddr::SoySockAddr(const std::string& Hostname,const uint16 Port)
 {
@@ -51,24 +69,22 @@ SoySockAddr::SoySockAddr(const std::string& Hostname,const uint16 Port)
 	throw Soy::AssertException("SoySockAddr not implemented");
 #else
 	std::string PortName = Soy::StreamToString( std::stringstream() << Port );
-
-	//	ipv6 friendly host fetch
-	struct addrinfo* pHostAddrInfo = nullptr;
-	struct addrinfo hints;
-	memset(&hints, 0, sizeof hints); // make sure the struct is empty
-	hints.ai_family = AF_UNSPEC; // Return either ipv4 or ipv6
 	
-	auto Error = getaddrinfo( Hostname.c_str(), PortName.c_str(), &hints, &pHostAddrInfo );
-	
-
-	if ( Soy::Winsock::HasError( Soy::StreamToString( std::stringstream() << "getaddrinfo(" << Hostname << ":" << PortName << ")"), false, Error ) )
+	for (int i = 0; i < 3; i++ )
 	{
-		*this = SoySockAddr();
-		return;
+		try
+		{
+			auto NewAddress = ResolveAddress(Hostname, PortName);
+			*this = NewAddress;
+			return;
+		}
+		catch(Soy::Winsock::TNetworkConnectionNotEstablished& e)
+		{
+			std::Debug << "Trying To Connect Again";
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	}
-
-	*this = SoySockAddr( *pHostAddrInfo );
-	freeaddrinfo( pHostAddrInfo );
+	throw Soy::AssertException("Tried to connect 3 times and failed");
 #endif
 }
 

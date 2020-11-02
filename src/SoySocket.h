@@ -87,6 +87,9 @@ public:
 	
 public:
 	sockaddr_storage	mAddr;
+	
+private:
+	SoySockAddr			ResolveAddress(const std::string& Hostname, std::string& PortName);
 };
 
 
