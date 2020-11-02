@@ -83,6 +83,8 @@ public:
 
 	bool				operator==(const SoySockAddr& That) const;
 	
+	sa_family_t			GetFamily();
+	
 public:
 	sockaddr_storage	mAddr;
 };

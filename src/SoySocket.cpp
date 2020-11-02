@@ -152,6 +152,12 @@ sockaddr* SoySockAddr::GetSockAddr()
 	return reinterpret_cast<sockaddr*>( &mAddr );
 }
 
+sa_family_t SoySockAddr::GetFamily()
+{
+	auto SockAddrIn = this->GetSockAddr();
+	return SockAddrIn->sa_family;
+}
+
 void SoySockAddr::SetPort(uint16 Port)
 {
 	//	cast for ipv4
@@ -685,10 +691,8 @@ SoyRef SoySocket::Connect(const char* Hostname,uint16_t Port)
 		throw Soy::AssertException(Error);
 	}
 
-	// Create the socket with the family type from getaddrinfo
-	auto* SockAddrIn = HostAddr.GetSockAddr();
-	auto family = SockAddrIn->sa_family;
-	CreateTcp(true, family);
+	// Create the socket with the correct family type
+	CreateTcp(true, HostAddr.GetFamily());
 	
 	//	gr: no connection lock here as this is blocking
 	SoySocketConnection Connection;
