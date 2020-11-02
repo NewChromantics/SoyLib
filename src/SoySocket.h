@@ -39,14 +39,22 @@ namespace Soy
 {
 	namespace Winsock
 	{
+		class TNetworkConnectionNotEstablished;
+	
 		void		Init();
 		void		Shutdown();
 		int			GetError();
 		bool		HasError(const std::string& ErrorContext,bool BlockIsError=true,int Error=GetError(),std::ostream* ErrorStream=nullptr);
 		bool		HasError(std::stringstream&& ErrorContext, bool BlockIsError=true,int Error=GetError(),std::ostream* ErrorStream=nullptr);
+		void 		IsOkay(const std::string& ErrorContext,int Error=GetError());
 	}
 }
 
+class Soy::Winsock::TNetworkConnectionNotEstablished : public std::exception
+{
+public:
+	virtual const char* what() const __noexcept { return "Network Not Ready: EAI_NONAME error"; }
+};
 
 class SoySocket;
 

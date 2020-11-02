@@ -387,6 +387,22 @@ bool Soy::Winsock::HasError(const std::string& ErrorContext,bool BlockIsError,in
 	return true;
 }
 
+void Soy::Winsock::IsOkay(const std::string& ErrorContext,int Error)
+{
+	if(Error)
+	{
+		if(Error == 8)
+			throw Soy::Winsock::TNetworkConnectionNotEstablished();
+		else
+		{
+			std::string ErrorString = ::Platform::GetErrorString( Error );
+			std::stringstream ErrorStream;
+			ErrorStream << "Winsock error (" << Error << "): " << ErrorString << ". " << ErrorContext;
+			throw Soy::AssertException(ErrorStream);
+		}
+	}
+}
+
 
 void SoySocket::Close()
 {
