@@ -2,7 +2,6 @@
 #include "SoyDebug.h"
 #include <regex>
 #include "HeapArray.hpp"
-#include <arpa/inet.h>
 
 #if defined(TARGET_POSIX)
 #error TARGET_POSIX should not be defined any more
@@ -57,14 +56,10 @@ SoySockAddr::SoySockAddr(const std::string& Hostname,const uint16 Port)
 	struct addrinfo* pHostAddrInfo = nullptr;
 	struct addrinfo hints;
 	memset(&hints, 0, sizeof hints); // make sure the struct is empty
-	hints.ai_family = AF_INET;     // force to IPv4
+	hints.ai_family = AF_UNSPEC; // Return either ipv4 or ipv6
 	
 	auto Error = getaddrinfo( Hostname.c_str(), PortName.c_str(), &hints, &pHostAddrInfo );
 	
-	// tsdk: alternative approach to getting ipv6 address
-	// https://beej.us/guide/bgnet/html/#inet_ntopman
-//	struct sockaddr_in pHostAddrInfo;
-//	auto Error = inet_pton(AF_INET6, Hostname.c_str(), &pHostAddrInfo);
 
 	if ( Soy::Winsock::HasError( Soy::StreamToString( std::stringstream() << "getaddrinfo(" << Hostname << ":" << PortName << ")"), false, Error ) )
 	{
@@ -420,7 +415,7 @@ bool SoySocket::IsUdp() const
 }
 
 
-void SoySocket::CreateTcp(bool Blocking)
+void SoySocket::CreateTcp(bool Blocking, sa_family_t SocketType)
 {
 	//	already created
 	if ( IsCreated() && !IsUdp() )
@@ -432,7 +427,7 @@ void SoySocket::CreateTcp(bool Blocking)
 	Soy::Winsock::Init();
 	
 	mConnectionLock.lock();
-	mSocket = socket( AF_INET, SOCK_STREAM, IPPROTO_IP );
+	mSocket = socket( SocketType, SOCK_STREAM, IPPROTO_IP );
 	if ( mSocket == INVALID_SOCKET )
 	{
 		Soy::Winsock::HasError("Create socket");
@@ -492,7 +487,7 @@ void SoySocket::CreateTcp(bool Blocking)
 
 
 
-void SoySocket::CreateUdp(bool Broadcast)
+void SoySocket::CreateUdp(bool Broadcast, sa_family_t SocketType)
 {
 	//	already created
 	if ( IsCreated() && IsUdp() )
@@ -501,7 +496,7 @@ void SoySocket::CreateUdp(bool Broadcast)
 	Soy::Winsock::Init();
 	
 	mConnectionLock.lock();
-	mSocket = socket( AF_INET, SOCK_DGRAM, IPPROTO_UDP );
+	mSocket = socket( SocketType, SOCK_DGRAM, IPPROTO_UDP );
 	if ( mSocket == INVALID_SOCKET )
 	{
 		Soy::Winsock::HasError("Create socket");
@@ -616,6 +611,7 @@ void SoySocket::Bind(uint16 Port,SoySockAddr& outSockAddr)
 
 void SoySocket::ListenTcp(int Port)
 {
+	CreateTcp(true);
 	SoySockAddr SockAddr;
 	Bind(Port, SockAddr);
 
@@ -644,6 +640,7 @@ void SoySocket::ListenTcp(int Port)
 
 void SoySocket::ListenUdp(int Port,bool SaveListeningConnection)
 {
+	CreateUdp(true);
 	Bind(Port, mSocketAddr);
 	
 	//	udp just binds
@@ -680,9 +677,6 @@ bool SoySocket::IsConnected()
 
 SoyRef SoySocket::Connect(const char* Hostname,uint16_t Port)
 {
-	if (mSocket == INVALID_SOCKET)
-		throw Soy::AssertException("TCP Connect without creating socket first");
-
 	SoySockAddr HostAddr( Hostname, Port );
 	if ( !HostAddr.IsValid() )
 	{
@@ -691,8 +685,12 @@ SoyRef SoySocket::Connect(const char* Hostname,uint16_t Port)
 		throw Soy::AssertException(Error);
 	}
 
-	//	gr: no connection lock here as this is blocking
+	// Create the socket with the family type from getaddrinfo
+	auto* SockAddrIn = HostAddr.GetSockAddr();
+	auto family = SockAddrIn->sa_family;
+	CreateTcp(true, family);
 	
+	//	gr: no connection lock here as this is blocking
 	SoySocketConnection Connection;
 	Connection.mSocket = mSocket;
 	Connection.mAddr = HostAddr;
@@ -769,6 +767,12 @@ SoyRef SoySocket::Connect(const char* Hostname,uint16_t Port)
 SoyRef SoySocket::UdpConnect(const char* Hostname,uint16 Port)
 {
 	SoySockAddr HostAddr( Hostname, Port );
+	
+	// Create the socket with the family type from getaddrinfo
+	auto* SockAddrIn = HostAddr.GetSockAddr();
+	auto family = SockAddrIn->sa_family;
+	CreateUdp(true, family);
+
 	if ( !HostAddr.IsValid() )
 	{
 		std::stringstream Error;

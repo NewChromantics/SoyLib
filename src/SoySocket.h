@@ -136,8 +136,6 @@ public:
 	}
 	~SoySocket()	{	Close();	}
 
-	void		CreateTcp(bool Blocking=false);
-	void		CreateUdp(bool Broadcast);
 	bool		IsCreated() const		{	return mSocket != INVALID_SOCKET;	}
 	void		Close();
 
@@ -171,6 +169,8 @@ protected:
 	SoyRef		GetConnectionRef(const SoySockAddr& SockAddr);	//	get/alloc client reference to this address
 	
 private:
+	void		CreateTcp(bool Blocking=false, sa_family_t SocketType=AF_INET); // default to IPv4 socket family type
+	void		CreateUdp(bool Broadcast, sa_family_t SocketType=AF_INET);
 	SoyRef		OnConnection(SoySocketConnection Connection);
 	void		Bind(uint16 Port,SoySockAddr& outSockAddr);
 
