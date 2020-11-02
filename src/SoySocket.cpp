@@ -2,7 +2,6 @@
 #include "SoyDebug.h"
 #include <regex>
 #include "HeapArray.hpp"
-#include <resolv.h>
 
 #if defined(TARGET_POSIX)
 #error TARGET_POSIX should not be defined any more
@@ -32,6 +31,7 @@ in_addr_t inet_addr(const char*)
 #include <netdb.h>	//	gethostbyname
 #include <signal.h>
 #include <ifaddrs.h>	//	getifaddrs
+#include <resolv.h>
 
 #endif
 
