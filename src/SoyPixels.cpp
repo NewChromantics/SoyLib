@@ -1512,7 +1512,7 @@ void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 {
 	//	easier to copy from old source to new when dealing with mulitple planes
 	//	this code is basically the same as ResizeFastSample now, but with copy-pixels instead of sampling
-	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__, 2);
+	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__, 4);
 	//	copy old data
 	SoyPixels Old;
 	Old.Copy(*this);
@@ -1882,7 +1882,7 @@ vec2x<size_t> SoyPixelsImpl::GetXy(size_t PixelIndex) const
 
 void SoyPixelsImpl::ResizeFastSample(size_t NewImageWidth, size_t NewImageHeight)
 {
-	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__, 2);
+	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__, 4);
 	//	copy old data
 	SoyPixels Old;
 	Old.Copy(*this);
