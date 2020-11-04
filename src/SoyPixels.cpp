@@ -1508,11 +1508,94 @@ void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour)
 
 
 
-
 void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 {
-	if ( Width == 0 || Height == 0 )
-		throw Soy::AssertException("Cannot size image to 0 width or height");
+	//	easier to copy from old source to new when dealing with mulitple planes
+	//	this code is basically the same as ResizeFastSample now, but with copy-pixels instead of sampling
+	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__, 2);
+	//	copy old data
+	SoyPixels Old;
+	Old.Copy(*this);
+	
+	auto& New = *this;
+	
+	//	gotta handle multiple planes
+	BufferArray<std::shared_ptr<SoyPixelsImpl>,5> OldPlanes;
+	Old.SplitPlanes(GetArrayBridge(OldPlanes));
+	
+	//	dumb resize buffer...
+	Init( Width, Height, GetFormat() );
+
+	//	... which gives us new planes at correct sizes
+	BufferArray<std::shared_ptr<SoyPixelsImpl>,5> NewPlanes;
+	New.SplitPlanes(GetArrayBridge(NewPlanes));
+	
+	for ( auto p=0;	p<OldPlanes.GetSize();	p++ )
+	{
+		auto& OldPlane = *OldPlanes[p];
+		auto& NewPlane = *NewPlanes[p];
+		
+		auto NewHeight = NewPlane.GetHeight();
+		auto NewWidth = NewPlane.GetWidth();
+
+		//	gr: when do channels change??
+		auto NewChannelCount = NewPlane.GetChannels();
+		auto OldHeight = OldPlane.GetHeight();
+		auto OldWidth = OldPlane.GetWidth();
+		auto OldChannelCount = OldPlane.GetChannels();
+
+		//	gr: quick fix here for float & 16 bit without templating
+		OldChannelCount *= OldPlane.GetMeta().GetBytesPerChannel();
+		NewChannelCount *= NewPlane.GetMeta().GetBytesPerChannel();
+
+		auto MinChannelCount = std::min( OldChannelCount, NewChannelCount );
+		
+		auto& OldPixelsArray = OldPlane.GetPixelsArray();
+		auto& NewPixelsArray = NewPlane.GetPixelsArray();
+		
+		auto* OldPixels = OldPixelsArray.GetArray();
+		auto* NewPixels = NewPixelsArray.GetArray();
+
+		for ( int ny=0;	ny<NewHeight;	ny++ )
+		{
+			int oy = Top + ny;
+			
+			auto OldLineSize = OldWidth * OldChannelCount;
+			auto NewLineSize = NewWidth * NewChannelCount;
+	//#define SAFE_RESIZE
+	#if defined(SAFE_RESIZE)
+			auto OldRow = GetRemoteArray( &OldPixels[oy*OldLineSize], OldLineSize );
+			auto NewRow = GetRemoteArray( &NewPixels[ny*NewLineSize], NewLineSize );
+	#else
+			auto OldRow = &OldPixels[oy*OldLineSize];
+			auto NewRow = &NewPixels[ny*NewLineSize];
+	#endif
+			/*
+			for ( int nx=0;	nx<NewWidth;	nx++ )
+			{
+				int ox = Left + nx;
+				auto* OldPixel = &OldRow[ox*OldChannelCount];
+				auto* NewPixel = &NewRow[nx*NewChannelCount];
+
+				memcpy( NewPixel, OldPixel, MinChannelCount );
+			}
+			*/
+			int nx = 0;
+			int ox = Left;
+			int ox_end = Left + NewWidth;
+			auto* OldPixel = &OldRow[ox*OldChannelCount];
+			auto* NewPixel = &NewRow[nx*NewChannelCount];
+
+			memcpy( NewPixel, OldPixel, MinChannelCount*NewWidth );
+		}
+	}
+
+}
+
+/*
+void SoyPixelsImpl::ClipOnePlane(size_t Left,size_t Top,size_t Width,size_t Height)
+{
+	//	gr: this old function only works on one plane. And is a bit messy, but it avoids a full copy....
 	
 	auto& Pixels = GetPixelsArray();
 	auto Channels = GetChannels();
@@ -1576,7 +1659,7 @@ void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 	
 	ResizeClip( Width, Height );
 }
-
+*/
 void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 {
 	if ( Width == 0 || Height == 0 )
