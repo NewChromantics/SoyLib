@@ -2,7 +2,6 @@
 #include "SoyDebug.h"
 #include <regex>
 #include "HeapArray.hpp"
-#include <arpa/inet.h>
 
 #if defined(TARGET_POSIX)
 #error TARGET_POSIX should not be defined any more
@@ -32,6 +31,7 @@ in_addr_t inet_addr(const char*)
 #include <netdb.h>	//	gethostbyname
 #include <signal.h>
 #include <ifaddrs.h>	//	getifaddrs
+#include <resolv.h>
 
 #endif
 
@@ -44,7 +44,26 @@ bool Soy::Winsock::HasError(std::stringstream&& ErrorContext, bool BlockIsError,
 	return HasError(ErrorContext.str(), BlockIsError, Error, ErrorStream );
 };
 
+SoySockAddr SoySockAddr::ResolveAddress(const std::string& Hostname, std::string& PortName)
+{
+#if !defined (TARGET_WINDOWS)
+	res_init();
+#endif
+	struct addrinfo* pHostAddrInfo = nullptr;
+	//	ipv6 friendly host fetch
+	struct addrinfo hints;
+	memset(&hints, 0, sizeof hints); // make sure the struct is empty
+	hints.ai_family = AF_UNSPEC; // Return either ipv4 or ipv6
+	
+	auto Status = getaddrinfo( Hostname.c_str(), PortName.c_str(), &hints, &pHostAddrInfo );
 
+	Soy::Winsock::IsOkay( Soy::StreamToString( std::stringstream() << "getaddrinfo(" << Hostname << ":" << PortName << ")"), Status);
+	
+	SoySockAddr SocketAddr( *pHostAddrInfo );
+	freeaddrinfo( pHostAddrInfo );
+	
+	return SocketAddr;
+}
 
 SoySockAddr::SoySockAddr(const std::string& Hostname,const uint16 Port)
 {
@@ -52,28 +71,22 @@ SoySockAddr::SoySockAddr(const std::string& Hostname,const uint16 Port)
 	throw Soy::AssertException("SoySockAddr not implemented");
 #else
 	std::string PortName = Soy::StreamToString( std::stringstream() << Port );
-
-	//	ipv6 friendly host fetch
-	struct addrinfo* pHostAddrInfo = nullptr;
-	struct addrinfo hints;
-	memset(&hints, 0, sizeof hints); // make sure the struct is empty
-	hints.ai_family = AF_INET;     // force to IPv4
 	
-	auto Error = getaddrinfo( Hostname.c_str(), PortName.c_str(), &hints, &pHostAddrInfo );
-	
-	// tsdk: alternative approach to getting ipv6 address
-	// https://beej.us/guide/bgnet/html/#inet_ntopman
-//	struct sockaddr_in pHostAddrInfo;
-//	auto Error = inet_pton(AF_INET6, Hostname.c_str(), &pHostAddrInfo);
-
-	if ( Soy::Winsock::HasError( Soy::StreamToString( std::stringstream() << "getaddrinfo(" << Hostname << ":" << PortName << ")"), false, Error ) )
+	for (int i = 0; i < 3; i++ )
 	{
-		*this = SoySockAddr();
-		return;
+		try
+		{
+			auto NewAddress = ResolveAddress(Hostname, PortName);
+			*this = NewAddress;
+			return;
+		}
+		catch(Soy::Winsock::TNetworkConnectionNotEstablished& e)
+		{
+			std::Debug << "Trying To Connect Again";
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	}
-
-	*this = SoySockAddr( *pHostAddrInfo );
-	freeaddrinfo( pHostAddrInfo );
+	throw Soy::AssertException("Tried to connect 3 times and failed");
 #endif
 }
 
@@ -155,6 +168,12 @@ const sockaddr* SoySockAddr::GetSockAddr() const
 sockaddr* SoySockAddr::GetSockAddr()
 {
 	return reinterpret_cast<sockaddr*>( &mAddr );
+}
+
+sa_family_t SoySockAddr::GetFamily()
+{
+	auto* SockAddrIn = this->GetSockAddr();
+	return SockAddrIn->sa_family;
 }
 
 void SoySockAddr::SetPort(uint16 Port)
@@ -370,6 +389,22 @@ bool Soy::Winsock::HasError(const std::string& ErrorContext,bool BlockIsError,in
 	return true;
 }
 
+void Soy::Winsock::IsOkay(const std::string& ErrorContext,int Error)
+{
+	if(Error)
+	{
+		if(Error == 8)
+			throw Soy::Winsock::TNetworkConnectionNotEstablished();
+		else
+		{
+			std::string ErrorString = ::Platform::GetErrorString( Error );
+			std::stringstream ErrorStream;
+			ErrorStream << "Winsock error (" << Error << "): " << ErrorString << ". " << ErrorContext;
+			throw Soy::AssertException(ErrorStream);
+		}
+	}
+}
+
 
 void SoySocket::Close()
 {
@@ -420,7 +455,7 @@ bool SoySocket::IsUdp() const
 }
 
 
-void SoySocket::CreateTcp(bool Blocking)
+void SoySocket::CreateTcp(bool Blocking, sa_family_t SocketType)
 {
 	//	already created
 	if ( IsCreated() && !IsUdp() )
@@ -432,7 +467,7 @@ void SoySocket::CreateTcp(bool Blocking)
 	Soy::Winsock::Init();
 	
 	mConnectionLock.lock();
-	mSocket = socket( AF_INET, SOCK_STREAM, IPPROTO_IP );
+	mSocket = socket( SocketType, SOCK_STREAM, IPPROTO_IP );
 	if ( mSocket == INVALID_SOCKET )
 	{
 		Soy::Winsock::HasError("Create socket");
@@ -492,7 +527,7 @@ void SoySocket::CreateTcp(bool Blocking)
 
 
 
-void SoySocket::CreateUdp(bool Broadcast)
+void SoySocket::CreateUdp(bool Broadcast, sa_family_t SocketType)
 {
 	//	already created
 	if ( IsCreated() && IsUdp() )
@@ -501,7 +536,7 @@ void SoySocket::CreateUdp(bool Broadcast)
 	Soy::Winsock::Init();
 	
 	mConnectionLock.lock();
-	mSocket = socket( AF_INET, SOCK_DGRAM, IPPROTO_UDP );
+	mSocket = socket( SocketType, SOCK_DGRAM, IPPROTO_UDP );
 	if ( mSocket == INVALID_SOCKET )
 	{
 		Soy::Winsock::HasError("Create socket");
@@ -616,6 +651,7 @@ void SoySocket::Bind(uint16 Port,SoySockAddr& outSockAddr)
 
 void SoySocket::ListenTcp(int Port)
 {
+	CreateTcp(true);
 	SoySockAddr SockAddr;
 	Bind(Port, SockAddr);
 
@@ -644,6 +680,7 @@ void SoySocket::ListenTcp(int Port)
 
 void SoySocket::ListenUdp(int Port,bool SaveListeningConnection)
 {
+	CreateUdp(true);
 	Bind(Port, mSocketAddr);
 	
 	//	udp just binds
@@ -680,9 +717,6 @@ bool SoySocket::IsConnected()
 
 SoyRef SoySocket::Connect(const char* Hostname,uint16_t Port)
 {
-	if (mSocket == INVALID_SOCKET)
-		throw Soy::AssertException("TCP Connect without creating socket first");
-
 	SoySockAddr HostAddr( Hostname, Port );
 	if ( !HostAddr.IsValid() )
 	{
@@ -691,8 +725,10 @@ SoyRef SoySocket::Connect(const char* Hostname,uint16_t Port)
 		throw Soy::AssertException(Error);
 	}
 
-	//	gr: no connection lock here as this is blocking
+	// Create the socket with the correct family type
+	CreateTcp(true, HostAddr.GetFamily());
 	
+	//	gr: no connection lock here as this is blocking
 	SoySocketConnection Connection;
 	Connection.mSocket = mSocket;
 	Connection.mAddr = HostAddr;
@@ -769,6 +805,10 @@ SoyRef SoySocket::Connect(const char* Hostname,uint16_t Port)
 SoyRef SoySocket::UdpConnect(const char* Hostname,uint16 Port)
 {
 	SoySockAddr HostAddr( Hostname, Port );
+	
+	// Create the socket with the correct socket family
+	CreateUdp(true, HostAddr.GetFamily());
+
 	if ( !HostAddr.IsValid() )
 	{
 		std::stringstream Error;
