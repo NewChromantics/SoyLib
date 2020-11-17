@@ -12,6 +12,7 @@ namespace Gui
 	class TColourPicker;
 	class TImageMap;
 	class TMouseEvent;
+	class TControl;	
 }
 
 //	gr: this might want expanding later for multiple screens, mouse button number etc
@@ -116,11 +117,18 @@ public:
 	std::function<void()>			mOnClosed;
 };
 
-class SoySlider
+
+//	strictly only functions that are going to be cross platform
+class Gui::TControl
 {
 public:
-	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
-	
+	virtual void			SetRect(const Soy::Rectx<int32_t>& Rect) = 0;		//	set position on screen
+	virtual void			SetVisible(bool Visible)=0;
+};
+
+class SoySlider : public Gui::TControl
+{
+public:
 	virtual void					SetMinMax(uint16_t Min,uint16_t Max,uint16_t NotchCount)=0;
 	virtual void					SetValue(uint16_t Value)=0;
 	virtual uint16_t				GetValue()=0;
@@ -135,11 +143,9 @@ public:
 };
 
 
-class SoyTextBox
+class SoyTextBox : public Gui::TControl
 {
 public:
-	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
-	
 	virtual void					SetValue(const std::string& Value)=0;
 	virtual std::string				GetValue()=0;
 	
@@ -149,11 +155,9 @@ public:
 };
 
 
-class SoyLabel
+class SoyLabel : public Gui::TControl
 {
 public:
-	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
-	
 	virtual void					SetValue(const std::string& Value)=0;
 	virtual std::string				GetValue()=0;
 };
@@ -166,11 +170,9 @@ class SoyMetalView
 };
 
 
-class SoyTickBox
+class SoyTickBox : public Gui::TControl
 {
 public:
-	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
-	
 	//	todo: all platforms have half-checked, so turn this into a state
 	virtual void					SetValue(bool Value)=0;
 	virtual bool					GetValue()=0;
@@ -185,11 +187,9 @@ public:
 
 
 //	native control, but a custom one in SoyLib
-class SoyColourButton
+class SoyColourButton : public Gui::TControl
 {
 public:
-	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect) = 0;		//	set position on screen
-
 	virtual void					SetValue(vec3x<uint8_t> Value) = 0;
 	virtual vec3x<uint8_t>			GetValue() = 0;
 
@@ -198,7 +198,7 @@ public:
 	std::function<void(vec3x<uint8_t>&,bool)>	mOnValueChanged;	//	reference so caller can change value in the callback
 };
 
-class SoyButton
+class SoyButton : public Gui::TControl
 {
 public:
 	virtual void			SetLabel(const std::string& Label) = 0;
@@ -229,11 +229,9 @@ public:
 
 //	an Image map control is an image which auto sets the OS cursor for certain areas
 //	and relays back mouse movement. Used for high-level custom gui controls which just update pixels
-class Gui::TImageMap
+class Gui::TImageMap : public Gui::TControl
 {
 public:
-	virtual void			SetRect(const Soy::Rectx<int32_t>& Rect) = 0;		//	set position on screen
-
 	virtual void			SetImage(const SoyPixelsImpl& Pixels) = 0;
 
 	//	we accept strings for cursor names, because windows allows loading from exe resources. Otherwise they map to SoyCursor::Type enums
