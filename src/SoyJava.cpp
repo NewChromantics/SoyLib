@@ -1655,6 +1655,22 @@ void JniMediaPlayer::SetTrack(int TrackIndex)
 }
 
 
+JSurfaceTexture::JSurfaceTexture(const Opengl::TTexture& Texture) :
+	TJniObject	( "android/graphics/SurfaceTexture", Texture.mTexture.mName )
+{
+	mMethodUpdateTexImage = GetMethod<void>("updateTexImage");
+	mMethodGetTimestamp = GetMethod<jlong>("getTimestamp");
+	mMethodSetDefaultBufferSize = GetMethod<void>("setDefaultBufferSize", GetSignatureType<int>(), GetSignatureType<int>() );
+}
+
+JSurfaceTexture::JSurfaceTexture(const Opengl::TTexture& Texture,bool SingleBufferMode) :
+	TJniObject	( "android/graphics/SurfaceTexture", Texture.mTexture.mName, SingleBufferMode )
+{
+	mMethodUpdateTexImage = GetMethod<void>("updateTexImage");
+	mMethodGetTimestamp = GetMethod<jlong>("getTimestamp");
+	mMethodSetDefaultBufferSize = GetMethod<void>("setDefaultBufferSize", GetSignatureType<int>(), GetSignatureType<int>() );
+}
+	
 bool JSurfaceTexture::UpdateTexture()
 {
 	//	gr: lookout for dimension errors; http://developer.android.com/reference/android/graphics/SurfaceTexture.html#setDefaultBufferSize(int, int)

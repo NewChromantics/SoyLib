@@ -2,7 +2,7 @@
 
 #include <SoyAssert.h>
 #include <SoyTime.h>
-#include <SoyOpengl.h>
+//#include <SoyOpengl.h>
 #include <jni.h>
 #include <sstream>
 #include <SoyStream.h>
@@ -14,6 +14,11 @@ class TJniString;
 class TJniClass;
 template<typename TYPE>
 class TJniLocalObject;
+
+namespace Opengl
+{
+	class TTexture;
+}
 
 #define INVALID_FILE_HANDLE	0	//	gr: I swear this is declared somewhere in soy
 
@@ -543,20 +548,8 @@ public:
 class JSurfaceTexture : public TJniObject
 {
 public:
-	JSurfaceTexture(const Opengl::TTexture& Texture) :
-	TJniObject	( "android/graphics/SurfaceTexture", Texture.mTexture.mName )
-	{
-		mMethodUpdateTexImage = GetMethod<void>("updateTexImage");
-		mMethodGetTimestamp = GetMethod<jlong>("getTimestamp");
-		mMethodSetDefaultBufferSize = GetMethod<void>("setDefaultBufferSize", GetSignatureType<int>(), GetSignatureType<int>() );
-	}
-	JSurfaceTexture(const Opengl::TTexture& Texture,bool SingleBufferMode) :
-	TJniObject	( "android/graphics/SurfaceTexture", Texture.mTexture.mName, SingleBufferMode )
-	{
-		mMethodUpdateTexImage = GetMethod<void>("updateTexImage");
-		mMethodGetTimestamp = GetMethod<jlong>("getTimestamp");
-		mMethodSetDefaultBufferSize = GetMethod<void>("setDefaultBufferSize", GetSignatureType<int>(), GetSignatureType<int>() );
-	}
+	JSurfaceTexture(const Opengl::TTexture& Texture);
+	JSurfaceTexture(const Opengl::TTexture& Texture,bool SingleBufferMode);
 	
 	bool		UpdateTexture();
 	jlong		GetTimestampNano();
