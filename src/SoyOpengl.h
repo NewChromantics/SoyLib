@@ -22,7 +22,7 @@
 #if defined(TARGET_ANDROID) && (OPENGL_ES==3)
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
-#include <GLES/glext.h>
+//#include <GLES/glext.h>	//	glclampx unknown type with android r23 (okay on r16)
 #endif
 
 #if defined(TARGET_ANDROID) && (OPENGL_ES==2)
