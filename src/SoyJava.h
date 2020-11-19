@@ -214,7 +214,7 @@ template<typename TYPE> inline std::string GetSignatureType()
 template<> inline std::string GetSignatureType<int>()	{	return "I";	}
 template<> inline std::string GetSignatureType<bool>()	{	return "Z";	}
 template<> inline std::string GetSignatureType<jlong>()	{	return "J";	}
-template<> inline std::string GetSignatureType<long>()	{	return "J";	}
+//template<> inline std::string GetSignatureType<long>()	{	return "J";	}	//	gr: in androidndk r18 this was a different type. in r23 it's same as long
 template<> inline std::string GetSignatureType<void>()	{	return "V";	}
 template<> inline std::string GetSignatureType<float>()	{	return "F";	}
 template<> inline std::string GetSignatureType<jbyte>()	{	return "B";	}

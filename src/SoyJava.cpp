@@ -30,7 +30,7 @@ namespace Java
 	}
 	
 	void	ThrowJavaException(const std::string& Context,bool ThrowRegardless=false);
-	void	ThrowJavaException(std::ostream& Context,bool ThrowRegardless);
+	void	ThrowJavaException(std::ostream&& Context,bool ThrowRegardless);
 	bool	CatchJavaException(const std::string& ExceptionClass,const std::string& Context);
 }
 
@@ -180,7 +180,9 @@ __export JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 
 std::ostream& operator<<(std::ostream &out,const TJniObject& in)
 {
-	out << in.GetClassName() << "(" << (int)(in.GetWeakObject()) << ")";
+	//	gr: size cast causes error
+	//out << in.GetClassName() << "(" << (int)(in.GetWeakObject()) << ")";
+	out << in.GetClassName();
 	return out;
 }
 
@@ -276,7 +278,7 @@ void Java::IsOkay(const std::string& Context,bool ThrowRegardless)
 	ThrowJavaException( Context, ThrowRegardless );
 }
 
-void Java::ThrowJavaException(std::ostream& Context,bool ThrowRegardless)
+void Java::ThrowJavaException(std::ostream&& Context,bool ThrowRegardless)
 {
 	auto ContextStr = Soy::StreamToString( Context );
 	//ThrowJavaException( Soy::StreamToString( Context ), ThrowRegardless );
@@ -1662,7 +1664,11 @@ void JniMediaPlayer::SetTrack(int TrackIndex)
 
 
 JSurfaceTexture::JSurfaceTexture(const Opengl::TTexture& Texture) :
+#if defined(ENABLE_OPENGL)
 	TJniObject	( "android/graphics/SurfaceTexture", Texture.mTexture.mName )
+#else
+	TJniObject	( "android/graphics/SurfaceTexture", 0 )
+#endif
 {
 	mMethodUpdateTexImage = GetMethod<void>("updateTexImage");
 	mMethodGetTimestamp = GetMethod<jlong>("getTimestamp");
@@ -1670,12 +1676,17 @@ JSurfaceTexture::JSurfaceTexture(const Opengl::TTexture& Texture) :
 }
 
 JSurfaceTexture::JSurfaceTexture(const Opengl::TTexture& Texture,bool SingleBufferMode) :
+#if defined(ENABLE_OPENGL)
 	TJniObject	( "android/graphics/SurfaceTexture", Texture.mTexture.mName, SingleBufferMode )
+#else
+	TJniObject	( "android/graphics/SurfaceTexture", 0, SingleBufferMode )
+#endif
 {
 	mMethodUpdateTexImage = GetMethod<void>("updateTexImage");
 	mMethodGetTimestamp = GetMethod<jlong>("getTimestamp");
 	mMethodSetDefaultBufferSize = GetMethod<void>("setDefaultBufferSize", GetSignatureType<int>(), GetSignatureType<int>() );
 }
+	
 	
 bool JSurfaceTexture::UpdateTexture()
 {

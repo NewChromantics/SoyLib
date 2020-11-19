@@ -329,7 +329,8 @@ public:
 	mType			( Type ),
 	mAutoRelease	( false ),
 #if defined(TARGET_ANDROID)
-	mTexture		( reinterpret_cast<GLuint>(TexturePtr) )
+	mTexture		( static_cast<GLuint>(reinterpret_cast<GLuint64>(TexturePtr)) )
+	//mTexture		( reinterpret_cast<GLuint>(TexturePtr) )
 #elif defined(TARGET_OSX)
 	mTexture		( static_cast<GLuint>(reinterpret_cast<GLuint64>(TexturePtr)) )
 #elif defined(TARGET_IOS)
