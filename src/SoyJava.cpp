@@ -21,8 +21,6 @@ namespace Java
 	
 	JavaVM*			vm = nullptr;
 	JNIEnv*			MainEnv = nullptr;
-	SoyListenerId	mShutdownThreadListener;
-	SoyListenerId	mInitThreadListener;
 
 	namespace Private
 	{
@@ -30,6 +28,10 @@ namespace Java
 		std::recursive_mutex										ThreadsLock;
 		std::map<std::thread::id,std::shared_ptr<Java::TThread>>	Threads;
 	}
+	
+	void	ThrowJavaException(const std::string& Context,bool ThrowRegardless=false);
+	void	ThrowJavaException(std::ostream& Context,bool ThrowRegardless);
+	bool	CatchJavaException(const std::string& ExceptionClass,const std::string& Context);
 }
 
 
@@ -126,12 +128,16 @@ Java::TThread& Java::GetThread()
 		}
 	}
 	
+	//	gr: change this to something easier to manage like a Java job queue and only
+	//		have locals there
+	/*
 	//	register thread init & cleanup first time we use a java context
 	if ( !mInitThreadListener.IsValid() )
 		mInitThreadListener = SoyThread::GetOnThreadStart().AddListener( Java::InitThread );
 	
 	if ( !mShutdownThreadListener.IsValid() )
 		mShutdownThreadListener = SoyThread::GetOnThreadFinish().AddListener( Java::ShutdownThread );
+	*/
 	
 	return *pThread;
 }
@@ -192,7 +198,7 @@ JNIEnv& java()
 //	throw c++ exception if we have a java exception pending
 //	gr: maybe make this a specific std::exception?
 //	todo: make recursive-safe
-void ThrowJavaException(const std::string& Context,bool ThrowRegardless=false)
+void Java::ThrowJavaException(const std::string& Context,bool ThrowRegardless)
 {
 	//	gr: current unexplained hacks
 	static bool ReleaseThrowable = false;
@@ -270,7 +276,7 @@ void Java::IsOkay(const std::string& Context,bool ThrowRegardless)
 	ThrowJavaException( Context, ThrowRegardless );
 }
 
-void ThrowJavaException(std::ostream& Context,bool ThrowRegardless)
+void Java::ThrowJavaException(std::ostream& Context,bool ThrowRegardless)
 {
 	auto ContextStr = Soy::StreamToString( Context );
 	//ThrowJavaException( Soy::StreamToString( Context ), ThrowRegardless );
@@ -278,7 +284,7 @@ void ThrowJavaException(std::ostream& Context,bool ThrowRegardless)
 }
 
 //	catch a specific exception class. if a different exception occurs, throw. If no exception, return false
-bool CatchJavaException(const std::string& ExceptionClass,const std::string& Context)
+bool Java::CatchJavaException(const std::string& ExceptionClass,const std::string& Context)
 {
 	//	todo
 	ThrowJavaException( Context, true );
@@ -294,10 +300,10 @@ std::string Platform::GetSdCardDirectory()
 	auto ExternalStorageSig = GetSignature_ObjectReturn(FileClass);
 	
 	auto Method = EnvClass.GetStaticMethod("getExternalStorageDirectory", ExternalStorageSig );
-	ThrowJavaException("android.os.Environment -> GetStaticMethod getExternalStorageDirectory()");
+	Java::ThrowJavaException("android.os.Environment -> GetStaticMethod getExternalStorageDirectory()");
 	
 	auto ExternalPathj = java().CallStaticObjectMethod( EnvClass.GetWeakClass(), Method );
-	ThrowJavaException("SetDataSourceSdCard: call getExternalStorageDirectory()");
+	Java::ThrowJavaException("SetDataSourceSdCard: call getExternalStorageDirectory()");
 	
 	TJniObject ExternalPath( ExternalPathj, FileClass.GetWeakClass(), "java.io.File" );
 	auto ExtPath = ExternalPath.CallStringMethod("getAbsolutePath");
@@ -409,12 +415,12 @@ std::string Soy::JStringToString(jstring Stringj)
 	
 	//	get utf string
 	char const* Stringc = java().GetStringUTFChars( Stringj, 0 );
-	ThrowJavaException("java().GetStringUTFChars");
+	Java::ThrowJavaException("java().GetStringUTFChars");
 
 	//	copy & release
 	std::string String( Stringc ? Stringc : "nullutf" );
 	java().ReleaseStringUTFChars( Stringj, Stringc );
-	ThrowJavaException("java().ReleaseStringUTFChars");
+	Java::ThrowJavaException("java().ReleaseStringUTFChars");
 	
 	return String;
 }
@@ -667,11 +673,11 @@ TJniClass::TJniClass(const char* ClassName) :
 	//	class needs a global ref... everywhere does a c-style cast to jclass...
 	//	http://stackoverflow.com/questions/14765776/jni-error-app-bug-accessed-stale-local-reference-0xbc00021-index-8-in-a-tabl
 	TJniLocalObject<jclass> Class( java().FindClass( mClassName.c_str() ) );
-	ThrowJavaException( std::string("FindClass ") + GetClassName() );
+	Java::ThrowJavaException( std::string("FindClass ") + GetClassName() );
 	mClass = reinterpret_cast<jclass>( java().NewGlobalRef( Class.mObject ) );
 	if ( !mClass )
 	{
-		ThrowJavaException( std::string("Failed to get global ref for class ") + GetClassName(), true );
+		Java::ThrowJavaException( std::string("Failed to get global ref for class ") + GetClassName(), true );
 		return;
 	}
 	mAutoReleaseClass = true;
@@ -685,7 +691,7 @@ TJniClass::TJniClass(const jclass& Class,const char* ClassName) :
 	NormaliseClassName(mClassName);
 	
 	mClass = reinterpret_cast<jclass>( java().NewGlobalRef( Class ) );
-	ThrowJavaException( __func__ );
+	Java::ThrowJavaException( __func__ );
 	mAutoReleaseClass = true;
 
 	//	extract class name
@@ -770,7 +776,7 @@ TJniClass& TJniClass::operator=(const TJniClass& that)
 		{
 			mClass = reinterpret_cast<jclass>( java().NewGlobalRef( that.mClass ) );
 			if ( mClass == nullptr )
-				ThrowJavaException( std::stringstream() << GetClassName() << "::NewGlobalRef() failed in class copy constructor", true );
+				Java::ThrowJavaException( std::stringstream() << GetClassName() << "::NewGlobalRef() failed in class copy constructor", true );
 			mAutoReleaseClass = true;
 			this->mClassName = that.mClassName;
 		}
@@ -791,7 +797,7 @@ void TJniClass::Release()
 		if ( mAutoReleaseClass )
 		{
 			java().DeleteGlobalRef( mClass );
-			ThrowJavaException(__func__);
+			Java::ThrowJavaException(__func__);
 		}
 		mClass = nullptr;
 	}
@@ -807,7 +813,7 @@ TJniObject TJniClass::CallStaticObjectMethod(const std::string& MethodName,const
 	TJniString ParamAJString(ParamA);
 	auto ParamAj = ParamAJString.mString;
 	auto ResultObjectj = java().CallStaticObjectMethod( GetWeakClass(), Method, ParamAj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	
 	//	construct returning object
 	TJniObject ResultObject( ResultObjectj, ReturnClass.GetWeakClass(), ReturnClass.GetClassName().c_str() );
@@ -826,7 +832,7 @@ TJniObject TJniClass::CallStaticObjectMethod(const std::string& MethodName,const
 	int ParamBj = ParamB;
 	int ParamCj = ParamC;
 	auto ResultObjectj = java().CallStaticObjectMethod( GetWeakClass(), Method, ParamAj, ParamBj, ParamCj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	
 	//	construct returning object
 	TJniObject ResultObject( ResultObjectj, ReturnClass.GetWeakClass(), ReturnClass.GetClassName().c_str() );
@@ -841,7 +847,7 @@ TJniObject TJniClass::CallStaticObjectMethod(const std::string& MethodName,const
 	auto Method = GetStaticMethod( MethodName, Signature );
 	
 	auto ResultObjectj = java().CallStaticObjectMethod( GetWeakClass(), Method, ParamA );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	
 	//	construct returning object
 	TJniObject ResultObject( ResultObjectj, ReturnClass.GetWeakClass(), ReturnClass.GetClassName().c_str() );
@@ -872,7 +878,7 @@ TJniObject::TJniObject(const char* ClassName) :
 	auto Constructor = GetMethod( "<init>", ConstructorSignature );
 	if ( !Constructor )
 	{
-		ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
+		Java::ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
 		return;
 	}
 	
@@ -893,7 +899,7 @@ TJniObject::TJniObject(const char* ClassName,const int& Value) :
 	auto Constructor = GetMethod( "<init>", ConstructorSignature );
 	if ( !Constructor )
 	{
-		ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
+		Java::ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
 		return;
 	}
 	
@@ -916,7 +922,7 @@ TJniObject::TJniObject(const char* ClassName,const int& ParamA,const bool& Param
 	auto Constructor = GetMethod( "<init>", ConstructorSignature );
 	if ( !Constructor )
 	{
-		ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
+		Java::ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
 		return;
 	}
 	
@@ -940,7 +946,7 @@ TJniObject::TJniObject(const char* ClassName,TJniObject& Value) :
 	auto Constructor = GetMethod( "<init>", ConstructorSignature );
 	if ( !Constructor )
 	{
-		ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
+		Java::ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
 		return;
 	}
 
@@ -962,7 +968,7 @@ mAutoReleaseObject	( false )
 	auto Constructor = GetMethod( "<init>", ConstructorSignature );
 	if ( !Constructor )
 	{
-		ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
+		Java::ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
 		return;
 	}
 	
@@ -985,7 +991,7 @@ TJniObject::TJniObject(const char* ClassName,const std::string& ParamA,const std
 	auto Constructor = GetMethod( "<init>", ConstructorSignature );
 	if ( !Constructor )
 	{
-		ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
+		Java::ThrowJavaException( std::stringstream() << GetClassName() << "::constructor(" << ConstructorSignature << ") not found", true );
 		return;
 	}
 	
@@ -1024,7 +1030,7 @@ TJniObject& TJniObject::operator=(const TJniObject& that)
 		{
 			mObject = java().NewGlobalRef( that.mObject );
 			if ( mObject == nullptr )
-				ThrowJavaException( std::stringstream() << GetClassName() << "::NewGlobalRef() failed in object copy constructor", true );
+				Java::ThrowJavaException( std::stringstream() << GetClassName() << "::NewGlobalRef() failed in object copy constructor", true );
 			mAutoReleaseObject = true;
 		}
 		else
@@ -1059,11 +1065,11 @@ void TJniObject::Alloc(std::function<jobject()> Constructor)
 	//	call provided constructing
 	TJniLocalObject<jobject> LocalObject( Constructor() );
 	if ( !LocalObject )
-		ThrowJavaException( std::stringstream() << GetClassName() << "::NewObject() failed", true );
+		Java::ThrowJavaException( std::stringstream() << GetClassName() << "::NewObject() failed", true );
 	
 	mObject = java().NewGlobalRef( LocalObject.mObject );
 	if ( !mObject )
-		ThrowJavaException( std::stringstream() << GetClassName() << "::NewGlobalRef() failed", true );
+		Java::ThrowJavaException( std::stringstream() << GetClassName() << "::NewGlobalRef() failed", true );
 	mAutoReleaseObject = true;
 }
 
@@ -1077,7 +1083,7 @@ void TJniObject::Release()
 		if ( mAutoReleaseObject )
 		{
 			java().DeleteGlobalRef( mObject );
-			ThrowJavaException( std::string(__func__) + " DeleteGlobalRef" );
+			Java::ThrowJavaException( std::string(__func__) + " DeleteGlobalRef" );
 		}
 		mObject = nullptr;
 	}
@@ -1089,7 +1095,7 @@ jobject TJniObject::GetStrongObject()
 		return nullptr;
 	
 	auto GlobalRef = java().NewGlobalRef( mObject );
-	ThrowJavaException( std::string(__func__) + " NewGlobalRef" );
+	Java::ThrowJavaException( std::string(__func__) + " NewGlobalRef" );
 	return GlobalRef;
 }
 
@@ -1113,7 +1119,7 @@ jmethodID TJniClass::GetMethod(const std::string& MethodName,const std::string& 
 	jmethodID Method = java().GetMethodID( mClass, MethodName.c_str(), Signature.c_str() );
 	
 	if ( !Method )
-		ThrowJavaException( std::stringstream() << "Failed to find method: " << GetClassName() << " :: " << MethodName << " [" << Signature << "]", true );
+		Java::ThrowJavaException( std::stringstream() << "Failed to find method: " << GetClassName() << " :: " << MethodName << " [" << Signature << "]", true );
 	
 	return Method;
 }
@@ -1127,7 +1133,7 @@ jmethodID TJniClass::GetStaticMethod(const std::string& MethodName,const std::st
 	jmethodID Method = java().GetStaticMethodID( mClass, MethodName.c_str(), Signature.c_str() );
 	
 	if ( !Method )
-		ThrowJavaException( std::stringstream() << "Failed to find static method: " << GetClassName() << " :: " << MethodName << " [" << Signature << "]", true );
+		Java::ThrowJavaException( std::stringstream() << "Failed to find static method: " << GetClassName() << " :: " << MethodName << " [" << Signature << "]", true );
 	
 	return Method;
 }
@@ -1137,7 +1143,7 @@ void TJniObject::CallVoidMethod(const std::string& MethodName)
 	PreFunctionCall(__func__,MethodName);
 	auto Method = GetMethod<void>( MethodName );
 	java().CallVoidMethod( GetWeakObject(), Method );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 }
 
 void TJniObject::CallVoidMethod(const std::string& MethodName,const int& ParamA)
@@ -1146,7 +1152,7 @@ void TJniObject::CallVoidMethod(const std::string& MethodName,const int& ParamA)
 	auto Method = GetMethod<void>( MethodName, GetSignatureType<int>() );
 	int ParamAj = ParamA;
 	java().CallVoidMethod( GetWeakObject(), Method, ParamAj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 }
 
 void TJniObject::CallVoidMethod(const std::string& MethodName,const long& ParamA)
@@ -1156,7 +1162,7 @@ void TJniObject::CallVoidMethod(const std::string& MethodName,const long& ParamA
 	auto Method = GetMethod<void>( MethodName, GetSignatureType<long>() );
 	jlong ParamAj = ParamA;
 	java().CallVoidMethod( GetWeakObject(), Method, ParamAj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 }
 
 
@@ -1168,7 +1174,7 @@ void TJniObject::CallVoidMethod(const std::string& MethodName,const std::string&
 	TJniString ParamAJString(ParamA);
 	auto ParamAj = ParamAJString.mString;
 	java().CallVoidMethod( GetWeakObject(), Method, ParamAj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 }
 
 
@@ -1180,7 +1186,7 @@ void TJniObject::CallVoidMethod(const std::string& MethodName,const std::string&
 	auto ParamAj = ParamAJString.mString;
 	auto ParamBj = ParamB;
 	java().CallVoidMethod( GetWeakObject(), Method, ParamAj, ParamBj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 }
 
 
@@ -1192,7 +1198,7 @@ void TJniObject::CallVoidMethod(const std::string& MethodName,const std::string&
 	auto ParamAj = ParamAJString.mString;
 	jlong ParamBj = ParamB;
 	java().CallVoidMethod( GetWeakObject(), Method, ParamAj, ParamBj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 }
 
 void TJniObject::CallVoidMethod(const std::string& MethodName,const std::string& ParamA,TJniObject& ParamB)
@@ -1203,7 +1209,7 @@ void TJniObject::CallVoidMethod(const std::string& MethodName,const std::string&
 	auto ParamAj = ParamAJString.mString;
 	auto ParamBj = ParamB.mObject;
 	java().CallVoidMethod( GetWeakObject(), Method, ParamAj, ParamBj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 }
 
 void TJniObject::CallVoidMethod(const std::string& MethodName,int ParamA,bool ParamB)
@@ -1213,7 +1219,7 @@ void TJniObject::CallVoidMethod(const std::string& MethodName,int ParamA,bool Pa
 	jint ParamAj = ParamA;
 	jboolean ParamBj = ParamB;
 	java().CallVoidMethod( GetWeakObject(), Method, ParamAj, ParamBj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 }
 
 void TJniObject::CallVoidMethod(const std::string& MethodName,TJniObject& ParamA,TJniObject& ParamB,TJniObject& ParamC,int ParamD)
@@ -1225,7 +1231,7 @@ void TJniObject::CallVoidMethod(const std::string& MethodName,TJniObject& ParamA
 	auto ParamCj = ParamC.GetWeakObject();
 	auto ParamDj = ParamD;
 	java().CallVoidMethod( GetWeakObject(), Method, ParamAj, ParamBj, ParamCj, ParamDj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 }
 
 void TJniObject::CallVoidMethod(const std::string& MethodName,TJniObject& ParamA)
@@ -1234,7 +1240,7 @@ void TJniObject::CallVoidMethod(const std::string& MethodName,TJniObject& ParamA
 	auto Method = GetMethod<void>( MethodName, GetSignatureType(ParamA) );
 	auto ParamAj = ParamA.GetWeakObject();
 	java().CallVoidMethod( GetWeakObject(), Method, ParamAj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 }
 
 void TJniObject::CallVoidMethod(const std::string& MethodName,int ParamA,int ParamB,int ParamC,long ParamD,int ParamE)
@@ -1254,7 +1260,7 @@ void TJniObject::CallVoidMethod(const std::string& MethodName,int ParamA,int Par
 	jlong ParamDj = ParamD;
 	auto ParamEj = ParamE;
 	java().CallVoidMethod( GetWeakObject(), Method, ParamAj, ParamBj, ParamCj, ParamDj, ParamEj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 }
 
 
@@ -1263,7 +1269,7 @@ bool TJniObject::CallBoolMethod(const std::string& MethodName)
 	PreFunctionCall(__func__,MethodName);
 	auto Method = GetMethod<bool>( MethodName );
 	auto Result = java().CallBooleanMethod( GetWeakObject(), Method );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Result;
 }
 
@@ -1273,7 +1279,7 @@ uint8 TJniObject::CallByteMethod(const std::string& MethodName,const int& ParamA
 	auto Method = GetMethod<jbyte>( MethodName, GetSignatureType<int>() );
 	int ParamAj = ParamA;
 	auto Result = java().CallByteMethod( GetWeakObject(), Method, ParamAj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Result;
 }
 
@@ -1283,7 +1289,7 @@ int TJniObject::CallIntMethod(const std::string& MethodName)
 	PreFunctionCall(__func__,MethodName);
 	auto Method = GetMethod<int>( MethodName );
 	auto Result = java().CallIntMethod( GetWeakObject(), Method );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Result;
 }
 
@@ -1295,7 +1301,7 @@ int TJniObject::CallIntMethod(const std::string& MethodName,const std::string& P
 	TJniString ParamAJString(ParamA);
 	auto ParamAj = ParamAJString.mString;
 	auto Result = java().CallIntMethod( GetWeakObject(), Method, ParamAj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Result;
 }
 
@@ -1306,7 +1312,7 @@ int TJniObject::CallIntMethod(const std::string& MethodName,const int& ParamA)
 	auto Method = GetMethod<int>( MethodName, GetSignatureType<int>() );
 	int ParamAj = ParamA;
 	auto Result = java().CallIntMethod( GetWeakObject(), Method, ParamAj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Result;
 }
 
@@ -1317,7 +1323,7 @@ int TJniObject::CallIntMethod(const std::string& MethodName,const long& ParamA)
 	auto Method = GetMethod<int>( MethodName, GetSignatureType<long>() );
 	jlong ParamAj = ParamA;
 	auto Result = java().CallIntMethod( GetWeakObject(), Method, ParamAj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Result;
 }
 
@@ -1327,7 +1333,7 @@ int TJniObject::CallIntMethod(const std::string& MethodName,TJniObject& ParamA,c
 	PreFunctionCall(__func__,MethodName);
 	auto Method = GetMethod<int>( MethodName, GetSignatureType(ParamA), GetSignatureType<int>() );
 	auto Result = java().CallIntMethod( GetWeakObject(), Method, ParamA.GetWeakObject(), ParamB );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Result;
 }
 
@@ -1338,7 +1344,7 @@ int TJniObject::CallIntMethod(const std::string& MethodName,TJniObject& ParamA,c
 	auto Method = GetMethod<int>( MethodName, GetSignatureType(ParamA), GetSignatureType<long>() );
 	jlong ParamBj = ParamB;
 	auto Result = java().CallIntMethod( GetWeakObject(), Method, ParamA.GetWeakObject(), ParamBj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Result;
 }
 
@@ -1350,7 +1356,7 @@ float TJniObject::CallFloatMethod(const std::string& MethodName,const std::strin
 	TJniString ParamAJString(ParamA);
 	auto ParamAj = ParamAJString.mString;
 	auto Result = java().CallFloatMethod( GetWeakObject(), Method, ParamAj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Result;
 }
 
@@ -1359,7 +1365,7 @@ jlong TJniObject::CallLongMethod(const std::string& MethodName)
 	PreFunctionCall(__func__,MethodName);
 	auto Method = GetMethod<jlong>( MethodName );
 	auto Result = java().CallLongMethod( GetWeakObject(), Method );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Result;
 }
 
@@ -1370,7 +1376,7 @@ jlong TJniObject::CallLongMethod(const std::string& MethodName,const std::string
 	TJniString ParamAJString(ParamA);
 	auto ParamAj = ParamAJString.mString;
 	auto Result = java().CallLongMethod( GetWeakObject(), Method, ParamAj );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Result;
 }
 
@@ -1380,7 +1386,7 @@ std::string TJniObject::CallStringMethod(const std::string& MethodName)
 	auto Method = GetMethod<jstring>( MethodName );
 	//std::Debug << __func__ << " " << MethodName << std::endl;
 	TJniLocalObject<jstring> ResultStr( java().CallObjectMethod( GetWeakObject(), Method ) );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Soy::JStringToString( ResultStr );
 	//	release jstring here?
 }
@@ -1392,7 +1398,7 @@ std::string TJniObject::CallStringMethod(const std::string& MethodName,const std
 	TJniString ParamAJString(ParamA);
 	auto ParamAj = ParamAJString.mString;
 	TJniLocalObject<jstring> ResultStr( java().CallObjectMethod( GetWeakObject(), Method, ParamAj ) );
-	ThrowJavaException( std::string(__func__) + MethodName );
+	Java::ThrowJavaException( std::string(__func__) + MethodName );
 	return Soy::JStringToString( ResultStr );
 	//	release jstring here?
 }
@@ -1412,7 +1418,7 @@ TJniObject TJniObject::CallObjectMethod(const std::string& MethodName,const std:
 
 	//std::Debug << __func__ << " CallObjectMethod " << std::endl;
 	auto ResultObjectj = java().CallObjectMethod( GetWeakObject(), Method );
-	ThrowJavaException( std::string(__func__) + MethodName, ResultObjectj==nullptr );
+	Java::ThrowJavaException( std::string(__func__) + MethodName, ResultObjectj==nullptr );
 
 	//	construct returning object
 	//std::Debug << __func__ << " constructing return object... " << std::endl;
@@ -1437,7 +1443,7 @@ TJniObject TJniObject::CallObjectMethod(const std::string& MethodName,const std:
 
 	auto Method = GetMethod( MethodName, Signature );
 	auto ResultObjectj = java().CallObjectMethod( GetWeakObject(), Method, ParamA );
-	ThrowJavaException( std::string(__func__) + MethodName, ResultObjectj==nullptr );
+	Java::ThrowJavaException( std::string(__func__) + MethodName, ResultObjectj==nullptr );
 	
 	//	construct returning object
 	TJniObject ResultObject( ResultObjectj, ReturnClass.GetWeakClass(), ReturnClass.GetClassName().c_str() );
@@ -1454,7 +1460,7 @@ TJniObject TJniObject::CallObjectMethod(const std::string& MethodName,const std:
 	
 	auto Method = GetMethod( MethodName, Signature );
 	auto ResultObjectj = java().CallObjectMethod( GetWeakObject(), Method, ParamA );
-	ThrowJavaException( std::string("CallObjectMethod( ") + MethodName + " )", ResultObjectj==nullptr );
+	Java::ThrowJavaException( std::string("CallObjectMethod( ") + MethodName + " )", ResultObjectj==nullptr );
 	
 	//	construct returning object
 	TJniObject ResultObject( ResultObjectj, ReturnClass.GetWeakClass(), ReturnClass.GetClassName().c_str() );
@@ -1472,7 +1478,7 @@ TJniObject TJniObject::CallObjectMethod(const std::string& MethodName,const std:
 	
 	auto Method = GetMethod( MethodName, Signature );
 	auto ResultObjectj = java().CallObjectMethod( GetWeakObject(), Method, ParamA );
-	ThrowJavaException( std::string("CallObjectMethod( ") + MethodName + " )", ResultObjectj==nullptr );
+	Java::ThrowJavaException( std::string("CallObjectMethod( ") + MethodName + " )", ResultObjectj==nullptr );
 	
 	//	construct returning object
 	TJniObject ResultObject( ResultObjectj, ReturnClass.GetWeakClass(), ReturnClass.GetClassName().c_str() );
@@ -1491,11 +1497,11 @@ TJniObject TJniClass::GetStaticFieldObject(const std::string& FieldName,const st
 	//std::Debug << __func__ << "GetStaticFieldID(" << Signature << ")" << std::endl;
 	auto FieldId = java().GetStaticFieldID( this->GetWeakClass(), FieldName.c_str(), Signature.c_str() );
 	if ( !FieldId )
-		ThrowJavaException(__func__,true);
+		Java::ThrowJavaException(__func__,true);
 	
 	auto Objectj = java().GetStaticObjectField( this->GetWeakClass(), FieldId );
 	if ( !Objectj )
-		ThrowJavaException(__func__,true);
+		Java::ThrowJavaException(__func__,true);
 	
 	TJniObject Object( Objectj, FieldClass.GetWeakClass(), FieldClass.GetClassName().c_str() );
 	return Object;
@@ -1559,7 +1565,7 @@ void JniMediaPlayer::SetDataSourceAssets(const std::string& Path)
 			auto Method_setDataSource = GetMethod<void>( "setDataSource", GetSignatureType(FileDescriptor), GetSignatureType<jlong>(), GetSignatureType<jlong>() );
 			std::Debug << "calling SetDataSource..." << std::endl;
 			java().CallVoidMethod( GetWeakObject(), Method_setDataSource, FileDescriptor.GetWeakObject(), FdOffset, FdLength );
-			ThrowJavaException( std::string(__func__) + Path );
+			Java::ThrowJavaException( std::string(__func__) + Path );
 		}
 		else
 		{
@@ -1568,7 +1574,7 @@ void JniMediaPlayer::SetDataSourceAssets(const std::string& Path)
 			auto Method_setDataSource = GetMethod<void>( "setDataSource", GetSignatureType(FileDescriptor) );
 			std::Debug << "calling SetDataSource..." << std::endl;
 			java().CallVoidMethod( GetWeakObject(), Method_setDataSource, FileDescriptor.GetWeakObject() );
-			ThrowJavaException( std::string(__func__) + Path );
+			Java::ThrowJavaException( std::string(__func__) + Path );
 		}
 		
 		//	todo: close FD. According to docs we should close the fd immediately after SetDataSource returns
@@ -1612,7 +1618,7 @@ void JniMediaPlayer::SetSurface(JSurface& Surface)
 {
 	auto Method = GetMethod<void>( "setSurface", GetSignatureType(Surface) );
 	java().CallVoidMethod( GetWeakObject(), Method, Surface.GetStrongObject() );
-	ThrowJavaException(__func__);
+	Java::ThrowJavaException(__func__);
 }
 
 void JniMediaPlayer::Seek(SoyTime Time)
@@ -1637,21 +1643,21 @@ void JniMediaPlayer::Seek(SoyTime Time)
 	
 	auto Method = GetMethod<void>( "seekTo", GetSignatureType<int>() );
 	java().CallVoidMethod( GetWeakObject(), Method, SeekMs );
-	ThrowJavaException(__func__);
+	Java::ThrowJavaException(__func__);
 }
 
 void JniMediaPlayer::SetLooping(bool Looping)
 {
 	auto Method = GetMethod<void>( "setLooping", GetSignatureType<bool>() );
 	java().CallVoidMethod( GetWeakObject(), Method, Looping );
-	ThrowJavaException(__func__);
+	Java::ThrowJavaException(__func__);
 }
 
 void JniMediaPlayer::SetTrack(int TrackIndex)
 {
 	auto Method = GetMethod<void>( "selectTrack", GetSignatureType<int>() );
 	java().CallVoidMethod( GetWeakObject(), Method, TrackIndex );
-	ThrowJavaException(__func__);
+	Java::ThrowJavaException(__func__);
 }
 
 
@@ -1678,7 +1684,7 @@ bool JSurfaceTexture::UpdateTexture()
 	if ( !Method )
 		return false;
 	java().CallVoidMethod( GetWeakObject(), Method );
-	ThrowJavaException(__func__);
+	Java::ThrowJavaException(__func__);
 	return true;
 }
 
@@ -1688,7 +1694,7 @@ jlong JSurfaceTexture::GetTimestampNano()
 	if ( !Method )
 		return false;
 	auto Result = java().CallLongMethod( GetWeakObject(), Method );
-	ThrowJavaException(__func__);
+	Java::ThrowJavaException(__func__);
 	return Result;
 }
 
@@ -1700,7 +1706,7 @@ bool JSurfaceTexture::SetBufferSize(size_t Width,size_t Height)
 	int w = size_cast<int>( Width );
 	int h = size_cast<int>( Height );
 	java().CallVoidMethod( GetWeakObject(), Method, w, h );
-	ThrowJavaException(__func__);
+	Java::ThrowJavaException(__func__);
 	return true;
 }
 
@@ -1850,7 +1856,7 @@ void JniMediaExtractor::SetDataSourceAssetFileDescriptor(TJniObject& AssetFileDe
 		auto Method_setDataSource = GetMethod<void>( "setDataSource", GetSignatureType(FileDescriptor), GetSignatureType<jlong>(), GetSignatureType<jlong>() );
 		std::Debug << "calling SetDataSource..." << std::endl;
 		java().CallVoidMethod( GetWeakObject(), Method_setDataSource, FileDescriptor.GetWeakObject(), FdOffset, FdLength );
-		ThrowJavaException( "SetDataSourceAssetFileDescriptor setDataSource" );
+		Java::ThrowJavaException( "SetDataSourceAssetFileDescriptor setDataSource" );
 		std::Debug << "SetDataSource finished" << std::endl;
 		//	close FD. According to docs we should close the fd immediately after SetDataSource returns
 		//	http://developer.android.com/reference/android/media/MediaPlayer.html#setDataSource(android.content.Context, android.net.Uri)
