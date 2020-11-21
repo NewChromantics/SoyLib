@@ -123,7 +123,15 @@ class Gui::TControl
 {
 public:
 	virtual void			SetRect(const Soy::Rectx<int32_t>& Rect) = 0;		//	set position on screen
+
+	//	gr: styling functions, this is to basically emulate CSS
+	//		maybe this is too specific here (not always useful)
+	//		and instead we should have 
+	//			Platform::SetControlVisible
+	//			Platform::SetControlColour
+	//		and implement styles in a more platform specific way
 	virtual void			SetVisible(bool Visible)=0;
+	virtual void			SetColour(const vec3x<uint8_t>& Rgb)=0;	//	alpha seperate, win32 doesn't support it. This is tint on ios. 
 };
 
 class SoySlider : public Gui::TControl
