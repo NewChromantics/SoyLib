@@ -10,6 +10,40 @@
 #include <unistd.h>	//	getcwd
 #endif
 
+//	gr: this is a copy of Platform::GetCurrentWorkingDirectory
+//		but means we dont need to include loads of other dependencies if we add it here 
+#if defined(TARGET_OSX)
+static std::string Platform_GetCurrentWorkingDirectory()
+{
+	Array<char> Buffer;
+	Buffer.SetSize(300);
+
+#if defined(TARGET_WINDOWS)
+	while ( !_getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
+#elif defined(TARGET_PS4)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
+	throw Soy::AssertException("Platform doesn't support current working dir");
+	while(false)
+#else
+	while ( !getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
+#endif
+	{
+		//	check in case buffer isn't big enough
+		auto LastError = ::Platform::GetLastError();
+		if ( LastError == ERANGE )
+		{
+			Buffer.PushBlock(100);
+			continue;
+		}
+		
+		//	some other error
+		std::stringstream Error;
+		Error << "Failed to get current working directory: " << ::Platform::GetErrorString(LastError);
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	return std::string( Buffer.GetArray() );
+}
+#endif
 
 
 void DebugEnvVar(const char* Key)
@@ -49,7 +83,7 @@ Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(vo
 		DebugEnvVar("@executable_path/");
 		DebugEnvVar("DYLD_LIBRARY_PATH");
 		DebugEnvVar("DYLD_FRAMEWORK_PATH");
-		std::Debug << "cwd: " << ::Platform::GetCurrentWorkingDirectory() << std::endl;
+		std::Debug << "cwd: " << ::Platform_GetCurrentWorkingDirectory() << std::endl;
 		
 		const char* ErrorStr = dlerror();
 		if ( !ErrorStr )
