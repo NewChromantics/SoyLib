@@ -10,6 +10,18 @@
 namespace MiniZ
 {
 #include "miniz/miniz.h"
+
+	void	IsOkay(int MiniZResult, const char* Context);
+}
+
+void MiniZ::IsOkay(int MiniZResult, const char* Context)
+{
+	if (MiniZResult == MZ_OK)
+		return;
+
+	std::stringstream Error;
+	Error << "Miniz error; " << mz_error(MiniZResult) << "(" << MiniZResult << ") in " << Context;
+	throw Soy::AssertException(Error);
 }
 
 
@@ -246,12 +258,12 @@ static void filterScanline(unsigned char* out, const unsigned char* scanline, co
 }
  */
 
-bool DeFilterScanline(TPng::TFilterNone_ScanlineFilter::Type Filter,const ArrayBridge<uint8>&& Scanline,int ByteWidth,ArrayBridge<uint8>& DeFilteredData,std::stringstream& Error)
+void DeFilterScanline(TPng::TFilterNone_ScanlineFilter::Type Filter,const ArrayBridge<uint8>&& Scanline,int ByteWidth,ArrayBridge<uint8>& DeFilteredData)
 {
 	if ( Filter == TPng::TFilterNone_ScanlineFilter::None )
 	{
 		DeFilteredData.PushBackArray( Scanline );
-		return true;
+		return;
 	}
 	else if ( Filter == TPng::TFilterNone_ScanlineFilter::Sub )
 	{
@@ -262,14 +274,15 @@ bool DeFilterScanline(TPng::TFilterNone_ScanlineFilter::Type Filter,const ArrayB
 			DeFilteredData.PushBack( Scanline[i] );
 		for(i = ByteWidth; i < Scanline.GetSize(); i++)
 			DeFilteredData.PushBack( Scanline[i] - Scanline[i - ByteWidth] );
-		return true;
+		return;
 	}
 	
+	std::stringstream Error;
 	Error << "defiltering PNG data came across unhandled filter value (" << Filter << ")";
-	return false;
+	throw Soy::AssertException(Error);
 }
 
-bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char>& Data,std::stringstream& Error)
+void TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char>& Data)
 {
 	using namespace MiniZ;
 
@@ -282,15 +295,12 @@ bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char
 		mz_ulong CompressedLength = size_cast<mz_ulong>(DecompressedData.GetDataSize());
 		mz_ulong DecompressedLength = CompressedLength;
 		auto Result = mz_uncompress( reinterpret_cast<Byte*>(DecompressedData.GetArray()), &DecompressedLength, reinterpret_cast<Byte*>(Data.GetArray()), CompressedLength);
-		if ( Result != MZ_OK )
-		{
-			Error << "Error decompressing PNG data (" << mz_error(Result) << ")";
-			return false;
-		}
+		IsOkay(Result, "TPng::ReadData uncompressing PNG mz_uncompress()");
 		if ( DecompressedLength != DecompressedData.GetDataSize() )
 		{
+			std::stringstream Error;
 			Error << "Decompressed to " << DecompressedLength << " bytes, expecting " << DecompressedData.GetDataSize();
-			return false;
+			throw Soy::AssertException(Error);
 		}
 
 		Array<uint8> _DeFilteredData;
@@ -307,19 +317,17 @@ bool TPng::ReadData(SoyPixelsImpl& Pixels,const THeader& Header,ArrayBridge<char
 			size_t ScanlineLength = Stride-1;
 			auto Scanline = GetRemoteArray( &DecompressedData[i+1], ScanlineLength );
 			int bytewidth = (Pixels.GetBitDepth() + 7) / 8;
-			if ( !DeFilterScanline( Filter, GetArrayBridge( Scanline ), bytewidth, DeFilteredData, Error ) )
-				return false;
+			DeFilterScanline(Filter, GetArrayBridge(Scanline), bytewidth, DeFilteredData);
 		}
 		//	overwrite data with defiltered data
 		DecompressedData.Copy( DeFilteredData );
 		
 		//	validate image data length here
-		return true;
+		return;
 	}
 	else
 	{
-		Error << "Unsupported PNG data compression";
-		return false;
+		throw Soy::AssertException("Unsupported PNG data compression");
 	}
 }
 
@@ -368,13 +376,14 @@ void TPng::Private::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,T
 		Debug_TimerName << "Deflate compression; " << Soy::FormatSizeBytes(FilteredPixels.GetDataSize()) << ". Compression level: " << CompressionLevelEnum;
 		ofScopeTimerWarning DeflateCompressTimer( Debug_TimerName.str().c_str(), 3 );
 	
+		//	for tiny data, this isn't enough
 		auto DefAllocated = static_cast<mz_ulong>( 1.2f * FilteredPixels.GetDataSize() );
+		DefAllocated = std::max<mz_ulong>(DefAllocated, 1024);
 		mz_ulong DefUsed = DefAllocated;
 		auto* DefData = PngData.PushBlock(DefAllocated);
 		auto DecompressedSize = size_cast<mz_ulong>(FilteredPixels.GetDataSize());
 		auto Result = mz_compress2( reinterpret_cast<Byte*>(DefData), &DefUsed, FilteredPixels.GetArray(), DecompressedSize, CompressionLevelEnum );
-		if ( Result != MZ_OK )
-			throw Soy_AssertException("mz compression failed");
+		IsOkay(Result, "mz_compress2");
 	
 		if ( DefUsed > DefAllocated )
 			throw Soy_AssertException("miniz compressed reported that it used more memory than we had allocated" );

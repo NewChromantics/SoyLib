@@ -10,8 +10,15 @@
 
 #if defined(TARGET_LINUX)
 #include <filesystem>
+#include <fcntl.h>
+#endif
+
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 #include <unistd.h>	//	gethostname
 #include <sys/stat.h>
+#include <limits.h>	//	PATH_MAX
+//	gr: jetson seems to be missing PATH_MAX in limits.h...
+#include <linux/limits.h>	//	PATH_MAX
 #endif
 
 #if defined(TARGET_OSX)
@@ -43,10 +50,6 @@ namespace Platform
 #if defined(TARGET_OSX) || defined(TARGET_IOS)
 	void	EnumNsDirectory(const std::string& Directory,std::function<void(const std::string&)> OnFileFound,bool Recursive);
 #endif
-
-#if defined(TARGET_LINUX)
-	std::string	ExeFilename;
-#endif
 }
 
 #if defined(TARGET_WINDOWS)
@@ -54,6 +57,8 @@ const char Platform::DirectorySeperator = '\\';
 #else
 const char Platform::DirectorySeperator = '/';
 #endif
+
+
 
 SoyTime Soy::GetFileTimestamp(const std::string& Filename)
 {
@@ -155,20 +160,22 @@ Platform::TFileMonitor::TFileMonitor(const std::string& Filename)
 	//	add to new runloop
 	FSEventStreamScheduleWithRunLoop( mStream.mObject, CFRunLoopGetMain(), kCFRunLoopDefaultMode );
 	FSEventStreamStart( mStream.mObject );
-#endif
 
-#if defined(TARGET_WINDOWS)
+#elif defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
+
 	if (Platform::DirectoryExists(Filename))
 		StartDirectoryWatch(Filename);
 	else
 		StartFileWatch(Filename);
+#else
+	Soy_AssertTodo();
 #endif
 }
 
 
 Platform::TFileMonitor::~TFileMonitor()
 {
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 	mWatchThread.reset();
 #endif
 }
@@ -185,7 +192,7 @@ void Platform::TFileMonitor::OnFileChanged(std::string& FilePath)
 }
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 void Platform::TFileMonitor::StartFileWatch(const std::string& Filename)
 {
 	if (!Platform::FileExists(Filename))
@@ -212,7 +219,7 @@ void Platform::TFileMonitor::StartFileWatch(const std::string& Filename)
 }
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 void Platform::TFileMonitor::WatchFileIteration(const std::string& Filename)
 {
 	// Wait for notification.
@@ -248,7 +255,7 @@ void Platform::TFileMonitor::WatchFileIteration(const std::string& Filename)
 #endif
 
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 void Platform::TFileMonitor::StartDirectoryWatch(const std::string& Directory)
 {
 	if (!Platform::DirectoryExists(Directory))
@@ -289,7 +296,7 @@ namespace Platform
 }
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 void Platform::TFileMonitor::WatchDirectoryIteration(const std::string& Directory)
 {
 	uint8_t FileNotifyInfoBuffer[1024*2];
@@ -379,7 +386,7 @@ SoyPathType::Type GetPathType(WIN32_FIND_DATAA& FindData)
 #endif
 
 
-#if defined(TARGET_WINDOWS) && !defined(HOLOLENS_SUPPORT)
+#if defined(TARGET_WINDOWS) && !defined(TARGET_UWP)
 bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DATAA&)> OnItemFound)
 {
 	WIN32_FIND_DATAA FindData;
@@ -427,14 +434,14 @@ bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DA
 
 
 
-#if defined(TARGET_WINDOWS) && defined(HOLOLENS_SUPPORT)
+#if defined(TARGET_WINDOWS) && defined(TARGET_UWP)
 bool EnumDirectory(const std::string& Directory,std::function<bool(WIN32_FIND_DATA&)> OnItemFound)
 {
 	return false;
 }
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
 	auto OnFindItem = [&](WIN32_FIND_DATAA& FindData)
@@ -620,47 +627,68 @@ void Platform::CreateDirectory(const std::string& Path)
 	auto Directory = Path.substr(0, Last);
 	if ( Directory.empty() )
 		return;
-	
+
+#if defined(TARGET_LINUX)
+	// https://en.cppreference.com/w/cpp/filesystem/create_directory
+	const std::filesystem::path DirectoryPath = Directory;
+	try
+	{
+		std::filesystem::create_directories( DirectoryPath );
+	}
+	catch(const std::exception& e)
+	{
+		auto LastError = Platform::GetLastError();
+		if ( LastError != EEXIST )
+		{
+			std::stringstream Error;
+			Error << "Failed to create directory " << Directory << ": " << Platform::GetErrorString(LastError);
+			throw Soy::AssertException(Error.str());
+		}
+	}
+
+#endif
+
 #if defined(TARGET_OSX)
+	// tsdk: this is only capable of making a single directory 
+	// eg. not nested as in mkdir -p
 	mode_t Permissions = S_IRWXU|S_IRWXG|S_IRWXO;
 	//	mode_t Permissions = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
 	if ( mkdir( Directory.c_str(), Permissions ) != 0 )
+
 #elif defined(TARGET_WINDOWS)
-		SECURITY_ATTRIBUTES* Permissions = nullptr;
+	SECURITY_ATTRIBUTES* Permissions = nullptr;
 	if ( !CreateDirectoryA( Directory.c_str(), Permissions ) )
+
 #else
-		if ( false )
+	if ( false )
 #endif
+	{
+		auto LastError = Platform::GetLastError();
+		if ( LastError != EEXIST )
 		{
-			auto LastError = Platform::GetLastError();
-#if defined(TARGET_WINDOWS)
-			if ( LastError != ERROR_ALREADY_EXISTS )
-#else
-				if ( LastError != EEXIST )
-#endif
-				{
-					std::stringstream Error;
-					Error << "Failed to create directory " << Directory << ": " << Platform::GetErrorString(LastError);
-					throw Soy::AssertException( Error.str() );
-				}
+			std::stringstream Error;
+			Error << "Failed to create directory " << Directory << ": " << Platform::GetErrorString(LastError);
+			throw Soy::AssertException(Error.str());
 		}
+	}
+
 }
 
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)||defined(TARGET_UWP)
 void Platform::ShellExecute(const std::string& Path)
 {
 	Soy_AssertTodo();
 }
 #endif
 
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 void Platform::ShellOpenUrl(const std::string& Path)
 {
 	Soy_AssertTodo();
 }
 #endif
 
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 void Platform::ShellExecute(const std::string& Path)
 {
 	//	https://docs.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecutea
@@ -685,7 +713,7 @@ void Platform::ShellOpenUrl(const std::string& UrlString)
 }
 #endif
 
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 void Platform::ShowFileExplorer(const std::string& Path)
 {
 	Soy_AssertTodo();
@@ -695,7 +723,7 @@ void Platform::ShowFileExplorer(const std::string& Path)
 #if defined(TARGET_WINDOWS)
 void Platform::ShowFileExplorer(const std::string& Path)
 {
-#if defined(HOLOLENS_SUPPORT)
+#if defined(TARGET_UWP)
 	//	unsupported
 #else
 	auto CleanPath = Platform::GetFullPathFromFilename(Path);
@@ -707,11 +735,20 @@ void Platform::ShowFileExplorer(const std::string& Path)
 		throw Soy::AssertException(Error.str());
 	}
 
+	//	this is required, but often already run (maybe with other params), often uneeded
 	try
 	{
 		auto Result = CoInitialize(nullptr);
 		Platform::IsOkay(Result, "CoInitialize for SHOpenFolderAndSelectItems");
-		Result = SHOpenFolderAndSelectItems(PathList, 0, 0, 0);
+	}
+	catch (std::exception& e)
+	{
+		std::Debug << e.what() << std::endl;
+	}
+
+	try
+	{
+		auto Result = SHOpenFolderAndSelectItems(PathList, 0, 0, 0);
 		Platform::IsOkay(Result, "SHOpenFolderAndSelectItems");
 		ILFree(PathList);
 	}
@@ -727,15 +764,52 @@ void Platform::ShowFileExplorer(const std::string& Path)
 #if defined(TARGET_LINUX)
 std::string Platform::GetExeFilename()
 {
-	return ExeFilename;
+	//	https://stackoverflow.com/a/4025415/355753
+	char ExePath[PATH_MAX];
+	// readlink does not null terminate!
+	memset(ExePath,0,sizeof(ExePath));
+	auto Length = readlink("/proc/self/exe", ExePath, PATH_MAX);
+	if ( Length == -1 )
+		Platform::ThrowLastError("readlink(/proc/self/exe)");
+	std::string ExePathString( ExePath, Length );
+	return ExePathString;
 }
 #endif
 
 
-#if defined(TARGET_LINUX)
+#if defined(TARGET_ANDROID)
+std::string Platform::GetExeFilename()
+{
+	Soy_AssertTodo();
+}
+#endif
+
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
 {
-	//	todo: store these!
+	//	https://stackoverflow.com/questions/1585989/how-to-parse-proc-pid-cmdline
+	char CmdLine[PATH_MAX];
+
+	memset(CmdLine,0,sizeof(CmdLine));
+
+	int fd = open("/proc/self/cmdline", O_RDONLY);
+	if (fd == -1)
+		Platform::ThrowLastError("open(/proc/self/cmdline)");
+
+	int Length = read(fd, CmdLine, PATH_MAX);
+	if (Length == -1)
+		Platform::ThrowLastError("read(/proc/self/cmdline)");
+
+	char *end = CmdLine + Length;
+	for (char *p = CmdLine; p < end; /**/)
+	{ 
+		auto ArgString = std::string(p);
+		Arguments.PushBack(ArgString);
+		std::Debug << p << std::endl;
+		while (*p++); // skip until start of next 0-terminated section
+	}
+	close(fd);
+
 }
 #endif
 
@@ -763,11 +837,35 @@ std::string	Platform::GetExePath()
 	return GetDirectoryFromFilename(ExeFilename);
 }
 
+
+#if defined(TARGET_ANDROID)
+bool Platform::FileExists(const std::string& Path)
+{
+	Soy_AssertTodo();
+}
+#endif
+
+#if defined(TARGET_ANDROID)
+bool Platform::DirectoryExists(const std::string& Path)
+{
+	Soy_AssertTodo();
+}
+#endif
+
 #if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)
 bool Platform::FileExists(const std::string& Path)
 {
-	auto FullPath = GetFullPathFromFilename(Path);
-	return std::filesystem::is_regular_file(FullPath);
+	//	if this errors, the file must not exist
+	try
+	{
+		auto FullPath = GetFullPathFromFilename(Path);
+		return std::filesystem::is_regular_file(FullPath);
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << __PRETTY_FUNCTION__ << e.what() << std::endl;
+		return false;
+	}
 	//auto FullPath = GetFullPathFromFilename(Path);
 	//return ::PathFileExistsA(FullPath.c_str());
 }
@@ -776,8 +874,17 @@ bool Platform::FileExists(const std::string& Path)
 #if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)
 bool Platform::DirectoryExists(const std::string& Path)
 {
-	auto FullPath = GetFullPathFromFilename(Path);
-	return std::filesystem::is_directory(FullPath);
+	//	if this errors, the directory must not exist
+	try
+	{
+		auto FullPath = GetFullPathFromFilename(Path);
+		return std::filesystem::is_directory(FullPath);
+	}
+	catch(std::exception& e)
+	{
+		std::Debug << __PRETTY_FUNCTION__ << e.what() << std::endl;
+		return false;
+	}
 	//return ::PathIsDirectoryA(FullPath.c_str());
 	//auto Attribs = ::GetFileAttributesA(FullPath.c_str());
 }
@@ -785,7 +892,7 @@ bool Platform::DirectoryExists(const std::string& Path)
 
 bool Platform::IsFullPath(const std::string& Path)
 {
-#if defined(TARGET_WINDOWS)
+#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 	auto IsRelative = PathIsRelativeA(Path.c_str());
 	return !IsRelative;
 #else
@@ -810,10 +917,6 @@ bool Platform::IsFullPath(const std::string& Path)
 #endif
 }
 
-#if defined(TARGET_LINUX)
-#include <linux/limits.h>
-#endif
-
 
 #if !defined(TARGET_IOS)&&!defined(TARGET_OSX)
 std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
@@ -826,7 +929,7 @@ std::string	Platform::GetFullPathFromFilename(const std::string& Filename)
 		Platform::ThrowLastError(std::string("realpath(") + Filename);
 	std::string Path(AbsolutePath);
 
-#elif defined(TARGET_WINDOWS)&&!defined(HOLOLENS_SUPPORT)
+#elif defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 
 	char PathBuffer[MAX_PATH];
 	char* FilenameStart = nullptr;	//	pointer to inside buffer
@@ -900,7 +1003,7 @@ std::string	Platform::GetDirectoryFromFilename(const std::string& Filename,bool 
 }
 
 
-#if defined(TARGET_PS4)||defined(TARGET_LINUX)
+#if defined(TARGET_PS4)||defined(TARGET_LINUX)||defined(TARGET_UWP)
 bool Platform::EnumDirectory(const std::string& Directory,std::function<bool(const std::string&,SoyPathType::Type)> OnPathFound)
 {
 	return false;
@@ -1034,8 +1137,6 @@ void Soy::FileToArray(ArrayBridge<uint8_t>& Data,std::string Filename)
 template<typename TYPE>
 void ArrayToFile(const ArrayBridge<TYPE>& Data,const std::string& Filename,bool Binary,bool Append)
 {
-	::Platform::CreateDirectory(Filename);
-	
 	auto Mode = Binary ? (std::ios::out | std::ios::binary) : std::ios::out;
 	if ( Binary )
 		Mode |= std::ios::binary;
@@ -1146,7 +1247,7 @@ void Soy::FileToStringLines(std::string Filename,ArrayBridge<std::string>& Strin
 	Soy::SplitStringLines( StringLines, FileContents );
 }
 
-#if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)
+#if defined(TARGET_WINDOWS)||defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 std::string Platform::GetAppResourcesDirectory()
 {
 	return Platform::GetDllPath();
@@ -1154,7 +1255,26 @@ std::string Platform::GetAppResourcesDirectory()
 #endif
 
 
-#if defined(TARGET_LINUX)
+#if !defined(TARGET_IOS)
+std::string	Platform::GetDocumentsDirectory()
+{
+	Soy_AssertTodo();
+}
+#endif
+
+std::string	Platform::GetTempDirectory()
+{
+	Soy_AssertTodo();
+}
+ 
+std::string	Platform::GetCacheDirectory()
+{
+	Soy_AssertTodo();
+}
+
+
+
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 std::string Platform::GetComputerName()
 {
 	char Buffer[1024];
@@ -1178,6 +1298,15 @@ std::string Platform::GetComputerName()
 }
 #endif
 
+#if defined(TARGET_UWP)
+LPWSTR* CommandLineToArgvW(LPWSTR CommandLine,int* ArgCount)
+{
+	//	GetCommandLineW exists on uwp, but this helper function doesnt
+	ArgCount = 0;
+	return nullptr;
+}
+#endif
+
 #if defined(TARGET_WINDOWS)
 void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
 {
@@ -1197,3 +1326,94 @@ void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
 	LocalFree(Args);
 }
 #endif
+
+
+
+void Platform::SetEnvVar(const char* Key,const char* Value)
+{
+#if defined(TARGET_LINUX)
+	int Overwrite = 1;
+	auto Result = setenv( Key, Value, Overwrite );
+	if ( Result != 0 )
+		Platform::ThrowLastError("setenv()");
+#else
+	throw Soy::AssertException("SetEnvVar not implemented on this platform");
+#endif
+}
+
+std::string Platform::GetEnvVar(const char* Key)
+{
+#if defined(TARGET_OSX)||defined(TARGET_LINUX)
+	const char* Value = getenv(Key);
+	if ( !Value )
+	{
+		std::stringstream Error;
+		Error << "Missing env var " << Key;
+		throw Soy::AssertException( Error.str() );
+	}
+	return Value;
+#elif defined(TARGET_WINDOWS)
+	char* Buffer = nullptr;
+	size_t BufferSize = 0;
+	auto Result = _dupenv_s( &Buffer, &BufferSize, Key );
+
+	if ( Result != S_OK || !Buffer )
+	{
+		std::stringstream Error;
+		if ( Result == S_OK )
+		{
+			Error << "Null buffer returned for env var " << Key;
+		}
+		else
+		{
+			Error << "EnvVar " << Key << " error: " << ::Platform::GetErrorString(Result);
+		}
+		if ( Buffer )
+		{
+			free( Buffer );
+			Buffer = nullptr;
+		}
+		throw Soy::AssertException( Error.str() );
+	}
+
+	std::string Value = Buffer;
+	free( Buffer );
+	Buffer = nullptr;
+	return Value;
+#else
+	throw Soy::AssertException("GetEnvVar not implemented on this platform");
+#endif
+}
+
+
+std::string Platform::GetCurrentWorkingDirectory()
+{
+	Array<char> Buffer;
+	Buffer.SetSize(300);
+
+#if defined(TARGET_WINDOWS)
+	while ( !_getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
+#elif defined(TARGET_PS4)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
+	throw Soy::AssertException("Platform doesn't support current working dir");
+	while(false)
+#else
+	while ( !getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
+#endif
+	{
+		//	check in case buffer isn't big enough
+		auto LastError = ::Platform::GetLastError();
+		if ( LastError == ERANGE )
+		{
+			Buffer.PushBlock(100);
+			continue;
+		}
+		
+		//	some other error
+		std::stringstream Error;
+		Error << "Failed to get current working directory: " << ::Platform::GetErrorString(LastError);
+		throw Soy::AssertException( Error.str() );
+	}
+	
+	return std::string( Buffer.GetArray() );
+}
+

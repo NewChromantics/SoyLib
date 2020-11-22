@@ -515,7 +515,13 @@ Metal::TTexture ExtractNonPlanarTexture_Metal(AvfTextureCache& TextureCache,CVIm
 #endif//ENABLE_METAL
 
 
-
+SoyPixelsMeta AvfPixelBuffer::GetMeta()
+{
+	auto PixelBuffer = LockImageBuffer();
+	auto Meta = Avf::GetPixelMeta(PixelBuffer);
+	UnlockImageBuffer();
+	return Meta;
+}
 
 
 void AvfPixelBuffer::Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform)

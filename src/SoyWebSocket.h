@@ -28,6 +28,15 @@ namespace WebSocket
 		DECLARE_SOYENUM( WebSocket::TOpCode );
 	}
 
+	//	Server
+	//		listens for client (who will send a request), Decodes packet with TRequestProtocol
+	//		sends back an encoded THandshakeResponseProtocol
+	//		once handshake is complete, just encode & decode websocket message protocol
+
+	//	Client
+	//		<high level> encodes a TRequestProtocol
+	//		recv's THandshakeResponseProtocol to decode
+	//		once handshake is complete, just encode & decode websocket message protocol
 }
 
 
@@ -37,16 +46,19 @@ class WebSocket::THandshakeMeta
 {
 public:
 	std::string			GetReplyKey() const;
-	bool				IsCompleted() const	{	return mIsWebSocketUpgrade && mWebSocketKey.length()!=0 && mVersion.length()!=0;	}
+	//	gr: version is optional?
+	//bool				IsCompleted() const	{	return mIsWebSocketUpgrade && mWebSocketKey.length()!=0 && mVersion.length()!=0;	}
+	bool				IsCompleted() const	{	return mIsWebSocketUpgrade && mWebSocketKey.length()!=0;	}
 	
 public:
 	//	protocol and version are optional
 	std::string			mProtocol;
 	std::string			mVersion;
-	bool				mIsWebSocketUpgrade = true;
+	bool				mIsWebSocketUpgrade = false;	//	true once we get the upgrade reply
 	std::string			mWebSocketKey;
+	std::string			mWebSocketAcceptedKey;		//	response from handshake Sec-WebSocket-Accept
 	
-	bool				mHasSentAcceptReply = false;
+	bool				mHasSentAcceptReply = false;				//	once sent, we consider server has connected the client
 };
 
 
@@ -75,26 +87,9 @@ public:
 class WebSocket::TMessageHeader
 {
 public:
-	TMessageHeader() :
-		Length		( 0 ),
-		Length16	( 0 ),
-		LenMostSignificant	( 0 ),
-		Length64	( 0 ),
-		Fin			( 1 ),
-		Reserved	( 0 ),
-		OpCode		( TOpCode::Invalid ),
-		Masked		( false )
-	{
-	}
+	TMessageHeader() {}
 	explicit TMessageHeader(TOpCode::Type Opcode) :
-		Length		( 0 ),
-		Length16	( 0 ),
-		LenMostSignificant	( 0 ),
-		Length64	( 0 ),
-		Fin			( 1 ),
-		Reserved	( 0 ),
-		OpCode		( Opcode ),
-		Masked		( false )
+		OpCode		( Opcode )
 	{
 	}
 	
@@ -112,14 +107,14 @@ public:
 	BufferArray<unsigned char,4> MaskKey;	//	store & 32 bit int
 
 private:
-	int		Fin;
-	int		Reserved;
-	int		OpCode;
-	int		Masked;
-	int		Length;
-	int		Length16;
-	int		LenMostSignificant;
-	uint64	Length64;
+	int		Fin = 1;
+	int		Reserved = 0;
+	int		OpCode = TOpCode::Invalid;
+	int		Masked = true;		//	previously false, but 
+	int		Length = 0;
+	int		Length16 = 0;
+	int		LenMostSignificant = 0;
+	uint64	Length64 = 0;
 };
 
 
@@ -129,9 +124,10 @@ class WebSocket::TRequestProtocol : public Http::TRequestProtocol
 {
 public:
 	TRequestProtocol() : mHandshake(* new THandshakeMeta() ) 	{	throw Soy::AssertException("Should not be called");	}
-	TRequestProtocol(THandshakeMeta& Handshake,std::shared_ptr<TMessageBuffer> Message) :
-		mHandshake	( Handshake ),
-		mMessage	( Message )
+	TRequestProtocol(THandshakeMeta& Handshake,std::shared_ptr<TMessageBuffer> Message,const std::string& Host) :
+		mHandshake		( Handshake ),
+		mMessage		( Message ),
+		mRequestHost	( Host )
 	{
 	}
 
@@ -139,7 +135,7 @@ public:
 	virtual TProtocolState::Type	Decode(TStreamBuffer& Buffer) override;
 	virtual bool					ParseSpecificHeader(const std::string& Key,const std::string& Value) override;
 	
-protected:
+public:
 	static TProtocolState::Type	DecodeBody(TMessageHeader& Header,TMessageBuffer& Message,TStreamBuffer& Buffer);
 
 public:
@@ -149,13 +145,21 @@ public:
 	
 	THandshakeMeta&		mHandshake;	//	persistent handshake data etc
 	std::shared_ptr<TMessageBuffer>		mMessage;	//	persistent message for multi-frame messages
+	std::string			mRequestHost;
 };
 
 
 class WebSocket::THandshakeResponseProtocol : public Http::TResponseProtocol
 {
 public:
-	THandshakeResponseProtocol(const THandshakeMeta& Handshake);
+	THandshakeResponseProtocol(THandshakeMeta& Handshake, std::shared_ptr<TMessageBuffer> Message);
+
+	virtual void					Encode(TStreamBuffer& Buffer) override;
+	virtual TProtocolState::Type	Decode(TStreamBuffer& Buffer) override;
+	virtual bool					ParseSpecificHeader(const std::string& Key, const std::string& Value) override;
+
+	THandshakeMeta&					mHandshake;
+	std::shared_ptr<TMessageBuffer>	mMessage;	//	persistent message for multi-frame messages
 };
 
 

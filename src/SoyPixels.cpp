@@ -112,6 +112,26 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetFloatFormat(Type Format)
 
 }
 
+bool SoyPixelsFormat::IsDepthFormat(Type Format)
+{
+	switch(Format)
+	{
+		case KinectDepth:
+		case FreenectDepth10bit:
+		case FreenectDepth11bit:
+		case Depth16mm:
+		case DepthFloatMetres:
+		case DepthHalfMetres:
+		case DepthDisparityFloat:
+		case DepthDisparityHalf:
+		return true;
+		
+		default:
+		return false;
+	}
+}
+
+
 SoyPixelsFormat::Type SoyPixelsFormat::GetByteFormat(Type Format)
 {
 	switch ( Format )
@@ -262,12 +282,6 @@ const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyP
 		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
 		Map[Yuv_8_8_8].PushBackArray( { Luma, ChromaUV_8_8 } );
 		Map[ChromaUV_8_8].PushBackArray( { ChromaU_8, ChromaV_8 } );
-
-		//	the merge is used to match in both directions reverse, so this whole map might need to change?
-		Map[Yuv_8_88_Depth16].PushBackArray({ Yuv_8_88, Depth16mm });
-		//Map[Yuv_8_88_Depth16].PushBackArray({ Luma, ChromaUV_88, Depth16mm });
-		//Map[Yuv_844_Depth16].PushBackArray({ Luma, ChromaUV_44, Depth16mm });
-		Map[BGRA_Depth16].PushBackArray({ BGRA, Depth16mm });
 	}
 
 	return Map;
@@ -1494,11 +1508,94 @@ void SoyPixelsImpl::SetPixel(size_t x,size_t y,const vec4x<uint8>& Colour)
 
 
 
-
 void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 {
-	if ( Width == 0 || Height == 0 )
-		throw Soy::AssertException("Cannot size image to 0 width or height");
+	//	easier to copy from old source to new when dealing with mulitple planes
+	//	this code is basically the same as ResizeFastSample now, but with copy-pixels instead of sampling
+	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__, 4);
+	//	copy old data
+	SoyPixels Old;
+	Old.Copy(*this);
+	
+	auto& New = *this;
+	
+	//	gotta handle multiple planes
+	BufferArray<std::shared_ptr<SoyPixelsImpl>,5> OldPlanes;
+	Old.SplitPlanes(GetArrayBridge(OldPlanes));
+	
+	//	dumb resize buffer...
+	Init( Width, Height, GetFormat() );
+
+	//	... which gives us new planes at correct sizes
+	BufferArray<std::shared_ptr<SoyPixelsImpl>,5> NewPlanes;
+	New.SplitPlanes(GetArrayBridge(NewPlanes));
+	
+	for ( auto p=0;	p<OldPlanes.GetSize();	p++ )
+	{
+		auto& OldPlane = *OldPlanes[p];
+		auto& NewPlane = *NewPlanes[p];
+		
+		auto NewHeight = NewPlane.GetHeight();
+		auto NewWidth = NewPlane.GetWidth();
+
+		//	gr: when do channels change??
+		auto NewChannelCount = NewPlane.GetChannels();
+		auto OldHeight = OldPlane.GetHeight();
+		auto OldWidth = OldPlane.GetWidth();
+		auto OldChannelCount = OldPlane.GetChannels();
+
+		//	gr: quick fix here for float & 16 bit without templating
+		OldChannelCount *= OldPlane.GetMeta().GetBytesPerChannel();
+		NewChannelCount *= NewPlane.GetMeta().GetBytesPerChannel();
+
+		auto MinChannelCount = std::min( OldChannelCount, NewChannelCount );
+		
+		auto& OldPixelsArray = OldPlane.GetPixelsArray();
+		auto& NewPixelsArray = NewPlane.GetPixelsArray();
+		
+		auto* OldPixels = OldPixelsArray.GetArray();
+		auto* NewPixels = NewPixelsArray.GetArray();
+
+		for ( int ny=0;	ny<NewHeight;	ny++ )
+		{
+			int oy = Top + ny;
+			
+			auto OldLineSize = OldWidth * OldChannelCount;
+			auto NewLineSize = NewWidth * NewChannelCount;
+	//#define SAFE_RESIZE
+	#if defined(SAFE_RESIZE)
+			auto OldRow = GetRemoteArray( &OldPixels[oy*OldLineSize], OldLineSize );
+			auto NewRow = GetRemoteArray( &NewPixels[ny*NewLineSize], NewLineSize );
+	#else
+			auto OldRow = &OldPixels[oy*OldLineSize];
+			auto NewRow = &NewPixels[ny*NewLineSize];
+	#endif
+			/*
+			for ( int nx=0;	nx<NewWidth;	nx++ )
+			{
+				int ox = Left + nx;
+				auto* OldPixel = &OldRow[ox*OldChannelCount];
+				auto* NewPixel = &NewRow[nx*NewChannelCount];
+
+				memcpy( NewPixel, OldPixel, MinChannelCount );
+			}
+			*/
+			int nx = 0;
+			int ox = Left;
+			int ox_end = Left + NewWidth;
+			auto* OldPixel = &OldRow[ox*OldChannelCount];
+			auto* NewPixel = &NewRow[nx*NewChannelCount];
+
+			memcpy( NewPixel, OldPixel, MinChannelCount*NewWidth );
+		}
+	}
+
+}
+
+/*
+void SoyPixelsImpl::ClipOnePlane(size_t Left,size_t Top,size_t Width,size_t Height)
+{
+	//	gr: this old function only works on one plane. And is a bit messy, but it avoids a full copy....
 	
 	auto& Pixels = GetPixelsArray();
 	auto Channels = GetChannels();
@@ -1562,7 +1659,7 @@ void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 	
 	ResizeClip( Width, Height );
 }
-
+*/
 void SoyPixelsImpl::ResizeClip(size_t Width,size_t Height)
 {
 	if ( Width == 0 || Height == 0 )
@@ -1783,58 +1880,79 @@ vec2x<size_t> SoyPixelsImpl::GetXy(size_t PixelIndex) const
 	return vec2x<size_t>( x, y );
 }
 
-void SoyPixelsImpl::ResizeFastSample(size_t NewWidth, size_t NewHeight)
+void SoyPixelsImpl::ResizeFastSample(size_t NewImageWidth, size_t NewImageHeight)
 {
-	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__, 2);
+	Soy::TScopeTimerPrint Timer(__PRETTY_FUNCTION__, 4);
 	//	copy old data
 	SoyPixels Old;
 	Old.Copy(*this);
 	
 	auto& New = *this;
-	auto NewChannelCount = GetChannels();
 	
-	//	dumb resize buffer
-	Init( NewWidth, NewHeight, GetFormat() );
+	//	gotta handle multiple planes
+	BufferArray<std::shared_ptr<SoyPixelsImpl>,5> OldPlanes;
+	Old.SplitPlanes(GetArrayBridge(OldPlanes));
 	
-	auto OldHeight = Old.GetHeight();
-	auto OldWidth = Old.GetWidth();
-	auto OldChannelCount = Old.GetChannels();
-	auto MinChannelCount = std::min( OldChannelCount, NewChannelCount );
-	
-	auto& OldPixelsArray = Old.GetPixelsArray();
-	auto& NewPixelsArray = New.GetPixelsArray();
-	
-	auto* OldPixels = OldPixelsArray.GetArray();
-	auto* NewPixels = NewPixelsArray.GetArray();
+	//	dumb resize buffer...
+	Init( NewImageWidth, NewImageHeight, GetFormat() );
 
-	for ( int ny=0;	ny<NewHeight;	ny++ )
+	//	... which gives us new planes at correct sizes
+	BufferArray<std::shared_ptr<SoyPixelsImpl>,5> NewPlanes;
+	New.SplitPlanes(GetArrayBridge(NewPlanes));
+	
+	for ( auto p=0;	p<OldPlanes.GetSize();	p++ )
 	{
-		float yf = ny/static_cast<float>(NewHeight);
-		int oy = static_cast<int>(OldHeight * yf);
+		auto& OldPlane = *OldPlanes[p];
+		auto& NewPlane = *NewPlanes[p];
+		
+		auto NewHeight = NewPlane.GetHeight();
+		auto NewWidth = NewPlane.GetWidth();
 
-		auto OldLineSize = OldWidth * OldChannelCount;
-		auto NewLineSize = NewWidth * NewChannelCount;
-//#define SAFE_RESIZE
-#if defined(SAFE_RESIZE)
-		auto OldRow = GetRemoteArray( &OldPixels[oy*OldLineSize], OldLineSize );
-		auto NewRow = GetRemoteArray( &NewPixels[ny*NewLineSize], NewLineSize );
-#else
-		auto OldRow = &OldPixels[oy*OldLineSize];
-		auto NewRow = &NewPixels[ny*NewLineSize];
-#endif
-		for ( int nx=0;	nx<NewWidth;	nx++ )
+		//	gr: when do channels change??
+		auto NewChannelCount = NewPlane.GetChannels();
+		auto OldHeight = OldPlane.GetHeight();
+		auto OldWidth = OldPlane.GetWidth();
+		auto OldChannelCount = OldPlane.GetChannels();
+
+		//	gr: quick fix here for float & 16 bit without templating
+		OldChannelCount *= OldPlane.GetMeta().GetBytesPerChannel();
+		NewChannelCount *= NewPlane.GetMeta().GetBytesPerChannel();
+
+		auto MinChannelCount = std::min( OldChannelCount, NewChannelCount );
+		
+		auto& OldPixelsArray = OldPlane.GetPixelsArray();
+		auto& NewPixelsArray = NewPlane.GetPixelsArray();
+		
+		auto* OldPixels = OldPixelsArray.GetArray();
+		auto* NewPixels = NewPixelsArray.GetArray();
+
+		for ( int ny=0;	ny<NewHeight;	ny++ )
 		{
-			float xf = nx / static_cast<float>(NewWidth);
-			int ox = static_cast<int>(OldWidth * xf);
-			auto* OldPixel = &OldRow[ox*OldChannelCount];
-			auto* NewPixel = &NewRow[nx*NewChannelCount];
+			float yf = ny/static_cast<float>(NewHeight);
+			int oy = static_cast<int>(OldHeight * yf);
 
-			memcpy( NewPixel, OldPixel, MinChannelCount );
+			auto OldLineSize = OldWidth * OldChannelCount;
+			auto NewLineSize = NewWidth * NewChannelCount;
+	//#define SAFE_RESIZE
+	#if defined(SAFE_RESIZE)
+			auto OldRow = GetRemoteArray( &OldPixels[oy*OldLineSize], OldLineSize );
+			auto NewRow = GetRemoteArray( &NewPixels[ny*NewLineSize], NewLineSize );
+	#else
+			auto OldRow = &OldPixels[oy*OldLineSize];
+			auto NewRow = &NewPixels[ny*NewLineSize];
+	#endif
+			for ( int nx=0;	nx<NewWidth;	nx++ )
+			{
+				float xf = nx / static_cast<float>(NewWidth);
+				int ox = static_cast<int>(OldWidth * xf);
+				auto* OldPixel = &OldRow[ox*OldChannelCount];
+				auto* NewPixel = &NewRow[nx*NewChannelCount];
+
+				memcpy( NewPixel, OldPixel, MinChannelCount );
+			}
 		}
 	}
-	
-	assert( NewHeight == GetHeight() );
-	assert( NewWidth == GetWidth() );
+
 }
 
 
@@ -2018,12 +2136,6 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Luma));
 			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaUV_88));
 			break;
-
-		case SoyPixelsFormat::Yuv_8_88_Depth16:
-			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Luma));
-			Planes.PushBack(SoyPixelsMeta(GetWidth() / 2, GetHeight() / 2, SoyPixelsFormat::ChromaUV_88));
-			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Depth16mm));
-			break;
 		
 		case SoyPixelsFormat::Yuv_8_8_8:
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::Luma ) );
@@ -2036,12 +2148,6 @@ void SoyPixelsMeta::GetPlanes(ArrayBridge<SoyPixelsMeta>&& Planes,const ArrayInt
 			Planes.PushBack( SoyPixelsMeta( GetWidth(), GetHeight(), SoyPixelsFormat::ChromaV_8 ) );
 			break;
 
-		case SoyPixelsFormat::BGRA_Depth16:
-			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::BGRA));
-			Planes.PushBack(SoyPixelsMeta(GetWidth(), GetHeight(), SoyPixelsFormat::Depth16mm));
-			break;
-
-		
 		case SoyPixelsFormat::Palettised_RGB_8:
 		{
 			Soy::Assert( Data!=nullptr, "Cannot split format of Palettised_8_8 without data");

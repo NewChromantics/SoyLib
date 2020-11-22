@@ -56,57 +56,49 @@ std::string WebSocket::THandshakeMeta::GetReplyKey() const
 //	insert handshake headers
 void WebSocket::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 {
-	/*
-	std::stringstream Request;
-	Request << "GET ws://echo.websocket.org/?encoding=text HTTP/1.1\r\n";
-	Request << "Host: echo.websocket.org\r\n";
-	Request << "Connection: Upgrade\r\n";
-	//Pragma : no - cache
-	//Cache - Control : no - cache
-	//User - Agent : Mozilla / 5.0 (Windows NT 10.0; Win64; x64) AppleWebKit / 537.36 (KHTML, like Gecko) Chrome / 79.0.3945.88 Safari / 537.36
-	Request << "Upgrade: websocket\r\n";
-	//Origin : http://www.websocket.org
-	Request << "Sec-WebSocket-Version: 13\r\n";
-	// Accept - Encoding : gzip, deflate
-	// Accept - Language : en - US, en; q = 0.9
-	Request << "Sec-WebSocket-Key: Y72O3fqT9myxqtrvAOzplA==\r\n";
-	Request << "\r\n";
-	//Sec - WebSocket - Extensions : permessage - deflate; client_max_window_bits
-	Buffer.Push(Request.str());
-	return;
-	*/
-	
-	//mHost = "echo.websocket.org";	//	switches to http 1.1
-	mUrl = "ws://echo.websocket.org/?encoding=text";	//	switches to http 1.1
+	//	gr: we should support urls but don't atm
+
+	//	need a host or url to switch to http 1.1
+	//	gr: test server's url doesn't require slash, but check other implementations (and spec!)
+	//mUrl = "ws://echo.websocket.org/?encoding=text";
+	mUrl = std::string("ws://");
+	mUrl += mRequestHost;
 	mUrlPrefix = "";
-	mHost = "echo.websocket.org";	//	switches to http 1.1
-	//mHeaders["Host"] = "echo.websocket.org";
+	mHost = mRequestHost;
 
 	//	init handshake
 	//	the client sends a Sec - WebSocket - Key header containing base64 - 
 	//	encoded random bytes, and the server replies with a hash of the key 
 	//	in the Sec - WebSocket - Accept header.
+	//	this was failing against node's ws module
+	//	https://github.com/websockets/ws/blob/62f71d1aa67f2803a121539580b3d4695a69c39c/lib/websocket-server.js#L12
+	//	spec says its 16 bytes (should be 24 bytes as per regex), some systems were allowing 20 though
 	Array<char> RandomBytes;
-	for ( auto i=0;	i<20;	i++)
-		RandomBytes.PushBack(i);
+	for ( auto i=0;	i<16;	i++)
+	{
+		auto Rand = rand() % 256;
+		RandomBytes.PushBack(Rand);
+	}
 	Array<char> EncodedRandomBytes;
 	Base64::Encode( GetArrayBridge(EncodedRandomBytes), GetArrayBridge(RandomBytes) );
 	std::string EncodedRandomBytesStr = Soy::ArrayToString( GetArrayBridge(EncodedRandomBytes) );
 	mHandshake.mWebSocketKey = EncodedRandomBytesStr;
 
+	//	todo: support this
+	//std::string RequestProtocol = "echo";
+	std::string RequestProtocol;
 
-	mHandshake.mProtocol = "echo";
-	mHandshake.mVersion = "13";
+	std::string RequestVersion = "13";
 
 	mHeaders["Upgrade"] = "websocket";
 	mHeaders["Connection"] = "Upgrade";
 	mHeaders["Sec-WebSocket-Key"] = mHandshake.mWebSocketKey;
 
 	//	gr: these are optional apparently...
-	if (!mHandshake.mProtocol.empty())
-		mHeaders["Sec-WebSocket-Protocol"] = mHandshake.mProtocol;
-	if (!mHandshake.mVersion.empty())
-		mHeaders["Sec-WebSocket-Version"] = mHandshake.mVersion;
+	if (!RequestProtocol.empty())
+		mHeaders["Sec-WebSocket-Protocol"] = RequestProtocol;
+	if (!RequestVersion.empty())
+		mHeaders["Sec-WebSocket-Version"] = RequestVersion;
 
 	Http::TRequestProtocol::Encode(Buffer);
 }
@@ -114,13 +106,21 @@ void WebSocket::TRequestProtocol::Encode(TStreamBuffer& Buffer)
 
 TProtocolState::Type WebSocket::TRequestProtocol::Decode(TStreamBuffer& Buffer)
 {
+	//	gr: IsCompleted is true when we fill it in for the output
 	//	if we haven't handshaken yet, the first request should be a regular HTTP asking for an upgrade
 	if ( !mHandshake.IsCompleted() )
 	{
 		auto HttpResult = TCommonProtocol::Decode( Buffer );
 		if ( HttpResult != TProtocolState::Finished )
+		{
+			//	extra debug
+			if ( HttpResult != TProtocolState::Waiting )
+				std::Debug << "Websocket handshake failed; HTTP code=" << mResponseCode << " mime=" << mContentMimeType << std::endl;
+				
 			return HttpResult;
-		
+		}
+
+		//	gr: need to distinguish between outgoing handshake and incoming		
 		//	make the auto-reply packet that the caller needs to send to complete the handshake
 		if ( !mHandshake.IsCompleted() )
 		{
@@ -128,7 +128,7 @@ TProtocolState::Type WebSocket::TRequestProtocol::Decode(TStreamBuffer& Buffer)
 			throw Soy::AssertException("Websocket recieving http request, but was not a valid handshake request");
 		}
 		
-		mReplyMessage.reset( new WebSocket::THandshakeResponseProtocol(mHandshake) );
+		mReplyMessage.reset( new WebSocket::THandshakeResponseProtocol(mHandshake,nullptr) );
 		return HttpResult;
 	}
 
@@ -194,6 +194,46 @@ bool WebSocket::TRequestProtocol::ParseSpecificHeader(const std::string& Key,con
 }
 
 
+bool WebSocket::THandshakeResponseProtocol::ParseSpecificHeader(const std::string& Key, const std::string& Value)
+{
+	//	extract web-socket special headers
+	if (Soy::StringMatches(Key, "Upgrade", false))
+	{
+		if (Soy::StringMatches(Value, "websocket", false))
+		{
+			mHandshake.mIsWebSocketUpgrade = true;
+			return true;
+		}
+	}
+
+	if (Soy::StringMatches(Key, "Sec-WebSocket-Key", false))
+	{
+		mHandshake.mWebSocketKey = Value;
+		return true;
+	}
+
+	if (Soy::StringMatches(Key, "Sec-WebSocket-Accept", false))
+	{
+		mHandshake.mWebSocketAcceptedKey = Value;
+		return true;
+	}
+
+	if (Soy::StringMatches(Key, "Sec-WebSocket-Protocol", false))
+	{
+		mHandshake.mProtocol = Value;
+		return true;
+	}
+
+	if (Soy::StringMatches(Key, "Sec-WebSocket-Version", false))
+	{
+		mHandshake.mVersion = Value;
+		return true;
+	}
+
+	return Http::TResponseProtocol::ParseSpecificHeader(Key, Value);
+}
+
+
 
 TProtocolState::Type WebSocket::TRequestProtocol::DecodeBody(TMessageHeader& Header,TMessageBuffer& MessageBuffer,TStreamBuffer& Buffer)
 {
@@ -228,6 +268,7 @@ TProtocolState::Type WebSocket::TRequestProtocol::DecodeBody(TMessageHeader& Hea
 		return TProtocolState::Waiting;
 		
 	//	unmask the data
+	if ( !Header.MaskKey.IsEmpty() )
 	{
 		auto& MaskKey = Header.MaskKey;
 		for ( int i=0;	i<PayloadData.GetSize();	i++ )
@@ -310,17 +351,23 @@ void WebSocket::TMessageBuffer::PushTextMessageData(const ArrayBridge<char>& Pay
 	mIsComplete = IsLastPayload;
 }
 
-WebSocket::THandshakeResponseProtocol::THandshakeResponseProtocol(const THandshakeMeta& Handshake)
+WebSocket::THandshakeResponseProtocol::THandshakeResponseProtocol(THandshakeMeta& Handshake, std::shared_ptr<TMessageBuffer> Message) :
+	mHandshake	( Handshake ),
+	mMessage	( Message ) 
+{
+}
+
+void WebSocket::THandshakeResponseProtocol::Encode(TStreamBuffer& Buffer)
 {
 	//	setup http response for websocket acceptance
 	
 	//	add http headers we need to reply with
-	if ( !Handshake.mProtocol.empty() )
-		mHeaders.insert( {"Sec-WebSocket-Protocol", Handshake.mProtocol} );
+	if ( !mHandshake.mProtocol.empty() )
+		mHeaders.insert( {"Sec-WebSocket-Protocol", mHandshake.mProtocol} );
 	
-	if ( Handshake.mIsWebSocketUpgrade )
+	if ( mHandshake.mIsWebSocketUpgrade )
 	{
-		mHeaders.insert( {"Sec-WebSocket-Accept", Handshake.GetReplyKey() } );
+		mHeaders.insert( {"Sec-WebSocket-Accept", mHandshake.GetReplyKey() } );
 		mHeaders.insert( {"Upgrade", "websocket"} );
 		mHeaders.insert( {"Connection", "Upgrade"} );
 	}
@@ -331,8 +378,64 @@ WebSocket::THandshakeResponseProtocol::THandshakeResponseProtocol(const THandsha
 	//Http.PushHeader( SoyHttpHeaderElement("Content-Type", SoyHttpHeader::FormatToHttpContentType(Reply.mData.mFormat).c_str() ) );
 	
 	mResponseCode = Http::Response_SwitchingProtocols;
+
+	Http::TResponseProtocol::Encode(Buffer);
 }
 
+
+TProtocolState::Type WebSocket::THandshakeResponseProtocol::Decode(TStreamBuffer& Buffer)
+{
+	//	decode this handshake reply
+	if (!mHandshake.IsCompleted())
+	{
+		auto HttpResult = TCommonProtocol::Decode(Buffer);
+		if (HttpResult != TProtocolState::Finished)
+		{
+			//	extra debug
+			if ( HttpResult != TProtocolState::Waiting )
+				std::Debug << "Websocket handshake failed; HTTP code=" << mResponseCode << " Response=" << mResponseString << " mime=" << mContentMimeType << std::endl;
+				
+			return HttpResult;
+		}
+
+		//	gr: need to distinguish between outgoing handshake and incoming		
+		//	make the auto-reply packet that the caller needs to send to complete the handshake
+		if (!mHandshake.IsCompleted())
+		{
+			//	gr: would caller ever want the http reply if it's not a valid handshake?
+			throw Soy::AssertException("Websocket recieving http request, but was not a valid handshake request");
+		}
+
+		//mReplyMessage.reset(new WebSocket::THandshakeResponseProtocol(mHandshake));
+		return HttpResult;
+	}
+
+	//	we're doing websocket now, so we need to decode incoming data
+	TMessageHeader Header;
+
+	try
+	{
+		if (!Header.Decode(Buffer))
+		{
+			//	failed to decode header, but EOF (socket disconnected), so just quit
+			if (Buffer.mEof)
+				return TProtocolState::Disconnect;
+			return TProtocolState::Waiting;
+		}
+
+		//	just a close command
+		if (Header.GetOpCode() == TOpCode::ConnectionCloseFrame)
+			return TProtocolState::Disconnect;
+
+		//	decode body
+		return WebSocket::TRequestProtocol::DecodeBody(Header, *mMessage, Buffer);
+	}
+	catch (std::exception& e)
+	{
+		std::Debug << e.what() << std::endl;
+		return TProtocolState::Disconnect;
+	}
+}
 
 size_t WebSocket::TMessageHeader::GetLength() const
 {
@@ -468,14 +571,13 @@ void WebSocket::TMessageHeader::IsValid(bool ExpectedNonZeroLength) const
 //	return false if not enough data, throw on error
 bool WebSocket::TMessageHeader::Decode(TStreamBuffer& Buffer)
 {
-	//	peek the max we might need (this is variable, but expecting data after anyway that we wont read)
-	auto MaxBits = 32 + 64;	//	worst case, this is the most amount of bits we'll need
+	auto MinBits = 8+1+7;// 32 + 64;
 	Array<char> HeaderData;
 	auto HeaderDataBridge = GetArrayBridge(HeaderData);
 	
 	//	gr: if it's EOF, then there will be no more data, so read all we can (probably just a "disconnect" websocket header when its a few bytes)
-	auto MaxBytes = std::min<size_t>( MaxBits / 8, Buffer.GetBufferedSize() );
-	HeaderData.SetSize( MaxBits/8 );
+	//auto MaxBytes = std::min<size_t>( MaxBits / 8, Buffer.GetBufferedSize() );
+	HeaderData.SetSize(MinBits /8 );
 	
 	if ( !Buffer.Peek( HeaderDataBridge ) )
 		return false;
@@ -565,7 +667,7 @@ void WebSocket::TMessageHeader::Encode(TStreamBuffer& Buffer,ArrayBridge<uint8_t
 	}
 	
 	//	write header to it's own array first
-	BufferArray<char,10> HeaderData;
+	BufferArray<char,14> HeaderData;
 	auto HeaderDataBridge = GetArrayBridge( HeaderData );
 	
 	//	write message header
@@ -594,9 +696,9 @@ void WebSocket::TMessageHeader::Encode(TStreamBuffer& Buffer,ArrayBridge<uint8_t
 		BitWriter.Write( PayloadLength, 7 );
 	}
 	
+	unsigned char _MaskKey[4] = {0,0,0,0};
 	if ( Masked )
 	{
-		unsigned char _MaskKey[4] = {1,2,3,4};
 		BufferArray<unsigned char,4> MaskKey(_MaskKey);
 		BitWriter.Write( MaskKey[0], 8 );
 		BitWriter.Write( MaskKey[1], 8 );
@@ -612,25 +714,27 @@ void WebSocket::TMessageHeader::Encode(TStreamBuffer& Buffer,ArrayBridge<uint8_t
 		Error << "Websocket header data doesn't align to 8 bits (" << Remainder << ")";
 		throw Soy::AssertException(Error.str());
 	}
+
+	Buffer.Push( GetArrayBridge(HeaderData) );
 	
 	//	mask all the data
-	if ( Masked )
+	//	gr: quick hack, zero mask xor's to same value, so we can skip the masking
+	auto MaskedZero = !_MaskKey[0] && !_MaskKey[1] && !_MaskKey[2] && !_MaskKey[3];
+	if ( Masked && !MaskedZero )
 	{
-		throw Soy::AssertException("Todo: encode websocket message data with mask");
+		Array<uint8_t> MaskedPayload;
+		MaskedPayload.Copy(PayloadData);
+		for ( int i=0;	i<MaskedPayload.GetSize();	i++ )
+		{
+			char Encoded = PayloadData[i];
+			char Decoded = Encoded ^ MaskKey[i%4];
+			PayloadData[i] = Decoded;
+		}
 	}
-	/*	gr: do this at higher level
-	static bool TestForUtf8 = false;
-	if ( TestForUtf8 && this->IsText() )
+	else
 	{
-		std::stringstream OutputString;
-		Soy::ArrayToString( OutputData, OutputString );
-		bool IsUtf8 = Soy::IsUtf8String( OutputString.str() );
-		if ( !Soy::Assert( IsUtf8, "Unexpected non-UTF8 char in websocket text message" ) )
-			return false;
+		Buffer.Push( PayloadData );
 	}
-	*/
-	Buffer.Push( GetArrayBridge(HeaderData) );
-	Buffer.Push( PayloadData );
 }
 
 

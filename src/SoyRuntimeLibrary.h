@@ -44,6 +44,17 @@ public:
 	void*		GetSymbol(const char* Name);
 	void		AddSearchPath(const std::string& Path);	//	add a path to the OS search path to aid loading dependent libraries
 
+	//	gr: try and make this simpler to call.
+	//	currently auto Func = GetFunction<decltype(glGetError)>("glGetError")
+	template<typename FUNCTIONTYPE>
+	std::function<FUNCTIONTYPE>	GetFunction(const char* FunctionName)
+	{
+		//std::function<decltype(FUNCTIONTYPE)> Function;
+		std::function<FUNCTIONTYPE> Function;
+		SetFunction(Function, FunctionName);
+		return Function;
+	}
+
 	//	assign & cast function ptr to a symbol
 	template<typename FUNCTYPE>
 	void		SetFunction(std::function<FUNCTYPE>& FunctionPtr,const char* FunctionName)

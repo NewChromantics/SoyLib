@@ -12,6 +12,7 @@ namespace Gui
 	class TColourPicker;
 	class TImageMap;
 	class TMouseEvent;
+	class TControl;	
 }
 
 //	gr: this might want expanding later for multiple screens, mouse button number etc
@@ -102,6 +103,7 @@ public:
 	virtual bool					IsForeground() = 0;
 	virtual void					EnableScrollBars(bool Horz,bool Vert)=0;
 	virtual void					OnClosed();
+	virtual void					StartRender(std::function<void()> Frame, std::string ViewName) {};
 
 public:
 	//	todo: change these coordinates to pixels and client can normalise with GetScreenRect
@@ -115,11 +117,26 @@ public:
 	std::function<void()>			mOnClosed;
 };
 
-class SoySlider
+
+//	strictly only functions that are going to be cross platform
+class Gui::TControl
 {
 public:
-	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
-	
+	virtual void			SetRect(const Soy::Rectx<int32_t>& Rect) = 0;		//	set position on screen
+
+	//	gr: styling functions, this is to basically emulate CSS
+	//		maybe this is too specific here (not always useful)
+	//		and instead we should have 
+	//			Platform::SetControlVisible
+	//			Platform::SetControlColour
+	//		and implement styles in a more platform specific way
+	virtual void			SetVisible(bool Visible)=0;
+	virtual void			SetColour(const vec3x<uint8_t>& Rgb)=0;	//	alpha seperate, win32 doesn't support it. This is tint on ios. 
+};
+
+class SoySlider : public Gui::TControl
+{
+public:
 	virtual void					SetMinMax(uint16_t Min,uint16_t Max,uint16_t NotchCount)=0;
 	virtual void					SetValue(uint16_t Value)=0;
 	virtual uint16_t				GetValue()=0;
@@ -134,11 +151,9 @@ public:
 };
 
 
-class SoyTextBox
+class SoyTextBox : public Gui::TControl
 {
 public:
-	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
-	
 	virtual void					SetValue(const std::string& Value)=0;
 	virtual std::string				GetValue()=0;
 	
@@ -148,21 +163,24 @@ public:
 };
 
 
-class SoyLabel
+class SoyLabel : public Gui::TControl
 {
 public:
-	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
-	
 	virtual void					SetValue(const std::string& Value)=0;
 	virtual std::string				GetValue()=0;
 };
 
 
-class SoyTickBox
+//	gr: this should change to a "SoyRenderView" 
+//	for MetalView, GlView, win32 hwnd attached to a render dc etc
+class SoyMetalView
+{
+};
+
+
+class SoyTickBox : public Gui::TControl
 {
 public:
-	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect)=0;		//	set position on screen
-	
 	//	todo: all platforms have half-checked, so turn this into a state
 	virtual void					SetValue(bool Value)=0;
 	virtual bool					GetValue()=0;
@@ -177,17 +195,24 @@ public:
 
 
 //	native control, but a custom one in SoyLib
-class SoyColourButton
+class SoyColourButton : public Gui::TControl
 {
 public:
-	virtual void					SetRect(const Soy::Rectx<int32_t>& Rect) = 0;		//	set position on screen
-
 	virtual void					SetValue(vec3x<uint8_t> Value) = 0;
 	virtual vec3x<uint8_t>			GetValue() = 0;
 
 	virtual void					OnChanged(bool FinalValue);	//	helper to do GetValue and call the callback
 
 	std::function<void(vec3x<uint8_t>&,bool)>	mOnValueChanged;	//	reference so caller can change value in the callback
+};
+
+class SoyButton : public Gui::TControl
+{
+public:
+	virtual void			SetLabel(const std::string& Label) = 0;
+	void					OnClicked();	//	helper function
+
+	std::function<void()>	mOnClicked;
 };
 
 
@@ -212,11 +237,9 @@ public:
 
 //	an Image map control is an image which auto sets the OS cursor for certain areas
 //	and relays back mouse movement. Used for high-level custom gui controls which just update pixels
-class Gui::TImageMap
+class Gui::TImageMap : public Gui::TControl
 {
 public:
-	virtual void			SetRect(const Soy::Rectx<int32_t>& Rect) = 0;		//	set position on screen
-
 	virtual void			SetImage(const SoyPixelsImpl& Pixels) = 0;
 
 	//	we accept strings for cursor names, because windows allows loading from exe resources. Otherwise they map to SoyCursor::Type enums
@@ -236,18 +259,27 @@ namespace Platform
 	class TColourButton;
 	class TColourPicker;
 	class TImageMap;
+	class TMetalView;
+	class TButton;
 
 	class TOpenglView;		//	on osx it's a view control
 	class TOpenglContext;	//	on windows, its a context that binds to any control
 	class TWin32Thread;		//	windows needs to make calls on a specific thread (just as OSX needs it to be on the main dispatcher)
 
+	//	platforms should implement these
 	std::shared_ptr<SoyWindow>			CreateWindow(const std::string& Name, Soy::Rectx<int32_t>& Rect, bool Resizable);
 	std::shared_ptr<SoySlider>			CreateSlider(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<SoyTextBox>			GetTextBox(SoyWindow& Parent,const std::string& Name);
 	std::shared_ptr<SoyTextBox>			CreateTextBox(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<SoyLabel>			GetLabel(SoyWindow& Parent,const std::string& Name);
 	std::shared_ptr<SoyLabel>			CreateLabel(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<SoyButton>			GetButton(SoyWindow& Parent,const std::string& Name);
+	std::shared_ptr<SoyButton>			CreateButton(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<SoyTickBox>			GetTickBox(SoyWindow& Parent,const std::string& Name);
 	std::shared_ptr<SoyTickBox>			CreateTickBox(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<Gui::TColourPicker>	CreateColourPicker(vec3x<uint8_t> InitialColour);
 	std::shared_ptr<SoyColourButton>	CreateColourButton(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<Gui::TImageMap>		GetImageMap(SoyWindow& Parent, const std::string& Name);
 	std::shared_ptr<Gui::TImageMap>		CreateImageMap(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
+	std::shared_ptr<SoyMetalView>		GetMetalView(SoyWindow& Parent, const std::string& Name);
 }

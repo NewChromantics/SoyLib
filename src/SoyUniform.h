@@ -11,6 +11,7 @@ namespace Soy
 
 namespace Opengl
 {
+	class TTexture;
 	class TTextureAndContext;
 }
 class SoyPixelsImpl;

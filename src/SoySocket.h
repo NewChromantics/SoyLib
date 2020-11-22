@@ -6,10 +6,6 @@
 #include <map>
 
 
-#if defined(TARGET_LINUX)
-#define TARGET_POSIX
-#endif
-
 #if defined(TARGET_WINDOWS)
 
 	#include <winsock2.h>
@@ -18,8 +14,9 @@
 	typedef int socklen_t;
 	typedef ULONG in_addr_t;	//	note, not IN_ADDR as that has extra fields we don't need
 	typedef int socket_data_size_t;
+	typedef short sa_family_t;
 
-#elif defined(TARGET_POSIX)
+#else
 
 	#include <sys/socket.h>
 	#include <arpa/inet.h>	//	in_addr_t
@@ -30,7 +27,7 @@
 	#endif
 
 	#if defined(TARGET_LINUX)
-	#define __SOCK_SIZE__	_SS_SIZE
+	auto const static __SOCK_SIZE__ = _SS_SIZE;
 	#endif
 
 	#define INVALID_SOCKET -1
@@ -43,14 +40,22 @@ namespace Soy
 {
 	namespace Winsock
 	{
+		class TNetworkConnectionNotEstablished;
+	
 		void		Init();
 		void		Shutdown();
 		int			GetError();
 		bool		HasError(const std::string& ErrorContext,bool BlockIsError=true,int Error=GetError(),std::ostream* ErrorStream=nullptr);
 		bool		HasError(std::stringstream&& ErrorContext, bool BlockIsError=true,int Error=GetError(),std::ostream* ErrorStream=nullptr);
+		void 		IsOkay(const std::string& ErrorContext,int Error=GetError());
 	}
 }
 
+class Soy::Winsock::TNetworkConnectionNotEstablished : public std::exception
+{
+public:
+	virtual const char* what() const __noexcept { return "Network Not Ready: EAI_NONAME error"; }
+};
 
 class SoySocket;
 
@@ -87,8 +92,13 @@ public:
 
 	bool				operator==(const SoySockAddr& That) const;
 	
+	sa_family_t			GetFamily();
+	
 public:
 	sockaddr_storage	mAddr;
+	
+private:
+	SoySockAddr			ResolveAddress(const std::string& Hostname, std::string& PortName);
 };
 
 
@@ -140,8 +150,6 @@ public:
 	}
 	~SoySocket()	{	Close();	}
 
-	void		CreateTcp(bool Blocking=false);
-	void		CreateUdp(bool Broadcast);
 	bool		IsCreated() const		{	return mSocket != INVALID_SOCKET;	}
 	void		Close();
 
@@ -175,6 +183,8 @@ protected:
 	SoyRef		GetConnectionRef(const SoySockAddr& SockAddr);	//	get/alloc client reference to this address
 	
 private:
+	void		CreateTcp(bool Blocking=false, sa_family_t SocketType=AF_INET); // default to IPv4 socket family type
+	void		CreateUdp(bool Broadcast, sa_family_t SocketType=AF_INET);
 	SoyRef		OnConnection(SoySocketConnection Connection);
 	void		Bind(uint16 Port,SoySockAddr& outSockAddr);
 

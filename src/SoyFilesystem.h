@@ -60,10 +60,15 @@ namespace Platform
 	std::string			GetExeFilename();
 	inline std::string	GetDllPath() { return GetExePath(); }
 	void				GetExeArguments(ArrayBridge<std::string>&& Arguments);
-	
+	std::string			GetCurrentWorkingDirectory();
+
 	//	gr: this is the resources dir inside .app on osx
 	//	on windows it's just exe path
 	std::string	GetAppResourcesDirectory();
+	//	these are for ios, but should use OS-specified ones too
+	std::string	GetDocumentsDirectory();
+	std::string	GetTempDirectory();
+	std::string	GetCacheDirectory();	//	ios; same as temp, but auto-cleared less frequently
 
 	void		ShowFileExplorer(const std::string& Path);
 	void		ShellExecute(const std::string& Path);
@@ -74,6 +79,8 @@ namespace Platform
 
 	//	maybe not file system? generic platform stuff...
 	std::string	GetComputerName();
+	void		SetEnvVar(const char* Key,const char* Value);
+	std::string	GetEnvVar(const char* Key);
 
 #if defined(TARGET_LINUX)
 	extern std::string	ExeFilename;
@@ -101,7 +108,7 @@ public:
 	CFPtr<CFStringRef>			mWatchPathString;
 	std::string					mWatchPath;
 	scope_ptr<FSEventStreamRef>	mStream;
-#elif defined(TARGET_WINDOWS)
+#elif defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
 	void								StartFileWatch(const std::string& Filename);
 	void								WatchFileIteration(const std::string& Filename);
 	void								StartDirectoryWatch(const std::string& Directory);

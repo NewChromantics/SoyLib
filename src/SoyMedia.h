@@ -143,7 +143,9 @@ public:
 	}
 	
 public:
+	//	trying to eliminate SoyMediaFormat
 	SoyMediaFormat::Type	mCodec;
+	Soy::TFourcc			mCodecFourcc;
 	
 	//	specific to h264... make this more generic
 	BufferArray<uint8,200>	mSps;			//	no size/nalu header!
@@ -198,6 +200,9 @@ class TPixelBuffer
 {
 public:
 	virtual ~TPixelBuffer()	{};
+
+	virtual SoyPixelsMeta	GetMeta() = 0;
+
 	//	different paths return arrays now - shader/fbo blit is pretty generic now so move it out of pixel buffer
 	//	generic array, handle that internally (each implementation tends to have it's own lock info anyway)
 	//	for future devices (metal, dx), expand these
@@ -267,6 +272,8 @@ public:
 	TDumbPixelBuffer(SoyPixelsMeta Meta);
 	TDumbPixelBuffer(const SoyPixelsImpl& Pixels,const float3x3& Transform);
 	
+	virtual SoyPixelsMeta	GetMeta() override { return mPixels.GetMeta(); }
+
 	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override	{}
 	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform) override	{}
 	virtual void		Lock(ArrayBridge<Metal::TTexture>&& Textures,Metal::TContext& Context,float3x3& Transform) override	{}
@@ -301,6 +308,14 @@ public:
 	TDumbSharedPixelBuffer(ArrayBridge<std::shared_ptr<SoyPixelsImpl>>&& Pixels)
 	{
 		mPixelsArray.Copy(Pixels);
+	}
+	
+	//	immediately indicates we need an array returned
+	virtual SoyPixelsMeta	GetMeta() override
+	{
+		if (mPixelsArray.IsEmpty())
+			return SoyPixelsMeta();
+		return mPixelsArray[0]->GetMeta();
 	}
 
 	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override	{}
@@ -945,6 +960,11 @@ public:
 	TTextureBuffer(std::shared_ptr<Directx::TTexture> Texture,std::shared_ptr<TPool<Directx::TTexture>> TexturePool);
 	
 	~TTextureBuffer();
+
+	virtual SoyPixelsMeta	GetMeta() override
+	{
+		Soy_AssertTodo();
+	}
 	
 	virtual void		Lock(ArrayBridge<Opengl::TTexture>&& Textures,Opengl::TContext& Context,float3x3& Transform) override	{}
 	virtual void		Lock(ArrayBridge<Directx::TTexture>&& Textures,Directx::TContext& Context,float3x3& Transform) override	{}

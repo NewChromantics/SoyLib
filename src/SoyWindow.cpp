@@ -46,8 +46,18 @@ void SoyColourButton::OnChanged(bool FinalValue)
 	mOnValueChanged(Value, FinalValue);
 }
 
+void SoyButton::OnClicked()
+{
+	if (!mOnClicked)
+	{
+		//std::Debug << __PRETTY_FUNCTION__ << std::endl;
+		return;
+	}
+	mOnClicked();
+}
+
 //	this should be in a linux gui file
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 void Platform::EnumScreens(std::function<void(TScreenMeta&)> EnumScreen)
 {
 	Soy_AssertTodo();

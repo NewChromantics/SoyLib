@@ -11,8 +11,6 @@
 //	for NSArray_ForEach; move that to another header if this inclusion is a problem
 #include <functional>
 
-#define TARGET_POSIX
-
 #if defined(TARGET_IOS) || defined(TARGET_OSX)
 #if __has_feature(objc_arc)
 #define ARC_ENABLED

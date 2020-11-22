@@ -16,8 +16,9 @@ HEADER_SEARCH_PATHS = $(HEADER_SEARCH_PATHS_BASE)
 
 
 //	unity compatible settings
-VALID_ARCHS = $(ARCHS_STANDARD)
-SUPPORTED_PLATFORMS = iphoneos
+//	gr: using ARCHS_STANDARD seems to exclude x64 (simulator)
+//VALID_ARCHS = $(ARCHS_STANDARD)
+//SUPPORTED_PLATFORMS = iphoneos
 
 //	gr: reduce this as much as possible
 //	gr: 6 is missing type_traits, maybe other c++11 features.
