@@ -12,7 +12,7 @@
 
 //	gr: this is a copy of Platform::GetCurrentWorkingDirectory
 //		but means we dont need to include loads of other dependencies if we add it here 
-#if defined(TARGET_OSX)
+#if defined(TARGET_OSX) || defined(TARGET_LINUX)
 static std::string Platform_GetCurrentWorkingDirectory()
 {
 	Array<char> Buffer;
