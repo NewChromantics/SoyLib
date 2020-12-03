@@ -338,12 +338,15 @@ bool Platform::IsDebuggerAttached()
 
 bool Platform::DebugBreak()
 {
+	//	gr: as of xcode 12.2, the asm errors and wont compile
+	/*
 #if defined(TARGET_OSX)
 	static bool DoBreak = false;
 	//	gr: supposedly this works, if you enable it in the scheme, but I don't know where it's declared
 	//Debugger();
 	if (DoBreak)
 	{
+		//		"invalid operand"
 		__asm__("int $3");
 	}
 	//	raise an interrupt
@@ -351,6 +354,7 @@ bool Platform::DebugBreak()
 	//raise(SIGUSR1);
 	return true;
 #endif
+*/
 
 #if defined(TARGET_WINDOWS) && !defined(TARGET_UWP)
 	static bool DoBreak = false;
