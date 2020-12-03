@@ -3,6 +3,7 @@
 
 
 
+
 size_t H264::GetNaluLengthSize(SoyMediaFormat::Type Format)
 {
 	switch ( Format )
@@ -839,6 +840,30 @@ size_t H264::GetNextNaluOffset(const ArrayBridge<uint8_t>&& Data, size_t StartFr
 	
 	return 0;
 }
+
+void H264::SplitNalu(const ArrayBridge<uint8_t>& Data,std::function<void(const ArrayBridge<uint8_t>&&)> OnNalu)
+{
+//	split up packet if there are multiple nalus
+	size_t PrevNalu = 0;
+	while (true)
+	{
+		auto PacketData = GetArrayBridge(Data).GetSubArray(PrevNalu);
+		auto NextNalu = H264::GetNextNaluOffset(GetArrayBridge(PacketData));
+		if (NextNalu == 0)
+		{
+			//	everything left
+			OnNalu(GetArrayBridge(PacketData));
+			break;
+		}
+		else
+		{
+			auto SubArray = GetArrayBridge(PacketData).GetSubArray(0, NextNalu);
+			OnNalu(GetArrayBridge(SubArray));
+			PrevNalu += NextNalu;
+		}
+	}
+}
+
 
 
 size_t H264::GetNaluLength(const ArrayBridge<uint8_t>& Packet)

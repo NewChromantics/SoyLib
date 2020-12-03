@@ -148,6 +148,9 @@ namespace H264
 	Soy::TVersion	DecodeLevel(uint8 Level8);
 	void			SetSpsProfile(ArrayBridge<uint8>&& Data,H264Profile::Type Profile);
 	void			SetSpsLevel(ArrayBridge<uint8>&& Data,Soy::TVersion Level);
+	
+	void			SplitNalu(const ArrayBridge<uint8_t>& Data,std::function<void(const ArrayBridge<uint8_t>&&)> OnNalu);
+	inline void		SplitNalu(const ArrayBridge<uint8_t>&& Data,std::function<void(const ArrayBridge<uint8_t>&&)> OnNalu)	{	SplitNalu(Data,OnNalu);	};
 }
 
 
