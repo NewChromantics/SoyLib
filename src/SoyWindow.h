@@ -9,10 +9,11 @@ class SoyPixelsImpl;
 //	todo: move all types into this namespace
 namespace Gui
 {
+	class TControl;	
 	class TColourPicker;
 	class TImageMap;
 	class TMouseEvent;
-	class TControl;	
+	class TRenderView;
 }
 
 //	gr: this might want expanding later for multiple screens, mouse button number etc
@@ -134,6 +135,17 @@ public:
 	virtual void			SetColour(const vec3x<uint8_t>& Rgb)=0;	//	alpha seperate, win32 doesn't support it. This is tint on ios. 
 };
 
+//	gr: lets avoid a hacky virtual void* GetPlatformSpecificViewOrContext
+//		instead, overload this with Platform::TRenderView and put a hard typed version there
+//		that class should prepare pre-draw, call OnDraw and then end a frame 
+class Gui::TRenderView
+{
+public:
+	virtual ~TRenderView()	{};
+	
+	std::function<void()>	mOnDraw;
+};
+
 class SoySlider : public Gui::TControl
 {
 public:
@@ -168,13 +180,6 @@ class SoyLabel : public Gui::TControl
 public:
 	virtual void					SetValue(const std::string& Value)=0;
 	virtual std::string				GetValue()=0;
-};
-
-
-//	gr: this should change to a "SoyRenderView" 
-//	for MetalView, GlView, win32 hwnd attached to a render dc etc
-class SoyMetalView
-{
 };
 
 
@@ -281,5 +286,5 @@ namespace Platform
 	std::shared_ptr<SoyColourButton>	CreateColourButton(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<Gui::TImageMap>		GetImageMap(SoyWindow& Parent, const std::string& Name);
 	std::shared_ptr<Gui::TImageMap>		CreateImageMap(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
-	std::shared_ptr<SoyMetalView>		GetMetalView(SoyWindow& Parent, const std::string& Name);
+	std::shared_ptr<Gui::TRenderView>	GetRenderView(SoyWindow& Parent, const std::string& Name);
 }
