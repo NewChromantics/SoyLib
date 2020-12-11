@@ -14,6 +14,7 @@ namespace Gui
 	class TImageMap;
 	class TMouseEvent;
 	class TRenderView;
+    class TStringArray;
 }
 
 //	gr: this might want expanding later for multiple screens, mouse button number etc
@@ -254,6 +255,15 @@ public:
 	std::function<void(Gui::TMouseEvent&)>	mOnMouseEvent;
 };
 
+class Gui::TStringArray
+{
+public:
+    virtual void                        SetValue(const std::array<std::string>&& Value)=0;
+    virtual std::array<std::string>          GetValue()=0;
+    
+    std::function<void(std::array<std::string>&)> mOnValueChanged;
+};
+
 namespace Platform
 {
 	class TWindow;
@@ -266,6 +276,7 @@ namespace Platform
 	class TImageMap;
 	class TMetalView;
 	class TButton;
+    class TStringArray;
 
 	class TOpenglView;		//	on osx it's a view control
 	class TOpenglContext;	//	on windows, its a context that binds to any control
@@ -287,4 +298,5 @@ namespace Platform
 	std::shared_ptr<Gui::TImageMap>		GetImageMap(SoyWindow& Parent, const std::string& Name);
 	std::shared_ptr<Gui::TImageMap>		CreateImageMap(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<Gui::TRenderView>	GetRenderView(SoyWindow& Parent, const std::string& Name);
+    std::shared_ptr<Gui::TStringArray>  CreateStringArray(SoyWindow& Parent, const std::array<std::string>& Value);
 }
