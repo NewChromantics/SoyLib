@@ -259,7 +259,7 @@ class Gui::TStringArray
 {
 public:
     virtual void                        SetValue(const ArrayBridge<std::string>&& Values)=0;
-//    virtual Array<std::string>          GetValue()=0;
+    virtual ArrayBridge<std::string>&&  GetValue()=0;
 };
 
 namespace Platform
@@ -296,5 +296,6 @@ namespace Platform
 	std::shared_ptr<Gui::TImageMap>		GetImageMap(SoyWindow& Parent, const std::string& Name);
 	std::shared_ptr<Gui::TImageMap>		CreateImageMap(SoyWindow& Parent, Soy::Rectx<int32_t>& Rect);
 	std::shared_ptr<Gui::TRenderView>	GetRenderView(SoyWindow& Parent, const std::string& Name);
+    std::shared_ptr<Gui::TStringArray>  GetStringArray(SoyWindow& Parent, const std::string& Name);
     std::shared_ptr<Gui::TStringArray>  CreateStringArray(SoyWindow& Parent, const ArrayBridge<std::string>&& Values);
 }
