@@ -55,9 +55,17 @@ std::string GetUrlKeyString(NSURL* Path,NSString* Key)
 
 std::string UrlGetFilename(NSURL* Path)
 {
+	//	gr: we have a problem on ios where enumerating /var/appxxx
+	//		enumerates filenames that are /private/var/appxxxx/filename
+	//	/private/var is a symlink to /var
+	//		so the solution is to always resolve so the initial dir will be the true path
+	//	https://stackoverflow.com/a/16026678/355753
+	Path = [Path URLByResolvingSymlinksInPath];
+	
 	//	gr: absoluteString is urlencoded
 	//auto* AbsolutePathStrNs = [Path absoluteString];
 	auto* AbsolutePathNs = [Path path];
+	
 	auto AbsolutePath = Soy::NSStringToString( AbsolutePathNs );
 
 	//	gr: this is just to make it pretty and remove the protocol really...
