@@ -258,8 +258,8 @@ public:
 class Gui::TList
 {
 public:
-    virtual void                        SetValue(const ArrayBridge<std::string>&& Value)=0;
-    virtual ArrayBridge<std::string>&&  GetValue()=0;
+    virtual void				SetValue(const ArrayBridge<std::string>&& Value)=0;
+    virtual void				GetValue(ArrayBridge<std::string>&& Values)=0;
 };
 
 namespace Platform
