@@ -66,6 +66,36 @@ private:
 	unsigned int				mBitPos;	//	current bit-to-read/write-pos (the tail)
 };
 
+#include <functional>
+
+//	gr: replace the other reader with this. Also, put in a better file
+class TBitReader_Lambda
+{
+public:
+	TBitReader_Lambda(std::function<uint8_t(size_t)> GetNthByte) :
+		mGetByte	( GetNthByte )
+	{
+	}
+	
+	bool						Read(int& Data,int BitCount);
+	bool						Read(uint64& Data,int BitCount);
+	bool						Read(uint8& Data,int BitCount);
+	int							Read(int BitCount)					{	int Data;	return Read( Data, BitCount) ? Data : -1;	}
+	size_t						BitPosition() const					{	return mBitPos;	}
+	size_t						BytesRead() const
+	{
+		auto RoundUpBits = (8 - (mBitPos % 8)) % 8;
+		return (mBitPos+RoundUpBits) / 8;
+	}
+
+	template<int BYTES,typename STORAGE>
+	bool						ReadBytes(STORAGE& Data,int BitCount);
+
+private:
+	std::function<uint8_t(size_t)>	mGetByte;
+	unsigned int				mBitPos = 0;	//	current bit-to-read/write-pos (the tail)
+};
+
 class TBitWriter
 {
 public:

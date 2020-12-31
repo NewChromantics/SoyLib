@@ -107,9 +107,7 @@ bool TBitReader::Read(int& Data,int BitCount)
 	if ( BitCount <= 32 )
 		return ReadBytes<4>( Data, BitCount );
 
-	//	todo:
-	assert(false);
-	return false;
+	throw std::runtime_error("TBitReader_Lambda::Read(int) not handling > 32bit");
 }
 
 
@@ -127,8 +125,7 @@ bool TBitReader::Read(uint64& Data,int BitCount)
 	if ( BitCount <= 64 )
 		return ReadBytes<8>( Data, BitCount );
 
-	assert(false);
-	return false;
+	throw std::runtime_error("TBitReader_Lambda::Read(64) not handling > 64bit");
 }
 
 bool TBitReader::Read(uint8& Data,int BitCount)
@@ -159,6 +156,120 @@ bool TBitReader::Read(uint8& Data,int BitCount)
 
 	return true;
 }
+
+
+
+template<int BYTECOUNT,typename STORAGE>
+bool TBitReader_Lambda::ReadBytes(STORAGE& Data,int BitCount)
+{
+	//	gr: definitly correct
+	Data = 0;
+	
+	BufferArray<uint8,BYTECOUNT> Bytes;
+	int ComponentBitCount = BitCount;
+	while ( ComponentBitCount > 0 )
+	{
+		if ( !Read( Bytes.PushBack(), std::min(8,ComponentBitCount) ) )
+			return false;
+		ComponentBitCount -= 8;
+	}
+		
+	Data = 0;
+	for ( int i=0;	i<Bytes.GetSize();	i++ )
+	{
+		int Shift = (i * 8);
+		Data |= static_cast<STORAGE>(Bytes[i]) << Shift;
+	}
+
+	STORAGE DataBackwardTest = 0;
+	for ( int i=0;	i<Bytes.GetSize();	i++ )
+	{
+		auto Shift = (Bytes.GetSize()-1-i) * 8;
+		DataBackwardTest |= static_cast<STORAGE>(Bytes[i]) << Shift;
+	}
+
+	//	turns out THIS is the right way
+	Data = DataBackwardTest;
+
+	return true;
+}
+
+bool TBitReader_Lambda::Read(int& Data,int BitCount)
+{
+	//	break up data
+	if ( BitCount <= 8 )
+	{
+		uint8 Data8;
+		if ( !Read( Data8, BitCount ) )
+			return false;
+		Data = Data8;
+		return true;
+	}
+	
+	if ( BitCount <= 8 )
+		return ReadBytes<1>( Data, BitCount );
+
+	if ( BitCount <= 16 )
+		return ReadBytes<2>( Data, BitCount );
+
+	if ( BitCount <= 32 )
+		return ReadBytes<4>( Data, BitCount );
+
+	throw std::runtime_error("TBitReader_Lambda::Read not handling > 32bit");
+}
+
+
+bool TBitReader_Lambda::Read(uint64& Data,int BitCount)
+{
+	if ( BitCount <= 8 )
+		return ReadBytes<1>( Data, BitCount );
+
+	if ( BitCount <= 16 )
+		return ReadBytes<2>( Data, BitCount );
+
+	if ( BitCount <= 32 )
+		return ReadBytes<4>( Data, BitCount );
+
+	if ( BitCount <= 64 )
+		return ReadBytes<8>( Data, BitCount );
+
+	throw std::runtime_error("TBitReader_Lambda::Read not handling > 64bit");
+}
+
+bool TBitReader_Lambda::Read(uint8& Data,int BitCount)
+{
+	if ( BitCount <= 0 )
+		return false;
+	if ( BitCount > 8 )
+		throw std::runtime_error("This function should not be requesting >8 bits");
+
+	//	current byte
+	int CurrentByte = mBitPos / 8;
+	int CurrentBit = mBitPos % 8;
+
+	//	out of range 
+	try
+	{
+		Data = mGetByte(CurrentByte);
+	}
+	catch(std::out_of_range& e)
+	{
+		return false;
+	}
+
+	//	move along
+	mBitPos += BitCount;
+
+	//	pick out certain bits
+	//	gr: reverse endianess to what I thought...
+	//Data >>= CurrentBit;
+	Data >>= 8-CurrentBit-BitCount;
+	Data &= (1<<BitCount)-1;
+
+	return true;
+}
+
+
 
 void TBitWriter::Write(uint8 Data,int BitCount)
 {
