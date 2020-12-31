@@ -351,4 +351,16 @@ bool TStreamBuffer::PeekBack(ArrayBridge<char> &&Data)
 }
 
 
+bool TStreamBuffer::Peek(uint8_t& Data,size_t Offset)
+{
+	std::lock_guard<std::recursive_mutex>	Lock( mLock );
+	
+	//	out of range
+	if ( Offset >= mData.GetSize() )
+		return false;
+	
+	Data = mData[Offset];
+	return true;
+}
+
 
