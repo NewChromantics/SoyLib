@@ -571,17 +571,14 @@ void WebSocket::TMessageHeader::IsValid(bool ExpectedNonZeroLength) const
 //	return false if not enough data, throw on error
 bool WebSocket::TMessageHeader::Decode(TStreamBuffer& Buffer)
 {
-	auto MinBits = 8+1+7;// 32 + 64;
-	Array<char> HeaderData;
-	auto HeaderDataBridge = GetArrayBridge(HeaderData);
-	
-	//	gr: if it's EOF, then there will be no more data, so read all we can (probably just a "disconnect" websocket header when its a few bytes)
-	//auto MaxBytes = std::min<size_t>( MaxBits / 8, Buffer.GetBufferedSize() );
-	HeaderData.SetSize(MinBits /8 );
-	
-	if ( !Buffer.Peek( HeaderDataBridge ) )
-		return false;
-	TBitReader BitReader( HeaderDataBridge );
+	auto PeekByte = [&](size_t Index)
+	{
+		uint8_t Value = 0;
+		if ( !Buffer.Peek(Value,Index) )
+			throw std::out_of_range("Not enough data in streambuffer");
+		return Value;
+	};
+	TBitReader_Lambda BitReader( PeekByte );
 
 	//	return false & no data == error
 	//	return false & MoreData == need more data
