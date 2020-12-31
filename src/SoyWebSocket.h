@@ -87,8 +87,9 @@ public:
 class WebSocket::TMessageHeader
 {
 public:
-	TMessageHeader() {}
-	explicit TMessageHeader(TOpCode::Type Opcode) :
+	TMessageHeader(){};
+	explicit TMessageHeader(TOpCode::Type Opcode,bool FromServer) :
+		Masked		( FromServer ? 0 : 1 ),
 		OpCode		( Opcode )
 	{
 	}
@@ -110,7 +111,10 @@ private:
 	int		Fin = 1;
 	int		Reserved = 0;
 	int		OpCode = TOpCode::Invalid;
-	int		Masked = true;		//	previously false, but 
+	//	gr: chrome errors with 
+	//			server must not mask any frames that it sends to the client
+	//		node's http server requires frames masked. I believe the protocol wants client messages masked, but not server messages
+	int		Masked = true;
 	int		Length = 0;
 	int		Length16 = 0;
 	int		LenMostSignificant = 0;
@@ -167,16 +171,18 @@ public:
 class WebSocket::TMessageProtocol : public Soy::TWriteProtocol
 {
 public:
-	TMessageProtocol(THandshakeMeta& Handshake,const std::string& Message) :
+	TMessageProtocol(bool FromServer,THandshakeMeta& Handshake,const std::string& Message) :
 		mHandshake		( Handshake ),
 		mTextMessage	( Message ),
-		mIsTextMessage	( true )
+		mIsTextMessage	( true ),
+		mFromServer		( FromServer )
 	{
 	}
-	TMessageProtocol(THandshakeMeta& Handshake,const ArrayBridge<uint8_t>& Message) :
+	TMessageProtocol(bool FromServer,THandshakeMeta& Handshake,const ArrayBridge<uint8_t>& Message) :
 		mHandshake		(Handshake),
 		mBinaryMessage	(Message),
-		mIsTextMessage	( false )
+		mIsTextMessage	( false ),
+		mFromServer		( FromServer )
 	{
 	}
 
@@ -184,6 +190,7 @@ protected:
 	virtual void		Encode(TStreamBuffer& Buffer) override;
 	
 public:
+	bool				mFromServer = false;		//	we need to know whether this is being sent from a server to get masking in the header correct
 	THandshakeMeta&		mHandshake;
 
 	//	todo: maybe need to allow zero binary message... and zero length string.

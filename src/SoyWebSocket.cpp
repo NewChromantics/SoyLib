@@ -737,7 +737,7 @@ void WebSocket::TMessageHeader::Encode(TStreamBuffer& Buffer,ArrayBridge<uint8_t
 
 void WebSocket::TMessageProtocol::Encode(TStreamBuffer& Buffer)
 {
-	TMessageHeader Header(mIsTextMessage ? TOpCode::TextFrame : TOpCode::BinaryFrame);
+	TMessageHeader Header(mIsTextMessage ? TOpCode::TextFrame : TOpCode::BinaryFrame, mFromServer );
 
 	if (mIsTextMessage)
 	{
