@@ -328,7 +328,20 @@ void Platform::ShellExecute(const std::string& Path)
 void Platform::ShellOpenUrl(const std::string& UrlString)
 {
 	NSString* UrlStringN = Soy::StringToNSString( UrlString );
+	//	gr: realised an url with spaces was returning nil (no errors)
+	//		should we error, or urlescape (we'd hope it would just open with args, 
+	//		so maybe url escaping should be per platform for their needs)
+	//	https://stackoverflow.com/a/7996507/355753
+	UrlStringN = [UrlStringN stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+	//UrlStringN = [UrlStringN stringByAddingPercentEncodingWithAllowedCharacters:NSCharacterSet.URLPathAllowedCharacterSet];
 	auto* Url = [[NSURL alloc]initWithString:UrlStringN];
+	
+	if ( !Url )
+	{
+		std::stringstream Error;
+		Error << "Address [" << UrlString << "] failed to convert to NSUrl";
+		throw Soy::AssertException(Error);
+	}
 #if defined(TARGET_OSX)
 	//	https://gist.github.com/piaoapiao/4103404
 	//	https://stackoverflow.com/questions/17497561/opening-web-url-with-nsbutton-mac-os
