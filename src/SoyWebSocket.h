@@ -150,6 +150,8 @@ public:
 	THandshakeMeta&		mHandshake;	//	persistent handshake data etc
 	std::shared_ptr<TMessageBuffer>		mMessage;	//	persistent message for multi-frame messages
 	std::string			mRequestHost;
+	TMessageHeader		mHeader;		//	we have to store the header in case we've already parsed that, and waiting for body
+	bool				mHeaderDecoded = false;
 };
 
 

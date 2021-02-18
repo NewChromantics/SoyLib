@@ -132,25 +132,28 @@ TProtocolState::Type WebSocket::TRequestProtocol::Decode(TStreamBuffer& Buffer)
 		return HttpResult;
 	}
 
-	//	we're doing websocket now, so we need to decode incoming data
-	TMessageHeader Header;
-	
+	//	we're doing websocket (not http) now, so we need to decode incoming data
 	try
 	{
-		if ( !Header.Decode( Buffer ) )
+		//	we may have already read the header, but returned waiting for the body
+		if ( !mHeaderDecoded )
 		{
-			//	failed to decode header, but EOF (socket disconnected), so just quit
-			if ( Buffer.mEof )
-				return TProtocolState::Disconnect;
-			return TProtocolState::Waiting;
+			if ( !mHeader.Decode( Buffer ) )
+			{
+				//	failed to decode header, but EOF (socket disconnected), so just quit
+				if ( Buffer.mEof )
+					return TProtocolState::Disconnect;
+				return TProtocolState::Waiting;
+			}
+			mHeaderDecoded = true;
 		}
 		
 		//	just a close command
-		if ( Header.GetOpCode() == TOpCode::ConnectionCloseFrame )
+		if ( mHeader.GetOpCode() == TOpCode::ConnectionCloseFrame )
 			return TProtocolState::Disconnect;
 		
 		//	decode body
-		return DecodeBody( Header, *mMessage, Buffer );
+		return DecodeBody( mHeader, *mMessage, Buffer );
 	}
 	catch(std::exception& e)
 	{
