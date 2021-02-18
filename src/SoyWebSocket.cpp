@@ -545,24 +545,26 @@ std::string WebSocket::TMessageHeader::GetMaskKeyString() const
 void WebSocket::TMessageHeader::IsValid(bool ExpectedNonZeroLength) const
 {
 	std::stringstream Error;
+	Error << "Websocket message header invalid; (opcode=" << OpCode << ") ";
+	int HasError = 0;
 
 	if ( Reserved != 0 )
 	{
 		Error << "Reserved(" << Reserved << ")!=0";
-		throw Soy::AssertException(Error.str());
+		HasError++;
 	}
 	
 	//	most significant bit should always be 0 (ws can't handle full-64bit length)
 	if ( LenMostSignificant != 0 )
 	{
 		Error << "LenMostSignificant(" << LenMostSignificant << ")!=0";
-		throw Soy::AssertException(Error.str());
+		HasError++;
 	}
 
 	if ( MaskKey.GetSize() != 0 && MaskKey.GetSize() != 4 )
 	{
 		Error << "MaskKey size(" << MaskKey.GetSize() << ") invalid";
-		throw Soy::AssertException(Error.str());
+		HasError++;
 	}
 	
 	//	this checks the lengths for us
@@ -573,25 +575,32 @@ void WebSocket::TMessageHeader::IsValid(bool ExpectedNonZeroLength) const
 		if ( ExpectedNonZeroLength )
 		{
 			Error << "Length of " << OpCode << " message is 0";
-			throw Soy::AssertException(Error.str());
+			HasError++;
 		}
 	}
 	
 	//	we only support some opcodes atm
+	//std::Debug << "Opcode " << TOpCode::ToString(static_cast<TOpCode::Type>(OpCode)) << "/" << OpCode << " Length=" << Length << std::endl;
 	switch ( OpCode )
 	{
 		case TOpCode::TextFrame:
 		case TOpCode::BinaryFrame:
 		case TOpCode::ConnectionCloseFrame:
 		case TOpCode::ContinuationFrame:
+			break;
+		
 		case TOpCode::PingFrame:
 		case TOpCode::PongFrame:		
 			break;
 			
 		default:
 			Error << "Unsupported opcode " << OpCode;
-			throw Soy::AssertException(Error.str());
+			HasError++;
+			break;
 	};
+
+	if ( HasError )
+		throw Soy::AssertException(Error.str());
 }
 
 
