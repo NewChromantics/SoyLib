@@ -295,7 +295,7 @@ void WebSocket::TMessageBuffer::PushMessageData(TOpCode::Type PayloadFormat,bool
 	}
 	
 	//	if the payload format is text/binary then it's new data (additional data is always continuation)
-	if ( PayloadFormat != TOpCode::TextFrame && PayloadFormat != TOpCode::BinaryFrame )
+	if ( PayloadFormat == TOpCode::TextFrame || PayloadFormat == TOpCode::BinaryFrame )
 	{
 		//	if there's existing data, error!
 		if ( !mBinaryData.IsEmpty() || mTextData.length() > 0 )
