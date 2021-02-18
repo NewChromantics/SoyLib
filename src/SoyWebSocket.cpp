@@ -559,6 +559,8 @@ void WebSocket::TMessageHeader::IsValid(bool ExpectedNonZeroLength) const
 		case TOpCode::BinaryFrame:
 		case TOpCode::ConnectionCloseFrame:
 		case TOpCode::ContinuationFrame:
+		case TOpCode::PingFrame:
+		case TOpCode::PongFrame:		
 			break;
 			
 		default:
