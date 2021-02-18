@@ -183,7 +183,20 @@ bool WebSocket::TRequestProtocol::ParseSpecificHeader(const std::string& Key,con
 	
 	if ( Soy::StringMatches(Key,"Sec-WebSocket-Protocol", false ) )
 	{
-		mHandshake.mProtocol = Value;
+		//	these are the requested protocols
+		//	there may be multiple protocols, and we're overwriting
+		std::Debug << "Websocket handshake ignoring protocol (" << Value << ")" << std::endl;
+		//mHandshake.mProtocol = Value;
+		return true;
+	}
+	
+	if ( Soy::StringMatches(Key,"Sec-WebSocket-Extensions", false ) )
+	{
+		//	these are the requested extensions
+		//	chrome: "permessage-deflate; client_max_window_bits"
+		//	there may be multiple protocols, and we're overwriting
+		std::Debug << "Websocket handshake ignoring extensions (" << Value << ")" << std::endl;
+		//mHandshake.mExtensions = Value;
 		return true;
 	}
 
@@ -364,10 +377,19 @@ void WebSocket::THandshakeResponseProtocol::Encode(TStreamBuffer& Buffer)
 {
 	//	setup http response for websocket acceptance
 	
+	//	protocol & extension rejection notes
+	//	https://code.google.com/archive/p/bauglir-websocket/issues/37#c1
+	
 	//	add http headers we need to reply with
+	//	gr: we're responding with the one protocol we're agreeing to use
+	//		don't send ANY protocol if we don't agree
 	if ( !mHandshake.mProtocol.empty() )
 		mHeaders.insert( {"Sec-WebSocket-Protocol", mHandshake.mProtocol} );
 	
+	//	gr: never send back extensions, as we currently don't support any
+	if ( !mHandshake.mExtensions.empty() )
+		mHeaders.insert( {"Sec-WebSocket-Extensions", mHandshake.mExtensions} );
+		
 	if ( mHandshake.mIsWebSocketUpgrade )
 	{
 		mHeaders.insert( {"Sec-WebSocket-Accept", mHandshake.GetReplyKey() } );

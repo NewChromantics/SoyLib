@@ -53,6 +53,7 @@ public:
 public:
 	//	protocol and version are optional
 	std::string			mProtocol;
+	std::string			mExtensions;
 	std::string			mVersion;
 	bool				mIsWebSocketUpgrade = false;	//	true once we get the upgrade reply
 	std::string			mWebSocketKey;
