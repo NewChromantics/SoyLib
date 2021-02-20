@@ -157,51 +157,43 @@ namespace H264
 class H264::TSpsParams
 {
 public:
-	TSpsParams()
-	{
-		memset( this, 0, sizeof(*this) );
-		
-		mProfile = H264Profile::Invalid;
-		mLevel = Soy::TVersion();
-	}
-
-	size_t				mWidth;
-	size_t				mHeight;
-	H264Profile::Type	mProfile;
+	size_t				mWidth = 0;
+	size_t				mHeight= 0;
+	H264Profile::Type	mProfile = H264Profile::Invalid;
 	Soy::TVersion		mLevel;
 	
 	
-	uint8		mConstraintFlag[6];
-	uint8		mReservedZero;
-	uint32		seq_parameter_set_id;
-	uint32		chroma_format_idc;
-	uint8		residual_colour_transform_flag;
-	uint32		bit_depth_luma_minus8;
-	uint32		bit_depth_chroma_minus8;
-	uint32		qpprime_y_zero_transform_bypass_flag;
-	uint32		seq_scaling_matrix_present_flag;
-	uint32		seq_scaling_list_present_flag;
-	uint32		log2_max_frame_num_minus4;
-	uint32		pic_order_cnt_type;
-	uint32		log2_max_pic_order_cnt_lsb_minus4;
-	uint32		num_ref_frames;
-	uint32		gaps_in_frame_num_value_allowed_flag;
-	uint32		pic_width_in_mbs_minus_1;
-	uint32		pic_height_in_map_units_minus_1;
-	uint32		frame_mbs_only_flag;
-	uint32		direct_8x8_inference_flag;
-	uint32		frame_cropping_flag;
-	uint32		vui_prameters_present_flag;
-	uint32		rbsp_stop_one_bit;
-	uint8		mb_adaptive_frame_field_flag;
-	uint8		delta_pic_order_always_zero_flag;
-	uint32		frame_crop_left_offset;
-	uint32		frame_crop_right_offset;
-	uint32		frame_crop_top_offset;
-	uint32		frame_crop_bottom_offset;
+	uint8		mConstraintFlag[6] = {0};
+	uint8		mReservedZero = 0;
+	uint32		seq_parameter_set_id = 0;
+	uint32		chroma_format_idc = 0;
+	uint8		residual_colour_transform_flag = 0;
+	uint32		bit_depth_luma_minus8 = 0;
+	uint32		bit_depth_chroma_minus8 = 0;
+	uint32		qpprime_y_zero_transform_bypass_flag = 0;
+	uint32		seq_scaling_matrix_present_flag = 0;
+	uint32		seq_scaling_list_present_flag = 0;
+	uint32		log2_max_frame_num_minus4 = 0;
+	uint32		pic_order_cnt_type = 0;
+	uint32		log2_max_pic_order_cnt_lsb_minus4 = 0;
+	uint32		num_ref_frames = 0;
+	uint32		gaps_in_frame_num_value_allowed_flag = 0;
+	uint32		pic_width_in_mbs_minus_1 = 0;
+	uint32		pic_height_in_map_units_minus_1 = 0;
+	uint32		frame_mbs_only_flag = 0;
+	uint32		direct_8x8_inference_flag = 0;
+	uint32		frame_cropping_flag = 0;
+	uint32		vui_prameters_present_flag = 0;
+	uint32		rbsp_stop_one_bit = 0;
+	uint8		mb_adaptive_frame_field_flag = 0;
+	uint8		delta_pic_order_always_zero_flag = 0;
+	uint32		frame_crop_left_offset = 0;
+	uint32		frame_crop_right_offset = 0;
+	uint32		frame_crop_top_offset = 0;
+	uint32		frame_crop_bottom_offset = 0;
 	
-	sint32		offset_for_non_ref_pic;
-	sint32		offset_for_top_to_bottom_field;
-	uint32		num_ref_frames_in_pic_order_cnt_cycle;
+	sint32		offset_for_non_ref_pic = 0;
+	sint32		offset_for_top_to_bottom_field = 0;
+	uint32		num_ref_frames_in_pic_order_cnt_cycle = 0;
 };
 
