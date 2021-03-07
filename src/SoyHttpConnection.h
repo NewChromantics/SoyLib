@@ -28,11 +28,12 @@ private:
 	void			FlushRequestQueue();		//	we queue requests until we're connected
 
 public:
-	SoyEvent<const std::string>		mOnError;
-	SoyEvent<bool>					mOnConnected;
+	std::function<void(const std::string&)>	mOnError;
+	std::function<void()>			mOnConnected;
 
 protected:
-	std::string						mServerAddress;
+	std::string						mServerHostname;
+	uint16_t						mServerPort = 0;
 	
 private:
 	SoyRef							mConnectionRef;
@@ -59,10 +60,7 @@ protected:
 	virtual std::shared_ptr<TSocketWriteThread>	CreateWriteThread(std::shared_ptr<SoySocket> Socket,SoyRef ConnectionRef) override;
 
 public:
-	SoyEvent<const Http::TResponseProtocol>	mOnResponse;
-	
-private:
-	SoyListenerId						mOnDataRecievedListener;
+	std::function<void(std::shared_ptr<Http::TResponseProtocol>&)>	mOnResponse;
 };
 
 

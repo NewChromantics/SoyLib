@@ -63,8 +63,18 @@ public:
 	}
 };
 
+class THttpReadThread : public TSocketReadThread_Impl<Http::TResponseProtocol>
+{
+public:
+	using TSocketReadThread_Impl<Http::TResponseProtocol>::TSocketReadThread_Impl;	//	inherit constructor
 
-typedef TSocketReadThread_Impl<Http::TResponseProtocol> THttpReadThread;
+	virtual void OnDataRecieved(std::shared_ptr<Http::TResponseProtocol>& Data) override
+	{
+		mOnHttpResponse(Data);
+	}
+	
+	std::function<void(std::shared_ptr<Http::TResponseProtocol>&)>	mOnHttpResponse;
+};
 
 class THttpWriteThread : public TSocketWriteThread
 {

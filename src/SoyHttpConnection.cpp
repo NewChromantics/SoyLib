@@ -5,9 +5,9 @@
 
 TSocketConnection::TSocketConnection(const std::string& ServerAddress,const std::string& ThreadName) :
 	SoyWorkerThread	( ThreadName, SoyWorkerWaitMode::Sleep ),
-	mSocket			( new SoySocket ),
-	mServerAddress	( ServerAddress )
+	mSocket			( new SoySocket )
 {
+	Soy::SplitHostnameAndPort( mServerHostname, mServerPort, ServerAddress );
 }
 
 
@@ -32,11 +32,9 @@ bool TSocketConnection::Iteration()
 	auto& Socket = *mSocket;
 	try
 	{
-		Socket.CreateTcp(true);
-		
 		if ( !Socket.IsConnected() )
 		{
-			mConnectionRef = Socket.Connect( mServerAddress );
+			mConnectionRef = Socket.Connect( mServerHostname.c_str(), mServerPort );
 			
 			//	if blocking and returns invalid, then the socket has probably error'd
 			if ( !mConnectionRef.IsValid() )
@@ -58,7 +56,7 @@ bool TSocketConnection::Iteration()
 		std::stringstream Error;
 		Error << "Failed to create & connect TCP socket: " << e.what();
 		auto ErrorStr = Error.str();
-		mOnError.OnTriggered( ErrorStr );
+		mOnError( ErrorStr );
 		return true;
 	}
 	
@@ -100,7 +98,7 @@ void TSocketConnection::FlushRequestQueue()
 THttpConnection::THttpConnection(const std::string& Url) :
 	TSocketConnection	( Soy::ExtractServerFromUrl(Url), "THttpConnection" )
 {
-	std::Debug << "Split Http fetch to server=" << mServerAddress << std::endl;
+	std::Debug << "Split Http fetch to server=" << mServerHostname << ":" << mServerPort << std::endl;
 }
 
 std::shared_ptr<TSocketReadThread> THttpConnection::CreateReadThread(std::shared_ptr<SoySocket> Socket,SoyRef ConnectionRef)
@@ -112,11 +110,11 @@ std::shared_ptr<TSocketReadThread> THttpConnection::CreateReadThread(std::shared
 #else
 		auto pHttpProtocol = std::static_pointer_cast<Http::TResponseProtocol>( pProtocol );
 #endif
-		mOnResponse.OnTriggered( *pHttpProtocol );
+		mOnResponse( pHttpProtocol );
 	};
 	
 	std::shared_ptr<TSocketReadThread> ReadThread( new THttpReadThread( Socket, ConnectionRef ) );
-	mOnDataRecievedListener = ReadThread->mOnDataRecieved.AddListener( OnResponse );
+	ReadThread->mOnDataRecieved = OnResponse;
 	ReadThread->Start();
 	return ReadThread;
 }
@@ -124,7 +122,12 @@ std::shared_ptr<TSocketReadThread> THttpConnection::CreateReadThread(std::shared
 std::shared_ptr<TSocketWriteThread> THttpConnection::CreateWriteThread(std::shared_ptr<SoySocket> Socket,SoyRef ConnectionRef)
 {
 	std::shared_ptr<TSocketWriteThread> WriteThread( new THttpWriteThread(Socket,ConnectionRef) );
-	WriteThread->mOnStreamError.AddListener( mOnError );
+	
+	auto OnError = [this](const std::string& Error)
+	{
+	};
+	
+	WriteThread->mOnStreamError = OnError;
 	WriteThread->Start();
 	return WriteThread;
 }
@@ -141,7 +144,7 @@ void THttpConnection::SendRequest(std::shared_ptr<Http::TRequestProtocol> Reques
 	//	set host automatically
 	if ( Request->mHost.empty() )
 	{
-		Request->mHost = mServerAddress;
+		Request->mHost = mServerHostname;	//	was address, should this include port? Pretty sure, not.
 	}
 	
 	TSocketConnection::SendRequest( Request );
