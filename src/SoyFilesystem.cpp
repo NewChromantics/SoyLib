@@ -10,10 +10,10 @@
 
 #if defined(TARGET_LINUX)
 #include <filesystem>
-#include <fcntl.h>
 #endif
 
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
+#include <fcntl.h>	//	O_RDONLY
 #include <unistd.h>	//	gethostname
 #include <sys/stat.h>
 #include <limits.h>	//	PATH_MAX
