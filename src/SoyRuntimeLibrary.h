@@ -74,7 +74,7 @@ public:
 	}
 
 private:
-#if defined(TARGET_OSX)||defined(TARGET_LINUX)
+#if defined(TARGET_OSX)||defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 	void*		mHandle = nullptr;
 #elif defined(TARGET_WINDOWS)
 	HMODULE		mHandle = nullptr;

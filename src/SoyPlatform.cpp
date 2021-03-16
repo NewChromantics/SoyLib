@@ -35,7 +35,7 @@ std::string Platform::GetComputerName()
 
 std::string Platform::GetEnvVar(const char* Key)
 {
-#if defined(TARGET_OSX)||defined(TARGET_LINUX)
+#if defined(TARGET_OSX)||defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 	const char* Value = getenv(Key);
 	if ( !Value )
 	{

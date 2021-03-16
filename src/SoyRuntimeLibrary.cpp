@@ -4,15 +4,14 @@
 #include "SoyDebug.h"
 #include "SoyFilesystem.h"
 
-
-#if defined(TARGET_OSX) || defined(TARGET_LINUX)
+#if defined(TARGET_OSX) || defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 #include <dlfcn.h>	//	dlopen
 #include <unistd.h>	//	getcwd
 #endif
 
 //	gr: this is a copy of Platform::GetCurrentWorkingDirectory
 //		but means we dont need to include loads of other dependencies if we add it here 
-#if defined(TARGET_OSX) || defined(TARGET_LINUX)
+#if defined(TARGET_OSX) || defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 static std::string Platform_GetCurrentWorkingDirectory()
 {
 	Array<char> Buffer;
@@ -21,7 +20,7 @@ static std::string Platform_GetCurrentWorkingDirectory()
 #if defined(TARGET_WINDOWS)
 	while ( !_getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
 #elif defined(TARGET_PS4)||defined(TARGET_IOS)||defined(TARGET_ANDROID)
-	throw Soy::AssertException("Platform doesn't support current working dir");
+//	throw Soy::AssertException("Platform doesn't support current working dir");
 	while(false)
 #else
 	while ( !getcwd( Buffer.GetArray(), Buffer.GetSize() ) )
@@ -70,7 +69,7 @@ Soy::TRuntimeLibrary::TRuntimeLibrary(std::string Filename,std::function<bool(vo
 		return;
 	}
 	
-#if defined(TARGET_OSX) || defined(TARGET_LINUX)
+#if defined(TARGET_OSX) || defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 	//	link all symbols immediately
 	int Mode = RTLD_LAZY | RTLD_GLOBAL;
 	mHandle = dlopen( Filename.c_str(), Mode );
@@ -211,7 +210,7 @@ void* Soy::TRuntimeLibrary::GetSymbol(const char* Name)
 {
 #if defined(TARGET_IOS)
 	throw Soy::AssertException("No Runtime library support on ios");
-#elif defined(TARGET_OSX) || defined(TARGET_LINUX)
+#elif defined(TARGET_OSX) || defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 	Soy::Assert( mHandle!=nullptr, mLibraryName + " library not loaded");
 	return dlsym( mHandle, Name );
 #else

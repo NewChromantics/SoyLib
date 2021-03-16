@@ -761,7 +761,7 @@ void Platform::ShowFileExplorer(const std::string& Path)
 }
 #endif
 
-#if defined(TARGET_LINUX)
+#if defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 std::string Platform::GetExeFilename()
 {
 	//	https://stackoverflow.com/a/4025415/355753
@@ -773,14 +773,6 @@ std::string Platform::GetExeFilename()
 		Platform::ThrowLastError("readlink(/proc/self/exe)");
 	std::string ExePathString( ExePath, Length );
 	return ExePathString;
-}
-#endif
-
-
-#if defined(TARGET_ANDROID)
-std::string Platform::GetExeFilename()
-{
-	Soy_AssertTodo();
 }
 #endif
 
@@ -848,7 +840,8 @@ bool Platform::FileExists(const std::string& Path)
 #if defined(TARGET_ANDROID)
 bool Platform::DirectoryExists(const std::string& Path)
 {
-	Soy_AssertTodo();
+    // this needs to be completed
+    return "";
 }
 #endif
 
