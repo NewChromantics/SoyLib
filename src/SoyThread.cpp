@@ -592,7 +592,7 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 
 	if ( Result == SCE_OK )
 	{
-		std::Debug << "Renamed thread from " << OldThreadName << " to " << Name << ": " << std::endl;
+		//std::Debug << "Renamed thread from " << OldThreadName << " to " << Name << ": " << std::endl;
 	}
 	else
 	{
@@ -687,7 +687,7 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 	
 	if ( Result == 0 )
 	{
-		std::Debug << "Renamed thread from " << OldThreadName << " to " << Name << ": " << std::endl;
+		//std::Debug << "Renamed thread from " << OldThreadName << " to " << Name << ": " << std::endl;
 	}
 	else
 	{
