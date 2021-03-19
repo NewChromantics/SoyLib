@@ -1185,7 +1185,7 @@ SoyRef SoySocketConnection::Recieve(ArrayBridge<char>& Buffer,SoySocket* Parent)
 	socklen_t FromAddrLen = FromAddr.GetSockAddrLength();
 	auto Result = recvfrom( mSocket, Buffer.GetArray(), size_cast<socket_data_size_t>(Buffer.GetDataSize()), Flags, FromAddr.GetSockAddr(), &FromAddrLen);
 	
-	Soy::TScopeTimerPrint Timer("Post recvfrom",1);
+	Soy::TScopeTimerPrint Timer("Post recvfrom",4);
 	
 	if ( Result == 0 )
 	{
