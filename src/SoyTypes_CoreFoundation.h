@@ -48,6 +48,9 @@ namespace Platform
 	template<typename NSTYPE>
 	void NSArray_ForEach(NSArray<NSTYPE>* Array,std::function<void(NSTYPE)> Enum);
 #endif
+
+	//	run a lambda inside obj-c @try @catch to catch exceptions
+	void	ExecuteTryCatchObjc(std::function<void()> Functor);
 }
 
 
