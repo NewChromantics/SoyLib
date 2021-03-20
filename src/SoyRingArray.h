@@ -14,7 +14,7 @@ public:
 	typedef typename ARRAY::TYPE TYPE;
 	
 public:
-	RingArray(size_t InitialSize) :
+	RingArray(size_t InitialSize=0) :
 		mHead	( 0 ),
 		mTail	( 0 )
 	{
@@ -23,16 +23,17 @@ public:
 	//	mTail = mBuffer.GetSize()-1;
 	}
 
-	bool		PushBack(const TYPE& Element);
-	bool		PushBack(const ArrayBridge<TYPE>& Array);
-	bool		PushBack(const ArrayBridge<TYPE>&& Array)			{	return PushBack( Array );	}
-	bool		PopFront(size_t Elements,ArrayBridge<TYPE>& Array);
-	bool		PopFront(size_t Elements,ArrayBridge<TYPE>&& Array)	{	return PopFront( Elements, Array );	}
-	bool		PopFront(TYPE& Element);
+	void		PushBack(const TYPE& Element);
+	void		PushBack(const ArrayBridge<TYPE>& Array);
+	void		PushBack(const ArrayBridge<TYPE>&& Array)			{	return PushBack( Array );	}
+	void		PopFront(size_t Elements,ArrayBridge<TYPE>& Array);
+	void		PopFront(size_t Elements,ArrayBridge<TYPE>&& Array)	{	return PopFront( Elements, Array );	}
+	void		PopFront(TYPE& Element);
 
 private:
-	bool		ResizeBuffer(size_t NewSize);
+	void		ResizeBuffer(size_t NewSize);
 	void		GetStats(size_t& SpaceAfterHead,size_t& SpaceBeforeTail,size_t& UsedAfterTail,size_t& UsedAfterStart);
+	void		Verify();
 	
 private:
 	std::recursive_mutex	mLock;	//	maybe lock head and tail seperately?
@@ -66,29 +67,39 @@ inline void RingArray<TYPE>::GetStats(size_t& SpaceAfterHead,size_t& SpaceBefore
 	
 	auto Used = UsedAfterTail+UsedAfterStart;
 	auto Space = SpaceAfterHead+SpaceBeforeTail;
-	Soy::Assert( Used + Space == mBuffer.GetSize(), "Bad calculations" );
+	if ( Used + Space != mBuffer.GetSize() )
+	{
+		throw Soy::AssertException("SoyRingBuffer Bad calculations");
+	}
 	//Soy::Assert( mHead != mTail, "Head and tail shouldn't clash");
 }
 
 template<typename TYPE>
-inline bool RingArray<TYPE>::PushBack(const TYPE& Element)
+inline void RingArray<TYPE>::Verify()
 {
-	size_t Counter = 1;
-	auto AsArray = GetRemoteArray( &Element, Counter );
-	return PushBack( GetArrayBridge( AsArray ) );
+	size_t SpaceAfterHead,SpaceBeforeTail,UsedAfterTail,UsedAfterStart;
+	GetStats(SpaceAfterHead,SpaceBeforeTail,UsedAfterTail,UsedAfterStart);
 }
 
 template<typename TYPE>
-inline bool RingArray<TYPE>::PopFront(TYPE& Element)
+inline void RingArray<TYPE>::PushBack(const TYPE& Element)
+{
+	size_t Counter = 1;
+	auto AsArray = GetRemoteArray( &Element, Counter );
+	PushBack( GetArrayBridge( AsArray ) );
+}
+
+template<typename TYPE>
+inline void RingArray<TYPE>::PopFront(TYPE& Element)
 {
 	//	fill this array-of-one by writing directly into the element
 	int Counter = 0;
 	auto AsArray = GetRemoteArray( &Element, 1, Counter );
-	return PopFront( 1, GetArrayBridge( AsArray ) );
+	PopFront( 1, GetArrayBridge( AsArray ) );
 }
 
 template<typename TYPE>
-inline bool RingArray<TYPE>::PushBack(const ArrayBridge<TYPE>& Array)
+inline void RingArray<TYPE>::PushBack(const ArrayBridge<TYPE>& Array)
 {
 	std::lock_guard<std::recursive_mutex> Lock( mLock );
 
@@ -101,7 +112,8 @@ inline bool RingArray<TYPE>::PushBack(const ArrayBridge<TYPE>& Array)
 	{
 		size_t Spacer = 1;
 		ResizeBuffer( UsedAfterTail + UsedAfterStart + Spacer + Array.GetSize() );
-		return PushBack( Array );
+		PushBack( Array );
+		return;
 	}
 	
 	//	do first chunk (fills end of buffer)
@@ -121,6 +133,7 @@ inline bool RingArray<TYPE>::PushBack(const ArrayBridge<TYPE>& Array)
 			mHead -= mBuffer.GetSize();
 		
 		//	gr: add overlap check. will be needed if locks seperate
+		Verify();
 	}
 
 	//	do second chunk starts at start of buffer
@@ -129,15 +142,14 @@ inline bool RingArray<TYPE>::PushBack(const ArrayBridge<TYPE>& Array)
 		if ( ArrayRemain > 0 )
 		{
 			auto ArraySecondHalf = GetRemoteArray( &Array[ArrayWritten], ArrayRemain );
-			return PushBack( GetArrayBridge( ArraySecondHalf ) );
+			PushBack( GetArrayBridge( ArraySecondHalf ) );
+			return;
 		}
 	}
-	
-	return true;
 }
 
 template<typename TYPE>
-inline bool RingArray<TYPE>::PopFront(size_t Elements,ArrayBridge<TYPE>& Array)
+inline void RingArray<TYPE>::PopFront(size_t Elements,ArrayBridge<TYPE>& Array)
 {
 	std::lock_guard<std::recursive_mutex> Lock( mLock );
 
@@ -146,7 +158,7 @@ inline bool RingArray<TYPE>::PopFront(size_t Elements,ArrayBridge<TYPE>& Array)
 
 	//	not this much to pop
 	if ( UsedAfterTail + UsedAfterStart < Elements )
-		return false;
+		throw Soy::AssertException("Trying to pop more data than there is used in ring buffer");
 	
 	//	pop first chunk
 	{
@@ -158,6 +170,7 @@ inline bool RingArray<TYPE>::PopFront(size_t Elements,ArrayBridge<TYPE>& Array)
 		if ( mTail >= mBuffer.GetSize() )
 			mTail -= mBuffer.GetSize();
 		Elements -= PopAfterTail;
+		Verify();
 
 		//	gr: add overlap check. will be needed if locks seperate
 	}
@@ -165,9 +178,10 @@ inline bool RingArray<TYPE>::PopFront(size_t Elements,ArrayBridge<TYPE>& Array)
 	//	pop second chunk
 	{
 		if ( Elements > 0 )
-			return PopFront( Elements, Array );
+		{
+			PopFront( Elements, Array );
+			return;
+		}
 	}
-
-	return true;
 }
 
