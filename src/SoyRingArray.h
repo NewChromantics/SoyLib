@@ -44,15 +44,10 @@ private:
 
 
 template<typename TYPE>
-inline bool RingArray<TYPE>::ResizeBuffer(size_t NewSize)
+inline void RingArray<TYPE>::ResizeBuffer(size_t NewSize)
 {
 	std::lock_guard<std::recursive_mutex> Lock( mLock );
 	mBuffer.SetSize( static_cast<int>(NewSize) );
-
-	if ( mBuffer.IsEmpty() )
-		return false;
-
-	return true;
 }
 
 template<typename TYPE>
