@@ -31,7 +31,7 @@ in_addr_t inet_addr(const char*)
 #include <netdb.h>	//	gethostbyname
 #include <signal.h>
 #include <ifaddrs.h>	//	getifaddrs
-#include <resolv.h>
+#include <resolv.h>		//	don't forget to link to libresolv! OTHER_LDFLAGS = -lresolv
 
 #endif
 
