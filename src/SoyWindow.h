@@ -9,12 +9,13 @@ class SoyPixelsImpl;
 //	todo: move all types into this namespace
 namespace Gui
 {
-	class TControl;	
+	class TControl;
+	class TInteractiveControl;	//	mouse/hid callbacks
 	class TColourPicker;
 	class TImageMap;
 	class TMouseEvent;
 	class TRenderView;
-    class TList;
+	class TList;
 }
 
 //	gr: this might want expanding later for multiple screens, mouse button number etc
@@ -93,7 +94,17 @@ public:
 };
 
 
-class SoyWindow
+
+class Gui::TInteractiveControl
+{
+public:
+	std::function<void(Gui::TMouseEvent&)>			mOnMouseEvent;
+
+	std::function<bool(ArrayBridge<std::string>&)>	mOnTryDragDrop;
+	std::function<void(ArrayBridge<std::string>&)>	mOnDragDrop;
+};
+
+class SoyWindow : public Gui::TInteractiveControl
 {
 public:
 	virtual Soy::Rectx<int32_t>		GetScreenRect()=0;		//	get pixel size on screen
@@ -108,15 +119,17 @@ public:
 	virtual void					StartRender(std::function<void()> Frame, std::string ViewName) {};
 
 public:
+	std::function<void()>			mOnClosed;
+	
 	//	todo: change these coordinates to pixels and client can normalise with GetScreenRect
+	//	todo: remove all these for InteractiveControl's events
 	std::function<void(const TMousePos&,SoyMouseButton::Type)>	mOnMouseDown;
 	std::function<void(const TMousePos&,SoyMouseButton::Type)>	mOnMouseMove;
 	std::function<void(const TMousePos&,SoyMouseButton::Type)>	mOnMouseUp;
+
+	//	try and move this into interactive control
 	std::function<void(SoyKeyButton::Type)>	mOnKeyDown;
 	std::function<void(SoyKeyButton::Type)>	mOnKeyUp;
-	std::function<bool(ArrayBridge<std::string>&)>	mOnTryDragDrop;
-	std::function<void(ArrayBridge<std::string>&)>	mOnDragDrop;
-	std::function<void()>			mOnClosed;
 };
 
 
@@ -139,13 +152,16 @@ public:
 //	gr: lets avoid a hacky virtual void* GetPlatformSpecificViewOrContext
 //		instead, overload this with Platform::TRenderView and put a hard typed version there
 //		that class should prepare pre-draw, call OnDraw and then end a frame 
-class Gui::TRenderView
+class Gui::TRenderView : public Gui::TInteractiveControl
 {
 public:
 	virtual ~TRenderView()	{};
 	
 	std::function<void()>	mOnDraw;
 };
+
+
+
 
 class SoySlider : public Gui::TControl
 {
@@ -226,8 +242,13 @@ class Gui::TMouseEvent
 {
 public:
 	vec2x<int32_t>			mPosition;
-	SoyMouseButton::Type	mButton = SoyMouseButton::None;
 	SoyMouseEvent::Type		mEvent = SoyMouseEvent::Invalid;
+
+	//	gr: in the engine, buttons are now names, so these will get 
+	//		converted to strings when we find "other" devices need 
+	//		to make mouse/hid events
+	//		it could also handle keyboard "buttons"?
+	SoyMouseButton::Type	mButton = SoyMouseButton::None;	
 };
 
 
@@ -243,16 +264,13 @@ public:
 
 //	an Image map control is an image which auto sets the OS cursor for certain areas
 //	and relays back mouse movement. Used for high-level custom gui controls which just update pixels
-class Gui::TImageMap : public Gui::TControl
+class Gui::TImageMap : public Gui::TControl, public Gui::TInteractiveControl
 {
 public:
 	virtual void			SetImage(const SoyPixelsImpl& Pixels) = 0;
 
 	//	we accept strings for cursor names, because windows allows loading from exe resources. Otherwise they map to SoyCursor::Type enums
 	virtual void			SetCursorMap(const SoyPixelsImpl& CursorMap,const ArrayBridge<std::string>&& CursorIndexes) = 0;
-
-public:
-	std::function<void(Gui::TMouseEvent&)>	mOnMouseEvent;
 };
 
 class Gui::TList
@@ -276,7 +294,7 @@ namespace Platform
 	class TImageMap;
 	class TMetalView;
 	class TButton;
-    class TList;
+	class TList;
 
 	class TOpenglView;		//	on osx it's a view control
 	class TOpenglContext;	//	on windows, its a context that binds to any control
