@@ -157,7 +157,7 @@ class Gui::TRenderView : public Gui::TInteractiveControl
 public:
 	virtual ~TRenderView()	{};
 	
-	std::function<void()>	mOnDraw;
+	std::function<void(Soy::Rectx<size_t>)>	mOnDraw;
 };
 
 
