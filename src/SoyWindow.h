@@ -292,11 +292,11 @@ namespace Platform
 	class TColourButton;
 	class TColourPicker;
 	class TImageMap;
-	class TMetalView;
+	class TRenderView;
 	class TButton;
 	class TList;
 
-	class TOpenglView;		//	on osx it's a view control
+	class TOpenglView;		//	deprecated for TRenderView now
 	class TOpenglContext;	//	on windows, its a context that binds to any control
 	class TWin32Thread;		//	windows needs to make calls on a specific thread (just as OSX needs it to be on the main dispatcher)
 
