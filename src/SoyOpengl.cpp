@@ -1107,14 +1107,20 @@ void Opengl::TPbo::ReadPixels(GLenum PixelType)
 	Unbind();
 }
 
+//	gr: turn this into SoyPixelsImpl* return
 const uint8* Opengl::TPbo::LockBuffer()
 {
-#if defined(TARGET_IOS) || defined(TARGET_ANDROID)
+	Bind();
+#if OPENGL_ES==3
+	GLintptr Offset = 0;
+	GLsizeiptr Length = mMeta.GetDataSize();
+	GLbitfield Access = GL_MAP_READ_BIT;
+	auto* Buffer = glMapBufferRange( GL_PIXEL_PACK_BUFFER, Offset, Length, Access );
+#elif defined(TARGET_ANDROID)||defined(TARGET_IOS)
 	//	gr: come back to this... when needed, I think it's supported
 	const uint8* Buffer = nullptr;
 #else
 	Bind();
-	//glMapNamedBuffer would be nicer;
 	auto* Buffer = glMapBuffer( GL_PIXEL_PACK_BUFFER, GL_READ_ONLY );
 #endif
 
@@ -1124,13 +1130,15 @@ const uint8* Opengl::TPbo::LockBuffer()
 
 void Opengl::TPbo::UnlockBuffer()
 {
-#if defined(TARGET_IOS) || defined(TARGET_ANDROID)
+#if OPENGL_ES==3
+	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+#elif defined(TARGET_IOS) || defined(TARGET_ANDROID)
 	throw Soy::AssertException("Lock buffer should not have succeeded on ES");
 #else
 	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+#endif
 	Opengl_IsOkay();
 	Unbind();
-#endif
 }
 
 void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat,bool Flip) const
