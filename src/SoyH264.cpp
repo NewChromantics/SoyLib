@@ -843,7 +843,14 @@ size_t H264::GetNextNaluOffset(const ArrayBridge<uint8_t>&& Data, size_t StartFr
 
 void H264::SplitNalu(const ArrayBridge<uint8_t>& Data,std::function<void(const ArrayBridge<uint8_t>&&)> OnNalu)
 {
-//	split up packet if there are multiple nalus
+	//	gr: this was happening in android test app, GetSubArray() will throw, so catch it
+	if ( Data.IsEmpty() )
+	{
+		std::Debug << "Unexpected " << __PRETTY_FUNCTION__ << " Data.Size=" << Data.GetDataSize() << std::endl;
+		return;
+	}
+	
+	//	split up packet if there are multiple nalus
 	size_t PrevNalu = 0;
 	while (true)
 	{
