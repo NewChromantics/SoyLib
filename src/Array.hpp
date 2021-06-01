@@ -416,7 +416,7 @@ public:
 		//	verify this combination is possible
 		auto ThisDataSize = this->GetDataSize();
 		if ( ByteOffset >= ThisDataSize )
-			throw Soy::AssertException("Subarray start out of bounds");
+			throw Soy::AssertException( std::string("Subarray start (") + std::to_string(ByteOffset) + std::string("/") + std::to_string(ThisDataSize) + std::string(") out of bounds") );
 		size_t ElementLast = ByteOffset + (OutputElements * sizeof(TYPE)) - 1;
 		if ( ElementLast >= ThisDataSize )
 			throw Soy::AssertException("Subarray end out of bounds");
