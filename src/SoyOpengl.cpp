@@ -545,10 +545,10 @@ void Opengl::GetReadPixelsFormats(ArrayBridge<GLenum> &&Formats)
 	Formats.SetSize(5);
 	
 	Formats[0] = GL_INVALID_VALUE;
-	#if defined(OPENGL_ES)
-	Formats[1] = GL_ALPHA;
-	#else
+	#if defined(GL_RED)
 	Formats[1] = GL_RED;
+	#else
+	Formats[1] = GL_LUMINANCE;//GL_ALPHA;	//	gr: neither of these seem to work on ios, ES3, only GL_RED
 	#endif
 	Formats[2] = GL_INVALID_VALUE;
 	Formats[3] = GL_RGB;
@@ -1101,20 +1101,27 @@ void Opengl::TPbo::ReadPixels(GLenum PixelType)
 	
 	auto w = size_cast<GLsizei>(mMeta.GetWidth());
 	auto h = size_cast<GLsizei>(mMeta.GetHeight());
+	
 	glReadPixels( x, y, w, h, ColourFormat, ReadFormat, nullptr );
 	Opengl_IsOkay();
 	
 	Unbind();
 }
 
+//	gr: turn this into SoyPixelsImpl* return
 const uint8* Opengl::TPbo::LockBuffer()
 {
-#if defined(TARGET_IOS) || defined(TARGET_ANDROID)
+	Bind();
+#if OPENGL_ES==3
+	GLintptr Offset = 0;
+	GLsizeiptr Length = mMeta.GetDataSize();
+	GLbitfield Access = GL_MAP_READ_BIT;
+	auto* Buffer = glMapBufferRange( GL_PIXEL_PACK_BUFFER, Offset, Length, Access );
+#elif defined(TARGET_ANDROID)||defined(TARGET_IOS)
 	//	gr: come back to this... when needed, I think it's supported
 	const uint8* Buffer = nullptr;
 #else
 	Bind();
-	//glMapNamedBuffer would be nicer;
 	auto* Buffer = glMapBuffer( GL_PIXEL_PACK_BUFFER, GL_READ_ONLY );
 #endif
 
@@ -1124,13 +1131,15 @@ const uint8* Opengl::TPbo::LockBuffer()
 
 void Opengl::TPbo::UnlockBuffer()
 {
-#if defined(TARGET_IOS) || defined(TARGET_ANDROID)
+#if OPENGL_ES==3
+	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+#elif defined(TARGET_IOS) || defined(TARGET_ANDROID)
 	throw Soy::AssertException("Lock buffer should not have succeeded on ES");
 #else
 	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+#endif
 	Opengl_IsOkay();
 	Unbind();
-#endif
 }
 
 void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat,bool Flip) const

@@ -383,7 +383,7 @@ std::string Platform::GetAppResourcesDirectory()
 	}
 }
 
-#if defined(TARGET_IOS)
+#if defined(TARGET_IOS)||defined(TARGET_OSX)
 std::string	Platform::GetDocumentsDirectory()
 {
 	//	NSCachesDirectory

@@ -2192,6 +2192,6 @@ void SoyPixelsRemote::CheckDataSize()
 		return;
 
 	std::stringstream Error;
-	Error << "SoyPixelsRemote meta size(" << ExpectedSize << ") different to data size (" << DataSize << ")";
+	Error << "SoyPixelsRemote meta size(" << ExpectedSize << ") different to data size (" << DataSize << ") for meta " << this->GetMeta();
 	throw Soy::AssertException(Error);
 }

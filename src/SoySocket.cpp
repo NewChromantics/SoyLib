@@ -31,7 +31,7 @@ in_addr_t inet_addr(const char*)
 #include <netdb.h>	//	gethostbyname
 #include <signal.h>
 #include <ifaddrs.h>	//	getifaddrs
-#include <resolv.h>
+#include <resolv.h>		//	don't forget to link to libresolv! OTHER_LDFLAGS = -lresolv
 
 #endif
 
@@ -455,32 +455,13 @@ bool SoySocket::IsUdp() const
 }
 
 
-void SoySocket::CreateTcp(bool Blocking, sa_family_t SocketType)
+void SoySocket::SetBlocking(bool Blocking)
 {
-	//	already created
-	if ( IsCreated() && !IsUdp() )
-		return;
-
-	if ( IsCreated() )
-		Close();
+	//	gr: should this function lock as it's using mSocket?
 	
-	Soy::Winsock::Init();
-	
-	mConnectionLock.lock();
-	mSocket = socket( SocketType, SOCK_STREAM, IPPROTO_IP );
-	if ( mSocket == INVALID_SOCKET )
-	{
-		Soy::Winsock::HasError("Create socket");
-		mConnectionLock.unlock();
-		throw Soy::AssertException("Failed to create socket");
-	}
-	//	gr: don't have an ip/port until bound?
-	mSocketAddr = SoySockAddr();
-
 	bool Success = false;
 #if !defined(TARGET_WINDOWS)
-	int flags;
-	flags = fcntl( mSocket, F_GETFL, 0 );
+	int flags = fcntl( mSocket, F_GETFL, 0 );
 	
 	Success = (flags != -1);
 	if ( Success )
@@ -493,6 +474,7 @@ void SoySocket::CreateTcp(bool Blocking, sa_family_t SocketType)
 		Success &= (Result==0);
 	}
 
+	//	gr: this should be in a seperate function?
 	//	turn off SIGPIPE signals for broken pipe read/writing
 #if !defined(TARGET_ANDROID) && !defined(TARGET_PS4) && !defined(TARGET_LINUX)
 	bool EnableSigPipe = false;
@@ -517,9 +499,42 @@ void SoySocket::CreateTcp(bool Blocking, sa_family_t SocketType)
 		std::stringstream Error;
 		Error << "Could not make socket " << (Blocking?"":"non-") << "blocking";
 		Soy::Winsock::HasError( Soy::StreamToString( std::stringstream()<< "make socket " << (Blocking?"":"non-") << "blocking" ) );
+		throw Soy::AssertException(Error);
+	}
+}
+
+
+void SoySocket::CreateTcp(bool Blocking, sa_family_t SocketType)
+{
+	//	already created
+	if ( IsCreated() && !IsUdp() )
+		return;
+
+	if ( IsCreated() )
+		Close();
+	
+	Soy::Winsock::Init();
+	
+	mConnectionLock.lock();
+	mSocket = socket( SocketType, SOCK_STREAM, IPPROTO_IP );
+	if ( mSocket == INVALID_SOCKET )
+	{
+		Soy::Winsock::HasError("Create socket");
+		mConnectionLock.unlock();
+		throw Soy::AssertException("Failed to create socket");
+	}
+	//	gr: don't have an ip/port until bound?
+	mSocketAddr = SoySockAddr();
+
+	try
+	{
+		SetBlocking(Blocking);
+	}
+	catch(...)
+	{
 		mConnectionLock.unlock();
 		Close();
-		throw Soy::AssertException(Error.str());
+		throw;
 	}
 
 	mConnectionLock.unlock();
@@ -527,7 +542,7 @@ void SoySocket::CreateTcp(bool Blocking, sa_family_t SocketType)
 
 
 
-void SoySocket::CreateUdp(bool Broadcast, sa_family_t SocketType)
+void SoySocket::CreateUdp(bool Broadcast,bool Blocking,sa_family_t SocketType)
 {
 	//	already created
 	if ( IsCreated() && IsUdp() )
@@ -545,6 +560,19 @@ void SoySocket::CreateUdp(bool Broadcast, sa_family_t SocketType)
 	}
 	//	gr: don't have an ip/port until bound?
 	mSocketAddr = SoySockAddr();
+
+
+	//	gr: we weren't setting this at all before
+	try
+	{
+		SetBlocking(Blocking);
+	}
+	catch(...)
+	{
+		mConnectionLock.unlock();
+		Close();
+		throw;
+	}
 
 
 	//	set broadcast mode
@@ -651,7 +679,8 @@ void SoySocket::Bind(uint16 Port,SoySockAddr& outSockAddr)
 
 void SoySocket::ListenTcp(int Port)
 {
-	CreateTcp(true);
+	bool Blocking = true;
+	CreateTcp(Blocking);
 	SoySockAddr SockAddr;
 	Bind(Port, SockAddr);
 
@@ -678,9 +707,10 @@ void SoySocket::ListenTcp(int Port)
 }
 
 
-void SoySocket::ListenUdp(int Port,bool SaveListeningConnection)
+void SoySocket::ListenUdp(int Port,bool SaveListeningConnection,bool Broadcast)
 {
-	CreateUdp(true);
+	bool Blocking = true;
+	CreateUdp(Broadcast,Blocking);
 	Bind(Port, mSocketAddr);
 	
 	//	udp just binds
@@ -842,7 +872,9 @@ SoyRef SoySocket::UdpConnect(SoySockAddr Address)
 	//	gr: OSX does NOT require this, windows does
 	try
 	{
-		ListenUdp(PORT_ANY,false);
+		bool SaveListeningConnection = false;
+		bool Broadcast = false;	//	I think this fails on osx if on any port?
+		ListenUdp(PORT_ANY,SaveListeningConnection,Broadcast);
 		mConnectionLock.unlock();
 		return OnConnection( Connection );
 	}
@@ -1143,14 +1175,17 @@ SoyRef SoySocketConnection::Recieve(ArrayBridge<char>& Buffer,SoySocket* Parent)
 		return SoyRef();
 	
 	//	gr: if you ask for 0 bytes in the buffer, we'll get 0 result, which we assume is "gracefully closed"
+	//	gr: find the expected max? mtu on socket? 1033?
 	if ( Buffer.IsEmpty() )
-		Buffer.SetSize( 1024 );
+		Buffer.SetSize( 1024*10 );
 	
 	int Flags = 0;
 	//auto Result = recv( mSocket, Buffer.GetArray(), size_cast<socket_data_size_t>(Buffer.GetDataSize()), Flags );
 	SoySockAddr FromAddr;
 	socklen_t FromAddrLen = FromAddr.GetSockAddrLength();
 	auto Result = recvfrom( mSocket, Buffer.GetArray(), size_cast<socket_data_size_t>(Buffer.GetDataSize()), Flags, FromAddr.GetSockAddr(), &FromAddrLen);
+	
+	Soy::TScopeTimerPrint Timer("Post recvfrom",4);
 	
 	if ( Result == 0 )
 	{
@@ -1190,10 +1225,15 @@ SoyRef SoySocketConnection::Recieve(ArrayBridge<char>& Buffer,SoySocket* Parent)
 	}
 	
 	//	if no parent provided, we can't return a valid ref!
-	auto SenderRef = SoyRef("Unknown");
+	SoyRef SenderRef;
 	if ( Parent )
 	{
 		SenderRef = Parent->GetConnectionRef( FromAddr );
+	}
+	else
+	{
+		//	gr: should this return SOMETHING? is a buffer size of 0 not enough?
+		SenderRef = SoyRef("Unknown");
 	}
 	
 	//	resize buffer to reflect real contents size

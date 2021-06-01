@@ -1248,7 +1248,7 @@ std::string Platform::GetAppResourcesDirectory()
 #endif
 
 
-#if !defined(TARGET_IOS)
+#if !defined(TARGET_IOS)&&!defined(TARGET_OSX)
 std::string	Platform::GetDocumentsDirectory()
 {
 	Soy_AssertTodo();

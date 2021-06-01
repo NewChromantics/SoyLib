@@ -155,7 +155,7 @@ public:
 
 	SoyRef		AllocConnectionRef();
 	void		ListenTcp(int Port);
-	void		ListenUdp(int Port, bool SaveListeningConnection);
+	void		ListenUdp(int Port, bool SaveListeningConnection,bool Broadcast);
 	SoyRef		WaitForClient();
 	SoyRef		Connect(const char* Hostname, uint16 Port);
 	SoyRef		UdpConnect(const char* Hostname,uint16 Port);	//	this doesn't "do" a connect, but fakes one as a success, and starts listening
@@ -181,12 +181,13 @@ public:
 
 protected:
 	SoyRef		GetConnectionRef(const SoySockAddr& SockAddr);	//	get/alloc client reference to this address
-	
+
 private:
-	void		CreateTcp(bool Blocking=false, sa_family_t SocketType=AF_INET); // default to IPv4 socket family type
-	void		CreateUdp(bool Broadcast, sa_family_t SocketType=AF_INET);
+	void		CreateTcp(bool Blocking,sa_family_t SocketType=AF_INET); // default to IPv4 socket family type
+	void		CreateUdp(bool Blocking,bool Broadcast, sa_family_t SocketType=AF_INET);
 	SoyRef		OnConnection(SoySocketConnection Connection);
 	void		Bind(uint16 Port,SoySockAddr& outSockAddr);
+	void		SetBlocking(bool Blocking);
 
 public:
 	std::function<void(SoyRef)>						mOnConnect;

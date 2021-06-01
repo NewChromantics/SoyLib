@@ -321,9 +321,18 @@ public:
 			memcpy( pNewData, CArray, CARRAYSIZE * sizeof(T) );
 		}
 	}
+	
+	void PopFront(size_t Count,ArrayBridge<uint8_t>&& Output)
+	{
+		SoyArray_CheckBounds( Count, *this );
+		Output.SetSize(Count);
+		Output.Copy( *this, Count );
+		RemoveBlock( 0, Count );
+	}
 
 	T& PopBack()
 	{
+		//	return the last element without reallocating, but resizing
 		SoyArray_CheckBounds(moffset,*this);
 		return mdata[--moffset];
 	}
