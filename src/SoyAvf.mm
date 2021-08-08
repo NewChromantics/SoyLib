@@ -860,7 +860,7 @@ std::string Avf::GetPixelFormatString(OSType Format)
 	{
 		Soy::TFourcc Fourcc(Format);
 		std::stringstream Output;
-		Output << "Unknown format " << Fourcc;
+		Output << "<Unknown format " << Fourcc << ">";
 		return Output.str();
 	}
 
@@ -976,6 +976,7 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 #if defined(TARGET_OSX)
 	//	gr: hack, cannot create RGBA pixel buffer on OSX. do a last-min conversion here, but ideally it's done beforehand
 	//		REALLY ideally we can go from texture to CVPixelBuffer
+	//	gr: this is the same case on IOS... I'm starting to think we should ditch this and caller should fix at higher level, maybe.
 	if ( Image.GetFormat() == SoyPixelsFormat::RGBA && PixelFormatType == kCVPixelFormatType_32RGBA )
 	{
 		//std::Debug << "CVPixelBufferCreateWithBytes will fail with RGBA, forcing BGRA" << std::endl;
@@ -1092,6 +1093,13 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 		
 		//	just using pixels directly
 		auto Result = CVPixelBufferCreateWithBytes( PixelBufferAllocator, Image.GetWidth(), Image.GetHeight(), PixelFormatType, Pixels, BytesPerRow, PixelReleaseCallback, ReleaseContext, PixelBufferAttributes, &PixelBuffer );
+		if ( Result != noErr )
+		{
+			auto PixelFormatString = GetPixelFormatString(PixelFormatType);
+			std::stringstream Error;
+			Error << "CVPixelBufferCreateWithBytes(" << Image.GetWidth() << "x" << Image.GetHeight() << " pixelformat=" << PixelFormatString << " ImageFormat=" << Image.GetFormat();
+			Avf::IsOkay( Result, Error.str() );
+		}
 		Avf::IsOkay( Result, "CVPixelBufferCreateWithBytes");
 	}
 	
