@@ -973,16 +973,15 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 	OSType PixelFormatType = GetPlatformPixelFormat( Image.GetFormat() );
 	void* ReleaseContext = nullptr;
 	
-#if defined(TARGET_OSX)
 	//	gr: hack, cannot create RGBA pixel buffer on OSX. do a last-min conversion here, but ideally it's done beforehand
 	//		REALLY ideally we can go from texture to CVPixelBuffer
-	//	gr: this is the same case on IOS... I'm starting to think we should ditch this and caller should fix at higher level, maybe.
+	//	gr: this is the same case on ios. Now I think higher level should fix it, so add an annoying warning
+	//		all they need to do is pass in 'BGRA' instead of 'RGBA' in the meta
 	if ( Image.GetFormat() == SoyPixelsFormat::RGBA && PixelFormatType == kCVPixelFormatType_32RGBA )
 	{
-		//std::Debug << "CVPixelBufferCreateWithBytes will fail with RGBA, forcing BGRA" << std::endl;
+		std::Debug << "CVPixelBufferCreateWithBytes will fail with RGBA, forcing BGRA" << std::endl;
 		PixelFormatType = kCVPixelFormatType_32BGRA;
 	}
-#endif
 	
 	BufferArray<std::shared_ptr<SoyPixelsImpl>,3> Planes;
 	Image.SplitPlanes( GetArrayBridge(Planes));
