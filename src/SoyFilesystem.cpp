@@ -10,6 +10,7 @@
 
 #if defined(TARGET_LINUX)
 #include <filesystem>
+#include <pwd.h>
 #endif
 
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
@@ -1251,14 +1252,26 @@ std::string Platform::GetAppResourcesDirectory()
 #if !defined(TARGET_IOS)&&!defined(TARGET_OSX)
 std::string	Platform::GetDocumentsDirectory()
 {
-	Soy_AssertTodo();
+	const char *homedir;
+
+	if ((homedir = getenv("HOME")) == NULL)
+    	homedir = getpwuid(getuid())->pw_dir;
+
+	return homedir;
 }
 #endif
 
+#if defined(TARGET_LINUX)
+std::string	Platform::GetTempDirectory()
+{
+	return std::filesystem::temp_directory_path();
+}
+#else
 std::string	Platform::GetTempDirectory()
 {
 	Soy_AssertTodo();
 }
+#endif
  
 std::string	Platform::GetCacheDirectory()
 {

@@ -673,7 +673,7 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 	std::thread::native_handle_type CurrentThread = SoyThread::GetCurrentThreadNativeHandle();
 	if ( CurrentThread != ThreadId )
 	{
-		std::Debug << "Trying to change thread name from " << OldThreadName << " to " << Name << ", out-of-thread" << std::endl;
+		//std::Debug << "Trying to change thread name from " << OldThreadName << " to " << Name << ", out-of-thread" << std::endl;
 		return;
 	}
 	auto Result = pthread_setname_np( Name.c_str() );

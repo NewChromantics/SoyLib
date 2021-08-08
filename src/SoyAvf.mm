@@ -21,6 +21,28 @@
 
 
 
+#if defined(__OBJC__)
+SoyTime Soy::Platform::GetTime(CMTime Time)
+{
+	if ( CMTIME_IS_INVALID( Time ) )
+		return SoyTime();
+	
+	//	missing CMTimeGetSeconds ? link to the CoreMedia framework :)
+	Float64 TimeSec = CMTimeGetSeconds(Time);
+	UInt64 TimeMs = 1000.f*TimeSec;
+	return SoyTime( std::chrono::milliseconds(TimeMs) );
+}
+#endif
+
+
+#if defined(__OBJC__)
+CMTime Soy::Platform::GetTime(SoyTime Time)
+{
+	return CMTimeMake( Time.mTime, 1000 );
+}
+#endif
+
+
 #define CV_VIDEO_TYPE_META(Enum,SoyFormat)	TCvVideoTypeMeta( Enum, #Enum, SoyFormat )
 #define CV_VIDEO_INVALID_ENUM		0
 class TCvVideoTypeMeta
