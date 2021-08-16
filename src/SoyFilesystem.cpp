@@ -1250,6 +1250,21 @@ std::string Platform::GetAppResourcesDirectory()
 }
 #endif
 
+#if defined(TARGET_WINDOWS)
+std::string	Platform::GetDocumentsDirectory()
+{
+	//	todo:
+	//	https://stackoverflow.com/a/54562505/355753
+	//	https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath
+	/*
+	std::string path;
+    char szPath[MAX_PATH+1] = {};
+    if (SHGetFolderPathA(NULL, CSIDL_MYDOCUMENTS, NULL, SHGFP_TYPE_CURRENT, szPath) == S_OK)
+        path = PathAddBackslashA(szPath);
+        */
+	return "";
+}
+#endif
 
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 std::string	Platform::GetDocumentsDirectory()
