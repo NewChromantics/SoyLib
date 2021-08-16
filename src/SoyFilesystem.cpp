@@ -10,7 +10,6 @@
 
 #if defined(TARGET_LINUX)
 #include <filesystem>
-#include <pwd.h>
 #endif
 
 #if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
@@ -20,6 +19,9 @@
 #include <limits.h>	//	PATH_MAX
 //	gr: jetson seems to be missing PATH_MAX in limits.h...
 #include <linux/limits.h>	//	PATH_MAX
+
+//	getpasswd and getuid
+#include <pwd.h>
 #endif
 
 #if defined(TARGET_OSX)
@@ -1249,15 +1251,25 @@ std::string Platform::GetAppResourcesDirectory()
 #endif
 
 
-#if !defined(TARGET_IOS)&&!defined(TARGET_OSX)
+#if defined(TARGET_LINUX)||defined(TARGET_ANDROID)
 std::string	Platform::GetDocumentsDirectory()
 {
-	const char *homedir;
+	const char* HomeDir = getenv("HOME");
 
-	if ((homedir = getenv("HOME")) == NULL)
-    	homedir = getpwuid(getuid())->pw_dir;
+	if ( !HomeDir )
+	{
+		auto UserId = getuid();	//	user id of calling process
+		auto* Passwd = getpwuid(UserId);	//	passwd is a user-struct of info
+		if ( Passwd )
+		{
+			HomeDir = Passwd->pw_dir;
+		}
+	}
+	
+	if ( !HomeDir )
+		HomeDir = "";
 
-	return homedir;
+	return HomeDir;
 }
 #endif
 
