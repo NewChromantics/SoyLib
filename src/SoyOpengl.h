@@ -5,6 +5,14 @@
 #include "SoyGraphics.h"
 
 
+//	these are the includes in popengine/LinuxDrm/Egl
+//	fix that... to use SoyOpengl? not sure
+#if defined(TARGET_LINUX)
+#define OPENGL_ES	2
+#include <GLES2/gl2.h>
+#include <EGL/egl.h>
+#endif
+
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
 
 //	use latest SDK, but helps narrow down what might need supporting if we use ES2 headers
@@ -328,7 +336,7 @@ public:
 	mMeta			( Meta ),
 	mType			( Type ),
 	mAutoRelease	( false ),
-#if defined(TARGET_ANDROID)
+#if defined(TARGET_ANDROID)||defined(TARGET_LINUX)
 	mTexture		( static_cast<GLuint>(reinterpret_cast<GLuint64>(TexturePtr)) )
 	//mTexture		( reinterpret_cast<GLuint>(TexturePtr) )
 #elif defined(TARGET_OSX)
