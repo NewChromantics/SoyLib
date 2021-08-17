@@ -448,10 +448,13 @@ void Opengl::TContext::BindSyncExtension()
 {
 	auto BindFunctions = [&](bool ImplicitSupport)
 	{
+	//	these don't exist in gles 2
+	#if (OPENGL_ES!=2)
 		BindFunction( FenceSync, {"glFenceSync"}, glFenceSync );
 		BindFunction( DeleteSync, {"glDeleteSync"}, glDeleteSync );
 		BindFunction( IsSync, {"glIsSync"}, glIsSync );
 		BindFunction( ClientWaitSync, {"glClientWaitSync"}, glClientWaitSync );
+	#endif
 	};
 
 	auto BindUnsupportedFunctions = []

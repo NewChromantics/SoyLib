@@ -28,6 +28,21 @@
 
 #endif
 
+//	not present in gles 2, declaring to keep code cleaner below
+#if OPENGL_ES==2
+#define GL_UNSIGNED_INT_VEC2              0x8DC6
+#define GL_UNSIGNED_INT_VEC3              0x8DC7
+#define GL_UNSIGNED_INT_VEC4              0x8DC8
+#define GL_RGBA16F                        0x881A
+#define GL_R8                             0x8229
+#define GL_RED                            0x1903
+#endif
+
+//	sometimes supported in extensions, but not defined in some gl headers
+#if !defined(GL_HALF_FLOAT_OES)
+#define GL_HALF_FLOAT_OES	0x8d61
+#endif
+
 typedef SoyGraphics::TUniform TUniform;
 
 std::ostream& operator<<(std::ostream& out,const Opengl::TTextureMeta& MetaAndType)
@@ -1265,13 +1280,14 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 		auto ChannelCount = Pixels.GetChannels();
 
 		FrameBuffer.Bind();
+#if defined(GL_PACK_ROW_LENGTH)
 		//	make sure no padding is applied so glGetTexImage & glReadPixels doesn't override tail memory
 		glPixelStorei(GL_PACK_ROW_LENGTH,0);	//	gr: not sure this had any effect, but implemented anyway
 		Opengl_IsOkay();
+#endif
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		Opengl_IsOkay();
 		
-#define GL_HALF_FLOAT_OES	0x8d61
 		//	GL_RGBA16F	//	unity uses this as the colour for half floats
 		//	GL_HALF_FLOAT for ES3	implicit type is still GL_RGBA
 
@@ -1680,9 +1696,11 @@ void Opengl::TTexture::Write(const SoyPixelsImpl& SourcePixels,SoyGraphics::TTex
 	//	if there's a crash below, (reading out of bounds) may be beause opengl is expecting padding of 2/4/8
 	//	our pixels are not padded!
 	//	make sure no padding is applied so glGetTexImage & glReadPixels doesn't override tail memory
+#if defined(GL_PACK_ROW_LENGTH)
 	//glPixelStorei(GL_PACK_ROW_LENGTH, FinalPixels.GetWidth() );	//	gr: not sure this had any effect, but implemented anyway
 	glPixelStorei(GL_PACK_ROW_LENGTH, 0 );	//	gr: not sure this had any effect, but implemented anyway
 	Opengl::IsOkay("glPixelStorei(GL_PACK_ROW_LENGTH,0)");
+#endif
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
 	Opengl::IsOkay("glPixelStorei(GL_PACK_ALIGNMENT,1)");
 
@@ -2268,6 +2286,7 @@ std::function<void(GLuint,GLint,GLsizei,const int32_t*)> GetglProgramUniformXv<i
 template<>
 std::function<void(GLuint,GLint,GLsizei,const uint32_t*)> GetglProgramUniformXv<uint32_t>(SoyGraphics::TElementType::Type ElementType)
 {
+#if !(OPENGL_ES==2)
 	switch ( ElementType )
 	{
 		case SoyGraphics::TElementType::Uint:		return glProgramUniform1uiv;
@@ -2276,6 +2295,7 @@ std::function<void(GLuint,GLint,GLsizei,const uint32_t*)> GetglProgramUniformXv<
 		case SoyGraphics::TElementType::Uint4:		return glProgramUniform4uiv;
 		default:break;
 	}
+#endif
 	
 	std::stringstream Error;
 	Error << "Don't know which glUniformXv to use for  " << ElementType;
@@ -2613,7 +2633,9 @@ const std::initializer_list<GLenum> Opengl1ChannelFormats =
 
 const std::initializer_list<GLenum> Opengl2ChannelFormats =
 {
+#if defined(GL_RG)
 	GL_RG,
+#endif
 #if defined(GL_LUMINANCE_ALPHA)
 	GL_LUMINANCE_ALPHA,
 #endif
@@ -2688,12 +2710,14 @@ const Array<TPixelFormatMapping>& Opengl::GetPixelFormatMap()
 #else
 		TPixelFormatMapping( SoyPixelsFormat::BGR,			{ GL_RGB	} ),
 #endif
-		
+
+//	no float formats in ES2? maybe only via extensions		
+#if !(OPENGL_ES==2)
 		TPixelFormatMapping( SoyPixelsFormat::Float1,		{GL_RED},	{GL_R32F} ),
 		TPixelFormatMapping( SoyPixelsFormat::Float2,		{GL_RG},	{GL_RG32F} ),
 		TPixelFormatMapping( SoyPixelsFormat::Float3,		{GL_RGB},	{GL_RGB32F}	),
 		TPixelFormatMapping( SoyPixelsFormat::Float4,		{GL_RGBA},	{GL_RGBA32F} ),
-		
+#endif
 	};
 	static Array<TPixelFormatMapping> PixelFormatMap( _PixelFormatMap );
 	return PixelFormatMap;
