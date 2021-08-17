@@ -682,7 +682,12 @@ void SoyThread::SetThreadName(const std::string& _Name,std::thread::native_handl
 	auto ThreadSelf = pthread_self();
 	if ( ThreadId != ThreadSelf )
 		ThreadId = ThreadSelf;
-	auto Result = pthread_setname_np( ThreadId, Name.c_str() );
+
+	//	linux has a thread length limit, this is the easiest way to crop to it
+	//	gr: _NTO_THREAD_NAME_MAX is apparently the macro for the length,but I can't find it
+	char ThreadNameBuffer[16] = {0};	//	including terminator
+	Soy::StringToBuffer( Name, ThreadNameBuffer );
+	auto Result = pthread_setname_np( ThreadId, ThreadNameBuffer );
 #endif
 	
 	if ( Result == 0 )
