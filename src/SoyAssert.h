@@ -97,8 +97,8 @@ namespace Soy
 	
 	inline bool	Assert(bool Condition,std::function<std::string()>&& ErrorMessageFunc)
 	{
-		__thread static std::function<std::string()>* LastFunc = nullptr;
-		__thread static TErrorMessageFunc ErrorFunc = nullptr;
+		static __thread std::function<std::string()>* LastFunc = nullptr;
+		static __thread TErrorMessageFunc ErrorFunc = nullptr;
 		if ( !ErrorFunc )
 		{
 			ErrorFunc = []
@@ -113,8 +113,8 @@ namespace Soy
 	//	helpful wrappers for common string types
 	inline bool	Assert(bool Condition,const std::string& ErrorMessage)
 	{
-		__thread static const std::string* LastErrorMessage = nullptr;
-		__thread static TErrorMessageFunc ErrorFunc = nullptr;
+		static __thread const std::string* LastErrorMessage = nullptr;
+		static __thread TErrorMessageFunc ErrorFunc = nullptr;
 		if ( !ErrorFunc )
 		{
 			ErrorFunc = []()->std::string
@@ -128,8 +128,8 @@ namespace Soy
 	
 	inline bool	Assert(bool Condition, std::stringstream&& ErrorMessage )
 	{
-		__thread static std::stringstream* LastErrorMessage = nullptr;
-		__thread static TErrorMessageFunc ErrorFunc = nullptr;
+		static __thread std::stringstream* LastErrorMessage = nullptr;
+		static __thread TErrorMessageFunc ErrorFunc = nullptr;
 		if ( !ErrorFunc )
 		{
 			ErrorFunc = []
@@ -144,8 +144,8 @@ namespace Soy
 	bool	Assert(bool Condition, std::ostream& ErrorMessage);
 	inline bool	Assert(bool Condition, std::stringstream& ErrorMessage)
 	{
-		__thread static std::stringstream* LastErrorMessage = nullptr;
-		__thread static TErrorMessageFunc ErrorFunc = nullptr;
+		static __thread std::stringstream* LastErrorMessage = nullptr;
+		static __thread TErrorMessageFunc ErrorFunc = nullptr;
 		if ( !ErrorFunc )
 		{
 			ErrorFunc = []
@@ -161,8 +161,8 @@ namespace Soy
 	inline bool	Assert(bool Condition,const char* ErrorMessage)
 	{
 		//	lambdas with capture are expensive to construct and destruct
-		__thread static const char* LastErrorMessage = nullptr;
-		__thread static TErrorMessageFunc ErrorFunc = nullptr;
+		static __thread const char* LastErrorMessage = nullptr;
+		static __thread TErrorMessageFunc ErrorFunc = nullptr;
 		if ( !ErrorFunc )
 		{
 			ErrorFunc = []

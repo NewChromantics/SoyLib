@@ -6,8 +6,8 @@
 
 bool Soy::Assert(bool Condition, std::ostream& ErrorMessage )
 {
-	__thread static std::ostream* LastErrorMessage = nullptr;
-	__thread static Soy::TErrorMessageFunc ErrorFunc = nullptr;
+	static __thread std::ostream* LastErrorMessage = nullptr;
+	static __thread Soy::TErrorMessageFunc ErrorFunc = nullptr;
 	
 	if ( !ErrorFunc )
 	{
