@@ -5,52 +5,47 @@
 #include "SoyGraphics.h"
 
 
-//	these are the includes in popengine/LinuxDrm/Egl
-//	fix that... to use SoyOpengl? not sure
-#if defined(TARGET_LINUX)
-#define OPENGL_ES	2
-#include <GLES2/gl2.h>
-#endif
-
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
-
-//	use latest SDK, but helps narrow down what might need supporting if we use ES2 headers
-#define OPENGL_ES	3
-//#define OPENGL_ES	2
-
+	#define OPENGL_ES	3
+#elif defined(TARGET_LINUX)
+	#define OPENGL_ES	2
 #elif defined(TARGET_OSX)
 	#define OPENGL_CORE	3	//	need 3 for VBA's
 #elif defined(TARGET_WINDOWS)
 	#define OPENGL_CORE	3
 #endif
 
-//#define GL_NONE				GL_NO_ERROR	//	declared in GLES3
 
-#if defined(TARGET_ANDROID) && (OPENGL_ES==3)
-#include <GLES3/gl3.h>
-#include <GLES3/gl3ext.h>
-//#include <GLES/glext.h>	//	glclampx unknown type with android r23 (okay on r16)
-#endif
 
-#if defined(TARGET_ANDROID) && (OPENGL_ES==2)
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
-#include <GLES/glext.h>	//	need for EOS
+#if (OPENGL_ES==3)
+
+	#if defined(TARGET_IOS)
+		#include <OpenGLES/ES3/gl.h>
+		#include <OpenGLES/ES3/glext.h>
+	#else
+		#include <GLES3/gl3.h>
+		#include <GLES3/gl3ext.h>	//	glclampx unknown type with android r23 (okay on r16)
+	#endif
+
+#elif (OPENGL_ES==2)
+
+	#if defined(TARGET_IOS)
+		#include <OpenGLES/ES2/gl.h>
+		#include <OpenGLES/ES2/glext.h>
+	#else
+		#include <GLES2/gl2.h>
+		#define GL_GLEXT_PROTOTYPES
+		#include <GLES2/gl2ext.h>	//	glclampx unknown type with android r23 (okay on r16)
+	#endif
+	#if defined(TARGET_ANDROID)
+		#include <GLES/glext.h>	//	need for EOS on android
+	#endif
+
 #endif
 
 #if defined(TARGET_OSX) && (OPENGL_CORE==3)
 #include <Opengl/gl3.h>
 #include <Opengl/gl3ext.h>
-#endif
-
-#if defined(TARGET_IOS) && (OPENGL_ES==3)
-#include <OpenGLES/ES3/gl.h>
-#include <OpenGLES/ES3/glext.h>
-#endif
-
-#if defined(TARGET_IOS) && (OPENGL_ES==2)
-#include <OpenGLES/ES2/gl.h>
-#include <OpenGLES/ES2/glext.h>
 #endif
 
 #if defined(TARGET_WINDOWS)

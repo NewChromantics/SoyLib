@@ -414,12 +414,12 @@ void Opengl::TContext::BindVertexArrayObjectsExtension()
 		auto Real_GenVertexArraysy = ( ImplicitSupport ) ? glGenVertexArrays : glGenVertexArraysAPPLE;
 		auto Real_DeleteVertexArrays = ( ImplicitSupport ) ? glDeleteVertexArrays : glDeleteVertexArraysAPPLE;
 		auto Real_IsVertexArray = ( ImplicitSupport ) ? glIsVertexArray : glIsVertexArrayAPPLE;
-#elif defined(TARGET_WINDOWS) || defined(TARGET_ANDROID) || (defined(TARGET_IOS) && (OPENGL_ES==3))
+#elif defined(TARGET_WINDOWS) || (OPENGL_ES==3)
 		auto Real_BindVertexArray = glBindVertexArray;
 		auto Real_GenVertexArraysy = glGenVertexArrays;
 		auto Real_DeleteVertexArrays = glDeleteVertexArrays;
 		auto Real_IsVertexArray = glIsVertexArray;
-#elif defined(TARGET_IOS) && (OPENGL_ES==2)
+#elif (OPENGL_ES==2)
 		auto Real_BindVertexArray = glBindVertexArrayOES;
 		auto Real_GenVertexArraysy = glGenVertexArraysOES;
 		auto Real_DeleteVertexArrays = glDeleteVertexArraysOES;
