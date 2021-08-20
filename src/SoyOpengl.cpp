@@ -5,7 +5,7 @@
 #include <regex>
 
 
-#if defined(TARGET_IOS)
+#if defined(OPENGL_ES)
 #define glProgramUniformMatrix4fv	glProgramUniformMatrix4fvEXT
 
 #define glProgramUniform1fv			glProgramUniform1fvEXT
@@ -24,9 +24,9 @@
 #define glProgramUniform4uiv		glProgramUniform4uivEXT
 
 #define glProgramUniform1i			glProgramUniform1iEXT
-
-
 #endif
+
+
 
 //	not present in gles 2, declaring to keep code cleaner below
 #if OPENGL_ES==2
@@ -1132,7 +1132,7 @@ const uint8* Opengl::TPbo::LockBuffer()
 	GLsizeiptr Length = mMeta.GetDataSize();
 	GLbitfield Access = GL_MAP_READ_BIT;
 	auto* Buffer = glMapBufferRange( GL_PIXEL_PACK_BUFFER, Offset, Length, Access );
-#elif defined(TARGET_ANDROID)||defined(TARGET_IOS)
+#elif defined(OPENGL_ES)
 	//	gr: come back to this... when needed, I think it's supported
 	const uint8* Buffer = nullptr;
 #else
@@ -1148,7 +1148,7 @@ void Opengl::TPbo::UnlockBuffer()
 {
 #if OPENGL_ES==3
 	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-#elif defined(TARGET_IOS) || defined(TARGET_ANDROID)
+#elif defined(OPENGL_ES)
 	throw Soy::AssertException("Lock buffer should not have succeeded on ES");
 #else
 	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
@@ -1356,12 +1356,14 @@ void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFor
 	else
 	{
 		//	no glGetTexImage on opengl ES
-#if defined(TARGET_IOS)||defined(TARGET_ANDROID)
+#if defined(OPENGL_ES)
 		throw Soy::AssertException("glGetTexImage not supported on opengl ES");
 #else
+#if defined(GL_PACK_ROW_LENGTH)
 		//	make sure no padding is applied so glGetTexImage & glReadPixels doesn't override tail memory
 		glPixelStorei(GL_PACK_ROW_LENGTH,0);	//	gr: not sure this had any effect, but implemented anyway
 		Opengl_IsOkay();
+#endif
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		Opengl_IsOkay();
 		
@@ -2241,6 +2243,7 @@ std::function<void(GLuint,GLint,GLsizei,const TYPE*)> GetglProgramUniformXv(SoyG
 }
 
 
+
 template<>
 std::function<void(GLuint,GLint,GLsizei,const float*)> GetglProgramUniformXv<float>(SoyGraphics::TElementType::Type ElementType)
 {
@@ -2259,7 +2262,7 @@ std::function<void(GLuint,GLint,GLsizei,const float*)> GetglProgramUniformXv<flo
 		case SoyGraphics::TElementType::Float4x4:	return glProgramUniform4x4fv;
 		default:break;
 	}
-	
+
 	std::stringstream Error;
 	Error << "Don't know which glUniformXv to use for  " << ElementType;
 	throw Soy::AssertException(Error.str());
@@ -2286,7 +2289,6 @@ std::function<void(GLuint,GLint,GLsizei,const int32_t*)> GetglProgramUniformXv<i
 template<>
 std::function<void(GLuint,GLint,GLsizei,const uint32_t*)> GetglProgramUniformXv<uint32_t>(SoyGraphics::TElementType::Type ElementType)
 {
-#if !(OPENGL_ES==2)
 	switch ( ElementType )
 	{
 		case SoyGraphics::TElementType::Uint:		return glProgramUniform1uiv;
@@ -2295,7 +2297,6 @@ std::function<void(GLuint,GLint,GLsizei,const uint32_t*)> GetglProgramUniformXv<
 		case SoyGraphics::TElementType::Uint4:		return glProgramUniform4uiv;
 		default:break;
 	}
-#endif
 	
 	std::stringstream Error;
 	Error << "Don't know which glUniformXv to use for  " << ElementType;
@@ -2382,7 +2383,7 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,bool Bool)
 {
 	auto UniformIndex = size_cast<GLint>( Uniform.mIndex );
 	auto BoolValue = static_cast<GLint>(Bool);
-	
+
 	glProgramUniform1i( mProgram.mName, UniformIndex, BoolValue );
 	Opengl::IsOkay("SetUniform(bool)");
 }
@@ -2395,6 +2396,7 @@ void Opengl::TShader::SetUniform(const SoyGraphics::TUniform& Uniform,int32_t In
 	
 	glProgramUniform1i( mProgram.mName, UniformIndex, IntValue );
 	Opengl::IsOkay("SetUniform(int32_t)");
+	Opengl::IsOkay("SetUniform(bool)");
 }
 
 
@@ -2859,24 +2861,19 @@ void Opengl::ClearColour(Soy::TRgb Colour,float Alpha)
 }
 
 
-Opengl::TSync::TSync(bool Create) :
-	mSyncObject	( nullptr )
+Opengl::TSync::TSync(bool Create)
 {
 	//	gr: swap this for Context::IsSupported
 	if ( Create )
-#if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	{
+#if (OPENGL_ES==3) || (OPENGL_CORE==3)
 		if ( Opengl::FenceSync )
 		{
 			mSyncObject = Opengl::FenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
 			Opengl::IsOkay("glFenceSync");
 		}
-	}
-#else
-	{
-		mSyncObject = true;
-	}
 #endif
+	}
 }
 
 void Opengl::TSync::Delete()
@@ -2886,11 +2883,9 @@ void Opengl::TSync::Delete()
 	{
 		Opengl::DeleteSync( mSyncObject );
 		Opengl::IsOkay("glDeleteSync");
-		mSyncObject = nullptr;
 	}
-#else
-	mSyncObject = false;
 #endif
+	mSyncObject = nullptr;
 }
 
 void Opengl::TSync::Wait(const char* TimerName)
