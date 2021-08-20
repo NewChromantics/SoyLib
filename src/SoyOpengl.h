@@ -10,7 +10,6 @@
 #if defined(TARGET_LINUX)
 #define OPENGL_ES	2
 #include <GLES2/gl2.h>
-#include <EGL/egl.h>
 #endif
 
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
@@ -167,11 +166,7 @@ public:
 	explicit TSync(TSync&& Move)	{	*this = std::move(Move);	}
 	~TSync()						{	Delete();	}
 	
-#if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	bool	IsValid() const			{ return mSyncObject != nullptr; }
-#else
-	bool	IsValid() const			{ return mSyncObject; }
-#endif
 	void	Delete();
 	void	Wait(const char* TimerName=nullptr);
 	
@@ -192,9 +187,9 @@ public:
 	
 public:
 #if (OPENGL_ES==3) || (OPENGL_CORE==3)
-	GLsync				mSyncObject;
+	GLsync				mSyncObject = nullptr;
 #else
-	bool				mSyncObject;	//	dummy for cleaner code
+	void*				mSyncObject = nullptr;	//	dummy for cleaner code
 #endif
 };
 
