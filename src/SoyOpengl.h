@@ -5,6 +5,13 @@
 #include "SoyGraphics.h"
 
 
+//	these are the includes in popengine/LinuxDrm/Egl
+//	fix that... to use SoyOpengl? not sure
+#if defined(TARGET_LINUX)
+#define OPENGL_ES	2
+#include <GLES2/gl2.h>
+#endif
+
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
 
 //	use latest SDK, but helps narrow down what might need supporting if we use ES2 headers
@@ -159,11 +166,7 @@ public:
 	explicit TSync(TSync&& Move)	{	*this = std::move(Move);	}
 	~TSync()						{	Delete();	}
 	
-#if (OPENGL_ES==3) || (OPENGL_CORE==3)
 	bool	IsValid() const			{ return mSyncObject != nullptr; }
-#else
-	bool	IsValid() const			{ return mSyncObject; }
-#endif
 	void	Delete();
 	void	Wait(const char* TimerName=nullptr);
 	
@@ -184,9 +187,9 @@ public:
 	
 public:
 #if (OPENGL_ES==3) || (OPENGL_CORE==3)
-	GLsync				mSyncObject;
+	GLsync				mSyncObject = nullptr;
 #else
-	bool				mSyncObject;	//	dummy for cleaner code
+	void*				mSyncObject = nullptr;	//	dummy for cleaner code
 #endif
 };
 
@@ -328,7 +331,7 @@ public:
 	mMeta			( Meta ),
 	mType			( Type ),
 	mAutoRelease	( false ),
-#if defined(TARGET_ANDROID)
+#if defined(TARGET_ANDROID)||defined(TARGET_LINUX)
 	mTexture		( static_cast<GLuint>(reinterpret_cast<GLuint64>(TexturePtr)) )
 	//mTexture		( reinterpret_cast<GLuint>(TexturePtr) )
 #elif defined(TARGET_OSX)
