@@ -5,7 +5,8 @@
 #include <regex>
 
 
-#if defined(OPENGL_ES)
+//	gr: some of these are in GLES2, some in 3 and some in 3.2
+#if (OPENGL_ES==2)
 #define glProgramUniformMatrix4fv	glProgramUniformMatrix4fvEXT
 
 #define glProgramUniform1fv			glProgramUniform1fvEXT

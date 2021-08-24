@@ -8,7 +8,7 @@
 #if defined(TARGET_ANDROID) || defined(TARGET_IOS)
 	#define OPENGL_ES	3
 #elif defined(TARGET_LINUX)
-	#define OPENGL_ES	2
+	#define OPENGL_ES	3
 #elif defined(TARGET_OSX)
 	#define OPENGL_CORE	3	//	need 3 for VBA's
 #elif defined(TARGET_WINDOWS)
@@ -23,7 +23,7 @@
 		#include <OpenGLES/ES3/gl.h>
 		#include <OpenGLES/ES3/glext.h>
 	#else
-		#include <GLES3/gl3.h>
+		#include <GLES3/gl32.h>
 		#include <GLES3/gl3ext.h>	//	glclampx unknown type with android r23 (okay on r16)
 	#endif
 
