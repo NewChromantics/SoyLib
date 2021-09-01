@@ -878,7 +878,8 @@ bool Platform::DirectoryExists(const std::string& Path)
 	}
 	catch(std::exception& e)
 	{
-		std::Debug << __PRETTY_FUNCTION__ << e.what() << std::endl;
+		//	gr: this doesn't need to print every time
+		//std::Debug << __PRETTY_FUNCTION__ << e.what() << std::endl;
 		return false;
 	}
 	//return ::PathIsDirectoryA(FullPath.c_str());
