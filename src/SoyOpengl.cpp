@@ -1112,13 +1112,7 @@ void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBr
 
 	static bool Profile = false;		//	execute all cases and find best (and show errors)
 	bool Success = false;
-	
-	//	minimise cost of lambda
-	static TTryCase* CurrentTry = nullptr;
-	std::function<void(const std::string&)> ExceptionContainer = [](const std::string& Error)
-	{
-		CurrentTry->mError = Error;
-	};
+
 	
 	for ( int i=0;	i<InternalTextureFormats.GetSize();	i++ )
 	{
@@ -1141,10 +1135,8 @@ void TryFunctionWithFormats(ArrayBridge<GLenum>&& InternalTextureFormats,ArrayBr
 			else
 			{
 				Function( Try.mInternalFormat, Try.mExternalFormat );
-			}
-			
-			CurrentTry = &Try;
-			Success |= Opengl::IsOkay("",ExceptionContainer);
+			}			
+			Success |= Opengl::IsOkay("",false);
 			
 			//	return immediately if we aren't profiling
 			if ( Success && !Profile )
