@@ -15,6 +15,7 @@
 #pragma warning(push)
 #pragma warning(disable: 4312)
 #endif
+#pragma clang diagnostic ignored "-Wcomma"
 #include "stb/stb_image.h"
 #if defined(TARGET_WINDOWS)
 #pragma warning(pop)

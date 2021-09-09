@@ -9,6 +9,7 @@
 //	we put all the miniZ stuff in it's own namespace
 namespace MiniZ
 {
+#pragma clang diagnostic ignored "-Wcomma"
 #include "miniz/miniz.h"
 
 	void	IsOkay(int MiniZResult, const char* Context);
