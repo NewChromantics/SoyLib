@@ -3,6 +3,7 @@
 
 #include "SoyArray.h"
 #include "SoyAssert.h"
+#include <algorithm>	//	std::min on windows
 
 
 //	gr: should this be a type of heap to be used on heaparray?...
