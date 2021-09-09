@@ -395,7 +395,7 @@ public:
 	virtual void		Start() override		{	Start( true );	}
 	void				Start(bool ThrowIfAlreadyStarted);
 	virtual void		Stop() override			{	SoyWorker::Stop();	SoyThread::Stop(false);	}
-	void				WaitToFinish()			{	SoyWorker::Stop();	SoyThread::Stop(true);	}
+	void				WaitToFinish()			{	Stop();	SoyThread::Stop(true); }	//	call any overloaded Stop(), then call the blocking thread
 
 	SoyThread&			GetThread()				{	return *this;	}
 	const SoyThread&	GetThread() const		{	return *this;	}
