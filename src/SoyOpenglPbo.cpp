@@ -283,3 +283,12 @@ void Opengl::TPbo::UnlockBuffer()
 
 
 
+void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat,bool Flip) const
+{
+	Soy_AssertTodo();
+}
+
+void Opengl::TTexture::Delete()
+{
+	Soy_AssertTodo();
+}

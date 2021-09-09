@@ -45,6 +45,7 @@ static std::string Platform_GetCurrentWorkingDirectory()
 #endif
 
 
+#if defined(TARGET_OSX) || defined(TARGET_LINUX) || defined(TARGET_ANDROID)
 void DebugEnvVar(const char* Key)
 {
 	try
@@ -57,6 +58,7 @@ void DebugEnvVar(const char* Key)
 		std::Debug << Key << "=" << e.what() << std::endl;
 	}
 }
+#endif
 
 
 

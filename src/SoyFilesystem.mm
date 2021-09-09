@@ -435,3 +435,19 @@ void Platform::GetExeArguments(ArrayBridge<std::string>&& Arguments)
 	//	skip 1st which is exe
 	NSArray_String_ForEach( ArgumentsNs, PushArgument, 1 );
 }
+
+std::string Platform::GetComputerName()
+{
+	return "Platform::GetComputerName";
+}
+
+void Platform::SetEnvVar(const char* Key,const char* Value)
+{
+	Soy_AssertTodo();
+}
+
+std::string	GetEnvVar(const char* Key)
+{
+	Soy_AssertTodo();
+}
+
