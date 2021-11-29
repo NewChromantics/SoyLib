@@ -283,12 +283,16 @@ void Opengl::TPbo::UnlockBuffer()
 
 
 
+#if !defined(TARGET_WINDOWS) // win32 still using SoyOpengl.cpp with this definition
 void Opengl::TTexture::Read(SoyPixelsImpl& Pixels,SoyPixelsFormat::Type ForceFormat,bool Flip) const
 {
 	Soy_AssertTodo();
 }
+#endif
 
+#if !defined(TARGET_WINDOWS) // win32 still using SoyOpengl.cpp with this definition
 void Opengl::TTexture::Delete()
 {
 	Soy_AssertTodo();
 }
+#endif
