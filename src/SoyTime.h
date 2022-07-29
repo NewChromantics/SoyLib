@@ -1,7 +1,7 @@
 #pragma once
 
 
-#include <iomanip>
+//#include <iomanip>
 #include "SoyTypes.h"
 #if defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_PS4)
 #include <sys/time.h>
@@ -89,7 +89,7 @@ public:	//	gr: temporarily public during android/ios merge
 };
 DECLARE_TYPE_NAME( SoyTime );
 
-
+/*	<iomanip> crashes the x86 emulator on windows 11 arm and setfill() is from that
 inline std::ostream& operator<< (std::ostream &out,const SoyTime &in)
 {
 	out << 'T' << std::setfill('0') << std::setw(9) << in.GetTime();
@@ -110,3 +110,4 @@ inline std::istream& operator>> (std::istream &in,SoyTime &out)
 	return in;
 }
 
+*/

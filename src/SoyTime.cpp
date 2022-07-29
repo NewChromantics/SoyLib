@@ -42,8 +42,9 @@ bool SoyTime::FromString(const std::string& String)
 
 std::string SoyTime::ToString() const
 {
+	throw std::runtime_error("Dont use this");
 	std::stringstream ss;
-	ss << (*this);
+	//ss << (*this);
 	return ss.str();
 }
 
