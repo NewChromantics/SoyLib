@@ -1629,7 +1629,7 @@ void JniMediaPlayer::Seek(SoyTime Time)
 	auto Duration = GetDuration();
 	if ( Duration == 0 )
 	{
-		std::Debug << __func__ << "(" << Time << ") skipped as duration is " << Duration << std::endl;
+		std::Debug << __func__ << "(" << Time.mTime << ") skipped as duration is " << Duration << std::endl;
 		return;
 	}
 	
