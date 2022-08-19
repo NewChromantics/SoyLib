@@ -400,7 +400,7 @@ public:
 	SoyThread&			GetThread()				{	return *this;	}
 	const SoyThread&	GetThread() const		{	return *this;	}
 //	std::thread::id		GetThreadId() const		{	return SoyThread::get_id();	}
-//	const std::string&	GetThreadName() const	{	return SoyThread::GetThreadName();	}
+	const std::string&	GetThreadName() const	{	return SoyThread::GetThreadName();	}
 	std::thread::native_handle_type	GetThreadNativeHandle() 	{	return SoyThread::GetThreadNativeHandle();	}
 
 protected:
