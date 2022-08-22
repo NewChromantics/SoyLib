@@ -85,8 +85,8 @@ namespace Soy
 
 namespace Soy
 {
-	void	SizeAssert_TooBig(uint64 Value,uint64 Max,const std::string& SmallType,const std::string& BigType);
-	void	SizeAssert_TooSmall(sint64 Value,sint64 Min,const std::string& SmallType,const std::string& BigType);
+	void	SizeAssert_TooBig(uint64 Value,uint64 Max,std::string_view SmallType,std::string_view BigType);
+	void	SizeAssert_TooSmall(sint64 Value,sint64 Min,std::string_view SmallType,std::string_view BigType);
 }
 
 
@@ -224,8 +224,8 @@ inline SMALLSIZE size_cast(BIGSIZE Size)
 #if defined(TARGET_ANDROID)
 	
 #else
-	auto Min = std::numeric_limits<SMALLSIZE>::min();
-	auto Max = std::numeric_limits<SMALLSIZE>::max();
+	constexpr auto Min = std::numeric_limits<SMALLSIZE>::min();
+	constexpr auto Max = std::numeric_limits<SMALLSIZE>::max();
 	if ( Size > Max )
 	{
 		Soy::SizeAssert_TooBig( Size, Max, Soy::GetTypeName<SMALLSIZE>(), Soy::GetTypeName<BIGSIZE>() );

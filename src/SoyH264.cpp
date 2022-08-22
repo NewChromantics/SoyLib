@@ -814,7 +814,7 @@ void H264::ConvertNaluPrefix(ArrayBridge<uint8_t>& Nalu,H264::NaluPrefix::Type N
 	throw Soy::AssertException("Expecting nalu size of 4");
 	
 	//	write over prefix
-	uint32_t Size32 = Nalu.GetDataSize() - NewPrefixSize;
+	uint32_t Size32 = size_cast<uint32_t>(Nalu.GetDataSize() - NewPrefixSize);
 	uint8_t* Size8s = reinterpret_cast<uint8_t*>(&Size32);
 	Nalu[0] = Size8s[3];
 	Nalu[1] = Size8s[2];
@@ -830,7 +830,7 @@ size_t H264::GetNextNaluOffset(const ArrayBridge<uint8_t>&& Data, size_t StartFr
 	//	detect 001
 	auto* DataPtr = Data.GetArray();
 	
-	for (int i = StartFrom; i < Data.GetDataSize()-3; i++)
+	for ( int i=size_cast<int>(StartFrom);	i< Data.GetDataSize()-3;	i++ )
 	{
 		if (DataPtr[i + 0] != 0)	continue;
 		if (DataPtr[i + 1] != 0)	continue;
@@ -926,7 +926,7 @@ H264NaluContent::Type H264::GetPacketType(const ArrayBridge<uint8_t>&& Data)
 	auto HeaderLength = GetNaluLength(Data);
 	auto TypeAndPriority = Data[HeaderLength];
 	auto Type = TypeAndPriority & 0x1f;
-	auto Priority = TypeAndPriority >> 5;
+	//auto Priority = TypeAndPriority >> 5;
 	
 	auto TypeEnum = static_cast<H264NaluContent::Type>(Type);
 	return TypeEnum;

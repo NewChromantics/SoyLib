@@ -42,10 +42,7 @@ bool SoyTime::FromString(const std::string& String)
 
 std::string SoyTime::ToString() const
 {
-	throw std::runtime_error("Dont use this");
-	std::stringstream ss;
-	//ss << (*this);
-	return ss.str();
+	throw std::runtime_error("Dont use SoyTime::ToString");
 }
 
 SoyTime SoyTime::UpTime()
@@ -100,6 +97,8 @@ SoyTime SoyTime::Now()
 #elif defined(TARGET_OSX)||defined(TARGET_IOS)||defined(TARGET_ANDROID)||defined(TARGET_PS4)||defined(TARGET_LUMIN)||defined(TARGET_LINUX)
 	struct timeval now;
 	auto Result = gettimeofday( &now, nullptr );
+	if ( Result != 0 )
+		Platform::ThrowLastError("gettimeofday");
 	auto MilliSecs = (unsigned long long) now.tv_usec/1000 +
 		(unsigned long long) now.tv_sec*1000;
 #else 

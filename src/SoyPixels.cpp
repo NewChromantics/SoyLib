@@ -609,6 +609,7 @@ void ConvertFormat_Uvy844_To_Yuv_8_8_8(ArrayInterface<uint8_t>& PixelsArray, Soy
 			LumaArray[i] = l;
 		}
 		
+		/*
 		//	testing writing chroma u/v
 		if ( false )
 		{
@@ -617,6 +618,7 @@ void ConvertFormat_Uvy844_To_Yuv_8_8_8(ArrayInterface<uint8_t>& PixelsArray, Soy
 			uint8_t u = UvyArray[pi+2];
 			LumaArray[i] = u;
 		}
+		*/
 	}
 	
 	//	write chromas
@@ -826,7 +828,7 @@ void ConvertFormat_RGB_To_Yuv_8_8_8(ArrayInterface<uint8>& PixelsArray, SoyPixel
 		auto y = i / ChromaU.GetWidth();
 		auto rgbi = (x * 2) + (y * 2 * Luma.GetWidth());
 		rgbi *= RgbStride;
-		auto r = RgbPixels[rgbi + 0];
+		//auto r = RgbPixels[rgbi + 0];
 		auto g = RgbPixels[rgbi + 1];
 		auto b = RgbPixels[rgbi + 2];
 
@@ -1553,7 +1555,7 @@ void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 
 		//	gr: when do channels change??
 		auto NewChannelCount = NewPlane.GetChannels();
-		auto OldHeight = OldPlane.GetHeight();
+		//auto OldHeight = OldPlane.GetHeight();
 		auto OldWidth = OldPlane.GetWidth();
 		auto OldChannelCount = OldPlane.GetChannels();
 
@@ -1571,7 +1573,7 @@ void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 
 		for ( int ny=0;	ny<NewHeight;	ny++ )
 		{
-			int oy = Top + ny;
+			int oy = static_cast<int>(Top) + ny;
 			
 			auto OldLineSize = OldWidth * OldChannelCount;
 			auto NewLineSize = NewWidth * NewChannelCount;
@@ -1594,8 +1596,8 @@ void SoyPixelsImpl::Clip(size_t Left,size_t Top,size_t Width,size_t Height)
 			}
 			*/
 			int nx = 0;
-			int ox = Left;
-			int ox_end = Left + NewWidth;
+			int ox = static_cast<int>(Left);
+			//int ox_end = Left + NewWidth;
 			auto* OldPixel = &OldRow[ox*OldChannelCount];
 			auto* NewPixel = &NewRow[nx*NewChannelCount];
 

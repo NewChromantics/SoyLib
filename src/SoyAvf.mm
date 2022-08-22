@@ -342,8 +342,8 @@ std::string Avf::GetString(OSStatus Status)
 	return Error.str();
 	
 	//	could be fourcc?
-	Soy::TFourcc Fourcc( CFSwapInt32HostToBig(Status) );
-	return Fourcc.GetString();
+	//Soy::TFourcc Fourcc( CFSwapInt32HostToBig(Status) );
+	//return Fourcc.GetString();
 	/*
 	 //	example with specific bundles...
 	 NSBundle *bundle = [NSBundle bundleWithIdentifier:@"com.apple.security"];
@@ -533,7 +533,7 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 		auto TestFormat = GetFormatDescription( Meta );
 		if ( !CMFormatDescriptionEqual ( TestFormat, FormatDesc ) )
 		{
-			/*
+			/ *
 			auto ExtensionsOld = CMFormatDescriptionGetExtensions( FormatDesc );
 			auto MediaSubTypeOld = CMFormatDescriptionGetMediaSubType( FormatDesc );
 			auto MediaTypeOld = CMFormatDescriptionGetMediaType( FormatDesc );

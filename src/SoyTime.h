@@ -52,7 +52,7 @@ public:
 	}
 
 	bool			FromString(const std::string& String);
-	std::string		ToString() const;
+	std::string		ToString() const __deprecated;
 
 	uint64			GetTime() const							{	return mTime;	}
 	bool			IsValid() const							{	return mTime!=0;	}
