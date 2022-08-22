@@ -148,8 +148,8 @@ public:
 	AvfPixelBuffer	( DoRetain, Decoder, Transform),
 	mSample			( Buffer, DoRetain )
 	{
-		if ( !Soy::Assert( mSample, "Sample expected") )
-			return;
+		if ( !mSample )
+			throw std::runtime_error("Sample expected");
 		//std::Debug << "CFPixelBuffer() retain count=" << mSample.GetRetainCount() << std::endl;
 	}
 	~CFPixelBuffer();

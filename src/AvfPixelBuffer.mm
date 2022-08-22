@@ -235,8 +235,10 @@ std::string Avf::GetCodec(CMFormatDescriptionRef FormatDescription)
 				//	PP PP profile
 				//	LL level
 				//	http://stackoverflow.com/questions/21120717/h-264-video-wont-play-on-ios
-				Soy::Assert( AtomData.GetSize() >= 4, "Not enough atom data to get h264 profile&level" );
-				Soy::Assert( AtomData[0] == 1, "Expected 1 as first atom byte");
+				if ( AtomData.GetSize() < 4 )
+					throw std::runtime_error("Not enough atom data to get h264 profile&level");
+				if ( AtomData[0] != 1 )
+					throw std::runtime_error("Expected 1 as first atom byte");
 				
 				CodecStr = "H264";
 				CodecStr += " ";
@@ -737,7 +739,8 @@ CFPixelBuffer::~CFPixelBuffer()
 
 CVImageBufferRef CFPixelBuffer::LockImageBuffer()
 {
-	Soy::Assert( mLockedImageBuffer == false, "Image buffer already locked");
+	if ( mLockedImageBuffer )
+		throw std::runtime_error("Image buffer already locked");
 	
 	mLockedImageBuffer.Retain( CMSampleBufferGetImageBuffer(mSample.mObject) );
 	if ( mLockedImageBuffer )
@@ -881,7 +884,8 @@ void AvfPixelBuffer::Lock(ArrayBridge<SoyPixelsImpl*>&& Planes,float3x3& Transfo
 				SoyPixelsMeta PlaneMeta( Width, Height, PlaneFormat );
 
 				//	should be LESS as there are multiple plaens in the total buffer, but we'll do = just for the sake of the safety
-				Soy::Assert( PlaneMeta.GetDataSize() <= PixelBufferDataSize, "Plane's calcualted data size exceeds the total buffer size" );
+				if ( PlaneMeta.GetDataSize() > PixelBufferDataSize )
+					throw std::runtime_error("Plane's calcualted data size exceeds the total buffer size" );
 
 				//	gr: currently we only have one transform... so... only apply to main plane (and hope they're the same)
 				float3x3 DummyTransform;

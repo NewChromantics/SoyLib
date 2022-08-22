@@ -793,7 +793,8 @@ std::string	Soy::ExtractServerFromUrl(const std::string& Url)
 	//	now split url from server
 	BufferArray<std::string,2> ServerAndUrl;
 	Soy::StringSplitByMatches( GetArrayBridge(ServerAndUrl), mServerAddress, "/" );
-	Soy::Assert( ServerAndUrl.GetSize() != 0, "Url did not split at all" );
+	if ( ServerAndUrl.GetSize() == 0 )
+		throw std::runtime_error("Url did not split at all");
 	if ( ServerAndUrl.GetSize() == 1 )
 		ServerAndUrl.PushBack("/");
 	

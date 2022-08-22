@@ -384,7 +384,8 @@ public:
 		mArrayBridge	( mArray ),
 		mMeta			( mMutableMeta )
 	{
-		Soy::Assert( !IsValid(), "should be invalid" );
+		if ( IsValid() )
+			throw std::runtime_error("SoyPixelsRemote() default constructor should be invalid");
 	}
 	SoyPixelsRemote(const SoyPixelsRemote& that) :
 		mArray			( nullptr, 0 ),

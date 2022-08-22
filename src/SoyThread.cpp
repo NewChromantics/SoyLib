@@ -215,7 +215,8 @@ void PopWorker::TJobQueue::Flush(TContext& Context,std::function<void(std::chron
 
 void PopWorker::TJobQueue::RunJob(std::shared_ptr<TJob>& Job)
 {
-	Soy::Assert( Job!=nullptr, "Job expected" );
+	if ( !Job )
+		throw std::runtime_error("Job expected");
 
 	if ( Job->mCatchExceptions )
 	{
@@ -265,7 +266,8 @@ void PopWorker::TJobQueue::PushJob(std::function<void()> Function,Soy::TSemaphor
 
 void PopWorker::TJobQueue::PushJobImpl(std::shared_ptr<TJob>& Job,Soy::TSemaphore* Semaphore)
 {
-	Soy::Assert( Job!=nullptr, "Job expected" );
+	if ( !Job )
+		throw std::runtime_error("Job expected");
 	
 	Job->mSemaphore = Semaphore;
 	
@@ -789,7 +791,7 @@ void SoyWorker::Loop()
 		if ( mOnPreIteration )
 			mOnPreIteration();
 		
-#if defined(TARGET_ANDROID)
+#if defined(ENABLE_JNI)
 		Java::FlushThreadLocals();
 #endif
 		
@@ -815,8 +817,8 @@ void SoyWorkerThread::Start(bool ThrowIfAlreadyStarted)
 		Wake();
 		return;
 	}
-	if ( !Soy::Assert( !HasThread(), "Thread already created" ) )
-		return;
+	if ( HasThread() )
+		throw std::runtime_error("Thread already created");
 	
 	SoyThread::Start();
 }

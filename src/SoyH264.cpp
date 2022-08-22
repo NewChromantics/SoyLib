@@ -198,9 +198,11 @@ void H264::DecodeNaluByte(uint8 Byte,H264NaluContent::Type& Content,H264NaluPrio
 	uint8 Zero = (Byte >> 7) & 0x1;
 	uint8 Idc = (Byte >> 5) & 0x3;
 	uint8 Content8 = (Byte >> 0) & (0x1f);
-	Soy::Assert( Zero==0, "Nalu zero bit non-zero");
+	if ( Zero!=0 )
+		throw std::runtime_error("Nalu zero bit non-zero");
 	//	catch bad cases. look out for genuine cases, but if this is zero, NALU delin might have been read wrong
-	Soy::Assert( Content8!=0, "Nalu content type is invalid (zero)");
+	if ( Content8==0 )
+		throw std::runtime_error("Nalu content type is invalid (zero)");
 
 	//	swich this for magic_enum
 	//Priority = H264NaluPriority::Validate( Idc );
@@ -400,14 +402,16 @@ void TBitReader::Read(uint8& Data,size_t BitCount)
 {
 	if ( BitCount <= 0 )
 		return;
-	Soy::Assert( BitCount <= 8, "trying to read>8 bits to 8bit value");
+	if ( BitCount > 8 )
+		throw std::runtime_error("trying to read>8 bits to 8bit value");
 	
 	//	current byte
 	auto CurrentByte = mBitPos / 8;
 	auto CurrentBit = mBitPos % 8;
 	
 	//	out of range
-	Soy::Assert( CurrentByte < mData.GetSize(), "Reading byte out of range");
+	if ( CurrentByte > mData.GetSize() )
+		throw std::runtime_error("Reading byte out of range");
 	
 	//	move along
 	mBitPos += BitCount;
@@ -743,7 +747,8 @@ H264::TSpsParams H264::ParseSps(const ArrayBridge<uint8>& Data)
 
 void H264::SetSpsProfile(ArrayBridge<uint8>&& Data,H264Profile::Type Profile)
 {
-	Soy::Assert( Data.GetSize() > 0, "Not enough SPS data");
+	if ( Data.GetSize() == 0 )
+		throw std::runtime_error("Not enough SPS data");
 	auto& ProfileByte = Data[0];
 
 	//	simple byte
@@ -941,7 +946,8 @@ void ReformatDeliminator(ArrayBridge<uint8>& Data,
 		{
 			std::stringstream Error;
 			Error << "Extracted NALU length of " << ChunkLength << "/" << Data.GetDataSize();
-			Soy::Assert( ChunkLength <= Data.GetDataSize(), Error.str() );
+			if ( ChunkLength > Data.GetDataSize() )
+				throw std::runtime_error(Error.str());
 		}
 		
 		InsertChunk( ChunkLength, Data, Position );
