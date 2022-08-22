@@ -876,7 +876,10 @@ std::wstring Soy::StringToWString(const std::string& s)
 std::string Soy::WStringToString(const std::wstring& w)
 {
 	std::string s;
+#pragma warning ( push )
+#pragma warning ( disable : 4244 )	//	loss of data from w to c
 	s.assign( w.begin(), w.end() );
+#pragma warning ( pop )
 	return s;
 }
 
