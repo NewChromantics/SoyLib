@@ -215,7 +215,8 @@ void* Soy::TRuntimeLibrary::GetSymbol(const char* Name)
 		throw std::runtime_error( mLibraryName + " library not loaded");
 	return dlsym( mHandle, Name );
 #else
-	Soy::Assert( mHandle!=nullptr, mLibraryName + " library not loaded");
+	if ( !mHandle )
+		throw std::runtime_error( mLibraryName + " library not loaded");
 
 	//	gr: this is for functions, not objects. May need to split this
 	auto Address = GetProcAddress( mHandle, Name );
