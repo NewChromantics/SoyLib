@@ -80,6 +80,7 @@ public:
 		mCatchExceptions	( true )
 	{
 	}
+	virtual ~TJob()	{};
 
 	virtual void			Run()=0;		//	throws on error, otherwise assuming success
 	virtual size_t			GetRunDelay()	{	return 0;	}	//	allow defer of a job
