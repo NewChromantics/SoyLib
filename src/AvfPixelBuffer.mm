@@ -995,7 +995,7 @@ void AvfPixelBuffer::WaitForUnlock()
 
 
 #if defined(TARGET_IOS)
-__export EAGLContext*	UnityGetMainScreenContextGLES();
+//__export EAGLContext*	UnityGetMainScreenContextGLES();
 //extern EAGLContext*	UnityGetContextEAGL();
 #endif
 
