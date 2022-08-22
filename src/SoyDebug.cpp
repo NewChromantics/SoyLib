@@ -29,7 +29,6 @@ namespace Platform
 #endif
 
 
-std::DebugStreamThreadSafeWrapper	std::Debug;
 
 namespace Debug
 {
@@ -90,14 +89,6 @@ std::string Soy::FormatSizeBytes(uint64 bytes)
 	return out.str();
 }
 
-//	static per-thread
-#if defined(TARGET_ANDROID)
-//	gr: on android, having a __thread makes my DLL incompatible with unity's build/load (or androids?)
-std::DebugBufferString* ThreadBuffer = nullptr;
-#else
-__thread std::DebugBufferString* ThreadBuffer = nullptr;	//	thread_local not supported on OSX
-#endif
-
 
 #if defined(TARGET_LINUX)
 void Platform::DebugPrint(const char* Message)
@@ -120,6 +111,7 @@ void Platform::DebugPrint(const char* String)
 void Platform::DebugPrint(const char* String)
 {
 	OutputDebugStringA( String );
+	WriteToParentConsole( String );
 }
 #endif
 
@@ -137,43 +129,6 @@ void Platform::DebugPrint(const char* String)
 }
 #endif
 
-//	singleton so the heap is created AFTER the heap register
-prmem::Heap& Soy::GetDebugStreamHeap()
-{
-#if defined(USE_HEAP_STRING)
-	static prmem::Heap DebugStreamHeap(true, true,"Debug stream heap");
-	return DebugStreamHeap;
-#else
-	throw Soy::AssertException("Not using debug stream heap");
-#endif
-}
-
-
-std::DebugBufferString& std::DebugStreamBuf::GetBuffer()
-{
-	if ( !ThreadBuffer )
-	{
-#if defined(USE_HEAP_STRING)
-		//auto& Heap = SoyThread::GetHeap( SoyThread::GetCurrentThreadNativeHandle() );
-		auto& Heap = Soy::GetDebugStreamHeap();
-		ThreadBuffer = Heap.Alloc<Soy::HeapString>( Heap.GetStlAllocator() );
-		
-		/*	gr: how is this supposed to work? dealloc when any thread closes??
-				now streambuf is threadsafe... maybe this doesn't matter any more?
-		auto* NonTlsThreadBufferPtr = ThreadBuffer;
-		auto Dealloc = [NonTlsThreadBufferPtr](std::thread&)
-		{
-			GetDebugStreamHeap().Free( NonTlsThreadBufferPtr );
-		};
-		
-		SoyThread::OnThreadFinish.AddListener( Dealloc );
-		 */
-#else
-		ThreadBuffer = new std::string();
-#endif
-	}
-	return *ThreadBuffer;
-}
 
 
 #if defined(TARGET_WINDOWS) && !defined(TARGET_UWP)
@@ -215,76 +170,6 @@ void Platform::WriteToParentConsole(const char* String)
 	}
 }
 #endif
-
-
-void std::DebugStreamBuf::flush()
-{
-	auto& Buffer = GetBuffer();
-	
-	if ( Buffer.length() > 0 )
-	{
-		auto* BufferCStr = Buffer.c_str();
-
-		bool Locked = false;
-		if ( Debug::EnablePrint_CouterrSync )
-		{
-			if ( Debug::EnablePrint_Cout||Debug::EnablePrint_Cerr )
-			{
-				Debug::CoutCerrLock.lock();
-				Locked = true;
-			}
-		}
-		
-		if ( Debug::EnablePrint_Cout )
-		{
-			std::cout << BufferCStr;
-			std::cout << std::flush;
-		}
-		
-		if ( Debug::EnablePrint_Cerr )
-		{
-			std::cerr << BufferCStr;
-			std::cerr << std::flush;
-		}
-		
-		if ( Debug::EnablePrint_Platform )
-		{
-			Platform::DebugPrint( BufferCStr );
-		}
-		
-		if ( Debug::OnPrint )
-		{
-			Debug::OnPrint( BufferCStr );
-		}
-		
-		if ( Debug::EnablePrint_Console )
-		{
-			//	on windows, try and write to parent console window
-#if defined(TARGET_WINDOWS)&&!defined(TARGET_UWP)
-			Platform::WriteToParentConsole(BufferCStr);
-#endif
-		}
-
-		if ( Locked )
-		{
-			Debug::CoutCerrLock.unlock();
-		}
-		
-		Buffer.erase();	// erase message buffer
-	}
-}
-
-int std::DebugStreamBuf::overflow(int c)
-{
-	auto& Buffer = GetBuffer();
-
-	Buffer += c;
-	if (c == '\n') 
-		flush();
-
-	//	gr: what is -1? std::eof?
-	return c == -1 ? -1 : ' ';
-}
 
 
 #if defined(TARGET_OSX)

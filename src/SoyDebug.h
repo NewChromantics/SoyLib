@@ -8,24 +8,11 @@
 #include "SoyString.h"
 
 
-#if !defined(TARGET_ANDROID)
-#define USE_HEAP_STRING
-#endif
-
-//	on ps4 using std::Debug was causing lots of crashes, so lets eliminate that and restore slowly
-//#if defined(TARGET_PS4)
-#define SOYDEBUG_NO_THROW
-#define SOYDEBUG_ENABLE
-//#endif
-
+#include <iostream>
 
 namespace std
 {
-	class DebugStreamThreadSafeWrapper;
-	
-	//	cross platform debug output stream
-	//	std::Debug << XXX << std::endl;
-	extern DebugStreamThreadSafeWrapper	Debug;
+	inline std::ostream& Debug = cerr;	//	inline variable is c++17
 }
 
 
@@ -40,190 +27,6 @@ namespace Platform
 #endif
 }
 
-namespace Debug
-{
-	//	control where std::Debug prints to
-	extern bool	EnablePrint_CouterrSync;	//	use a lock to make cout/cerr prints synchronised
-	extern bool	EnablePrint_Cout;
-	extern bool	EnablePrint_Cerr;
-	extern bool	EnablePrint_Platform;	//	windows; output to vs. Osx/ios; NSLog
-	extern bool	EnablePrint_Console;	//	windows; output to parent console if invoked from cmd
-
-	extern std::function<void(const char*)>	OnPrint;
-}
-
-namespace Soy
-{
-	prmem::Heap&	GetDebugStreamHeap();
-}
-
-
-namespace std
-{
-#if defined USE_HEAP_STRING
-	typedef Soy::HeapString DebugBufferString;
-#else
-	typedef std::string DebugBufferString;
-#endif
-
-	class DebugStreamBuf : public streambuf
-	{
-	public:
-		DebugStreamBuf()
-		{
-		};
-		~DebugStreamBuf()	
-		{
-			//	gr: currently WINDOWS on cleanup (OSX can't reach here atm but assume it suffers too)
-			//		the debug heap gets destroyed (as its created later?) before the string that is flushed does
-			//		so on flsh here, pointer still exists, but heap it was allocated from has gone.
-			//		solution: subscribe to heap destruction?
-			//		temp solution: no cleanup!
-			//flush();	
-		}
-
-	protected:
-		virtual int		overflow(int ch);
-		void			flush(); 	
-
-	private:
-		DebugStreamBuf(DebugStreamBuf const &);		// disallow copy construction
-		void operator= (DebugStreamBuf const &);	// disallow copy assignment
-
-		DebugBufferString&	GetBuffer();
-	};
-
-	class DebugStream : public std::ostream
-	{
-	public:
-		explicit DebugStream() : 
-			std::basic_ostream<char,std::char_traits<char> > (&mBuffer) 
-		{
-		}
-
-	private:
-		DebugStreamBuf	mBuffer;
-	};
-
-	
-
-	
-	class DebugStreamThreadSafeWrapper
-	{
-	public:
-		explicit DebugStreamThreadSafeWrapper()
-		{
-		}
-		~DebugStreamThreadSafeWrapper()
-		{
-		}
-		
-		DebugStream&	LockStream()
-		{
-		#if defined(SOYDEBUG_ENABLE)
-			mStreamLock.lock();
-			return mStream;
-		#else
-			throw Soy::AssertException("SOYDEBUG_ENABLE off");
-		#endif
-		}
-		void			UnlockStream(DebugStream& Stream)
-		{
-			#if defined(SOYDEBUG_ENABLE)
-			{
-				if ( &Stream != &mStream )
-				{
-#if defined(SOYDEBUG_NO_THROW)
-					Platform::DebugPrint("Wrong locked stream");
-					return;
-#else
-					throw Soy::AssertException("Wrong stream" );
-#endif
-				}
-				mStreamLock.unlock();
-			}
-			#else
-				throw Soy::AssertException("SOYDEBUG_ENABLE off");
-			#endif
-		}
-		
-		template<typename TYPE>
-		DebugStreamThreadSafeWrapper&	operator<<(const TYPE& x)
-		{
-		#if defined(SOYDEBUG_ENABLE)
-			std::lock_guard<std::recursive_mutex> Lock(mStreamLock);
-			mStream << x;
-		#endif
-			return *this;
-		}
-
-		// function that takes a custom stream, and returns it
-		typedef DebugStreamThreadSafeWrapper& (*MyStreamManipulator)(DebugStreamThreadSafeWrapper&);
-		
-		// take in a function with the custom signature
-		DebugStreamThreadSafeWrapper& operator<<(MyStreamManipulator manip)
-		{
-		#if defined(SOYDEBUG_ENABLE)
-			std::lock_guard<std::recursive_mutex> Lock(mStreamLock);
-			manip(*this);
-		#endif
-			return *this;
-		}
-		/*
-		static DebugStream& endl(DebugStream& Stream)
-		{
-			std::lock_guard<std::recursive_mutex> Lock(mStreamLock);
-			Stream.mStream << std::endl;
-			return Stream;
-		}
-		*/
-		// this is the type of std::cout
-		typedef std::basic_ostream<char, std::char_traits<char> > StreamType;
-		
-		// this is the function signature of std::endl
-		typedef StreamType& (*Fstd_endl)(StreamType&);
-		
-		// define an operator<< to take in std::endl
-		DebugStreamThreadSafeWrapper& operator<<(Fstd_endl manip)
-		{
-		#if defined(SOYDEBUG_ENABLE)
-			// call the function, but we cannot return it's value
-			manip(mStream);
-		#endif
-			
-			return *this;
-		}
-		
-		void			PushStreamSettings()
-		{
-		#if defined(SOYDEBUG_ENABLE)			
-			std::shared_ptr<Soy::TPushPopStreamSettings> Push( new Soy::TPushPopStreamSettings(mStream) );
-			mPushPopSettings.push_back( Push );
-		#endif
-		}
-
-		void			PopStreamSettings()
-		{
-		#if defined(SOYDEBUG_ENABLE)			
-			mPushPopSettings.pop_back();
-		#endif
-		}
-		
-	private:
-		//	gr: need to defer creation of this mutex for PS4 until first use (NOT global!)
-	#if defined(SOYDEBUG_ENABLE)
-		std::recursive_mutex	mStreamLock;
-		DebugStream				mStream;
-		
-		//	gr: find a better stack system than allocating!
-		std::vector<std::shared_ptr<Soy::TPushPopStreamSettings>>	mPushPopSettings;
-	#else
-		//	gr: need to defer creation of this event(contains mutex) for PS4 until first use (NOT global!)
-		std::function<void(const std::string)>	mDummyFlushEvent;
-	#endif
-	};
-};
-
 
 
 //	gr: move this to... string?
@@ -235,8 +38,6 @@ namespace Soy
 	class TScopeTimerStream;
 	class TScopeTimerFunc;
 }
-//	legacy typename
-typedef Soy::TScopeTimerPrint ofScopeTimerWarning;
 
 
 
@@ -342,25 +143,5 @@ protected:
 	}
 
 protected:
-};
-
-
-class Soy::TScopeTimerStream : public TScopeTimer
-{
-public:
-	TScopeTimerStream(const char* Name,uint64 WarningTimeMs,bool AutoStart,std::ostream& Output) :
-		TScopeTimer		( Name, WarningTimeMs, std::bind( &TScopeTimerStream::ReportStr, this, std::placeholders::_1 ), AutoStart ),
-		mOutputStream	( Output )
-	{
-	}
-	
-protected:
-	void		ReportStr(SoyTime Time)
-	{
-		mOutputStream << mName << " took " << Time.mTime << "ms to execute" << std::endl;
-	}
-	
-protected:
-	std::ostream&		mOutputStream;
 };
 

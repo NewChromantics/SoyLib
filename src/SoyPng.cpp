@@ -374,7 +374,7 @@ void TPng::Private::GetPngData(Array<char>& PngData,const SoyPixelsImpl& Image,T
 		auto CompressionLevelEnum = GetMinizCompressionLevel( CompressionLevel );
 		std::stringstream Debug_TimerName;
 		Debug_TimerName << "Deflate compression; " << Soy::FormatSizeBytes(FilteredPixels.GetDataSize()) << ". Compression level: " << CompressionLevelEnum;
-		ofScopeTimerWarning DeflateCompressTimer( Debug_TimerName.str().c_str(), 3 );
+		Soy::TScopeTimerPrint DeflateCompressTimer( Debug_TimerName.str().c_str(), 3 );
 	
 		//	for tiny data, this isn't enough
 		auto DefAllocated = static_cast<mz_ulong>( 1.2f * FilteredPixels.GetDataSize() );

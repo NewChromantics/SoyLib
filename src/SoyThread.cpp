@@ -68,7 +68,7 @@ void Soy::TSemaphore::Wait(const char* TimerName)
 	
 	if ( TimerName )
 	{
-		ofScopeTimerWarning Timer( TimerName, 0 );
+		Soy::TScopeTimerPrint Timer( TimerName, 0 );
 
 		while ( !IsCompleted() )
 			mConditional.wait_for( Lock, std::chrono::milliseconds(TimeoutMs), IsCompleted );
@@ -163,7 +163,7 @@ void PopWorker::TJobQueue::Flush(TContext& Context,std::function<void(std::chron
 	//	get the smallest delay > 0ms
 	size_t SmallestDelayMs = 0;
 	
-	//ofScopeTimerWarning LockTimer("Waiting for job lock",5,false);
+	//Soy::TScopeTimerPrint LockTimer("Waiting for job lock",5,false);
 	while ( true )
 	{
 		//LockTimer.Start(true);

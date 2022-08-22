@@ -1421,9 +1421,7 @@ void prmem::HeapInfo::OnFailedAlloc(std::string TypeName,size_t TypeSize,size_t 
 	std::Debug << "Failed to allocate " << TypeName << "x " << ElementCount << " (" << Soy::FormatSizeBytes( TypeSize * ElementCount ) << ")" << std::endl;
 	
 	//	show heap stats
-	auto& DebugStream = std::Debug.LockStream();
-	Debug_DumpInfoToOutput( DebugStream );
-	std::Debug.UnlockStream( DebugStream );
+	Debug_DumpInfoToOutput( std::Debug );
 
 	//	show dump too
 	auto* pHeapDebug = GetDebug();
@@ -1439,9 +1437,7 @@ void prmem::HeapInfo::OnFailedAlloc(std::string TypeName,size_t TypeSize,size_t 
 	for ( int h=0;	h<Heaps.GetSize();	h++ )
 	{
 		auto& Heap = *Heaps[h];
-		auto& DebugStream = std::Debug.LockStream();
-		Heap.Debug_DumpInfoToOutput( DebugStream );
-		std::Debug.UnlockStream( DebugStream );
+		Heap.Debug_DumpInfoToOutput( std::Debug );
 	}
 	
 }
