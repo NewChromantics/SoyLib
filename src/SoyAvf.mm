@@ -27,9 +27,16 @@ SoyTime Soy::Platform::GetTime(CMTime Time)
 	if ( CMTIME_IS_INVALID( Time ) )
 		return SoyTime();
 	
+	//	gr: this time -> secs(float) -> ms is giving us a rounding error
+	//		stick to doubles
 	//	missing CMTimeGetSeconds ? link to the CoreMedia framework :)
-	Float64 TimeSec = CMTimeGetSeconds(Time);
-	UInt64 TimeMs = 1000.f*TimeSec;
+	double TimeSec = CMTimeGetSeconds(Time);	//	returns Float64 which is a double
+	uint64_t TimeMs = 1000.0*TimeSec;
+
+	//	if time multiplier is 1000, the value is already ms, this avoids possible rounding errors
+	if ( Time.timescale == 1000 )
+		TimeMs = Time.value;
+		
 	return SoyTime( std::chrono::milliseconds(TimeMs) );
 }
 #endif
