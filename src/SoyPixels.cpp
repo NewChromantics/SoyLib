@@ -269,34 +269,26 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetFormatFromChannelCount(size_t ChannelC
 
 namespace SoyPixelsFormat
 {
-	const std::map<Type, BufferArray<Type,2>>&	GetMergedFormatMap2();
-	const std::map<Type,BufferArray<Type,3>>&	GetMergedFormatMap3();
+	const std::map<Type,std::array<Type,2>>		GetMergedFormatMap2();
+	const std::map<Type,std::array<Type,3>>	GetMergedFormatMap3();
 }
 
-const std::map<SoyPixelsFormat::Type,BufferArray<SoyPixelsFormat::Type,2>>& SoyPixelsFormat::GetMergedFormatMap2()
+const std::map<SoyPixelsFormat::Type,std::array<SoyPixelsFormat::Type,2>>	SoyPixelsFormat::GetMergedFormatMap2()
 {
-	static std::map<Type,BufferArray<Type,2>> Map;
-
-	if ( Map.empty() )
+	return
 	{
-		Map[Yuv_8_88].PushBackArray( { Luma, ChromaUV_88 } );
-		Map[Yuv_8_8_8].PushBackArray( { Luma, ChromaUV_8_8 } );
-		Map[ChromaUV_8_8].PushBackArray( { ChromaU_8, ChromaV_8 } );
-	}
-
-	return Map;
+		{	Yuv_8_88, { Luma, ChromaUV_88 } },
+		{	Yuv_8_8_8, { Luma, ChromaUV_8_8 } },
+		{	ChromaUV_8_8, { ChromaU_8, ChromaV_8 } },
+	};
 }
 
-const std::map<SoyPixelsFormat::Type, BufferArray<SoyPixelsFormat::Type, 3>>& SoyPixelsFormat::GetMergedFormatMap3()
+const std::map<SoyPixelsFormat::Type,std::array<SoyPixelsFormat::Type,3>> SoyPixelsFormat::GetMergedFormatMap3()
 {
-	static std::map<Type, BufferArray<Type, 3>> Map;
-
-	if (Map.empty())
+	return
 	{
-		Map[Yuv_8_8_8].PushBackArray({ Luma, ChromaU_8,ChromaV_8 });
-	}
-
-	return Map;
+		{	Yuv_8_8_8, { Luma, ChromaU_8,ChromaV_8 } },
+	};
 }
 
 
@@ -309,7 +301,8 @@ void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneForma
 		
 		if (it3 != Map3.end())
 		{
-			PlaneFormats.Copy(it3->second);
+			auto MapArray = GetRemoteArray( it3->second.data(), it3->second.size() );
+			PlaneFormats.Copy(MapArray);
 			return;
 		}
 	}
@@ -319,7 +312,8 @@ void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneForma
 		auto it2 = Map2.find(Format);
 		if (it2 != Map2.end())
 		{
-			PlaneFormats.Copy(it2->second);
+			auto MapArray = GetRemoteArray( it2->second.data(), it2->second.size() );
+			PlaneFormats.Copy(MapArray);
 			return;
 		}
 	}
@@ -332,7 +326,7 @@ void SoyPixelsFormat::GetFormatPlanes(Type Format,ArrayBridge<Type>&& PlaneForma
 
 SoyPixelsFormat::Type SoyPixelsFormat::GetMergedFormat(SoyPixelsFormat::Type Formata,SoyPixelsFormat::Type Formatb)
 {
-	BufferArray<Type,2> Formatab( { Formata, Formatb } );
+	std::array<Type,2> Formatab( { Formata, Formatb } );
 
 	auto& Map = GetMergedFormatMap2();
 	for ( auto it=Map.begin();	it!=Map.end();	it++ )
@@ -350,7 +344,7 @@ SoyPixelsFormat::Type SoyPixelsFormat::GetMergedFormat(SoyPixelsFormat::Type For
 
 SoyPixelsFormat::Type SoyPixelsFormat::GetMergedFormat(SoyPixelsFormat::Type Formata, SoyPixelsFormat::Type Formatb, SoyPixelsFormat::Type Formatc)
 {
-	BufferArray<Type, 3> Formatabc({ Formata, Formatb, Formatc });
+	std::array<Type, 3> Formatabc({ Formata, Formatb, Formatc });
 
 	auto& Map = GetMergedFormatMap3();
 	for (auto it = Map.begin(); it != Map.end(); it++)
