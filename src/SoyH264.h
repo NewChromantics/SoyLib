@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SoyMediaFormat.h"
-
+#include <span>
 
 namespace H264NaluContent
 {
@@ -112,13 +112,11 @@ namespace H264
 			ThirtyTwo	= 4
 		};
 	}
-	size_t					GetNaluLength(const ArrayBridge<uint8_t>& Data);
-	inline size_t			GetNaluLength(const ArrayBridge<uint8_t>&& Data) { return GetNaluLength(Data); }
-	size_t					GetNaluAnnexBLength(const ArrayBridge<uint8_t>& Data);
-	inline size_t			GetNaluAnnexBLength(const ArrayBridge<uint8_t>&& Data) { return GetNaluAnnexBLength(Data); }
-	H264NaluContent::Type	GetPacketType(const ArrayBridge<uint8_t>&& Data);
-	void					ConvertNaluPrefix(ArrayBridge<uint8_t>& Nalu,H264::NaluPrefix::Type NaluSize);
-	size_t					GetNextNaluOffset(const ArrayBridge<uint8_t>&& Data, size_t StartFrom = 3);	//	returns 0 if there is no next
+	size_t					GetNaluLength(std::span<uint8_t> Data);
+	size_t					GetNaluAnnexBLength(std::span<uint8_t> Data);
+	H264NaluContent::Type	GetPacketType(std::span<uint8_t> Data);
+	void					ConvertNaluPrefix(std::vector<uint8_t>& Nalu,H264::NaluPrefix::Type NaluSize);
+	size_t					GetNextNaluOffset(std::span<uint8_t> Data, size_t StartFrom = 3);	//	returns 0 if there is no next
 
 	
 	bool		ResolveH264Format(SoyMediaFormat::Type& Format,ArrayBridge<uint8>& Data);
@@ -149,8 +147,7 @@ namespace H264
 	void			SetSpsProfile(ArrayBridge<uint8>&& Data,H264Profile::Type Profile);
 	void			SetSpsLevel(ArrayBridge<uint8>&& Data,Soy::TVersion Level);
 	
-	void			SplitNalu(const ArrayBridge<uint8_t>& Data,std::function<void(const ArrayBridge<uint8_t>&&)> OnNalu);
-	inline void		SplitNalu(const ArrayBridge<uint8_t>&& Data,std::function<void(const ArrayBridge<uint8_t>&&)> OnNalu)	{	SplitNalu(Data,OnNalu);	};
+	void			SplitNalu(std::span<uint8_t> Data,std::function<void(std::span<uint8_t>)> OnNalu);
 }
 
 

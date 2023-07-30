@@ -22,10 +22,10 @@
 
 
 #if defined(__OBJC__)
-SoyTime Soy::Platform::GetTime(CMTime Time)
+std::chrono::milliseconds Soy::Platform::GetTime(CMTime Time)
 {
 	if ( CMTIME_IS_INVALID( Time ) )
-		return SoyTime();
+		return std::chrono::milliseconds{};
 	
 	//	gr: this time -> secs(float) -> ms is giving us a rounding error
 	//		stick to doubles
@@ -37,15 +37,16 @@ SoyTime Soy::Platform::GetTime(CMTime Time)
 	if ( Time.timescale == 1000 )
 		TimeMs = Time.value;
 		
-	return SoyTime( std::chrono::milliseconds(TimeMs) );
+	return std::chrono::milliseconds(TimeMs);
 }
 #endif
 
 
 #if defined(__OBJC__)
-CMTime Soy::Platform::GetTime(SoyTime Time)
+CMTime Soy::Platform::GetTime(std::chrono::milliseconds Time)
 {
-	return CMTimeMake( Time.mTime, 1000 );
+	auto TimeMs = Time.count();
+	return CMTimeMake( TimeMs, 1000 );
 }
 #endif
 
@@ -218,7 +219,7 @@ SoyPixelsMeta Avf::GetPixelMeta(CVPixelBufferRef PixelBuffer)
 	return SoyPixelsMeta( Width, Height, SoyFormat );
 }
 
-void Avf::GetFormatDescriptionData(ArrayBridge<uint8>&& Data,CMFormatDescriptionRef FormatDesc,size_t ParamIndex)
+void Avf::GetFormatDescriptionData(std::vector<uint8>& Data,CMFormatDescriptionRef FormatDesc,size_t ParamIndex)
 {
 	size_t ParamCount = 0;
 	auto Result = CMVideoFormatDescriptionGetH264ParameterSetAtIndex( FormatDesc, 0, nullptr, nullptr, &ParamCount, nullptr );
@@ -242,7 +243,9 @@ void Avf::GetFormatDescriptionData(ArrayBridge<uint8>&& Data,CMFormatDescription
 	
 	Avf::IsOkay( Result, "Failed to get H264 param X" );
 	
-	Data.PushBackArray( GetRemoteArray( ParamsData, ParamsSize ) );
+	std::span<uint8_t> ParamsSpan( const_cast<uint8_t*>(ParamsData), ParamsSize );
+	
+	std::copy( ParamsSpan.begin(), ParamsSpan.end(), std::back_inserter(Data) );
 }
 
 
@@ -489,8 +492,8 @@ TStreamMeta Avf::GetStreamMeta(CMFormatDescriptionRef FormatDesc)
 	
 	if ( SoyMediaFormat::IsH264( Meta.mCodecFourcc ) )
 	{
-		Avf::GetFormatDescriptionData( GetArrayBridge(Meta.mSps), FormatDesc, 0 );
-		Avf::GetFormatDescriptionData( GetArrayBridge(Meta.mPps), FormatDesc, 1 );
+		Avf::GetFormatDescriptionData( Meta.mSps, FormatDesc, 0 );
+		Avf::GetFormatDescriptionData( Meta.mPps, FormatDesc, 1 );
 	}
 	
 	Boolean usePixelAspectRatio = false;
@@ -1134,7 +1137,7 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 	return PixelBuffer;
 }
 
-CFPtr<CMFormatDescriptionRef> Avf::GetFormatDescriptionH264(const ArrayBridge<uint8_t>& Sps,const ArrayBridge<uint8_t>& Pps,H264::NaluPrefix::Type NaluPrefixType)
+CFPtr<CMFormatDescriptionRef> Avf::GetFormatDescriptionH264(std::span<uint8_t> Sps,std::span<uint8_t> Pps,H264::NaluPrefix::Type NaluPrefixType)
 {
 	CFAllocatorRef Allocator = nil;
 	
@@ -1142,22 +1145,22 @@ CFPtr<CMFormatDescriptionRef> Avf::GetFormatDescriptionH264(const ArrayBridge<ui
 	auto SpsPrefixLength = H264::GetNaluLength(Sps);
 	auto PpsPrefixLength = H264::GetNaluLength(Pps);
 	
-	BufferArray<const uint8_t*,2> Params;
-	BufferArray<size_t,2> ParamSizes;
-	Params.PushBack( Sps.GetArray()+SpsPrefixLength );
-	ParamSizes.PushBack( Sps.GetDataSize()-SpsPrefixLength );
-	Params.PushBack( Pps.GetArray()+PpsPrefixLength );
-	ParamSizes.PushBack( Pps.GetDataSize()-PpsPrefixLength );
+	std::array<const uint8_t*,2> Params;
+	std::array<size_t,2> ParamSizes;
+	Params[0] = Sps.data()+SpsPrefixLength;
+	ParamSizes[0] = Sps.size()-SpsPrefixLength;
+	Params[1] = Pps.data()+PpsPrefixLength;
+	ParamSizes[1] = Pps.size()-PpsPrefixLength;
 	
 	//	ios doesnt support annexb, so we will have to convert inputs
 	//	lets use 32 bit nalu size prefix
 	if ( NaluPrefixType == H264::NaluPrefix::AnnexB )
-	NaluPrefixType = H264::NaluPrefix::ThirtyTwo;
+		NaluPrefixType = H264::NaluPrefix::ThirtyTwo;
 	auto NaluLength = static_cast<int>(NaluPrefixType);
 	
 	CFPtr<CMFormatDescriptionRef> FormatDesc;
 	//	-12712 http://stackoverflow.com/questions/25078364/cmvideoformatdescriptioncreatefromh264parametersets-issues
-	auto Result = CMVideoFormatDescriptionCreateFromH264ParameterSets( Allocator, Params.GetSize(), Params.GetArray(), ParamSizes.GetArray(), NaluLength, &FormatDesc.mObject );
+	auto Result = CMVideoFormatDescriptionCreateFromH264ParameterSets( Allocator, Params.size(), Params.data(), ParamSizes.data(), NaluLength, &FormatDesc.mObject );
 	Avf::IsOkay( Result, "CMVideoFormatDescriptionCreateFromH264ParameterSets" );
 	
 	return FormatDesc;

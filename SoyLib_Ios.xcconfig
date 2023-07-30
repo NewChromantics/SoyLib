@@ -38,9 +38,7 @@ ENABLE_BITCODE = YES
 //	gr: not sure what we want for c yet
 //GCC_C_LANGUAGE_STANDARD = c11
 
-//	gr: about time we switched to 14
-//CLANG_CXX_LANGUAGE_STANDARD = c++0x	//	c++11
-CLANG_CXX_LANGUAGE_STANDARD = c++17
+CLANG_CXX_LANGUAGE_STANDARD = c++20
 CLANG_CXX_LIBRARY = libc++
 
 //	no ARC please. See OSX config

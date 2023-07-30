@@ -142,14 +142,15 @@ public:
 		return mTransform;
 	}
 	
+
 public:
 	//	trying to eliminate SoyMediaFormat
 	SoyMediaFormat::Type	mCodec;
 	Soy::TFourcc			mCodecFourcc;
 	
 	//	specific to h264... make this more generic
-	BufferArray<uint8,200>	mSps;			//	no size/nalu header!
-	BufferArray<uint8,200>	mPps;			//	no size/nalu header!
+	std::vector<uint8_t>	mSps;			//	no size/nalu header!
+	std::vector<uint8_t>	mPps;			//	no size/nalu header!
 	
 	std::string			mDescription;		//	other meta that doesnt fit here (eg. unsupported type)
 	bool				mCompressed;

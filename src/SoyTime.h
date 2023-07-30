@@ -16,9 +16,9 @@ namespace Soy
 	namespace Platform
 	{
 #if defined(__OBJC__)
-		SoyTime				GetTime(CMTime Time);
-		CMTime				GetTime(SoyTime Time);
-		SoyTime				GetTime(CFTimeInterval Time);
+		std::chrono::milliseconds	GetTime(CMTime Time);
+		CMTime						GetTime(std::chrono::milliseconds Time);
+		std::chrono::milliseconds	GetTime(CFTimeInterval Time);
 #endif
 	}
 }

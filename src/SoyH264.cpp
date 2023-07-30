@@ -796,25 +796,26 @@ bool H264::IsKeyframe(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&& Dat
 }
 
 
-void H264::ConvertNaluPrefix(ArrayBridge<uint8_t>& Nalu,H264::NaluPrefix::Type NaluPrefixType)
+void H264::ConvertNaluPrefix(std::vector<uint8_t>& Nalu,H264::NaluPrefix::Type NaluPrefixType)
 {
 	//	assuming annexb, this will throw if not
 	auto PrefixLength = H264::GetNaluAnnexBLength(Nalu);
 	
 	//	quick implementation for now
 	if ( NaluPrefixType != H264::NaluPrefix::ThirtyTwo )
-	Soy_AssertTodo();
+		Soy_AssertTodo();
 	
 	auto NewPrefixSize = static_cast<int>(NaluPrefixType);
 	
 	//	pad if prefix was 3 bytes
 	if ( PrefixLength == 3 )
-	Nalu.InsertAt(0,0);
+		Nalu.insert( Nalu.begin(), 0 );
+	
 	else if ( PrefixLength != 4)
 	throw Soy::AssertException("Expecting nalu size of 4");
 	
 	//	write over prefix
-	uint32_t Size32 = size_cast<uint32_t>(Nalu.GetDataSize() - NewPrefixSize);
+	uint32_t Size32 = size_cast<uint32_t>(Nalu.size() - NewPrefixSize);
 	uint8_t* Size8s = reinterpret_cast<uint8_t*>(&Size32);
 	Nalu[0] = Size8s[3];
 	Nalu[1] = Size8s[2];
@@ -822,15 +823,15 @@ void H264::ConvertNaluPrefix(ArrayBridge<uint8_t>& Nalu,H264::NaluPrefix::Type N
 	Nalu[3] = Size8s[0];
 }
 
-size_t H264::GetNextNaluOffset(const ArrayBridge<uint8_t>&& Data, size_t StartFrom)
+size_t H264::GetNextNaluOffset(std::span<uint8_t> Data, size_t StartFrom)
 {
-	if ( Data.GetDataSize() < 4 )
-	return 0;
+	if ( Data.size() < 4 )
+		return 0;
 	
 	//	detect 001
-	auto* DataPtr = Data.GetArray();
+	auto* DataPtr = Data.data();
 	
-	for ( int i=size_cast<int>(StartFrom);	i< Data.GetDataSize()-3;	i++ )
+	for ( int i=size_cast<int>(StartFrom);	i< Data.size()-3;	i++ )
 	{
 		if (DataPtr[i + 0] != 0)	continue;
 		if (DataPtr[i + 1] != 0)	continue;
@@ -846,12 +847,12 @@ size_t H264::GetNextNaluOffset(const ArrayBridge<uint8_t>&& Data, size_t StartFr
 	return 0;
 }
 
-void H264::SplitNalu(const ArrayBridge<uint8_t>& Data,std::function<void(const ArrayBridge<uint8_t>&&)> OnNalu)
+void H264::SplitNalu(std::span<uint8_t> Data,std::function<void(std::span<uint8_t>)> OnNalu)
 {
 	//	gr: this was happening in android test app, GetSubArray() will throw, so catch it
-	if ( Data.IsEmpty() )
+	if ( Data.empty() )
 	{
-		std::Debug << "Unexpected " << __PRETTY_FUNCTION__ << " Data.Size=" << Data.GetDataSize() << std::endl;
+		std::Debug << "Unexpected " << __PRETTY_FUNCTION__ << " Data.Size=" << Data.size() << std::endl;
 		return;
 	}
 	
@@ -859,18 +860,18 @@ void H264::SplitNalu(const ArrayBridge<uint8_t>& Data,std::function<void(const A
 	size_t PrevNalu = 0;
 	while (true)
 	{
-		auto PacketData = GetArrayBridge(Data).GetSubArray(PrevNalu);
-		auto NextNalu = H264::GetNextNaluOffset(GetArrayBridge(PacketData));
+		auto PacketData = Data.subspan(PrevNalu);
+		auto NextNalu = H264::GetNextNaluOffset( PacketData );
 		if (NextNalu == 0)
 		{
 			//	everything left
-			OnNalu(GetArrayBridge(PacketData));
+			OnNalu( PacketData );
 			break;
 		}
 		else
 		{
-			auto SubArray = GetArrayBridge(PacketData).GetSubArray(0, NextNalu);
-			OnNalu(GetArrayBridge(SubArray));
+			auto SubArray = PacketData.subspan(0, NextNalu);
+			OnNalu( SubArray );
 			PrevNalu += NextNalu;
 		}
 	}
@@ -878,11 +879,11 @@ void H264::SplitNalu(const ArrayBridge<uint8_t>& Data,std::function<void(const A
 
 
 
-size_t H264::GetNaluLength(const ArrayBridge<uint8_t>& Packet)
+size_t H264::GetNaluLength(std::span<uint8_t> Packet)
 {
 	//	todo: test for u8/u16/u32 size prefix
-	if ( Packet.GetSize() < 4 )
-	return 0;
+	if ( Packet.size() < 4 )
+		return 0;
 	
 	auto p0 = Packet[0];
 	auto p1 = Packet[1];
@@ -890,10 +891,10 @@ size_t H264::GetNaluLength(const ArrayBridge<uint8_t>& Packet)
 	auto p3 = Packet[3];
 	
 	if ( p0 == 0 && p1 == 0 && p2 == 1 )
-	return 3;
+		return 3;
 	
 	if ( p0 == 0 && p1 == 0 && p2 == 0 && p3 == 1)
-	return 4;
+		return 4;
 	
 	//	couldn't detect, possibly no prefx and it's raw data
 	//	could parse packet type to verify
@@ -901,27 +902,27 @@ size_t H264::GetNaluLength(const ArrayBridge<uint8_t>& Packet)
 }
 
 
-size_t H264::GetNaluAnnexBLength(const ArrayBridge<uint8_t>& Packet)
+size_t H264::GetNaluAnnexBLength(std::span<uint8_t> Packet)
 {
 	//	todo: test for u8/u16/u32 size prefix
-	if ( Packet.GetSize() < 4 )
-	throw Soy::AssertException("Packet not long enough for annexb");
+	if ( Packet.size() < 4 )
+		throw std::runtime_error("Packet not long enough for annexb");
 	
 	auto Data0 = Packet[0];
 	auto Data1 = Packet[1];
 	auto Data2 = Packet[2];
 	auto Data3 = Packet[3];
 	if (Data0 != 0 || Data1 != 0)
-	throw Soy::AssertException("Data is not bytestream NALU header (leading zeroes)");
+		throw std::runtime_error("Data is not bytestream NALU header (leading zeroes)");
 	if (Data2 == 1)
 	return 3;
 	if (Data2 == 0 && Data3 == 1)
-	return 4;
+		return 4;
 	
-	throw Soy::AssertException("Data is not bytestream NALU header (suffix)");
+	throw std::runtime_error("Data is not bytestream NALU header (suffix)");
 }
 
-H264NaluContent::Type H264::GetPacketType(const ArrayBridge<uint8_t>&& Data)
+H264NaluContent::Type H264::GetPacketType(std::span<uint8_t> Data)
 {
 	auto HeaderLength = GetNaluLength(Data);
 	auto TypeAndPriority = Data[HeaderLength];
