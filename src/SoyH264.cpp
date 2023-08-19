@@ -925,6 +925,9 @@ size_t H264::GetNaluAnnexBLength(std::span<uint8_t> Packet)
 H264NaluContent::Type H264::GetPacketType(std::span<uint8_t> Data)
 {
 	auto HeaderLength = GetNaluLength(Data);
+	if ( Data.size() <= HeaderLength )
+		throw std::runtime_error("Not enough data provided for H264::GetPacketType()");
+
 	auto TypeAndPriority = Data[HeaderLength];
 	auto Type = TypeAndPriority & 0x1f;
 	//auto Priority = TypeAndPriority >> 5;
