@@ -111,7 +111,9 @@ void Platform::DebugPrint(const char* String)
 void Platform::DebugPrint(const char* String)
 {
 	OutputDebugStringA( String );
+#if !defined(TARGET_UWP)
 	WriteToParentConsole( String );
+#endif
 }
 #endif
 
