@@ -139,8 +139,7 @@ namespace H264
 	bool		IsKeyframe(H264NaluContent::Type Content) __noexcept;
 	bool		IsKeyframe(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&& Data) __noexcept;
 	
-	TSpsParams	ParseSps(const ArrayBridge<uint8>& Data);
-	TSpsParams	ParseSps(const ArrayBridge<uint8>&& Data);
+	TSpsParams	ParseSps(std::span<uint8> SpsData);
 	
 	//	modify sps!
 	Soy::TVersion	DecodeLevel(uint8 Level8);
@@ -154,10 +153,25 @@ namespace H264
 class H264::TSpsParams
 {
 public:
+	//	gr: I think there's a more complete class somewhere
+	class Rect_t
+	{
+	public:
+		size_t	Left = 0;
+		size_t	Top = 0;
+		size_t	Right = 0;
+		size_t	Bottom = 0;
+	};
+	
+public:
 	size_t				mWidth = 0;
 	size_t				mHeight= 0;
+	Rect_t				mCroppedRect;
 	H264Profile::Type	mProfile = H264Profile::Invalid;
 	Soy::TVersion		mLevel;
+	
+	size_t				GetCroppedWidth() const	{	return mWidth - mCroppedRect.Right - mCroppedRect.Left;	}
+	size_t				GetCroppedHeight() const	{	return mHeight - mCroppedRect.Bottom - mCroppedRect.Top;	}
 	
 	
 	uint8		mConstraintFlag[6] = {0};

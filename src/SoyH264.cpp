@@ -228,16 +228,21 @@ class TBitReader
 {
 public:
 	TBitReader(const ArrayBridge<uint8>& Data) :
-		mData	( Data ),
+		mData	( const_cast<uint8_t*>(Data.GetArray()), Data.GetDataSize() ),
 		mBitPos	( 0 )
 	{
 	}
 	TBitReader(const ArrayBridge<uint8>&& Data) :
+		mData	( const_cast<uint8_t*>(Data.GetArray()), Data.GetDataSize() ),
+		mBitPos	( 0 )
+	{
+	}
+	TBitReader(std::span<uint8> Data) :
 		mData	( Data ),
 		mBitPos	( 0 )
 	{
 	}
-	
+
 	void			Read(uint32& Data,size_t BitCount);
 	void			Read(uint64& Data,size_t BitCount);
 	void			Read(uint8& Data,size_t BitCount);
@@ -250,7 +255,7 @@ public:
 	void			ReadExponentialGolombCodeSigned(sint32& Data);
 	
 private:
-	const ArrayBridge<uint8>&	mData;
+	std::span<uint8_t>	mData;
 	size_t				mBitPos;	//	current bit-to-read/write-pos (the tail)
 };
 
@@ -410,7 +415,7 @@ void TBitReader::Read(uint8& Data,size_t BitCount)
 	auto CurrentBit = mBitPos % 8;
 	
 	//	out of range
-	if ( CurrentByte > mData.GetSize() )
+	if ( CurrentByte > mData.size() )
 		throw std::runtime_error("Reading byte out of range");
 	
 	//	move along
@@ -594,35 +599,34 @@ void Parse(const unsigned char * pStart, unsigned short nLen)
 }
 
 */
-H264::TSpsParams H264::ParseSps(const ArrayBridge<uint8>&& Data)
-{
-	return ParseSps( Data );
-}
 
 
-H264::TSpsParams H264::ParseSps(const ArrayBridge<uint8>& Data)
+H264::TSpsParams H264::ParseSps(std::span<uint8> Data)
 {
 	//	test against the working version from stackoverflow
 	//Parse( Data.GetArray(), Data.GetDataSize() );
 	
 	TSpsParams Params;
 	
-	auto _DataSkipNaluByte = GetRemoteArray( Data.GetArray()+1, Data.GetDataSize()-1 );
-	auto DataSkipNaluByte = GetArrayBridge( _DataSkipNaluByte );
-	bool SkipNaluByte = false;
-	try
+	//	gr: cleaning this code may have broken something somewhere, but an error
+	//		should make updating code much easier
+	//	read out content type, if it's not sps, we're probably providing data with a Nalu prefix,
+	//	which should be stripped
+	H264NaluContent::Type Content = H264NaluContent::Invalid;
+	H264NaluPriority::Type Priority = H264NaluPriority::Invalid;
+	DecodeNaluByte( Data[0], Content, Priority );
+	if ( Content != H264NaluContent::SequenceParameterSet )
 	{
-		H264NaluContent::Type Content;
-		H264NaluPriority::Type Priority;
-		DecodeNaluByte( Data[0], Content, Priority );
-		SkipNaluByte = true;
+		std::stringstream Error;
+		Error << "ParseSps(x" << Data.size() << ") is not SPS (is " << Content << "). Maybe data is prefixed with nalu";
+		throw std::runtime_error(Error.str());
 	}
-	catch (...)
-	{
-	}
-	TBitReader Reader( SkipNaluByte ? DataSkipNaluByte : Data );
+
+	//	SPS data comes after the content/priority
+	//	https://www.cardinalpeak.com/blog/the-h-264-sequence-parameter-set
+	TBitReader Reader( Data.subspan(1) );
 	
-//	http://stackoverflow.com/questions/12018535/get-the-width-height-of-the-video-from-h-264-nalu
+	//	http://stackoverflow.com/questions/12018535/get-the-width-height-of-the-video-from-h-264-nalu
 	uint8 Param8;
 	Reader.Read( Param8, 8 );
 	Params.mProfile = H264Profile::Validate( Param8 );
@@ -737,8 +741,16 @@ H264::TSpsParams H264::ParseSps(const ArrayBridge<uint8>& Data)
 	Reader.Read( Params.vui_prameters_present_flag, 1 );
 	Reader.Read( Params.rbsp_stop_one_bit, 1 );
 	
-	Params.mWidth = ((Params.pic_width_in_mbs_minus_1 +1)*16) - Params.frame_crop_bottom_offset*2 - Params.frame_crop_top_offset*2;
-	Params.mHeight = ((2 - Params.frame_mbs_only_flag)* (Params.pic_height_in_map_units_minus_1 +1) * 16) - (Params.frame_crop_right_offset * 2) - (Params.frame_crop_left_offset * 2);
+	Params.mWidth = ((Params.pic_width_in_mbs_minus_1 +1)*16);
+	Params.mHeight = ((2 - Params.frame_mbs_only_flag)* (Params.pic_height_in_map_units_minus_1 +1) * 16);
+
+	//	gr: check this...
+	//	- why is it two (always aligned?)
+	//	- is bottom correct given textures start at 0,0=topleft or 0,0=bottomleft
+	Params.mCroppedRect.Left = Params.frame_crop_left_offset * 2;
+	Params.mCroppedRect.Top = Params.frame_crop_top_offset * 2;
+	Params.mCroppedRect.Right = Params.frame_crop_right_offset * 2;
+	Params.mCroppedRect.Bottom = Params.frame_crop_bottom_offset * 2;
 
 	
 	return Params;
