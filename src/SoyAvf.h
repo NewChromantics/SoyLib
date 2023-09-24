@@ -35,7 +35,7 @@ namespace Avf
 	std::shared_ptr<TMediaPacket>	GetFormatDescriptionPacket(CMSampleBufferRef SampleBuffer,size_t ParamIndex,SoyMediaFormat::Type Format,size_t StreamIndex);
 	TStreamMeta						GetStreamMeta(CMFormatDescriptionRef FormatDesc);
 	void							GetFormatDescriptionData(std::vector<uint8_t>& Data,CMFormatDescriptionRef FormatDesc,size_t ParamIndex);
-	CFPtr<CMFormatDescriptionRef>	GetFormatDescriptionH264(std::span<uint8_t> Sps,std::span<uint8_t> Pps,H264::NaluPrefix::Type NaluPrefixType);
+	CFPtr<CMFormatDescriptionRef>	GetFormatDescriptionH264(std::span<uint8_t> Sps,std::span<uint8_t> Pps,H264::NaluPrefix::Type NaluPrefixType,bool StripEmulationPrevention);
 
 	CMFormatDescriptionRef			GetFormatDescription(const TStreamMeta& Stream);
 	void							GetMediaType(CMMediaType& MediaType,FourCharCode& MediaCodec,SoyMediaFormat::Type Format);

@@ -329,10 +329,10 @@ std::string Avf::GetString(OSStatus Status)
 	//	corefoundation versions of VT errors
 	switch ( static_cast<sint32>(Status) )
 	{
-		case -8961:	return "kVTPixelTransferNotSupportedErr -8961";
-		case -8969:	return "kVTVideoDecoderBadDataErr -8969";
-		case -8970:	return "kVTVideoDecoderUnsupportedDataFormatErr -8970";
-		case -8960:	return "kVTVideoDecoderMalfunctionErr -8960";
+		case -8961:	return "CoreFoundation kVTPixelTransferNotSupportedErr -8961";
+		case -8969:	return "CoreFoundation kVTVideoDecoderBadDataErr -8969";
+		case -8970:	return "CoreFoundation kVTVideoDecoderUnsupportedDataFormatErr -8970";
+		case -8960:	return "CoreFoundation kVTVideoDecoderMalfunctionErr -8960";
 		default:
 			break;
 	}
@@ -978,7 +978,7 @@ void Avf::IsOkay(OSStatus Error,const char* Context)
 		return;
 	
 	std::stringstream ErrorString;
-	ErrorString << "OSStatus/CVReturn error in " << Context << ": " << GetString(Error);
+	ErrorString << "OSStatus/CVReturn error in " << Context << ": " << GetString(Error) << "(" << Error << ")";
 	
 	throw Soy::AssertException( ErrorString.str() );
 }
@@ -1137,7 +1137,7 @@ CVPixelBufferRef Avf::PixelsToPixelBuffer(const SoyPixelsImpl& Image)
 	return PixelBuffer;
 }
 
-CFPtr<CMFormatDescriptionRef> Avf::GetFormatDescriptionH264(std::span<uint8_t> Sps,std::span<uint8_t> Pps,H264::NaluPrefix::Type NaluPrefixType)
+CFPtr<CMFormatDescriptionRef> Avf::GetFormatDescriptionH264(std::span<uint8_t> Sps,std::span<uint8_t> Pps,H264::NaluPrefix::Type NaluPrefixType,bool StripEmulationPrevention)
 {
 	CFAllocatorRef Allocator = nil;
 	
@@ -1145,12 +1145,30 @@ CFPtr<CMFormatDescriptionRef> Avf::GetFormatDescriptionH264(std::span<uint8_t> S
 	auto SpsPrefixLength = H264::GetNaluLength(Sps);
 	auto PpsPrefixLength = H264::GetNaluLength(Pps);
 	
+	auto SpsNoPrefix = Sps.subspan( SpsPrefixLength );
+	auto PpsNoPrefix = Pps.subspan( PpsPrefixLength );
+
+	//	remove emulation prevention
+	//	https://stackoverflow.com/questions/76281273/kvtvideodecoderbaddataerr-when-using-vtdecompressionsessiondecodeframe-and-h264
+	//	https://stackoverflow.com/a/24890903/355753
+	//	this is when some perfectly valid data contains 0 0 0
+	//	so to prevent this being detected as 001 or 0001 emulation prevention is inserted
+	//	to turn it into 003 or 0030
+	//	Apple apparently will fail if the emulation prevention is still present in SPS or PPS
+	std::vector<uint8_t> SpsNoEmu{ SpsNoPrefix.begin(), SpsNoPrefix.end() };
+	std::vector<uint8_t> PpsNoEmu{ PpsNoPrefix.begin(), PpsNoPrefix.end() };
+	auto StrippedFromSps = H264::StripEmulationPrevention(SpsNoEmu);
+	auto StrippedFromPps = H264::StripEmulationPrevention(PpsNoEmu);
+
+	
+
 	std::array<const uint8_t*,2> Params;
 	std::array<size_t,2> ParamSizes;
-	Params[0] = Sps.data()+SpsPrefixLength;
-	ParamSizes[0] = Sps.size()-SpsPrefixLength;
-	Params[1] = Pps.data()+PpsPrefixLength;
-	ParamSizes[1] = Pps.size()-PpsPrefixLength;
+	Params[0] = StripEmulationPrevention ? SpsNoEmu.data() : SpsNoPrefix.data();
+	ParamSizes[0] = SpsNoEmu.size();
+	Params[1] = StripEmulationPrevention ? PpsNoEmu.data() : PpsNoPrefix.data();
+	ParamSizes[1] = PpsNoEmu.size();
+	
 	
 	//	ios doesnt support annexb, so we will have to convert inputs
 	//	lets use 32 bit nalu size prefix

@@ -147,6 +147,8 @@ namespace H264
 	void			SetSpsLevel(ArrayBridge<uint8>&& Data,Soy::TVersion Level);
 	
 	void			SplitNalu(std::span<uint8_t> Data,std::function<void(std::span<uint8_t>)> OnNalu);
+
+	bool			StripEmulationPrevention(std::vector<uint8_t>& Data);	//	returns true if any data changed
 }
 
 

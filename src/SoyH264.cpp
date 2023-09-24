@@ -859,6 +859,34 @@ size_t H264::GetNextNaluOffset(std::span<uint8_t> Data, size_t StartFrom)
 	return 0;
 }
 
+
+//	returns true if any data changed
+bool H264::StripEmulationPrevention(std::vector<uint8_t>& Data)
+{
+	bool Changed = false;
+	
+	//	https://stackoverflow.com/a/24890903/355753
+	//	this is when some perfectly valid data contains 0 0 0
+	//	so to prevent this being detected as 001 or 0001 emulation
+	//	prevention is inserted to turn it into 003 or 0030
+	for ( auto i=0;	i<Data.size()-2;	i++ )
+	{
+		auto& a = Data[i+0];
+		auto& b = Data[i+1];
+		auto& c = Data[i+2];
+		
+		//	looking for 003
+		if ( a == 0 && b == 0 && c == 3 )
+		{
+			//	change to 000
+			c = 0;
+			Changed = true;
+		}
+	}
+	
+	return Changed;
+}
+
 void H264::SplitNalu(std::span<uint8_t> Data,std::function<void(std::span<uint8_t>)> OnNalu)
 {
 	//	gr: this was happening in android test app, GetSubArray() will throw, so catch it
