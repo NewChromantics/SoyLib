@@ -106,14 +106,17 @@ namespace H264
 	{
 		enum Type
 		{
-			AnnexB		= 0,	//	001 or 0001
-			Eight		= 1,
+			AnnexB001	= 3,	//	byte length
+			AnnexB0001	= 0,	//	magic number
+			
+			Eight		= 1,	//	keep 1,2,4 as the byte-length (for avf input)
 			Sixteen		= 2,
 			ThirtyTwo	= 4
 		};
 	}
+	NaluPrefix::Type		GetNaluPrefix(std::span<uint8_t> Data);
+	size_t					GetNaluLength(NaluPrefix::Type Prefix);
 	size_t					GetNaluLength(std::span<uint8_t> Data);
-	size_t					GetNaluAnnexBLength(std::span<uint8_t> Data);
 	H264NaluContent::Type	GetPacketType(std::span<uint8_t> Data);
 	void					ConvertNaluPrefix(std::vector<uint8_t>& Nalu,H264::NaluPrefix::Type NaluSize);
 	size_t					GetNextNaluOffset(std::span<uint8_t> Data, size_t StartFrom = 3);	//	returns 0 if there is no next
@@ -147,6 +150,7 @@ namespace H264
 	void			SetSpsLevel(ArrayBridge<uint8>&& Data,Soy::TVersion Level);
 	
 	void			SplitNalu(std::span<uint8_t> Data,std::function<void(std::span<uint8_t>)> OnNalu);
+	std::vector<std::span<uint8_t>>	SplitNalu(std::span<uint8_t> Data);
 
 	bool			StripEmulationPrevention(std::vector<uint8_t>& Data);	//	returns true if any data changed
 }

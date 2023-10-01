@@ -1170,16 +1170,33 @@ CFPtr<CMFormatDescriptionRef> Avf::GetFormatDescriptionH264(std::span<uint8_t> S
 	ParamSizes[1] = PpsNoEmu.size();
 	
 	
-	//	ios doesnt support annexb, so we will have to convert inputs
-	//	lets use 32 bit nalu size prefix
-	if ( NaluPrefixType == H264::NaluPrefix::AnnexB )
-		NaluPrefixType = H264::NaluPrefix::ThirtyTwo;
+	//	docs:
+	//	> Size, in bytes, of the NALUnitLength field in an AVC video sample or AVC parameter set sample. Pass 1, 2, or 4.
+	//	so we HAVE to convert data to match this later
+	//	todo: store this [required] input with the format (maybe we can extract it)
 	auto NaluLength = static_cast<int>(NaluPrefixType);
+	if ( NaluLength != 1 && NaluLength != 2 && NaluLength != 4 )
+		throw std::runtime_error("Avf will not accept this nalu type");
+
 	
 	CFPtr<CMFormatDescriptionRef> FormatDesc;
 	//	-12712 http://stackoverflow.com/questions/25078364/cmvideoformatdescriptioncreatefromh264parametersets-issues
 	auto Result = CMVideoFormatDescriptionCreateFromH264ParameterSets( Allocator, Params.size(), Params.data(), ParamSizes.data(), NaluLength, &FormatDesc.mObject );
 	Avf::IsOkay( Result, "CMVideoFormatDescriptionCreateFromH264ParameterSets" );
 	
+	//	for testing, read out the nalu required size again
+	auto FormatNaluType = GetFormatInputNaluPrefix(FormatDesc.mObject);
+	if ( FormatNaluType != NaluPrefixType )
+		throw std::runtime_error("Input nalu type didn't match output nalu type");
+
 	return FormatDesc;
 }
+
+H264::NaluPrefix::Type Avf::GetFormatInputNaluPrefix(CMFormatDescriptionRef Format)
+{
+	int FormatNaluSize = 0;
+	auto Result = CMVideoFormatDescriptionGetH264ParameterSetAtIndex( Format, 0, nullptr, nullptr, nullptr, &FormatNaluSize );
+	Avf::IsOkay( Result, "CMVideoFormat get nalu size" );
+	return static_cast<H264::NaluPrefix::Type>( FormatNaluSize );
+}
+

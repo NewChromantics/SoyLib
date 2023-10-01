@@ -38,6 +38,7 @@ namespace Avf
 	CFPtr<CMFormatDescriptionRef>	GetFormatDescriptionH264(std::span<uint8_t> Sps,std::span<uint8_t> Pps,H264::NaluPrefix::Type NaluPrefixType,bool StripEmulationPrevention);
 
 	CMFormatDescriptionRef			GetFormatDescription(const TStreamMeta& Stream);
+	H264::NaluPrefix::Type			GetFormatInputNaluPrefix(CMFormatDescriptionRef Format);
 	void							GetMediaType(CMMediaType& MediaType,FourCharCode& MediaCodec,SoyMediaFormat::Type Format);
 	CFStringRef						GetProfile(H264Profile::Type Profile,Soy::TVersion Level);
 	NSString* const					GetFormatType(SoyMediaFormat::Type Format);

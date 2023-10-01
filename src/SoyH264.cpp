@@ -1,7 +1,19 @@
 #include "SoyH264.h"
 
 
-
+template <typename T>
+T SwapEndian(T Value)
+{
+	//	MSVCC
+	//	unsigned long _byteswap_ulong(unsigned long value);
+	//	GCC
+	//uint32_t __builtin_bswap32 (uint32_t x)
+	static_assert(std::is_pod<T>::value, "SwapEndian only for POD types");
+	auto* Start = reinterpret_cast<uint8_t*>(&Value);
+	auto* End = Start + sizeof(T);
+	std::reverse(Start, End);
+	return Value;
+}
 
 
 size_t H264::GetNaluLengthSize(SoyMediaFormat::Type Format)
@@ -808,31 +820,61 @@ bool H264::IsKeyframe(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&& Dat
 }
 
 
-void H264::ConvertNaluPrefix(std::vector<uint8_t>& Nalu,H264::NaluPrefix::Type NaluPrefixType)
+
+
+void H264::ConvertNaluPrefix(std::vector<uint8_t>& PacketData,H264::NaluPrefix::Type TargetType)
 {
-	//	assuming annexb, this will throw if not
-	auto PrefixLength = H264::GetNaluAnnexBLength(Nalu);
+	//	detect current prefix
+	auto CurrentType = GetNaluPrefix(PacketData);
 	
-	//	quick implementation for now
-	if ( NaluPrefixType != H264::NaluPrefix::ThirtyTwo )
-		Soy_AssertTodo();
+	//	already correct
+	if ( CurrentType == TargetType )
+		return;
+
+	//	gr: if there are multiple packets, we're going to get a mix of prefixes
+	{
+		auto SubPackets = SplitNalu( PacketData );
+		if ( SubPackets.size() > 1 )
+			throw std::runtime_error("todo: handle multiple nalu packets when changing prefix");
+	}
 	
-	auto NewPrefixSize = static_cast<int>(NaluPrefixType);
+	auto CurrentPrefixLength = GetNaluLength(CurrentType);
+	{
+		//	todo: read length from the prefix of 8/16/32 bit length and check this matches the sub-data
+		//	scoped as this span quickly goes out of date when we resize the data
+		auto Data = std::span(PacketData).subspan( CurrentPrefixLength );
+	}
 	
-	//	pad if prefix was 3 bytes
-	if ( PrefixLength == 3 )
-		Nalu.insert( Nalu.begin(), 0 );
-	
-	else if ( PrefixLength != 4)
-	throw Soy::AssertException("Expecting nalu size of 4");
-	
-	//	write over prefix
-	uint32_t Size32 = size_cast<uint32_t>(Nalu.size() - NewPrefixSize);
-	uint8_t* Size8s = reinterpret_cast<uint8_t*>(&Size32);
-	Nalu[0] = Size8s[3];
-	Nalu[1] = Size8s[2];
-	Nalu[2] = Size8s[1];
-	Nalu[3] = Size8s[0];
+	//	just for simplicity, just do each conversion
+	if ( CurrentType == NaluPrefix::AnnexB001 && TargetType == NaluPrefix::ThirtyTwo )
+	{
+		//	change prefix from 3 to 4 byte
+		PacketData.insert( PacketData.begin(), 0 );
+		
+		uint32_t DataSize = PacketData.size() - 4;
+		//	gr: the length needs to be big endian in avcc, so swap.
+		//		the length should also not include the prefix.
+		auto DataSizeBigEndian = SwapEndian<uint32_t>(DataSize);
+
+		//	write over prefix
+		auto* PacketDataSize = reinterpret_cast<uint32_t*>( std::span(PacketData).data() );
+		*PacketDataSize = DataSizeBigEndian;
+	}
+	else if ( CurrentType == NaluPrefix::AnnexB0001 && TargetType == NaluPrefix::ThirtyTwo )
+	{
+		uint32_t DataSize = PacketData.size() - 4;
+		//	gr: the length needs to be big endian in avcc, so swap.
+		//		the length should also not include the prefix.
+		auto DataSizeBigEndian = SwapEndian<uint32_t>(DataSize);
+
+		//	write over prefix
+		auto* PacketDataSize = reinterpret_cast<uint32_t*>( std::span(PacketData).data() );
+		*PacketDataSize = DataSizeBigEndian;
+	}
+	else
+	{
+		throw std::runtime_error("Unhandled nalu conversion combination");
+	}
 }
 
 size_t H264::GetNextNaluOffset(std::span<uint8_t> Data, size_t StartFrom)
@@ -851,7 +893,7 @@ size_t H264::GetNextNaluOffset(std::span<uint8_t> Data, size_t StartFrom)
 		
 		//	check i-1 for 0 in case it's 0001 rather than 001
 		if (DataPtr[i - 1] == 0)
-		return i - 1;
+			return i - 1;
 		
 		return i;
 	}
@@ -887,6 +929,20 @@ bool H264::StripEmulationPrevention(std::vector<uint8_t>& Data)
 	return Changed;
 }
 
+std::vector<std::span<uint8_t>> H264::SplitNalu(std::span<uint8_t> Data)
+{
+	std::vector<std::span<uint8_t>> Packets;
+	
+	auto OnFoundPacket = [&](std::span<uint8_t> Packet)
+	{
+		Packets.push_back(Packet);
+	};
+	
+	SplitNalu( Data, OnFoundPacket );
+	return Packets;
+}
+
+
 void H264::SplitNalu(std::span<uint8_t> Data,std::function<void(std::span<uint8_t>)> OnNalu)
 {
 	//	gr: this was happening in android test app, GetSubArray() will throw, so catch it
@@ -919,48 +975,51 @@ void H264::SplitNalu(std::span<uint8_t> Data,std::function<void(std::span<uint8_
 
 
 
-size_t H264::GetNaluLength(std::span<uint8_t> Packet)
+H264::NaluPrefix::Type H264::GetNaluPrefix(std::span<uint8_t> Data)
 {
 	//	todo: test for u8/u16/u32 size prefix
-	if ( Packet.size() < 4 )
-		return 0;
+	if ( Data.size() < 4 )
+		throw std::runtime_error("Data too small to determine packet size");
 	
-	auto p0 = Packet[0];
-	auto p1 = Packet[1];
-	auto p2 = Packet[2];
-	auto p3 = Packet[3];
+	auto p0 = Data[0];
+	auto p1 = Data[1];
+	auto p2 = Data[2];
+	auto p3 = Data[3];
 	
 	if ( p0 == 0 && p1 == 0 && p2 == 1 )
-		return 3;
+		return H264::NaluPrefix::AnnexB001;
 	
 	if ( p0 == 0 && p1 == 0 && p2 == 0 && p3 == 1)
-		return 4;
+		return H264::NaluPrefix::AnnexB0001;
 	
-	//	couldn't detect, possibly no prefx and it's raw data
-	//	could parse packet type to verify
-	return 0;
+	throw std::runtime_error("todo: detect nalu prefix that's not 001 or 0001");
 }
 
 
-size_t H264::GetNaluAnnexBLength(std::span<uint8_t> Packet)
+size_t H264::GetNaluLength(NaluPrefix::Type Prefix)
 {
-	//	todo: test for u8/u16/u32 size prefix
-	if ( Packet.size() < 4 )
-		throw std::runtime_error("Packet not long enough for annexb");
-	
-	auto Data0 = Packet[0];
-	auto Data1 = Packet[1];
-	auto Data2 = Packet[2];
-	auto Data3 = Packet[3];
-	if (Data0 != 0 || Data1 != 0)
-		throw std::runtime_error("Data is not bytestream NALU header (leading zeroes)");
-	if (Data2 == 1)
-	return 3;
-	if (Data2 == 0 && Data3 == 1)
-		return 4;
-	
-	throw std::runtime_error("Data is not bytestream NALU header (suffix)");
+	switch( Prefix )
+	{
+		case NaluPrefix::AnnexB0001:
+			return 4;
+			
+		case NaluPrefix::AnnexB001:
+		case NaluPrefix::Eight:
+		case NaluPrefix::Sixteen:
+		case NaluPrefix::ThirtyTwo:
+			return static_cast<size_t>( Prefix );
+			
+		default:
+			throw std::runtime_error("Unknown nalu prefix type");
+	}
 }
+
+size_t H264::GetNaluLength(std::span<uint8_t> Data)
+{
+	auto Type = GetNaluPrefix(Data);
+	return GetNaluLength( Type );
+}
+
 
 H264NaluContent::Type H264::GetPacketType(std::span<uint8_t> Data)
 {
