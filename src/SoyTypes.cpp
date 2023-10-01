@@ -378,7 +378,7 @@ void Platform::IsOkay(int Error,const std::string& Context)
 	std::stringstream ErrorStr;
 	ErrorStr << "Platform error in " << Context << ": " << GetErrorString(Error);
 
-	throw Soy::AssertException(ErrorStr.str());
+	throw std::runtime_error(ErrorStr.str());
 }
 
 void Platform::IsOkay(const std::string& Context)
