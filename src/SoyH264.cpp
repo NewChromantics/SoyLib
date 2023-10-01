@@ -845,31 +845,27 @@ void H264::ConvertNaluPrefix(std::vector<uint8_t>& PacketData,H264::NaluPrefix::
 		auto Data = std::span(PacketData).subspan( CurrentPrefixLength );
 	}
 	
+	auto OverwriteLength32 =[&]()
+	{
+		//	gr: the length needs to be big endian in avcc, so swap.
+		//		the length should also not include the prefix.
+		auto DataSize = PacketData.size() - 4;
+		auto DataSizeBigEndian = SwapEndian<uint32_t>(DataSize);
+		
+		auto* PacketDataSize = reinterpret_cast<uint32_t*>( std::span(PacketData).data() );
+		*PacketDataSize = DataSizeBigEndian;
+	};
+	
 	//	just for simplicity, just do each conversion
 	if ( CurrentType == NaluPrefix::AnnexB001 && TargetType == NaluPrefix::ThirtyTwo )
 	{
 		//	change prefix from 3 to 4 byte
 		PacketData.insert( PacketData.begin(), 0 );
-		
-		uint32_t DataSize = PacketData.size() - 4;
-		//	gr: the length needs to be big endian in avcc, so swap.
-		//		the length should also not include the prefix.
-		auto DataSizeBigEndian = SwapEndian<uint32_t>(DataSize);
-
-		//	write over prefix
-		auto* PacketDataSize = reinterpret_cast<uint32_t*>( std::span(PacketData).data() );
-		*PacketDataSize = DataSizeBigEndian;
+		OverwriteLength32();
 	}
 	else if ( CurrentType == NaluPrefix::AnnexB0001 && TargetType == NaluPrefix::ThirtyTwo )
 	{
-		uint32_t DataSize = PacketData.size() - 4;
-		//	gr: the length needs to be big endian in avcc, so swap.
-		//		the length should also not include the prefix.
-		auto DataSizeBigEndian = SwapEndian<uint32_t>(DataSize);
-
-		//	write over prefix
-		auto* PacketDataSize = reinterpret_cast<uint32_t*>( std::span(PacketData).data() );
-		*PacketDataSize = DataSizeBigEndian;
+		OverwriteLength32();
 	}
 	else
 	{
