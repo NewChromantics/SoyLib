@@ -427,7 +427,7 @@ void TBitReader::Read(uint8& Data,size_t BitCount)
 	auto CurrentBit = mBitPos % 8;
 	
 	//	out of range
-	if ( CurrentByte > mData.size() )
+	if ( CurrentByte >= mData.size() )
 		throw std::runtime_error("Reading byte out of range");
 	
 	//	move along
