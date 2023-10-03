@@ -8,7 +8,7 @@ T SwapEndian(T Value)
 	//	unsigned long _byteswap_ulong(unsigned long value);
 	//	GCC
 	//uint32_t __builtin_bswap32 (uint32_t x)
-	static_assert(std::is_pod<T>::value, "SwapEndian only for POD types");
+	static_assert(std::is_trivially_copyable<T>::value, "SwapEndian only for POD types");
 	auto* Start = reinterpret_cast<uint8_t*>(&Value);
 	auto* End = Start + sizeof(T);
 	std::reverse(Start, End);
