@@ -503,6 +503,8 @@ void TBitReader::Read(uint8& Data,size_t BitCount)
 }
 
 
+//	also see chrome's implementation
+//	https://webrtc.googlesource.com/src/+/d93a51dfaaba5a6f376d2a7f7fa240d3f4083c6b/common_video/h264/sps_parser.cc#112
 void read_scaling_list(TBitReader& b, int* scalingList, int sizeOfScalingList, bool& useDefaultScalingMatrixFlag )
 {
 	// NOTE need to be able to set useDefaultScalingMatrixFlag when reading, hence passing as pointer
@@ -714,6 +716,7 @@ void Parse(const unsigned char * pStart, unsigned short nLen)
 
 //	gr: I feel like this code is from https://github.com/aizvorski/h264bitstream
 //	todo: re-use that lib instead of this copy+pasta
+//	also reference: the google chrome SPS parser https://webrtc.googlesource.com/src/+/d93a51dfaaba5a6f376d2a7f7fa240d3f4083c6b/common_video/h264/sps_parser.cc#118
 H264::TSpsParams H264::ParseSps(std::span<uint8> Data)
 {
 	//	test against the working version from stackoverflow
@@ -839,6 +842,7 @@ H264::TSpsParams H264::ParseSps(std::span<uint8> Data)
 							
 							read_scaling_list( Reader, ScalingList8x8[ i - 6 ], 64, UseDefaultScalingFlag );
 						}
+						
 					}
 				}
 			}
