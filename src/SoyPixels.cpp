@@ -6,7 +6,7 @@
 //#include "SoyMath.h"
 //#include "SoyStream.h"
 #include "SoyImage.h"
-#include "magic_enum/include/magic_enum.hpp"
+#include "magic_enum/include/magic_enum/magic_enum.hpp"
 
 
 

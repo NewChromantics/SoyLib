@@ -16,7 +16,7 @@
 #include <VideoToolbox/VTDecompressionSession.h>
 #include <VideoToolbox/VTErrors.h>
 
-#include "magic_enum/include/magic_enum.hpp"
+#include "magic_enum/include/magic_enum/magic_enum.hpp"
 #include "AvfPixelBuffer.h"
 
 

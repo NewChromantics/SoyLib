@@ -3,7 +3,7 @@
 
 #include <sstream>
 #include "SoyAssert.h"
-#include "magic_enum/include/magic_enum.hpp"
+#include "magic_enum/include/magic_enum/magic_enum.hpp"
 
 /*
 	gr: new SoyEnum system, usage:
