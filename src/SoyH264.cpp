@@ -268,21 +268,19 @@ class TBitReader
 {
 public:
 	TBitReader(const ArrayBridge<uint8>& Data) :
-		mData	( const_cast<uint8_t*>(Data.GetArray()), Data.GetDataSize() ),
-		mBitPos	( 0 )
+		mData	( const_cast<uint8_t*>(Data.GetArray()), Data.GetDataSize() )
 	{
 	}
 	TBitReader(const ArrayBridge<uint8>&& Data) :
-		mData	( const_cast<uint8_t*>(Data.GetArray()), Data.GetDataSize() ),
-		mBitPos	( 0 )
+		mData	( const_cast<uint8_t*>(Data.GetArray()), Data.GetDataSize() )
 	{
 	}
 	TBitReader(std::span<uint8> Data) :
-		mData	( Data ),
-		mBitPos	( 0 )
+		mData	( Data )
 	{
 	}
 
+	bool			ReadBit();
 	void			Read(uint32& Data,size_t BitCount);
 	void			Read(uint64& Data,size_t BitCount);
 	void			Read(uint8& Data,size_t BitCount);
@@ -296,7 +294,11 @@ public:
 	
 private:
 	std::span<uint8_t>	mData;
-	size_t				mBitPos;	//	current bit-to-read/write-pos (the tail)
+	
+	//	current bit-to-read/write-pos (the tail).
+	//	This is absolute, so we get the current byte from this value
+	//	it also means this class is limited to (32/64bit max / 8) byte-sized data
+	size_t				mBitPos = 0;
 };
 
 /*
@@ -377,6 +379,14 @@ void TBitReader::ReadBytes(STORAGE& Data,size_t BitCount)
 	Data = DataBackwardTest;
 }
 
+bool TBitReader::ReadBit()
+{
+	uint8_t Byte = 0;
+	Read( Byte, 1 );
+	return Byte == 1;
+}
+
+
 void TBitReader::Read(uint32& Data,size_t BitCount)
 {
 	//	break up data
@@ -450,6 +460,27 @@ void TBitReader::Read(uint8& Data,size_t BitCount)
 	if ( BitCount > 8 )
 		throw std::runtime_error("trying to read>8 bits to 8bit value");
 	
+	
+	//	if we're on bit [7] and ask for 2 bits, we're going to overflow the byte
+	//	and the code below doesn't handle that.
+	//	quick hack, just read bit by bit
+	//	todo: fix properly
+	{
+		auto CurrentBit = (mBitPos) % 8;
+		auto EndBit = (mBitPos+BitCount-1) % 8;
+		if ( EndBit < CurrentBit )
+		{
+			Data = 0;
+			for ( auto b=0;	b<BitCount;	b++ )
+			{
+				uint8_t BitValue = ReadBit() ? (1<<b) : 0;
+				Data |= BitValue;
+			}
+			return;
+		}
+	}
+	
+	
 	//	current byte
 	auto CurrentByte = mBitPos / 8;
 	auto CurrentBit = mBitPos % 8;
@@ -470,6 +501,45 @@ void TBitReader::Read(uint8& Data,size_t BitCount)
 	Data >>= 8-CurrentBit-BitCount;
 	Data &= (1<<BitCount)-1;
 }
+
+
+void read_scaling_list(TBitReader& b, int* scalingList, int sizeOfScalingList, bool& useDefaultScalingMatrixFlag )
+{
+	// NOTE need to be able to set useDefaultScalingMatrixFlag when reading, hence passing as pointer
+	int lastScale = 8;
+	int nextScale = 8;
+	int delta_scale;
+	for( int j = 0; j < sizeOfScalingList; j++ )
+	{
+		if( nextScale != 0 )
+		{
+			if( false )
+			{
+				nextScale = scalingList[ j ];
+				if (useDefaultScalingMatrixFlag)
+				{
+					nextScale = 0;
+				}
+				delta_scale = (nextScale - lastScale) % 256 ;
+			}
+
+			//delta_scale = bs_read_se(b);
+			b.ReadExponentialGolombCodeSigned(delta_scale);
+
+			if ( true )
+			{
+				nextScale = ( lastScale + delta_scale + 256 ) % 256;
+				useDefaultScalingMatrixFlag = ( j == 0 && nextScale == 0 );
+			}
+		}
+		if( true )
+		{
+			scalingList[ j ] = ( nextScale == 0 ) ? lastScale : nextScale;
+		}
+		lastScale = scalingList[ j ];
+	}
+}
+
 /*
 
 const unsigned char * m_pStart;
@@ -641,6 +711,9 @@ void Parse(const unsigned char * pStart, unsigned short nLen)
 */
 
 
+
+//	gr: I feel like this code is from https://github.com/aizvorski/h264bitstream
+//	todo: re-use that lib instead of this copy+pasta
 H264::TSpsParams H264::ParseSps(std::span<uint8> Data)
 {
 	//	test against the working version from stackoverflow
@@ -712,6 +785,7 @@ H264::TSpsParams H264::ParseSps(std::span<uint8> Data)
 		
 		if (Params.seq_scaling_matrix_present_flag)
 		{
+			/*
 			int i=0;
 			for ( i = 0; i < 8; i++)
 			{
@@ -726,11 +800,45 @@ H264::TSpsParams H264::ParseSps(std::span<uint8> Data)
 					{
 						if (nextScale != 0)
 						{
-							Soy_AssertTodo();
-							//int delta_scale = ReadSE();
-							//nextScale = (lastScale + delta_scale + 256) % 256;
+							//throw std::runtime_error("todo: parse SPS scaling matrix");
+							sint32 delta_scale = 0;
+							Reader.ReadExponentialGolombCodeSigned(delta_scale);
+							nextScale = (lastScale + delta_scale + 256) % 256;
 						}
 						lastScale = (nextScale == 0) ? lastScale : nextScale;
+					}
+				}
+			}
+			 */
+			//	https://github.com/aizvorski/h264bitstream/blob/ae72f7395f328876199a7e928d3b4a6dc6a7ce14/h264_stream.c#L396C9-L415C10
+			if( Params.seq_scaling_matrix_present_flag )
+			{
+				auto MatrixSize = ((Params.chroma_format_idc != 3) ? 8 : 12);
+				for( int i = 0; i < MatrixSize; i++ )
+				{
+					auto seq_scaling_list_present_flag_i = Reader.ReadBit();
+					if( seq_scaling_list_present_flag_i )
+					{
+						//	gr: warning, not initialised in bitstream repos
+						int ScalingList4x4[6][16];
+						int ScalingList8x8[6][64];
+						if( i < 6 )
+						{
+							
+							//	https://github.com/search?q=repo%3Aaizvorski%2Fh264bitstream%20UseDefaultScalingMatrix4x4Flag&type=code
+							//	gr: this seems to never be initialised in reference code
+							//&( sps->UseDefaultScalingMatrix4x4Flag[ i ] ) );
+							bool UseDefaultScalingFlag = false;
+							read_scaling_list( Reader, ScalingList4x4[ i ], 16, UseDefaultScalingFlag );
+						}
+						else
+						{
+							//	gr: this seems to never be initialised in reference code
+							//&sps->UseDefaultScalingMatrix8x8Flag[ i - 6 ]
+							bool UseDefaultScalingFlag = false;
+							
+							read_scaling_list( Reader, ScalingList8x8[ i - 6 ], 64, UseDefaultScalingFlag );
+						}
 					}
 				}
 			}
