@@ -1,6 +1,34 @@
 #include "SoyH264.h"
 
 
+H264Profile::Type H264Profile::Validate(uint8_t Value)
+{
+	switch(Value)
+	{
+		case Baseline:
+		case Main:
+		case High:
+		case High10Intra:
+		case High422Intra:
+		case High4:
+		case High5:
+		case High6:
+		case High7:
+		case High8:
+		case High9:
+		case HighMultiviewDepth:
+		case Profile_444:
+			return static_cast<Type>(Value);
+			
+			//	unknown
+		default:break;
+	}
+	
+	std::stringstream Error;
+	Error << "Unknown/Invalid H264Profile value 0x" << std::hex << Value;
+	throw std::runtime_error(Error.str());
+}
+
 template <typename T>
 T SwapEndian(T Value)
 {

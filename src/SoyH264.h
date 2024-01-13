@@ -3,6 +3,7 @@
 #include "SoyMediaFormat.h"
 #include <span>
 
+
 namespace H264NaluContent
 {
 	enum Type
@@ -93,8 +94,13 @@ namespace H264Profile
 		//	more from/for MediaFoundation for MF_MT_MPEG2_PROFILE
 		Profile_444        = 144,
 	};
-	
-	DECLARE_SOYENUM(H264Profile);
+
+	//	gr: too many problems getting magic_enum to work with 0..255 (default is -128...128)
+	//	https://github.com/Neargye/magic_enum/blob/master/doc/limitations.md
+	//	phasing out magic_enum
+	//DECLARE_SOYENUM(H264Profile);
+	//	gr: this will throw if Value==H264Profile::Invalid
+	Type		Validate(uint8_t Value);
 }
 
 
