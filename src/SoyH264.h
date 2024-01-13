@@ -102,6 +102,8 @@ namespace H264
 {
 	class TSpsParams;
 
+	void UnitTest();		//	throws if any errors
+
 	namespace NaluPrefix
 	{
 		enum Type

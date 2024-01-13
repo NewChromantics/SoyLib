@@ -1055,3 +1055,14 @@ void ReformatDeliminator(ArrayBridge<uint8>& Data,
 }
 
 
+void H264::UnitTest()
+{
+	//	magic_enum wasn't parsing this correctly
+	{
+		const uint8_t ProfileInput = 0xf4;	//	f4 = high
+		auto Profile = H264Profile::Validate(ProfileInput);
+		if ( Profile != H264Profile::High4 )
+			throw std::runtime_error("Failed to parse 0xf4/High profile value");
+	}
+		
+}
