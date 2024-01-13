@@ -5,7 +5,7 @@
 #if defined(TARGET_WINDOWS)
 #include <filesystem>
 #include "SoyThread.h"
-#include "magic_enum/include/magic_enum.hpp"
+#include "magic_enum/include/magic_enum/magic_enum.hpp"
 #endif
 
 #if defined(TARGET_LINUX)
