@@ -1,6 +1,7 @@
 #include "SoyH264.h"
 
 
+
 H264Profile::Type H264Profile::Validate(uint8_t Value)
 {
 	switch(Value)
@@ -1039,7 +1040,7 @@ size_t H264::GetNextNaluOffset(std::span<uint8_t> Data, size_t StartFrom)
 
 
 //	returns true if any data changed
-bool H264::StripEmulationPrevention(std::vector<uint8_t>& Data)
+bool H264::StripEmulationPrevention(std::span<uint8_t> Data)
 {
 	bool Changed = false;
 	
@@ -1165,9 +1166,38 @@ H264NaluContent::Type H264::GetPacketType(std::span<uint8_t> Data)
 
 	auto TypeAndPriority = Data[HeaderLength];
 	auto Type = TypeAndPriority & 0x1f;
+
+	//	todo: check for bad priority value
 	//auto Priority = TypeAndPriority >> 5;
 	
 	auto TypeEnum = static_cast<H264NaluContent::Type>(Type);
+	
+	
+	//	catch bad packet data
+	switch (TypeEnum)
+	{
+		case H264NaluContent::Invalid:
+		case H264NaluContent::Unspecified:
+		case H264NaluContent::Reserved14:
+		case H264NaluContent::Reserved15:
+		case H264NaluContent::Reserved16:
+		case H264NaluContent::Reserved17:
+		case H264NaluContent::Reserved18:
+		case H264NaluContent::Reserved20:
+		case H264NaluContent::Reserved21:
+		case H264NaluContent::Reserved22:
+		case H264NaluContent::Reserved23:
+		case H264NaluContent::Unspecified30:
+		case H264NaluContent::Unspecified31:
+		{
+			std::stringstream Error;
+			Error << "Decoded invalid H264 content type " << H264NaluContent::ToString(TypeEnum);
+			throw std::runtime_error(Error.str());
+		}
+		default:
+			break;
+	}
+	
 	return TypeEnum;
 }
 

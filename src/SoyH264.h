@@ -45,6 +45,8 @@ namespace H264NaluContent
 		Unspecified30				= 30,
 		Unspecified31				= 31,
 	};
+
+	bool		IsValidContent(Type t);	//	return false for reserved, invalid etc
 	
 	DECLARE_SOYENUM(H264NaluContent);
 }
@@ -110,6 +112,7 @@ namespace H264
 
 	void UnitTest();		//	throws if any errors
 
+	//	nalu prefix is same in h264 & Hevc
 	namespace NaluPrefix
 	{
 		enum Type
@@ -160,7 +163,7 @@ namespace H264
 	void			SplitNalu(std::span<uint8_t> Data,std::function<void(std::span<uint8_t>)> OnNalu);
 	std::vector<std::span<uint8_t>>	SplitNalu(std::span<uint8_t> Data);
 
-	bool			StripEmulationPrevention(std::vector<uint8_t>& Data);	//	returns true if any data changed
+	bool			StripEmulationPrevention(std::span<uint8_t> Data);	//	returns true if any data changed
 }
 
 

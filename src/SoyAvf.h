@@ -4,6 +4,7 @@
 #include <CoreVideo/CoreVideo.h>
 #include "SoyMedia.h"
 #include "SoyH264.h"
+#include "SoyHevc.hpp"
 #include "Array.hpp"
 #include "SoyPixels.h"
 #include "SoyFourcc.h"
@@ -16,6 +17,33 @@ class NSString;
 class NSNumber;
 class id;
 #endif
+
+
+
+namespace Hevc
+{
+	class Headers_t
+	{
+	public:
+		std::span<uint8_t>	mVps;
+		std::span<uint8_t>	mSps;
+		std::span<uint8_t>	mPps;
+		std::span<uint8_t>	mPrefixSei;
+		std::span<uint8_t>	mSuffixSei;
+		//	32 (video parameter set),
+		//	33 (sequence parameter set),
+		//	34 (picture parameter set),
+		//	39 (prefix SEI) and
+		//	40 (suffix SEI). At least one of each parameter set must be provided.
+		
+		bool	IsComplete();
+		void 	StripNaluPrefixes();
+		void	StripEmulationPrevention();
+		std::array<const uint8_t*,5>	GetArrays();
+		std::array<size_t,5>			GetSizes();
+	};
+}
+
 
 namespace Avf
 {
@@ -36,9 +64,11 @@ namespace Avf
 	TStreamMeta						GetStreamMeta(CMFormatDescriptionRef FormatDesc);
 	void							GetFormatDescriptionData(std::vector<uint8_t>& Data,CMFormatDescriptionRef FormatDesc,size_t ParamIndex);
 	CFPtr<CMFormatDescriptionRef>	GetFormatDescriptionH264(std::span<uint8_t> Sps,std::span<uint8_t> Pps,H264::NaluPrefix::Type NaluPrefixType,bool StripEmulationPrevention);
+	CFPtr<CMFormatDescriptionRef>	GetFormatDescriptionHevc(Hevc::Headers_t Headers,H264::NaluPrefix::Type NaluPrefixType,bool StripEmulationPrevention);
 
 	CMFormatDescriptionRef			GetFormatDescription(const TStreamMeta& Stream);
-	H264::NaluPrefix::Type			GetFormatInputNaluPrefix(CMFormatDescriptionRef Format);
+	H264::NaluPrefix::Type			GetFormatInputH264NaluPrefix(CMFormatDescriptionRef Format);
+	H264::NaluPrefix::Type			GetFormatInputHevcNaluPrefix(CMFormatDescriptionRef Format);
 	void							GetMediaType(CMMediaType& MediaType,FourCharCode& MediaCodec,SoyMediaFormat::Type Format);
 	CFStringRef						GetProfile(H264Profile::Type Profile,Soy::TVersion Level);
 	NSString* const					GetFormatType(SoyMediaFormat::Type Format);

@@ -1185,18 +1185,156 @@ CFPtr<CMFormatDescriptionRef> Avf::GetFormatDescriptionH264(std::span<uint8_t> S
 	Avf::IsOkay( Result, "CMVideoFormatDescriptionCreateFromH264ParameterSets" );
 	
 	//	for testing, read out the nalu required size again
-	auto FormatNaluType = GetFormatInputNaluPrefix(FormatDesc.mObject);
+	auto FormatNaluType = GetFormatInputH264NaluPrefix(FormatDesc.mObject);
 	if ( FormatNaluType != NaluPrefixType )
 		throw std::runtime_error("Input nalu type didn't match output nalu type");
 
 	return FormatDesc;
 }
 
-H264::NaluPrefix::Type Avf::GetFormatInputNaluPrefix(CMFormatDescriptionRef Format)
+
+	
+
+bool Hevc::Headers_t::IsComplete()
+{
+	std::array Sets =
+	{
+		&mVps, &mSps, &mPps, &mPrefixSei, &mSuffixSei
+	};
+	for ( auto pSet : Sets )
+	{
+		auto& Set = *pSet;
+		if ( Set.empty() )
+			return false;
+	}
+	return true;
+}
+std::array<const uint8_t*,5> Hevc::Headers_t::GetArrays()
+{
+	std::array<const uint8_t*,5> Arrays
+	{
+		mVps.data(),
+		mSps.data(),
+		mPps.data(),
+		mPrefixSei.data(),
+		mSuffixSei.data(),
+	};
+	return Arrays;
+}
+
+std::array<size_t,5> Hevc::Headers_t::GetSizes()
+{
+	std::array Arrays
+	{
+		mVps.size_bytes(),
+		mSps.size_bytes(),
+		mPps.size_bytes(),
+		mPrefixSei.size_bytes(),
+		mSuffixSei.size_bytes(),
+	};
+	return Arrays;
+}
+
+void Hevc::Headers_t::StripNaluPrefixes()
+{
+	std::array Sets =
+	{
+		&mVps, &mSps, &mPps, &mPrefixSei, &mSuffixSei
+	};
+	for ( auto pSet : Sets )
+	{
+		auto& Set = *pSet;
+		auto PrefixLength = H264::GetNaluLength(Set);
+		Set = Set.subspan( PrefixLength );
+	}
+}
+
+void Hevc::Headers_t::StripEmulationPrevention()
+{
+	std::array Sets =
+	{
+		&mVps, &mSps, &mPps, &mPrefixSei, &mSuffixSei
+	};
+	for ( auto pSet : Sets )
+	{
+		auto& Set = *pSet;
+		H264::StripEmulationPrevention(Set);
+	}
+}
+
+CFPtr<CMFormatDescriptionRef> Avf::GetFormatDescriptionHevc(Hevc::Headers_t Headers,H264::NaluPrefix::Type NaluPrefixType,bool StripEmulationPrevention)
+{
+	CFAllocatorRef Allocator = nil;
+
+	//	apple docs: (header)
+	//	The parameter sets' data can come from raw NAL units and must have any emulation prevention bytes needed.
+	//	The supported NAL unit types to be included in the format description are
+	//	32 (video parameter set),
+	//	33 (sequence parameter set),
+	//	34 (picture parameter set),
+	//	39 (prefix SEI) and
+	//	40 (suffix SEI). At least one of each parameter set must be provided.
+
+	Headers.StripNaluPrefixes();
+	
+	//	stripped buffers
+	Hevc::Headers_t StrippedHeaders;
+	std::vector<uint8_t> VpsCopy( Headers.mVps.begin(), Headers.mVps.end() );
+	std::vector<uint8_t> SpsCopy( Headers.mSps.begin(), Headers.mSps.end() );
+	std::vector<uint8_t> PpsCopy( Headers.mPps.begin(), Headers.mPps.end() );
+	std::vector<uint8_t> PrefixSeiCopy( Headers.mPrefixSei.begin(), Headers.mPrefixSei.end() );
+	std::vector<uint8_t> SuffixSeiCopy( Headers.mSuffixSei.begin(), Headers.mSuffixSei.end() );
+	StrippedHeaders.mVps = VpsCopy;
+	StrippedHeaders.mSps = SpsCopy;
+	StrippedHeaders.mPps = PpsCopy;
+	StrippedHeaders.mPrefixSei = PrefixSeiCopy;
+	StrippedHeaders.mSuffixSei = SuffixSeiCopy;
+
+	if ( StripEmulationPrevention )
+	{
+		StrippedHeaders.StripEmulationPrevention();
+		Headers = StrippedHeaders;
+	}
+
+	auto Params = Headers.GetArrays();
+	auto ParamSizes = Headers.GetSizes();
+
+	//	docs:
+	//	> Size, in bytes, of the NALUnitLength field in an AVC video sample or AVC parameter set sample. Pass 1, 2, or 4.
+	//	so we HAVE to convert data to match this later
+	//	todo: store this [required] input with the format (maybe we can extract it)
+	auto NaluLength = static_cast<int>(NaluPrefixType);
+	if ( NaluLength != 1 && NaluLength != 2 && NaluLength != 4 )
+		throw std::runtime_error("Avf will not accept this nalu type");
+
+
+	CFDictionaryRef extensions = nullptr;
+	
+	CFPtr<CMFormatDescriptionRef> FormatDesc;
+	auto Result = CMVideoFormatDescriptionCreateFromHEVCParameterSets( Allocator, Params.size(), Params.data(), ParamSizes.data(), NaluLength, extensions, &FormatDesc.mObject );
+	Avf::IsOkay( Result, "CMVideoFormatDescriptionCreateFromHEVCParameterSets" );
+	
+	//	for testing, read out the nalu required size again
+	auto FormatNaluType = GetFormatInputHevcNaluPrefix(FormatDesc.mObject);
+	if ( FormatNaluType != NaluPrefixType )
+		throw std::runtime_error("Input nalu type didn't match output nalu type");
+
+	return FormatDesc;
+}
+
+H264::NaluPrefix::Type Avf::GetFormatInputH264NaluPrefix(CMFormatDescriptionRef Format)
 {
 	int FormatNaluSize = 0;
 	auto Result = CMVideoFormatDescriptionGetH264ParameterSetAtIndex( Format, 0, nullptr, nullptr, nullptr, &FormatNaluSize );
-	Avf::IsOkay( Result, "CMVideoFormat get nalu size" );
+	Avf::IsOkay( Result, "CMVideoFormat get nalu size CMVideoFormatDescriptionGetH264ParameterSetAtIndex" );
+	return static_cast<H264::NaluPrefix::Type>( FormatNaluSize );
+}
+
+H264::NaluPrefix::Type Avf::GetFormatInputHevcNaluPrefix(CMFormatDescriptionRef Format)
+{
+	int FormatNaluSize = 0;
+	auto Result = CMVideoFormatDescriptionGetHEVCParameterSetAtIndex( Format, 0, nullptr, nullptr, nullptr, &FormatNaluSize );
+	Avf::IsOkay( Result, "CMVideoFormat get nalu size CMVideoFormatDescriptionGetHevcParameterSetAtIndex" );
 	return static_cast<H264::NaluPrefix::Type>( FormatNaluSize );
 }
 
