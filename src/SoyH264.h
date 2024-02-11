@@ -4,6 +4,39 @@
 #include <span>
 
 
+//	gr: why isn't this in its own file
+class TBitReader
+{
+public:
+	TBitReader(std::span<uint8_t> Data) :
+		mData	( Data )
+	{
+	}
+
+	bool			ReadBit();
+	void			Read(uint32_t& Data,size_t BitCount);
+	void			Read(uint64_t& Data,size_t BitCount);
+	void			Read(uint8_t& Data,size_t BitCount);
+	uint32_t		Read(size_t BitCount)	{	uint32_t Value;	Read(Value,BitCount);	return Value;	}
+	size_t			BitPosition() const					{	return mBitPos;	}
+	
+	template<int BYTECOUNT,typename STORAGE>
+	void			ReadBytes(STORAGE& Data,size_t BitCount);
+
+	void			ReadExponentialGolombCode(uint32_t& Data);
+	void			ReadExponentialGolombCodeSigned(int32_t& Data);
+	
+private:
+	std::span<uint8_t>	mData;
+	
+	//	current bit-to-read/write-pos (the tail).
+	//	This is absolute, so we get the current byte from this value
+	//	it also means this class is limited to (32/64bit max / 8) byte-sized data
+	size_t				mBitPos = 0;
+};
+
+
+
 namespace H264NaluContent
 {
 	enum Type
@@ -128,9 +161,12 @@ namespace H264
 	NaluPrefix::Type		GetNaluPrefix(std::span<uint8_t> Data);
 	size_t					GetNaluLength(NaluPrefix::Type Prefix);
 	size_t					GetNaluLength(std::span<uint8_t> Data);
-	H264NaluContent::Type	GetPacketType(std::span<uint8_t> Data);
+	H264NaluContent::Type	GetPacketType(std::span<uint8_t> Data,bool ExpectingNalu=true);
 	void					ConvertNaluPrefix(std::vector<uint8_t>& Nalu,H264::NaluPrefix::Type NaluSize);
 	size_t					GetNextNaluOffset(std::span<uint8_t> Data, size_t StartFrom = 3);	//	returns 0 if there is no next
+
+	//	checks is nalu AND is valid h264 content
+	bool					IsNaluH264(std::span<uint8_t> Data);
 
 	
 	bool		ResolveH264Format(SoyMediaFormat::Type& Format,ArrayBridge<uint8>& Data);

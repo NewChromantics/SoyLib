@@ -265,42 +265,6 @@ void H264::DecodeNaluByte(SoyMediaFormat::Type Format,const ArrayBridge<uint8>&&
 	DecodeNaluByte( Data[HeaderSize], Content, Priority );
 }
 
-class TBitReader
-{
-public:
-	TBitReader(const ArrayBridge<uint8>& Data) :
-		mData	( const_cast<uint8_t*>(Data.GetArray()), Data.GetDataSize() )
-	{
-	}
-	TBitReader(const ArrayBridge<uint8>&& Data) :
-		mData	( const_cast<uint8_t*>(Data.GetArray()), Data.GetDataSize() )
-	{
-	}
-	TBitReader(std::span<uint8> Data) :
-		mData	( Data )
-	{
-	}
-
-	bool			ReadBit();
-	void			Read(uint32& Data,size_t BitCount);
-	void			Read(uint64& Data,size_t BitCount);
-	void			Read(uint8& Data,size_t BitCount);
-	size_t			BitPosition() const					{	return mBitPos;	}
-	
-	template<int BYTECOUNT,typename STORAGE>
-	void			ReadBytes(STORAGE& Data,size_t BitCount);
-
-	void			ReadExponentialGolombCode(uint32& Data);
-	void			ReadExponentialGolombCodeSigned(sint32& Data);
-	
-private:
-	std::span<uint8_t>	mData;
-	
-	//	current bit-to-read/write-pos (the tail).
-	//	This is absolute, so we get the current byte from this value
-	//	it also means this class is limited to (32/64bit max / 8) byte-sized data
-	size_t				mBitPos = 0;
-};
 
 /*
 unsigned int ReadBit()
@@ -314,7 +278,7 @@ unsigned int ReadBit()
 }
 */
 
-void TBitReader::ReadExponentialGolombCode(uint32& Data)
+void TBitReader::ReadExponentialGolombCode(uint32_t& Data)
 {
 	int i = 0;
 	
@@ -353,7 +317,7 @@ void TBitReader::ReadBytes(STORAGE& Data,size_t BitCount)
 	//	gr: definitly correct
 	Data = 0;
 	
-	BufferArray<uint8,BYTECOUNT> Bytes;
+	BufferArray<uint8_t,BYTECOUNT> Bytes;
 	int ComponentBitCount = size_cast<int>(BitCount);
 	while ( ComponentBitCount > 0 )
 	{
@@ -388,12 +352,12 @@ bool TBitReader::ReadBit()
 }
 
 
-void TBitReader::Read(uint32& Data,size_t BitCount)
+void TBitReader::Read(uint32_t& Data,size_t BitCount)
 {
 	//	break up data
 	if ( BitCount <= 8 )
 	{
-		uint8 Data8;
+		uint8_t Data8;
 		Read( Data8, BitCount );
 		Data = Data8;
 		return;
@@ -419,11 +383,11 @@ void TBitReader::Read(uint32& Data,size_t BitCount)
 	
 	std::stringstream Error;
 	Error << __func__ << " not handling bit count > 32; " << BitCount;
-	throw Soy::AssertException( Error.str() );
+	throw std::runtime_error( Error.str() );
 }
 
 
-void TBitReader::Read(uint64& Data,size_t BitCount)
+void TBitReader::Read(uint64_t& Data,size_t BitCount)
 {
 	if ( BitCount <= 8 )
 	{
@@ -451,10 +415,10 @@ void TBitReader::Read(uint64& Data,size_t BitCount)
 	
 	std::stringstream Error;
 	Error << __func__ << " not handling bit count > 32; " << BitCount;
-	throw Soy::AssertException( Error.str() );
+	throw std::runtime_error( Error.str() );
 }
 
-void TBitReader::Read(uint8& Data,size_t BitCount)
+void TBitReader::Read(uint8_t& Data,size_t BitCount)
 {
 	if ( BitCount <= 0 )
 		return;
