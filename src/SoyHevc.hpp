@@ -100,6 +100,7 @@ namespace Hevc
 			EndOfStream = NAL_UNIT_EOS
 		};
 
+		DECLARE_SOYENUM(NaluContent);
 	};
 	namespace NaluTemporalId
 	{
@@ -112,6 +113,8 @@ namespace Hevc
 		};
 	};
 
-	NaluContent::Type	GetPacketType(std::span<uint8_t> Nalu);
+	NaluContent::Type	GetPacketType(std::span<uint8_t> Nalu,bool ExpectingNalu);
 
+	//	checks is nalu AND is valid h264 content
+	bool				IsNaluHevc(std::span<uint8_t> Data);
 }

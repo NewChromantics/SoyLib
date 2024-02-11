@@ -1122,13 +1122,15 @@ size_t H264::GetNaluLength(std::span<uint8_t> Data)
 }
 
 
-H264NaluContent::Type H264::GetPacketType(std::span<uint8_t> Data)
+H264NaluContent::Type H264::GetPacketType(std::span<uint8_t> Data,bool ExpectingNalu)
 {
-	auto HeaderLength = GetNaluLength(Data);
-	if ( Data.size() <= HeaderLength )
+	auto HeaderLength = 1;
+	auto NaluLength = ExpectingNalu ? GetNaluLength(Data) : 0;
+	if ( Data.size() <= NaluLength + HeaderLength )
 		throw std::runtime_error("Not enough data provided for H264::GetPacketType()");
 
-	auto TypeAndPriority = Data[HeaderLength];
+	auto HeaderStart = NaluLength;
+	auto TypeAndPriority = Data[HeaderStart];
 	auto Type = TypeAndPriority & 0x1f;
 
 	//	todo: check for bad priority value
@@ -1199,4 +1201,22 @@ void H264::UnitTest()
 			throw std::runtime_error("Failed to parse 0xf4/High profile value");
 	}
 		
+}
+
+bool H264::IsNaluH264(std::span<uint8_t> Data)
+{
+	try
+	{
+		auto NaluType = H264::GetNaluPrefix(Data);
+		auto NaluLength = H264::GetNaluLength(NaluType);
+		auto H264Data = Data.subspan( NaluLength );
+		bool ExpectingNalu = false;
+		auto H264Type = GetPacketType(H264Data,ExpectingNalu);
+		return true;
+	}
+	catch(std::exception& e)
+	{
+		std::cerr << "Is not nalu+h264 data; " << e.what() << std::endl;
+		return false;
+	}
 }

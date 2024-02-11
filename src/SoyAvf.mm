@@ -1199,7 +1199,9 @@ bool Hevc::Headers_t::IsComplete()
 {
 	std::array Sets =
 	{
-		&mVps, &mSps, &mPps, &mPrefixSei, &mSuffixSei
+		&mVps, &mSps, &mPps, &mPrefixSei,
+		//	gr: h265 stream from ffmpeg has no suffix, then has IDR
+		//&mSuffixSei
 	};
 	for ( auto pSet : Sets )
 	{
@@ -1209,20 +1211,18 @@ bool Hevc::Headers_t::IsComplete()
 	}
 	return true;
 }
-std::array<const uint8_t*,5> Hevc::Headers_t::GetArrays()
+std::vector<const uint8_t*> Hevc::Headers_t::GetArrays()
 {
-	std::array<const uint8_t*,5> Arrays
+	std::array Arrays =
 	{
-		mVps.data(),
-		mSps.data(),
-		mPps.data(),
-		mPrefixSei.data(),
-		mSuffixSei.data(),
+		mVps.data(), mSps.data(), mPps.data(), mPrefixSei.data(),
+		//	gr: h265 stream from ffmpeg has no suffix, then has IDR
+		//&mSuffixSei
 	};
-	return Arrays;
+	return std::vector<const uint8_t*>( Arrays.begin(), Arrays.end() );
 }
 
-std::array<size_t,5> Hevc::Headers_t::GetSizes()
+std::vector<size_t> Hevc::Headers_t::GetSizes()
 {
 	std::array Arrays
 	{
@@ -1230,9 +1230,9 @@ std::array<size_t,5> Hevc::Headers_t::GetSizes()
 		mSps.size_bytes(),
 		mPps.size_bytes(),
 		mPrefixSei.size_bytes(),
-		mSuffixSei.size_bytes(),
+		//mSuffixSei.size_bytes(),
 	};
-	return Arrays;
+	return std::vector<size_t>( Arrays.begin(), Arrays.end() );
 }
 
 void Hevc::Headers_t::StripNaluPrefixes()
@@ -1244,6 +1244,8 @@ void Hevc::Headers_t::StripNaluPrefixes()
 	for ( auto pSet : Sets )
 	{
 		auto& Set = *pSet;
+		if ( Set.empty() )
+			continue;
 		auto PrefixLength = H264::GetNaluLength(Set);
 		Set = Set.subspan( PrefixLength );
 	}
@@ -1258,6 +1260,8 @@ void Hevc::Headers_t::StripEmulationPrevention()
 	for ( auto pSet : Sets )
 	{
 		auto& Set = *pSet;
+		if ( Set.empty() )
+			continue;
 		H264::StripEmulationPrevention(Set);
 	}
 }

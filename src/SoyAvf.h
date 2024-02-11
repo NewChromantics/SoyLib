@@ -39,8 +39,8 @@ namespace Hevc
 		bool	IsComplete();
 		void 	StripNaluPrefixes();
 		void	StripEmulationPrevention();
-		std::array<const uint8_t*,5>	GetArrays();
-		std::array<size_t,5>			GetSizes();
+		std::vector<const uint8_t*>	GetArrays();
+		std::vector<size_t>			GetSizes();
 	};
 }
 

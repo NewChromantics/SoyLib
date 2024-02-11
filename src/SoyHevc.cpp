@@ -50,39 +50,32 @@ std::array BadTypes =
 }
 }
 
-Hevc::NaluContent::Type Hevc::GetPacketType(std::span<uint8_t> Data)
+Hevc::NaluContent::Type Hevc::GetPacketType(std::span<uint8_t> Data,bool ExpectingNalu)
 {
-	auto HevcHeaderSize = 2;
+	auto HeaderSize = 2;
+	auto NaluSize = ExpectingNalu ? H264::GetNaluLength(Data) : 0;
 	
-	auto HeaderLength = H264::GetNaluLength(Data);
-	if ( Data.size() <= HeaderLength + HevcHeaderSize )
+	if ( Data.size() <= NaluSize + HeaderSize )
 		throw std::runtime_error("Not enough data provided for H264::GetPacketType()");
 
-	//	Nalu content type is the type in the 2 byte nalu-header
-	//	0001|NaluContentType2|HevcData
-	//	0|Typex5|000000|TIDx3
-	uint8_t HeaderA = Data[HeaderLength+0];
-	uint8_t HeaderB = Data[HeaderLength+1];
+	auto HeaderStart = NaluSize;
+	
+	TBitReader Reader( Data.subspan(HeaderStart,2) );
+	auto ForbiddenZero = Reader.ReadBit();
+	auto ContentType = Reader.Read(6);
+	auto Layer = Reader.Read(6);
+	auto TemporalIdPlusOne = Reader.Read(3);
 
-	//	first bit, and last 2 are 0
-	auto ForbiddenZeroA = HeaderA & (0x1);
-	auto Type5 = (HeaderA >> 1) & 0x1f;	//	& 5 bits
-	auto ReservedZeroA = HeaderA & (0xc0);
-
-	//	first 4 are 0
-	auto ReservedZeroB = HeaderB & (0xf);	//	4 bits
-	auto Tid3 = (HeaderB >> 4) & 0x7;	//	& 3 bits
-
-	if ( ForbiddenZeroA != 0 )
+	if ( ForbiddenZero != 0 )
 		throw std::runtime_error("Hevc Nalu header forbidden zero is not zero");
-	if ( ReservedZeroA != 0 )
-		throw std::runtime_error("Hevc Nalu header reserved A is not zero");
-	if ( ReservedZeroB != 0 )
-		throw std::runtime_error("Hevc Nalu header reserved B is not zero");
+	//if ( Layer != 0 )
+	//	throw std::runtime_error("Hevc Nalu header Layer is not zero");
+	if ( TemporalIdPlusOne == 0 )
+		throw std::runtime_error("TemporalIdPlusOne is zero");
 
 	
-	auto TypeEnum = static_cast<Hevc::NaluContent::Type>(Type5);
-	auto TidEnum = static_cast<Hevc::NaluTemporalId::Type>(Tid3);
+	auto TypeEnum = static_cast<Hevc::NaluContent::Type>(ContentType);
+	auto TidEnum = static_cast<Hevc::NaluTemporalId::Type>(TemporalIdPlusOne);
 	
 	//	catch bad packet data
 	if ( std::find( NaluContent::BadTypes.begin(), NaluContent::BadTypes.end(), TypeEnum ) != NaluContent::BadTypes.end() )
@@ -93,4 +86,22 @@ Hevc::NaluContent::Type Hevc::GetPacketType(std::span<uint8_t> Data)
 	}
 	
 	return TypeEnum;
+}
+
+bool Hevc::IsNaluHevc(std::span<uint8_t> Data)
+{
+	try 
+	{
+		auto NaluType = H264::GetNaluPrefix(Data);
+		auto NaluLength = H264::GetNaluLength(NaluType);
+		auto HevcData = Data.subspan( NaluLength );
+		bool ExpectingNalu = false;
+		auto HevcType = GetPacketType(HevcData,ExpectingNalu);
+		return true;
+	}
+	catch(std::exception& e)
+	{
+		std::cerr << "Is not nalu+hevc data; " << e.what() << std::endl;
+		return false;
+	}
 }
