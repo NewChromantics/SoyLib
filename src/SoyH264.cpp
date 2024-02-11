@@ -1216,7 +1216,7 @@ bool H264::IsNaluH264(std::span<uint8_t> Data)
 	}
 	catch(std::exception& e)
 	{
-		std::cerr << "Is not nalu+h264 data; " << e.what() << std::endl;
+		//std::cerr << "Is not nalu+h264 data; " << e.what() << std::endl;
 		return false;
 	}
 }

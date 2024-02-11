@@ -50,7 +50,9 @@ std::array BadTypes =
 }
 }
 
-Hevc::NaluContent::Type Hevc::GetPacketType(std::span<uint8_t> Data,bool ExpectingNalu)
+
+
+Hevc::PacketMeta_t Hevc::GetPacketMeta(std::span<uint8_t> Data,bool ExpectingNalu)
 {
 	auto HeaderSize = 2;
 	auto NaluSize = ExpectingNalu ? H264::GetNaluLength(Data) : 0;
@@ -68,24 +70,26 @@ Hevc::NaluContent::Type Hevc::GetPacketType(std::span<uint8_t> Data,bool Expecti
 
 	if ( ForbiddenZero != 0 )
 		throw std::runtime_error("Hevc Nalu header forbidden zero is not zero");
+	//	layer is non zero with vision pro files
 	//if ( Layer != 0 )
 	//	throw std::runtime_error("Hevc Nalu header Layer is not zero");
 	if ( TemporalIdPlusOne == 0 )
 		throw std::runtime_error("TemporalIdPlusOne is zero");
 
-	
-	auto TypeEnum = static_cast<Hevc::NaluContent::Type>(ContentType);
-	auto TidEnum = static_cast<Hevc::NaluTemporalId::Type>(TemporalIdPlusOne);
+	Hevc::PacketMeta_t Meta;
+	Meta.mContentType = static_cast<Hevc::NaluContent::Type>(ContentType);
+	Meta.mTemporalId = static_cast<Hevc::NaluTemporalId::Type>(TemporalIdPlusOne);
+	Meta.mLayer = Layer;
 	
 	//	catch bad packet data
-	if ( std::find( NaluContent::BadTypes.begin(), NaluContent::BadTypes.end(), TypeEnum ) != NaluContent::BadTypes.end() )
+	if ( std::find( NaluContent::BadTypes.begin(), NaluContent::BadTypes.end(), Meta.mContentType ) != NaluContent::BadTypes.end() )
 	{
 		std::stringstream Error;
 		Error << "Decoded invalid Hevc content type ";// << H264NaluContent::ToString(TypeEnum);
 		throw std::runtime_error(Error.str());
 	}
 	
-	return TypeEnum;
+	return Meta;
 }
 
 bool Hevc::IsNaluHevc(std::span<uint8_t> Data)

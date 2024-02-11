@@ -113,7 +113,16 @@ namespace Hevc
 		};
 	};
 
-	NaluContent::Type	GetPacketType(std::span<uint8_t> Nalu,bool ExpectingNalu);
+	class PacketMeta_t
+	{
+	public:
+		NaluContent::Type		mContentType = NaluContent::Invalid;
+		int						mLayer = 0;
+		NaluTemporalId::Type	mTemporalId = NaluTemporalId::Invalid;
+	};
+	PacketMeta_t				GetPacketMeta(std::span<uint8_t> Nalu,bool ExpectingNalu);
+	inline NaluContent::Type	GetPacketType(std::span<uint8_t> Nalu,bool ExpectingNalu)	{	auto Meta = GetPacketMeta(Nalu,ExpectingNalu);	return Meta.mContentType;	}
+
 
 	//	checks is nalu AND is valid h264 content
 	bool				IsNaluHevc(std::span<uint8_t> Data);
